@@ -33,7 +33,7 @@ import {
   AttachMoney,
   Visibility,
   FilePresent,
-  PictureAsPdf,
+  PictureAsPdf as PictureAsPdfIcon,
   Image as ImageIcon,
   Close as CloseIcon,
   Receipt as ReceiptIcon,
@@ -71,19 +71,28 @@ const PaymentPopupPremium = ({
   useEffect(() => {
     if (open && commitment) {
       const hasReceipt = !!(commitment.receiptUrl || commitment.receiptMetadata);
-      setHasExistingReceipt(hasReceipt);
+      const receiptUrl = commitment.receiptUrl || null;
+      const receiptMetadata = commitment.receiptMetadata || null;
       
-      if (hasReceipt) {
-        setExistingReceiptUrl(commitment.receiptUrl);
-        setExistingReceiptMetadata(commitment.receiptMetadata);
-        setReplaceReceipt(false);
-      } else {
-        setExistingReceiptUrl(null);
-        setExistingReceiptMetadata(null);
-        setReplaceReceipt(false);
-      }
+      // Solo actualizar si los valores han cambiado realmente
+      setHasExistingReceipt(prev => prev !== hasReceipt ? hasReceipt : prev);
+      setExistingReceiptUrl(prev => prev !== receiptUrl ? receiptUrl : prev);
+      setExistingReceiptMetadata(prev => {
+        // Comparación profunda para objetos
+        if (JSON.stringify(prev) !== JSON.stringify(receiptMetadata)) {
+          return receiptMetadata;
+        }
+        return prev;
+      });
+      setReplaceReceipt(false);
+    } else if (!open) {
+      // Reset cuando se cierra el modal
+      setHasExistingReceipt(false);
+      setExistingReceiptUrl(null);
+      setExistingReceiptMetadata(null);
+      setReplaceReceipt(false);
     }
-  }, [open, commitment]);
+  }, [open, commitment?.id, commitment?.receiptUrl, commitment?.receiptMetadata]);
 
   // Detectar tipo de archivo para mostrar vista previa apropiada
   const getFileType = (metadata) => {
@@ -99,7 +108,7 @@ const PaymentPopupPremium = ({
     const type = getFileType(metadata);
     switch (type) {
       case 'image': return <ImageIcon />;
-      case 'pdf': return <PictureAsPdf />;
+      case 'pdf': return <PictureAsPdfIcon />;
       default: return <FilePresent />;
     }
   };
