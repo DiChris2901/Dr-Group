@@ -21,7 +21,9 @@ import {
   Divider,
   LinearProgress,
   Tooltip,
-  Fade
+  Fade,
+  useTheme,
+  alpha
 } from '@mui/material';
 import {
   Edit,
@@ -131,6 +133,7 @@ const TimeProgress = ({ dueDate, createdAt }) => {
 const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
   const { currentUser } = useAuth();
   const { addNotification, addAlert } = useNotifications();
+  const theme = useTheme();
   const [commitments, setCommitments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -544,7 +547,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
         })}
       </Grid>
 
-      {/* Diálogo de vista detallada */}
+      {/* Diálogo de vista detallada - Premium Design System v2.1 */}
       <Dialog
         open={viewDialogOpen}
         onClose={handleCloseViewDialog}
@@ -554,18 +557,54 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
           sx: {
             borderRadius: 4,
             backdropFilter: 'blur(20px)',
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
-            boxShadow: '0 24px 48px rgba(0, 0, 0, 0.15), 0 8px 16px rgba(0, 0, 0, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.8)'
+            background: theme.palette.mode === 'dark'
+              ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
+              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+            boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
+            border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+            overflow: 'hidden',
+            position: 'relative',
+            // Shimmer effect premium
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: '-100%',
+              width: '100%',
+              height: '100%',
+              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+              animation: 'shimmer 3s infinite',
+              zIndex: 1
+            },
+            '& @keyframes shimmer': {
+              '0%': { transform: 'translateX(-100%)' },
+              '100%': { transform: 'translateX(100%)' }
+            }
           }
         }}
       >
         {selectedCommitment && (
-          <>
+          <motion.div
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ 
+              type: "spring", 
+              damping: 25, 
+              stiffness: 120,
+              duration: 0.6 
+            }}
+            style={{ position: 'relative', zIndex: 2 }}
+          >
+            {/* Header Premium con Gradiente Dinámico */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4, ease: "easeOut" }}
+              initial={{ opacity: 0, y: -30, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ 
+                type: "spring", 
+                damping: 20, 
+                stiffness: 100,
+                delay: 0.1 
+              }}
             >
               <Box
                 sx={{
@@ -1388,25 +1427,125 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
               }}
             >
               <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1, duration: 0.4, type: "spring" }}
+                initial={{ opacity: 0, x: -20, scale: 0.9 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                transition={{ 
+                  delay: 0.1, 
+                  duration: 0.6, 
+                  type: "spring", 
+                  damping: 25, 
+                  stiffness: 120 
+                }}
+                whileHover={{ 
+                  scale: 1.02, 
+                  x: 3,
+                  transition: { duration: 0.2 }
+                }}
+                whileTap={{ scale: 0.98 }}
               >
                 <Button 
                   onClick={handleCloseViewDialog}
                   sx={{ 
-                    borderRadius: 3.5,
-                    px: 4,
-                    py: 1.5,
+                    borderRadius: 4,
+                    px: 4.5,
+                    py: 1.8,
                     textTransform: 'none',
-                    fontWeight: 600,
-                    fontSize: '0.95rem',
-                    color: 'text.secondary',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    fontWeight: 700,
+                    fontSize: '1rem',
+                    color: theme.palette.text.secondary,
+                    background: `
+                      linear-gradient(135deg, 
+                        ${theme.palette.mode === 'dark' 
+                          ? 'rgba(255, 255, 255, 0.08)' 
+                          : 'rgba(0, 0, 0, 0.04)'
+                        } 0%, 
+                        ${theme.palette.mode === 'dark' 
+                          ? 'rgba(255, 255, 255, 0.04)' 
+                          : 'rgba(0, 0, 0, 0.02)'
+                        } 100%
+                      )
+                    `,
+                    backdropFilter: 'blur(15px) saturate(160%)',
+                    border: `1px solid ${
+                      theme.palette.mode === 'dark' 
+                        ? 'rgba(255, 255, 255, 0.12)' 
+                        : 'rgba(0, 0, 0, 0.08)'
+                    }`,
+                    boxShadow: `
+                      0 4px 20px ${
+                        theme.palette.mode === 'dark' 
+                          ? 'rgba(0, 0, 0, 0.4)' 
+                          : 'rgba(0, 0, 0, 0.1)'
+                      },
+                      0 2px 8px ${
+                        theme.palette.mode === 'dark' 
+                          ? 'rgba(0, 0, 0, 0.3)' 
+                          : 'rgba(0, 0, 0, 0.06)'
+                      },
+                      inset 0 1px 0 ${
+                        theme.palette.mode === 'dark' 
+                          ? 'rgba(255, 255, 255, 0.1)' 
+                          : 'rgba(255, 255, 255, 0.5)'
+                      }
+                    `,
+                    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    letterSpacing: '0.02em',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      inset: 0,
+                      borderRadius: 'inherit',
+                      background: `
+                        linear-gradient(135deg, 
+                          ${theme.palette.mode === 'dark' 
+                            ? 'rgba(255, 255, 255, 0.15)' 
+                            : 'rgba(255, 255, 255, 0.6)'
+                          } 0%, 
+                          transparent 60%
+                        )
+                      `,
+                      opacity: 0,
+                      transition: 'opacity 0.3s ease'
+                    },
                     '&:hover': {
-                      bgcolor: 'rgba(0, 0, 0, 0.06)',
-                      transform: 'translateY(-1px)',
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+                      background: `
+                        linear-gradient(135deg, 
+                          ${theme.palette.mode === 'dark' 
+                            ? 'rgba(255, 255, 255, 0.12)' 
+                            : 'rgba(0, 0, 0, 0.08)'
+                          } 0%, 
+                          ${theme.palette.mode === 'dark' 
+                            ? 'rgba(255, 255, 255, 0.06)' 
+                            : 'rgba(0, 0, 0, 0.04)'
+                          } 100%
+                        )
+                      `,
+                      transform: 'translateY(-2px)',
+                      boxShadow: `
+                        0 8px 32px ${
+                          theme.palette.mode === 'dark' 
+                            ? 'rgba(0, 0, 0, 0.5)' 
+                            : 'rgba(0, 0, 0, 0.15)'
+                        },
+                        0 4px 16px ${
+                          theme.palette.mode === 'dark' 
+                            ? 'rgba(0, 0, 0, 0.4)' 
+                            : 'rgba(0, 0, 0, 0.08)'
+                        },
+                        inset 0 1px 0 ${
+                          theme.palette.mode === 'dark' 
+                            ? 'rgba(255, 255, 255, 0.15)' 
+                            : 'rgba(255, 255, 255, 0.8)'
+                        }
+                      `,
+                      '&::before': {
+                        opacity: 1
+                      }
+                    },
+                    '&:active': {
+                      transform: 'translateY(-1px) scale(0.99)'
                     }
                   }}
                 >
@@ -1521,7 +1660,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
                 </motion.div>
               </Box>
             </DialogActions>
-          </>
+          </motion.div>
         )}
       </Dialog>
 

@@ -277,8 +277,22 @@ const CommitmentEditForm = ({
           background: theme.palette.mode === 'dark'
             ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
             : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
-          boxShadow: '0 24px 48px rgba(0, 0, 0, 0.15), 0 8px 16px rgba(0, 0, 0, 0.1)',
-          border: `1px solid ${theme.palette.divider}`,
+          boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          overflow: 'hidden',
+          position: 'relative',
+          // Shimmer effect premium
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: '-100%',
+            width: '100%',
+            height: '100%',
+            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+            animation: 'shimmer 3s infinite',
+            zIndex: 1
+          },
           '& @keyframes pulse': {
             '0%, 100%': { 
               boxShadow: `0 0 0 0 ${theme.palette.primary.main}40` 
@@ -298,16 +312,27 @@ const CommitmentEditForm = ({
         }
       }}
     >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-          >
+        <motion.div
+          initial={{ opacity: 0, y: 30, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ 
+            type: "spring", 
+            damping: 25, 
+            stiffness: 120,
+            duration: 0.6 
+          }}
+          style={{ position: 'relative', zIndex: 2 }}
+        >
           {/* Header Premium con Gradiente Dinámico */}
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            initial={{ opacity: 0, y: -30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ 
+              type: "spring", 
+              damping: 20, 
+              stiffness: 100,
+              delay: 0.1 
+            }}
           >
             <Box
               sx={{
@@ -667,9 +692,15 @@ const CommitmentEditForm = ({
               {/* Concepto/Descripción */}
               <Grid item xs={12}>
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1, duration: 0.3 }}
+                  initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ 
+                    type: "spring", 
+                    damping: 25, 
+                    stiffness: 120,
+                    delay: 0.2 
+                  }}
+                  whileHover={{ y: -2 }}
                 >
                   <TextField
                     fullWidth
@@ -696,10 +727,29 @@ const CommitmentEditForm = ({
                     sx={{ 
                       '& .MuiOutlinedInput-root': { 
                         borderRadius: '12px',
-                        transition: 'all 0.3s ease',
+                        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: '-100%',
+                          width: '100%',
+                          height: '100%',
+                          background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.1)}, transparent)`,
+                          transition: 'all 0.6s ease'
+                        },
                         '&:hover': {
+                          transform: 'translateY(-2px) scale(1.01)',
+                          boxShadow: `0 8px 25px ${alpha(theme.palette.primary.main, 0.15)}`,
+                          '&::before': {
+                            left: '100%'
+                          }
+                        },
+                        '&.Mui-focused': {
                           transform: 'translateY(-1px)',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                          boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.2)}`
                         }
                       }
                     }}
@@ -710,9 +760,15 @@ const CommitmentEditForm = ({
               {/* Empresa y Monto */}
               <Grid item xs={12} md={6}>
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2, duration: 0.3 }}
+                  initial={{ opacity: 0, x: -30, scale: 0.95 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  transition={{ 
+                    type: "spring", 
+                    damping: 25, 
+                    stiffness: 120,
+                    delay: 0.3 
+                  }}
+                  whileHover={{ y: -2, scale: 1.01 }}
                 >
                   <FormControl fullWidth size="small" error={!!errors.companyId}>
                     <InputLabel>Empresa *</InputLabel>
@@ -825,9 +881,15 @@ const CommitmentEditForm = ({
 
               <Grid item xs={12} md={6}>
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3, duration: 0.3 }}
+                  initial={{ opacity: 0, x: 30, scale: 0.95 }}
+                  animate={{ opacity: 1, x: 0, scale: 1 }}
+                  transition={{ 
+                    type: "spring", 
+                    damping: 25, 
+                    stiffness: 120,
+                    delay: 0.4 
+                  }}
+                  whileHover={{ y: -2, scale: 1.01 }}
                 >
                   <TextField
                     fullWidth
@@ -855,10 +917,30 @@ const CommitmentEditForm = ({
                     sx={{ 
                       '& .MuiOutlinedInput-root': { 
                         borderRadius: '12px',
-                        transition: 'all 0.3s ease',
+                        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.03)}, ${alpha(theme.palette.success.light, 0.02)})`,
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: '-100%',
+                          width: '100%',
+                          height: '100%',
+                          background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.success.main, 0.15)}, transparent)`,
+                          transition: 'all 0.6s ease'
+                        },
                         '&:hover': {
+                          transform: 'translateY(-2px) scale(1.01)',
+                          boxShadow: `0 8px 25px ${alpha(theme.palette.success.main, 0.2)}`,
+                          '&::before': {
+                            left: '100%'
+                          }
+                        },
+                        '&.Mui-focused': {
                           transform: 'translateY(-1px)',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                          boxShadow: `0 6px 20px ${alpha(theme.palette.success.main, 0.25)}`
                         }
                       }
                     }}
@@ -1138,8 +1220,8 @@ const CommitmentEditForm = ({
               {/* Botón Cancelar - Estilo Sutil */}
               <motion.div
                 style={{ flex: 1 }}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: 1.03, y: -2 }}
+                whileTap={{ scale: 0.97 }}
                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
               >
                 <Button
@@ -1186,14 +1268,15 @@ const CommitmentEditForm = ({
                 </Button>
               </motion.div>
               
-              {/* Botón Principal - Guardar con Emphasis */}
+              {/* Botón Principal - Guardar con Emphasis Premium */}
               <motion.div
                 style={{ flex: 1.8 }}
                 whileHover={{ 
-                  scale: saving || Object.keys(errors).length > 0 || !formData.concept.trim() || !formData.amount ? 1 : 1.02 
+                  scale: saving || Object.keys(errors).length > 0 || !formData.concept.trim() || !formData.amount ? 1 : 1.03,
+                  y: saving || Object.keys(errors).length > 0 || !formData.concept.trim() || !formData.amount ? 0 : -3
                 }}
                 whileTap={{ 
-                  scale: saving || Object.keys(errors).length > 0 || !formData.concept.trim() || !formData.amount ? 1 : 0.98 
+                  scale: saving || Object.keys(errors).length > 0 || !formData.concept.trim() || !formData.amount ? 1 : 0.97 
                 }}
                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
               >
@@ -1228,13 +1311,14 @@ const CommitmentEditForm = ({
                       left: '-100%',
                       width: '100%',
                       height: '100%',
-                      background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                      transition: 'all 0.6s ease'
+                      background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)',
+                      transition: 'all 0.6s ease',
+                      animation: !saving && Object.keys(errors).length === 0 && formData.concept.trim() && formData.amount ? 'shimmer 3s infinite' : 'none'
                     },
                     '&:hover:not(:disabled)': {
                       background: `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
-                      transform: 'translateY(-2px)',
-                      boxShadow: `0 12px 32px ${alpha(theme.palette.primary.main, 0.5)}`,
+                      transform: 'translateY(-3px) scale(1.02)',
+                      boxShadow: `0 16px 40px ${alpha(theme.palette.primary.main, 0.6)}`,
                       '&::before': {
                         left: '100%'
                       }
