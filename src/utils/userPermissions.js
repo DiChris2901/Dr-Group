@@ -3,6 +3,9 @@
  * Gestiona los permisos granulares para diferentes acciones del sistema
  */
 
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../config/firebase';
+
 // Enum de permisos disponibles
 export const PERMISSIONS = {
   // Permisos de comprobantes
@@ -30,11 +33,30 @@ export const PERMISSIONS = {
   SYSTEM_CONFIG: 'system_config'
 };
 
+// Traducciones de permisos al español
+export const PERMISSION_TRANSLATIONS = {
+  [PERMISSIONS.DOWNLOAD_RECEIPTS]: 'Descargar comprobantes',
+  [PERMISSIONS.VIEW_RECEIPTS]: 'Ver comprobantes',
+  [PERMISSIONS.UPLOAD_RECEIPTS]: 'Subir comprobantes',
+  [PERMISSIONS.DELETE_RECEIPTS]: 'Eliminar comprobantes',
+  [PERMISSIONS.CREATE_COMMITMENTS]: 'Crear compromisos',
+  [PERMISSIONS.EDIT_COMMITMENTS]: 'Editar compromisos',
+  [PERMISSIONS.DELETE_COMMITMENTS]: 'Eliminar compromisos',
+  [PERMISSIONS.VIEW_COMMITMENTS]: 'Ver compromisos',
+  [PERMISSIONS.MANAGE_USERS]: 'Gestionar usuarios',
+  [PERMISSIONS.VIEW_USERS]: 'Ver usuarios',
+  [PERMISSIONS.GENERATE_REPORTS]: 'Generar reportes',
+  [PERMISSIONS.EXPORT_DATA]: 'Exportar datos',
+  [PERMISSIONS.ADMIN_ACCESS]: 'Acceso administrativo',
+  [PERMISSIONS.SYSTEM_CONFIG]: 'Configuración del sistema'
+};
+
 // Roles predefinidos con permisos
 export const USER_ROLES = {
   ADMIN: {
     name: 'Administrador',
-    permissions: Object.values(PERMISSIONS)
+    permissions: Object.values(PERMISSIONS),
+    description: 'Acceso completo al sistema'
   },
   MANAGER: {
     name: 'Gerente',
@@ -48,7 +70,8 @@ export const USER_ROLES = {
       PERMISSIONS.GENERATE_REPORTS,
       PERMISSIONS.EXPORT_DATA,
       PERMISSIONS.VIEW_USERS
-    ]
+    ],
+    description: 'Gestión de compromisos y reportes'
   },
   EMPLOYEE: {
     name: 'Empleado',
@@ -58,109 +81,186 @@ export const USER_ROLES = {
       PERMISSIONS.CREATE_COMMITMENTS,
       PERMISSIONS.EDIT_COMMITMENTS,
       PERMISSIONS.VIEW_COMMITMENTS
-    ]
+    ],
+    description: 'Creación y consulta básica'
   },
   VIEWER: {
     name: 'Solo Lectura',
     permissions: [
       PERMISSIONS.VIEW_RECEIPTS,
       PERMISSIONS.VIEW_COMMITMENTS
-    ]
+    ],
+    description: 'Solo lectura'
+  }
+};
+
+// Cache de usuarios para mejorar rendimiento
+let userCache = new Map();
+let cacheExpiry = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
+
+/**
+ * Obtiene los datos del usuario desde Firebase
+ */
+const getUserData = async (email) => {
+  const now = Date.now();
+  const cacheKey = email.toLowerCase();
+  
+  // Verificar cache
+  if (userCache.has(cacheKey) && now < cacheExpiry) {
+    return userCache.get(cacheKey);
+  }
+  
+  try {
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, where('email', '==', email.toLowerCase()));
+    const querySnapshot = await getDocs(q);
+    
+    if (!querySnapshot.empty) {
+      const userData = querySnapshot.docs[0].data();
+      
+      // Actualizar cache
+      userCache.set(cacheKey, userData);
+      cacheExpiry = now + CACHE_DURATION;
+      
+      return userData;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error getting user data:', error);
+    return null;
   }
 };
 
 /**
  * Verifica si un usuario tiene un permiso específico
- * @param {Object} user - Objeto del usuario con sus permisos
- * @param {string} permission - Permiso a verificar
- * @returns {boolean} - True si tiene el permiso
  */
-export const hasPermission = (user, permission) => {
-  if (!user) {
-    console.warn('Usuario no definido para verificación de permisos');
-    return false;
-  }
+export const hasPermission = async (userEmail, permission) => {
+  if (!userEmail || !permission) return false;
   
-  // TEMPORAL: Hasta que implementemos el sistema completo de usuarios
-  // Por ahora, verificamos si el usuario tiene permisos específicos o es admin
-  if (user.email) {
-    // Lista temporal de emails con permisos de descarga
-    const usersWithDownloadPermissions = [
-      'admin@drgroup.com',
-      'gerente@drgroup.com',
-      'diego@drgroup.com' // Agregar emails que deben tener permisos
-    ];
+  try {
+    const userData = await getUserData(userEmail);
     
-    // Si es para descarga de recibos, verificar lista temporal
-    if (permission === PERMISSIONS.DOWNLOAD_RECEIPTS) {
-      return usersWithDownloadPermissions.includes(user.email.toLowerCase());
+    if (!userData) {
+      console.log(`❌ Usuario no encontrado: ${userEmail}`);
+      return false;
     }
     
-    // Otros permisos por defecto habilitados por ahora
-    return true;
-  }
-  
-  // Si tiene estructura completa de permisos (implementación futura)
-  if (user.permissions) {
-    // Los admins tienen todos los permisos
-    if (user.role === 'ADMIN' || user.permissions.includes(PERMISSIONS.ADMIN_ACCESS)) {
+    // Verificar si el usuario está activo
+    if (!userData.isActive) {
+      console.log(`❌ Usuario inactivo: ${userEmail}`);
+      return false;
+    }
+    
+    // Verificar permisos directos
+    if (userData.permissions && userData.permissions.includes(permission)) {
       return true;
     }
     
-    return user.permissions.includes(permission);
+    // Verificar permisos por rol
+    if (userData.role && USER_ROLES[userData.role]) {
+      return USER_ROLES[userData.role].permissions.includes(permission);
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('Error checking permission:', error);
+    return false;
+  }
+};
+
+/**
+ * Verifica si un usuario tiene alguno de los permisos especificados
+ */
+export const hasAnyPermission = async (userEmail, permissions) => {
+  if (!userEmail || !Array.isArray(permissions) || permissions.length === 0) {
+    return false;
   }
   
-  // Por defecto, denegar si no hay información suficiente
-  console.warn('Usuario sin estructura de permisos definida:', user);
+  for (const permission of permissions) {
+    if (await hasPermission(userEmail, permission)) {
+      return true;
+    }
+  }
+  
   return false;
 };
 
 /**
- * Verifica múltiples permisos (AND logic)
- * @param {Object} user - Objeto del usuario
- * @param {Array} permissions - Array de permisos a verificar
- * @returns {boolean} - True si tiene TODOS los permisos
+ * Verifica si un usuario tiene todos los permisos especificados
  */
-export const hasAllPermissions = (user, permissions) => {
-  return permissions.every(permission => hasPermission(user, permission));
+export const hasAllPermissions = async (userEmail, permissions) => {
+  if (!userEmail || !Array.isArray(permissions) || permissions.length === 0) {
+    return false;
+  }
+  
+  for (const permission of permissions) {
+    if (!(await hasPermission(userEmail, permission))) {
+      return false;
+    }
+  }
+  
+  return true;
 };
 
 /**
- * Verifica si tiene al menos uno de los permisos (OR logic)
- * @param {Object} user - Objeto del usuario
- * @param {Array} permissions - Array de permisos a verificar
- * @returns {boolean} - True si tiene AL MENOS UNO de los permisos
+ * Obtiene todos los permisos de un usuario
  */
-export const hasAnyPermission = (user, permissions) => {
-  return permissions.some(permission => hasPermission(user, permission));
+export const getUserPermissions = async (userEmail) => {
+  if (!userEmail) return [];
+  
+  try {
+    const userData = await getUserData(userEmail);
+    
+    if (!userData || !userData.isActive) {
+      return [];
+    }
+    
+    let permissions = [];
+    
+    // Agregar permisos directos
+    if (userData.permissions && Array.isArray(userData.permissions)) {
+      permissions = [...userData.permissions];
+    }
+    
+    // Agregar permisos del rol
+    if (userData.role && USER_ROLES[userData.role]) {
+      const rolePermissions = USER_ROLES[userData.role].permissions;
+      permissions = [...new Set([...permissions, ...rolePermissions])];
+    }
+    
+    return permissions;
+  } catch (error) {
+    console.error('Error getting user permissions:', error);
+    return [];
+  }
+};
+
+/**
+ * Verifica si un usuario es administrador
+ */
+export const isAdmin = async (userEmail) => {
+  return await hasPermission(userEmail, PERMISSIONS.ADMIN_ACCESS);
+};
+
+/**
+ * Limpia el cache de usuarios
+ */
+export const clearUserCache = () => {
+  userCache.clear();
+  cacheExpiry = 0;
 };
 
 /**
  * Obtiene los permisos de un rol específico
- * @param {string} role - Nombre del rol
- * @returns {Array} - Array de permisos del rol
  */
 export const getRolePermissions = (role) => {
   return USER_ROLES[role]?.permissions || [];
 };
 
-/**
- * Hook personalizado para verificar permisos en componentes React
- * @param {string} permission - Permiso a verificar
- * @returns {boolean} - True si el usuario actual tiene el permiso
- */
-export const usePermission = (permission) => {
-  // Este hook se implementará cuando tengamos el contexto de usuario completo
-  // Por ahora retorna true para no romper la funcionalidad existente
-  return true;
-};
-
-/**
- * Estructura de usuario esperada en Firestore
- * Esta estructura se usará al crear/editar usuarios
- */
+// Estructura de usuario esperada en Firestore
 export const USER_STRUCTURE_EXAMPLE = {
-  uid: 'user_firebase_uid',
   email: 'usuario@empresa.com',
   displayName: 'Nombre del Usuario',
   role: 'MANAGER', // ADMIN, MANAGER, EMPLOYEE, VIEWER
@@ -174,20 +274,25 @@ export const USER_STRUCTURE_EXAMPLE = {
   createdAt: 'timestamp',
   updatedAt: 'timestamp',
   isActive: true,
+  department: 'Finanzas',
+  notes: 'Notas adicionales',
   metadata: {
     lastLogin: 'timestamp',
-    createdBy: 'admin_uid',
-    department: 'Finanzas'
+    createdBy: 'admin_email',
+    setupDate: 'timestamp'
   }
 };
 
 // Exportar todo para uso fácil
 export default {
   PERMISSIONS,
+  PERMISSION_TRANSLATIONS,
   USER_ROLES,
   hasPermission,
   hasAllPermissions,
   hasAnyPermission,
+  getUserPermissions,
+  isAdmin,
   getRolePermissions,
-  usePermission
+  clearUserCache
 };

@@ -374,6 +374,26 @@ const LoginForm = () => {
                 <Typography variant="body2" color="text.secondary">
                   Control de Compromisos Financieros
                 </Typography>
+                
+                {/* Enlace para configuración inicial */}
+                <Box sx={{ mt: 2 }}>
+                  <Button
+                    variant="text"
+                    size="small"
+                    onClick={() => window.location.href = '/admin-setup'}
+                    sx={{
+                      color: 'text.secondary',
+                      textDecoration: 'underline',
+                      fontSize: '0.875rem',
+                      '&:hover': {
+                        color: 'primary.main',
+                        backgroundColor: 'transparent',
+                      }
+                    }}
+                  >
+                    ¿Primera vez? Configurar Administrador
+                  </Button>
+                </Box>
               </Box>
             </CardContent>
           </Paper>

@@ -1,0 +1,712 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  Button,
+  Card,
+  CardContent,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Chip,
+  IconButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  FormControlLabel,
+  Checkbox,
+  Alert,
+  CircularProgress,
+  Grid,
+  Avatar,
+  Tooltip,
+  Switch,
+  Divider
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  PersonAdd as PersonAddIcon,
+  AdminPanelSettings as AdminIcon,
+  Security as SecurityIcon,
+  Business as BusinessIcon,
+  Email as EmailIcon,
+  Phone as PhoneIcon,
+  CalendarToday as CalendarIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon
+} from '@mui/icons-material';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useTheme } from '@mui/material/styles';
+
+// Firebase imports
+import { 
+  collection, 
+  getDocs, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc,
+  serverTimestamp,
+  query,
+  where 
+} from 'firebase/firestore';
+import { db } from '../config/firebase';
+import { useAuth } from '../context/AuthContext';
+
+// Permisos y roles
+import { 
+  PERMISSIONS, 
+  PERMISSION_TRANSLATIONS,
+  USER_ROLES, 
+  hasPermission, 
+  getRolePermissions 
+} from '../utils/userPermissions';
+
+const UserManagementPage = () => {
+  const theme = useTheme();
+  const { currentUser } = useAuth();
+  
+  // Estados principales
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  // Estados del modal
+  const [openModal, setOpenModal] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  
+  // Estados del formulario
+  const [formData, setFormData] = useState({
+    email: '',
+    displayName: '',
+    phone: '',
+    role: 'EMPLOYEE',
+    permissions: [],
+    companies: [],
+    isActive: true,
+    department: '',
+    notes: ''
+  });
+
+  // Estado para detectar cambios en el formulario
+  const [originalFormData, setOriginalFormData] = useState({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Cargar usuarios al montar el componente
+  useEffect(() => {
+    loadUsers();
+  }, []);
+
+  const loadUsers = async () => {
+    try {
+      setLoading(true);
+      const usersCollection = collection(db, 'users');
+      const snapshot = await getDocs(usersCollection);
+      
+      const usersData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      setUsers(usersData);
+      setError(null);
+    } catch (err) {
+      console.error('Error loading users:', err);
+      setError('Error al cargar usuarios');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenModal = async (user = null) => {
+    if (user) {
+      // Editar usuario existente
+      setEditingUser(user);
+      
+      // Si es el usuario actual, obtener datos adicionales de Firebase Auth
+      let displayName = user.displayName || '';
+      if (user.email === currentUser?.email && currentUser?.displayName && !displayName) {
+        displayName = currentUser.displayName;
+      }
+      
+      const userData = {
+        email: user.email || '',
+        displayName: displayName,
+        phone: user.phone || '',
+        role: user.role || 'EMPLOYEE',
+        permissions: user.permissions || getRolePermissions(user.role || 'EMPLOYEE'),
+        companies: user.companies || [],
+        isActive: user.isActive !== false,
+        department: user.department || '',
+        notes: user.notes || ''
+      };
+      
+      setFormData(userData);
+      setOriginalFormData(JSON.parse(JSON.stringify(userData))); // Deep copy
+      setHasUnsavedChanges(false);
+    } else {
+      // Crear nuevo usuario
+      setEditingUser(null);
+      const newUserData = {
+        email: '',
+        displayName: '',
+        phone: '',
+        role: 'EMPLOYEE',
+        permissions: getRolePermissions('EMPLOYEE'),
+        companies: [],
+        isActive: true,
+        department: '',
+        notes: ''
+      };
+      
+      setFormData(newUserData);
+      setOriginalFormData(JSON.parse(JSON.stringify(newUserData))); // Deep copy
+      setHasUnsavedChanges(false);
+    }
+    setOpenModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setOpenModal(false);
+    setEditingUser(null);
+    setShowPassword(false);
+    setHasUnsavedChanges(false);
+  };
+
+  // Función para detectar cambios en el formulario
+  const checkForChanges = (newFormData) => {
+    const hasChanges = JSON.stringify(newFormData) !== JSON.stringify(originalFormData);
+    setHasUnsavedChanges(hasChanges);
+  };
+
+  // Función helper para actualizar formData y detectar cambios
+  const updateFormData = (updates) => {
+    const newFormData = { ...formData, ...updates };
+    setFormData(newFormData);
+    checkForChanges(newFormData);
+  };
+
+  const handleRoleChange = (newRole) => {
+    updateFormData({
+      role: newRole,
+      permissions: getRolePermissions(newRole)
+    });
+  };
+
+  const handlePermissionToggle = (permission) => {
+    const newPermissions = formData.permissions.includes(permission)
+      ? formData.permissions.filter(p => p !== permission)
+      : [...formData.permissions, permission];
+    
+    updateFormData({
+      permissions: newPermissions
+    });
+  };
+
+  const handleSaveUser = async () => {
+    try {
+      setLoading(true);
+      
+      const userData = {
+        email: formData.email.toLowerCase(),
+        displayName: formData.displayName,
+        phone: formData.phone,
+        role: formData.role,
+        permissions: formData.permissions,
+        companies: formData.companies,
+        isActive: formData.isActive,
+        department: formData.department,
+        notes: formData.notes,
+        updatedAt: serverTimestamp(),
+        ...(editingUser ? {} : { 
+          createdAt: serverTimestamp(),
+          createdBy: currentUser.uid 
+        })
+      };
+
+      if (editingUser) {
+        // Actualizar usuario existente
+        await updateDoc(doc(db, 'users', editingUser.id), userData);
+      } else {
+        // Crear nuevo usuario
+        await addDoc(collection(db, 'users'), userData);
+      }
+
+      await loadUsers();
+      handleCloseModal();
+      setError(null);
+      setHasUnsavedChanges(false);
+    } catch (err) {
+      console.error('Error saving user:', err);
+      setError('Error al guardar usuario');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (window.confirm('¿Estás seguro de que quieres eliminar este usuario?')) {
+      try {
+        await deleteDoc(doc(db, 'users', userId));
+        await loadUsers();
+        setError(null);
+      } catch (err) {
+        console.error('Error deleting user:', err);
+        setError('Error al eliminar usuario');
+      }
+    }
+  };
+
+  const handleToggleActiveStatus = async (user) => {
+    try {
+      await updateDoc(doc(db, 'users', user.id), {
+        isActive: !user.isActive,
+        updatedAt: serverTimestamp()
+      });
+      await loadUsers();
+    } catch (err) {
+      console.error('Error updating user status:', err);
+      setError('Error al actualizar estado del usuario');
+    }
+  };
+
+  const getRoleChipColor = (role) => {
+    switch (role) {
+      case 'ADMIN': return 'error';
+      case 'MANAGER': return 'warning';
+      case 'EMPLOYEE': return 'primary';
+      case 'VIEWER': return 'default';
+      default: return 'default';
+    }
+  };
+
+  const getPermissionGroups = () => {
+    const groups = {
+      'Comprobantes': [
+        PERMISSIONS.VIEW_RECEIPTS,
+        PERMISSIONS.DOWNLOAD_RECEIPTS,
+        PERMISSIONS.UPLOAD_RECEIPTS,
+        PERMISSIONS.DELETE_RECEIPTS
+      ],
+      'Compromisos': [
+        PERMISSIONS.VIEW_COMMITMENTS,
+        PERMISSIONS.CREATE_COMMITMENTS,
+        PERMISSIONS.EDIT_COMMITMENTS,
+        PERMISSIONS.DELETE_COMMITMENTS
+      ],
+      'Reportes': [
+        PERMISSIONS.GENERATE_REPORTS,
+        PERMISSIONS.EXPORT_DATA
+      ],
+      'Administración': [
+        PERMISSIONS.MANAGE_USERS,
+        PERMISSIONS.VIEW_USERS,
+        PERMISSIONS.ADMIN_ACCESS,
+        PERMISSIONS.SYSTEM_CONFIG
+      ]
+    };
+    return groups;
+  };
+
+  if (loading && users.length === 0) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+            Gestión de Usuarios
+          </Typography>
+          <Typography variant="body1" color="textSecondary">
+            Administra usuarios, roles y permisos del sistema
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<PersonAddIcon />}
+          onClick={() => handleOpenModal()}
+          sx={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            px: 3,
+            py: 1.5,
+            borderRadius: 3,
+            '&:hover': {
+              background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+            }
+          }}
+        >
+          Nuevo Usuario
+        </Button>
+      </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
+      {/* Estadísticas rápidas */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white'
+          }}>
+            <CardContent>
+              <Typography variant="h6">Total Usuarios</Typography>
+              <Typography variant="h3" sx={{ fontWeight: 700 }}>
+                {users.length}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+            color: 'white'
+          }}>
+            <CardContent>
+              <Typography variant="h6">Activos</Typography>
+              <Typography variant="h3" sx={{ fontWeight: 700 }}>
+                {users.filter(u => u.isActive !== false).length}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #dc3545 0%, #fd7e14 100%)',
+            color: 'white'
+          }}>
+            <CardContent>
+              <Typography variant="h6">Administradores</Typography>
+              <Typography variant="h3" sx={{ fontWeight: 700 }}>
+                {users.filter(u => u.role === 'ADMIN').length}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ 
+            background: 'linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%)',
+            color: 'white'
+          }}>
+            <CardContent>
+              <Typography variant="h6">Gerentes</Typography>
+              <Typography variant="h3" sx={{ fontWeight: 700 }}>
+                {users.filter(u => u.role === 'MANAGER').length}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Tabla de usuarios */}
+      <Card sx={{ borderRadius: 3, boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)' }}>
+        <CardContent>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Usuario</TableCell>
+                  <TableCell>Rol</TableCell>
+                  <TableCell>Departamento</TableCell>
+                  <TableCell>Estado</TableCell>
+                  <TableCell>Último acceso</TableCell>
+                  <TableCell align="center">Acciones</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {users.map((user) => (
+                  <TableRow key={user.id} hover>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Avatar sx={{ bgcolor: getRoleChipColor(user.role) === 'error' ? '#f44336' : '#2196f3' }}>
+                          {user.displayName?.charAt(0)?.toUpperCase() || user.email?.charAt(0)?.toUpperCase()}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                            {user.displayName || 'Sin nombre'}
+                          </Typography>
+                          <Typography variant="body2" color="textSecondary">
+                            {user.email}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={USER_ROLES[user.role]?.name || user.role}
+                        color={getRoleChipColor(user.role)}
+                        size="small"
+                        icon={user.role === 'ADMIN' ? <AdminIcon /> : <SecurityIcon />}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {user.department || 'No asignado'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Switch
+                          checked={user.isActive !== false}
+                          onChange={() => handleToggleActiveStatus(user)}
+                          size="small"
+                        />
+                        <Typography variant="body2" color={user.isActive !== false ? 'success.main' : 'error.main'}>
+                          {user.isActive !== false ? 'Activo' : 'Inactivo'}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="textSecondary">
+                        {user.lastLogin ? new Date(user.lastLogin.toDate()).toLocaleDateString() : 'Nunca'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Tooltip title="Editar usuario">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenModal(user)}
+                            sx={{ color: 'primary.main' }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Eliminar usuario">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDeleteUser(user.id)}
+                            sx={{ color: 'error.main' }}
+                            disabled={user.role === 'ADMIN' && users.filter(u => u.role === 'ADMIN').length === 1}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </CardContent>
+      </Card>
+
+      {/* Modal de crear/editar usuario */}
+      <Dialog
+        open={openModal}
+        onClose={handleCloseModal}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(250,250,250,0.95) 100%)',
+            backdropFilter: 'blur(20px)',
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <Box>
+            {editingUser ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
+          </Box>
+          {editingUser && hasUnsavedChanges && (
+            <Chip 
+              label="Cambios sin guardar" 
+              size="small" 
+              sx={{ 
+                backgroundColor: 'rgba(255,255,255,0.2)', 
+                color: 'white',
+                fontWeight: 500
+              }} 
+            />
+          )}
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 3 }}>
+          <Grid container spacing={3} sx={{ mt: 1 }}>
+            {/* Información básica */}
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => updateFormData({ email: e.target.value })}
+                disabled={!!editingUser}
+                required
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Nombre completo"
+                value={formData.displayName}
+                onChange={(e) => updateFormData({ displayName: e.target.value })}
+                required
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Teléfono"
+                value={formData.phone}
+                onChange={(e) => updateFormData({ phone: e.target.value })}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Departamento"
+                value={formData.department}
+                onChange={(e) => updateFormData({ department: e.target.value })}
+              />
+            </Grid>
+
+            {/* Rol */}
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth required>
+                <InputLabel>Rol</InputLabel>
+                <Select
+                  value={formData.role}
+                  onChange={(e) => handleRoleChange(e.target.value)}
+                  label="Rol"
+                >
+                  {Object.entries(USER_ROLES).map(([key, role]) => (
+                    <MenuItem key={key} value={key}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {key === 'ADMIN' ? <AdminIcon /> : <SecurityIcon />}
+                        {role.name}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            {/* Estado activo */}
+            <Grid item xs={12} md={6}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.isActive}
+                    onChange={(e) => updateFormData({ isActive: e.target.checked })}
+                  />
+                }
+                label="Usuario activo"
+              />
+            </Grid>
+
+            {/* Notas */}
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Notas adicionales"
+                multiline
+                rows={3}
+                value={formData.notes}
+                onChange={(e) => updateFormData({ notes: e.target.value })}
+              />
+            </Grid>
+
+            {/* Permisos personalizados */}
+            <Grid item xs={12}>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                Permisos Específicos
+              </Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                Los permisos se asignan automáticamente según el rol, pero puedes personalizarlos:
+              </Typography>
+              
+              {Object.entries(getPermissionGroups()).map(([groupName, permissions]) => (
+                <Box key={groupName} sx={{ mb: 3 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                    {groupName}
+                  </Typography>
+                  <Grid container spacing={1}>
+                    {permissions.map((permission) => (
+                      <Grid item xs={12} sm={6} key={permission}>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={formData.permissions.includes(permission)}
+                              onChange={() => handlePermissionToggle(permission)}
+                              size="small"
+                            />
+                          }
+                          label={
+                            <Typography variant="body2">
+                              {PERMISSION_TRANSLATIONS[permission] || permission.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase())}
+                            </Typography>
+                          }
+                        />
+                      </Grid>
+                    ))}
+                  </Grid>
+                  <Divider sx={{ mt: 2 }} />
+                </Box>
+              ))}
+            </Grid>
+          </Grid>
+        </DialogContent>
+
+        <DialogActions sx={{ p: 3, pt: 0 }}>
+          <Button onClick={handleCloseModal}>
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveUser}
+            disabled={
+              !formData.email || 
+              !formData.displayName || 
+              (editingUser && !hasUnsavedChanges) // Para usuarios existentes, solo habilitar si hay cambios
+            }
+            sx={{
+              background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #218838 0%, #1ea085 100%)',
+              }
+            }}
+          >
+            {editingUser ? 'Actualizar' : 'Crear'} Usuario
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+
+export default UserManagementPage;

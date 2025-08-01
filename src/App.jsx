@@ -24,6 +24,8 @@ import ProfilePage from './pages/ProfilePage';
 import DataPage from './pages/DataPage';
 import CompaniesPage from './pages/CompaniesPage';
 import TasksPage from './pages/TasksPage';
+import UserManagementPage from './pages/UserManagementPage';
+import AdminSetupPage from './pages/AdminSetupPage';
 import WelcomeDashboard from './components/dashboard/WelcomeDashboard';
 
 // Debug Components
@@ -151,10 +153,7 @@ const DashboardLayout = () => {
             path="/users" 
             element={
               <MainLayout title="Gestión de Usuarios" breadcrumbs={['Administración', 'Usuarios']}>
-                <Box sx={{ p: 2 }}>
-                  <h2>Gestión de Usuarios</h2>
-                  <p>Próximamente: Administración de usuarios</p>
-                </Box>
+                <UserManagementPage />
               </MainLayout>
             } 
           />
@@ -185,7 +184,13 @@ const AppContent = () => {
   return (
     <Router>
       <BackgroundProvider>
-        {currentUser ? <DashboardLayout /> : <LoginForm />}
+        <Routes>
+          {/* Ruta de setup inicial - accesible sin autenticación */}
+          <Route path="/admin-setup" element={<AdminSetupPage />} />
+          
+          {/* Rutas principales */}
+          <Route path="/*" element={currentUser ? <DashboardLayout /> : <LoginForm />} />
+        </Routes>
       </BackgroundProvider>
     </Router>
   );
