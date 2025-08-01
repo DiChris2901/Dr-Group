@@ -23,8 +23,6 @@ import {
 } from '../utils/designSystem.js';
 import CommitmentsFilters from '../components/commitments/CommitmentsFilters';
 import CommitmentsList from '../components/commitments/CommitmentsList';
-import DashboardStats from '../components/dashboard/DashboardStats';
-import { useDashboardStats } from '../hooks/useDashboardStats';
 
 const CommitmentsPage = () => {
   const theme = useTheme();
@@ -33,9 +31,6 @@ const CommitmentsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [companyFilter, setCompanyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  
-  // Usar el hook para obtener estadísticas reales de Firebase
-  const stats = useDashboardStats();
 
   const handleSearchChange = (value) => {
     setSearchTerm(value);
@@ -160,15 +155,6 @@ const CommitmentsPage = () => {
             </Box>
           </Box>
         </Paper>
-      </motion.div>
-
-      {/* Estadísticas */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.1 }}
-      >
-        <DashboardStats stats={stats} />
       </motion.div>
 
       {/* Filtros */}

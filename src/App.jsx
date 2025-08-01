@@ -30,15 +30,10 @@ import FirebaseDebug from './components/debug/FirebaseDebug';
 
 // Hook de autenticación
 import { useAuth } from './context/AuthContext';
-// Hook para estadísticas del dashboard
-import useDashboardStats from './hooks/useDashboardStats';
 
 // Componente principal del dashboard
 const DashboardLayout = () => {
   const { currentUser, userProfile } = useAuth();
-  
-  // Cargar estadísticas reales desde Firebase
-  const dashboardStats = useDashboardStats();
 
   return (
     <Routes>
