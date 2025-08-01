@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   animationVariants,
   useThemeGradients,
@@ -18,7 +18,10 @@ import {
   CircularProgress,
   Divider,
   IconButton,
-  alpha
+  alpha,
+  Card,
+  CardMedia,
+  Chip
 } from '@mui/material';
 import {
   CheckCircle,
@@ -27,7 +30,14 @@ import {
   TrendingUp,
   AccountBalance,
   Receipt,
-  AttachMoney
+  AttachMoney,
+  Visibility,
+  FilePresent,
+  PictureAsPdf,
+  Image as ImageIcon,
+  Close as CloseIcon,
+  Receipt as ReceiptIcon,
+  Description as DescriptionIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -47,10 +57,52 @@ const PaymentPopupPremium = ({
   const gradients = useThemeGradients();
 
   const [saving, setSaving] = useState(false);
+  const [hasExistingReceipt, setHasExistingReceipt] = useState(false);
+  const [existingReceiptUrl, setExistingReceiptUrl] = useState(null);
+  const [existingReceiptMetadata, setExistingReceiptMetadata] = useState(null);
+  const [showReceiptPreview, setShowReceiptPreview] = useState(false);
+  const [replaceReceipt, setReplaceReceipt] = useState(false);
   const [paymentData, setPaymentData] = useState({
     interests: '',
     receiptFile: null
   });
+
+  // Verificar si ya existe un comprobante al abrir el modal
+  useEffect(() => {
+    if (open && commitment) {
+      const hasReceipt = !!(commitment.receiptUrl || commitment.receiptMetadata);
+      setHasExistingReceipt(hasReceipt);
+      
+      if (hasReceipt) {
+        setExistingReceiptUrl(commitment.receiptUrl);
+        setExistingReceiptMetadata(commitment.receiptMetadata);
+        setReplaceReceipt(false);
+      } else {
+        setExistingReceiptUrl(null);
+        setExistingReceiptMetadata(null);
+        setReplaceReceipt(false);
+      }
+    }
+  }, [open, commitment]);
+
+  // Detectar tipo de archivo para mostrar vista previa apropiada
+  const getFileType = (metadata) => {
+    if (!metadata) return 'unknown';
+    const type = metadata.type || '';
+    if (type.startsWith('image/')) return 'image';
+    if (type === 'application/pdf') return 'pdf';
+    return 'document';
+  };
+
+  // Obtener icono según tipo de archivo
+  const getFileIcon = (metadata) => {
+    const type = getFileType(metadata);
+    switch (type) {
+      case 'image': return <ImageIcon />;
+      case 'pdf': return <PictureAsPdf />;
+      default: return <FilePresent />;
+    }
+  };
 
   // Formatear moneda
   const formatCurrency = (value) => {
@@ -102,6 +154,8 @@ const PaymentPopupPremium = ({
   const handleClose = () => {
     if (!saving) {
       setPaymentData({ interests: '', receiptFile: null });
+      setShowReceiptPreview(false);
+      setReplaceReceipt(false);
       onClose();
     }
   };
@@ -113,11 +167,11 @@ const PaymentPopupPremium = ({
     try {
       setSaving(true);
       
-      let receiptUrl = null;
-      let receiptMetadata = null;
+      let receiptUrl = existingReceiptUrl; // Mantener URL existente por defecto
+      let receiptMetadata = existingReceiptMetadata; // Mantener metadata existente
       
-      // Subir archivo si existe
-      if (paymentData.receiptFile) {
+      // Subir nuevo archivo solo si se seleccionó uno nuevo o se está reemplazando
+      if (paymentData.receiptFile && (!hasExistingReceipt || replaceReceipt)) {
         console.log('📎 Subiendo comprobante:', paymentData.receiptFile.name);
         
         // Crear referencia con ruta que coincida con las reglas de seguridad
@@ -153,6 +207,7 @@ const PaymentPopupPremium = ({
       const commitmentRef = doc(db, 'commitments', commitment.id);
       const updateData = {
         status: 'paid',
+        paid: true, // Para compatibilidad
         paidAt: serverTimestamp(),
         paidBy: currentUser.uid,
         interests: parseFloat(paymentData.interests) || 0,
@@ -160,7 +215,7 @@ const PaymentPopupPremium = ({
         updatedAt: serverTimestamp()
       };
       
-      // Agregar datos del comprobante si existe
+      // Agregar datos del comprobante si existe (nuevo o existente)
       if (receiptUrl) {
         updateData.receiptUrl = receiptUrl;
         updateData.receiptMetadata = receiptMetadata;
@@ -172,6 +227,9 @@ const PaymentPopupPremium = ({
       
       // Ejecutar callbacks
       onPaymentConfirmed && onPaymentConfirmed();
+      
+      // Cerrar modal
+      handleClose();
       
     } catch (error) {
       console.error('❌ Error al procesar pago:', error);
@@ -195,7 +253,8 @@ const PaymentPopupPremium = ({
   if (!commitment) return null;
 
   return (
-    <AnimatePresence>
+    <>
+      <AnimatePresence>
       {open && (
         <Dialog
           open={open}
@@ -433,7 +492,7 @@ const PaymentPopupPremium = ({
                 </Paper>
               </motion.div>
 
-              {/* Sección de Comprobante Premium */}
+              {/* Sección de Comprobante Premium - Con detección de comprobante existente */}
               <motion.div 
                 {...animationVariants.slideUp}
                 transition={{ delay: 0.3 }}
@@ -451,44 +510,202 @@ const PaymentPopupPremium = ({
                     }}
                   >
                     <Receipt color="primary" />
-                    Comprobante de Pago (opcional)
+                    Comprobante de Pago
+                    {hasExistingReceipt && (
+                      <Chip 
+                        label="Ya adjunto" 
+                        size="small" 
+                        color="success" 
+                        sx={{ ml: 1 }}
+                      />
+                    )}
                   </Typography>
                   
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      border: `2px dashed ${theme.palette.primary.main}40`,
-                      borderRadius: 4, // Consistente
-                      p: 3, // Más espacioso
-                      textAlign: 'center',
-                      background: alpha(theme.palette.primary.main, 0.02),
-                      cursor: 'pointer',
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        borderColor: theme.palette.primary.main,
-                        background: alpha(theme.palette.primary.main, 0.05),
-                        transform: 'translateY(-1px)' // Más sutil
-                      }
-                    }}
-                    onClick={() => document.getElementById('receipt-upload').click()}
-                  >
-                    <AttachFile color="primary" sx={{ fontSize: 32, mb: 1 }} />
-                    <Typography variant="body1" color="primary" fontWeight={600}>
-                      {paymentData.receiptFile ? paymentData.receiptFile.name : 'Seleccionar Archivo'}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                      Arrastra aquí tu comprobante o haz clic para seleccionar
-                    </Typography>
-                    <input
-                      id="receipt-upload"
-                      type="file"
-                      hidden
-                      accept="image/*,.pdf"
-                      onChange={(e) => handleInputChange('receiptFile', e.target.files[0])}
-                    />
-                  </Paper>
+                  {/* Si ya existe un comprobante */}
+                  {hasExistingReceipt && !replaceReceipt ? (
+                    <Card
+                      sx={{
+                        border: `2px solid ${theme.palette.success.main}40`,
+                        borderRadius: 4,
+                        background: alpha(theme.palette.success.main, 0.05),
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <Box sx={{ p: 3 }}>
+                        <Box display="flex" alignItems="center" gap={2} mb={2}>
+                          <Box
+                            sx={{
+                              width: 48,
+                              height: 48,
+                              borderRadius: 2,
+                              background: `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white'
+                            }}
+                          >
+                            {getFileIcon(existingReceiptMetadata)}
+                          </Box>
+                          <Box flex={1}>
+                            <Typography variant="body1" fontWeight={600} color="success.main">
+                              Comprobante adjunto
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {existingReceiptMetadata?.originalName || 'Archivo existente'}
+                            </Typography>
+                            {existingReceiptMetadata?.size && (
+                              <Typography variant="caption" color="text.secondary">
+                                {(existingReceiptMetadata.size / 1024 / 1024).toFixed(2)} MB
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+
+                        {/* Vista previa para imágenes */}
+                        {getFileType(existingReceiptMetadata) === 'image' && existingReceiptUrl && (
+                          <Box sx={{ mb: 2 }}>
+                            <CardMedia
+                              component="img"
+                              src={existingReceiptUrl}
+                              alt="Vista previa del comprobante"
+                              sx={{
+                                height: 200,
+                                objectFit: 'contain',
+                                borderRadius: 2,
+                                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                                cursor: 'pointer'
+                              }}
+                              onClick={() => setShowReceiptPreview(true)}
+                            />
+                          </Box>
+                        )}
+
+                        <Box display="flex" gap={2}>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<Visibility />}
+                            onClick={() => {
+                              if (getFileType(existingReceiptMetadata) === 'image') {
+                                setShowReceiptPreview(true);
+                              } else {
+                                window.open(existingReceiptUrl, '_blank');
+                              }
+                            }}
+                            sx={{ borderRadius: 2 }}
+                          >
+                            Ver comprobante
+                          </Button>
+                          <Button
+                            variant="text"
+                            size="small"
+                            startIcon={<AttachFile />}
+                            onClick={() => setReplaceReceipt(true)}
+                            sx={{ borderRadius: 2 }}
+                          >
+                            Reemplazar
+                          </Button>
+                        </Box>
+                      </Box>
+                    </Card>
+                  ) : (
+                    /* Área de carga de archivo (nueva o reemplazo) */
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        border: `2px dashed ${theme.palette.primary.main}40`,
+                        borderRadius: 4,
+                        p: 3,
+                        textAlign: 'center',
+                        background: alpha(theme.palette.primary.main, 0.02),
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          borderColor: theme.palette.primary.main,
+                          background: alpha(theme.palette.primary.main, 0.05),
+                          transform: 'translateY(-1px)'
+                        }
+                      }}
+                      onClick={() => document.getElementById('receipt-upload').click()}
+                    >
+                      <AttachFile color="primary" sx={{ fontSize: 32, mb: 1 }} />
+                      <Typography variant="body1" color="primary" fontWeight={600}>
+                        {paymentData.receiptFile 
+                          ? paymentData.receiptFile.name 
+                          : replaceReceipt 
+                            ? 'Seleccionar nuevo archivo'
+                            : 'Seleccionar Archivo'
+                        }
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                        {replaceReceipt 
+                          ? 'Elige un nuevo comprobante para reemplazar el actual'
+                          : 'Arrastra aquí tu comprobante o haz clic para seleccionar'
+                        }
+                      </Typography>
+                      {replaceReceipt && (
+                        <Button
+                          variant="text"
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setReplaceReceipt(false);
+                            setPaymentData(prev => ({ ...prev, receiptFile: null }));
+                          }}
+                          sx={{ mt: 1 }}
+                        >
+                          Cancelar reemplazo
+                        </Button>
+                      )}
+                      <input
+                        id="receipt-upload"
+                        type="file"
+                        hidden
+                        accept="image/*,.pdf"
+                        onChange={(e) => handleInputChange('receiptFile', e.target.files[0])}
+                      />
+                    </Paper>
+                  )}
                 </Box>
               </motion.div>
+
+              {/* Modal de vista previa para imágenes */}
+              <Dialog
+                open={showReceiptPreview}
+                onClose={() => setShowReceiptPreview(false)}
+                maxWidth="md"
+                fullWidth
+                PaperProps={{
+                  sx: {
+                    borderRadius: 3,
+                    background: theme.palette.background.paper
+                  }
+                }}
+              >
+                <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  Vista previa del comprobante
+                  <IconButton onClick={() => setShowReceiptPreview(false)}>
+                    <Close />
+                  </IconButton>
+                </DialogTitle>
+                <DialogContent>
+                  {existingReceiptUrl && (
+                    <CardMedia
+                      component="img"
+                      src={existingReceiptUrl}
+                      alt="Vista previa del comprobante"
+                      sx={{
+                        width: '100%',
+                        height: 'auto',
+                        maxHeight: '70vh',
+                        objectFit: 'contain',
+                        borderRadius: 2
+                      }}
+                    />
+                  )}
+                </DialogContent>
+              </Dialog>
             </DialogContent>
 
             {/* Footer con Botones Premium */}
@@ -565,6 +782,116 @@ const PaymentPopupPremium = ({
         </Dialog>
       )}
     </AnimatePresence>
+
+    {/* Modal de Vista Previa de Comprobante */}
+    <Dialog
+      open={showReceiptPreview}
+      onClose={() => setShowReceiptPreview(false)}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 3,
+          background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255,255,255,0.2)',
+        }
+      }}
+    >
+      <DialogTitle sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: 'white',
+        fontWeight: 600
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ReceiptIcon />
+          Vista Previa del Comprobante
+        </Box>
+        <IconButton 
+          onClick={() => setShowReceiptPreview(false)}
+          sx={{ color: 'white' }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </DialogTitle>
+      
+      <DialogContent sx={{ p: 3 }}>
+        {existingReceiptUrl && (
+          <Box sx={{ textAlign: 'center' }}>
+            {existingReceiptMetadata?.type?.startsWith('image/') ? (
+              <Card sx={{ 
+                maxWidth: 600, 
+                mx: 'auto',
+                boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
+                borderRadius: 2
+              }}>
+                <CardMedia
+                  component="img"
+                  image={existingReceiptUrl}
+                  alt="Comprobante de pago"
+                  sx={{ 
+                    width: '100%',
+                    height: 'auto',
+                    maxHeight: 500,
+                    objectFit: 'contain'
+                  }}
+                />
+              </Card>
+            ) : (
+              <Box sx={{ 
+                p: 4, 
+                textAlign: 'center',
+                background: 'linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%)',
+                borderRadius: 2,
+                border: '2px dashed #dee2e6'
+              }}>
+                <PictureAsPdfIcon sx={{ fontSize: 64, color: '#dc3545', mb: 2 }} />
+                <Typography variant="h6" gutterBottom>
+                  Documento PDF
+                </Typography>
+                <Typography variant="body2" color="textSecondary" gutterBottom>
+                  {existingReceiptMetadata?.originalName || 'comprobante.pdf'}
+                </Typography>
+                <Button
+                  variant="contained"
+                  onClick={() => window.open(existingReceiptUrl, '_blank')}
+                  sx={{
+                    mt: 2,
+                    background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
+                    color: 'white',
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #c82333 0%, #a71e2a 100%)',
+                    }
+                  }}
+                >
+                  Abrir PDF
+                </Button>
+              </Box>
+            )}
+            
+            {existingReceiptMetadata && (
+              <Box sx={{ mt: 2, p: 2, backgroundColor: '#f8f9fa', borderRadius: 1 }}>
+                <Typography variant="caption" color="textSecondary">
+                  <strong>Archivo:</strong> {existingReceiptMetadata.originalName}<br/>
+                  <strong>Tamaño:</strong> {(existingReceiptMetadata.size / 1024 / 1024).toFixed(2)} MB<br/>
+                  <strong>Tipo:</strong> {existingReceiptMetadata.type}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        )}
+      </DialogContent>
+      
+      <DialogActions sx={{ p: 3, pt: 0 }}>
+        <Button onClick={() => setShowReceiptPreview(false)}>
+          Cerrar
+        </Button>
+      </DialogActions>
+    </Dialog>
+    </>
   );
 };
 
