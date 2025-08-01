@@ -158,7 +158,7 @@ const DashboardCustomizer = ({ settings, updateSettings }) => {
   };
 
   const widgetsList = [
-    { id: 'stats', name: 'Estadísticas Principales', icon: <DashboardIcon />, description: 'Métricas clave del dashboard' },
+    { id: 'stats', name: 'Métricas Principales', icon: <DashboardIcon />, description: 'Métricas clave del dashboard' },
     { id: 'recentCommitments', name: 'Compromisos Recientes', icon: <CompanyIcon />, description: 'Últimos compromisos agregados' },
     { id: 'upcomingPayments', name: 'Pagos Próximos', icon: <ScheduleIcon />, description: 'Compromisos próximos a vencer' },
     { id: 'monthlyChart', name: 'Gráfico Mensual', icon: <ChartBarIcon />, description: 'Análisis mensual de compromisos' },

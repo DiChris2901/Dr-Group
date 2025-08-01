@@ -30,7 +30,6 @@ import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../../context/AuthContext';
 import { useDashboardStats } from '../../hooks/useDashboardStats';
-import DashboardHeader from './DashboardHeader';
 import { useNavigate } from 'react-router-dom';
 import { createSampleData } from '../../utils/sampleData';
 import {
@@ -54,7 +53,7 @@ const WelcomeDashboard = () => {
     totalAmount = 0,
     paidAmount = 0,
     pendingAmount = 0
-  } = stats;
+  } = stats || {};
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('es-CO', {
@@ -358,8 +357,6 @@ const WelcomeDashboard = () => {
 
   return (
     <Box sx={{ minHeight: '100vh', pb: 4 }}>
-      <DashboardHeader />
-      
       <Box sx={{ px: 3 }}>
         {/* Mostrar indicador de carga */}
         {loading && (

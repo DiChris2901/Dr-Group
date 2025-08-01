@@ -25,7 +25,6 @@ import {
   Assignment,
   AttachMoney,
   Notifications,
-  TrendingUp,
   ExpandLess,
   ExpandMore
 } from '@mui/icons-material';
@@ -116,12 +115,6 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       icon: Dashboard,
       path: '/dashboard',
       color: primaryColor
-    },
-    {
-      title: 'Estadísticas',
-      icon: TrendingUp,
-      path: '/dashboard/stats',
-      color: secondaryColor
     },
     {
       title: 'Compromisos',

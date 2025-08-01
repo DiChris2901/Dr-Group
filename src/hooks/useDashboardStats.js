@@ -93,7 +93,19 @@ export const useDashboardStats = () => {
     return unsubscribe;
   }, [currentUser]);
 
-  return stats;
+  return {
+    stats: {
+      totalCommitments: stats.totalCommitments,
+      pendingCommitments: stats.pendingCommitments,
+      overDueCommitments: stats.overDueCommitments,
+      completedCommitments: stats.completedCommitments,
+      totalAmount: stats.totalAmount,
+      paidAmount: stats.paidAmount,
+      pendingAmount: stats.pendingAmount
+    },
+    loading: stats.loading,
+    error: stats.error
+  };
 };
 
 export default useDashboardStats;
