@@ -21,7 +21,8 @@ import {
   alpha,
   Card,
   CardMedia,
-  Chip
+  Chip,
+  Alert
 } from '@mui/material';
 import {
   CheckCircle,
@@ -37,7 +38,9 @@ import {
   Image as ImageIcon,
   Close as CloseIcon,
   Receipt as ReceiptIcon,
-  Description as DescriptionIcon
+  Description as DescriptionIcon,
+  Download as DownloadIcon,
+  Security as SecurityIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -45,6 +48,8 @@ import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { hasPermission, PERMISSIONS } from '../../utils/userPermissions';
+import SecurePDFViewer from '../common/SecurePDFViewer';
 
 const PaymentPopupPremium = ({ 
   open, 
@@ -823,8 +828,9 @@ const PaymentPopupPremium = ({
       
       <DialogContent sx={{ p: 3 }}>
         {existingReceiptUrl && (
-          <Box sx={{ textAlign: 'center' }}>
+          <Box sx={{ width: '100%' }}>
             {existingReceiptMetadata?.type?.startsWith('image/') ? (
+              // Vista previa de imágenes
               <Card sx={{ 
                 maxWidth: 600, 
                 mx: 'auto',
@@ -844,43 +850,47 @@ const PaymentPopupPremium = ({
                 />
               </Card>
             ) : (
-              <Box sx={{ 
-                textAlign: 'center',
-                width: '100%'
-              }}>
+              // Vista previa segura de PDFs
+              <Box sx={{ width: '100%' }}>
                 <Box sx={{ 
                   p: 2, 
                   textAlign: 'center',
                   background: 'linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%)',
-                  borderRadius: 2,
-                  border: '2px dashed #dee2e6',
-                  mb: 2
+                  borderRadius: '8px 8px 0 0',
+                  border: '2px solid #dee2e6',
+                  borderBottom: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
                 }}>
-                  <PictureAsPdfIcon sx={{ fontSize: 48, color: '#dc3545', mb: 1 }} />
-                  <Typography variant="h6" gutterBottom>
-                    Documento PDF
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary" gutterBottom>
-                    {existingReceiptMetadata?.originalName || 'comprobante.pdf'}
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <PictureAsPdfIcon sx={{ fontSize: 24, color: '#dc3545' }} />
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                        {existingReceiptMetadata?.originalName || 'comprobante.pdf'}
+                      </Typography>
+                      <Typography variant="caption" color="textSecondary">
+                        Documento PDF • {(existingReceiptMetadata?.size / 1024 / 1024).toFixed(2)} MB
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <SecurityIcon sx={{ fontSize: 16, color: '#28a745' }} />
+                    <Typography variant="caption" color="success.main" sx={{ fontWeight: 600 }}>
+                      Vista Segura
+                    </Typography>
+                  </Box>
                 </Box>
                 
-                {/* Vista previa del PDF en iframe */}
-                <Box sx={{ 
-                  width: '100%', 
-                  height: 500, 
-                  border: '1px solid #dee2e6',
-                  borderRadius: 2,
-                  overflow: 'hidden'
-                }}>
-                  <iframe
-                    src={existingReceiptUrl}
-                    width="100%"
-                    height="100%"
-                    style={{ border: 'none' }}
-                    title="Vista previa del comprobante PDF"
-                  />
-                </Box>
+                {/* Visor PDF seguro */}
+                <SecurePDFViewer 
+                  url={existingReceiptUrl}
+                  height={500}
+                  allowControls={true}
+                  onError={(error) => {
+                    console.error('Error loading PDF:', error);
+                  }}
+                />
               </Box>
             )}
             
@@ -897,16 +907,45 @@ const PaymentPopupPremium = ({
         )}
       </DialogContent>
       
-      <DialogActions sx={{ p: 3, pt: 0 }}>
+      <DialogActions sx={{ p: 3, pt: 0, justifyContent: 'space-between' }}>
+        {/* Botón de descarga solo si tiene permisos */}
+        {hasPermission(currentUser, PERMISSIONS.DOWNLOAD_RECEIPTS) ? (
+          <Button 
+            variant="outlined"
+            onClick={() => window.open(existingReceiptUrl, '_blank')}
+            startIcon={<DownloadIcon />}
+            sx={{ 
+              color: 'success.main',
+              borderColor: 'success.main',
+              '&:hover': {
+                backgroundColor: 'success.light',
+                borderColor: 'success.dark'
+              }
+            }}
+          >
+            Descargar
+          </Button>
+        ) : (
+          <Alert 
+            severity="info" 
+            variant="outlined"
+            sx={{ 
+              flex: 1, 
+              mr: 2,
+              '& .MuiAlert-message': { fontSize: '0.875rem' }
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <SecurityIcon sx={{ fontSize: 16 }} />
+              No tienes permisos para descargar archivos
+            </Box>
+          </Alert>
+        )}
+        
         <Button 
-          variant="outlined"
-          onClick={() => window.open(existingReceiptUrl, '_blank')}
-          startIcon={<FilePresent />}
-          sx={{ mr: 'auto' }}
+          onClick={() => setShowReceiptPreview(false)}
+          variant="contained"
         >
-          Descargar
-        </Button>
-        <Button onClick={() => setShowReceiptPreview(false)}>
           Cerrar
         </Button>
       </DialogActions>
