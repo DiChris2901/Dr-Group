@@ -13,8 +13,6 @@ import { NotificationsProvider } from './context/NotificationsContext';
 import LoginForm from './components/auth/LoginForm';
 import MainLayout from './components/layout/MainLayout';
 import BackgroundProvider from './components/layout/BackgroundProvider';
-import DashboardStats from './components/dashboard/DashboardStats';
-import QuickActions from './components/dashboard/QuickActions';
 
 // Pages
 import CommitmentsPage from './pages/CommitmentsPage';
@@ -25,7 +23,7 @@ import ProfilePage from './pages/ProfilePage';
 import DataPage from './pages/DataPage';
 import CompaniesPage from './pages/CompaniesPage';
 import TasksPage from './pages/TasksPage';
-import WelcomeDashboard from './components/dashboard/WelcomeDashboardSimple';
+import WelcomeDashboard from './components/dashboard/WelcomeDashboard';
 
 // Debug Components
 import FirebaseDebug from './components/debug/FirebaseDebug';
@@ -57,15 +55,6 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Dashboard Ejecutivo" breadcrumbs={['Inicio']}>
             <WelcomeDashboard />
-          </MainLayout>
-        } 
-      />
-      <Route 
-        path="/dashboard/stats" 
-        element={
-          <MainLayout title="Estadísticas Detalladas" breadcrumbs={['Dashboard', 'Estadísticas']}>
-            <DashboardStats stats={dashboardStats} />
-            <QuickActions />
           </MainLayout>
         } 
       />
