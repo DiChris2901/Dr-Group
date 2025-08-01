@@ -169,9 +169,15 @@ MainLayout.jsx
 - **Menús Topbar**: Calendario, compromisos y storage completamente funcionales
 - **Navegación**: Sidebar optimizado sin secciones duplicadas
 - **Responsive**: Diseño adaptable a todas las pantallas
+- **Optimización VS Code**: Protocolo documentado para prevenir lentitud
 - Micro-interacciones en botones
 - Loading states y error handling
 - Responsive design optimizado
+
+### Documentación Técnica
+- `OPTIMIZACION_VSCODE.md` - Protocolo completo para optimizar VS Code
+- `AVANCES_SESION.md` - Estado y progreso del proyecto
+- `PROTOCOLO_VERIFICACION_ERRORES.md` - Resolución de errores de código
 
 ---
 
