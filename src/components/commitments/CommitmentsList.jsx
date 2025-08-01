@@ -40,7 +40,8 @@ import {
   Payment,
   Share,
   NotificationAdd,
-  GetApp
+  GetApp,
+  Close
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO, isAfter, isBefore, addDays, differenceInDays, differenceInHours } from 'date-fns';
@@ -608,23 +609,12 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
             >
               <Box
                 sx={{
-                  background: getStatusInfo(selectedCommitment).gradient,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                   color: 'white',
-                  p: 2.5,
+                  p: 3,
                   borderRadius: '16px 16px 0 0',
                   position: 'relative',
                   overflow: 'hidden',
-                  minHeight: 75,
-                  boxShadow: `
-                    0 8px 32px ${getStatusInfo(selectedCommitment).shadowColor},
-                    0 4px 16px rgba(0, 0, 0, 0.2),
-                    0 2px 8px rgba(0, 0, 0, 0.15),
-                    0 1px 3px rgba(0, 0, 0, 0.2),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-                    inset 0 -1px 0 rgba(0, 0, 0, 0.1)
-                  `,
-                  backdropFilter: 'blur(20px) saturate(180%)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
                   '&::before': {
                     content: '""',
                     position: 'absolute',
@@ -632,433 +622,169 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    background: `
-                      url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23ffffff" fill-opacity="0.08"%3E%3Ccircle cx="30" cy="30" r="2"/%3E%3Ccircle cx="15" cy="15" r="1.5"/%3E%3Ccircle cx="45" cy="45" r="1.5"/%3E%3Ccircle cx="60" cy="15" r="1.5"/%3E%3Ccircle cx="15" cy="60" r="1.5"/%3E%3Cpath d="M30 45L45 30L30 15L15 30z" fill-opacity="0.04"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"),
-                      linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 30%, transparent 60%),
-                      linear-gradient(45deg, rgba(255, 255, 255, 0.1) 0%, transparent 25%, rgba(255, 255, 255, 0.05) 50%, transparent 75%)
-                    `,
-                    opacity: 0.9,
-                    mixBlendMode: 'overlay'
+                    background: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.15) 0%, transparent 50%)',
+                    zIndex: 1
                   },
                   '&::after': {
                     content: '""',
                     position: 'absolute',
-                    top: -60,
-                    right: -60,
-                    width: 240,
-                    height: 240,
+                    top: -50,
+                    right: -50,
+                    width: 120,
+                    height: 120,
                     borderRadius: '50%',
-                    background: `
-                      radial-gradient(circle, 
-                        rgba(255, 255, 255, 0.25) 0%, 
-                        rgba(255, 255, 255, 0.15) 20%,
-                        rgba(255, 255, 255, 0.08) 40%, 
-                        transparent 70%
-                      ),
-                      conic-gradient(from 0deg, 
-                        transparent 0deg, 
-                        rgba(255, 255, 255, 0.15) 45deg,
-                        rgba(255, 255, 255, 0.1) 90deg, 
-                        transparent 135deg,
-                        rgba(255, 255, 255, 0.05) 180deg,
-                        transparent 225deg
-                      )
-                    `,
-                    zIndex: 0,
-                    animation: 'rotate 25s linear infinite',
-                    '@keyframes rotate': {
-                      from: { transform: 'rotate(0deg)' },
-                      to: { transform: 'rotate(360deg)' }
-                    }
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    animation: 'float 6s ease-in-out infinite',
+                    zIndex: 1
+                  },
+                  '@keyframes float': {
+                    '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
+                    '50%': { transform: 'translateY(-20px) rotate(180deg)' }
                   }
                 }}
               >
-                  <Box 
-                  display="flex" 
-                  alignItems="center" 
-                  justifyContent="space-between" 
-                  sx={{ position: 'relative', zIndex: 2, height: '100%' }}
-                >
-                  <Box display="flex" alignItems="center" gap={2}>
-                    {/* Logo de la empresa con efecto de pulso mejorado */}
+                <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ position: 'relative', zIndex: 2 }}>
+                  <Box display="flex" alignItems="center" gap={2.5}>
+                    {/* Logo de empresa en lugar del icono ojo */}
                     <motion.div
-                      initial={{ scale: 0.8, opacity: 0, rotateY: -90 }}
-                      animate={{ scale: 1, opacity: 1, rotateY: 0 }}
-                      transition={{ 
-                        delay: 0.2, 
-                        duration: 0.6,
-                        type: "spring",
-                        stiffness: 100
-                      }}
-                      whileHover={{ 
-                        scale: 1.08, 
-                        rotateY: 5,
-                        transition: { duration: 0.3 }
-                      }}
+                      initial={{ scale: 0.8, rotate: -15 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ delay: 0.2, duration: 0.6, type: "spring", bounce: 0.4 }}
+                      whileHover={{ scale: 1.05, rotate: 5 }}
+                      whileTap={{ scale: 0.95 }}
                     >
                       <Box
                         sx={{
-                          width: 48,
-                          height: 48,
+                          width: 56,
+                          height: 56,
                           borderRadius: 2.5,
-                          background: `
-                            linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.1) 100%),
-                            rgba(255, 255, 255, 0.05)
-                          `,
-                          backdropFilter: 'blur(20px) saturate(200%)',
-                          border: '2px solid rgba(255, 255, 255, 0.3)',
+                          background: 'rgba(255, 255, 255, 0.2)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          overflow: 'hidden',
-                          boxShadow: `
-                            0 8px 32px rgba(0, 0, 0, 0.25),
-                            0 2px 8px rgba(0, 0, 0, 0.15),
-                            inset 0 1px 0 rgba(255, 255, 255, 0.3),
-                            inset 0 -1px 0 rgba(0, 0, 0, 0.1)
-                          `,
-                          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                          backdropFilter: 'blur(10px)',
+                          border: '1px solid rgba(255, 255, 255, 0.3)',
                           position: 'relative',
+                          overflow: 'hidden',
                           '&::before': {
                             content: '""',
                             position: 'absolute',
-                            inset: 0,
-                            borderRadius: 'inherit',
-                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 50%)',
-                            opacity: 0,
-                            transition: 'opacity 0.3s ease'
-                          },
-                          '&:hover::before': {
-                            opacity: 1
+                            top: 0,
+                            left: '-100%',
+                            width: '100%',
+                            height: '100%',
+                            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                            animation: 'shimmer 2s infinite'
                           }
                         }}
                       >
                         {companyData?.logoURL ? (
-                          <img 
-                            src={companyData.logoURL} 
-                            alt={companyData.name}
-                            style={{ 
-                              width: '40px', 
-                              height: '40px', 
+                          <Box
+                            component="img"
+                            src={companyData.logoURL}
+                            alt={`Logo de ${companyData.name}`}
+                            sx={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 2,
                               objectFit: 'contain',
-                              borderRadius: 6
-                            }}
-                            onError={(e) => {
-                              e.target.style.display = 'none';
+                              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                              border: '1px solid rgba(255, 255, 255, 0.3)',
+                              zIndex: 1
                             }}
                           />
                         ) : (
-                          <Business sx={{ fontSize: 24, color: 'rgba(255, 255, 255, 0.9)' }} />
+                          <Business sx={{ fontSize: 28, color: 'white', zIndex: 1 }} />
                         )}
                       </Box>
                     </motion.div>
                     
-                    {/* Información principal con mejor espaciado */}
-                    <Box sx={{ ml: 0.5 }}>
+                    {/* Información compacta del compromiso */}
+                    <Box>
                       <motion.div
-                        initial={{ x: -20, opacity: 0 }}
+                        initial={{ x: -30, opacity: 0 }}
                         animate={{ x: 0, opacity: 1 }}
-                        transition={{ 
-                          delay: 0.1, 
-                          duration: 0.5,
-                          type: "spring",
-                          stiffness: 80
-                        }}
+                        transition={{ delay: 0.3, duration: 0.5 }}
                       >
-                        <Typography 
-                          variant="h6" 
-                          sx={{ 
-                            fontWeight: 800, 
-                            mb: 0.3, 
-                            fontSize: '1.4rem', 
-                            textShadow: '0 3px 6px rgba(0,0,0,0.15)',
-                            lineHeight: 1.2,
-                            letterSpacing: '-0.02em'
-                          }}
-                        >
-                          {selectedCommitment.concept || selectedCommitment.description || 'Sin concepto'}
+                        <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.3, textShadow: '0 2px 4px rgba(0,0,0,0.3)', fontSize: '1.25rem' }}>
+                          {selectedCommitment?.concept || selectedCommitment?.description || 'Sin concepto'}
                         </Typography>
-                      </motion.div>
-                      
-                      <motion.div
-                        initial={{ x: -20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ 
-                          delay: 0.2, 
-                          duration: 0.5,
-                          type: "spring",
-                          stiffness: 80
-                        }}
-                      >
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            opacity: 0.92, 
-                            fontWeight: 500, 
-                            mb: 0.5, 
-                            textShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                            fontSize: '0.9rem',
-                            letterSpacing: '0.01em'
-                          }}
-                        >
-                          {selectedCommitment.companyName || selectedCommitment.company || companyData?.name || 'Sin empresa'}
-                        </Typography>
-                      </motion.div>
-                      
-                      <motion.div
-                        initial={{ x: -20, opacity: 0, scale: 0.9 }}
-                        animate={{ x: 0, opacity: 1, scale: 1 }}
-                        transition={{ 
-                          delay: 0.3, 
-                          duration: 0.6, 
-                          type: "spring",
-                          stiffness: 60
-                        }}
-                      >
-                        <Typography 
-                          variant="h5" 
-                          sx={{ 
-                            fontWeight: 900, 
-                            fontSize: '1.8rem', 
-                            textShadow: '0 4px 12px rgba(0,0,0,0.25)',
-                            lineHeight: 1,
-                            letterSpacing: '-0.03em',
-                            background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.8) 100%)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
-                          }}
-                        >
-                          <CountingNumber end={selectedCommitment.amount} duration={1800} />
-                        </Typography>
+                        <Box display="flex" alignItems="center" gap={2}>
+                          <Typography 
+                            variant="h5" 
+                            sx={{ 
+                              fontWeight: 800, 
+                              fontSize: '1.4rem',
+                              textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                              color: 'rgba(255, 255, 255, 0.95)'
+                            }}
+                          >
+                            ${selectedCommitment?.amount?.toLocaleString() || '0'}
+                          </Typography>
+                          {companyData && (
+                            <Typography variant="body2" sx={{ opacity: 0.8, fontWeight: 500 }}>
+                              • {companyData.name}
+                            </Typography>
+                          )}
+                        </Box>
                       </motion.div>
                     </Box>
                   </Box>
 
-                  {/* Estado del compromiso y acciones - BANNER DERECHO */}
-                  <Box textAlign="right" sx={{ ml: 2, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1.5 }}>
-                    {/* Chip de Estado */}
-                    <motion.div
-                      initial={{ x: 20, opacity: 0, scale: 0.9 }}
-                      animate={{ x: 0, opacity: 1, scale: 1 }}
-                      transition={{ 
-                        delay: 0.2, 
-                        duration: 0.5,
-                        type: "spring",
-                        stiffness: 100
-                      }}
-                    >
-                      <Chip
-                        icon={getStatusInfo(selectedCommitment).icon}
-                        label={getStatusInfo(selectedCommitment).label}
-                        sx={{ 
-                          bgcolor: 'rgba(0, 0, 0, 0.25)',
-                          color: 'white',
-                          fontWeight: 800,
-                          fontSize: '0.75rem',
-                          height: 36,
-                          px: 1.5,
-                          backdropFilter: 'blur(20px) saturate(200%)',
-                          border: '2px solid rgba(0, 0, 0, 0.3)',
-                          borderRadius: '18px',
-                          background: `
-                            linear-gradient(135deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.25) 100%),
-                            linear-gradient(225deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%)
-                          `,
-                          boxShadow: `
-                            0 6px 25px rgba(0, 0, 0, 0.4),
-                            0 2px 10px rgba(0, 0, 0, 0.25),
-                            inset 0 1px 0 rgba(255, 255, 255, 0.2),
-                            inset 0 -1px 0 rgba(0, 0, 0, 0.3)
-                          `,
-                          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                          position: 'relative',
-                          overflow: 'hidden',
-                          '&::before': {
-                            content: '""',
-                            position: 'absolute',
-                            inset: 0,
-                            borderRadius: 'inherit',
-                            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, transparent 60%)',
-                            opacity: 0,
-                            transition: 'opacity 0.3s ease'
-                          },
-                          '& .MuiChip-icon': { 
+                  {/* Lado derecho: Estado + Botón cerrar */}
+                  <motion.div
+                    initial={{ x: 30, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    transition={{ delay: 0.4, duration: 0.5 }}
+                  >
+                    <Box display="flex" alignItems="center" gap={2}>
+                      {/* Estado del compromiso */}
+                      <motion.div
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ type: "spring", bounce: 0.5 }}
+                      >
+                        <Chip
+                          icon={getStatusInfo(selectedCommitment).icon}
+                          label={getStatusInfo(selectedCommitment).label}
+                          size="medium"
+                          sx={{ 
+                            bgcolor: 'rgba(255, 255, 255, 0.2)',
                             color: 'white',
-                            fontSize: '1.1rem',
-                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))',
-                            animation: 'pulse 2s infinite'
-                          },
-                          '& .MuiChip-label': {
-                            textShadow: '0 2px 6px rgba(0,0,0,0.5)',
-                            letterSpacing: '0.02em'
-                          },
-                          '&:hover': {
-                            transform: 'translateY(-2px) scale(1.02)',
-                            bgcolor: 'rgba(0, 0, 0, 0.35)',
-                            boxShadow: `
-                              0 10px 35px rgba(0, 0, 0, 0.5),
-                              0 4px 15px rgba(0, 0, 0, 0.3),
-                              inset 0 1px 0 rgba(255, 255, 255, 0.25),
-                              inset 0 -1px 0 rgba(0, 0, 0, 0.4)
-                            `,
-                            '&::before': {
-                              opacity: 1
+                            fontWeight: 600,
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(255, 255, 255, 0.3)',
+                            '& .MuiChip-icon': {
+                              color: 'white'
                             }
-                          },
-                          '@keyframes pulse': {
-                            '0%': { opacity: 1 },
-                            '50%': { opacity: 0.7 },
-                            '100%': { opacity: 1 }
-                          }
-                        }}
-                      />
-                    </motion.div>
-                    
-                    {/* Fecha de Vencimiento */}
-                    <motion.div
-                      initial={{ x: 20, opacity: 0 }}
-                      animate={{ x: 0, opacity: 1 }}
-                      transition={{ 
-                        delay: 0.3, 
-                        duration: 0.4,
-                        type: "spring"
-                      }}
-                    >
-                      <Typography 
-                        variant="caption" 
-                        sx={{ 
-                          opacity: 0.95, 
-                          fontWeight: 700, 
-                          textShadow: '0 2px 6px rgba(0,0,0,0.2)',
-                          fontSize: '0.8rem',
-                          letterSpacing: '0.03em',
-                          display: 'block',
-                          background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.8) 100%)',
-                          WebkitBackgroundClip: 'text',
-                          WebkitTextFillColor: 'transparent',
-                          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))'
-                        }}
+                          }}
+                        />
+                      </motion.div>
+
+                      {/* Botón de cerrar */}
+                      <motion.div
+                        initial={{ x: 20, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ delay: 0.6, duration: 0.5 }}
                       >
-                        Vence: {format(selectedCommitment.dueDate, 'dd MMM yyyy', { locale: es })}
-                      </Typography>
-                    </motion.div>
-                    
-                    {/* Botón de Acción Dinámico - SIEMPRE VISIBLE */}
-                    <motion.div
-                      initial={{ scale: 0.8, opacity: 0, y: 15 }}
-                      animate={{ scale: 1, opacity: 1, y: 0 }}
-                      transition={{ 
-                        delay: 0.4, 
-                        duration: 0.5,
-                        type: "spring",
-                        stiffness: 120
-                      }}
-                      whileHover={{ 
-                        scale: 1.08,
-                        y: -3 
-                      }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <Button
-                        variant="contained"
-                        startIcon={selectedCommitment.paid ? <GetApp /> : <Payment />}
-                        size="medium"
-                        onClick={() => {
-                          if (selectedCommitment.paid) {
-                            console.log('Ver comprobante - Compromiso ya pagado');
-                          } else {
-                            console.log('¡PAGAR AHORA! - Proceder con el pago');
-                          }
-                        }}
-                        sx={{
-                          bgcolor: 'rgba(0, 0, 0, 0.25)',
-                          color: 'white',
-                          backdropFilter: 'blur(25px) saturate(200%)',
-                          border: '2px solid rgba(0, 0, 0, 0.3)',
-                          borderRadius: '24px',
-                          px: 3,
-                          py: 1,
-                          fontWeight: 800,
-                          textTransform: 'none',
-                          fontSize: '0.85rem',
-                          letterSpacing: '0.02em',
-                          minWidth: '140px',
-                          height: '48px',
-                          background: `
-                            linear-gradient(135deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.25) 100%),
-                            linear-gradient(225deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-                            radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 60%)
-                          `,
-                          boxShadow: `
-                            0 8px 32px rgba(0, 0, 0, 0.4),
-                            0 4px 16px rgba(0, 0, 0, 0.25),
-                            inset 0 2px 0 rgba(255, 255, 255, 0.2),
-                            inset 0 -2px 0 rgba(0, 0, 0, 0.3)
-                          `,
-                          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                          position: 'relative',
-                          overflow: 'hidden',
-                          '&::before': {
-                            content: '""',
-                            position: 'absolute',
-                            inset: 0,
-                            borderRadius: 'inherit',
-                            background: `
-                              linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%),
-                              radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, transparent 70%)
-                            `,
-                            opacity: 0,
-                            transition: 'opacity 0.3s ease'
-                          },
-                          '&::after': {
-                            content: '""',
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            width: '0',
-                            height: '0',
-                            borderRadius: '50%',
+                        <IconButton
+                          onClick={handleCloseViewDialog}
+                          sx={{
                             background: 'rgba(255, 255, 255, 0.2)',
-                            transition: 'all 0.6s ease',
-                            transform: 'translate(-50%, -50%)'
-                          },
-                          '& .MuiButton-startIcon': {
-                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))',
-                            fontSize: '1.1rem !important',
-                            color: 'white'
-                          },
-                          '&:hover': {
-                            bgcolor: 'rgba(0, 0, 0, 0.35)',
-                            transform: 'translateY(-3px)',
-                            boxShadow: `
-                              0 12px 40px rgba(0, 0, 0, 0.5),
-                              0 6px 20px rgba(0, 0, 0, 0.3),
-                              inset 0 2px 0 rgba(255, 255, 255, 0.25),
-                              inset 0 -2px 0 rgba(0, 0, 0, 0.4)
-                            `,
-                            '&::before': {
-                              opacity: 1
-                            },
-                            '&::after': {
-                              width: '100%',
-                              height: '100%'
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(255, 255, 255, 0.3)',
+                            color: 'white',
+                            '&:hover': {
+                              background: 'rgba(255, 255, 255, 0.3)',
+                              transform: 'scale(1.1)'
                             }
-                          },
-                          '&:active': {
-                            transform: 'translateY(-1px)',
-                            boxShadow: `
-                              0 6px 20px rgba(0, 0, 0, 0.2),
-                              0 2px 8px rgba(0, 0, 0, 0.15),
-                              inset 0 1px 0 rgba(255, 255, 255, 0.3)
-                            `
-                          }
-                        }}
-                      >
-                        {selectedCommitment.paid ? 'Pagado' : 'Pagar Ahora'}
-                      </Button>
-                    </motion.div>
-                  </Box>
+                          }}
+                        >
+                          <Close />
+                        </IconButton>
+                      </motion.div>
+                    </Box>
+                  </motion.div>
                 </Box>
               </Box>
             </motion.div>
@@ -1079,138 +805,106 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
                   </motion.div>
                 </Grid>
 
-                {/* Fecha de Vencimiento Destacada con mejor espaciado */}
+                {/* Fecha de Vencimiento - Diseño consistente */}
                 <Grid item xs={12}>
                   <motion.div
                     initial={{ opacity: 0, scale: 0.95, y: 15 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ delay: 0.2, duration: 0.5, type: "spring", stiffness: 100 }}
+                    transition={{ delay: 0.2, duration: 0.5, type: "spring", stiffness: 120 }}
                   >
                     <Card
                       sx={{
-                        p: 3.5,
-                        background: `
-                          linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 152, 0, 0.08) 50%, rgba(255, 152, 0, 0.04) 100%),
-                          linear-gradient(225deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.6) 100%)
-                        `,
-                        border: '2px solid rgba(255, 152, 0, 0.25)',
-                        borderRadius: 4,
-                        textAlign: 'center',
-                        boxShadow: `
-                          0 12px 40px rgba(255, 152, 0, 0.2),
-                          0 4px 16px rgba(255, 152, 0, 0.15),
-                          0 2px 8px rgba(0, 0, 0, 0.08),
-                          inset 0 1px 0 rgba(255, 255, 255, 0.4)
-                        `,
+                        p: 3,
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.secondary.main, 0.05)})`,
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                        borderRadius: 3,
+                        backdropFilter: 'blur(10px)',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
                         position: 'relative',
-                        overflow: 'hidden',
-                        backdropFilter: 'blur(20px) saturate(180%)',
-                        '&::before': {
-                          content: '""',
-                          position: 'absolute',
-                          top: -50,
-                          left: -50,
-                          width: 120,
-                          height: 120,
-                          borderRadius: '50%',
-                          background: `
-                            radial-gradient(circle, rgba(255, 152, 0, 0.15) 0%, rgba(255, 152, 0, 0.08) 40%, transparent 70%),
-                            conic-gradient(from 45deg, transparent 0deg, rgba(255, 152, 0, 0.1) 90deg, transparent 180deg)
-                          `,
-                          zIndex: 0,
-                          animation: 'rotate 15s linear infinite'
-                        },
-                        '@keyframes rotate': {
-                          from: { transform: 'rotate(0deg)' },
-                          to: { transform: 'rotate(360deg)' }
-                        }
+                        overflow: 'hidden'
                       }}
                     >
-                      <Box display="flex" alignItems="center" justifyContent="center" mb={2.5} sx={{ position: 'relative', zIndex: 1 }}>
+                      <Box display="flex" alignItems="center" gap={2.5}>
                         <motion.div
-                          initial={{ rotate: -180, scale: 0.5, opacity: 0 }}
-                          animate={{ rotate: 0, scale: 1, opacity: 1 }}
-                          transition={{ 
-                            delay: 0.3, 
-                            duration: 0.8, 
-                            type: "spring",
-                            stiffness: 80
-                          }}
-                          whileHover={{ 
-                            scale: 1.1, 
-                            rotate: [0, -5, 5, 0],
-                            transition: { duration: 0.6 }
-                          }}
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ delay: 0.3, duration: 0.5, type: "spring" }}
+                          whileHover={{ scale: 1.05 }}
                         >
                           <Box
                             sx={{
-                              width: 64,
-                              height: 64,
-                              borderRadius: 3.5,
-                              background: `
-                                linear-gradient(135deg, #ff9800 0%, #f57c00 50%, #e65100 100%),
-                                radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.3) 0%, transparent 60%)
-                              `,
+                              width: 56,
+                              height: 56,
+                              borderRadius: 2.5,
+                              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              mr: 3,
-                              boxShadow: `
-                                0 12px 32px rgba(255, 152, 0, 0.4),
-                                0 4px 16px rgba(255, 152, 0, 0.25),
-                                0 2px 8px rgba(0, 0, 0, 0.15),
-                                inset 0 2px 0 rgba(255, 255, 255, 0.2),
-                                inset 0 -2px 0 rgba(0, 0, 0, 0.1)
-                              `,
-                              position: 'relative',
-                              overflow: 'hidden',
-                              '&::before': {
-                                content: '""',
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, transparent 60%)',
-                                borderRadius: 'inherit'
-                              }
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
                             }}
                           >
-                            <CalendarToday sx={{ color: 'white', fontSize: 32, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }} />
+                            <CalendarToday sx={{ color: 'white', fontSize: 28 }} />
                           </Box>
                         </motion.div>
-                        <Box textAlign="left">
-                          <Typography variant="body1" color="text.secondary" sx={{ mb: 0.8, fontWeight: 500, fontSize: '0.95rem' }}>
+                        
+                        <Box flex={1}>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
                             Fecha de Vencimiento
                           </Typography>
+                          <Typography variant="h6" sx={{ 
+                            fontWeight: 600, 
+                            color: 'text.primary',
+                            textTransform: 'capitalize',
+                            mb: 0.2
+                          }}>
+                            {format(selectedCommitment.dueDate, 'EEEE', { locale: es })}
+                          </Typography>
+                          <Typography variant="body1" sx={{ 
+                            fontWeight: 500,
+                            color: 'text.secondary'
+                          }}>
+                            {format(selectedCommitment.dueDate, 'dd \'de\' MMMM \'de\' yyyy', { locale: es })}
+                          </Typography>
+                        </Box>
+
+                        {/* Indicador de días restantes */}
+                        <Box textAlign="right">
                           <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.4, duration: 0.5 }}
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ delay: 0.4, duration: 0.5, type: "spring" }}
                           >
-                            <Typography variant="h5" sx={{ 
-                              fontWeight: 700, 
-                              color: 'warning.main',
-                              fontSize: '1.4rem',
-                              textTransform: 'capitalize',
-                              mb: 0.2
-                            }}>
-                              {format(selectedCommitment.dueDate, 'EEEE', { locale: es })}
-                            </Typography>
-                          </motion.div>
-                          <motion.div
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.5, duration: 0.5 }}
-                          >
-                            <Typography variant="h6" sx={{ 
-                              fontWeight: 600,
-                              fontSize: '1.1rem',
-                              color: 'text.primary',
-                              lineHeight: 1.3
-                            }}>
-                              {format(selectedCommitment.dueDate, 'dd \'de\' MMMM \'de\' yyyy', { locale: es })}
-                            </Typography>
+                            <Chip
+                              label={(() => {
+                                const days = differenceInDays(selectedCommitment.dueDate, new Date());
+                                if (days < 0) return `${Math.abs(days)} días vencido`;
+                                if (days === 0) return 'Vence hoy';
+                                if (days === 1) return 'Vence mañana';
+                                return `${days} días restantes`;
+                              })()}
+                              size="medium"
+                              sx={{
+                                fontWeight: 600,
+                                bgcolor: (() => {
+                                  const days = differenceInDays(selectedCommitment.dueDate, new Date());
+                                  if (days < 0) return alpha(theme.palette.error.main, 0.1);
+                                  if (days <= 3) return alpha(theme.palette.warning.main, 0.1);
+                                  return alpha(theme.palette.success.main, 0.1);
+                                })(),
+                                color: (() => {
+                                  const days = differenceInDays(selectedCommitment.dueDate, new Date());
+                                  if (days < 0) return theme.palette.error.main;
+                                  if (days <= 3) return theme.palette.warning.main;
+                                  return theme.palette.success.main;
+                                })(),
+                                border: `1px solid ${(() => {
+                                  const days = differenceInDays(selectedCommitment.dueDate, new Date());
+                                  if (days < 0) return alpha(theme.palette.error.main, 0.3);
+                                  if (days <= 3) return alpha(theme.palette.warning.main, 0.3);
+                                  return alpha(theme.palette.success.main, 0.3);
+                                })()}`
+                              }}
+                            />
                           </motion.div>
                         </Box>
                       </Box>
@@ -1427,126 +1121,47 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
               }}
             >
               <motion.div
-                initial={{ opacity: 0, x: -20, scale: 0.9 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                transition={{ 
-                  delay: 0.1, 
-                  duration: 0.6, 
-                  type: "spring", 
-                  damping: 25, 
-                  stiffness: 120 
-                }}
-                whileHover={{ 
-                  scale: 1.02, 
-                  x: 3,
-                  transition: { duration: 0.2 }
-                }}
-                whileTap={{ scale: 0.98 }}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1, duration: 0.4, type: "spring" }}
+                whileHover={{ scale: 1.03, y: -2 }}
+                whileTap={{ scale: 0.97 }}
               >
                 <Button 
                   onClick={handleCloseViewDialog}
+                  variant="outlined"
                   sx={{ 
-                    borderRadius: 4,
-                    px: 4.5,
-                    py: 1.8,
+                    borderRadius: 3,
+                    px: 4,
+                    py: 1.25,
                     textTransform: 'none',
-                    fontWeight: 700,
-                    fontSize: '1rem',
+                    fontWeight: 600,
+                    fontSize: '0.95rem',
+                    border: `1.5px solid ${alpha(theme.palette.divider, 0.3)}`,
                     color: theme.palette.text.secondary,
-                    background: `
-                      linear-gradient(135deg, 
-                        ${theme.palette.mode === 'dark' 
-                          ? 'rgba(255, 255, 255, 0.08)' 
-                          : 'rgba(0, 0, 0, 0.04)'
-                        } 0%, 
-                        ${theme.palette.mode === 'dark' 
-                          ? 'rgba(255, 255, 255, 0.04)' 
-                          : 'rgba(0, 0, 0, 0.02)'
-                        } 100%
-                      )
-                    `,
-                    backdropFilter: 'blur(15px) saturate(160%)',
-                    border: `1px solid ${
-                      theme.palette.mode === 'dark' 
-                        ? 'rgba(255, 255, 255, 0.12)' 
-                        : 'rgba(0, 0, 0, 0.08)'
-                    }`,
-                    boxShadow: `
-                      0 4px 20px ${
-                        theme.palette.mode === 'dark' 
-                          ? 'rgba(0, 0, 0, 0.4)' 
-                          : 'rgba(0, 0, 0, 0.1)'
-                      },
-                      0 2px 8px ${
-                        theme.palette.mode === 'dark' 
-                          ? 'rgba(0, 0, 0, 0.3)' 
-                          : 'rgba(0, 0, 0, 0.06)'
-                      },
-                      inset 0 1px 0 ${
-                        theme.palette.mode === 'dark' 
-                          ? 'rgba(255, 255, 255, 0.1)' 
-                          : 'rgba(255, 255, 255, 0.5)'
-                      }
-                    `,
-                    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                    backgroundColor: 'transparent',
                     position: 'relative',
                     overflow: 'hidden',
-                    letterSpacing: '0.02em',
                     '&::before': {
                       content: '""',
                       position: 'absolute',
-                      inset: 0,
-                      borderRadius: 'inherit',
-                      background: `
-                        linear-gradient(135deg, 
-                          ${theme.palette.mode === 'dark' 
-                            ? 'rgba(255, 255, 255, 0.15)' 
-                            : 'rgba(255, 255, 255, 0.6)'
-                          } 0%, 
-                          transparent 60%
-                        )
-                      `,
-                      opacity: 0,
-                      transition: 'opacity 0.3s ease'
+                      top: 0,
+                      left: '-100%',
+                      width: '100%',
+                      height: '100%',
+                      background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.text.primary, 0.08)}, transparent)`,
+                      transition: 'all 0.5s ease'
                     },
                     '&:hover': {
-                      background: `
-                        linear-gradient(135deg, 
-                          ${theme.palette.mode === 'dark' 
-                            ? 'rgba(255, 255, 255, 0.12)' 
-                            : 'rgba(0, 0, 0, 0.08)'
-                          } 0%, 
-                          ${theme.palette.mode === 'dark' 
-                            ? 'rgba(255, 255, 255, 0.06)' 
-                            : 'rgba(0, 0, 0, 0.04)'
-                          } 100%
-                        )
-                      `,
-                      transform: 'translateY(-2px)',
-                      boxShadow: `
-                        0 8px 32px ${
-                          theme.palette.mode === 'dark' 
-                            ? 'rgba(0, 0, 0, 0.5)' 
-                            : 'rgba(0, 0, 0, 0.15)'
-                        },
-                        0 4px 16px ${
-                          theme.palette.mode === 'dark' 
-                            ? 'rgba(0, 0, 0, 0.4)' 
-                            : 'rgba(0, 0, 0, 0.08)'
-                        },
-                        inset 0 1px 0 ${
-                          theme.palette.mode === 'dark' 
-                            ? 'rgba(255, 255, 255, 0.15)' 
-                            : 'rgba(255, 255, 255, 0.8)'
-                        }
-                      `,
+                      borderColor: alpha(theme.palette.text.primary, 0.3),
+                      backgroundColor: alpha(theme.palette.text.primary, 0.04),
+                      transform: 'translateY(-1px)',
+                      boxShadow: `0 6px 20px ${alpha(theme.palette.text.primary, 0.15)}`,
                       '&::before': {
-                        opacity: 1
+                        left: '100%'
                       }
                     },
-                    '&:active': {
-                      transform: 'translateY(-1px) scale(0.99)'
-                    }
+                    transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)'
                   }}
                 >
                   Cerrar
