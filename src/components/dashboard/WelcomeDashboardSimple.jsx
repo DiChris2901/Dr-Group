@@ -2524,9 +2524,9 @@ const WelcomeDashboardSimple = () => {
         </Box>
       </motion.div>
 
-      {/* Grid Principal */}
+      {/* Grid Principal - Solo widgets esenciales */}
       <Grid container spacing={3}>
-        {/* Primera fila */}
+        {/* Primera fila - Widgets principales */}
         <Grid item xs={12} md={6}>
           <SimpleCalendarWidget />
         </Grid>
@@ -2534,16 +2534,8 @@ const WelcomeDashboardSimple = () => {
           <SimpleCommitmentsStatusWidget />
         </Grid>
 
-
-
-        {/* Segunda fila - Solo 3 widgets */}
-        <Grid item xs={12} md={4}>
-          <SimpleWeatherWidget />
-        </Grid>
-        <Grid item xs={12} md={4}>
-          <SimpleTimeWidget />
-        </Grid>
-        <Grid item xs={12} md={4}>
+        {/* Segunda fila - Solo almacenamiento */}
+        <Grid item xs={12} md={6} lg={4}>
           <SimpleStorageWidget />
         </Grid>
       </Grid>

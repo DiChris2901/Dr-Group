@@ -53,9 +53,9 @@
 - [ ] **FIREBASE INTACTO**: No romper conexiones existentes
 
 ## 🔄 5. VALIDACIÓN CONTINUA (CRÍTICO)
-- [ ] **NPM RUN DEV**: Tras CADA archivo modificado
-- [ ] **COMPILED SUCCESS**: Esperar mensaje exitoso
-- [ ] **NAVEGADOR LIMPIO**: Abrir y verificar sin errores
+- [ ] **SERVIDOR DESARROLLO**: Verificar que esté corriendo (usuario lo maneja)
+- [ ] **LOCALHOST:3000**: Abrir navegador en http://localhost:3000
+- [ ] **AUTO-REFRESH**: Confirmar que los cambios se reflejen automáticamente
 - [ ] **CONSOLE DEVTOOLS**: Verificar sin errores rojos
 
 ## 🔧 6. VERIFICACIÓN FUNCIONAL
@@ -121,9 +121,9 @@
 1. Modificar UN SOLO archivo
 2. GUARDAR archivo
 3. Verificar sintaxis sin errores rojos
-4. npm run dev
-5. Esperar "compiled successfully"
-6. Verificar navegador sin errores
+4. Abrir navegador en http://localhost:3000
+5. Verificar auto-refresh y cambios aplicados
+6. Confirmar que no hay errores en consola DevTools
 ```
 
 ### ✅ DESPUÉS de modificación, ORDEN EXACTO:
@@ -174,7 +174,7 @@
 
 **DURANTE LOS CAMBIOS:**
 - "Modificando solo un archivo, guardando y verificando"
-- "Ejecutando npm run dev para verificar compilación"
+- "Abriendo http://localhost:3000 para verificar auto-refresh"
 - "Verificando navegador sin errores antes de continuar"
 
 **DESPUÉS DE CAMBIOS:**
@@ -194,7 +194,7 @@
 4. 🔍 **VERIFICARÉ DEPENDENCIAS** con grep_search
 5. 💰 **MANTENDRÉ COP** en todo el sistema
 6. 🔥 **PRESERVARÉ FIREBASE** y conexiones existentes
-7. ✅ **PROBARÉ CADA CAMBIO** con npm run dev
+7. ✅ **PROBARÉ CADA CAMBIO** verificando localhost:3000 auto-refresh
 8. 📱 **VERIFICARÉ NAVEGADOR** después de cada modificación
 
 **ESTA ES LA LEY SUPREMA DEL PROYECTO**
