@@ -16,6 +16,7 @@ import BackgroundProvider from './components/layout/BackgroundProvider';
 
 // Pages
 import CommitmentsPage from './pages/CommitmentsPage';
+import DueCommitmentsPage from './pages/DueCommitmentsPage';
 import NewCommitmentPage from './pages/NewCommitmentPage';
 import PaymentsPage from './pages/PaymentsPage';
 import NewPaymentPage from './pages/NewPaymentPage';
@@ -74,6 +75,14 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Nuevo Compromiso" breadcrumbs={['Compromisos', 'Nuevo']}>
             <NewCommitmentPage />
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/commitments/due" 
+        element={
+          <MainLayout title="Compromisos Próximos a Vencer" breadcrumbs={['Compromisos', 'Próximos a Vencer']}>
+            <DueCommitmentsPage />
           </MainLayout>
         } 
       />

@@ -380,7 +380,33 @@ export const createDRGroupTheme = (mode = 'light') => {
             borderRadius: spacing.borderRadius.medium,
             textTransform: 'none',
             fontWeight: typography.fontWeight.semiBold,
-            transition: `all ${transitions.duration.standard}ms ${transitions.easing.standard}`
+            transition: `all ${transitions.duration.standard}ms ${transitions.easing.standard}`,
+            position: 'relative',
+            overflow: 'hidden',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              boxShadow: `0 6px 16px ${colors.primary.main}30`
+            },
+            '&:active': {
+              transform: 'translateY(0px)'
+            },
+            // Ripple effect premium
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              width: 0,
+              height: 0,
+              borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.3)',
+              transition: 'width 0.6s, height 0.6s, top 0.6s, left 0.6s',
+              transform: 'translate(-50%, -50%)'
+            },
+            '&:active::after': {
+              width: '300px',
+              height: '300px'
+            }
           }
         }
       },
@@ -388,7 +414,28 @@ export const createDRGroupTheme = (mode = 'light') => {
       MuiPaper: {
         styleOverrides: {
           root: {
-            backgroundImage: 'none'
+            backgroundImage: 'none',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              boxShadow: isLight 
+                ? '0 8px 24px rgba(0, 0, 0, 0.12)'
+                : '0 8px 24px rgba(255, 255, 255, 0.08)'
+            }
+          }
+        }
+      },
+      
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            '&:hover': {
+              transform: 'translateY(-4px) scale(1.01)',
+              boxShadow: isLight 
+                ? '0 12px 32px rgba(0, 0, 0, 0.15)'
+                : '0 12px 32px rgba(255, 255, 255, 0.1)'
+            }
           }
         }
       },
@@ -397,7 +444,16 @@ export const createDRGroupTheme = (mode = 'light') => {
         styleOverrides: {
           root: {
             '& .MuiOutlinedInput-root': {
-              borderRadius: spacing.borderRadius.medium
+              borderRadius: spacing.borderRadius.medium,
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': {
+                transform: 'translateY(-1px)',
+                boxShadow: `0 4px 12px ${isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'}`
+              },
+              '&.Mui-focused': {
+                transform: 'translateY(-1px)',
+                boxShadow: `0 4px 12px ${colors.primary.main}20`
+              }
             }
           }
         }

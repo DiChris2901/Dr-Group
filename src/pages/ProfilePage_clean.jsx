@@ -8,7 +8,6 @@ import {
   TextField,
   Button,
   Avatar,
-  styled,
   IconButton,
   Alert,
   Divider,
@@ -19,25 +18,8 @@ import {
   CircularProgress,
   Chip,
   Snackbar,
-  Slide,
-  InputAdornment,
-  FormControlLabel,
-  Switch,
-  alpha
+  Slide
 } from '@mui/material';
-
-// Styled components para animaciones CSS
-const StyledContainer = styled(Box)(({ theme }) => ({
-  '@keyframes shimmer': {
-    '0%': { left: '-100%' },
-    '100%': { left: '100%' }
-  },
-  '@keyframes float': {
-    '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
-    '50%': { transform: 'translateY(-20px) rotate(180deg)' }
-  }
-}));
-
 import {
   PhotoCamera,
   Edit,
@@ -49,11 +31,9 @@ import {
   Business,
   Work,
   Verified,
-  LocationOn,
-  Settings,
-  Security
+  LocationOn
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '@mui/material/styles';
 import { storage } from '../config/firebase';
@@ -288,185 +268,140 @@ const ProfilePage = () => {
         </motion.div>
       )}
 
-      {/* Header estilo menú topbar */}
+      {/* Header - Optimizado y compacto */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
+        transition={{ duration: 0.5 }}
       >
         <Card 
           sx={{
-            mb: 3,
+            mb: 2,
             background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-            borderRadius: 4,
-            p: 3,
+            color: 'white',
+            borderRadius: 3,
+            boxShadow: `0 6px 20px ${theme.palette.primary.main}40`,
             position: 'relative',
-            overflow: 'hidden',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: `linear-gradient(135deg, ${alpha('#fff', 0.1)}, transparent)`,
-              pointerEvents: 'none'
-            },
-            '&::after': {
-              content: '""',
-              position: 'absolute',
-              top: -50,
-              right: -50,
-              width: 120,
-              height: 120,
-              borderRadius: '50%',
-              background: 'rgba(255, 255, 255, 0.1)',
-              '@keyframes float': {
-                '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
-                '50%': { transform: 'translateY(-20px) rotate(180deg)' }
-              },
-              animation: 'float 6s ease-in-out infinite',
-              zIndex: 1
-            }
+            overflow: 'hidden'
           }}
         >
-          <Box sx={{ position: 'relative', zIndex: 2 }}>
-            <Grid container spacing={3} alignItems="center">
-              <Grid item xs={12} md={8}>
-                <Box display="flex" alignItems="center" gap={2}>
-                  <Box>
-                    <Typography variant="h4" sx={{ 
-                      color: '#fff', 
-                      fontWeight: 800,
-                      textShadow: '0 2px 4px rgba(0,0,0,0.3)' 
-                    }}>
-                      {formData.name || 'Sin nombre'}
+          {/* Elemento decorativo simplificado */}
+          <Box
+            sx={{
+              position: 'absolute',
+              top: -20,
+              right: -20,
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.08)',
+              backdropFilter: 'blur(10px)'
+            }}
+          />
+          
+          <CardContent sx={{ p: 2.5, position: 'relative', zIndex: 1 }}>
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box>
+                <Typography variant="h5" fontWeight="bold" gutterBottom>
+                  Mi Perfil
+                  {autoSaving && (
+                    <motion.span
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      style={{ marginLeft: 8 }}
+                    >
+                      <Chip 
+                        size="small" 
+                        label="Guardando..." 
+                        icon={<CircularProgress size={12} sx={{ color: 'white !important' }} />}
+                        sx={{ 
+                          background: 'rgba(255, 255, 255, 0.2)',
+                          color: 'white',
+                          fontSize: '0.7rem',
+                          height: 20
+                        }} 
+                      />
+                    </motion.span>
+                  )}
+                  {hasUnsavedChanges && !autoSaving && (
+                    <motion.span
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      style={{ marginLeft: 8 }}
+                    >
+                      <Chip 
+                        size="small" 
+                        label="Sin guardar" 
+                        sx={{ 
+                          background: 'rgba(255, 193, 7, 0.9)',
+                          color: 'white',
+                          fontSize: '0.7rem',
+                          height: 20
+                        }} 
+                      />
+                    </motion.span>
+                  )}
+                </Typography>
+                <Box display="flex" alignItems="center" gap={1.5}>
+                  <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                    Completado:
+                  </Typography>
+                  <Box sx={{ 
+                    bgcolor: 'rgba(255, 255, 255, 0.2)', 
+                    borderRadius: 8, 
+                    px: 1.5, 
+                    py: 0.5,
+                    minWidth: 50,
+                    textAlign: 'center'
+                  }}>
+                    <Typography variant="caption" fontWeight="bold">
+                      {Math.round(
+                        (Object.values(formData).filter(val => val && val.trim()).length / 
+                         Object.keys(formData).length) * 100
+                      )}%
                     </Typography>
-                    <Typography variant="h6" sx={{ 
-                      color: alpha('#fff', 0.8), 
-                      fontWeight: 500,
-                      opacity: 0.9 
-                    }}>
-                      {formData.position || 'Sin cargo'} • {formData.company || 'Sin empresa'}
-                    </Typography>
-                    <Box display="flex" alignItems="center" gap={1} mt={1}>
-                      <Verified sx={{ color: alpha('#fff', 0.7), fontSize: 16 }} />
-                      <Typography variant="caption" sx={{ 
-                        color: alpha('#fff', 0.7),
-                        fontWeight: 600,
-                        textShadow: '0 1px 2px rgba(0,0,0,0.3)'
-                      }}>
-                        {formData.role === 'admin' ? 'Administrador' : 'Usuario'}
-                      </Typography>
-                    </Box>
                   </Box>
                 </Box>
-              </Grid>
+              </Box>
               
-              <Grid item xs={12} md={4}>
-                <Box display="flex" justifyContent="flex-end" gap={1}>
-                  {!editing ? (
-                    <motion.div 
-                      whileHover={{ scale: 1.02, y: -2 }} 
-                      whileTap={{ scale: 0.98 }}
-                      transition={{ type: "spring", bounce: 0.4 }}
-                    >
-                      <Button
-                        variant="contained"
-                        startIcon={<Edit />}
-                        onClick={() => setEditing(true)}
-                        sx={{
-                          backgroundColor: alpha('#fff', 0.2),
-                          color: '#fff',
-                          border: `1px solid ${alpha('#fff', 0.3)}`,
-                          borderRadius: 3,
-                          textTransform: 'none',
-                          fontWeight: 600,
-                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                          '&:hover': {
-                            backgroundColor: alpha('#fff', 0.3),
-                            transform: 'translateY(-1px)',
-                            boxShadow: `0 4px 12px ${alpha('#fff', 0.2)}`
-                          }
-                        }}
-                      >
-                        Editar Perfil
-                      </Button>
-                    </motion.div>
-                  ) : (
-                    <Box display="flex" gap={1}>
-                      <motion.div 
-                        whileHover={{ scale: loading ? 1 : 1.02, y: loading ? 0 : -2 }} 
-                        whileTap={{ scale: loading ? 1 : 0.98 }}
-                        transition={{ type: "spring", bounce: 0.4 }}
-                      >
-                        <Button
-                          variant="contained"
-                          startIcon={loading ? <CircularProgress size={16} /> : <Save />}
-                          onClick={handleSave}
-                          disabled={loading || Object.keys(errors).length > 0}
-                          sx={{
-                            backgroundColor: alpha('#fff', 0.2),
-                            color: '#fff',
-                            border: `1px solid ${alpha('#fff', 0.3)}`,
-                            borderRadius: 3,
-                            textTransform: 'none',
-                            fontWeight: 600,
-                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            '&:hover': { 
-                              backgroundColor: alpha('#fff', 0.3),
-                              transform: 'translateY(-1px)',
-                              boxShadow: `0 4px 12px ${alpha('#fff', 0.2)}`
-                            },
-                            '&:disabled': {
-                              backgroundColor: alpha('#fff', 0.1),
-                              color: alpha('#fff', 0.5)
-                            }
-                          }}
-                        >
-                          {loading ? 'Guardando...' : 'Guardar'}
-                        </Button>
-                      </motion.div>
-                      
-                      <motion.div 
-                        whileHover={{ scale: loading ? 1 : 1.02, y: loading ? 0 : -2 }} 
-                        whileTap={{ scale: loading ? 1 : 0.98 }}
-                        transition={{ type: "spring", bounce: 0.4 }}
-                      >
-                        <Button
-                          variant="outlined"
-                          startIcon={<Cancel />}
-                          onClick={handleCancel}
-                          disabled={loading}
-                          sx={{
-                            color: '#fff',
-                            border: `1px solid ${alpha('#fff', 0.5)}`,
-                            borderRadius: 3,
-                            textTransform: 'none',
-                            fontWeight: 600,
-                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            '&:hover': {
-                              backgroundColor: alpha('#fff', 0.1),
-                              border: `1px solid ${alpha('#fff', 0.7)}`,
-                              transform: 'translateY(-1px)',
-                              boxShadow: `0 4px 12px ${alpha('#fff', 0.15)}`
-                            },
-                            '&:disabled': {
-                              borderColor: alpha('#fff', 0.3),
-                              color: alpha('#fff', 0.5)
-                            }
-                          }}
-                        >
-                          Cancelar
-                        </Button>
-                      </motion.div>
-                    </Box>
-                  )}
-                </Box>
-              </Grid>
-            </Grid>
-          </Box>
+              {/* Botón de Editar Perfil */}
+              {!editing && (
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                >
+                  <Button
+                    variant="contained"
+                    onClick={() => setEditing(true)}
+                    startIcon={<Edit />}
+                    aria-label="Activar modo de edición del perfil"
+                    sx={{ 
+                      background: 'rgba(255, 255, 255, 0.25)',
+                      backdropFilter: 'blur(10px)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)',
+                      color: 'white',
+                      px: 2,
+                      py: 0.75,
+                      fontSize: '0.85rem',
+                      fontWeight: 'bold',
+                      borderRadius: 2,
+                      boxShadow: '0 3px 12px rgba(0, 0, 0, 0.1)',
+                      '&:hover': {
+                        background: 'rgba(255, 255, 255, 0.35)',
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)'
+                      }
+                    }}
+                  >
+                    Editar Perfil
+                  </Button>
+                </motion.div>
+              )}
+            </Box>
+          </CardContent>
         </Card>
       </motion.div>
 
@@ -477,7 +412,6 @@ const ProfilePage = () => {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            whileHover={{ y: -4, scale: 1.01 }}
           >
             {/* Card de Perfil Personal */}
             <Card sx={{ 
@@ -489,28 +423,7 @@ const ProfilePage = () => {
               border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.05)',
               position: 'relative',
               overflow: 'hidden',
-              mb: 2,
-              transition: 'all 0.3s ease-out',
-              '&:hover': {
-                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)',
-                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid rgba(0, 0, 0, 0.08)'
-              },
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: '-100%',
-                width: '100%',
-                height: '100%',
-                background: `linear-gradient(90deg, transparent, ${alpha('#fff', 0.1)}, transparent)`,
-                '@keyframes shimmer': {
-                  '0%': { left: '-100%' },
-                  '100%': { left: '100%' }
-                },
-                animation: 'shimmer 3s infinite',
-                zIndex: 1,
-                pointerEvents: 'none'
-              }
+              mb: 2
             }}>
               {/* Header con icono */}
               <Box
@@ -917,7 +830,7 @@ const ProfilePage = () => {
                                 ? '2px solid rgba(102, 126, 234, 0.3)'
                                 : '2px solid rgba(0, 0, 0, 0.1)',
                               borderRadius: 3,
-                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              transition: 'all 0.3s ease',
                               '&:hover': editing ? {
                                 backgroundColor: isDarkMode ? 'rgba(102, 126, 234, 0.2)' : 'rgba(102, 126, 234, 0.12)',
                                 borderColor: 'rgba(102, 126, 234, 0.5)',
@@ -927,8 +840,7 @@ const ProfilePage = () => {
                               '&.Mui-focused': {
                                 backgroundColor: isDarkMode ? 'rgba(102, 126, 234, 0.25)' : 'rgba(102, 126, 234, 0.15)',
                                 borderColor: '#667eea',
-                                boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.15)',
-                                transform: 'translateY(-1px)'
+                                boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.15)'
                               },
                               '& fieldset': {
                                 border: 'none'

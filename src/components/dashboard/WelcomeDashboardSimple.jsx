@@ -85,8 +85,9 @@ const PremiumStatCard = ({ title, value, icon, color, trend, delay = 0 }) => {
         bounce: 0.3
       }}
       whileHover={{ 
-        y: -8,
-        transition: { duration: 0.2 }
+        y: -4,
+        scale: 1.01,
+        transition: { duration: 0.3, ease: "easeOut" }
       }}
     >
       <Paper
@@ -100,10 +101,9 @@ const PremiumStatCard = ({ title, value, icon, color, trend, delay = 0 }) => {
           position: 'relative',
           overflow: 'hidden',
           cursor: 'pointer',
-          transition: 'all 0.3s ease',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           ...shimmerEffect,
           '&:hover': {
-            transform: 'translateY(-4px)',
             boxShadow: `0 12px 24px ${getIconColor()}20`,
             border: `1px solid ${getIconColor()}50`,
           }
@@ -262,8 +262,8 @@ const QuickActionsSection = () => {
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  whileHover={{ scale: 1.02 }}
+                  transition={{ duration: 0.3, delay: index * 0.1, type: "spring", bounce: 0.4 }}
+                  whileHover={{ scale: 1.02, y: -2 }}
                   whileTap={{ scale: 0.98 }}
                 >
                   <Button
