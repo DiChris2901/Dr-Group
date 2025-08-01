@@ -6,9 +6,15 @@ service firebase.storage {
       allow read, write: if request.auth != null;
     }
     
-    // Carpeta específica para comprobantes - solo el usuario propietario
+    // Carpeta específica para comprobantes - ADMINISTRADORES pueden ver todos los archivos
     match /receipts/{userId}/{fileName} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && 
+        (request.auth.uid == userId || 
+         request.auth.token.email in [
+           'admin@drgroup.com', 
+           'diego@drgroup.com',
+           'daruedagu@gmail.com'
+         ]);
     }
     
     // Carpeta para fotos de perfil - lectura pública, escritura solo del propietario

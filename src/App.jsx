@@ -26,6 +26,7 @@ import CompaniesPage from './pages/CompaniesPage';
 import TasksPage from './pages/TasksPage';
 import UserManagementPage from './pages/UserManagementPage';
 import AdminSetupPage from './pages/AdminSetupPage';
+import PermissionsDebugPage from './pages/PermissionsDebugPage';
 import WelcomeDashboard from './components/dashboard/WelcomeDashboard';
 
 // Debug Components
@@ -144,6 +145,14 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Firebase Debug" breadcrumbs={['Debug', 'Firebase']}>
             <FirebaseDebug />
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/permissions-debug" 
+        element={
+          <MainLayout title="Debug de Permisos" breadcrumbs={['Debug', 'Permisos']}>
+            <PermissionsDebugPage />
           </MainLayout>
         } 
       />

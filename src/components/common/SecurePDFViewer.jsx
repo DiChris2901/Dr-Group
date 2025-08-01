@@ -85,12 +85,20 @@ const SecurePDFViewer = ({
       setLoading(true);
       setError(null);
 
+      console.log('🔍 Intentando cargar PDF desde:', url);
+
       const loadingTask = window.pdfjsLib.getDocument({
         url: url,
-        // Configuraciones de seguridad
+        // Configuraciones de seguridad y compatibilidad
         disableAutoFetch: false,
         disableStream: false,
-        disableRange: false
+        disableRange: false,
+        // Agregar headers para Firebase Storage
+        httpHeaders: {
+          'Access-Control-Allow-Origin': '*',
+        },
+        // Configurar manejo de CORS
+        withCredentials: false
       });
 
       const pdfDoc = await loadingTask.promise;
@@ -99,11 +107,27 @@ const SecurePDFViewer = ({
       setPageNum(1);
       setLoading(false);
       
+      console.log('✅ PDF cargado exitosamente. Páginas:', pdfDoc.numPages);
+      
       // Renderizar la primera página
       renderPage(pdfDoc, 1);
     } catch (err) {
-      console.error('Error loading PDF:', err);
-      setError('Error al cargar el documento PDF');
+      console.error('❌ Error loading PDF:', err);
+      
+      // Mensajes de error más específicos
+      let errorMessage = 'Error al cargar el documento PDF';
+      
+      if (err.name === 'UnexpectedResponseException') {
+        errorMessage = 'Error de permisos: No se puede acceder al archivo. Verifica que tengas los permisos necesarios.';
+      } else if (err.message?.includes('CORS')) {
+        errorMessage = 'Error de seguridad: El archivo no se puede cargar debido a restricciones de navegador.';
+      } else if (err.message?.includes('403')) {
+        errorMessage = 'Acceso denegado: No tienes permisos para ver este archivo.';
+      } else if (err.message?.includes('404')) {
+        errorMessage = 'Archivo no encontrado: El comprobante puede haber sido eliminado.';
+      }
+      
+      setError(errorMessage);
       setLoading(false);
       onError?.(err);
     }

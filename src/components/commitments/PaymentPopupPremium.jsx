@@ -67,10 +67,53 @@ const PaymentPopupPremium = ({
   const [existingReceiptMetadata, setExistingReceiptMetadata] = useState(null);
   const [showReceiptPreview, setShowReceiptPreview] = useState(false);
   const [replaceReceipt, setReplaceReceipt] = useState(false);
+  
+  // Estados para verificación de permisos
+  const [canViewReceipts, setCanViewReceipts] = useState(false);
+  const [canDownloadReceipts, setCanDownloadReceipts] = useState(false);
+  const [permissionsLoading, setPermissionsLoading] = useState(true);
+  
   const [paymentData, setPaymentData] = useState({
     interests: '',
     receiptFile: null
   });
+
+  // Verificar permisos del usuario actual
+  useEffect(() => {
+    const checkUserPermissions = async () => {
+      if (!currentUser?.email) {
+        setPermissionsLoading(false);
+        return;
+      }
+
+      try {
+        setPermissionsLoading(true);
+        console.log('🔍 Verificando permisos para:', currentUser.email);
+        
+        const [viewPermission, downloadPermission] = await Promise.all([
+          hasPermission(currentUser.email, PERMISSIONS.VIEW_RECEIPTS),
+          hasPermission(currentUser.email, PERMISSIONS.DOWNLOAD_RECEIPTS)
+        ]);
+
+        setCanViewReceipts(viewPermission);
+        setCanDownloadReceipts(downloadPermission);
+        
+        console.log('✅ Permisos verificados:', {
+          email: currentUser.email,
+          canView: viewPermission,
+          canDownload: downloadPermission
+        });
+      } catch (error) {
+        console.error('❌ Error verificando permisos:', error);
+        setCanViewReceipts(false);
+        setCanDownloadReceipts(false);
+      } finally {
+        setPermissionsLoading(false);
+      }
+    };
+
+    checkUserPermissions();
+  }, [currentUser?.email]);
 
   // Verificar si ya existe un comprobante al abrir el modal
   useEffect(() => {
@@ -596,25 +639,55 @@ const PaymentPopupPremium = ({
                         )}
 
                         <Box display="flex" gap={2}>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            startIcon={<Visibility />}
-                            onClick={() => setShowReceiptPreview(true)}
-                            sx={{ borderRadius: 2 }}
-                          >
-                            Ver comprobante
-                          </Button>
-                          <Button
-                            variant="text"
-                            size="small"
-                            startIcon={<AttachFile />}
-                            onClick={() => setReplaceReceipt(true)}
-                            sx={{ borderRadius: 2 }}
-                          >
-                            Reemplazar
-                          </Button>
+                          {/* Botón Ver comprobante - Solo si tiene permisos */}
+                          {canViewReceipts ? (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              startIcon={<Visibility />}
+                              onClick={() => setShowReceiptPreview(true)}
+                              sx={{ borderRadius: 2 }}
+                            >
+                              Ver comprobante
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              startIcon={<SecurityIcon />}
+                              disabled
+                              sx={{ 
+                                borderRadius: 2,
+                                color: 'error.main',
+                                borderColor: 'error.main'
+                              }}
+                            >
+                              Sin permisos
+                            </Button>
+                          )}
+                          
+                          {/* Botón Reemplazar - Solo si tiene permisos de upload */}
+                          {canViewReceipts && (
+                            <Button
+                              variant="text"
+                              size="small"
+                              startIcon={<AttachFile />}
+                              onClick={() => setReplaceReceipt(true)}
+                              sx={{ borderRadius: 2 }}
+                            >
+                              Reemplazar
+                            </Button>
+                          )}
                         </Box>
+
+                        {/* Mensaje de permisos */}
+                        {!canViewReceipts && (
+                          <Alert severity="warning" sx={{ mt: 2 }}>
+                            <Typography variant="body2">
+                              No tienes permisos para ver comprobantes. Contacta al administrador.
+                            </Typography>
+                          </Alert>
+                        )}
                       </Box>
                     </Card>
                   ) : (
@@ -827,7 +900,25 @@ const PaymentPopupPremium = ({
       </DialogTitle>
       
       <DialogContent sx={{ p: 3 }}>
-        {existingReceiptUrl && (
+        {permissionsLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4 }}>
+            <CircularProgress />
+            <Typography sx={{ ml: 2 }}>Verificando permisos...</Typography>
+          </Box>
+        ) : !canViewReceipts ? (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              🔒 Acceso Denegado
+            </Typography>
+            <Typography variant="body2">
+              No tienes permisos para ver comprobantes. Tu usuario actual ({currentUser?.email}) 
+              no tiene el permiso <strong>VIEW_RECEIPTS</strong> asignado.
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Contacta al administrador para obtener los permisos necesarios.
+            </Typography>
+          </Alert>
+        ) : existingReceiptUrl && (
           <Box sx={{ width: '100%' }}>
             {existingReceiptMetadata?.type?.startsWith('image/') ? (
               // Vista previa de imágenes
@@ -909,7 +1000,7 @@ const PaymentPopupPremium = ({
       
       <DialogActions sx={{ p: 3, pt: 0, justifyContent: 'space-between' }}>
         {/* Botón de descarga solo si tiene permisos */}
-        {hasPermission(currentUser, PERMISSIONS.DOWNLOAD_RECEIPTS) ? (
+        {canDownloadReceipts ? (
           <Button 
             variant="outlined"
             onClick={() => window.open(existingReceiptUrl, '_blank')}
