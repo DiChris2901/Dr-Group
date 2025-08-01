@@ -47,7 +47,7 @@ import { es } from 'date-fns/locale';
 
 // Hooks y Context
 import { useAuth } from '../context/AuthContext';
-import { useDashboardStats } from '../hooks/useDashboardStats';
+import { useDueCommitments } from '../hooks/useDueCommitments';
 import { useSettings } from '../context/SettingsContext';
 
 // Design System v2.1 utilities
@@ -80,77 +80,29 @@ const DueCommitmentsPage = () => {
   const gradients = useThemeGradients();
   const { settings } = useSettings();
   const { userProfile } = useAuth();
-  const { stats, loading, error, refetch } = useDashboardStats();
+  const { 
+    commitments, 
+    loading, 
+    error, 
+    refreshCommitments, 
+    getCommitmentsByPriority,
+    stats 
+  } = useDueCommitments();
 
-  const [commitments, setCommitments] = useState([]);
   const [filteredCommitments, setFilteredCommitments] = useState([]);
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
 
-  // Mock data para demostración (en producción vendría de Firebase)
-  const mockCommitments = [
-    {
-      id: 1,
-      title: 'Pago de Nómina Ejecutivos',
-      company: 'DR Group Holdings',
-      amount: 2850000,
-      dueDate: new Date('2025-08-03'),
-      priority: 'high',
-      status: 'overdue',
-      description: 'Pago quincenal nómina ejecutiva'
-    },
-    {
-      id: 2,
-      title: 'Cuota Préstamo Bancario',
-      company: 'DR Construction',
-      amount: 12500000,
-      dueDate: new Date('2025-08-05'),
-      priority: 'critical',
-      status: 'due_soon',
-      description: 'Cuota mensual préstamo desarrollo inmobiliario'
-    },
-    {
-      id: 3,
-      title: 'Servicios Públicos',
-      company: 'DR Logistics',
-      amount: 890000,
-      dueDate: new Date('2025-08-07'),
-      priority: 'medium',
-      status: 'upcoming',
-      description: 'Facturación servicios públicos bodegas'
-    },
-    {
-      id: 4,
-      title: 'Seguros Empresariales',
-      company: 'DR Tech Solutions',
-      amount: 1750000,
-      dueDate: new Date('2025-08-02'),
-      priority: 'high',
-      status: 'overdue',
-      description: 'Renovación pólizas seguros empresariales'
-    }
-  ];
-
   useEffect(() => {
-    // Simular carga de datos
-    setCommitments(mockCommitments);
-    setFilteredCommitments(mockCommitments);
-  }, []);
-
-  useEffect(() => {
-    // Filtrar compromisos según prioridad
-    if (priorityFilter === 'all') {
-      setFilteredCommitments(commitments);
-    } else {
-      setFilteredCommitments(commitments.filter(c => c.priority === priorityFilter));
-    }
-  }, [priorityFilter, commitments]);
+    // Filtrar compromisos según prioridad usando datos reales
+    setFilteredCommitments(getCommitmentsByPriority(priorityFilter));
+  }, [priorityFilter, commitments, getCommitmentsByPriority]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    // Simular refresh
+    // Refresh con datos reales de Firebase
     await new Promise(resolve => setTimeout(resolve, 1000));
-    if (refetch) refetch();
+    refreshCommitments();
     setRefreshing(false);
   };
 
@@ -194,16 +146,15 @@ const DueCommitmentsPage = () => {
   };
 
   const overdueCounts = {
-    total: commitments.length,
-    overdue: commitments.filter(c => c.status === 'overdue').length,
-    dueSoon: commitments.filter(c => c.status === 'due_soon').length,
-    upcoming: commitments.filter(c => c.status === 'upcoming').length
+    total: stats.total,
+    overdue: stats.overdue,
+    dueSoon: stats.dueSoon,
+    upcoming: stats.upcoming,
+    totalAmount: stats.totalAmount,
+    overdueAmount: stats.overdueAmount
   };
 
-  const totalAmount = commitments.reduce((sum, c) => sum + c.amount, 0);
-  const overdueAmount = commitments
-    .filter(c => c.status === 'overdue')
-    .reduce((sum, c) => sum + c.amount, 0);
+  // Mostrar estado de carga
 
   if (loading) {
     return (
@@ -345,7 +296,7 @@ const DueCommitmentsPage = () => {
           },
           {
             title: 'Monto Total',
-            value: formatCurrency(totalAmount),
+            value: formatCurrency(overdueCounts.totalAmount),
             icon: AttachMoney,
             color: 'success',
             gradient: `linear-gradient(135deg, ${theme.palette.success.main}15, ${theme.palette.success.light}10)`,
@@ -452,7 +403,7 @@ const DueCommitmentsPage = () => {
           >
             <AlertTitle sx={{ fontWeight: 700 }}>¡Atención Requerida!</AlertTitle>
             <Typography variant="body2">
-              Tienes <strong>{overdueCounts.overdue} compromiso{overdueCounts.overdue > 1 ? 's' : ''} vencido{overdueCounts.overdue > 1 ? 's' : ''}</strong> por un monto de <strong>{formatCurrency(overdueAmount)}</strong>. Se requiere acción inmediata.
+              Tienes <strong>{overdueCounts.overdue} compromiso{overdueCounts.overdue > 1 ? 's' : ''} vencido{overdueCounts.overdue > 1 ? 's' : ''}</strong> por un monto de <strong>{formatCurrency(overdueCounts.overdueAmount)}</strong>. Se requiere acción inmediata.
             </Typography>
           </Alert>
         </motion.div>
