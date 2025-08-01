@@ -12,16 +12,16 @@ import {
   TextField
 } from '@mui/material';
 import { 
-  Bug as BugIcon,
+  BugReport as BugIcon,
   Person as PersonIcon,
   Security as SecurityIcon,
   CheckCircle as CheckIcon,
   Cancel as CancelIcon
 } from '@mui/icons-material';
-import { useAuth } from '../../context/AuthContext';
-import { hasPermission, PERMISSIONS } from '../../utils/userPermissions';
+import { useAuth } from '../context/AuthContext';
+import { hasPermission, PERMISSIONS } from '../utils/userPermissions';
 import { collection, query, where, getDocs, addDoc, updateDoc, doc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { db } from '../config/firebase';
 
 /**
  * Página de debug para diagnosticar problemas de permisos

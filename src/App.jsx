@@ -156,7 +156,16 @@ const DashboardLayout = () => {
           </MainLayout>
         } 
       />
-      {userProfile?.role === 'ADMIN' && (
+      {/* Ruta temporal sin restricción de rol */}
+      <Route 
+        path="/users" 
+        element={
+          <MainLayout title="Gestión de Usuarios" breadcrumbs={['Administración', 'Usuarios']}>
+            <UserManagementPage />
+          </MainLayout>
+        } 
+      />
+      {/* {userProfile?.role === 'ADMIN' && (
         <>
           <Route 
             path="/users" 
@@ -167,7 +176,7 @@ const DashboardLayout = () => {
             } 
           />
         </>
-      )}
+      )} */}
     </Routes>
   );
 };
