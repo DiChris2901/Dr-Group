@@ -27,8 +27,8 @@ import {
   where,
   serverTimestamp 
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
-import { useAuth } from '../context/AuthContext';
+import { db } from '../../config/firebase';
+import { useAuth } from '../../context/AuthContext';
 
 const AdminSetupComponent = ({ onSetupComplete }) => {
   const { currentUser } = useAuth();

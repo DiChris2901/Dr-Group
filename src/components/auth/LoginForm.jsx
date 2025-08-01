@@ -27,6 +27,10 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 
+// Firebase imports para verificar administradores
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+
 const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,8 +38,33 @@ const LoginForm = () => {
   const [loading, setLoading] = useState(false);
   const [userPreview, setUserPreview] = useState(null);
   const [emailCheckLoading, setEmailCheckLoading] = useState(false);
+  const [hasAdmins, setHasAdmins] = useState(true); // Por defecto asumimos que hay admins
+  const [checkingAdmins, setCheckingAdmins] = useState(true);
   const { login, error, setError, getUserByEmail, checkEmailExists } = useAuth();
   const theme = useMuiTheme();
+
+  // Verificar si existen administradores en el sistema
+  const checkForAdmins = async () => {
+    try {
+      setCheckingAdmins(true);
+      const usersRef = collection(db, 'users');
+      const adminQuery = query(usersRef, where('role', '==', 'ADMIN'));
+      const adminSnapshot = await getDocs(adminQuery);
+      
+      setHasAdmins(!adminSnapshot.empty);
+      console.log(adminSnapshot.empty ? '⚠️ No hay administradores en el sistema' : '✅ Sistema con administradores configurado');
+    } catch (error) {
+      console.error('Error verificando administradores:', error);
+      setHasAdmins(true); // En caso de error, asumir que hay admins para no mostrar el enlace
+    } finally {
+      setCheckingAdmins(false);
+    }
+  };
+
+  // Verificar administradores al cargar el componente
+  useEffect(() => {
+    checkForAdmins();
+  }, []);
 
   // Función para verificar email y mostrar preview del usuario
   const checkUserEmail = async (emailValue) => {
@@ -375,25 +404,54 @@ const LoginForm = () => {
                   Control de Compromisos Financieros
                 </Typography>
                 
-                {/* Enlace para configuración inicial */}
-                <Box sx={{ mt: 2 }}>
-                  <Button
-                    variant="text"
-                    size="small"
-                    onClick={() => window.location.href = '/admin-setup'}
-                    sx={{
-                      color: 'text.secondary',
-                      textDecoration: 'underline',
-                      fontSize: '0.875rem',
-                      '&:hover': {
-                        color: 'primary.main',
-                        backgroundColor: 'transparent',
-                      }
-                    }}
+                {/* Enlace para configuración inicial - Solo aparece si no hay administradores */}
+                {!checkingAdmins && !hasAdmins && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5, duration: 0.3 }}
                   >
-                    ¿Primera vez? Configurar Administrador
-                  </Button>
-                </Box>
+                    <Alert 
+                      severity="info" 
+                      sx={{ 
+                        mt: 2, 
+                        borderRadius: 2,
+                        background: 'linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(103, 58, 183, 0.1) 100%)',
+                        border: '1px solid rgba(33, 150, 243, 0.2)'
+                      }}
+                    >
+                      <Typography variant="body2" sx={{ mb: 1 }}>
+                        Sistema sin configurar
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => window.location.href = '/admin-setup'}
+                        sx={{
+                          borderColor: 'primary.main',
+                          color: 'primary.main',
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          '&:hover': {
+                            background: 'primary.main',
+                            color: 'white',
+                          }
+                        }}
+                      >
+                        Configurar Primer Administrador
+                      </Button>
+                    </Alert>
+                  </motion.div>
+                )}
+                
+                {checkingAdmins && (
+                  <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
+                    <CircularProgress size={16} />
+                    <Typography variant="caption" color="text.secondary">
+                      Verificando configuración...
+                    </Typography>
+                  </Box>
+                )}
               </Box>
             </CardContent>
           </Paper>

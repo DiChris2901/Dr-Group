@@ -84,11 +84,13 @@ const UserManagementPage = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState(null);
   
   // Estados del modal
   const [openModal, setOpenModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
   
   // Estados del formulario
   const [formData, setFormData] = useState({
@@ -111,6 +113,28 @@ const UserManagementPage = () => {
   useEffect(() => {
     loadUsers();
   }, []);
+
+  // Cargar perfil del usuario actual
+  useEffect(() => {
+    const loadCurrentUserProfile = async () => {
+      if (currentUser?.email) {
+        try {
+          const usersRef = collection(db, 'users');
+          const q = query(usersRef, where('email', '==', currentUser.email.toLowerCase()));
+          const snapshot = await getDocs(q);
+          
+          if (!snapshot.empty) {
+            const userDoc = snapshot.docs[0];
+            setCurrentUserProfile({ id: userDoc.id, ...userDoc.data() });
+          }
+        } catch (err) {
+          console.error('Error loading current user profile:', err);
+        }
+      }
+    };
+
+    loadCurrentUserProfile();
+  }, [currentUser]);
 
   const loadUsers = async () => {
     try {
@@ -138,18 +162,42 @@ const UserManagementPage = () => {
       // Editar usuario existente
       setEditingUser(user);
       
-      // Si es el usuario actual, obtener datos adicionales de Firebase Auth
+      // Obtener nombre correcto - priorizar Firebase Auth para usuario actual
       let displayName = user.displayName || '';
-      if (user.email === currentUser?.email && currentUser?.displayName && !displayName) {
+      
+      // Si es el usuario actual y tenemos su displayName de Firebase Auth
+      if (user.email === currentUser?.email && currentUser?.displayName) {
         displayName = currentUser.displayName;
+      }
+      
+      // Si aún no hay nombre, usar el de Firebase Auth o generar uno
+      if (!displayName) {
+        if (currentUser?.displayName && user.email === currentUser?.email) {
+          displayName = currentUser.displayName;
+        } else if (user.email) {
+          // Generar nombre básico del email
+          const emailName = user.email.split('@')[0];
+          displayName = emailName.charAt(0).toUpperCase() + emailName.slice(1);
+        }
+      }
+      
+      // Manejar permisos según el rol
+      let userPermissions = user.permissions || [];
+      let userRole = user.role || 'EMPLOYEE';
+      
+      // Asegurar que los administradores tengan todos los permisos
+      if (userRole === 'ADMIN') {
+        userPermissions = Object.values(PERMISSIONS);
+      } else if (userPermissions.length === 0) {
+        userPermissions = getRolePermissions(userRole);
       }
       
       const userData = {
         email: user.email || '',
         displayName: displayName,
         phone: user.phone || '',
-        role: user.role || 'EMPLOYEE',
-        permissions: user.permissions || getRolePermissions(user.role || 'EMPLOYEE'),
+        role: userRole,
+        permissions: userPermissions,
         companies: user.companies || [],
         isActive: user.isActive !== false,
         department: user.department || '',
@@ -157,7 +205,7 @@ const UserManagementPage = () => {
       };
       
       setFormData(userData);
-      setOriginalFormData(JSON.parse(JSON.stringify(userData))); // Deep copy
+      setOriginalFormData(JSON.parse(JSON.stringify(userData)));
       setHasUnsavedChanges(false);
     } else {
       // Crear nuevo usuario
@@ -175,7 +223,7 @@ const UserManagementPage = () => {
       };
       
       setFormData(newUserData);
-      setOriginalFormData(JSON.parse(JSON.stringify(newUserData))); // Deep copy
+      setOriginalFormData(JSON.parse(JSON.stringify(newUserData)));
       setHasUnsavedChanges(false);
     }
     setOpenModal(true);
@@ -190,7 +238,26 @@ const UserManagementPage = () => {
 
   // Función para detectar cambios en el formulario
   const checkForChanges = (newFormData) => {
-    const hasChanges = JSON.stringify(newFormData) !== JSON.stringify(originalFormData);
+    // Función para comparar arrays sin importar el orden
+    const arraysEqual = (arr1, arr2) => {
+      if (arr1.length !== arr2.length) return false;
+      const sorted1 = [...arr1].sort();
+      const sorted2 = [...arr2].sort();
+      return JSON.stringify(sorted1) === JSON.stringify(sorted2);
+    };
+    
+    // Comparar cada campo individualmente
+    const hasChanges = 
+      newFormData.email !== originalFormData.email ||
+      newFormData.displayName !== originalFormData.displayName ||
+      newFormData.phone !== originalFormData.phone ||
+      newFormData.role !== originalFormData.role ||
+      newFormData.department !== originalFormData.department ||
+      newFormData.notes !== originalFormData.notes ||
+      newFormData.isActive !== originalFormData.isActive ||
+      !arraysEqual(newFormData.permissions || [], originalFormData.permissions || []) ||
+      !arraysEqual(newFormData.companies || [], originalFormData.companies || []);
+    
     setHasUnsavedChanges(hasChanges);
   };
 
@@ -202,9 +269,18 @@ const UserManagementPage = () => {
   };
 
   const handleRoleChange = (newRole) => {
+    let newPermissions;
+    
+    // Si es admin, dar todos los permisos
+    if (newRole === 'ADMIN') {
+      newPermissions = Object.values(PERMISSIONS);
+    } else {
+      newPermissions = getRolePermissions(newRole);
+    }
+    
     updateFormData({
       role: newRole,
-      permissions: getRolePermissions(newRole)
+      permissions: newPermissions
     });
   };
 
@@ -220,7 +296,8 @@ const UserManagementPage = () => {
 
   const handleSaveUser = async () => {
     try {
-      setLoading(true);
+      setModalLoading(true);
+      setError(null);
       
       const userData = {
         email: formData.email.toLowerCase(),
@@ -249,13 +326,12 @@ const UserManagementPage = () => {
 
       await loadUsers();
       handleCloseModal();
-      setError(null);
       setHasUnsavedChanges(false);
     } catch (err) {
       console.error('Error saving user:', err);
-      setError('Error al guardar usuario');
+      setError(`Error al ${editingUser ? 'actualizar' : 'crear'} usuario: ${err.message}`);
     } finally {
-      setLoading(false);
+      setModalLoading(false);
     }
   };
 
@@ -541,15 +617,21 @@ const UserManagementPage = () => {
         }}>
           <Box>
             {editingUser ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
+            {editingUser && (
+              <Typography variant="caption" sx={{ display: 'block', opacity: 0.8, mt: 0.5 }}>
+                {formData.email}
+              </Typography>
+            )}
           </Box>
           {editingUser && hasUnsavedChanges && (
             <Chip 
-              label="Cambios sin guardar" 
+              label="● Cambios sin guardar" 
               size="small" 
               sx={{ 
-                backgroundColor: 'rgba(255,255,255,0.2)', 
-                color: 'white',
-                fontWeight: 500
+                backgroundColor: 'rgba(255,193,7,0.9)', 
+                color: 'rgba(0,0,0,0.87)',
+                fontWeight: 600,
+                animation: 'pulse 2s infinite'
               }} 
             />
           )}
@@ -692,16 +774,29 @@ const UserManagementPage = () => {
             disabled={
               !formData.email || 
               !formData.displayName || 
-              (editingUser && !hasUnsavedChanges) // Para usuarios existentes, solo habilitar si hay cambios
+              (editingUser && !hasUnsavedChanges) || // Para usuarios existentes, solo habilitar si hay cambios
+              modalLoading // Deshabilitar durante el guardado
             }
             sx={{
-              background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+              background: hasUnsavedChanges || !editingUser ? 
+                'linear-gradient(135deg, #28a745 0%, #20c997 100%)' : 
+                'rgba(0, 0, 0, 0.12)',
               '&:hover': {
-                background: 'linear-gradient(135deg, #218838 0%, #1ea085 100%)',
+                background: hasUnsavedChanges || !editingUser ? 
+                  'linear-gradient(135deg, #218838 0%, #1ea085 100%)' :
+                  'rgba(0, 0, 0, 0.12)',
+              },
+              '&:disabled': {
+                background: 'rgba(0, 0, 0, 0.12)',
+                color: 'rgba(0, 0, 0, 0.26)'
               }
             }}
           >
-            {editingUser ? 'Actualizar' : 'Crear'} Usuario
+            {modalLoading ? (
+              <CircularProgress size={20} color="inherit" />
+            ) : (
+              `${editingUser ? 'Actualizar' : 'Crear'} Usuario`
+            )}
           </Button>
         </DialogActions>
       </Dialog>

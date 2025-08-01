@@ -46,7 +46,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
   const userProfile = {
     name: firestoreProfile?.name || currentUser?.displayName || 'Diego Rueda',
     email: firestoreProfile?.email || currentUser?.email || 'diego@drgroup.com',
-    role: firestoreProfile?.role || 'admin',
+    role: firestoreProfile?.role || 'ADMIN',
     photoURL: firestoreProfile?.photoURL || currentUser?.photoURL || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=crop&w=256&h=256&q=80' // Prioridad: Firestore -> Auth -> Prueba
   };
   
@@ -210,7 +210,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                   {userProfile?.name || 'Diego Rueda'}
                 </Typography>
                 <Chip
-                  label={userProfile?.role || 'admin'}
+                  label={userProfile?.role || 'ADMIN'}
                   size="small"
                   sx={{
                     bgcolor: 'rgba(255, 255, 255, 0.2)',
@@ -416,7 +416,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
           ))}
 
           {/* Menú de Administrador */}
-          {userProfile?.role === 'admin' && (
+          {userProfile?.role === 'ADMIN' && (
             <>
               {settings?.sidebar?.grouping !== false && (!isCompactMode || isHoverExpanded) && (
                 <>

@@ -147,7 +147,7 @@ const DashboardLayout = () => {
           </MainLayout>
         } 
       />
-      {userProfile?.role === 'admin' && (
+      {userProfile?.role === 'ADMIN' && (
         <>
           <Route 
             path="/users" 
