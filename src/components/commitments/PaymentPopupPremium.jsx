@@ -595,13 +595,7 @@ const PaymentPopupPremium = ({
                             variant="outlined"
                             size="small"
                             startIcon={<Visibility />}
-                            onClick={() => {
-                              if (getFileType(existingReceiptMetadata) === 'image') {
-                                setShowReceiptPreview(true);
-                              } else {
-                                window.open(existingReceiptUrl, '_blank');
-                              }
-                            }}
+                            onClick={() => setShowReceiptPreview(true)}
                             sx={{ borderRadius: 2 }}
                           >
                             Ver comprobante
@@ -851,33 +845,42 @@ const PaymentPopupPremium = ({
               </Card>
             ) : (
               <Box sx={{ 
-                p: 4, 
                 textAlign: 'center',
-                background: 'linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%)',
-                borderRadius: 2,
-                border: '2px dashed #dee2e6'
+                width: '100%'
               }}>
-                <PictureAsPdfIcon sx={{ fontSize: 64, color: '#dc3545', mb: 2 }} />
-                <Typography variant="h6" gutterBottom>
-                  Documento PDF
-                </Typography>
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  {existingReceiptMetadata?.originalName || 'comprobante.pdf'}
-                </Typography>
-                <Button
-                  variant="contained"
-                  onClick={() => window.open(existingReceiptUrl, '_blank')}
-                  sx={{
-                    mt: 2,
-                    background: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)',
-                    color: 'white',
-                    '&:hover': {
-                      background: 'linear-gradient(135deg, #c82333 0%, #a71e2a 100%)',
-                    }
-                  }}
-                >
-                  Abrir PDF
-                </Button>
+                <Box sx={{ 
+                  p: 2, 
+                  textAlign: 'center',
+                  background: 'linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%)',
+                  borderRadius: 2,
+                  border: '2px dashed #dee2e6',
+                  mb: 2
+                }}>
+                  <PictureAsPdfIcon sx={{ fontSize: 48, color: '#dc3545', mb: 1 }} />
+                  <Typography variant="h6" gutterBottom>
+                    Documento PDF
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary" gutterBottom>
+                    {existingReceiptMetadata?.originalName || 'comprobante.pdf'}
+                  </Typography>
+                </Box>
+                
+                {/* Vista previa del PDF en iframe */}
+                <Box sx={{ 
+                  width: '100%', 
+                  height: 500, 
+                  border: '1px solid #dee2e6',
+                  borderRadius: 2,
+                  overflow: 'hidden'
+                }}>
+                  <iframe
+                    src={existingReceiptUrl}
+                    width="100%"
+                    height="100%"
+                    style={{ border: 'none' }}
+                    title="Vista previa del comprobante PDF"
+                  />
+                </Box>
               </Box>
             )}
             
@@ -895,6 +898,14 @@ const PaymentPopupPremium = ({
       </DialogContent>
       
       <DialogActions sx={{ p: 3, pt: 0 }}>
+        <Button 
+          variant="outlined"
+          onClick={() => window.open(existingReceiptUrl, '_blank')}
+          startIcon={<FilePresent />}
+          sx={{ mr: 'auto' }}
+        >
+          Descargar
+        </Button>
         <Button onClick={() => setShowReceiptPreview(false)}>
           Cerrar
         </Button>
