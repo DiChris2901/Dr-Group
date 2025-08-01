@@ -1,0 +1,97 @@
+/**
+ * Professional Color Presets
+ * Based on Minimal template for DR Group Dashboard
+ */
+
+export const primaryColorPresets = {
+  default: {
+    name: 'Boss Lite',
+    lighter: '#E3F2FD',
+    light: '#90CAF9',
+    main: '#1976D2',
+    dark: '#1565C0',
+    darker: '#0D47A1',
+    contrastText: '#FFFFFF',
+  },
+  corporate: {
+    name: 'Corporate Blue',
+    lighter: '#CCF4FE',
+    light: '#68CDF9',
+    main: '#078DEE',
+    dark: '#0351AB',
+    darker: '#012972',
+    contrastText: '#FFFFFF',
+  },
+  success: {
+    name: 'Success Green',
+    lighter: '#C8E6C9',
+    light: '#81C784',
+    main: '#4CAF50',
+    dark: '#388E3C',
+    darker: '#1B5E20',
+    contrastText: '#FFFFFF',
+  },
+  finance: {
+    name: 'Finance Gold',
+    lighter: '#FEF4D4',
+    light: '#FED680',
+    main: '#FDA92D',
+    dark: '#B66816',
+    darker: '#793908',
+    contrastText: '#1C252E',
+  },
+  executive: {
+    name: 'Executive Navy',
+    lighter: '#CDE9FD',
+    light: '#6BB1F8',
+    main: '#0C68E9',
+    dark: '#063BA7',
+    darker: '#021D6F',
+    contrastText: '#FFFFFF',
+  },
+  creative: {
+    name: 'Creative Orange',
+    lighter: '#FFE3D5',
+    light: '#FFC1AC',
+    main: '#FF5722',
+    dark: '#D84315',
+    darker: '#BF360C',
+    contrastText: '#FFFFFF',
+  },
+  modern: {
+    name: 'Modern Teal',
+    lighter: '#B2DFDB',
+    light: '#4DB6AC',
+    main: '#009688',
+    dark: '#00695C',
+    darker: '#004D40',
+    contrastText: '#FFFFFF',
+  },
+  elegant: {
+    name: 'Elegant Pink',
+    lighter: '#F8BBD9',
+    light: '#F48FB1',
+    main: '#E91E63',
+    dark: '#AD1457',
+    darker: '#880E4F',
+    contrastText: '#FFFFFF',
+  },
+  tech: {
+    name: 'Tech Indigo',
+    lighter: '#C5CAE9',
+    light: '#9FA8DA',
+    main: '#3F51B5',
+    dark: '#303F9F',
+    darker: '#1A237E',
+    contrastText: '#FFFFFF',
+  },
+  nature: {
+    name: 'Nature Green',
+    lighter: '#DCEDC8',
+    light: '#AED581',
+    main: '#8BC34A',
+    dark: '#689F38',
+    darker: '#33691E',
+    contrastText: '#FFFFFF',
+  }
+};

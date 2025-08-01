@@ -1,0 +1,33 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"terminal.integrated.defaultProfile.windows": "Command Prompt",
+		"terminal.integrated.profiles.windows": {
+			"PowerShell": {
+				"source": "PowerShell",
+				"icon": "terminal-powershell",
+				"args": [
+					"-NoProfile",
+					"-ExecutionPolicy",
+					"Bypass"
+				]
+			},
+			"Command Prompt": {
+				"path": "C:\\Windows\\System32\\cmd.exe",
+				"icon": "terminal-cmd"
+			}
+		},
+		"terminal.integrated.env.windows": {
+			"PATH": "${env:PATH}"
+		},
+		"workbench.colorCustomizations": {
+			"editor.lineHighlightBackground": "#1d1d1d20",
+			"editorIndentGuide.background": "#ffffff10"
+		},
+		"git.confirmSync": false
+	}
+}
