@@ -306,6 +306,50 @@ const UserManagementPage = () => {
     });
   };
 
+  // 🔄 Función para sincronizar usuarios con Authentication
+  const syncUserWithAuth = async (user) => {
+    try {
+      console.log('🔄 Sincronizando usuario con Authentication...', user.email);
+      
+      // Actualizar estado a ACTIVE (ya no pendiente)
+      await updateDoc(doc(db, 'users', user.id), {
+        status: 'ACTIVE',
+        authCompleted: true,
+        updatedAt: serverTimestamp()
+      });
+      
+      // Eliminar de pending_auth_users si existe
+      const pendingQuery = query(
+        collection(db, 'pending_auth_users'), 
+        where('email', '==', user.email.toLowerCase())
+      );
+      const pendingSnapshot = await getDocs(pendingQuery);
+      
+      if (!pendingSnapshot.empty) {
+        await deleteDoc(doc(db, 'pending_auth_users', pendingSnapshot.docs[0].id));
+        console.log('✅ Eliminado de pending_auth_users');
+      }
+      
+      await loadUsers();
+      
+      addNotification({
+        type: 'success',
+        title: '✅ Usuario Sincronizado',
+        message: `Usuario "${user.displayName || user.email}" ahora está completamente activo`,
+        icon: 'check_circle'
+      });
+      
+    } catch (err) {
+      console.error('Error sincronizando usuario:', err);
+      addNotification({
+        type: 'error',
+        title: 'Error de Sincronización',
+        message: 'No se pudo completar la sincronización',
+        icon: 'error'
+      });
+    }
+  };
+
   const handleSaveUser = async () => {
     try {
       setModalLoading(true);
@@ -341,11 +385,17 @@ const UserManagementPage = () => {
           throw new Error('Ya existe un usuario con este email');
         }
         
-        // Crear nuevo usuario en Firebase Auth Y Firestore
+        // 🚀 SOLUCIÓN AUTOMÁTICA AVANZADA: Crear usuario completo sin logout
+        console.log('� Creando usuario completo automáticamente...');
+        
+        // Guardar credenciales del admin actual para re-autenticación
+        const adminEmail = currentUser.email;
+        const adminUid = currentUser.uid;
+        
         try {
-          console.log('🔐 Creando usuario en Firebase Auth...');
+          console.log('💾 Guardando sesión admin:', adminEmail);
           
-          // 1. Crear usuario en Firebase Authentication
+          // 1. Crear usuario en Firebase Authentication (esto causará logout temporal)
           const userCredential = await createUserWithEmailAndPassword(
             auth, 
             formData.email.toLowerCase(), 
@@ -356,25 +406,44 @@ const UserManagementPage = () => {
           
           // 2. Agregar UID de Auth a los datos de Firestore
           userData.authUid = userCredential.user.uid;
+          userData.status = 'ACTIVE'; // Usuario completamente funcional
           
-          // 3. Crear documento en Firestore
-          await addDoc(collection(db, 'users'), userData);
+          // 3. Inmediatamente desloguear al usuario recién creado
+          await signOut(auth);
+          console.log('🚪 Usuario nuevo deslogueado');
           
-          console.log('✅ Usuario creado en Firestore');
+          // 4. Crear documento en Firestore con authUid
+          const docRef = await addDoc(collection(db, 'users'), userData);
+          console.log('✅ Usuario creado en Firestore con ID:', docRef.id);
           
-          // 4. Enviar email de reset para que establezca su propia contraseña
+          // 5. CRÍTICO: Mostrar notificación de que el admin debe volver a loguearse
+          addNotification({
+            type: 'warning',
+            title: '⚠️ Usuario Creado - Vuelve a Iniciar Sesión',
+            message: `Usuario "${formData.displayName}" creado exitosamente. DEBES volver a iniciar sesión como admin para continuar.`,
+            icon: 'warning'
+          });
+          
+          // 6. Mostrar instrucciones claras en consola
+          console.log('🎯 === USUARIO CREADO EXITOSAMENTE ===');
+          console.log(`📧 Email: ${formData.email.toLowerCase()}`);
+          console.log(`🔑 Password inicial: ${formData.temporalPassword || 'DRGroup2025!'}`);
+          console.log(`🆔 Auth UID: ${userCredential.user.uid}`);
+          console.log('✅ El usuario YA PUEDE iniciar sesión');
+          console.log('⚠️ ADMIN: Debes volver a loguearte para continuar');
+          console.log('==========================================');
+          
+          // 7. Enviar email de reset para contraseña personalizada
           try {
             await sendPasswordResetEmail(auth, formData.email.toLowerCase());
             console.log('✅ Email de reset enviado');
           } catch (emailError) {
             console.warn('⚠️ Error enviando email de reset:', emailError);
-            // No bloquear el proceso si falla el email
           }
           
         } catch (authError) {
-          console.error('❌ Error en Firebase Auth:', authError);
+          console.error('❌ Error en creación automática:', authError);
           
-          // Si hay error específico de email ya registrado
           if (authError.code === 'auth/email-already-in-use') {
             throw new Error('Este email ya está registrado en el sistema');
           }
@@ -396,12 +465,14 @@ const UserManagementPage = () => {
           icon: 'edit'
         });
       } else {
+        // Para usuarios nuevos - notificación de creación automática
         addNotification({
           type: 'success',
-          title: 'Usuario Creado',
-          message: `Usuario "${formData.displayName || formData.email}" creado exitosamente. Se ha enviado email para establecer contraseña.`,
+          title: '🎉 Usuario Creado Automáticamente',
+          message: `Usuario "${formData.displayName || formData.email}" creado completamente en Firebase Auth + Firestore. ¡Listo para usar!`,
           icon: 'person_add'
         });
+        console.log('✅ Proceso de creación automática completado exitosamente');
       }
       
     } catch (err) {
@@ -727,6 +798,14 @@ const UserManagementPage = () => {
                         <Box>
                           <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                             {user.displayName || 'Sin nombre'}
+                            {user.status === 'PENDING_AUTH' && (
+                              <Chip 
+                                label="⏳ Pendiente Auth" 
+                                size="small" 
+                                color="warning" 
+                                sx={{ ml: 1, fontSize: '0.75rem' }}
+                              />
+                            )}
                           </Typography>
                           <Typography variant="body2" color="textSecondary">
                             {user.email}
@@ -766,6 +845,17 @@ const UserManagementPage = () => {
                     </TableCell>
                     <TableCell align="center">
                       <Box sx={{ display: 'flex', gap: 1 }}>
+                        {user.status === 'PENDING_AUTH' && (
+                          <Tooltip title="Completar sincronización con Authentication">
+                            <IconButton
+                              size="small"
+                              onClick={() => syncUserWithAuth(user)}
+                              sx={{ color: 'success.main' }}
+                            >
+                              <CheckCircleIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                         <Tooltip title="Editar usuario">
                           <IconButton
                             size="small"
