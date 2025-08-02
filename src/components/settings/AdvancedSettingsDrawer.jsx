@@ -618,31 +618,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           </Box>
                         </Box>
 
-                        {/* Font Weight */}
-                        <FormControl fullWidth>
-                          <FormLabel sx={{ mb: 1, fontWeight: 600 }}>Peso de Fuente Base</FormLabel>
-                          <Select
-                            value={settings?.theme?.fontWeight || 400}
-                            onChange={(e) => updateSettings('theme', { 
-                              ...settings.theme, 
-                              fontWeight: e.target.value 
-                            })}
-                          >
-                            <MenuItem value={300} sx={{ fontWeight: 300 }}>
-                              Ligera (300)
-                            </MenuItem>
-                            <MenuItem value={400} sx={{ fontWeight: 400 }}>
-                              Normal (400)
-                            </MenuItem>
-                            <MenuItem value={500} sx={{ fontWeight: 500 }}>
-                              Media (500)
-                            </MenuItem>
-                            <MenuItem value={600} sx={{ fontWeight: 600 }}>
-                              Semi-negrita (600)
-                            </MenuItem>
-                          </Select>
-                        </FormControl>
-
                         {/* Preview */}
                         <Box 
                           sx={{ 
@@ -657,8 +632,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           </Typography>
                           <Box sx={{ 
                             fontFamily: settings?.theme?.fontFamily || 'Inter',
-                            fontSize: `${settings?.theme?.fontSize || 14}px`,
-                            fontWeight: settings?.theme?.fontWeight || 400
+                            fontSize: `${settings?.theme?.fontSize || 14}px`
                           }}>
                             <Typography variant="h6" sx={{ 
                               fontFamily: 'inherit',
