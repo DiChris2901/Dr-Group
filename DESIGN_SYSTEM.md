@@ -331,14 +331,32 @@ sx={{
 
 ## 🔄 Versionado del Design System
 
-**Versión Actual: 2.1** (Agosto 2025)
+**Versión Actual: 2.2** (Agosto 2025)
 
 ### Changelog
+- **v2.2**: 🚀 Optimización ARM64 + Próximas mejoras planificadas
+  - Solución completa para compatibilidad Windows ARM64
+  - Migración exitosa a `pnpm` para mejor gestión de dependencias
+  - Planificación de componentes avanzados (PremiumDataTable, SmartAlert, MorphingCard)
+  - Documentación de arquitectura optimizada
+  - Setup scripts para desarrollo ARM64
 - **v2.1**: Limpieza de Design System - Solo lenguaje de diseño visual
 - **v2.0**: Sistema completo premium con micro-interacciones
 - **v1.5**: Gradientes dinámicos y efectos shimmer
 - **v1.0**: Base inicial con Material-UI
 
+### 🏗️ Arquitectura Técnica
+- **Gestión de dependencias**: `pnpm` (ARM64 optimizado)
+- **Bundler**: Vite + Rollup con soporte ARM64
+- **Compatibilidad**: Windows ARM64, x64, macOS (Apple Silicon/Intel)
+- **CI/CD**: Preparado para runners ARM64
+
+### 🔮 Roadmap v2.3-v3.0
+- **v2.3**: Implementación PremiumDataTable con efectos cristal
+- **v2.4**: SmartAlert con recomendaciones automáticas basadas en contexto
+- **v2.5**: MorphingCard con transiciones de estado dinámicas
+- **v3.0**: Sistema completo de componentes premium + TypeScript nativo
+
 ---
 
-*Este Design System debe ser consultado antes de crear cualquier componente nuevo o modificar existentes para mantener consistencia visual en todo el proyecto. Es únicamente una guía de lenguaje de diseño, no incluye funcionalidades específicas.*
+*Este Design System es la columna vertebral visual de DR Group Dashboard. Cada actualización mantiene compatibilidad hacia atrás mientras expande las capacidades premium. Optimizado para desarrollo moderno en cualquier arquitectura (ARM64/x64).*

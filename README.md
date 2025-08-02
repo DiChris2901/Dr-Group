@@ -32,21 +32,37 @@ Este sistema permite llevar control de compromisos fijos mensuales (recurrentes 
 ### Prerrequisitos
 
 - Node.js 18+ 
-- npm o yarn
+- npm/pnpm (recomendado pnpm para ARM64)
 - Cuenta de Firebase con proyecto configurado
+
+### 🏗️ Soporte Multi-Arquitectura
+- ✅ **Windows x64**: Compatible completo
+- ✅ **Windows ARM64**: Optimizado con pnpm
+- ✅ **macOS Intel/Apple Silicon**: Compatible completo
+- ✅ **Linux x64/ARM64**: Compatible completo
 
 ### Pasos de Instalación
 
-1. **Clonar el repositorio**
-   ```bash
-   git clone [url-del-repo]
-   cd dr-group-dashboard
-   ```
+#### Opción 1: Instalación Estándar (x64)
+```bash
+git clone [url-del-repo]
+cd dr-group-dashboard
+npm install
+npm run dev
+```
 
-2. **Instalar dependencias**
-   ```bash
-   npm install
-   ```
+#### Opción 2: Instalación ARM64 Optimizada
+```bash
+git clone [url-del-repo]
+cd dr-group-dashboard
+
+# Usar script automático
+setup-arm64.bat
+
+# O manualmente
+pnpm install
+pnpm dev
+```
 
 3. **Configurar Firebase**
    - Copia `.env.example` a `.env`
