@@ -962,8 +962,8 @@ const PaymentPopupPremium = ({
       </DialogContent>
       
       <DialogActions sx={{ p: 3, pt: 0, justifyContent: 'space-between' }}>
-        {/* Botón de descarga solo si tiene permisos */}
-        {canDownloadReceipts ? (
+        {/* Botón de descarga solo si tiene permisos - sin mensaje cuando no los tiene */}
+        {canDownloadReceipts && (
           <Button 
             variant="outlined"
             onClick={() => window.open(existingReceiptUrl, '_blank')}
@@ -979,21 +979,6 @@ const PaymentPopupPremium = ({
           >
             Descargar
           </Button>
-        ) : (
-          <Alert 
-            severity="info" 
-            variant="outlined"
-            sx={{ 
-              flex: 1, 
-              mr: 2,
-              '& .MuiAlert-message': { fontSize: '0.875rem' }
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <SecurityIcon sx={{ fontSize: 16 }} />
-              No tienes permisos para descargar archivos
-            </Box>
-          </Alert>
         )}
         
         <Button 
