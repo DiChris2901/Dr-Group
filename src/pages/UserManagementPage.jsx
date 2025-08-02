@@ -64,7 +64,11 @@ import {
   query,
   where 
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { 
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail 
+} from 'firebase/auth';
+import { db, auth } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 
 // Permisos y roles
@@ -102,7 +106,8 @@ const UserManagementPage = () => {
     companies: [],
     isActive: true,
     department: '',
-    notes: ''
+    notes: '',
+    temporalPassword: '' // Nueva contraseña temporal
   });
 
   // Estado para detectar cambios en el formulario
@@ -219,7 +224,8 @@ const UserManagementPage = () => {
         companies: [],
         isActive: true,
         department: '',
-        notes: ''
+        notes: '',
+        temporalPassword: 'DRGroup2025!' // Contraseña por defecto
       };
       
       setFormData(newUserData);
@@ -320,8 +326,40 @@ const UserManagementPage = () => {
         // Actualizar usuario existente
         await updateDoc(doc(db, 'users', editingUser.id), userData);
       } else {
-        // Crear nuevo usuario
-        await addDoc(collection(db, 'users'), userData);
+        // Crear nuevo usuario en Firebase Auth Y Firestore
+        try {
+          console.log('🔐 Creando usuario en Firebase Auth...');
+          
+          // 1. Crear usuario en Firebase Authentication
+          const userCredential = await createUserWithEmailAndPassword(
+            auth, 
+            formData.email.toLowerCase(), 
+            formData.temporalPassword || 'DRGroup2025!'
+          );
+          
+          console.log('✅ Usuario creado en Auth:', userCredential.user.uid);
+          
+          // 2. Agregar UID de Auth a los datos de Firestore
+          userData.authUid = userCredential.user.uid;
+          
+          // 3. Crear documento en Firestore
+          await addDoc(collection(db, 'users'), userData);
+          
+          console.log('✅ Usuario creado en Firestore');
+          
+          // 4. Enviar email de reset para que establezca su propia contraseña
+          try {
+            await sendPasswordResetEmail(auth, formData.email.toLowerCase());
+            console.log('✅ Email de reset enviado');
+          } catch (emailError) {
+            console.warn('⚠️ Error enviando email de reset:', emailError);
+            // No bloquear el proceso si falla el email
+          }
+          
+        } catch (authError) {
+          console.error('❌ Error en Firebase Auth:', authError);
+          throw new Error(`Error creando usuario: ${authError.message}`);
+        }
       }
 
       await loadUsers();
@@ -668,6 +706,31 @@ const UserManagementPage = () => {
                 onChange={(e) => updateFormData({ phone: e.target.value })}
               />
             </Grid>
+            
+            {/* Campo de contraseña temporal - Solo para usuarios nuevos */}
+            {!editingUser && (
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Contraseña Temporal"
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.temporalPassword}
+                  onChange={(e) => updateFormData({ temporalPassword: e.target.value })}
+                  helperText="Se enviará email para cambiar contraseña"
+                  InputProps={{
+                    endAdornment: (
+                      <IconButton
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                      >
+                        {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                      </IconButton>
+                    )
+                  }}
+                />
+              </Grid>
+            )}
+            
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
