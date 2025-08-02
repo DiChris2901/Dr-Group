@@ -66,9 +66,11 @@ import {
 } from 'firebase/firestore';
 import { 
   createUserWithEmailAndPassword,
-  sendPasswordResetEmail 
+  sendPasswordResetEmail,
+  deleteUser
 } from 'firebase/auth';
-import { db, auth } from '../config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, auth, functions } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 
 // Permisos y roles
@@ -326,6 +328,15 @@ const UserManagementPage = () => {
         // Actualizar usuario existente
         await updateDoc(doc(db, 'users', editingUser.id), userData);
       } else {
+        // Verificar si el usuario ya existe ANTES de crear
+        const usersRef = collection(db, 'users');
+        const existingUserQuery = query(usersRef, where('email', '==', formData.email.toLowerCase()));
+        const existingUserSnapshot = await getDocs(existingUserQuery);
+        
+        if (!existingUserSnapshot.empty) {
+          throw new Error('Ya existe un usuario con este email');
+        }
+        
         // Crear nuevo usuario en Firebase Auth Y Firestore
         try {
           console.log('🔐 Creando usuario en Firebase Auth...');
@@ -358,6 +369,12 @@ const UserManagementPage = () => {
           
         } catch (authError) {
           console.error('❌ Error en Firebase Auth:', authError);
+          
+          // Si hay error específico de email ya registrado
+          if (authError.code === 'auth/email-already-in-use') {
+            throw new Error('Este email ya está registrado en el sistema');
+          }
+          
           throw new Error(`Error creando usuario: ${authError.message}`);
         }
       }
@@ -373,15 +390,95 @@ const UserManagementPage = () => {
     }
   };
 
-  const handleDeleteUser = async (userId) => {
-    if (window.confirm('¿Estás seguro de que quieres eliminar este usuario?')) {
+  const handleCleanDuplicates = async () => {
+    if (window.confirm('¿Estás seguro de que quieres limpiar usuarios duplicados?\n\nEsta acción:\n- Buscará usuarios con emails duplicados\n- Eliminará los duplicados (mantendrá el más reciente)\n- No se puede deshacer')) {
       try {
-        await deleteDoc(doc(db, 'users', userId));
+        setLoading(true);
+        console.log('🧹 Iniciando limpieza de duplicados...');
+        
+        const cleanDuplicateUsers = httpsCallable(functions, 'cleanDuplicateUsers');
+        const result = await cleanDuplicateUsers();
+        
+        console.log('✅ Limpieza completada:', result.data);
+        
         await loadUsers();
         setError(null);
+        
+        if (result.data.duplicatesFound > 0) {
+          alert(`Limpieza completada:\n- ${result.data.duplicatesFound} duplicados encontrados\n- ${result.data.deletedUsers.length} usuarios eliminados\n\nEmails duplicados: ${result.data.deletedUsers.join(', ')}`);
+        } else {
+          alert('No se encontraron usuarios duplicados');
+        }
+        
       } catch (err) {
-        console.error('Error deleting user:', err);
-        setError('Error al eliminar usuario');
+        console.error('❌ Error limpiando duplicados:', err);
+        setError(`Error en limpieza: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    const userToDelete = users.find(u => u.id === userId);
+    
+    if (!userToDelete) {
+      setError('Usuario no encontrado');
+      return;
+    }
+    
+    // Prevenir eliminar el último administrador
+    if (userToDelete.role === 'ADMIN' && users.filter(u => u.role === 'ADMIN').length === 1) {
+      setError('No puedes eliminar el último administrador del sistema');
+      return;
+    }
+    
+    // Prevenir que un usuario se elimine a sí mismo
+    if (userToDelete.email === currentUser?.email) {
+      setError('No puedes eliminar tu propio usuario');
+      return;
+    }
+    
+    if (window.confirm(`¿Estás seguro de que quieres eliminar completamente al usuario "${userToDelete.displayName || userToDelete.email}"?\n\nEsta acción eliminará:\n- Su cuenta de autenticación\n- Todos sus datos del sistema\n- No se puede deshacer`)) {
+      try {
+        setLoading(true);
+        console.log('🗑️ Eliminando usuario completo...', userToDelete.email);
+        
+        // Usar Cloud Function para eliminación completa
+        const deleteUserComplete = httpsCallable(functions, 'deleteUserComplete');
+        
+        const result = await deleteUserComplete({
+          userEmail: userToDelete.email,
+          userId: userId
+        });
+        
+        console.log('✅ Resultado eliminación:', result.data);
+        
+        await loadUsers();
+        setError(null);
+        
+        // Mostrar mensaje de éxito detallado
+        const message = result.data.deletedFromAuth 
+          ? 'Usuario eliminado completamente del sistema (Auth + Firestore)'
+          : 'Usuario eliminado de Firestore (revisar Auth manualmente)';
+        
+        console.log('✅', message);
+        
+      } catch (err) {
+        console.error('❌ Error eliminando usuario:', err);
+        
+        // Manejar errores específicos de Cloud Functions
+        if (err.code === 'functions/permission-denied') {
+          setError('No tienes permisos para eliminar usuarios');
+        } else if (err.code === 'functions/failed-precondition') {
+          setError(err.message);
+        } else if (err.code === 'functions/not-found') {
+          setError('Usuario no encontrado');
+        } else {
+          setError(`Error al eliminar usuario: ${err.message}`);
+        }
+      } finally {
+        setLoading(false);
       }
     }
   };
@@ -447,7 +544,7 @@ const UserManagementPage = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header */}
+      {/* Header con botones de acción */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
@@ -457,22 +554,39 @@ const UserManagementPage = () => {
             Administra usuarios, roles y permisos del sistema
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<PersonAddIcon />}
-          onClick={() => handleOpenModal()}
-          sx={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            px: 3,
-            py: 1.5,
-            borderRadius: 3,
-            '&:hover': {
-              background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
-            }
-          }}
-        >
-          Nuevo Usuario
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={handleCleanDuplicates}
+            disabled={loading}
+            sx={{
+              borderColor: '#ff9800',
+              color: '#ff9800',
+              '&:hover': {
+                borderColor: '#f57c00',
+                backgroundColor: 'rgba(255, 152, 0, 0.1)',
+              }
+            }}
+          >
+            Limpiar Duplicados
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<PersonAddIcon />}
+            onClick={() => handleOpenModal()}
+            sx={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              px: 3,
+              py: 1.5,
+              borderRadius: 3,
+              '&:hover': {
+                background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+              }
+            }}
+          >
+            Nuevo Usuario
+          </Button>
+        </Box>
       </Box>
 
       {error && (
