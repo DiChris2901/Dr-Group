@@ -122,20 +122,10 @@ export const AuthProvider = ({ children }) => {
           ...userDoc.data()
         });
       } else {
-        // Usuario no tiene perfil en Firestore, crear uno básico
-        const basicProfile = {
-          uid: user.uid,
-          email: user.email,
-          name: user.displayName || user.email.split('@')[0],
-          role: 'user',
-          permissions: [],
-          companies: [],
-          createdAt: new Date()
-        };
-        
-        // Crear el documento en Firestore
-        await setDoc(userDocRef, basicProfile);
-        setUserProfile(basicProfile);
+        // Usuario no tiene perfil en Firestore - NO crear automáticamente
+        console.warn('⚠️ Usuario autenticado sin perfil en Firestore:', user.email);
+        console.warn('⚠️ Debe ser creado manualmente desde UserManagementPage');
+        setUserProfile(null);
       }
     } catch (error) {
       console.error('Error cargando perfil del usuario:', error);

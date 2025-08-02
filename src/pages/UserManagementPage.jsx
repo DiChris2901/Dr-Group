@@ -67,10 +67,12 @@ import {
 import { 
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
-  deleteUser
+  deleteUser,
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut
 } from 'firebase/auth';
-import { httpsCallable } from 'firebase/functions';
-import { db, auth, functions } from '../config/firebase';
+import { db, auth } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 
@@ -443,29 +445,60 @@ const UserManagementPage = () => {
       try {
         setLoading(true);
         console.log('🗑️ Eliminando usuario completo...', userToDelete.email);
+        console.log('🔍 Datos del usuario:', userToDelete);
         
-        // Usar Cloud Function para eliminación completa
-        const deleteUserComplete = httpsCallable(functions, 'deleteUserComplete');
+        let deletedFromAuth = false;
         
-        const result = await deleteUserComplete({
-          userEmail: userToDelete.email,
-          userId: userId
-        });
+        // ⚠️ NOTA: La eliminación de Firebase Auth desde frontend tiene limitaciones
+        // Solo puede eliminar al usuario actualmente autenticado
         
-        console.log('✅ Resultado eliminación:', result.data);
+        // 1. Primero eliminar de Firestore (siempre funciona)
+        console.log('🔥 Eliminando de Firestore...');
+        await deleteDoc(doc(db, 'users', userId));
+        console.log('✅ Usuario eliminado de Firestore');
+        
+        // 2. Para Firebase Auth, solo mostrar advertencia
+        if (userToDelete.authUid) {
+          console.warn('⚠️ No se puede eliminar de Firebase Auth desde frontend');
+          console.warn('⚠️ El usuario aún existe en Authentication, deberá ser eliminado manualmente desde Firebase Console');
+          deletedFromAuth = false;
+        } else {
+          deletedFromAuth = true; // No había authUid, no hay nada que eliminar en Auth
+        }
+        
+        // 3. Log de auditoría local (sin Cloud Function)
+        try {
+          await addDoc(collection(db, 'audit_logs'), {
+            action: 'DELETE_USER',
+            targetUser: userToDelete.email,
+            performedBy: currentUser.email,
+            performedByUid: currentUser.uid,
+            timestamp: serverTimestamp(),
+            details: {
+              deletedUser: {
+                email: userToDelete.email,
+                role: userToDelete.role,
+                displayName: userToDelete.displayName
+              },
+              note: 'Usuario eliminado de Firestore. Auth debe ser eliminado manualmente.'
+            }
+          });
+        } catch (auditError) {
+          console.warn('⚠️ Error creando log de auditoría:', auditError);
+        }
         
         await loadUsers();
         setError(null);
         
-        // 📢 Notificación de eliminación exitosa
-        const message = result.data.deletedFromAuth 
-          ? 'Usuario eliminado completamente del sistema (Auth + Firestore)'
-          : 'Usuario eliminado de Firestore (revisar Auth manualmente)';
+        // 📢 Notificación de eliminación
+        const message = deletedFromAuth 
+          ? 'Usuario eliminado completamente del sistema'
+          : 'Usuario eliminado de Firestore. Revisar Firebase Auth manualmente.';
         
         addNotification({
-          type: 'info',
+          type: 'warning',
           title: 'Usuario Eliminado',
-          message: `Usuario "${userToDelete.displayName || userToDelete.email}" eliminado completamente del sistema`,
+          message: `Usuario "${userToDelete.displayName || userToDelete.email}" eliminado de Firestore. ⚠️ Revisar Firebase Auth manualmente.`,
           icon: 'delete'
         });
         
@@ -477,16 +510,9 @@ const UserManagementPage = () => {
         // 📢 Notificación de error en eliminación
         let errorMessage = `Error al eliminar usuario: ${err.message}`;
         
-        // Manejar errores específicos de Cloud Functions
-        if (err.code === 'functions/permission-denied') {
+        if (err.code === 'permission-denied') {
           errorMessage = 'No tienes permisos para eliminar usuarios';
           setError('No tienes permisos para eliminar usuarios');
-        } else if (err.code === 'functions/failed-precondition') {
-          errorMessage = err.message;
-          setError(err.message);
-        } else if (err.code === 'functions/not-found') {
-          errorMessage = 'Usuario no encontrado';
-          setError('Usuario no encontrado');
         } else {
           setError(`Error al eliminar usuario: ${err.message}`);
         }

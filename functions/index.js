@@ -70,13 +70,31 @@ exports.deleteUserComplete = onCall(async (request) => {
     }
 
     // 5. Eliminar de Firebase Auth si tiene authUid
+    let deletedFromAuth = false;
     if (userData.authUid) {
       try {
         await adminAuth.deleteUser(userData.authUid);
+        deletedFromAuth = true;
         console.log('✅ Usuario eliminado de Firebase Auth:', userData.authUid);
       } catch (authError) {
-        console.warn('⚠️ Error eliminando de Auth:', authError);
-        // Continuar con eliminación de Firestore aunque falle Auth
+        console.warn('⚠️ Error eliminando de Auth:', authError.code, authError.message);
+        // Si no existe en Auth, no es error crítico
+        if (authError.code === 'auth/user-not-found') {
+          deletedFromAuth = true; // Ya no existe, considerarlo como eliminado
+        }
+      }
+    } else {
+      // Si no tiene authUid, buscar por email en Auth
+      try {
+        const userRecord = await adminAuth.getUserByEmail(userData.email);
+        await adminAuth.deleteUser(userRecord.uid);
+        deletedFromAuth = true;
+        console.log('✅ Usuario eliminado de Firebase Auth (por email):', userRecord.uid);
+      } catch (authError) {
+        console.warn('⚠️ Usuario no encontrado en Auth o error:', authError.code, authError.message);
+        if (authError.code === 'auth/user-not-found') {
+          deletedFromAuth = true; // Ya no existe en Auth
+        }
       }
     }
 
@@ -103,17 +121,28 @@ exports.deleteUserComplete = onCall(async (request) => {
     return {
       success: true,
       message: `Usuario ${userData.email} eliminado completamente`,
-      deletedFromAuth: !!userData.authUid,
+      deletedFromAuth: deletedFromAuth,
       deletedFromFirestore: true
     };
 
   } catch (error) {
     console.error('❌ Error en deleteUserComplete:', error);
+    console.error('Error details:', {
+      code: error.code,
+      message: error.message,
+      stack: error.stack
+    });
     
     if (error instanceof HttpsError) {
       throw error;
     }
     
-    throw new HttpsError('internal', `Error interno: ${error.message}`);
+    // Proporcionar más detalles del error
+    let errorMessage = 'Error interno desconocido';
+    if (error.message) {
+      errorMessage = error.message;
+    }
+    
+    throw new HttpsError('internal', `Error interno: ${errorMessage}`);
   }
 });
