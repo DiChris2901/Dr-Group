@@ -20,7 +20,6 @@ import {
   Receipt,
   Business,
   Assessment,
-  Settings,
   People,
   Assignment,
   AttachMoney,
@@ -141,6 +140,12 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       icon: Business,
       path: '/companies',
       color: secondaryColor
+    },
+    {
+      title: 'Tareas',
+      icon: Assignment,
+      path: '/tasks',
+      color: primaryColor
     },
     {
       title: 'Reportes',

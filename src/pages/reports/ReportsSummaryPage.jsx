@@ -26,9 +26,13 @@ import {
   Schedule
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import { useTheme } from '@mui/material/styles';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const ReportsSummaryPage = () => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
+  
   // Mock data - en producción vendrá de Firebase
   const [summaryData] = useState({
     totalCommitments: 156,
@@ -86,7 +90,9 @@ const ReportsSummaryPage = () => {
             variant="h4" 
             sx={{ 
               fontWeight: 700,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: isDarkMode
+                ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
               backgroundClip: 'text',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
@@ -144,8 +150,12 @@ const ReportsSummaryPage = () => {
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
               <Card sx={{
-                background: `linear-gradient(135deg, ${kpi.color}15 0%, ${kpi.color}05 100%)`,
-                border: `1px solid ${kpi.color}30`,
+                background: isDarkMode 
+                  ? `linear-gradient(135deg, ${kpi.color}20 0%, ${kpi.color}08 100%)`
+                  : `linear-gradient(135deg, ${kpi.color}15 0%, ${kpi.color}05 100%)`,
+                border: isDarkMode 
+                  ? `1px solid ${kpi.color}40` 
+                  : `1px solid ${kpi.color}30`,
                 borderRadius: 4,
                 backdropFilter: 'blur(20px)',
                 height: '100%'
@@ -184,9 +194,13 @@ const ReportsSummaryPage = () => {
           >
             <Card sx={{
               borderRadius: 4,
-              background: 'rgba(255, 255, 255, 0.1)',
+              background: isDarkMode 
+                ? 'rgba(255, 255, 255, 0.05)' 
+                : 'rgba(255, 255, 255, 0.1)',
               backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
+              border: isDarkMode 
+                ? '1px solid rgba(255, 255, 255, 0.1)' 
+                : '1px solid rgba(255, 255, 255, 0.2)',
               height: '400px'
             }}>
               <CardContent>
@@ -226,9 +240,13 @@ const ReportsSummaryPage = () => {
           >
             <Card sx={{
               borderRadius: 4,
-              background: 'rgba(255, 255, 255, 0.1)',
+              background: isDarkMode 
+                ? 'rgba(255, 255, 255, 0.05)' 
+                : 'rgba(255, 255, 255, 0.1)',
               backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
+              border: isDarkMode 
+                ? '1px solid rgba(255, 255, 255, 0.1)' 
+                : '1px solid rgba(255, 255, 255, 0.2)',
               height: '400px'
             }}>
               <CardContent>
@@ -267,9 +285,13 @@ const ReportsSummaryPage = () => {
           >
             <Card sx={{
               borderRadius: 4,
-              background: 'rgba(255, 255, 255, 0.1)',
+              background: isDarkMode 
+                ? 'rgba(255, 255, 255, 0.05)' 
+                : 'rgba(255, 255, 255, 0.1)',
               backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)'
+              border: isDarkMode 
+                ? '1px solid rgba(255, 255, 255, 0.1)' 
+                : '1px solid rgba(255, 255, 255, 0.2)'
             }}>
               <CardContent>
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
@@ -326,9 +348,13 @@ const ReportsSummaryPage = () => {
           >
             <Card sx={{
               borderRadius: 4,
-              background: 'rgba(255, 255, 255, 0.1)',
+              background: isDarkMode 
+                ? 'rgba(255, 255, 255, 0.05)' 
+                : 'rgba(255, 255, 255, 0.1)',
               backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)'
+              border: isDarkMode 
+                ? '1px solid rgba(255, 255, 255, 0.1)' 
+                : '1px solid rgba(255, 255, 255, 0.2)'
             }}>
               <CardContent>
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>

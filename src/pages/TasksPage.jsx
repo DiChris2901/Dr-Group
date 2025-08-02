@@ -23,6 +23,7 @@ import {
   Checkbox,
   FormControlLabel
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Add,
   Edit,
@@ -35,21 +36,27 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 
-const designSystem = {
-  gradients: {
-    primary: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    secondary: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-    success: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-    warning: 'linear-gradient(135deg, #fdbb2d 0%, #22c1c3 100%)'
-  },
-  borderRadius: 4,
-  shadows: {
-    soft: '0 2px 12px rgba(0,0,0,0.08)',
-    medium: '0 4px 20px rgba(0,0,0,0.12)'
-  }
-};
-
 const TasksManager = () => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
+  
+  // Sistema de diseño dinámico basado en el tema
+  const designSystem = {
+    gradients: {
+      primary: isDarkMode 
+        ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+        : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+      secondary: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+      success: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+      warning: 'linear-gradient(135deg, #fdbb2d 0%, #22c1c3 100%)'
+    },
+    borderRadius: 4,
+    shadows: {
+      soft: '0 2px 12px rgba(0,0,0,0.08)',
+      medium: '0 4px 20px rgba(0,0,0,0.12)'
+    }
+  };
+  
   const [tasks, setTasks] = useState([
     { id: 1, title: 'Revisar comprobantes pendientes', priority: 'high', completed: false, createdAt: new Date() },
     { id: 2, title: 'Actualizar datos de empresas', priority: 'medium', completed: false, createdAt: new Date() },
@@ -137,8 +144,20 @@ const TasksManager = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <Typography variant="h4" fontWeight="700" gutterBottom>
-          Gestión de Tareas
+        <Typography 
+          variant="h4" 
+          sx={{ 
+            fontWeight: 700,
+            background: isDarkMode 
+              ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+              : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            mb: 1
+          }}
+        >
+          📋 Gestión de Tareas
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
           Administra las tareas del dashboard y mantén el control de tus actividades
@@ -151,7 +170,19 @@ const TasksManager = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
       >
-        <Paper sx={{ p: 3, mb: 3, borderRadius: designSystem.borderRadius, boxShadow: designSystem.shadows.medium }}>
+        <Paper sx={{ 
+          p: 3, 
+          mb: 3, 
+          borderRadius: 4,
+          background: isDarkMode 
+            ? 'rgba(255, 255, 255, 0.1)' 
+            : 'rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(20px)',
+          border: isDarkMode 
+            ? '1px solid rgba(255, 255, 255, 0.2)' 
+            : '1px solid rgba(0, 0, 0, 0.1)',
+          boxShadow: designSystem.shadows.medium 
+        }}>
           <Typography variant="h6" fontWeight="600" sx={{ mb: 2 }}>
             Nueva Tarea
           </Typography>
@@ -203,7 +234,18 @@ const TasksManager = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
       >
-        <Paper sx={{ mb: 3, borderRadius: designSystem.borderRadius, boxShadow: designSystem.shadows.medium }}>
+        <Paper sx={{ 
+          mb: 3, 
+          borderRadius: 4,
+          background: isDarkMode 
+            ? 'rgba(255, 255, 255, 0.1)' 
+            : 'rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(20px)',
+          border: isDarkMode 
+            ? '1px solid rgba(255, 255, 255, 0.2)' 
+            : '1px solid rgba(0, 0, 0, 0.1)',
+          boxShadow: designSystem.shadows.medium 
+        }}>
           <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <Typography variant="h6" fontWeight="600">
@@ -286,7 +328,17 @@ const TasksManager = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
         >
-          <Paper sx={{ borderRadius: designSystem.borderRadius, boxShadow: designSystem.shadows.medium }}>
+          <Paper sx={{ 
+            borderRadius: 4,
+            background: isDarkMode 
+              ? 'rgba(255, 255, 255, 0.1)' 
+              : 'rgba(255, 255, 255, 0.9)',
+            backdropFilter: 'blur(20px)',
+            border: isDarkMode 
+              ? '1px solid rgba(255, 255, 255, 0.2)' 
+              : '1px solid rgba(0, 0, 0, 0.1)',
+            boxShadow: designSystem.shadows.medium 
+          }}>
             <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Typography variant="h6" fontWeight="600">

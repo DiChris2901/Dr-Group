@@ -21,6 +21,7 @@ import {
   Switch,
   FormControlLabel
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Analytics as AnalyticsIcon,
   FilterList as FilterIcon,

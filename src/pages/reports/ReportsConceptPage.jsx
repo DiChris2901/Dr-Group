@@ -528,13 +528,13 @@ const ReportsConceptPage = () => {
                         }}>
                           {concept.icon}
                         </Avatar>
-                        <Typography sx={{ fontWeight: Math.max(baseFontWeight + 200, 600) }}>
+                        <Typography sx={{ fontWeight: 600 }}>
                           {concept.name}
                         </Typography>
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Typography sx={{ fontWeight: Math.max(baseFontWeight + 200, 600), color: '#4caf50' }}>
+                      <Typography sx={{ fontWeight: 600, color: '#4caf50' }}>
                         {formatCurrency(concept.totalAmount)}
                       </Typography>
                     </TableCell>
@@ -572,7 +572,7 @@ const ReportsConceptPage = () => {
                         )}
                         <Typography 
                           sx={{ 
-                            fontWeight: Math.max(baseFontWeight + 200, 600),
+                            fontWeight: 600,
                             color: concept.growth > 0 ? '#4caf50' : '#f44336'
                           }}
                         >

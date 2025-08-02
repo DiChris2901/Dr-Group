@@ -20,6 +20,7 @@ import {
   Select,
   MenuItem
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   DateRange,
   GetApp,
@@ -37,6 +38,9 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 // import { es } from 'date-fns/locale';
 
 const ReportsPeriodPage = () => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
+  
   const [startDate, setStartDate] = useState(new Date(2025, 0, 1)); // 1 enero 2025
   const [endDate, setEndDate] = useState(new Date(2025, 6, 31)); // 31 julio 2025
   const [periodType, setPeriodType] = useState('monthly');
@@ -170,7 +174,9 @@ const ReportsPeriodPage = () => {
               variant="h4" 
               sx={{ 
                 fontWeight: 700,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: isDarkMode 
+                  ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                  : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
                 backgroundClip: 'text',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
@@ -189,9 +195,13 @@ const ReportsPeriodPage = () => {
         <Card sx={{ 
           mb: 3, 
           borderRadius: 4,
-          background: 'rgba(255, 255, 255, 0.1)',
+          background: isDarkMode 
+            ? 'rgba(255, 255, 255, 0.1)' 
+            : 'rgba(255, 255, 255, 0.9)',
           backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.2)'
+          border: isDarkMode 
+            ? '1px solid rgba(255, 255, 255, 0.2)' 
+            : '1px solid rgba(0, 0, 0, 0.1)'
         }}>
           <CardContent>
             <Grid container spacing={2} alignItems="center">
@@ -349,9 +359,13 @@ const ReportsPeriodPage = () => {
             >
               <Card sx={{
                 borderRadius: 4,
-                background: 'rgba(255, 255, 255, 0.1)',
+                background: isDarkMode 
+                  ? 'rgba(255, 255, 255, 0.1)' 
+                  : 'rgba(255, 255, 255, 0.9)',
                 backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
+                border: isDarkMode 
+                  ? '1px solid rgba(255, 255, 255, 0.2)' 
+                  : '1px solid rgba(0, 0, 0, 0.1)',
                 height: '400px'
               }}>
                 <CardContent>
@@ -395,9 +409,13 @@ const ReportsPeriodPage = () => {
             >
               <Card sx={{
                 borderRadius: 4,
-                background: 'rgba(255, 255, 255, 0.1)',
+                background: isDarkMode 
+                  ? 'rgba(255, 255, 255, 0.1)' 
+                  : 'rgba(255, 255, 255, 0.9)',
                 backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
+                border: isDarkMode 
+                  ? '1px solid rgba(255, 255, 255, 0.2)' 
+                  : '1px solid rgba(0, 0, 0, 0.1)',
                 height: '400px'
               }}>
                 <CardContent>
@@ -430,9 +448,13 @@ const ReportsPeriodPage = () => {
         {/* Detailed Table */}
         <Card sx={{ 
           borderRadius: 4,
-          background: 'rgba(255, 255, 255, 0.1)',
+          background: isDarkMode 
+            ? 'rgba(255, 255, 255, 0.1)' 
+            : 'rgba(255, 255, 255, 0.9)',
           backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255, 255, 255, 0.2)'
+          border: isDarkMode 
+            ? '1px solid rgba(255, 255, 255, 0.2)' 
+            : '1px solid rgba(0, 0, 0, 0.1)'
         }}>
           <CardContent>
             <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>

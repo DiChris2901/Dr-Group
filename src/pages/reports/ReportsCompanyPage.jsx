@@ -31,9 +31,13 @@ import {
   AttachMoney
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import { useTheme } from '@mui/material/styles';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const ReportsCompanyPage = () => {
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
+  
   const [selectedCompany, setSelectedCompany] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [timeRange, setTimeRange] = useState('last6months');
@@ -158,7 +162,9 @@ const ReportsCompanyPage = () => {
             variant="h4" 
             sx={{ 
               fontWeight: 700,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: isDarkMode
+                ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
               backgroundClip: 'text',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
@@ -177,9 +183,13 @@ const ReportsCompanyPage = () => {
       <Card sx={{ 
         mb: 3, 
         borderRadius: 4,
-        background: 'rgba(255, 255, 255, 0.1)',
+        background: isDarkMode 
+          ? 'rgba(255, 255, 255, 0.05)' 
+          : 'rgba(255, 255, 255, 0.1)',
         backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.2)'
+        border: isDarkMode 
+          ? '1px solid rgba(255, 255, 255, 0.1)' 
+          : '1px solid rgba(255, 255, 255, 0.2)'
       }}>
         <CardContent>
           <Grid container spacing={2} alignItems="center">
@@ -289,8 +299,12 @@ const ReportsCompanyPage = () => {
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
               <Card sx={{
-                background: `linear-gradient(135deg, ${stat.color}15 0%, ${stat.color}05 100%)`,
-                border: `1px solid ${stat.color}30`,
+                background: isDarkMode 
+                  ? `linear-gradient(135deg, ${stat.color}20 0%, ${stat.color}08 100%)`
+                  : `linear-gradient(135deg, ${stat.color}15 0%, ${stat.color}05 100%)`,
+                border: isDarkMode 
+                  ? `1px solid ${stat.color}40` 
+                  : `1px solid ${stat.color}30`,
                 borderRadius: 4,
                 backdropFilter: 'blur(20px)'
               }}>
@@ -315,9 +329,13 @@ const ReportsCompanyPage = () => {
       <Card sx={{
         mb: 3,
         borderRadius: 4,
-        background: 'rgba(255, 255, 255, 0.1)',
+        background: isDarkMode 
+          ? 'rgba(255, 255, 255, 0.05)' 
+          : 'rgba(255, 255, 255, 0.1)',
         backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.2)'
+        border: isDarkMode 
+          ? '1px solid rgba(255, 255, 255, 0.1)' 
+          : '1px solid rgba(255, 255, 255, 0.2)'
       }}>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
@@ -342,9 +360,13 @@ const ReportsCompanyPage = () => {
       {/* Companies Table */}
       <Card sx={{ 
         borderRadius: 4,
-        background: 'rgba(255, 255, 255, 0.1)',
+        background: isDarkMode 
+          ? 'rgba(255, 255, 255, 0.05)' 
+          : 'rgba(255, 255, 255, 0.1)',
         backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.2)'
+        border: isDarkMode 
+          ? '1px solid rgba(255, 255, 255, 0.1)' 
+          : '1px solid rgba(255, 255, 255, 0.2)'
       }}>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
@@ -377,7 +399,9 @@ const ReportsCompanyPage = () => {
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Avatar sx={{ 
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                          background: isDarkMode
+                            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
                         }}>
                           {company.logo}
                         </Avatar>
