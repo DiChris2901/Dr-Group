@@ -49,7 +49,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { hasPermission, PERMISSIONS } from '../../utils/userPermissions';
-import SecurePDFViewer from '../common/SecurePDFViewer';
+import FallbackPDFViewer from '../common/FallbackPDFViewer';
 
 const PaymentPopupPremium = ({ 
   open, 
@@ -930,11 +930,11 @@ const PaymentPopupPremium = ({
                   </Box>
                 </Box>
                 
-                {/* Visor PDF seguro */}
-                <SecurePDFViewer 
+                {/* Visor PDF mejorado */}
+                <FallbackPDFViewer 
                   url={existingReceiptUrl}
                   height={500}
-                  allowControls={true}
+                  filename={existingReceiptMetadata?.originalName || 'comprobante.pdf'}
                   onError={(error) => {
                     console.error('Error loading PDF:', error);
                   }}
