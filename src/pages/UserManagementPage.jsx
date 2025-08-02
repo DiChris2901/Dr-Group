@@ -72,6 +72,7 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { db, auth, functions } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationsContext';
 
 // Permisos y roles
 import { 
@@ -85,6 +86,7 @@ import {
 const UserManagementPage = () => {
   const theme = useTheme();
   const { currentUser } = useAuth();
+  const { addNotification } = useNotifications();
   
   // Estados principales
   const [users, setUsers] = useState([]);
@@ -382,40 +384,38 @@ const UserManagementPage = () => {
       await loadUsers();
       handleCloseModal();
       setHasUnsavedChanges(false);
+      
+      // 📢 Agregar notificación de éxito
+      if (editingUser) {
+        addNotification({
+          type: 'success',
+          title: 'Usuario Actualizado',
+          message: `Usuario "${formData.displayName || formData.email}" actualizado correctamente`,
+          icon: 'edit'
+        });
+      } else {
+        addNotification({
+          type: 'success',
+          title: 'Usuario Creado',
+          message: `Usuario "${formData.displayName || formData.email}" creado exitosamente. Se ha enviado email para establecer contraseña.`,
+          icon: 'person_add'
+        });
+      }
+      
     } catch (err) {
       console.error('Error saving user:', err);
       setError(`Error al ${editingUser ? 'actualizar' : 'crear'} usuario: ${err.message}`);
+      
+      // 📢 Notificación de error
+      addNotification({
+        type: 'error',
+        title: `Error al ${editingUser ? 'Actualizar' : 'Crear'} Usuario`,
+        message: err.message,
+        icon: 'error'
+      });
+      
     } finally {
       setModalLoading(false);
-    }
-  };
-
-  const handleCleanDuplicates = async () => {
-    if (window.confirm('¿Estás seguro de que quieres limpiar usuarios duplicados?\n\nEsta acción:\n- Buscará usuarios con emails duplicados\n- Eliminará los duplicados (mantendrá el más reciente)\n- No se puede deshacer')) {
-      try {
-        setLoading(true);
-        console.log('🧹 Iniciando limpieza de duplicados...');
-        
-        const cleanDuplicateUsers = httpsCallable(functions, 'cleanDuplicateUsers');
-        const result = await cleanDuplicateUsers();
-        
-        console.log('✅ Limpieza completada:', result.data);
-        
-        await loadUsers();
-        setError(null);
-        
-        if (result.data.duplicatesFound > 0) {
-          alert(`Limpieza completada:\n- ${result.data.duplicatesFound} duplicados encontrados\n- ${result.data.deletedUsers.length} usuarios eliminados\n\nEmails duplicados: ${result.data.deletedUsers.join(', ')}`);
-        } else {
-          alert('No se encontraron usuarios duplicados');
-        }
-        
-      } catch (err) {
-        console.error('❌ Error limpiando duplicados:', err);
-        setError(`Error en limpieza: ${err.message}`);
-      } finally {
-        setLoading(false);
-      }
     }
   };
 
@@ -457,26 +457,47 @@ const UserManagementPage = () => {
         await loadUsers();
         setError(null);
         
-        // Mostrar mensaje de éxito detallado
+        // 📢 Notificación de eliminación exitosa
         const message = result.data.deletedFromAuth 
           ? 'Usuario eliminado completamente del sistema (Auth + Firestore)'
           : 'Usuario eliminado de Firestore (revisar Auth manualmente)';
+        
+        addNotification({
+          type: 'info',
+          title: 'Usuario Eliminado',
+          message: `Usuario "${userToDelete.displayName || userToDelete.email}" eliminado completamente del sistema`,
+          icon: 'delete'
+        });
         
         console.log('✅', message);
         
       } catch (err) {
         console.error('❌ Error eliminando usuario:', err);
         
+        // 📢 Notificación de error en eliminación
+        let errorMessage = `Error al eliminar usuario: ${err.message}`;
+        
         // Manejar errores específicos de Cloud Functions
         if (err.code === 'functions/permission-denied') {
+          errorMessage = 'No tienes permisos para eliminar usuarios';
           setError('No tienes permisos para eliminar usuarios');
         } else if (err.code === 'functions/failed-precondition') {
+          errorMessage = err.message;
           setError(err.message);
         } else if (err.code === 'functions/not-found') {
+          errorMessage = 'Usuario no encontrado';
           setError('Usuario no encontrado');
         } else {
           setError(`Error al eliminar usuario: ${err.message}`);
         }
+        
+        addNotification({
+          type: 'error',
+          title: 'Error al Eliminar Usuario',
+          message: errorMessage,
+          icon: 'error'
+        });
+        
       } finally {
         setLoading(false);
       }
@@ -485,14 +506,34 @@ const UserManagementPage = () => {
 
   const handleToggleActiveStatus = async (user) => {
     try {
+      const newStatus = !user.isActive;
+      
       await updateDoc(doc(db, 'users', user.id), {
-        isActive: !user.isActive,
+        isActive: newStatus,
         updatedAt: serverTimestamp()
       });
+      
       await loadUsers();
+      
+      // 📢 Notificación de cambio de estado
+      addNotification({
+        type: newStatus ? 'success' : 'warning',
+        title: `Usuario ${newStatus ? 'Activado' : 'Desactivado'}`,
+        message: `Usuario "${user.displayName || user.email}" ${newStatus ? 'activado' : 'desactivado'} correctamente`,
+        icon: newStatus ? 'check_circle' : 'cancel'
+      });
+      
     } catch (err) {
       console.error('Error updating user status:', err);
       setError('Error al actualizar estado del usuario');
+      
+      // 📢 Notificación de error
+      addNotification({
+        type: 'error',
+        title: 'Error al Cambiar Estado',
+        message: 'No se pudo actualizar el estado del usuario',
+        icon: 'error'
+      });
     }
   };
 
@@ -544,7 +585,7 @@ const UserManagementPage = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header con botones de acción */}
+      {/* Header con botón de acción */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
@@ -554,39 +595,22 @@ const UserManagementPage = () => {
             Administra usuarios, roles y permisos del sistema
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            variant="outlined"
-            onClick={handleCleanDuplicates}
-            disabled={loading}
-            sx={{
-              borderColor: '#ff9800',
-              color: '#ff9800',
-              '&:hover': {
-                borderColor: '#f57c00',
-                backgroundColor: 'rgba(255, 152, 0, 0.1)',
-              }
-            }}
-          >
-            Limpiar Duplicados
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<PersonAddIcon />}
-            onClick={() => handleOpenModal()}
-            sx={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              px: 3,
-              py: 1.5,
-              borderRadius: 3,
-              '&:hover': {
-                background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
-              }
-            }}
-          >
-            Nuevo Usuario
-          </Button>
-        </Box>
+        <Button
+          variant="contained"
+          startIcon={<PersonAddIcon />}
+          onClick={() => handleOpenModal()}
+          sx={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            px: 3,
+            py: 1.5,
+            borderRadius: 3,
+            '&:hover': {
+              background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+            }
+          }}
+        >
+          Nuevo Usuario
+        </Button>
       </Box>
 
       {error && (
