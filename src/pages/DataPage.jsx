@@ -38,7 +38,6 @@ import {
   PieChart as PieChartIcon,
   ShowChart as LineChartIcon
 } from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 
 // Componente de tarjeta de estadística
