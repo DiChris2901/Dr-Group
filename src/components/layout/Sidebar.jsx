@@ -149,7 +149,8 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       submenu: [
         { title: 'Resumen General', icon: Assessment, path: '/reports/summary' },
         { title: 'Por Empresa', icon: Business, path: '/reports/company' },
-        { title: 'Por Período', icon: Assignment, path: '/reports/period' }
+        { title: 'Por Período', icon: Assignment, path: '/reports/period' },
+        { title: 'Por Concepto', icon: Receipt, path: '/reports/concept' }
       ]
     }
   ];

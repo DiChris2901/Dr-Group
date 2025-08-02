@@ -26,6 +26,11 @@ import CompaniesPage from './pages/CompaniesPage';
 import TasksPage from './pages/TasksPage';
 import UserManagementPage from './pages/UserManagementPage';
 import AdminSetupPage from './pages/AdminSetupPage';
+import ReceiptsPage from './pages/ReceiptsPage';
+import ReportsSummaryPage from './pages/reports/ReportsSummaryPage';
+import ReportsCompanyPage from './pages/reports/ReportsCompanyPage';
+import ReportsPeriodPage from './pages/reports/ReportsPeriodPage';
+import ReportsConceptPage from './pages/reports/ReportsConceptPage';
 import WelcomeDashboard from './components/dashboard/WelcomeDashboard';
 
 // Hook de autenticación
@@ -117,6 +122,46 @@ const DashboardLayout = () => {
               <h2>Reportes Financieros</h2>
               <p>Próximamente: Generación de reportes</p>
             </Box>
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/reports/summary" 
+        element={
+          <MainLayout title="Resumen Ejecutivo" breadcrumbs={['Reportes', 'Resumen']}>
+            <ReportsSummaryPage />
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/reports/company" 
+        element={
+          <MainLayout title="Reportes por Empresa" breadcrumbs={['Reportes', 'Por Empresa']}>
+            <ReportsCompanyPage />
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/reports/period" 
+        element={
+          <MainLayout title="Reportes por Período" breadcrumbs={['Reportes', 'Por Período']}>
+            <ReportsPeriodPage />
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/reports/concept" 
+        element={
+          <MainLayout title="Reportes por Concepto" breadcrumbs={['Reportes', 'Por Concepto']}>
+            <ReportsConceptPage />
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/receipts" 
+        element={
+          <MainLayout title="Gestión de Comprobantes" breadcrumbs={['Comprobantes']}>
+            <ReceiptsPage />
           </MainLayout>
         } 
       />
