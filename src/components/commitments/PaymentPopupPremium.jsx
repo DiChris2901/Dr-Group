@@ -639,32 +639,16 @@ const PaymentPopupPremium = ({
                         )}
 
                         <Box display="flex" gap={2}>
-                          {/* Botón Ver comprobante - Solo si tiene permisos */}
-                          {canViewReceipts ? (
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              startIcon={<Visibility />}
-                              onClick={() => setShowReceiptPreview(true)}
-                              sx={{ borderRadius: 2 }}
-                            >
-                              Ver comprobante
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              startIcon={<SecurityIcon />}
-                              disabled
-                              sx={{ 
-                                borderRadius: 2,
-                                color: 'error.main',
-                                borderColor: 'error.main'
-                              }}
-                            >
-                              Sin permisos
-                            </Button>
-                          )}
+                          {/* Botón Ver comprobante - SIEMPRE VISIBLE */}
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<Visibility />}
+                            onClick={() => setShowReceiptPreview(true)}
+                            sx={{ borderRadius: 2 }}
+                          >
+                            Ver comprobante
+                          </Button>
                           
                           {/* Botón Reemplazar - Solo si tiene permisos de upload */}
                           {canViewReceipts && (
@@ -679,15 +663,6 @@ const PaymentPopupPremium = ({
                             </Button>
                           )}
                         </Box>
-
-                        {/* Mensaje de permisos */}
-                        {!canViewReceipts && (
-                          <Alert severity="warning" sx={{ mt: 2 }}>
-                            <Typography variant="body2">
-                              No tienes permisos para ver comprobantes. Contacta al administrador.
-                            </Typography>
-                          </Alert>
-                        )}
                       </Box>
                     </Card>
                   ) : (
@@ -900,25 +875,7 @@ const PaymentPopupPremium = ({
       </DialogTitle>
       
       <DialogContent sx={{ p: 3 }}>
-        {permissionsLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4 }}>
-            <CircularProgress />
-            <Typography sx={{ ml: 2 }}>Verificando permisos...</Typography>
-          </Box>
-        ) : !canViewReceipts ? (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              🔒 Acceso Denegado
-            </Typography>
-            <Typography variant="body2">
-              No tienes permisos para ver comprobantes. Tu usuario actual ({currentUser?.email}) 
-              no tiene el permiso <strong>VIEW_RECEIPTS</strong> asignado.
-            </Typography>
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              Contacta al administrador para obtener los permisos necesarios.
-            </Typography>
-          </Alert>
-        ) : existingReceiptUrl && (
+        {existingReceiptUrl ? (
           <Box sx={{ width: '100%' }}>
             {existingReceiptMetadata?.type?.startsWith('image/') ? (
               // Vista previa de imágenes
@@ -995,6 +952,12 @@ const PaymentPopupPremium = ({
               </Box>
             )}
           </Box>
+        ) : (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              No se encontró el archivo del comprobante.
+            </Typography>
+          </Alert>
         )}
       </DialogContent>
       
