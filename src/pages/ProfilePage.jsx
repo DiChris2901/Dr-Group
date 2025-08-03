@@ -23,7 +23,21 @@ import {
   InputAdornment,
   FormControlLabel,
   Switch,
-  alpha
+  alpha,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemSecondaryAction,
+  Tab,
+  Tabs,
+  Tooltip,
+  Badge
 } from '@mui/material';
 
 // Styled components para animaciones CSS
@@ -51,19 +65,70 @@ import {
   Verified,
   LocationOn,
   Settings,
-  Security
+  Security,
+  VpnKey,
+  Shield,
+  Delete,
+  History,
+  Computer,
+  Smartphone,
+  Tablet,
+  ExitToApp,
+  Visibility,
+  VisibilityOff,
+  Google,
+  Microsoft,
+  AccountCircle,
+  RestoreFromTrash,
+  DeleteForever,
+  Warning,
+  CheckCircle,
+  AccessTime,
+  Devices,
+  NotificationImportant,
+  AdminPanelSettings,
+  Key,
+  Lock,
+  LockOpen,
+  PersonRemove,
+  LinkOff,
+  Link
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '@mui/material/styles';
-import { storage } from '../config/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage, db, auth as firebaseAuth } from '../config/firebase';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { 
+  updatePassword, 
+  reauthenticateWithCredential, 
+  EmailAuthProvider,
+  deleteUser,
+  linkWithPopup,
+  GoogleAuthProvider,
+  OAuthProvider,
+  unlink
+} from 'firebase/auth';
+import { 
+  collection, 
+  addDoc, 
+  query, 
+  where, 
+  orderBy, 
+  limit, 
+  getDocs,
+  deleteDoc,
+  doc,
+  updateDoc,
+  onSnapshot
+} from 'firebase/firestore';
 
 const ProfilePage = () => {
   const { user, userProfile, updateUserProfile } = useAuth();
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
   
+  // Estados principales
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -72,7 +137,32 @@ const ProfilePage = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
   const [showAutoSaveNotice, setShowAutoSaveNotice] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
   const fileInputRef = useRef(null);
+
+  // Estados de seguridad
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  });
+  const [loginHistory, setLoginHistory] = useState([]);
+  const [linkedAccounts, setLinkedAccounts] = useState([]);
+  const [securitySettings, setSecuritySettings] = useState({
+    twoFactorEnabled: false,
+    emailNotifications: true,
+    loginAlerts: true
+  });
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingDelete, setLoadingDelete] = useState(false);
+  const [loadingPassword, setLoadingPassword] = useState(false);
 
   // Estado del formulario
   const [formData, setFormData] = useState({
@@ -104,6 +194,166 @@ const ProfilePage = () => {
     }
   }, [formData, editing, hasUnsavedChanges, errors, updateUserProfile]);
 
+  // Funciones de seguridad
+  const loadLoginHistory = useCallback(async () => {
+    if (!user) return;
+    setLoadingHistory(true);
+    try {
+      const historyRef = collection(db, 'loginHistory');
+      const q = query(
+        historyRef,
+        where('userId', '==', user.uid),
+        orderBy('timestamp', 'desc'),
+        limit(10)
+      );
+      const querySnapshot = await getDocs(q);
+      const history = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setLoginHistory(history);
+    } catch (error) {
+      console.error('Error loading login history:', error);
+      setLoginHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [user]);
+
+  const loadLinkedAccounts = useCallback(() => {
+    if (!user?.providerData) return;
+    const accounts = user.providerData.map(provider => ({
+      providerId: provider.providerId,
+      email: provider.email,
+      displayName: provider.displayName
+    }));
+    setLinkedAccounts(accounts);
+  }, [user]);
+
+  const handleChangePassword = async () => {
+    setLoadingPassword(true);
+    try {
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        throw new Error('Las contraseñas no coinciden');
+      }
+      
+      if (passwordData.newPassword.length < 6) {
+        throw new Error('La contraseña debe tener al menos 6 caracteres');
+      }
+
+      // Reautenticar al usuario
+      const credential = EmailAuthProvider.credential(
+        user.email,
+        passwordData.currentPassword
+      );
+      await reauthenticateWithCredential(user, credential);
+      
+      // Cambiar la contraseña
+      await updatePassword(user, passwordData.newPassword);
+      
+      // Registrar el cambio en el historial
+      await addDoc(collection(db, 'loginHistory'), {
+        userId: user.uid,
+        action: 'password_change',
+        timestamp: new Date(),
+        ipAddress: 'Unknown',
+        userAgent: navigator.userAgent
+      });
+
+      showAlert('Contraseña actualizada exitosamente', 'success');
+      setShowPasswordDialog(false);
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      
+    } catch (error) {
+      console.error('Error changing password:', error);
+      showAlert(error.message || 'Error al cambiar la contraseña', 'error');
+    } finally {
+      setLoadingPassword(false);
+    }
+  };
+
+  const handleLinkAccount = async (provider) => {
+    try {
+      let authProvider;
+      if (provider === 'google') {
+        authProvider = new GoogleAuthProvider();
+      } else if (provider === 'microsoft') {
+        authProvider = new OAuthProvider('microsoft.com');
+      }
+      
+      await linkWithPopup(user, authProvider);
+      showAlert(`Cuenta de ${provider} vinculada exitosamente`, 'success');
+      loadLinkedAccounts();
+    } catch (error) {
+      console.error('Error linking account:', error);
+      showAlert(`Error al vincular cuenta de ${provider}`, 'error');
+    }
+  };
+
+  const handleUnlinkAccount = async (providerId) => {
+    try {
+      await unlink(user, providerId);
+      showAlert('Cuenta desvinculada exitosamente', 'success');
+      loadLinkedAccounts();
+    } catch (error) {
+      console.error('Error unlinking account:', error);
+      showAlert('Error al desvincular cuenta', 'error');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setLoadingDelete(true);
+    try {
+      // Eliminar documentos del usuario de Firestore
+      if (userProfile) {
+        await deleteDoc(doc(db, 'users', user.uid));
+      }
+      
+      // Eliminar historial de login
+      const historyRef = collection(db, 'loginHistory');
+      const q = query(historyRef, where('userId', '==', user.uid));
+      const querySnapshot = await getDocs(q);
+      const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      
+      // Eliminar cuenta de Firebase Auth
+      await deleteUser(user);
+      
+      showAlert('Cuenta eliminada exitosamente', 'success');
+      
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      showAlert('Error al eliminar la cuenta', 'error');
+    } finally {
+      setLoadingDelete(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    try {
+      setUploadingPhoto(true);
+      
+      // Si hay una foto actual, intentar eliminarla del storage
+      if (userProfile?.photoURL && userProfile.photoURL.includes('firebase')) {
+        try {
+          const photoRef = ref(storage, userProfile.photoURL);
+          await deleteObject(photoRef);
+        } catch (error) {
+          console.log('Error eliminando foto anterior:', error);
+        }
+      }
+      
+      await updateUserProfile({ photoURL: null });
+      showAlert('Foto de perfil eliminada exitosamente', 'success');
+    } catch (error) {
+      console.error('Error removing photo:', error);
+      showAlert('Error al eliminar la foto', 'error');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   // Auto-save después de 3 segundos de inactividad
   useEffect(() => {
     if (!editing || !hasUnsavedChanges || Object.keys(errors).length > 0) return;
@@ -129,9 +379,51 @@ const ProfilePage = () => {
     }
   }, [userProfile, user]);
 
+  // Cargar datos de seguridad al cambiar de tab
+  useEffect(() => {
+    if (activeTab === 1) { // Tab de Seguridad
+      loadLoginHistory();
+      loadLinkedAccounts();
+    }
+  }, [activeTab, loadLoginHistory, loadLinkedAccounts]);
+
   const showAlert = (message, severity = 'success') => {
     setAlert({ open: true, message, severity });
     setTimeout(() => setAlert({ open: false, message: '', severity: 'success' }), 5000);
+  };
+
+  // Función para obtener el estado del usuario
+  const getUserStatus = () => {
+    if (!user?.emailVerified) return { text: 'Pendiente', color: 'warning', icon: <AccessTime /> };
+    if (userProfile?.status === 'suspended') return { text: 'Suspendido', color: 'error', icon: <Warning /> };
+    return { text: 'Activo', color: 'success', icon: <CheckCircle /> };
+  };
+
+  // Función para obtener el icono del dispositivo
+  const getDeviceIcon = (userAgent) => {
+    if (userAgent?.includes('Mobile')) return <Smartphone />;
+    if (userAgent?.includes('Tablet')) return <Tablet />;
+    return <Computer />;
+  };
+
+  // Función para obtener el nombre del proveedor
+  const getProviderName = (providerId) => {
+    switch (providerId) {
+      case 'google.com': return 'Google';
+      case 'microsoft.com': return 'Microsoft';
+      case 'password': return 'Email/Contraseña';
+      default: return providerId;
+    }
+  };
+
+  // Función para obtener el icono del proveedor
+  const getProviderIcon = (providerId) => {
+    switch (providerId) {
+      case 'google.com': return <Google />;
+      case 'microsoft.com': return <Microsoft />;
+      case 'password': return <Email />;
+      default: return <AccountCircle />;
+    }
   };
 
   // Validación en tiempo real
@@ -190,6 +482,16 @@ const ProfilePage = () => {
 
     setUploadingPhoto(true);
     try {
+      // Eliminar foto anterior si existe
+      if (userProfile?.photoURL && userProfile.photoURL.includes('firebase')) {
+        try {
+          const oldPhotoRef = ref(storage, userProfile.photoURL);
+          await deleteObject(oldPhotoRef);
+        } catch (error) {
+          console.log('Error eliminando foto anterior:', error);
+        }
+      }
+
       const imageRef = ref(storage, `profile-photos/${user.uid}/${Date.now()}_${file.name}`);
       await uploadBytes(imageRef, file);
       const photoURL = await getDownloadURL(imageRef);
@@ -250,6 +552,10 @@ const ProfilePage = () => {
     setEditing(false);
     setHasUnsavedChanges(false);
     setErrors({});
+  };
+
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
   };
 
   return (
@@ -336,13 +642,27 @@ const ProfilePage = () => {
               <Grid item xs={12} md={8}>
                 <Box display="flex" alignItems="center" gap={2}>
                   <Box>
-                    <Typography variant="h4" sx={{ 
-                      color: '#fff', 
-                      fontWeight: 800,
-                      textShadow: '0 2px 4px rgba(0,0,0,0.3)' 
-                    }}>
-                      {formData.name || 'Sin nombre'}
-                    </Typography>
+                    <Box display="flex" alignItems="center" gap={2} mb={1}>
+                      <Typography variant="h4" sx={{ 
+                        color: '#fff', 
+                        fontWeight: 800,
+                        textShadow: '0 2px 4px rgba(0,0,0,0.3)' 
+                      }}>
+                        {formData.name || 'Sin nombre'}
+                      </Typography>
+                      {/* Estado del usuario */}
+                      <Chip
+                        icon={getUserStatus().icon}
+                        label={getUserStatus().text}
+                        color={getUserStatus().color}
+                        size="small"
+                        sx={{
+                          fontWeight: 'bold',
+                          color: 'white',
+                          '& .MuiChip-icon': { color: 'white' }
+                        }}
+                      />
+                    </Box>
                     <Typography variant="h6" sx={{ 
                       color: alpha('#fff', 0.8), 
                       fontWeight: 500,
@@ -358,6 +678,24 @@ const ProfilePage = () => {
                         textShadow: '0 1px 2px rgba(0,0,0,0.3)'
                       }}>
                         {formData.role === 'admin' ? 'Administrador' : 'Usuario'}
+                      </Typography>
+                      {/* Último acceso */}
+                      <Typography variant="caption" sx={{ 
+                        color: alpha('#fff', 0.6),
+                        ml: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5
+                      }}>
+                        <AccessTime sx={{ fontSize: 12 }} />
+                        Último acceso: {user?.metadata?.lastSignInTime ? 
+                          new Date(user.metadata.lastSignInTime).toLocaleDateString('es-ES', {
+                            day: '2-digit',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }) : 'Hoy'
+                        }
                       </Typography>
                     </Box>
                   </Box>
@@ -628,32 +966,63 @@ const ProfilePage = () => {
                   )}
                   
                   {!uploadingPhoto && (
-                    <motion.div
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <IconButton
-                        onClick={() => fileInputRef.current?.click()}
-                        sx={{
-                          position: 'absolute',
-                          bottom: 4,
-                          right: 4,
-                          bgcolor: '#ff6b6b',
-                          color: 'white',
-                          width: 36,
-                          height: 36,
-                          boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)',
-                          '&:hover': { 
-                            bgcolor: '#ee5a24',
-                            transform: 'translateY(-2px)',
-                            boxShadow: '0 6px 16px rgba(255, 107, 107, 0.4)'
-                          },
-                          zIndex: 3
-                        }}
+                    <Box sx={{ position: 'absolute', bottom: 4, right: 4, display: 'flex', gap: 0.5 }}>
+                      {/* Botón para cambiar foto */}
+                      <motion.div
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.95 }}
                       >
-                        <PhotoCamera fontSize="small" />
-                      </IconButton>
-                    </motion.div>
+                        <Tooltip title="Cambiar foto">
+                          <IconButton
+                            onClick={() => fileInputRef.current?.click()}
+                            sx={{
+                              bgcolor: '#ff6b6b',
+                              color: 'white',
+                              width: 32,
+                              height: 32,
+                              boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)',
+                              '&:hover': { 
+                                bgcolor: '#ee5a24',
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 6px 16px rgba(255, 107, 107, 0.4)'
+                              },
+                              zIndex: 3
+                            }}
+                          >
+                            <PhotoCamera fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </motion.div>
+                      
+                      {/* Botón para eliminar foto (solo si hay foto) */}
+                      {userProfile?.photoURL && (
+                        <motion.div
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <Tooltip title="Eliminar foto">
+                            <IconButton
+                              onClick={handleRemovePhoto}
+                              sx={{
+                                bgcolor: '#e74c3c',
+                                color: 'white',
+                                width: 32,
+                                height: 32,
+                                boxShadow: '0 4px 12px rgba(231, 76, 60, 0.3)',
+                                '&:hover': { 
+                                  bgcolor: '#c0392b',
+                                  transform: 'translateY(-2px)',
+                                  boxShadow: '0 6px 16px rgba(231, 76, 60, 0.4)'
+                                },
+                                zIndex: 3
+                              }}
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </motion.div>
+                      )}
+                    </Box>
                   )}
                   
                   <input
@@ -801,25 +1170,6 @@ const ProfilePage = () => {
                         Activas
                       </Typography>
                     </Box>
-
-                    <Box 
-                      display="flex" 
-                      alignItems="center" 
-                      justifyContent="space-between"
-                      sx={{
-                        p: 1,
-                        borderRadius: 1.5,
-                        background: isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
-                        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)'
-                      }}
-                    >
-                      <Typography variant="caption" fontWeight="medium">
-                        Idioma
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Español
-                      </Typography>
-                    </Box>
                   </Box>
                 </Box>
               </CardContent>
@@ -827,7 +1177,7 @@ const ProfilePage = () => {
           </motion.div>
         </Grid>
 
-        {/* Columna derecha - Formulario */}
+        {/* Columna derecha - Formulario con Tabs */}
         <Grid item xs={12} lg={8}>
           <motion.div
             initial={{ opacity: 0, x: 20 }}
@@ -844,27 +1194,58 @@ const ProfilePage = () => {
               position: 'relative',
               overflow: 'hidden'
             }}>
-              {/* Header optimizado */}
-              <Box
-                sx={{
-                  p: 2.5,
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  color: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 2
-                }}
-              >
-                <Person sx={{ fontSize: 28 }} />
-                <Box>
-                  <Typography variant="h6" fontWeight="bold">
-                    Información Personal
-                  </Typography>
-                  <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                    Datos personales y profesionales
-                  </Typography>
-                </Box>
+              {/* Tabs Header */}
+              <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                <Tabs
+                  value={activeTab}
+                  onChange={handleTabChange}
+                  variant="fullWidth"
+                  sx={{
+                    '& .MuiTab-root': {
+                      minHeight: 64,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      fontSize: '0.95rem'
+                    }
+                  }}
+                >
+                  <Tab 
+                    icon={<Person />} 
+                    label="Información Personal" 
+                    iconPosition="start"
+                  />
+                  <Tab 
+                    icon={<Security />} 
+                    label="Seguridad y Privacidad" 
+                    iconPosition="start"
+                  />
+                </Tabs>
               </Box>
+
+              {/* Tab Panel - Información Personal */}
+              {activeTab === 0 && (
+                <Box>
+                  {/* Header optimizado */}
+                  <Box
+                    sx={{
+                      p: 2.5,
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2
+                    }}
+                  >
+                    <Person sx={{ fontSize: 28 }} />
+                    <Box>
+                      <Typography variant="h6" fontWeight="bold">
+                        Información Personal
+                      </Typography>
+                      <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                        Datos personales y profesionales
+                      </Typography>
+                    </Box>
+                  </Box>
               
               <CardContent sx={{ p: 3 }}>
 
@@ -1130,7 +1511,7 @@ const ProfilePage = () => {
                     </motion.div>
                   </Grid>
 
-                  {/* Departamento */}
+                  {/* Departamento - Solo lectura si no está editando */}
                   <Grid item xs={12} sm={6}>
                     <motion.div
                       whileHover={editing ? { scale: 1.02 } : {}}
@@ -1150,73 +1531,96 @@ const ProfilePage = () => {
                         >
                           <Business sx={{ fontSize: 18, color: '#fdcb6e' }} />
                           Departamento
+                          {!editing && (
+                            <Chip size="small" label="Solo lectura" color="default" sx={{ ml: 0.5, fontSize: '0.65rem', height: 18 }} />
+                          )}
                         </Typography>
-                        <FormControl fullWidth disabled={!editing}>
-                          <Select
-                            value={formData.department}
-                            onChange={(e) => handleInputChange('department', e.target.value)}
-                            variant="outlined"
-                            displayEmpty
-                            sx={{
-                              borderRadius: '24px !important',
-                              '& .MuiOutlinedInput-root': {
-                                backgroundColor: editing 
-                                  ? (isDarkMode ? 'rgba(253, 203, 110, 0.15)' : 'rgba(253, 203, 110, 0.08)')
-                                  : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)'),
-                                border: editing 
-                                  ? '2px solid rgba(253, 203, 110, 0.3)'
-                                  : '2px solid rgba(0, 0, 0, 0.1)',
+                        
+                        {editing ? (
+                          <FormControl fullWidth disabled={!editing}>
+                            <Select
+                              value={formData.department}
+                              onChange={(e) => handleInputChange('department', e.target.value)}
+                              variant="outlined"
+                              displayEmpty
+                              sx={{
                                 borderRadius: '24px !important',
-                                transition: 'all 0.3s ease',
-                                '&:hover': editing ? {
-                                  backgroundColor: isDarkMode ? 'rgba(253, 203, 110, 0.2)' : 'rgba(253, 203, 110, 0.12)',
-                                  borderColor: 'rgba(253, 203, 110, 0.5)',
-                                  transform: 'translateY(-1px)',
-                                  boxShadow: '0 4px 12px rgba(253, 203, 110, 0.2)'
-                                } : {},
-                                '&.Mui-focused': {
-                                  backgroundColor: isDarkMode ? 'rgba(253, 203, 110, 0.25)' : 'rgba(253, 203, 110, 0.15)',
-                                  borderColor: '#fdcb6e',
-                                  boxShadow: '0 0 0 3px rgba(253, 203, 110, 0.15)'
+                                '& .MuiOutlinedInput-root': {
+                                  backgroundColor: editing 
+                                    ? (isDarkMode ? 'rgba(253, 203, 110, 0.15)' : 'rgba(253, 203, 110, 0.08)')
+                                    : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)'),
+                                  border: editing 
+                                    ? '2px solid rgba(253, 203, 110, 0.3)'
+                                    : '2px solid rgba(0, 0, 0, 0.1)',
+                                  borderRadius: '24px !important',
+                                  transition: 'all 0.3s ease',
+                                  '&:hover': editing ? {
+                                    backgroundColor: isDarkMode ? 'rgba(253, 203, 110, 0.2)' : 'rgba(253, 203, 110, 0.12)',
+                                    borderColor: 'rgba(253, 203, 110, 0.5)',
+                                    transform: 'translateY(-1px)',
+                                    boxShadow: '0 4px 12px rgba(253, 203, 110, 0.2)'
+                                  } : {},
+                                  '&.Mui-focused': {
+                                    backgroundColor: isDarkMode ? 'rgba(253, 203, 110, 0.25)' : 'rgba(253, 203, 110, 0.15)',
+                                    borderColor: '#fdcb6e',
+                                    boxShadow: '0 0 0 3px rgba(253, 203, 110, 0.15)'
+                                  },
+                                  '& fieldset': {
+                                    border: 'none',
+                                    borderRadius: '24px !important'
+                                  },
+                                  '& .MuiOutlinedInput-notchedOutline': {
+                                    borderRadius: '24px !important'
+                                  }
                                 },
-                                '& fieldset': {
-                                  border: 'none',
+                                '& .MuiSelect-select': {
+                                  padding: '16px 18px',
+                                  fontSize: '1rem',
+                                  fontWeight: editing ? 500 : 400,
+                                  color: editing ? 'text.primary' : 'text.secondary',
                                   borderRadius: '24px !important'
                                 },
-                                '& .MuiOutlinedInput-notchedOutline': {
-                                  borderRadius: '24px !important'
+                                '& .MuiSelect-icon': {
+                                  color: editing ? '#fdcb6e' : 'text.secondary'
                                 }
-                              },
-                              '& .MuiSelect-select': {
-                                padding: '16px 18px',
-                                fontSize: '1rem',
-                                fontWeight: editing ? 500 : 400,
-                                color: editing ? 'text.primary' : 'text.secondary',
-                                borderRadius: '24px !important'
-                              },
-                              '& .MuiSelect-icon': {
-                                color: editing ? '#fdcb6e' : 'text.secondary'
-                              }
+                              }}
+                            >
+                              <MenuItem value="" disabled>
+                                <em>Selecciona un departamento</em>
+                              </MenuItem>
+                              <MenuItem value="Administración">Administración</MenuItem>
+                              <MenuItem value="Finanzas">Finanzas</MenuItem>
+                              <MenuItem value="Contabilidad">Contabilidad</MenuItem>
+                              <MenuItem value="Recursos Humanos">Recursos Humanos</MenuItem>
+                              <MenuItem value="Operaciones">Operaciones</MenuItem>
+                              <MenuItem value="Tecnología">Tecnología</MenuItem>
+                              <MenuItem value="Ventas">Ventas</MenuItem>
+                              <MenuItem value="Marketing">Marketing</MenuItem>
+                            </Select>
+                          </FormControl>
+                        ) : (
+                          <Box 
+                            sx={{
+                              p: 2,
+                              borderRadius: 3,
+                              background: isDarkMode ? 'rgba(253, 203, 110, 0.1)' : 'rgba(253, 203, 110, 0.05)',
+                              border: '2px solid rgba(253, 203, 110, 0.2)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1
                             }}
                           >
-                            <MenuItem value="" disabled>
-                              <em>Selecciona un departamento</em>
-                            </MenuItem>
-                            <MenuItem value="Administración">Administración</MenuItem>
-                            <MenuItem value="Finanzas">Finanzas</MenuItem>
-                            <MenuItem value="Contabilidad">Contabilidad</MenuItem>
-                            <MenuItem value="Recursos Humanos">Recursos Humanos</MenuItem>
-                            <MenuItem value="Operaciones">Operaciones</MenuItem>
-                            <MenuItem value="Tecnología">Tecnología</MenuItem>
-                            <MenuItem value="Ventas">Ventas</MenuItem>
-                            <MenuItem value="Marketing">Marketing</MenuItem>
-                          </Select>
-                        </FormControl>
+                            <Business sx={{ color: '#fdcb6e', fontSize: 20 }} />
+                            <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                              {formData.department || 'Sin departamento asignado'}
+                            </Typography>
+                          </Box>
+                        )}
                       </Box>
                     </motion.div>
                   </Grid>
 
-                  {/* Empresa */}
+                  {/* Empresa - Solo lectura si no está editando */}
                   <Grid item xs={12} sm={6}>
                     <motion.div
                       whileHover={editing ? { scale: 1.02 } : {}}
@@ -1236,47 +1640,70 @@ const ProfilePage = () => {
                         >
                           <Business sx={{ fontSize: 18, color: '#e17055' }} />
                           Empresa
+                          {!editing && (
+                            <Chip size="small" label="Solo lectura" color="default" sx={{ ml: 0.5, fontSize: '0.65rem', height: 18 }} />
+                          )}
                         </Typography>
-                        <TextField
-                          fullWidth
-                          value={formData.company}
-                          onChange={(e) => handleInputChange('company', e.target.value)}
-                          disabled={!editing}
-                          variant="outlined"
-                          placeholder="Ingresa el nombre de tu empresa"
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              backgroundColor: editing 
-                                ? (isDarkMode ? 'rgba(225, 112, 85, 0.15)' : 'rgba(225, 112, 85, 0.08)')
-                                : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)'),
-                              border: editing 
-                                ? '2px solid rgba(225, 112, 85, 0.3)'
-                                : '2px solid rgba(0, 0, 0, 0.1)',
-                              borderRadius: 3,
-                              transition: 'all 0.3s ease',
-                              '&:hover': editing ? {
-                                backgroundColor: isDarkMode ? 'rgba(225, 112, 85, 0.2)' : 'rgba(225, 112, 85, 0.12)',
-                                borderColor: 'rgba(225, 112, 85, 0.5)',
-                                transform: 'translateY(-1px)',
-                                boxShadow: '0 4px 12px rgba(225, 112, 85, 0.2)'
-                              } : {},
-                              '&.Mui-focused': {
-                                backgroundColor: isDarkMode ? 'rgba(225, 112, 85, 0.25)' : 'rgba(225, 112, 85, 0.15)',
-                                borderColor: '#e17055',
-                                boxShadow: '0 0 0 3px rgba(225, 112, 85, 0.15)'
+                        
+                        {editing ? (
+                          <TextField
+                            fullWidth
+                            value={formData.company}
+                            onChange={(e) => handleInputChange('company', e.target.value)}
+                            disabled={!editing}
+                            variant="outlined"
+                            placeholder="Ingresa el nombre de tu empresa"
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: editing 
+                                  ? (isDarkMode ? 'rgba(225, 112, 85, 0.15)' : 'rgba(225, 112, 85, 0.08)')
+                                  : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)'),
+                                border: editing 
+                                  ? '2px solid rgba(225, 112, 85, 0.3)'
+                                  : '2px solid rgba(0, 0, 0, 0.1)',
+                                borderRadius: 3,
+                                transition: 'all 0.3s ease',
+                                '&:hover': editing ? {
+                                  backgroundColor: isDarkMode ? 'rgba(225, 112, 85, 0.2)' : 'rgba(225, 112, 85, 0.12)',
+                                  borderColor: 'rgba(225, 112, 85, 0.5)',
+                                  transform: 'translateY(-1px)',
+                                  boxShadow: '0 4px 12px rgba(225, 112, 85, 0.2)'
+                                } : {},
+                                '&.Mui-focused': {
+                                  backgroundColor: isDarkMode ? 'rgba(225, 112, 85, 0.25)' : 'rgba(225, 112, 85, 0.15)',
+                                  borderColor: '#e17055',
+                                  boxShadow: '0 0 0 3px rgba(225, 112, 85, 0.15)'
+                                },
+                                '& fieldset': {
+                                  border: 'none'
+                                }
                               },
-                              '& fieldset': {
-                                border: 'none'
+                              '& .MuiInputBase-input': {
+                                padding: '16px 18px',
+                                fontSize: '1rem',
+                                fontWeight: editing ? 500 : 400,
+                                color: editing ? 'text.primary' : 'text.secondary'
                               }
-                            },
-                            '& .MuiInputBase-input': {
-                              padding: '16px 18px',
-                              fontSize: '1rem',
-                              fontWeight: editing ? 500 : 400,
-                              color: editing ? 'text.primary' : 'text.secondary'
-                            }
-                          }}
-                        />
+                            }}
+                          />
+                        ) : (
+                          <Box 
+                            sx={{
+                              p: 2,
+                              borderRadius: 3,
+                              background: isDarkMode ? 'rgba(225, 112, 85, 0.1)' : 'rgba(225, 112, 85, 0.05)',
+                              border: '2px solid rgba(225, 112, 85, 0.2)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1
+                            }}
+                          >
+                            <Business sx={{ color: '#e17055', fontSize: 20 }} />
+                            <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                              {formData.company || 'Sin empresa asignada'}
+                            </Typography>
+                          </Box>
+                        )}
                       </Box>
                     </motion.div>
                   </Grid>
@@ -1485,10 +1912,453 @@ const ProfilePage = () => {
                   )}
                 </Grid>
               </CardContent>
+                </Box>
+              )}
+
+              {/* Tab Panel - Seguridad */}
+              {activeTab === 1 && (
+                <Box>
+                  {/* Header de Seguridad */}
+                  <Box
+                    sx={{
+                      p: 2.5,
+                      background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2
+                    }}
+                  >
+                    <Security sx={{ fontSize: 28 }} />
+                    <Box>
+                      <Typography variant="h6" fontWeight="bold">
+                        Seguridad y Privacidad
+                      </Typography>
+                      <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                        Gestiona la seguridad de tu cuenta
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <CardContent sx={{ p: 3 }}>
+                    <Grid container spacing={3}>
+                      
+                      {/* Cambiar Contraseña */}
+                      <Grid item xs={12} md={6}>
+                        <Card sx={{ 
+                          border: '2px solid rgba(231, 76, 60, 0.2)',
+                          borderRadius: 3,
+                          background: isDarkMode ? 'rgba(231, 76, 60, 0.1)' : 'rgba(231, 76, 60, 0.05)'
+                        }}>
+                          <CardContent>
+                            <Box display="flex" alignItems="center" gap={2} mb={2}>
+                              <VpnKey sx={{ color: '#e74c3c', fontSize: 28 }} />
+                              <Box>
+                                <Typography variant="h6" fontWeight="bold">
+                                  Contraseña
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Cambia tu contraseña de acceso
+                                </Typography>
+                              </Box>
+                            </Box>
+                            <Button
+                              variant="contained"
+                              onClick={() => setShowPasswordDialog(true)}
+                              startIcon={<Lock />}
+                              sx={{
+                                background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
+                                '&:hover': {
+                                  background: 'linear-gradient(135deg, #c0392b 0%, #a93226 100%)'
+                                }
+                              }}
+                            >
+                              Cambiar Contraseña
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+
+                      {/* Cuentas Vinculadas */}
+                      <Grid item xs={12} md={6}>
+                        <Card sx={{ 
+                          border: '2px solid rgba(52, 152, 219, 0.2)',
+                          borderRadius: 3,
+                          background: isDarkMode ? 'rgba(52, 152, 219, 0.1)' : 'rgba(52, 152, 219, 0.05)'
+                        }}>
+                          <CardContent>
+                            <Box display="flex" alignItems="center" gap={2} mb={2}>
+                              <Link sx={{ color: '#3498db', fontSize: 28 }} />
+                              <Box>
+                                <Typography variant="h6" fontWeight="bold">
+                                  Cuentas Vinculadas
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Gestiona cuentas externas
+                                </Typography>
+                              </Box>
+                            </Box>
+                            
+                            <List dense>
+                              {linkedAccounts.length > 0 ? linkedAccounts.map((account, index) => (
+                                <ListItem key={index} sx={{ px: 0 }}>
+                                  <ListItemIcon>
+                                    {getProviderIcon(account.providerId)}
+                                  </ListItemIcon>
+                                  <ListItemText
+                                    primary={getProviderName(account.providerId)}
+                                    secondary={account.email}
+                                  />
+                                  {account.providerId !== 'password' && (
+                                    <ListItemSecondaryAction>
+                                      <IconButton
+                                        edge="end"
+                                        onClick={() => handleUnlinkAccount(account.providerId)}
+                                        size="small"
+                                        sx={{ color: 'error.main' }}
+                                      >
+                                        <LinkOff />
+                                      </IconButton>
+                                    </ListItemSecondaryAction>
+                                  )}
+                                </ListItem>
+                              )) : (
+                                <Typography variant="body2" color="text.secondary">
+                                  Solo autenticación por email
+                                </Typography>
+                              )}
+                            </List>
+                            
+                            <Box display="flex" gap={1} mt={2}>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<Google />}
+                                onClick={() => handleLinkAccount('google')}
+                                disabled={linkedAccounts.some(acc => acc.providerId === 'google.com')}
+                              >
+                                Google
+                              </Button>
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<Microsoft />}
+                                onClick={() => handleLinkAccount('microsoft')}
+                                disabled={linkedAccounts.some(acc => acc.providerId === 'microsoft.com')}
+                              >
+                                Microsoft
+                              </Button>
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+
+                      {/* Historial de Actividad */}
+                      <Grid item xs={12}>
+                        <Card sx={{ 
+                          border: '2px solid rgba(155, 89, 182, 0.2)',
+                          borderRadius: 3,
+                          background: isDarkMode ? 'rgba(155, 89, 182, 0.1)' : 'rgba(155, 89, 182, 0.05)'
+                        }}>
+                          <CardContent>
+                            <Box display="flex" alignItems="center" justify="space-between" mb={2}>
+                              <Box display="flex" alignItems="center" gap={2}>
+                                <History sx={{ color: '#9b59b6', fontSize: 28 }} />
+                                <Box>
+                                  <Typography variant="h6" fontWeight="bold">
+                                    Historial de Actividad
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    Últimos accesos y actividades
+                                  </Typography>
+                                </Box>
+                              </Box>
+                              {loadingHistory && <CircularProgress size={24} />}
+                            </Box>
+                            
+                            <List>
+                              {loginHistory.length > 0 ? loginHistory.slice(0, 5).map((entry, index) => (
+                                <ListItem key={index} divider={index < 4}>
+                                  <ListItemIcon>
+                                    {getDeviceIcon(entry.userAgent)}
+                                  </ListItemIcon>
+                                  <ListItemText
+                                    primary={
+                                      <Box display="flex" alignItems="center" gap={1}>
+                                        <Typography variant="body2" fontWeight="medium">
+                                          {entry.action === 'login' ? 'Inicio de sesión' : 
+                                           entry.action === 'password_change' ? 'Cambio de contraseña' : 
+                                           'Actividad'}
+                                        </Typography>
+                                        <Chip 
+                                          size="small" 
+                                          label={entry.action === 'login' ? 'Login' : 'Seguridad'} 
+                                          color={entry.action === 'login' ? 'success' : 'warning'}
+                                        />
+                                      </Box>
+                                    }
+                                    secondary={
+                                      <Box>
+                                        <Typography variant="caption" color="text.secondary">
+                                          {entry.timestamp?.toDate?.() ? 
+                                            entry.timestamp.toDate().toLocaleString('es-ES') :
+                                            new Date(entry.timestamp).toLocaleString('es-ES')
+                                          }
+                                        </Typography>
+                                        <br />
+                                        <Typography variant="caption" color="text.secondary">
+                                          IP: {entry.ipAddress || 'Desconocida'}
+                                        </Typography>
+                                      </Box>
+                                    }
+                                  />
+                                </ListItem>
+                              )) : (
+                                <Typography variant="body2" color="text.secondary">
+                                  No hay historial disponible
+                                </Typography>
+                              )}
+                            </List>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+
+                      {/* Eliminar Cuenta */}
+                      <Grid item xs={12}>
+                        <Card sx={{ 
+                          border: '2px solid rgba(192, 57, 43, 0.3)',
+                          borderRadius: 3,
+                          background: isDarkMode ? 'rgba(192, 57, 43, 0.1)' : 'rgba(192, 57, 43, 0.05)'
+                        }}>
+                          <CardContent>
+                            <Box display="flex" alignItems="center" gap={2} mb={2}>
+                              <Warning sx={{ color: '#c0392b', fontSize: 28 }} />
+                              <Box>
+                                <Typography variant="h6" fontWeight="bold" color="error">
+                                  Zona de Peligro
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Acciones irreversibles
+                                </Typography>
+                              </Box>
+                            </Box>
+                            
+                            <Alert severity="warning" sx={{ mb: 2 }}>
+                              Eliminar tu cuenta es una acción permanente. Todos tus datos serán eliminados 
+                              y no podrán ser recuperados.
+                            </Alert>
+                            
+                            <Button
+                              variant="contained"
+                              color="error"
+                              onClick={() => setShowDeleteDialog(true)}
+                              startIcon={<DeleteForever />}
+                              sx={{
+                                background: 'linear-gradient(135deg, #c0392b 0%, #a93226 100%)',
+                                '&:hover': {
+                                  background: 'linear-gradient(135deg, #a93226 0%, #922b21 100%)'
+                                }
+                              }}
+                            >
+                              Eliminar Cuenta Permanentemente
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+
+                    </Grid>
+                  </CardContent>
+                </Box>
+              )}
             </Card>
           </motion.div>
         </Grid>
       </Grid>
+
+      {/* Dialog para cambiar contraseña */}
+      <Dialog 
+        open={showPasswordDialog} 
+        onClose={() => setShowPasswordDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={2}>
+            <VpnKey sx={{ color: '#e74c3c' }} />
+            Cambiar Contraseña
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 3 }}>
+            Para cambiar tu contraseña, primero confirma tu contraseña actual y luego ingresa la nueva.
+          </DialogContentText>
+          
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Contraseña actual"
+                type={showPasswords.current ? 'text' : 'password'}
+                value={passwordData.currentPassword}
+                onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
+                        edge="end"
+                      >
+                        {showPasswords.current ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Nueva contraseña"
+                type={showPasswords.new ? 'text' : 'password'}
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                helperText="Mínimo 6 caracteres"
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
+                        edge="end"
+                      >
+                        {showPasswords.new ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Confirmar nueva contraseña"
+                type={showPasswords.confirm ? 'text' : 'password'}
+                value={passwordData.confirmPassword}
+                onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                error={passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword}
+                helperText={
+                  passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword
+                    ? 'Las contraseñas no coinciden'
+                    : ''
+                }
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
+                        edge="end"
+                      >
+                        {showPasswords.confirm ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setShowPasswordDialog(false)}
+            disabled={loadingPassword}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleChangePassword}
+            variant="contained"
+            disabled={
+              loadingPassword || 
+              !passwordData.currentPassword || 
+              !passwordData.newPassword || 
+              passwordData.newPassword !== passwordData.confirmPassword ||
+              passwordData.newPassword.length < 6
+            }
+            startIcon={loadingPassword ? <CircularProgress size={16} /> : <Lock />}
+            sx={{
+              background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #c0392b 0%, #a93226 100%)'
+              }
+            }}
+          >
+            {loadingPassword ? 'Cambiando...' : 'Cambiar Contraseña'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog para eliminar cuenta */}
+      <Dialog 
+        open={showDeleteDialog} 
+        onClose={() => setShowDeleteDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={2}>
+            <Warning sx={{ color: '#c0392b' }} />
+            Eliminar Cuenta Permanentemente
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 3 }}>
+            <Typography variant="body2" fontWeight="bold">
+              Esta acción es irreversible
+            </Typography>
+            <Typography variant="body2">
+              Se eliminarán permanentemente:
+            </Typography>
+            <Box component="ul" sx={{ mt: 1, mb: 0 }}>
+              <li>Tu perfil de usuario</li>
+              <li>Historial de actividad</li>
+              <li>Datos personales</li>
+              <li>Acceso a todas las funcionalidades</li>
+            </Box>
+          </Alert>
+          
+          <DialogContentText>
+            Para confirmar la eliminación, escribe <strong>ELIMINAR</strong> en el campo de abajo:
+          </DialogContentText>
+          
+          <TextField
+            fullWidth
+            placeholder="Escribe ELIMINAR para confirmar"
+            sx={{ mt: 2 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setShowDeleteDialog(false)}
+            disabled={loadingDelete}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleDeleteAccount}
+            variant="contained"
+            color="error"
+            disabled={loadingDelete}
+            startIcon={loadingDelete ? <CircularProgress size={16} /> : <DeleteForever />}
+            sx={{
+              background: 'linear-gradient(135deg, #c0392b 0%, #a93226 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #a93226 0%, #922b21 100%)'
+              }
+            }}
+          >
+            {loadingDelete ? 'Eliminando...' : 'Eliminar Cuenta'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
