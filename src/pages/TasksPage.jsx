@@ -36,10 +36,12 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useFirestore } from '../hooks/useFirestore.js';
+import { useAuth } from '../context/AuthContext';
 
 const TasksManager = () => {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
+  const { currentUser } = useAuth();
   
   // Sistema de diseño dinámico basado en el tema
   const designSystem = {
@@ -58,9 +60,10 @@ const TasksManager = () => {
     }
   };
   
-  // Conectar con Firebase para obtener tareas reales
+  // Conectar con Firebase para obtener tareas reales del usuario autenticado
   const { data: tasksData, loading, error, addDocument, updateDocument, deleteDocument } = useFirestore('tasks', {
-    orderBy: { field: 'createdAt', direction: 'desc' }
+    orderBy: { field: 'createdAt', direction: 'desc' },
+    where: currentUser ? { field: 'userId', operator: '==', value: currentUser.uid } : null
   });
   
   const [tasks, setTasks] = useState(tasksData || []);
@@ -76,11 +79,13 @@ const TasksManager = () => {
   }, [tasksData]);
 
   const handleAddTask = async () => {
-    if (newTask.title.trim()) {
+    if (newTask.title.trim() && currentUser) {
       const task = {
         title: newTask.title,
         priority: newTask.priority,
         completed: false,
+        userId: currentUser.uid,
+        userEmail: currentUser.email,
         createdAt: new Date().toISOString()
       };
       
@@ -131,6 +136,17 @@ const TasksManager = () => {
 
   const pendingTasks = tasks.filter(task => !task.completed);
   const completedTasks = tasks.filter(task => task.completed);
+
+  // Mostrar loading o mensaje si no hay usuario autenticado
+  if (!currentUser) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Typography variant="h6" color="text.secondary">
+          Debes iniciar sesión para ver tus tareas
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 3 }}>
