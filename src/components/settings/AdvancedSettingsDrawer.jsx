@@ -3,7 +3,7 @@
  * Complete configuration system for DR Group Dashboard
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Drawer,
   Box,
@@ -69,11 +69,28 @@ import {
   Storage as StorageIcon,
   Save as SaveIcon,
   CheckCircle as CheckCircleIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  History as HistoryIcon,
+  Devices as DevicesIcon,
+  Email as EmailIcon,
+  DeleteForever as DeleteIcon,
+  Warning as WarningIcon,
+  Computer as ComputerIcon,
+  Smartphone as SmartphoneIcon,
+  Tablet as TabletIcon,
+  ExitToApp as LogoutIcon,
+  AccessTime as TimeIcon,
+  LocationOn as LocationIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
+import { useAuth } from '../../context/AuthContext';
 import { primaryColorPresets } from '../../theme/colorPresets';
+import { auth, db } from '../../config/firebase';
+import { signOut, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { collection, query, where, orderBy, limit, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 // Helper functions for chart configuration
 const getChartTypeIcon = (type, size = 24) => {
@@ -157,9 +174,22 @@ function TabPanel({ children, value, index, ...other }) {
 export function AdvancedSettingsDrawer({ open, onClose }) {
   const theme = useTheme();
   const { settings, updateSettings, resetSettings } = useSettings();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [saveMessage, setSaveMessage] = useState('');
   const [showSaveSuccess, setShowSaveSuccess] = useState(false);
+  
+  // Estados para seguridad
+  const [loginHistory, setLoginHistory] = useState([]);
+  const [activeSessions, setActiveSessions] = useState([]);
+  const [securityNotifications, setSecurityNotifications] = useState({
+    emailAlerts: true,
+    loginAlerts: true,
+    suspiciousActivity: true
+  });
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingSessions, setLoadingSessions] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
@@ -183,6 +213,155 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
       setShowSaveSuccess(false);
     }, 3000);
   };
+
+  // Funciones de seguridad
+  const loadLoginHistory = async () => {
+    if (!user) return;
+    setLoadingHistory(true);
+    try {
+      const historyRef = collection(db, 'loginHistory');
+      const q = query(
+        historyRef,
+        where('userId', '==', user.uid),
+        orderBy('timestamp', 'desc'),
+        limit(10)
+      );
+      const querySnapshot = await getDocs(q);
+      const history = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        timestamp: doc.data().timestamp?.toDate()
+      }));
+      setLoginHistory(history);
+    } catch (error) {
+      console.error('Error loading login history:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  const loadActiveSessions = async () => {
+    if (!user) return;
+    setLoadingSessions(true);
+    try {
+      const sessionsRef = collection(db, 'activeSessions');
+      const q = query(
+        sessionsRef,
+        where('userId', '==', user.uid),
+        orderBy('lastActivity', 'desc')
+      );
+      const querySnapshot = await getDocs(q);
+      const sessions = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        lastActivity: doc.data().lastActivity?.toDate()
+      }));
+      setActiveSessions(sessions);
+    } catch (error) {
+      console.error('Error loading active sessions:', error);
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  const handleLogoutAllDevices = async () => {
+    try {
+      setSaveMessage('Cerrando sesión en todos los dispositivos...');
+      setShowSaveSuccess(true);
+      
+      // Eliminar todas las sesiones activas de Firestore
+      const sessionsRef = collection(db, 'activeSessions');
+      const q = query(sessionsRef, where('userId', '==', user.uid));
+      const querySnapshot = await getDocs(q);
+      
+      const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      
+      // Cerrar sesión del usuario actual
+      await signOut(auth);
+      
+      setSaveMessage('Sesión cerrada en todos los dispositivos');
+      onClose();
+    } catch (error) {
+      console.error('Error logging out from all devices:', error);
+      setSaveMessage('Error al cerrar sesiones');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    
+    try {
+      setSaveMessage('Eliminando cuenta...');
+      setShowSaveSuccess(true);
+      
+      // Eliminar datos del usuario de Firestore
+      const userRef = doc(db, 'users', user.uid);
+      await deleteDoc(userRef);
+      
+      // Eliminar historial de login
+      const historyRef = collection(db, 'loginHistory');
+      const historyQuery = query(historyRef, where('userId', '==', user.uid));
+      const historySnapshot = await getDocs(historyQuery);
+      const historyDeletePromises = historySnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(historyDeletePromises);
+      
+      // Eliminar sesiones activas
+      const sessionsRef = collection(db, 'activeSessions');
+      const sessionsQuery = query(sessionsRef, where('userId', '==', user.uid));
+      const sessionsSnapshot = await getDocs(sessionsQuery);
+      const sessionsDeletePromises = sessionsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(sessionsDeletePromises);
+      
+      // Eliminar cuenta de Firebase Auth
+      await deleteUser(user);
+      
+      setSaveMessage('Cuenta eliminada exitosamente');
+      onClose();
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      setSaveMessage('Error al eliminar la cuenta. Es posible que necesites volver a autenticarte.');
+    }
+  };
+
+  const updateSecurityNotifications = async (key, value) => {
+    if (!user) return;
+    
+    const newSettings = { ...securityNotifications, [key]: value };
+    setSecurityNotifications(newSettings);
+    
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        securityNotifications: newSettings
+      });
+      setSaveMessage('Configuración de notificaciones actualizada');
+      setShowSaveSuccess(true);
+      setTimeout(() => setShowSaveSuccess(false), 2000);
+    } catch (error) {
+      console.error('Error updating security notifications:', error);
+    }
+  };
+
+  const getDeviceIcon = (deviceType) => {
+    switch (deviceType?.toLowerCase()) {
+      case 'mobile':
+      case 'smartphone':
+        return <SmartphoneIcon />;
+      case 'tablet':
+        return <TabletIcon />;
+      default:
+        return <ComputerIcon />;
+    }
+  };
+
+  // Cargar datos al abrir la pestaña de seguridad
+  React.useEffect(() => {
+    if (activeTab === 3 && user) { // Pestaña de seguridad
+      loadLoginHistory();
+      loadActiveSessions();
+    }
+  }, [activeTab, user]);
 
   // Valores por defecto para dashboard settings
   const defaultDashboard = {
@@ -254,7 +433,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
     { label: 'Tema', icon: <PaletteIcon /> },
     { label: 'Dashboard', icon: <DashboardIcon /> },
     { label: 'Notificaciones', icon: <NotificationsIcon /> },
-    { label: 'Seguridad', icon: <SecurityIcon />, disabled: true },
+    { label: 'Seguridad', icon: <SecurityIcon /> },
     { label: 'Idioma', icon: <LanguageIcon />, disabled: true }
   ];
 
@@ -1569,6 +1748,320 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       </Card>
                     </>
                   )}
+                </Stack>
+              </TabPanel>
+
+              {/* SEGURIDAD TAB */}
+              <TabPanel value={activeTab} index={3}>
+                <Stack spacing={3}>
+                  {/* Historial de Inicios de Sesión */}
+                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                    <CardContent>
+                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <HistoryIcon color="primary" />
+                        Historial de Inicios de Sesión
+                      </Typography>
+
+                      {loadingHistory ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Cargando historial...
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <List>
+                          {loginHistory.length === 0 ? (
+                            <ListItem>
+                              <ListItemText 
+                                primary="No hay historial disponible"
+                                secondary="El historial de inicios de sesión aparecerá aquí"
+                              />
+                            </ListItem>
+                          ) : (
+                            loginHistory.map((entry) => (
+                              <ListItem key={entry.id} divider>
+                                <ListItemIcon>
+                                  {getDeviceIcon(entry.deviceType)}
+                                </ListItemIcon>
+                                <ListItemText
+                                  primary={
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <TimeIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                      <Typography variant="body2">
+                                        {entry.timestamp ? format(entry.timestamp, "dd/MM/yyyy 'a las' HH:mm", { locale: es }) : 'Fecha no disponible'}
+                                      </Typography>
+                                    </Box>
+                                  }
+                                  secondary={
+                                    <Stack spacing={0.5}>
+                                      <Typography variant="body2" color="text.secondary">
+                                        {entry.deviceInfo || 'Dispositivo desconocido'}
+                                      </Typography>
+                                      {entry.location && (
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                          <LocationIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                          <Typography variant="body2" color="text.secondary">
+                                            {entry.location}
+                                          </Typography>
+                                        </Box>
+                                      )}
+                                    </Stack>
+                                  }
+                                />
+                              </ListItem>
+                            ))
+                          )}
+                        </List>
+                      )}
+
+                      <Box sx={{ mt: 2 }}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={loadLoginHistory}
+                          disabled={loadingHistory}
+                        >
+                          Actualizar Historial
+                        </Button>
+                      </Box>
+                    </CardContent>
+                  </Card>
+
+                  {/* Gestión de Sesiones Activas */}
+                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                    <CardContent>
+                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <DevicesIcon color="primary" />
+                        Sesiones Activas
+                      </Typography>
+
+                      {loadingSessions ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Cargando sesiones...
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <List>
+                          {activeSessions.length === 0 ? (
+                            <ListItem>
+                              <ListItemText 
+                                primary="No hay sesiones activas detectadas"
+                                secondary="Las sesiones activas en otros dispositivos aparecerán aquí"
+                              />
+                            </ListItem>
+                          ) : (
+                            activeSessions.map((session) => (
+                              <ListItem key={session.id} divider>
+                                <ListItemIcon>
+                                  {getDeviceIcon(session.deviceType)}
+                                </ListItemIcon>
+                                <ListItemText
+                                  primary={
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <Typography variant="body1">
+                                        {session.deviceInfo || 'Dispositivo desconocido'}
+                                      </Typography>
+                                      {session.isCurrent && (
+                                        <Chip 
+                                          label="Actual" 
+                                          size="small" 
+                                          color="primary"
+                                          sx={{ fontSize: '0.7rem', height: 20 }}
+                                        />
+                                      )}
+                                    </Box>
+                                  }
+                                  secondary={
+                                    <Stack spacing={0.5}>
+                                      <Typography variant="body2" color="text.secondary">
+                                        Última actividad: {session.lastActivity ? format(session.lastActivity, "dd/MM/yyyy 'a las' HH:mm", { locale: es }) : 'Desconocida'}
+                                      </Typography>
+                                      {session.location && (
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                          <LocationIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                          <Typography variant="body2" color="text.secondary">
+                                            {session.location}
+                                          </Typography>
+                                        </Box>
+                                      )}
+                                    </Stack>
+                                  }
+                                />
+                              </ListItem>
+                            ))
+                          )}
+                        </List>
+                      )}
+
+                      <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={loadActiveSessions}
+                          disabled={loadingSessions}
+                        >
+                          Actualizar Lista
+                        </Button>
+                        {activeSessions.length > 0 && (
+                          <Button
+                            variant="outlined"
+                            color="warning"
+                            size="small"
+                            startIcon={<LogoutIcon />}
+                            onClick={handleLogoutAllDevices}
+                          >
+                            Cerrar Todas las Sesiones
+                          </Button>
+                        )}
+                      </Box>
+                    </CardContent>
+                  </Card>
+
+                  {/* Notificaciones de Seguridad */}
+                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                    <CardContent>
+                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <EmailIcon color="primary" />
+                        Notificaciones de Seguridad
+                      </Typography>
+
+                      <Stack spacing={2}>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={securityNotifications.emailAlerts}
+                              onChange={(e) => updateSecurityNotifications('emailAlerts', e.target.checked)}
+                            />
+                          }
+                          label={
+                            <Box>
+                              <Typography variant="body1">Alertas por correo electrónico</Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Recibe notificaciones por email sobre cambios importantes en tu cuenta
+                              </Typography>
+                            </Box>
+                          }
+                        />
+
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={securityNotifications.loginAlerts}
+                              onChange={(e) => updateSecurityNotifications('loginAlerts', e.target.checked)}
+                            />
+                          }
+                          label={
+                            <Box>
+                              <Typography variant="body1">Alertas de inicio de sesión</Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Notificaciones cuando se detecte un nuevo inicio de sesión
+                              </Typography>
+                            </Box>
+                          }
+                        />
+
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={securityNotifications.suspiciousActivity}
+                              onChange={(e) => updateSecurityNotifications('suspiciousActivity', e.target.checked)}
+                            />
+                          }
+                          label={
+                            <Box>
+                              <Typography variant="body1">Actividad sospechosa</Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Alertas sobre intentos de acceso no autorizados o actividad inusual
+                              </Typography>
+                            </Box>
+                          }
+                        />
+                      </Stack>
+                    </CardContent>
+                  </Card>
+
+                  {/* Eliminar Cuenta */}
+                  <Card sx={{ border: `1px solid ${alpha(theme.palette.error.main, 0.2)}` }}>
+                    <CardContent>
+                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: 'error.main' }}>
+                        <DeleteIcon />
+                        Zona Peligrosa
+                      </Typography>
+
+                      <Alert severity="warning" sx={{ mb: 2 }}>
+                        <Typography variant="body2">
+                          <strong>¡Atención!</strong> Esta acción es irreversible. Al eliminar tu cuenta se perderán todos tus datos permanentemente.
+                        </Typography>
+                      </Alert>
+
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Si eliminas tu cuenta, se borrarán:
+                        </Typography>
+                        <List dense sx={{ ml: 2 }}>
+                          <ListItem sx={{ py: 0.5 }}>
+                            <Typography variant="body2">• Todos tus compromisos financieros</Typography>
+                          </ListItem>
+                          <ListItem sx={{ py: 0.5 }}>
+                            <Typography variant="body2">• Historial de pagos y transacciones</Typography>
+                          </ListItem>
+                          <ListItem sx={{ py: 0.5 }}>
+                            <Typography variant="body2">• Configuraciones personalizadas</Typography>
+                          </ListItem>
+                          <ListItem sx={{ py: 0.5 }}>
+                            <Typography variant="body2">• Archivos y documentos subidos</Typography>
+                          </ListItem>
+                        </List>
+
+                        {!showDeleteConfirm ? (
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            startIcon={<WarningIcon />}
+                            onClick={() => setShowDeleteConfirm(true)}
+                            sx={{ alignSelf: 'flex-start' }}
+                          >
+                            Quiero eliminar mi cuenta
+                          </Button>
+                        ) : (
+                          <Box sx={{ p: 2, backgroundColor: alpha(theme.palette.error.main, 0.05), borderRadius: 1, border: `1px solid ${alpha(theme.palette.error.main, 0.2)}` }}>
+                            <Typography variant="body2" sx={{ mb: 2, fontWeight: 600 }}>
+                              ¿Estás completamente seguro?
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                              Esta acción no se puede deshacer. Tu cuenta y todos los datos asociados se eliminarán permanentemente.
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 2 }}>
+                              <Button
+                                variant="contained"
+                                color="error"
+                                size="small"
+                                startIcon={<DeleteIcon />}
+                                onClick={handleDeleteAccount}
+                              >
+                                Sí, eliminar permanentemente
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                onClick={() => setShowDeleteConfirm(false)}
+                              >
+                                Cancelar
+                              </Button>
+                            </Box>
+                          </Box>
+                        )}
+                      </Box>
+                    </CardContent>
+                  </Card>
+
+                  {/* Info */}
+                  <Alert severity="info">
+                    <Typography variant="body2">
+                      💡 <strong>Tip:</strong> Mantén tu cuenta segura activando las notificaciones de seguridad y revisando regularmente tu historial de accesos.
+                    </Typography>
+                  </Alert>
                 </Stack>
               </TabPanel>
             </Box>
