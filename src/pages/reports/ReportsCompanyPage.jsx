@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Card,
@@ -33,6 +33,7 @@ import {
 import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useCommitments, useCompanies } from '../../hooks/useFirestore';
 
 const ReportsCompanyPage = () => {
   const theme = useTheme();
@@ -42,12 +43,61 @@ const ReportsCompanyPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [timeRange, setTimeRange] = useState('last6months');
 
-  // TODO: Conectar con Firebase - usar useCompanies() y useCommitments()
-  // Mock data - en producción vendrá de Firebase
-  const companies = [];
+  // Conectar con Firebase para obtener datos reales
+  const { data: commitments, loading: commitmentsLoading } = useCommitments();
+  const { data: companiesData, loading: companiesLoading } = useCompanies();
+  
+  const loading = commitmentsLoading || companiesLoading;
 
-  // TODO: Conectar con Firebase - datos mensuales por empresa
-  const monthlyCompanyData = [];
+  // Calcular estadísticas por empresa desde Firebase
+  const companies = useMemo(() => {
+    if (!commitments || !companiesData) return [];
+    
+    return companiesData.map(company => {
+      const companyCommitments = commitments.filter(c => c.companyId === company.id);
+      const totalAmount = companyCommitments.reduce((sum, c) => sum + (c.amount || 0), 0);
+      const completed = companyCommitments.filter(c => c.status === 'completed').length;
+      const pending = companyCommitments.filter(c => c.status === 'pending').length;
+      const overdue = companyCommitments.filter(c => c.status === 'overdue').length;
+      
+      return {
+        id: company.id,
+        name: company.name,
+        totalAmount,
+        commitments: companyCommitments.length,
+        completed,
+        pending,
+        overdue,
+        avgTicket: companyCommitments.length > 0 ? totalAmount / companyCommitments.length : 0,
+        growth: 0 // TODO: Implementar cálculo de crecimiento
+      };
+    });
+  }, [commitments, companiesData]);
+
+  // Calcular datos mensuales por empresa desde Firebase
+  const monthlyCompanyData = useMemo(() => {
+    if (!commitments || !companiesData) return [];
+    
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const currentYear = new Date().getFullYear();
+    
+    return months.map((month, index) => {
+      const monthData = { period: `${month} ${currentYear}` };
+      
+      companiesData.forEach(company => {
+        const monthCommitments = commitments.filter(c => {
+          const commitmentDate = new Date(c.dueDate);
+          return commitmentDate.getMonth() === index && 
+                 commitmentDate.getFullYear() === currentYear &&
+                 c.companyId === company.id;
+        });
+        
+        monthData[company.name] = monthCommitments.reduce((sum, c) => sum + (c.amount || 0), 0);
+      });
+      
+      return monthData;
+    });
+  }, [commitments, companiesData]);
 
   const filteredCompanies = companies.filter(company =>
     company.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -73,6 +123,14 @@ const ReportsCompanyPage = () => {
 
   return (
     <Box sx={{ p: 3 }}>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+          <Typography variant="h6" color="text.secondary">
+            Cargando datos de empresas...
+          </Typography>
+        </Box>
+      ) : (
+        <>
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -386,6 +444,8 @@ const ReportsCompanyPage = () => {
           </TableContainer>
         </CardContent>
       </Card>
+        </>
+      )}
     </Box>
   );
 };
