@@ -172,130 +172,6 @@ const MorphingCard = ({
   );
 };
 
-// ✨ NUEVO: SmartAlert con recomendaciones automáticas
-const SmartAlert = ({ 
-  severity = 'info', 
-  title, 
-  message, 
-  actions = [], 
-  autoHide = false,
-  contextData = {},
-  onClose,
-  ...props 
-}) => {
-  const theme = useTheme();
-  const [visible, setVisible] = useState(true);
-  
-  const getSmartRecommendations = (data) => {
-    if (data.totalFiles > 50) {
-      return {
-        severity: 'warning',
-        icon: <Warning />,
-        recommendations: [
-          'Considera archivar archivos antiguos',
-          'Implementar política de retención',
-          'Revisar duplicados'
-        ]
-      };
-    }
-    if (data.totalSize && parseFloat(data.totalSize) > 10) {
-      return {
-        severity: 'info',
-        icon: <TrendingUp />,
-        recommendations: [
-          'Comprimir archivos grandes',
-          'Migrar a almacenamiento en la nube',
-          'Establecer límites de tamaño'
-        ]
-      };
-    }
-    return { severity, recommendations: [] };
-  };
-  
-  const smartData = getSmartRecommendations(contextData);
-  
-  const handleClose = () => {
-    setVisible(false);
-    onClose?.();
-  };
-  
-  return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: -20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: -20 }}
-          transition={{ type: "spring", bounce: 0.3, duration: 0.6 }}
-        >
-          <Alert 
-            severity={smartData.severity}
-            icon={smartData.icon}
-            sx={{ 
-              mb: 3,
-              borderRadius: 4,
-              background: `linear-gradient(135deg, ${theme.palette[smartData.severity].main}08, ${theme.palette[smartData.severity].light}03)`,
-              border: `1px solid ${theme.palette[smartData.severity].main}25`,
-              position: 'relative',
-              overflow: 'hidden',
-              ...shimmerEffect,
-              animation: smartData.severity === 'warning' ? 'pulse 3s infinite' : 'none'
-            }}
-            action={
-              <Stack direction="row" spacing={1} alignItems="center">
-                {actions.map((action, index) => (
-                  <Button 
-                    key={index} 
-                    size="small" 
-                    variant="outlined" 
-                    sx={{ borderRadius: 2 }}
-                    {...action}
-                  >
-                    {action.label}
-                  </Button>
-                ))}
-                {autoHide && (
-                  <IconButton size="small" onClick={handleClose}>
-                    <Close fontSize="small" />
-                  </IconButton>
-                )}
-              </Stack>
-            }
-          >
-            <AlertTitle sx={{ fontWeight: 700 }}>{title}</AlertTitle>
-            <Typography variant="body2" sx={{ mb: smartData.recommendations.length > 0 ? 2 : 0 }}>
-              {message}
-            </Typography>
-            
-            {smartData.recommendations.length > 0 && (
-              <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, fontSize: '0.8rem' }}>
-                  💡 Recomendaciones automáticas:
-                </Typography>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  {smartData.recommendations.map((rec, index) => (
-                    <Chip
-                      key={index}
-                      label={rec}
-                      size="small"
-                      variant="outlined"
-                      sx={{ 
-                        fontSize: '0.7rem',
-                        height: 24,
-                        '& .MuiChip-label': { px: 1 }
-                      }}
-                    />
-                  ))}
-                </Stack>
-              </Box>
-            )}
-          </Alert>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
-
 // ✨ NUEVO: PremiumDataTable optimizada
 const PremiumDataTable = ({ 
   data, 
@@ -455,7 +331,6 @@ const ReceiptsPage = () => {
   // ✨ NUEVO: Estados para las nuevas funcionalidades
   const [downloadLoading, setDownloadLoading] = useState(false);
   const [cardStates, setCardStates] = useState({});
-  const [showSmartAlert, setShowSmartAlert] = useState(true);
 
   // Conectar con Firebase para obtener archivos reales
   const { data: receipts, loading, error } = useFirestore('files', {
@@ -609,13 +484,6 @@ const ReceiptsPage = () => {
     }
   ];
 
-  // ✨ NUEVO: Datos para análisis inteligente
-  const contextData = {
-    totalFiles: receipts.length,
-    totalSize: '12.5',
-    activeFiles: receipts.filter(r => r.status === 'active').length
-  };
-
   return (
     <StyledContainer sx={{ p: 3 }}>
       {/* ✨ NUEVO: Header Premium con partículas */}
@@ -683,22 +551,6 @@ const ReceiptsPage = () => {
           </Box>
         </Paper>
       </motion.div>
-
-      {/* ✨ NUEVO: SmartAlert con análisis automático */}
-      {showSmartAlert && (
-        <SmartAlert
-          severity="info"
-          title="Análisis de Almacenamiento"
-          message={`Tienes ${receipts.length} comprobantes almacenados. El sistema ha detectado oportunidades de optimización.`}
-          contextData={contextData}
-          actions={[
-            { label: 'Ver Análisis', onClick: () => console.log('Mostrar análisis detallado') },
-            { label: 'Optimizar', onClick: () => console.log('Ejecutar optimización') }
-          ]}
-          autoHide={true}
-          onClose={() => setShowSmartAlert(false)}
-        />
-      )}
 
       {/* ✨ NUEVO: Stats Cards con MorphingCard */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
