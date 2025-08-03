@@ -50,7 +50,6 @@ import {
   Settings as SettingsIcon,
   Dashboard as DashboardIcon,
   Notifications as NotificationsIcon,
-  Business as BusinessIcon,
   GridView as GridIcon,
   ViewList as ListIcon,
   TableChart as TableIcon,
@@ -215,11 +214,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
         highAmount: true,
         systemUpdates: false
       }
-    },
-    company: {
-      defaultView: 'all',
-      autoRefresh: true,
-      refreshInterval: 30
     }
   };
 
@@ -260,7 +254,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
     { label: 'Tema', icon: <PaletteIcon /> },
     { label: 'Dashboard', icon: <DashboardIcon /> },
     { label: 'Notificaciones', icon: <NotificationsIcon /> },
-    { label: 'Empresa', icon: <BusinessIcon /> },
     { label: 'Seguridad', icon: <SecurityIcon />, disabled: true },
     { label: 'Idioma', icon: <LanguageIcon />, disabled: true }
   ];
@@ -1576,75 +1569,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       </Card>
                     </>
                   )}
-                </Stack>
-              </TabPanel>
-
-              {/* EMPRESA TAB */}
-              <TabPanel value={activeTab} index={3}>
-                <Stack spacing={3}>
-                  {/* Company Settings */}
-                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
-                    <CardContent>
-                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <BusinessIcon color="primary" />
-                        Configuraciones de Empresa
-                      </Typography>
-
-                      <Stack spacing={3}>
-                        <Box>
-                          <FormLabel sx={{ mb: 1, fontWeight: 600, display: 'block' }}>
-                            Vista Predeterminada
-                          </FormLabel>
-                          <Select
-                            value={dashboardSettings.company.defaultView}
-                            onChange={(e) => updateDashboardSetting('company.defaultView', e.target.value)}
-                            size="small"
-                            fullWidth
-                          >
-                            <MenuItem value="all">Todas las empresas</MenuItem>
-                            <MenuItem value="active">Solo empresas activas</MenuItem>
-                            <MenuItem value="recent">Actividad reciente</MenuItem>
-                          </Select>
-                        </Box>
-
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={dashboardSettings.company.autoRefresh}
-                              onChange={(e) => updateDashboardSetting('company.autoRefresh', e.target.checked)}
-                            />
-                          }
-                          label="Actualización automática de datos"
-                        />
-
-                        {dashboardSettings.company.autoRefresh && (
-                          <Box>
-                            <FormLabel sx={{ mb: 1, fontWeight: 600 }}>Intervalo de actualización (segundos)</FormLabel>
-                            <Slider
-                              value={dashboardSettings.company.refreshInterval}
-                              onChange={(e, value) => updateDashboardSetting('company.refreshInterval', value)}
-                              min={10}
-                              max={300}
-                              step={10}
-                              marks={[
-                                { value: 10, label: '10s' },
-                                { value: 60, label: '1m' },
-                                { value: 300, label: '5m' }
-                              ]}
-                              valueLabelDisplay="auto"
-                            />
-                          </Box>
-                        )}
-                      </Stack>
-                    </CardContent>
-                  </Card>
-
-                  {/* Info */}
-                  <Alert severity="info">
-                    <Typography variant="body2">
-                      💡 <strong>Tip:</strong> Los cambios se guardan automáticamente. Puedes restablecer toda la configuración usando el botón "Restablecer" en la parte superior.
-                    </Typography>
-                  </Alert>
                 </Stack>
               </TabPanel>
             </Box>
