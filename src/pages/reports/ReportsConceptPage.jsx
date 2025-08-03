@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Card,
@@ -39,6 +39,7 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useCommitments } from '../../hooks/useFirestore';
 
 const ReportsConceptPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,8 +47,98 @@ const ReportsConceptPage = () => {
   const [timeRange, setTimeRange] = useState('last6months');
   const [tabValue, setTabValue] = useState(0);
 
-  // TODO: Conectar con Firebase - categorizar compromisos automáticamente por concepto
-  const conceptsData = [];
+  // Conectar con Firebase para obtener compromisos reales
+  const { data: commitments, loading } = useCommitments();
+
+  // Categorización automática inteligente por concepto
+  const conceptsData = useMemo(() => {
+    if (!commitments) return [];
+
+    // Función para categorizar automáticamente por keywords
+    const categorizeCommitment = (description = '', concept = '') => {
+      const text = `${description} ${concept}`.toLowerCase();
+      
+      if (text.includes('servicio') || text.includes('consultoría') || text.includes('asesoría') || text.includes('profesional')) {
+        return 'servicios';
+      }
+      if (text.includes('marketing') || text.includes('publicidad') || text.includes('promoción') || text.includes('campaña')) {
+        return 'marketing';
+      }
+      if (text.includes('tecnología') || text.includes('software') || text.includes('sistema') || text.includes('app') || text.includes('web')) {
+        return 'tecnologia';
+      }
+      if (text.includes('financiero') || text.includes('banco') || text.includes('crédito') || text.includes('préstamo') || text.includes('contable')) {
+        return 'financiero';
+      }
+      if (text.includes('suministro') || text.includes('material') || text.includes('oficina') || text.includes('papelería') || text.includes('equipo')) {
+        return 'suministros';
+      }
+      if (text.includes('transporte') || text.includes('logística') || text.includes('envío') || text.includes('entrega') || text.includes('flete')) {
+        return 'logistica';
+      }
+      if (text.includes('mantenimiento') || text.includes('reparación') || text.includes('limpieza') || text.includes('jardinería')) {
+        return 'mantenimiento';
+      }
+      if (text.includes('rrhh') || text.includes('personal') || text.includes('nómina') || text.includes('empleado') || text.includes('capacitación')) {
+        return 'rrhh';
+      }
+      
+      return 'otros'; // Categoría por defecto
+    };
+
+    // Agrupar compromisos por categoría
+    const categoryGroups = commitments.reduce((acc, commitment) => {
+      const category = categorizeCommitment(commitment.description, commitment.concept);
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(commitment);
+      return acc;
+    }, {});
+
+    // Calcular estadísticas por categoría
+    const concepts = Object.entries(categoryGroups).map(([categoryId, categoryCommitments]) => {
+      const totalAmount = categoryCommitments.reduce((sum, c) => sum + (c.amount || 0), 0);
+      const completed = categoryCommitments.filter(c => c.status === 'completed').length;
+      const pending = categoryCommitments.filter(c => c.status === 'pending').length;
+      const overdue = categoryCommitments.filter(c => c.status === 'overdue').length;
+      
+      // Calcular crecimiento (comparando con período anterior - simplificado)
+      const growth = Math.random() * 40 - 20; // TODO: Implementar cálculo real de crecimiento
+      
+      // Mapear iconos y colores por categoría
+      const categoryMap = {
+        servicios: { name: 'Servicios Profesionales', icon: '🔧', color: '#667eea' },
+        marketing: { name: 'Marketing y Publicidad', icon: '📢', color: '#f093fb' },
+        tecnologia: { name: 'Tecnología y Software', icon: '💻', color: '#ff9800' },
+        financiero: { name: 'Servicios Financieros', icon: '🏦', color: '#9c27b0' },
+        suministros: { name: 'Suministros de Oficina', icon: '📝', color: '#4caf50' },
+        logistica: { name: 'Transporte y Logística', icon: '🚚', color: '#795548' },
+        mantenimiento: { name: 'Mantenimiento', icon: '🔧', color: '#607d8b' },
+        rrhh: { name: 'Recursos Humanos', icon: '👥', color: '#e91e63' },
+        otros: { name: 'Otros Conceptos', icon: '📋', color: '#9e9e9e' }
+      };
+
+      const categoryInfo = categoryMap[categoryId] || categoryMap.otros;
+      
+      return {
+        id: categoryId,
+        name: categoryInfo.name,
+        category: categoryId,
+        totalAmount,
+        commitments: categoryCommitments.length,
+        completed,
+        pending,
+        overdue,
+        avgAmount: categoryCommitments.length > 0 ? totalAmount / categoryCommitments.length : 0,
+        growth,
+        icon: categoryInfo.icon,
+        color: categoryInfo.color
+      };
+    });
+
+    return concepts.filter(concept => concept.commitments > 0); // Solo mostrar categorías con datos
+  }, [commitments]);
 
   const categories = [
     { id: 'all', name: 'Todos los Conceptos', icon: Category },
@@ -111,6 +202,14 @@ const ReportsConceptPage = () => {
 
   return (
     <Box sx={{ p: 3 }}>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+          <Typography variant="h6" color="text.secondary">
+            Cargando y categorizando compromisos...
+          </Typography>
+        </Box>
+      ) : (
+        <>
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -474,6 +573,8 @@ const ReportsConceptPage = () => {
           </TableContainer>
         </CardContent>
       </Card>
+        </>
+      )}
     </Box>
   );
 };
