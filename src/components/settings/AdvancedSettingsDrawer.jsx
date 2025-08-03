@@ -65,7 +65,6 @@ import {
   TextFields as TextFieldsIcon,
   FormatSize as FormatSizeIcon,
   Security as SecurityIcon,
-  Language as LanguageIcon,
   Storage as StorageIcon,
   Save as SaveIcon,
   CheckCircle as CheckCircleIcon,
@@ -433,8 +432,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
     { label: 'Tema', icon: <PaletteIcon /> },
     { label: 'Dashboard', icon: <DashboardIcon /> },
     { label: 'Notificaciones', icon: <NotificationsIcon /> },
-    { label: 'Seguridad', icon: <SecurityIcon /> },
-    { label: 'Idioma', icon: <LanguageIcon />, disabled: true }
+    { label: 'Seguridad', icon: <SecurityIcon /> }
   ];
 
   return (
