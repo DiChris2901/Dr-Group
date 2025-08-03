@@ -804,25 +804,22 @@ const ProfilePage = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
             whileHover={{ y: -4, scale: 1.01 }}
           >
-            {/* Card de Perfil Personal */}
+            {/* Card de Perfil Personal - Design System Spectacular */}
             <Card sx={{ 
-              borderRadius: 3, 
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-              background: isDarkMode 
-                ? 'linear-gradient(145deg, #1a1a2e 0%, #16213e 100%)'
-                : 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)',
-              border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.05)',
+              borderRadius: 4, // radius.lg (16px)
+              background: theme.palette.mode === 'dark'
+                ? 'linear-gradient(145deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
+                : 'linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+              border: `1px solid ${theme.palette.divider}`,
               position: 'relative',
               overflow: 'hidden',
-              mb: 2,
-              minHeight: 720, // Altura mínima consistente con las tarjetas de la derecha
+              mb: 3, // spacing.lg (24px)
+              minHeight: 720,
               display: 'flex',
               flexDirection: 'column',
-              transition: 'all 0.3s ease-out',
-              '&:hover': {
-                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)',
-                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.15)' : '1px solid rgba(0, 0, 0, 0.08)'
-              },
+              transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+              backdropFilter: 'blur(20px)',
+              boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)', // Glassmorphism
               '&::before': {
                 content: '""',
                 position: 'absolute',
@@ -830,25 +827,27 @@ const ProfilePage = () => {
                 left: '-100%',
                 width: '100%',
                 height: '100%',
-                background: `linear-gradient(90deg, transparent, ${alpha('#fff', 0.1)}, transparent)`,
-                '@keyframes shimmer': {
-                  '0%': { left: '-100%' },
-                  '100%': { left: '100%' }
-                },
+                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
                 animation: 'shimmer 3s infinite',
                 zIndex: 1,
                 pointerEvents: 'none'
+              },
+              '@keyframes shimmer': {
+                '0%': { transform: 'translateX(-100%)' },
+                '100%': { transform: 'translateX(100%)' }
               }
             }}>
-              {/* Header con icono */}
+              {/* Header con gradiente spectacular */}
               <Box
                 sx={{
-                  p: 2.5,
-                  background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+                  p: 3, // spacing.lg
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                   color: 'white',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 2
+                  gap: 2,
+                  position: 'relative',
+                  zIndex: 2
                 }}
               >
                 <Person sx={{ fontSize: 28 }} />
@@ -864,89 +863,35 @@ const ProfilePage = () => {
               
               <CardContent sx={{ 
                 textAlign: 'center', 
-                p: 4, // Aumentar padding
+                p: 4, // spacing.xl (32px)
                 flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'space-between'
+                justifyContent: 'space-between',
+                position: 'relative',
+                zIndex: 2
               }}>
-                {/* Avatar con anillo completo animado - Más grande */}
+                {/* Avatar con Design System Spectacular */}
                 <Box position="relative" display="inline-block" mb={4}>
-                  {/* Anillo exterior completo con gradiente animado */}
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-                    style={{
-                      position: 'absolute',
-                      inset: -12, // Aumentar el anillo
-                      borderRadius: '50%',
-                      background: 'linear-gradient(45deg, #ff6b6b, #ee5a24, #fd79a8, #fdcb6e, #74b9ff, #6c5ce7, #a29bfe, #ff6b6b)',
-                      backgroundSize: '400% 400%',
-                      padding: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
+                  <Avatar
+                    src={userProfile?.photoURL}
+                    sx={{ 
+                      width: 160,
+                      height: 160,
+                      fontSize: 64,
+                      mx: 'auto',
+                      boxShadow: `0 8px 25px ${theme.palette.primary.main}20`, // Primary shadow
+                      transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                      border: `3px solid ${theme.palette.primary.main}30`,
+                      '&:hover': {
+                        transform: 'scale(1.05) translateY(-4px)',
+                        boxShadow: `0 12px 40px ${theme.palette.primary.main}30`,
+                        border: `3px solid ${theme.palette.primary.main}60`
+                      }
                     }}
                   >
-                    <Box
-                      sx={{
-                        width: '100%',
-                        height: '100%',
-                        borderRadius: '50%',
-                        background: theme.palette.background.paper
-                      }}
-                    />
-                  </motion.div>
-                  
-                  {/* Anillo interno con efecto de brillo */}
-                  <motion.div
-                    animate={{ 
-                      rotate: -360,
-                      scale: [1, 1.02, 1]
-                    }}
-                    transition={{ 
-                      rotate: { duration: 12, repeat: Infinity, ease: "linear" },
-                      scale: { duration: 2, repeat: Infinity, ease: "easeInOut" }
-                    }}
-                    style={{
-                      position: 'absolute',
-                      inset: -8,
-                      borderRadius: '50%',
-                      background: 'linear-gradient(45deg, rgba(255, 107, 107, 0.6), rgba(238, 90, 36, 0.6), rgba(253, 121, 168, 0.6), rgba(116, 185, 255, 0.6))',
-                      padding: '2px'
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: '100%',
-                        height: '100%',
-                        borderRadius: '50%',
-                        background: theme.palette.background.paper
-                      }}
-                    />
-                  </motion.div>
-                  
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ type: "spring", stiffness: 300 }}
-                  >
-                    <Avatar
-                      src={userProfile?.photoURL}
-                      sx={{ 
-                        width: 160, // Aumentar de 120 a 160
-                        height: 160, // Aumentar de 120 a 160
-                        fontSize: 64, // Aumentar fuente proporcionalmente
-                        mx: 'auto',
-                        border: '5px solid', // Aumentar borde
-                        borderColor: 'background.paper',
-                        boxShadow: '0 12px 32px rgba(0, 0, 0, 0.2)', // Aumentar sombra
-                        position: 'relative',
-                        zIndex: 2
-                      }}
-                    >
-                      {!userProfile?.photoURL && formData.name?.charAt(0)?.toUpperCase()}
-                    </Avatar>
-                  </motion.div>
+                    {!userProfile?.photoURL && formData.name?.charAt(0)?.toUpperCase()}
+                  </Avatar>
                   
                   {uploadingPhoto && (
                     <CircularProgress 
@@ -963,27 +908,27 @@ const ProfilePage = () => {
                   )}
                   
                   {!uploadingPhoto && (
-                    <Box sx={{ position: 'absolute', bottom: 4, right: 4, display: 'flex', gap: 0.5 }}>
-                      {/* Botón para cambiar foto */}
+                    <Box sx={{ position: 'absolute', bottom: 4, right: 4, display: 'flex', gap: 1 }}>
+                      {/* Botón para cambiar foto - Design System */}
                       <motion.div
-                        whileHover={{ scale: 1.1 }}
+                        whileHover={{ scale: 1.1, y: -2 }}
                         whileTap={{ scale: 0.95 }}
                       >
                         <Tooltip title="Cambiar foto">
                           <IconButton
                             onClick={() => fileInputRef.current?.click()}
                             sx={{
-                              bgcolor: '#ff6b6b',
+                              bgcolor: theme.palette.primary.main,
                               color: 'white',
-                              width: 32,
-                              height: 32,
-                              boxShadow: '0 4px 12px rgba(255, 107, 107, 0.3)',
+                              width: 40,
+                              height: 40,
+                              boxShadow: `0 4px 12px ${theme.palette.primary.main}40`,
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                               '&:hover': { 
-                                bgcolor: '#ee5a24',
-                                transform: 'translateY(-2px)',
-                                boxShadow: '0 6px 16px rgba(255, 107, 107, 0.4)'
-                              },
-                              zIndex: 3
+                                bgcolor: theme.palette.primary.dark,
+                                boxShadow: `0 6px 20px ${theme.palette.primary.main}60`,
+                                transform: 'translateY(-2px)'
+                              }
                             }}
                           >
                             <PhotoCamera fontSize="small" />
@@ -991,27 +936,27 @@ const ProfilePage = () => {
                         </Tooltip>
                       </motion.div>
                       
-                      {/* Botón para eliminar foto (solo si hay foto) */}
+                      {/* Botón para eliminar foto - Design System */}
                       {userProfile?.photoURL && (
                         <motion.div
-                          whileHover={{ scale: 1.1 }}
+                          whileHover={{ scale: 1.1, y: -2 }}
                           whileTap={{ scale: 0.95 }}
                         >
                           <Tooltip title="Eliminar foto">
                             <IconButton
                               onClick={handleRemovePhoto}
                               sx={{
-                                bgcolor: '#e74c3c',
+                                bgcolor: theme.palette.error.main,
                                 color: 'white',
-                                width: 32,
-                                height: 32,
-                                boxShadow: '0 4px 12px rgba(231, 76, 60, 0.3)',
+                                width: 40,
+                                height: 40,
+                                boxShadow: `0 4px 12px ${theme.palette.error.main}40`,
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                 '&:hover': { 
-                                  bgcolor: '#c0392b',
-                                  transform: 'translateY(-2px)',
-                                  boxShadow: '0 6px 16px rgba(231, 76, 60, 0.4)'
-                                },
-                                zIndex: 3
+                                  bgcolor: theme.palette.error.dark,
+                                  boxShadow: `0 6px 20px ${theme.palette.error.main}60`,
+                                  transform: 'translateY(-2px)'
+                                }
                               }}
                             >
                               <Delete fontSize="small" />
@@ -1032,39 +977,63 @@ const ProfilePage = () => {
                 </Box>
 
                 {/* Información básica */}
-                <Box mb={4}> {/* Aumentar margen inferior */}
-                  <Box display="flex" alignItems="center" justifyContent="center" mb={1}>
-                    <Typography variant="h6" fontWeight="bold" sx={{ mr: 1 }}>
+                <Box mb={4}>
+                  <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
+                    <Typography 
+                      variant="h5" 
+                      sx={{ 
+                        fontWeight: 800, 
+                        textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                        mr: 1,
+                        background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent'
+                      }}
+                    >
                       {formData.name || 'Usuario'}
                     </Typography>
                     <motion.div
                       animate={{ rotate: [0, 10, -10, 0] }}
                       transition={{ duration: 2, repeat: Infinity, repeatDelay: 5 }}
                     >
-                      <Verified sx={{ color: '#ff6b6b', fontSize: 20 }} />
+                      <Verified sx={{ color: theme.palette.primary.main, fontSize: 24 }} />
                     </motion.div>
                   </Box>
                   
-                  <Typography variant="body2" color="text.secondary" mb={2}>
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      opacity: 0.9, 
+                      fontWeight: 500,
+                      mb: 3
+                    }}
+                  >
                     {formData.email}
                   </Typography>
                   
-                  {/* Badge de rol */}
-                  <Box display="flex" gap={1} justifyContent="center" mb={3}> {/* Aumentar margen inferior */}
+                  {/* Badge de rol con Design System */}
+                  <Box display="flex" gap={1} justifyContent="center" mb={3}>
                     <Box 
                       sx={{
-                        px: 2,
-                        py: 0.5,
-                        borderRadius: 20,
+                        px: 3, // spacing.lg
+                        py: 1,
+                        borderRadius: 25, // Más redondeado
                         background: (userProfile?.role === 'admin' || userProfile?.role === 'ADMIN') 
-                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                          : 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+                          ? `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`
+                          : `linear-gradient(135deg, ${theme.palette.info.light}, ${theme.palette.info.main})`,
                         color: 'white',
-                        fontSize: '0.75rem',
-                        fontWeight: 'bold',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 0.5
+                        gap: 1,
+                        boxShadow: `0 4px 12px ${theme.palette.primary.main}40`,
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: `0 8px 25px ${theme.palette.primary.main}60`
+                        }
                       }}
                     >
                       {(userProfile?.role === 'admin' || userProfile?.role === 'ADMIN') ? (
@@ -1096,34 +1065,57 @@ const ProfilePage = () => {
                     <Box 
                       sx={{
                         mt: 2,
-                        p: 1.5,
-                        borderRadius: 2,
-                        background: isDarkMode ? 'rgba(0, 184, 148, 0.1)' : 'rgba(0, 184, 148, 0.05)',
-                        border: '1px solid rgba(0, 184, 148, 0.2)',
+                        p: 2, // spacing.md
+                        borderRadius: 3, // radius.md
+                        background: `linear-gradient(135deg, ${theme.palette.success.light}15, ${theme.palette.success.main}10)`,
+                        border: `1px solid ${theme.palette.success.main}30`,
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 1
+                        gap: 1,
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          background: `linear-gradient(135deg, ${theme.palette.success.light}25, ${theme.palette.success.main}20)`,
+                          border: `1px solid ${theme.palette.success.main}50`
+                        }
                       }}
                     >
-                      <Business sx={{ color: '#00b894', fontSize: 16 }} />
-                      <Typography variant="caption" fontWeight="medium">
+                      <Business sx={{ color: theme.palette.success.main, fontSize: 18 }} />
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          fontWeight: 600, 
+                          textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                          color: theme.palette.success.dark
+                        }}
+                      >
                         {formData.company}
                       </Typography>
                     </Box>
                   )}
                 </Box>
 
-                <Divider sx={{ my: 1.5, opacity: 0.6 }} />
+                <Divider sx={{ my: 3, opacity: 0.6 }} /> {/* Más espaciado */}
 
-                {/* Configuración única - Solo info no disponible en otros lados */}
+                {/* Configuración con Design System */}
                 <Box>
-                  <Typography variant="subtitle2" fontWeight="bold" mb={1.5} display="flex" alignItems="center" gap={1}>
+                  <Typography 
+                    variant="subtitle2" 
+                    sx={{ 
+                      fontWeight: 700,
+                      mb: 2,
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 1,
+                      color: theme.palette.primary.main
+                    }}
+                  >
                     <Box 
                       sx={{ 
-                        width: 6, 
-                        height: 6, 
+                        width: 8, 
+                        height: 8, 
                         borderRadius: '50%', 
-                        background: 'linear-gradient(45deg, #667eea, #764ba2)' 
+                        background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                        boxShadow: `0 2px 8px ${theme.palette.primary.main}40`
                       }} 
                     />
                     Configuración
@@ -1182,30 +1174,68 @@ const ProfilePage = () => {
             transition={{ duration: 0.5, delay: 0.3 }}
           >
             <Card sx={{ 
-              borderRadius: 3, 
-              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-              background: isDarkMode 
-                ? 'linear-gradient(145deg, #1a1a2e 0%, #16213e 100%)'
-                : 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)',
-              border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.05)',
+              borderRadius: 4, // radius.lg (16px)
+              background: theme.palette.mode === 'dark'
+                ? 'linear-gradient(145deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
+                : 'linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+              border: `1px solid ${theme.palette.divider}`,
               position: 'relative',
               overflow: 'hidden',
-              minHeight: 720, // Altura mínima igual que la tarjeta izquierda
+              minHeight: 720,
               display: 'flex',
-              flexDirection: 'column'
+              flexDirection: 'column',
+              transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+              backdropFilter: 'blur(20px)',
+              boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)', // Glassmorphism
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: '-100%',
+                width: '100%',
+                height: '100%',
+                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
+                animation: 'shimmer 3s infinite',
+                zIndex: 1,
+                pointerEvents: 'none'
+              },
+              '@keyframes shimmer': {
+                '0%': { transform: 'translateX(-100%)' },
+                '100%': { transform: 'translateX(100%)' }
+              }
             }}>
-              {/* Tabs Header */}
-              <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+              {/* Tabs Header con Design System */}
+              <Box sx={{ 
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                position: 'relative',
+                zIndex: 2
+              }}>
                 <Tabs
                   value={activeTab}
                   onChange={handleTabChange}
                   variant="fullWidth"
                   sx={{
                     '& .MuiTab-root': {
-                      minHeight: 64,
+                      minHeight: 72, // Más altura
                       textTransform: 'none',
                       fontWeight: 600,
-                      fontSize: '0.95rem'
+                      fontSize: '1rem',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      color: theme.palette.text.secondary,
+                      '&:hover': {
+                        color: theme.palette.primary.main,
+                        background: `${theme.palette.primary.main}08`
+                      },
+                      '&.Mui-selected': {
+                        color: theme.palette.primary.main,
+                        fontWeight: 700,
+                        background: `linear-gradient(135deg, ${theme.palette.primary.main}15, ${theme.palette.secondary.main}10)`
+                      }
+                    },
+                    '& .MuiTabs-indicator': {
+                      height: 3,
+                      borderRadius: 2,
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`
                     }
                   }}
                 >
@@ -1247,25 +1277,33 @@ const ProfilePage = () => {
                     </Box>
                   </Box>
               
-              <CardContent sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <CardContent sx={{ 
+                p: 4, // spacing.xl 
+                flex: 1, 
+                display: 'flex', 
+                flexDirection: 'column',
+                position: 'relative',
+                zIndex: 2
+              }}>
 
-                <Grid container spacing={2.5}>
-                  {/* Nombre */}
+                <Grid container spacing={3}> {/* Más espaciado */}
+                  {/* Nombre con Design System */}
                   <Grid item xs={12} sm={6}>
                     <motion.div
-                      whileHover={editing ? { scale: 1.02 } : {}}
+                      whileHover={editing ? { scale: 1.02, y: -2 } : {}}
                       transition={{ type: "spring", stiffness: 400 }}
                     >
                       <Box sx={{ position: 'relative' }}>
                         <Typography 
-                          variant="body2" 
-                          fontWeight="medium" 
+                          variant="body1" 
                           sx={{ 
-                            mb: 1.5, 
-                            color: 'text.primary',
+                            mb: 2, 
+                            fontWeight: 600,
+                            color: theme.palette.primary.main,
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 1
+                            gap: 1,
+                            textShadow: '0 1px 2px rgba(0,0,0,0.3)'
                           }}
                         >
                           <Person sx={{ fontSize: 18, color: '#667eea' }} />
@@ -1292,31 +1330,32 @@ const ProfilePage = () => {
                           sx={{
                             '& .MuiOutlinedInput-root': {
                               backgroundColor: editing 
-                                ? (isDarkMode ? 'rgba(102, 126, 234, 0.15)' : 'rgba(102, 126, 234, 0.08)')
-                                : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)'),
+                                ? `${theme.palette.primary.main}15`
+                                : `${theme.palette.background.paper}`,
                               border: editing 
-                                ? '2px solid rgba(102, 126, 234, 0.3)'
-                                : '2px solid rgba(0, 0, 0, 0.1)',
-                              borderRadius: 3,
-                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                ? `2px solid ${theme.palette.primary.main}30`
+                                : `1px solid ${theme.palette.divider}`,
+                              borderRadius: 3, // radius.md
+                              transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                              backdropFilter: 'blur(10px)',
                               '&:hover': editing ? {
-                                backgroundColor: isDarkMode ? 'rgba(102, 126, 234, 0.2)' : 'rgba(102, 126, 234, 0.12)',
-                                borderColor: 'rgba(102, 126, 234, 0.5)',
-                                transform: 'translateY(-1px)',
-                                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)'
+                                backgroundColor: `${theme.palette.primary.main}20`,
+                                borderColor: `${theme.palette.primary.main}50`,
+                                transform: 'translateY(-2px)',
+                                boxShadow: `0 8px 25px ${theme.palette.primary.main}20`
                               } : {},
                               '&.Mui-focused': {
-                                backgroundColor: isDarkMode ? 'rgba(102, 126, 234, 0.25)' : 'rgba(102, 126, 234, 0.15)',
-                                borderColor: '#667eea',
-                                boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.15)',
-                                transform: 'translateY(-1px)'
+                                backgroundColor: `${theme.palette.primary.main}25`,
+                                borderColor: theme.palette.primary.main,
+                                boxShadow: `0 0 0 3px ${theme.palette.primary.main}15`,
+                                transform: 'translateY(-2px)'
                               },
                               '& fieldset': {
                                 border: 'none'
                               }
                             },
                             '& .MuiInputBase-input': {
-                              padding: '16px 18px',
+                              padding: '18px 20px', // Más padding
                               fontSize: '1rem',
                               fontWeight: editing ? 500 : 400,
                               color: editing ? 'text.primary' : 'text.secondary'
@@ -1355,17 +1394,23 @@ const ProfilePage = () => {
                         }}
                         sx={{
                           '& .MuiOutlinedInput-root': {
-                            backgroundColor: isDarkMode ? 'rgba(108, 92, 231, 0.12)' : 'rgba(108, 92, 231, 0.06)',
-                            border: '2px solid rgba(108, 92, 231, 0.2)',
-                            borderRadius: 3,
+                            background: isDarkMode 
+                              ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%)'
+                              : 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)',
+                            backdropFilter: 'blur(10px)',
+                            border: `2px solid ${theme.palette.primary.main}20`,
+                            borderRadius: '16px',
+                            boxShadow: '0 4px 20px rgba(102, 126, 234, 0.1)',
+                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                             '& fieldset': {
                               border: 'none'
                             }
                           },
                           '& .MuiInputBase-input': {
-                            padding: '16px 18px',
+                            padding: '18px 20px',
                             fontSize: '1rem',
-                            color: 'text.secondary'
+                            color: 'text.secondary',
+                            fontWeight: 500
                           }
                         }}
                       />
@@ -1411,34 +1456,51 @@ const ProfilePage = () => {
                           }}
                           sx={{
                             '& .MuiOutlinedInput-root': {
-                              backgroundColor: editing 
-                                ? (isDarkMode ? 'rgba(0, 184, 148, 0.15)' : 'rgba(0, 184, 148, 0.08)')
-                                : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)'),
+                              background: editing 
+                                ? (isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(0, 184, 148, 0.18) 0%, rgba(85, 239, 196, 0.15) 100%)'
+                                  : 'linear-gradient(135deg, rgba(0, 184, 148, 0.10) 0%, rgba(85, 239, 196, 0.08) 100%)')
+                                : (isDarkMode 
+                                  ? 'rgba(255, 255, 255, 0.08)'
+                                  : 'rgba(0, 0, 0, 0.04)'),
+                              backdropFilter: 'blur(10px)',
                               border: editing 
-                                ? '2px solid rgba(0, 184, 148, 0.3)'
-                                : '2px solid rgba(0, 0, 0, 0.1)',
-                              borderRadius: 3,
-                              transition: 'all 0.3s ease',
+                                ? `2px solid ${theme.palette.success.main}40`
+                                : `2px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                              borderRadius: '16px',
+                              boxShadow: editing 
+                                ? '0 4px 20px rgba(0, 184, 148, 0.12)'
+                                : '0 2px 12px rgba(0,0,0,0.05)',
+                              transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                               '&:hover': editing ? {
-                                backgroundColor: isDarkMode ? 'rgba(0, 184, 148, 0.2)' : 'rgba(0, 184, 148, 0.12)',
-                                borderColor: 'rgba(0, 184, 148, 0.5)',
-                                transform: 'translateY(-1px)',
-                                boxShadow: '0 4px 12px rgba(0, 184, 148, 0.2)'
+                                background: isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(0, 184, 148, 0.25) 0%, rgba(85, 239, 196, 0.22) 100%)'
+                                  : 'linear-gradient(135deg, rgba(0, 184, 148, 0.15) 0%, rgba(85, 239, 196, 0.12) 100%)',
+                                borderColor: theme.palette.success.main,
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 8px 25px rgba(0, 184, 148, 0.2)'
                               } : {},
                               '&.Mui-focused': {
-                                backgroundColor: isDarkMode ? 'rgba(0, 184, 148, 0.25)' : 'rgba(0, 184, 148, 0.15)',
-                                borderColor: '#00b894',
-                                boxShadow: '0 0 0 3px rgba(0, 184, 148, 0.15)'
+                                background: isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(0, 184, 148, 0.3) 0%, rgba(85, 239, 196, 0.28) 100%)'
+                                  : 'linear-gradient(135deg, rgba(0, 184, 148, 0.18) 0%, rgba(85, 239, 196, 0.15) 100%)',
+                                borderColor: theme.palette.success.main,
+                                boxShadow: `0 0 0 4px ${theme.palette.success.main}20`
                               },
                               '& fieldset': {
                                 border: 'none'
                               }
                             },
                             '& .MuiInputBase-input': {
-                              padding: '16px 18px',
+                              padding: '18px 20px',
                               fontSize: '1rem',
                               fontWeight: editing ? 500 : 400,
                               color: editing ? 'text.primary' : 'text.secondary'
+                            },
+                            '& .MuiFormHelperText-root': {
+                              marginTop: '8px',
+                              fontWeight: 500,
+                              color: errors.phone ? 'error.main' : 'text.secondary'
                             }
                           }}
                         />
@@ -1476,31 +1538,43 @@ const ProfilePage = () => {
                           placeholder="Ingresa tu cargo"
                           sx={{
                             '& .MuiOutlinedInput-root': {
-                              backgroundColor: editing 
-                                ? (isDarkMode ? 'rgba(116, 185, 255, 0.15)' : 'rgba(116, 185, 255, 0.08)')
-                                : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)'),
+                              background: editing 
+                                ? (isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(116, 185, 255, 0.18) 0%, rgba(161, 196, 253, 0.15) 100%)'
+                                  : 'linear-gradient(135deg, rgba(116, 185, 255, 0.10) 0%, rgba(161, 196, 253, 0.08) 100%)')
+                                : (isDarkMode 
+                                  ? 'rgba(255, 255, 255, 0.08)'
+                                  : 'rgba(0, 0, 0, 0.04)'),
+                              backdropFilter: 'blur(10px)',
                               border: editing 
-                                ? '2px solid rgba(116, 185, 255, 0.3)'
-                                : '2px solid rgba(0, 0, 0, 0.1)',
-                              borderRadius: 3,
-                              transition: 'all 0.3s ease',
+                                ? `2px solid ${theme.palette.info.main}40`
+                                : `2px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                              borderRadius: '16px',
+                              boxShadow: editing 
+                                ? '0 4px 20px rgba(116, 185, 255, 0.12)'
+                                : '0 2px 12px rgba(0,0,0,0.05)',
+                              transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                               '&:hover': editing ? {
-                                backgroundColor: isDarkMode ? 'rgba(116, 185, 255, 0.2)' : 'rgba(116, 185, 255, 0.12)',
-                                borderColor: 'rgba(116, 185, 255, 0.5)',
-                                transform: 'translateY(-1px)',
-                                boxShadow: '0 4px 12px rgba(116, 185, 255, 0.2)'
+                                background: isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(116, 185, 255, 0.25) 0%, rgba(161, 196, 253, 0.22) 100%)'
+                                  : 'linear-gradient(135deg, rgba(116, 185, 255, 0.15) 0%, rgba(161, 196, 253, 0.12) 100%)',
+                                borderColor: theme.palette.info.main,
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 8px 25px rgba(116, 185, 255, 0.2)'
                               } : {},
                               '&.Mui-focused': {
-                                backgroundColor: isDarkMode ? 'rgba(116, 185, 255, 0.25)' : 'rgba(116, 185, 255, 0.15)',
-                                borderColor: '#74b9ff',
-                                boxShadow: '0 0 0 3px rgba(116, 185, 255, 0.15)'
+                                background: isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(116, 185, 255, 0.3) 0%, rgba(161, 196, 253, 0.28) 100%)'
+                                  : 'linear-gradient(135deg, rgba(116, 185, 255, 0.18) 0%, rgba(161, 196, 253, 0.15) 100%)',
+                                borderColor: theme.palette.info.main,
+                                boxShadow: `0 0 0 4px ${theme.palette.info.main}20`
                               },
                               '& fieldset': {
                                 border: 'none'
                               }
                             },
                             '& .MuiInputBase-input': {
-                              padding: '16px 18px',
+                              padding: '18px 20px',
                               fontSize: '1rem',
                               fontWeight: editing ? 500 : 400,
                               color: editing ? 'text.primary' : 'text.secondary'
@@ -1544,44 +1618,56 @@ const ProfilePage = () => {
                               variant="outlined"
                               displayEmpty
                               sx={{
-                                borderRadius: '24px !important',
+                                borderRadius: '16px !important',
                                 '& .MuiOutlinedInput-root': {
-                                  backgroundColor: editing 
-                                    ? (isDarkMode ? 'rgba(253, 203, 110, 0.15)' : 'rgba(253, 203, 110, 0.08)')
-                                    : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)'),
+                                  background: editing 
+                                    ? (isDarkMode 
+                                      ? 'linear-gradient(135deg, rgba(253, 203, 110, 0.18) 0%, rgba(255, 231, 146, 0.15) 100%)'
+                                      : 'linear-gradient(135deg, rgba(253, 203, 110, 0.10) 0%, rgba(255, 231, 146, 0.08) 100%)')
+                                    : (isDarkMode 
+                                      ? 'rgba(255, 255, 255, 0.08)'
+                                      : 'rgba(0, 0, 0, 0.04)'),
+                                  backdropFilter: 'blur(10px)',
                                   border: editing 
-                                    ? '2px solid rgba(253, 203, 110, 0.3)'
-                                    : '2px solid rgba(0, 0, 0, 0.1)',
-                                  borderRadius: '24px !important',
-                                  transition: 'all 0.3s ease',
+                                    ? `2px solid ${theme.palette.warning.main}40`
+                                    : `2px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                                  borderRadius: '16px !important',
+                                  boxShadow: editing 
+                                    ? '0 4px 20px rgba(253, 203, 110, 0.12)'
+                                    : '0 2px 12px rgba(0,0,0,0.05)',
+                                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                                   '&:hover': editing ? {
-                                    backgroundColor: isDarkMode ? 'rgba(253, 203, 110, 0.2)' : 'rgba(253, 203, 110, 0.12)',
-                                    borderColor: 'rgba(253, 203, 110, 0.5)',
-                                    transform: 'translateY(-1px)',
-                                    boxShadow: '0 4px 12px rgba(253, 203, 110, 0.2)'
+                                    background: isDarkMode 
+                                      ? 'linear-gradient(135deg, rgba(253, 203, 110, 0.25) 0%, rgba(255, 231, 146, 0.22) 100%)'
+                                      : 'linear-gradient(135deg, rgba(253, 203, 110, 0.15) 0%, rgba(255, 231, 146, 0.12) 100%)',
+                                    borderColor: theme.palette.warning.main,
+                                    transform: 'translateY(-2px)',
+                                    boxShadow: '0 8px 25px rgba(253, 203, 110, 0.2)'
                                   } : {},
                                   '&.Mui-focused': {
-                                    backgroundColor: isDarkMode ? 'rgba(253, 203, 110, 0.25)' : 'rgba(253, 203, 110, 0.15)',
-                                    borderColor: '#fdcb6e',
-                                    boxShadow: '0 0 0 3px rgba(253, 203, 110, 0.15)'
+                                    background: isDarkMode 
+                                      ? 'linear-gradient(135deg, rgba(253, 203, 110, 0.3) 0%, rgba(255, 231, 146, 0.28) 100%)'
+                                      : 'linear-gradient(135deg, rgba(253, 203, 110, 0.18) 0%, rgba(255, 231, 146, 0.15) 100%)',
+                                    borderColor: theme.palette.warning.main,
+                                    boxShadow: `0 0 0 4px ${theme.palette.warning.main}20`
                                   },
                                   '& fieldset': {
                                     border: 'none',
-                                    borderRadius: '24px !important'
+                                    borderRadius: '16px !important'
                                   },
                                   '& .MuiOutlinedInput-notchedOutline': {
-                                    borderRadius: '24px !important'
+                                    borderRadius: '16px !important'
                                   }
                                 },
                                 '& .MuiSelect-select': {
-                                  padding: '16px 18px',
+                                  padding: '18px 20px',
                                   fontSize: '1rem',
                                   fontWeight: editing ? 500 : 400,
                                   color: editing ? 'text.primary' : 'text.secondary',
-                                  borderRadius: '24px !important'
+                                  borderRadius: '16px !important'
                                 },
                                 '& .MuiSelect-icon': {
-                                  color: editing ? '#fdcb6e' : 'text.secondary'
+                                  color: editing ? theme.palette.warning.main : 'text.secondary'
                                 }
                               }}
                             >
@@ -1601,13 +1687,17 @@ const ProfilePage = () => {
                         ) : (
                           <Box 
                             sx={{
-                              p: 2,
-                              borderRadius: 3,
-                              background: isDarkMode ? 'rgba(253, 203, 110, 0.1)' : 'rgba(253, 203, 110, 0.05)',
-                              border: '2px solid rgba(253, 203, 110, 0.2)',
+                              p: '18px 20px',
+                              borderRadius: '16px',
+                              background: isDarkMode 
+                                ? 'linear-gradient(135deg, rgba(253, 203, 110, 0.12) 0%, rgba(255, 231, 146, 0.10) 100%)'
+                                : 'linear-gradient(135deg, rgba(253, 203, 110, 0.06) 0%, rgba(255, 231, 146, 0.04) 100%)',
+                              backdropFilter: 'blur(10px)',
+                              border: `2px solid ${theme.palette.warning.main}20`,
+                              boxShadow: '0 2px 12px rgba(253, 203, 110, 0.08)',
                               display: 'flex',
                               alignItems: 'center',
-                              gap: 1
+                              gap: 2
                             }}
                           >
                             <Business sx={{ color: '#fdcb6e', fontSize: 20 }} />
@@ -1655,31 +1745,43 @@ const ProfilePage = () => {
                             placeholder="Ingresa el nombre de tu empresa"
                             sx={{
                               '& .MuiOutlinedInput-root': {
-                                backgroundColor: editing 
-                                  ? (isDarkMode ? 'rgba(225, 112, 85, 0.15)' : 'rgba(225, 112, 85, 0.08)')
-                                  : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)'),
+                                background: editing 
+                                  ? (isDarkMode 
+                                    ? 'linear-gradient(135deg, rgba(225, 112, 85, 0.18) 0%, rgba(255, 127, 80, 0.15) 100%)'
+                                    : 'linear-gradient(135deg, rgba(225, 112, 85, 0.10) 0%, rgba(255, 127, 80, 0.08) 100%)')
+                                  : (isDarkMode 
+                                    ? 'rgba(255, 255, 255, 0.08)'
+                                    : 'rgba(0, 0, 0, 0.04)'),
+                                backdropFilter: 'blur(10px)',
                                 border: editing 
-                                  ? '2px solid rgba(225, 112, 85, 0.3)'
-                                  : '2px solid rgba(0, 0, 0, 0.1)',
-                                borderRadius: 3,
-                                transition: 'all 0.3s ease',
+                                  ? `2px solid ${theme.palette.error.main}40`
+                                  : `2px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                                borderRadius: '16px',
+                                boxShadow: editing 
+                                  ? '0 4px 20px rgba(225, 112, 85, 0.12)'
+                                  : '0 2px 12px rgba(0,0,0,0.05)',
+                                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                                 '&:hover': editing ? {
-                                  backgroundColor: isDarkMode ? 'rgba(225, 112, 85, 0.2)' : 'rgba(225, 112, 85, 0.12)',
-                                  borderColor: 'rgba(225, 112, 85, 0.5)',
-                                  transform: 'translateY(-1px)',
-                                  boxShadow: '0 4px 12px rgba(225, 112, 85, 0.2)'
+                                  background: isDarkMode 
+                                    ? 'linear-gradient(135deg, rgba(225, 112, 85, 0.25) 0%, rgba(255, 127, 80, 0.22) 100%)'
+                                    : 'linear-gradient(135deg, rgba(225, 112, 85, 0.15) 0%, rgba(255, 127, 80, 0.12) 100%)',
+                                  borderColor: theme.palette.error.main,
+                                  transform: 'translateY(-2px)',
+                                  boxShadow: '0 8px 25px rgba(225, 112, 85, 0.2)'
                                 } : {},
                                 '&.Mui-focused': {
-                                  backgroundColor: isDarkMode ? 'rgba(225, 112, 85, 0.25)' : 'rgba(225, 112, 85, 0.15)',
-                                  borderColor: '#e17055',
-                                  boxShadow: '0 0 0 3px rgba(225, 112, 85, 0.15)'
+                                  background: isDarkMode 
+                                    ? 'linear-gradient(135deg, rgba(225, 112, 85, 0.3) 0%, rgba(255, 127, 80, 0.28) 100%)'
+                                    : 'linear-gradient(135deg, rgba(225, 112, 85, 0.18) 0%, rgba(255, 127, 80, 0.15) 100%)',
+                                  borderColor: theme.palette.error.main,
+                                  boxShadow: `0 0 0 4px ${theme.palette.error.main}20`
                                 },
                                 '& fieldset': {
                                   border: 'none'
                                 }
                               },
                               '& .MuiInputBase-input': {
-                                padding: '16px 18px',
+                                padding: '18px 20px',
                                 fontSize: '1rem',
                                 fontWeight: editing ? 500 : 400,
                                 color: editing ? 'text.primary' : 'text.secondary'
@@ -1689,13 +1791,17 @@ const ProfilePage = () => {
                         ) : (
                           <Box 
                             sx={{
-                              p: 2,
-                              borderRadius: 3,
-                              background: isDarkMode ? 'rgba(225, 112, 85, 0.1)' : 'rgba(225, 112, 85, 0.05)',
-                              border: '2px solid rgba(225, 112, 85, 0.2)',
+                              p: '18px 20px',
+                              borderRadius: '16px',
+                              background: isDarkMode 
+                                ? 'linear-gradient(135deg, rgba(225, 112, 85, 0.12) 0%, rgba(255, 127, 80, 0.10) 100%)'
+                                : 'linear-gradient(135deg, rgba(225, 112, 85, 0.06) 0%, rgba(255, 127, 80, 0.04) 100%)',
+                              backdropFilter: 'blur(10px)',
+                              border: `2px solid ${theme.palette.error.main}20`,
+                              boxShadow: '0 2px 12px rgba(225, 112, 85, 0.08)',
                               display: 'flex',
                               alignItems: 'center',
-                              gap: 1
+                              gap: 2
                             }}
                           >
                             <Business sx={{ color: '#e17055', fontSize: 20 }} />
@@ -1738,31 +1844,43 @@ const ProfilePage = () => {
                           placeholder="Ingresa tu ubicación"
                           sx={{
                             '& .MuiOutlinedInput-root': {
-                              backgroundColor: editing 
-                                ? (isDarkMode ? 'rgba(253, 121, 168, 0.15)' : 'rgba(253, 121, 168, 0.08)')
-                                : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)'),
+                              background: editing 
+                                ? (isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(253, 121, 168, 0.18) 0%, rgba(255, 159, 198, 0.15) 100%)'
+                                  : 'linear-gradient(135deg, rgba(253, 121, 168, 0.10) 0%, rgba(255, 159, 198, 0.08) 100%)')
+                                : (isDarkMode 
+                                  ? 'rgba(255, 255, 255, 0.08)'
+                                  : 'rgba(0, 0, 0, 0.04)'),
+                              backdropFilter: 'blur(10px)',
                               border: editing 
-                                ? '2px solid rgba(253, 121, 168, 0.3)'
-                                : '2px solid rgba(0, 0, 0, 0.1)',
-                              borderRadius: 3,
-                              transition: 'all 0.3s ease',
+                                ? `2px solid ${theme.palette.secondary.main}40`
+                                : `2px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                              borderRadius: '16px',
+                              boxShadow: editing 
+                                ? '0 4px 20px rgba(253, 121, 168, 0.12)'
+                                : '0 2px 12px rgba(0,0,0,0.05)',
+                              transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                               '&:hover': editing ? {
-                                backgroundColor: isDarkMode ? 'rgba(253, 121, 168, 0.2)' : 'rgba(253, 121, 168, 0.12)',
-                                borderColor: 'rgba(253, 121, 168, 0.5)',
-                                transform: 'translateY(-1px)',
-                                boxShadow: '0 4px 12px rgba(253, 121, 168, 0.2)'
+                                background: isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(253, 121, 168, 0.25) 0%, rgba(255, 159, 198, 0.22) 100%)'
+                                  : 'linear-gradient(135deg, rgba(253, 121, 168, 0.15) 0%, rgba(255, 159, 198, 0.12) 100%)',
+                                borderColor: theme.palette.secondary.main,
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 8px 25px rgba(253, 121, 168, 0.2)'
                               } : {},
                               '&.Mui-focused': {
-                                backgroundColor: isDarkMode ? 'rgba(253, 121, 168, 0.25)' : 'rgba(253, 121, 168, 0.15)',
-                                borderColor: '#fd79a8',
-                                boxShadow: '0 0 0 3px rgba(253, 121, 168, 0.15)'
+                                background: isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(253, 121, 168, 0.3) 0%, rgba(255, 159, 198, 0.28) 100%)'
+                                  : 'linear-gradient(135deg, rgba(253, 121, 168, 0.18) 0%, rgba(255, 159, 198, 0.15) 100%)',
+                                borderColor: theme.palette.secondary.main,
+                                boxShadow: `0 0 0 4px ${theme.palette.secondary.main}20`
                               },
                               '& fieldset': {
                                 border: 'none'
                               }
                             },
                             '& .MuiInputBase-input': {
-                              padding: '16px 18px',
+                              padding: '18px 20px',
                               fontSize: '1rem',
                               fontWeight: editing ? 500 : 400,
                               color: editing ? 'text.primary' : 'text.secondary'
@@ -1792,11 +1910,25 @@ const ProfilePage = () => {
                               startIcon={<Cancel />}
                               aria-label="Cancelar edición y descartar cambios"
                               sx={{
-                                borderColor: 'grey.400',
-                                color: 'grey.600',
+                                borderColor: 'transparent',
+                                background: isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(169, 169, 169, 0.15) 0%, rgba(128, 128, 128, 0.15) 100%)'
+                                  : 'linear-gradient(135deg, rgba(169, 169, 169, 0.08) 0%, rgba(128, 128, 128, 0.08) 100%)',
+                                backdropFilter: 'blur(10px)',
+                                color: 'text.secondary',
+                                fontWeight: 600,
+                                borderRadius: '16px',
+                                padding: '12px 24px',
+                                border: `2px solid ${isDarkMode ? 'rgba(169,169,169,0.2)' : 'rgba(128,128,128,0.2)'}`,
+                                boxShadow: '0 4px 15px rgba(169, 169, 169, 0.15)',
+                                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                                 '&:hover': {
-                                  borderColor: 'grey.600',
-                                  backgroundColor: 'grey.50'
+                                  background: isDarkMode 
+                                    ? 'linear-gradient(135deg, rgba(169, 169, 169, 0.25) 0%, rgba(128, 128, 128, 0.25) 100%)'
+                                    : 'linear-gradient(135deg, rgba(169, 169, 169, 0.15) 0%, rgba(128, 128, 128, 0.15) 100%)',
+                                  borderColor: isDarkMode ? 'rgba(169,169,169,0.4)' : 'rgba(128,128,128,0.4)',
+                                  transform: 'translateY(-2px)',
+                                  boxShadow: '0 8px 25px rgba(169, 169, 169, 0.25)'
                                 }
                               }}
                             >
@@ -1815,17 +1947,25 @@ const ProfilePage = () => {
                               aria-label={loading ? 'Guardando cambios del perfil' : 'Guardar cambios del perfil'}
                               sx={{
                                 background: Object.keys(errors).length > 0 
-                                  ? 'grey.400' 
-                                  : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
-                                '&:hover': {
-                                  background: Object.keys(errors).length > 0 
-                                    ? 'grey.400'
-                                    : 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
-                                  boxShadow: '0 6px 16px rgba(102, 126, 234, 0.4)'
-                                },
+                                  ? 'linear-gradient(135deg, rgba(169, 169, 169, 0.5) 0%, rgba(128, 128, 128, 0.5) 100%)'
+                                  : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                                backdropFilter: 'blur(10px)',
+                                borderRadius: '16px',
+                                padding: '12px 24px',
+                                fontWeight: 600,
+                                border: 'none',
+                                boxShadow: Object.keys(errors).length > 0 
+                                  ? '0 4px 15px rgba(169, 169, 169, 0.2)'
+                                  : `0 4px 20px ${theme.palette.primary.main}40`,
+                                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                                '&:hover': Object.keys(errors).length === 0 ? {
+                                  background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
+                                  transform: 'translateY(-2px)',
+                                  boxShadow: `0 8px 25px ${theme.palette.primary.main}50`
+                                } : {},
                                 '&:disabled': {
-                                  background: 'grey.400'
+                                  background: 'linear-gradient(135deg, rgba(169, 169, 169, 0.5) 0%, rgba(128, 128, 128, 0.5) 100%)',
+                                  color: 'rgba(255,255,255,0.5)'
                                 }
                               }}
                             >
@@ -1921,83 +2061,143 @@ const ProfilePage = () => {
                   {/* Header de Seguridad */}
                   <Box
                     sx={{
-                      p: 2.5,
-                      background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
+                      p: theme.spacing(3),
+                      background: `linear-gradient(135deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
+                      backdropFilter: 'blur(20px)',
                       color: 'white',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 2
+                      gap: theme.spacing(2),
+                      borderRadius: '16px 16px 0 0',
+                      boxShadow: `0 4px 20px ${theme.palette.error.main}30`
                     }}
                   >
-                    <Security sx={{ fontSize: 28 }} />
+                    <Security sx={{ fontSize: 32 }} />
                     <Box>
-                      <Typography variant="h6" fontWeight="bold">
+                      <Typography variant="h5" fontWeight={700}>
                         Seguridad y Privacidad
                       </Typography>
-                      <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                      <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 500 }}>
                         Gestiona la seguridad de tu cuenta
                       </Typography>
                     </Box>
                   </Box>
 
-                  <CardContent sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                    <Grid container spacing={3}>
+                  <CardContent sx={{ p: theme.spacing(2), flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    <Grid container spacing={theme.spacing(2)}>
                       
                       {/* Cambiar Contraseña */}
                       <Grid item xs={12} md={6}>
-                        <Card sx={{ 
-                          border: '2px solid rgba(231, 76, 60, 0.2)',
-                          borderRadius: 3,
-                          background: isDarkMode ? 'rgba(231, 76, 60, 0.1)' : 'rgba(231, 76, 60, 0.05)'
-                        }}>
-                          <CardContent>
-                            <Box display="flex" alignItems="center" gap={2} mb={2}>
-                              <VpnKey sx={{ color: '#e74c3c', fontSize: 28 }} />
-                              <Box>
-                                <Typography variant="h6" fontWeight="bold">
-                                  Contraseña
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  Cambia tu contraseña de acceso
-                                </Typography>
+                        <motion.div
+                          whileHover={{ scale: 1.02, y: -4 }}
+                          transition={{ type: "spring", stiffness: 300 }}
+                        >
+                          <Card sx={{ 
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            background: isDarkMode 
+                              ? 'linear-gradient(135deg, rgba(231, 76, 60, 0.15) 0%, rgba(192, 57, 43, 0.15) 100%)'
+                              : 'linear-gradient(135deg, rgba(231, 76, 60, 0.08) 0%, rgba(192, 57, 43, 0.08) 100%)',
+                            backdropFilter: 'blur(20px)',
+                            border: `2px solid ${theme.palette.error.main}30`,
+                            borderRadius: '16px',
+                            boxShadow: `0 8px 32px ${theme.palette.error.main}20`,
+                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              boxShadow: `0 12px 40px ${theme.palette.error.main}30`,
+                              border: `2px solid ${theme.palette.error.main}50`
+                            }
+                          }}>
+                            <CardContent sx={{ 
+                              p: theme.spacing(2), 
+                              flex: 1, 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              justifyContent: 'space-between' 
+                            }}>
+                              <Box display="flex" alignItems="center" gap={theme.spacing(2)} mb={theme.spacing(1.5)}>
+                                <VpnKey sx={{ color: theme.palette.error.main, fontSize: 28 }} />
+                                <Box>
+                                  <Typography variant="h6" fontWeight={600}>
+                                    Contraseña
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                    Cambia tu contraseña de acceso
+                                  </Typography>
+                                </Box>
                               </Box>
-                            </Box>
-                            <Button
-                              variant="contained"
-                              onClick={() => setShowPasswordDialog(true)}
-                              startIcon={<Lock />}
-                              sx={{
-                                background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
-                                '&:hover': {
-                                  background: 'linear-gradient(135deg, #c0392b 0%, #a93226 100%)'
-                                }
-                              }}
-                            >
-                              Cambiar Contraseña
-                            </Button>
-                          </CardContent>
-                        </Card>
+                              <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                <Button
+                                  variant="contained"
+                                  onClick={() => setShowPasswordDialog(true)}
+                                  startIcon={<Lock />}
+                                  sx={{
+                                    background: `linear-gradient(135deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
+                                    borderRadius: '12px',
+                                    padding: '12px 24px',
+                                    fontWeight: 600,
+                                    boxShadow: `0 4px 15px ${theme.palette.error.main}40`,
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    '&:hover': {
+                                      background: `linear-gradient(135deg, ${theme.palette.error.dark} 0%, ${theme.palette.error.main} 100%)`,
+                                      boxShadow: `0 6px 20px ${theme.palette.error.main}50`,
+                                      transform: 'translateY(-2px)'
+                                    }
+                                  }}
+                                >
+                                  Cambiar Contraseña
+                                </Button>
+                              </motion.div>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
                       </Grid>
 
                       {/* Cuentas Vinculadas */}
                       <Grid item xs={12} md={6}>
-                        <Card sx={{ 
-                          border: '2px solid rgba(52, 152, 219, 0.2)',
-                          borderRadius: 3,
-                          background: isDarkMode ? 'rgba(52, 152, 219, 0.1)' : 'rgba(52, 152, 219, 0.05)'
-                        }}>
-                          <CardContent>
-                            <Box display="flex" alignItems="center" gap={2} mb={2}>
-                              <Link sx={{ color: '#3498db', fontSize: 28 }} />
-                              <Box>
-                                <Typography variant="h6" fontWeight="bold">
-                                  Cuentas Vinculadas
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  Gestiona cuentas externas
-                                </Typography>
+                        <motion.div
+                          whileHover={{ scale: 1.02, y: -4 }}
+                          transition={{ type: "spring", stiffness: 300 }}
+                        >
+                          <Card sx={{ 
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            background: isDarkMode 
+                              ? 'linear-gradient(135deg, rgba(52, 152, 219, 0.15) 0%, rgba(41, 128, 185, 0.15) 100%)'
+                              : 'linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(41, 128, 185, 0.08) 100%)',
+                            backdropFilter: 'blur(20px)',
+                            border: `2px solid ${theme.palette.info.main}30`,
+                            borderRadius: '16px',
+                            boxShadow: `0 8px 32px ${theme.palette.info.main}20`,
+                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              boxShadow: `0 12px 40px ${theme.palette.info.main}30`,
+                              border: `2px solid ${theme.palette.info.main}50`
+                            }
+                          }}>
+                            <CardContent sx={{ 
+                              p: theme.spacing(2), 
+                              flex: 1, 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              justifyContent: 'space-between' 
+                            }}>
+                              <Box display="flex" alignItems="center" gap={theme.spacing(2)} mb={theme.spacing(1.5)}>
+                                <Link sx={{ color: theme.palette.info.main, fontSize: 28 }} />
+                                <Box>
+                                  <Typography variant="h6" fontWeight={600}>
+                                    Cuentas Vinculadas
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                    Gestiona cuentas externas
+                                  </Typography>
+                                </Box>
                               </Box>
-                            </Box>
                             
                             <List dense>
                               {linkedAccounts.length > 0 ? linkedAccounts.map((account, index) => (
@@ -2029,52 +2229,122 @@ const ProfilePage = () => {
                               )}
                             </List>
                             
-                            <Box display="flex" gap={1} mt={2}>
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                startIcon={<Google />}
-                                onClick={() => handleLinkAccount('google')}
-                                disabled={linkedAccounts.some(acc => acc.providerId === 'google.com')}
+                            <Box display="flex" gap={theme.spacing(1.5)} mt={theme.spacing(1.5)}>
+                              <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
                               >
-                                Google
-                              </Button>
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                startIcon={<Microsoft />}
-                                onClick={() => handleLinkAccount('microsoft')}
-                                disabled={linkedAccounts.some(acc => acc.providerId === 'microsoft.com')}
+                                <Button
+                                  size="medium"
+                                  variant="outlined"
+                                  startIcon={<Google />}
+                                  onClick={() => handleLinkAccount('google')}
+                                  disabled={linkedAccounts.some(acc => acc.providerId === 'google.com')}
+                                  sx={{
+                                    borderColor: 'transparent',
+                                    background: isDarkMode 
+                                      ? 'linear-gradient(135deg, rgba(66, 133, 244, 0.15) 0%, rgba(52, 168, 83, 0.15) 100%)'
+                                      : 'linear-gradient(135deg, rgba(66, 133, 244, 0.08) 0%, rgba(52, 168, 83, 0.08) 100%)',
+                                    backdropFilter: 'blur(10px)',
+                                    borderRadius: '12px',
+                                    padding: '8px 16px',
+                                    fontWeight: 600,
+                                    border: `2px solid rgba(66, 133, 244, 0.3)`,
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    '&:hover': {
+                                      background: isDarkMode 
+                                        ? 'linear-gradient(135deg, rgba(66, 133, 244, 0.25) 0%, rgba(52, 168, 83, 0.25) 100%)'
+                                        : 'linear-gradient(135deg, rgba(66, 133, 244, 0.15) 0%, rgba(52, 168, 83, 0.15) 100%)',
+                                      borderColor: 'rgba(66, 133, 244, 0.6)',
+                                      transform: 'translateY(-2px)',
+                                      boxShadow: '0 4px 15px rgba(66, 133, 244, 0.3)'
+                                    }
+                                  }}
+                                >
+                                  Google
+                                </Button>
+                              </motion.div>
+                              <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
                               >
-                                Microsoft
-                              </Button>
+                                <Button
+                                  size="medium"
+                                  variant="outlined"
+                                  startIcon={<Microsoft />}
+                                  onClick={() => handleLinkAccount('microsoft')}
+                                  disabled={linkedAccounts.some(acc => acc.providerId === 'microsoft.com')}
+                                  sx={{
+                                    borderColor: 'transparent',
+                                    background: isDarkMode 
+                                      ? 'linear-gradient(135deg, rgba(0, 120, 212, 0.15) 0%, rgba(16, 110, 190, 0.15) 100%)'
+                                      : 'linear-gradient(135deg, rgba(0, 120, 212, 0.08) 0%, rgba(16, 110, 190, 0.08) 100%)',
+                                    backdropFilter: 'blur(10px)',
+                                    borderRadius: '12px',
+                                    padding: '8px 16px',
+                                    fontWeight: 600,
+                                    border: `2px solid rgba(0, 120, 212, 0.3)`,
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    '&:hover': {
+                                      background: isDarkMode 
+                                        ? 'linear-gradient(135deg, rgba(0, 120, 212, 0.25) 0%, rgba(16, 110, 190, 0.25) 100%)'
+                                        : 'linear-gradient(135deg, rgba(0, 120, 212, 0.15) 0%, rgba(16, 110, 190, 0.15) 100%)',
+                                      borderColor: 'rgba(0, 120, 212, 0.6)',
+                                      transform: 'translateY(-2px)',
+                                      boxShadow: '0 4px 15px rgba(0, 120, 212, 0.3)'
+                                    }
+                                  }}
+                                >
+                                  Microsoft
+                                </Button>
+                              </motion.div>
                             </Box>
-                          </CardContent>
-                        </Card>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
                       </Grid>
 
                       {/* Historial de Actividad */}
                       <Grid item xs={12}>
-                        <Card sx={{ 
-                          border: '2px solid rgba(155, 89, 182, 0.2)',
-                          borderRadius: 3,
-                          background: isDarkMode ? 'rgba(155, 89, 182, 0.1)' : 'rgba(155, 89, 182, 0.05)'
-                        }}>
-                          <CardContent>
-                            <Box display="flex" alignItems="center" justify="space-between" mb={2}>
-                              <Box display="flex" alignItems="center" gap={2}>
-                                <History sx={{ color: '#9b59b6', fontSize: 28 }} />
-                                <Box>
-                                  <Typography variant="h6" fontWeight="bold">
-                                    Historial de Actividad
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    Últimos accesos y actividades
-                                  </Typography>
+                        <motion.div
+                          whileHover={{ scale: 1.01, y: -2 }}
+                          transition={{ type: "spring", stiffness: 300 }}
+                        >
+                          <Card sx={{ 
+                            background: isDarkMode 
+                              ? 'linear-gradient(135deg, rgba(155, 89, 182, 0.15) 0%, rgba(142, 68, 173, 0.15) 100%)'
+                              : 'linear-gradient(135deg, rgba(155, 89, 182, 0.08) 0%, rgba(142, 68, 173, 0.08) 100%)',
+                            backdropFilter: 'blur(20px)',
+                            border: `2px solid ${theme.palette.secondary.main}30`,
+                            borderRadius: '16px',
+                            boxShadow: `0 8px 32px ${theme.palette.secondary.main}20`,
+                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              boxShadow: `0 12px 40px ${theme.palette.secondary.main}30`,
+                              border: `2px solid ${theme.palette.secondary.main}50`
+                            }
+                          }}>
+                            <CardContent sx={{ 
+                              p: theme.spacing(2), 
+                              flex: 1, 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              justifyContent: 'space-between' 
+                            }}>
+                              <Box display="flex" alignItems="center" justify="space-between" mb={theme.spacing(1.5)}>
+                                <Box display="flex" alignItems="center" gap={theme.spacing(2)}>
+                                  <History sx={{ color: theme.palette.secondary.main, fontSize: 28 }} />
+                                  <Box>
+                                    <Typography variant="h6" fontWeight={600}>
+                                      Historial de Actividad
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                      Últimos accesos y actividades
+                                    </Typography>
+                                  </Box>
                                 </Box>
+                                {loadingHistory && <CircularProgress size={24} sx={{ color: theme.palette.secondary.main }} />}
                               </Box>
-                              {loadingHistory && <CircularProgress size={24} />}
-                            </Box>
                             
                             <List>
                               {loginHistory.length > 0 ? loginHistory.slice(0, 5).map((entry, index) => (
@@ -2119,51 +2389,98 @@ const ProfilePage = () => {
                                 </Typography>
                               )}
                             </List>
-                          </CardContent>
-                        </Card>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
                       </Grid>
 
                       {/* Eliminar Cuenta */}
                       <Grid item xs={12}>
-                        <Card sx={{ 
-                          border: '2px solid rgba(192, 57, 43, 0.3)',
-                          borderRadius: 3,
-                          background: isDarkMode ? 'rgba(192, 57, 43, 0.1)' : 'rgba(192, 57, 43, 0.05)'
-                        }}>
-                          <CardContent>
-                            <Box display="flex" alignItems="center" gap={2} mb={2}>
-                              <Warning sx={{ color: '#c0392b', fontSize: 28 }} />
-                              <Box>
-                                <Typography variant="h6" fontWeight="bold" color="error">
-                                  Zona de Peligro
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  Acciones irreversibles
-                                </Typography>
+                        <motion.div
+                          whileHover={{ scale: 1.01, y: -2 }}
+                          transition={{ type: "spring", stiffness: 300 }}
+                        >
+                          <Card sx={{ 
+                            background: isDarkMode 
+                              ? 'linear-gradient(135deg, rgba(192, 57, 43, 0.18) 0%, rgba(169, 50, 38, 0.18) 100%)'
+                              : 'linear-gradient(135deg, rgba(192, 57, 43, 0.10) 0%, rgba(169, 50, 38, 0.10) 100%)',
+                            backdropFilter: 'blur(20px)',
+                            border: `3px solid ${theme.palette.error.main}40`,
+                            borderRadius: '16px',
+                            boxShadow: `0 8px 32px ${theme.palette.error.main}25`,
+                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              boxShadow: `0 12px 40px ${theme.palette.error.main}35`,
+                              border: `3px solid ${theme.palette.error.main}60`
+                            }
+                          }}>
+                            <CardContent sx={{ 
+                              p: theme.spacing(1.5), 
+                              flex: 1, 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              justifyContent: 'space-between' 
+                            }}>
+                              <Box display="flex" alignItems="center" gap={theme.spacing(2)} mb={theme.spacing(1)}>
+                                <Warning sx={{ color: theme.palette.error.main, fontSize: 24 }} />
+                                <Box>
+                                  <Typography variant="h6" fontWeight={600} color="error">
+                                    Zona de Peligro
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                    Acciones irreversibles
+                                  </Typography>
+                                </Box>
                               </Box>
-                            </Box>
-                            
-                            <Alert severity="warning" sx={{ mb: 2 }}>
-                              Eliminar tu cuenta es una acción permanente. Todos tus datos serán eliminados 
-                              y no podrán ser recuperados.
-                            </Alert>
-                            
-                            <Button
-                              variant="contained"
-                              color="error"
-                              onClick={() => setShowDeleteDialog(true)}
-                              startIcon={<DeleteForever />}
-                              sx={{
-                                background: 'linear-gradient(135deg, #c0392b 0%, #a93226 100%)',
-                                '&:hover': {
-                                  background: 'linear-gradient(135deg, #a93226 0%, #922b21 100%)'
-                                }
-                              }}
-                            >
-                              Eliminar Cuenta Permanentemente
-                            </Button>
-                          </CardContent>
-                        </Card>
+                              
+                              <Alert 
+                                severity="warning" 
+                                sx={{ 
+                                  mb: theme.spacing(1.5),
+                                  borderRadius: '12px',
+                                  background: isDarkMode 
+                                    ? 'linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(245, 124, 0, 0.15) 100%)'
+                                    : 'linear-gradient(135deg, rgba(255, 152, 0, 0.08) 0%, rgba(245, 124, 0, 0.08) 100%)',
+                                  backdropFilter: 'blur(10px)',
+                                  border: `2px solid ${theme.palette.warning.main}30`,
+                                  fontWeight: 500,
+                                  fontSize: '0.8rem'
+                                }}
+                              >
+                                Eliminar tu cuenta es una acción permanente. Todos tus datos serán eliminados 
+                                y no podrán ser recuperados.
+                              </Alert>
+                              
+                              <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                <Button
+                                  variant="contained"
+                                  color="error"
+                                  onClick={() => setShowDeleteDialog(true)}
+                                  startIcon={<DeleteForever />}
+                                  sx={{
+                                    background: `linear-gradient(135deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
+                                    borderRadius: '12px',
+                                    padding: '8px 16px',
+                                    fontWeight: 600,
+                                    fontSize: '0.8rem',
+                                    boxShadow: `0 3px 12px ${theme.palette.error.main}40`,
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    '&:hover': {
+                                      background: `linear-gradient(135deg, ${theme.palette.error.dark} 0%, #8B0000 100%)`,
+                                      boxShadow: `0 4px 15px ${theme.palette.error.main}50`,
+                                      transform: 'translateY(-1px)'
+                                    }
+                                  }}
+                                >
+                                  Eliminar Cuenta Permanentemente
+                                </Button>
+                              </motion.div>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
                       </Grid>
 
                     </Grid>
