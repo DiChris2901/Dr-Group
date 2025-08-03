@@ -1,0 +1,41 @@
+{
+  "name": "dr-group-dashboard",
+  "version": "1.0.0",
+  "description": "Dashboard de Control de Compromisos Financieros para DR Group",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "dev-local": "vite --host 0.0.0.0 --port 5173",
+    "build": "vite build",
+    "preview": "vite preview",
+    "setup-arm64": "setup-arm64.bat",
+    "install:arm64": "pnpm install",
+    "dev:arm64": "pnpm dev",
+    "build:arm64": "pnpm build",
+    "functions:install": "cd functions && npm install",
+    "functions:serve": "cd functions && npm run serve",
+    "functions:deploy": "cd functions && npm run deploy"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.15.0",
+    "@mui/material": "^5.15.0",
+    "@mui/x-date-pickers": "^8.9.2",
+    "date-fns": "^2.30.0",
+    "firebase": "^10.7.1",
+    "framer-motion": "^10.16.16",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.1",
+    "recharts": "^3.1.0"
+  },
+  "devDependencies": {
+    "@rollup/rollup-win32-arm64-msvc": "^4.46.2",
+    "@rollup/rollup-win32-x64-msvc": "^4.46.2",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.0.8"
+  }
+}

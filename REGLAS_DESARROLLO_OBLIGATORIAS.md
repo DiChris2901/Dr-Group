@@ -24,6 +24,7 @@
 - [ ] **LISTAR ARCHIVOS**: Archivos específicos a modificar con rutas exactas
 - [ ] **BACKUP LOCAL**: Crear .backup del archivo original
 - [ ] **VERIFICAR TERMINAL**: Que el servidor dev esté corriendo
+- [ ] **LISTAR ACTIVIDADES Y SOLICITAR AUTORIZACIÓN**: Antes de cualquier cambio, lista detalladamente las acciones a realizar y espera la autorización expresa del responsable para iniciar.
 
 ## 🔍 1. ANÁLISIS PREVIO (CRÍTICO)
 - [ ] **IDENTIFICAR ARCHIVOS**: Con rutas exactas completas
@@ -64,10 +65,11 @@
 - [ ] **VERIFICAR ESTILOS**: Gradientes spectacular y micro-interacciones
 - [ ] **TESTEAR RESPONSIVE**: Si aplica mobile/desktop
 - [ ] **DATOS FIREBASE**: Que se muestren correctamente
+- [ ] **CONFIRMAR QUE NO HAY DATOS DUMMY**: Asegurar que solo se muestren datos reales provenientes de Firebase.
 
 ## 📦 7. COMMIT ESTRATÉGICO
 - [ ] **GIT ADD STATUS**: Revisar staged files
-- [ ] **COMMITS CORTOS**: Máximo 50 caracteres
+- [ ] **COMMITS CORTOS**: Máximo 50 caracteres, **nunca commits largos o detallados**
 - [ ] **DESCRIPTIVOS**: "✨ Add: TimeProgress component"
 - [ ] **NO MASIVOS**: No commits con 20+ archivos
 - [ ] **POWERSHELL COMPATIBLE**: Comandos que funcionen en Windows
@@ -75,6 +77,7 @@
 - [ ] **CREAR TAG**: git tag -a v1.0.x -m "Descripción del tag"
 - [ ] **PUSH COMPLETO**: git push -u origin main --tags
 - [ ] **VERIFICAR EN GITHUB**: Confirmar que aparezca en la web
+- [ ] **ELIMINAR BACKUPS INNECESARIOS**: Después de que el responsable confirme que todo está perfecto, eliminar todos los backups temporales generados durante la sesión antes de realizar el commit y push.
 
 ## ✅ 8. CONFIRMACIÓN INTEGRAL
 - [ ] **APP CARGA**: Sin spinner infinito
@@ -124,6 +127,7 @@ Si se sigue paso a paso, es capaz de rescatar el proyecto incluso si todo falla.
     git status
     ```
 3. **Listar archivos a modificar y documentar cambios previstos.**
+4. **Listar actividades y solicitar autorización antes de cualquier cambio.**
 
 ### 3. MODIFICACIÓN CONTROLADA
 
@@ -140,6 +144,7 @@ Si se sigue paso a paso, es capaz de rescatar el proyecto incluso si todo falla.
 2. **Si hay errores → STOP → Leer contexto → Corregir → Volver a verificar.**
 3. **Asegurarse de que auto-refresh y funcionalidad estén activas.**
 4. **Verificar que la consola esté limpia y los datos de Firebase se muestren correctamente.**
+5. **Confirmar que no haya datos Dummy, solo datos reales de Firebase.**
 
 ### 5. PROTOCOLO DE RECUPERACIÓN EN CASO DE ERROR GRAVE
 
@@ -170,7 +175,7 @@ Si se sigue paso a paso, es capaz de rescatar el proyecto incluso si todo falla.
 
 1. **Ejecutar `npm run dev` solo cuando todo esté correcto y sin errores.**
 2. **Probar la funcionalidad afectada, navegación, responsive y datos reales.**
-3. **Eliminar backups innecesarios para mantener el proyecto limpio.**
+3. **Eliminar backups innecesarios para mantener el proyecto limpio, solo después de que el responsable confirme que todo está perfecto.**
     ```bash
     rm archivo.jsx.backup
     ```
@@ -186,7 +191,9 @@ Si se sigue paso a paso, es capaz de rescatar el proyecto incluso si todo falla.
 - [ ] ¿Documenté los cambios y errores?
 - [ ] ¿Probé la funcionalidad y responsive?
 - [ ] ¿Eliminé backups después de confirmar que todo funciona?
-- [ ] ¿Commit y push realizados correctamente?
+- [ ] ¿Commit corto y push realizados correctamente?
+- [ ] ¿Solicité autorización antes de cada acción importante?
+- [ ] ¿Verifiqué que no hay datos Dummy, solo datos reales de Firebase?
 
 ### RESULTADO ESPERADO
 
@@ -213,6 +220,7 @@ Si se sigue paso a paso, es capaz de rescatar el proyecto incluso si todo falla.
 11. **Implementar animaciones excesivas** que no sigan los patrones spectacular
 12. **No crear tags** después de commits importantes
 13. **No hacer push** dejando commits solo en local
+14. **No eliminar datos Dummy** y mostrar datos irreales o estáticos
 
 ## 📋 CHECKLIST OBLIGATORIO ANTES DE CUALQUIER ACCIÓN
 
@@ -223,6 +231,8 @@ Si se sigue paso a paso, es capaz de rescatar el proyecto incluso si todo falla.
 - [ ] ¿Preservaré la conexión Firebase?
 - [ ] ¿Es un cambio mínimo y controlado?
 - [ ] ¿Tengo plan de rollback listo?
+- [ ] ¿Listé actividades y solicité autorización?
+- [ ] ¿Verificaré que no haya datos Dummy, solo datos reales de Firebase?
 
 ## 🎯 FRASES OBLIGATORIAS QUE USARÉ
 
@@ -230,6 +240,7 @@ Si se sigue paso a paso, es capaz de rescatar el proyecto incluso si todo falla.
 - "Primero voy a crear backup y leer el archivo completo"
 - "Verificando dependencias con grep_search"
 - "Confirmando que mantendré formato COP y Firebase"
+- "Listando actividades y esperando autorización antes de iniciar"
 
 **DURANTE LOS CAMBIOS:**
 - "Modificando solo un archivo, guardando y verificando"
@@ -241,6 +252,7 @@ Si se sigue paso a paso, es capaz de rescatar el proyecto incluso si todo falla.
 - "Verificando consola limpia y datos correctos"
 - "Creando commit corto y descriptivo"
 - "Creando tag con versión v1.0.x"
+- "Eliminando backups innecesarios tras confirmación"
 - "Haciendo push completo con tags a GitHub"
 
 ## 🚨 COMPROMISO INQUEBRANTABLE
@@ -255,9 +267,12 @@ Si se sigue paso a paso, es capaz de rescatar el proyecto incluso si todo falla.
 6. 🔥 **PRESERVARÉ FIREBASE** y conexiones existentes
 7. ✅ **PROBARÉ CADA CAMBIO** verificando localhost:3000 auto-refresh
 8. 📱 **VERIFICARÉ NAVEGADOR** después de cada modificación
+9. ⏳ **ELIMINARÉ BACKUPS INNECESARIOS SOLO TRAS CONFIRMACIÓN**
+10. 🟢 **PEDIRÉ AUTORIZACIÓN ANTES DE CADA ACCIÓN IMPORTANTE**
+11. 🟠 **VERIFICARÉ QUE NO HAYA DATOS DUMMY, SOLO DATOS REALES DE FIREBASE**
 
-**ESTA ES LA LEY SUPREMA DEL PROYECTO**
-**CUMPLIMIENTO OBLIGATORIO E INQUEBRANTABLE**
+**ESTA ES LA LEY SUPREMA DEL PROYECTO**  
+**CUMPLIMIENTO OBLIGATORIO E INQUEBRANTABLE**  
 **NO ADMITE EXCEPCIONES NI ATAJOS**
 
 ## ⚠️ RECORDATORIO FINAL
@@ -266,6 +281,6 @@ Si se sigue paso a paso, es capaz de rescatar el proyecto incluso si todo falla.
 3. NO hay desarrollos "pequeños" que puedan saltar verificaciones
 4. La calidad del proyecto depende del cumplimiento ESTRICTO de estas reglas
 5. El incumplimiento de cualquier regla es motivo de ROLLBACK inmediato
-6. **LIMPIEZA POST-VERIFICACIÓN**: Después de confirmar que NO hay errores, ELIMINAR todos los backups para mantener el proyecto limpio y eficiente
+6. **LIMPIEZA POST-VERIFICACIÓN:** Después de confirmar que NO hay errores, ELIMINAR todos los backups para mantener el proyecto limpio y eficiente
 
 **FIRMO Y ACEPTO ESTAS REGLAS COMO LEY FUNDAMENTAL DEL DESARROLLO**
