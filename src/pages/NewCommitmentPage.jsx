@@ -20,7 +20,9 @@ import {
   Divider,
   FormControlLabel,
   Checkbox,
-  Autocomplete
+  Autocomplete,
+  Fab,
+  Tooltip
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -33,7 +35,9 @@ import {
   AccountBalance as BankIcon,
   Person as PersonIcon,
   Payment as PaymentIcon,
-  Schedule as ScheduleIcon
+  Schedule as ScheduleIcon,
+  Settings as SettingsIcon,
+  TuneIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -43,6 +47,7 @@ import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { useSettings } from '../context/SettingsContext';
+import ConfigurationCompatibilityAnalyzer from '../components/settings/ConfigurationCompatibilityAnalyzer';
 
 const NewCommitmentPage = () => {
   const { currentUser } = useAuth();
@@ -61,6 +66,9 @@ const NewCommitmentPage = () => {
   const [beneficiariesSuggestions, setBeneficiariesSuggestions] = useState([]);
   const [conceptsSuggestions, setConceptsSuggestions] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
+  
+  // Estado para el analizador de compatibilidad
+  const [showCompatibilityAnalyzer, setShowCompatibilityAnalyzer] = useState(false);
 
   // Obtener empresa preseleccionada desde la navegación
   const preselectedCompany = location.state?.preselectedCompany;
@@ -1259,6 +1267,49 @@ const NewCommitmentPage = () => {
             </Alert>
           </motion.div>
         </motion.div>
+
+        {/* Floating Action Button para Analizador de Compatibilidad */}
+        <Tooltip 
+          title="Analizar Compatibilidad de Configuraciones"
+          placement="left"
+        >
+          <Fab
+            onClick={() => setShowCompatibilityAnalyzer(true)}
+            sx={{
+              position: 'fixed',
+              bottom: 32,
+              right: 32,
+              background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+              color: 'white',
+              zIndex: 1000,
+              transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+              '&:hover': animationsEnabled ? {
+                transform: 'scale(1.1) rotate(15deg)',
+                boxShadow: theme.palette.mode === 'dark' 
+                  ? '0 12px 30px rgba(0, 0, 0, 0.4)' 
+                  : '0 12px 30px rgba(0, 0, 0, 0.25)',
+              } : {},
+              boxShadow: theme.palette.mode === 'dark' 
+                ? '0 8px 25px rgba(0, 0, 0, 0.3)' 
+                : '0 8px 25px rgba(0, 0, 0, 0.15)',
+            }}
+          >
+            <motion.div
+              animate={animationsEnabled ? { rotate: [0, 10, -10, 0] } : {}}
+              transition={{ duration: 2, repeat: Infinity, repeatDelay: 5 }}
+            >
+              <SettingsIcon sx={{ fontSize: 28 }} />
+            </motion.div>
+          </Fab>
+        </Tooltip>
+
+        {/* Analizador de Compatibilidad de Configuraciones */}
+        <ConfigurationCompatibilityAnalyzer
+          pageName="NewCommitmentPage"
+          pageUrl="http://localhost:5173/commitments/new"
+          isOpen={showCompatibilityAnalyzer}
+          onClose={() => setShowCompatibilityAnalyzer(false)}
+        />
       </Box>
     );
   };
