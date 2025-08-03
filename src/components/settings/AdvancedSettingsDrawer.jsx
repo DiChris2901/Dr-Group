@@ -172,7 +172,7 @@ function TabPanel({ children, value, index, ...other }) {
 
 export function AdvancedSettingsDrawer({ open, onClose }) {
   const theme = useTheme();
-  const { settings, updateSettings, resetSettings } = useSettings();
+  const { settings, updateSettings, resetSettings, loading: settingsLoading, error: settingsError } = useSettings();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [saveMessage, setSaveMessage] = useState('');
@@ -195,22 +195,49 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
   };
 
   // Función para guardar configuración
-  const handleSaveSettings = () => {
-    setSaveMessage('Configuración guardada con éxito');
-    setShowSaveSuccess(true);
-    setTimeout(() => {
-      setShowSaveSuccess(false);
-    }, 3000);
+  const handleSaveSettings = async () => {
+    try {
+      setSaveMessage('Guardando configuración...');
+      setShowSaveSuccess(true);
+      
+      // Las configuraciones ya se guardan automáticamente en Firebase
+      // Solo mostramos confirmación al usuario
+      setTimeout(() => {
+        setSaveMessage('Configuración guardada con éxito en Firebase');
+      }, 1000);
+      
+      setTimeout(() => {
+        setShowSaveSuccess(false);
+      }, 3000);
+    } catch (error) {
+      setSaveMessage('Error al guardar configuración');
+      setTimeout(() => {
+        setShowSaveSuccess(false);
+      }, 3000);
+    }
   };
 
   // Función para restaurar configuración
-  const handleResetSettings = () => {
-    resetSettings();
-    setSaveMessage('Configuración restaurada a valores por defecto');
-    setShowSaveSuccess(true);
-    setTimeout(() => {
-      setShowSaveSuccess(false);
-    }, 3000);
+  const handleResetSettings = async () => {
+    try {
+      setSaveMessage('Restaurando configuraciones...');
+      setShowSaveSuccess(true);
+      
+      await resetSettings();
+      
+      setTimeout(() => {
+        setSaveMessage('Configuración restaurada a valores por defecto');
+      }, 1000);
+      
+      setTimeout(() => {
+        setShowSaveSuccess(false);
+      }, 3000);
+    } catch (error) {
+      setSaveMessage('Error al restaurar configuración');
+      setTimeout(() => {
+        setShowSaveSuccess(false);
+      }, 3000);
+    }
   };
 
   // Funciones de seguridad
@@ -491,9 +518,35 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary' }}>
                       Configuración
                     </Typography>
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      Personaliza tu dashboard
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                        Personaliza tu dashboard
+                      </Typography>
+                      {settingsLoading && (
+                        <Chip
+                          label="Sincronizando..."
+                          size="small"
+                          color="primary"
+                          sx={{ fontSize: '0.7rem', height: 18 }}
+                        />
+                      )}
+                      {user && !settingsLoading && (
+                        <Chip
+                          label="Guardado en Firebase"
+                          size="small"
+                          color="success"
+                          sx={{ fontSize: '0.7rem', height: 18 }}
+                        />
+                      )}
+                      {settingsError && (
+                        <Chip
+                          label="Error de sincronización"
+                          size="small"
+                          color="error"
+                          sx={{ fontSize: '0.7rem', height: 18 }}
+                        />
+                      )}
+                    </Box>
                   </Box>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1 }}>

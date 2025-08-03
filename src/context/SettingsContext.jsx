@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { auth, db } from '../config/firebase';
+import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const SettingsContext = createContext();
 
@@ -145,45 +148,213 @@ const backgroundPresets = {
 };
 
 const SettingsProvider = ({ children }) => {
-  const [settings, setSettings] = useState(() => {
-    // Cargar configuración guardada o usar por defecto
-    const savedSettings = localStorage.getItem('drgroup-settings');
-    if (savedSettings) {
+  const [user, setUser] = useState(null);
+  const [settings, setSettings] = useState(defaultSettings);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Listener para cambios de autenticación
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Cargar configuraciones desde Firebase cuando el usuario cambia
+  useEffect(() => {
+    if (!user) {
+      // Si no hay usuario, usar configuración local o por defecto
+      const savedSettings = localStorage.getItem('drgroup-settings');
+      if (savedSettings) {
+        try {
+          setSettings({ ...defaultSettings, ...JSON.parse(savedSettings) });
+        } catch (error) {
+          console.error('Error loading local settings:', error);
+          setSettings(defaultSettings);
+        }
+      } else {
+        setSettings(defaultSettings);
+      }
+      setLoading(false);
+      return;
+    }
+
+    const loadUserSettings = async () => {
       try {
-        return { ...defaultSettings, ...JSON.parse(savedSettings) };
+        setLoading(true);
+        setError(null);
+        
+        const userSettingsRef = doc(db, 'userSettings', user.uid);
+        const docSnap = await getDoc(userSettingsRef);
+        
+        if (docSnap.exists()) {
+          const firebaseSettings = docSnap.data();
+          // Merge configuraciones de Firebase con las por defecto
+          const mergedSettings = {
+            ...defaultSettings,
+            ...firebaseSettings,
+            // Asegurar que nested objects se mezclen correctamente
+            theme: { ...defaultSettings.theme, ...firebaseSettings.theme },
+            sidebar: { ...defaultSettings.sidebar, ...firebaseSettings.sidebar },
+            dashboard: { 
+              ...defaultSettings.dashboard, 
+              ...firebaseSettings.dashboard,
+              layout: { ...defaultSettings.dashboard.layout, ...firebaseSettings.dashboard?.layout },
+              widgets: { ...defaultSettings.dashboard.widgets, ...firebaseSettings.dashboard?.widgets },
+              alerts: { ...defaultSettings.dashboard.alerts, ...firebaseSettings.dashboard?.alerts },
+              behavior: { ...defaultSettings.dashboard.behavior, ...firebaseSettings.dashboard?.behavior },
+              appearance: { ...defaultSettings.dashboard.appearance, ...firebaseSettings.dashboard?.appearance }
+            },
+            notifications: { ...defaultSettings.notifications, ...firebaseSettings.notifications }
+          };
+          setSettings(mergedSettings);
+          
+          // También guardar en localStorage como backup
+          localStorage.setItem('drgroup-settings', JSON.stringify(mergedSettings));
+        } else {
+          // Si no existe documento, crear uno con configuración por defecto
+          await setDoc(userSettingsRef, {
+            ...defaultSettings,
+            createdAt: new Date(),
+            lastUpdated: new Date()
+          });
+          setSettings(defaultSettings);
+          localStorage.setItem('drgroup-settings', JSON.stringify(defaultSettings));
+        }
       } catch (error) {
-        console.error('Error loading saved settings:', error);
-        return defaultSettings;
+        console.error('Error loading user settings from Firebase:', error);
+        setError('Error al cargar configuraciones');
+        
+        // Fallback a localStorage
+        const savedSettings = localStorage.getItem('drgroup-settings');
+        if (savedSettings) {
+          try {
+            setSettings({ ...defaultSettings, ...JSON.parse(savedSettings) });
+          } catch (e) {
+            setSettings(defaultSettings);
+          }
+        } else {
+          setSettings(defaultSettings);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserSettings();
+
+    // Listener en tiempo real para cambios de configuración
+    const userSettingsRef = doc(db, 'userSettings', user.uid);
+    const unsubscribe = onSnapshot(userSettingsRef, (doc) => {
+      if (doc.exists()) {
+        const firebaseSettings = doc.data();
+        const mergedSettings = {
+          ...defaultSettings,
+          ...firebaseSettings,
+          theme: { ...defaultSettings.theme, ...firebaseSettings.theme },
+          sidebar: { ...defaultSettings.sidebar, ...firebaseSettings.sidebar },
+          dashboard: { 
+            ...defaultSettings.dashboard, 
+            ...firebaseSettings.dashboard,
+            layout: { ...defaultSettings.dashboard.layout, ...firebaseSettings.dashboard?.layout },
+            widgets: { ...defaultSettings.dashboard.widgets, ...firebaseSettings.dashboard?.widgets },
+            alerts: { ...defaultSettings.dashboard.alerts, ...firebaseSettings.dashboard?.alerts },
+            behavior: { ...defaultSettings.dashboard.behavior, ...firebaseSettings.dashboard?.behavior },
+            appearance: { ...defaultSettings.dashboard.appearance, ...firebaseSettings.dashboard?.appearance }
+          },
+          notifications: { ...defaultSettings.notifications, ...firebaseSettings.notifications }
+        };
+        setSettings(mergedSettings);
+        localStorage.setItem('drgroup-settings', JSON.stringify(mergedSettings));
+      }
+    }, (error) => {
+      console.error('Error listening to settings changes:', error);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Función para actualizar configuración en Firebase
+  const updateSettings = async (category, updates) => {
+    try {
+      const newSettings = {
+        ...settings,
+        [category]: {
+          ...settings[category],
+          ...updates
+        }
+      };
+
+      // Actualizar estado local inmediatamente
+      setSettings(newSettings);
+      
+      // Guardar en localStorage como backup
+      localStorage.setItem('drgroup-settings', JSON.stringify(newSettings));
+
+      // Si hay usuario autenticado, guardar en Firebase
+      if (user) {
+        const userSettingsRef = doc(db, 'userSettings', user.uid);
+        await updateDoc(userSettingsRef, {
+          [category]: newSettings[category],
+          lastUpdated: new Date()
+        });
+      }
+    } catch (error) {
+      console.error('Error updating settings:', error);
+      setError('Error al guardar configuraciones');
+      
+      // Revertir cambios en caso de error
+      const savedSettings = localStorage.getItem('drgroup-settings');
+      if (savedSettings) {
+        try {
+          setSettings(JSON.parse(savedSettings));
+        } catch (e) {
+          setSettings(defaultSettings);
+        }
       }
     }
-    return defaultSettings;
-  });
-
-  // Guardar configuración cuando cambie
-  useEffect(() => {
-    localStorage.setItem('drgroup-settings', JSON.stringify(settings));
-  }, [settings]);
-
-  // Función para actualizar configuración
-  const updateSettings = (category, updates) => {
-    setSettings(prev => ({
-      ...prev,
-      [category]: {
-        ...prev[category],
-        ...updates
-      }
-    }));
   };
 
   // Función para resetear configuración
-  const resetSettings = (category = null) => {
-    if (category) {
-      setSettings(prev => ({
-        ...prev,
-        [category]: defaultSettings[category]
-      }));
-    } else {
-      setSettings(defaultSettings);
+  const resetSettings = async (category = null) => {
+    try {
+      let newSettings;
+      
+      if (category) {
+        newSettings = {
+          ...settings,
+          [category]: defaultSettings[category]
+        };
+      } else {
+        newSettings = defaultSettings;
+      }
+
+      // Actualizar estado local
+      setSettings(newSettings);
+      
+      // Guardar en localStorage
+      localStorage.setItem('drgroup-settings', JSON.stringify(newSettings));
+
+      // Si hay usuario autenticado, actualizar en Firebase
+      if (user) {
+        const userSettingsRef = doc(db, 'userSettings', user.uid);
+        if (category) {
+          await updateDoc(userSettingsRef, {
+            [category]: defaultSettings[category],
+            lastUpdated: new Date()
+          });
+        } else {
+          await setDoc(userSettingsRef, {
+            ...defaultSettings,
+            lastUpdated: new Date()
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error resetting settings:', error);
+      setError('Error al restablecer configuraciones');
     }
   };
 
@@ -191,7 +362,10 @@ const SettingsProvider = ({ children }) => {
     settings,
     updateSettings,
     resetSettings,
-    defaultSettings
+    defaultSettings,
+    loading,
+    error,
+    user
   };
 
   return (
