@@ -41,10 +41,12 @@ import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp } from 
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
+import { useSettings } from '../context/SettingsContext';
 
 const NewCommitmentPage = () => {
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
+  const { settings } = useSettings();
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -74,18 +76,32 @@ const NewCommitmentPage = () => {
     status: 'pending' // pending, paid, overdue
   });
 
-  // Función para obtener colores dinámicos basados en el tema
+  // 🎨 Design System Spectacular - Configuraciones dinámicas
+  const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;
+  const secondaryColor = settings?.theme?.secondaryColor || theme.palette.secondary.main;
+  const borderRadius = settings?.theme?.borderRadius || 8;
+  const animationsEnabled = settings?.theme?.animations !== false;
+  const fontSize = settings?.theme?.fontSize || 14;
+  
+  // 📧 Configuraciones de Notificaciones
+  const notificationsEnabled = settings?.notifications?.enabled !== false;
+  const notificationSoundEnabled = settings?.notifications?.sound !== false;
+  
+  // 📐 Configuraciones de Layout
+  const compactMode = settings?.sidebar?.compactMode || false;
+
+  // Función para obtener colores dinámicos basados en configuraciones
   const getThemeColor = (colorName) => {
+    if (colorName === 'primary') return primaryColor;
+    if (colorName === 'secondary') return secondaryColor;
     return theme.palette.mode === 'dark' 
       ? theme.palette[colorName]?.dark || theme.palette[colorName]?.main 
       : theme.palette[colorName]?.main;
   };
 
-  // Función para obtener gradiente dinámico
+  // Función para obtener gradiente dinámico con configuraciones
   const getGradientBackground = () => {
-    const primary = theme.palette.primary.main;
-    const secondary = theme.palette.secondary.main;
-    return `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`;
+    return `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`;
   };
 
   // Cargar empresas desde Firebase
@@ -245,13 +261,23 @@ const NewCommitmentPage = () => {
 
       await addDoc(collection(db, 'commitments'), commitmentData);
       
-      addNotification({
-        type: 'success',
-        title: 'Compromiso creado',
-        message: `Se creó exitosamente el compromiso para "${formData.companyName}"`,
-        icon: 'success',
-        color: 'success'
-      });
+      // 🔊 Notificación con sonido condicional
+      if (notificationsEnabled) {
+        if (notificationSoundEnabled) {
+          // Sonido de éxito
+          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmUeCSGh2u+8g');
+          audio.volume = 0.2;
+          audio.play().catch(() => {}); // Ignorar errores de autoplay
+        }
+        
+        addNotification({
+          type: 'success',
+          title: 'Compromiso creado',
+          message: `Se creó exitosamente el compromiso para "${formData.companyName}"`,
+          icon: 'success',
+          color: 'success'
+        });
+      }
 
       // Navegar de vuelta a la lista de compromisos
       navigate('/commitments');
@@ -342,8 +368,8 @@ const NewCommitmentPage = () => {
         <Box
           sx={{
             background: getGradientBackground(),
-            borderRadius: 3,
-            p: 4,
+            borderRadius: `${borderRadius}px`,
+            p: compactMode ? 3 : 4,
             mb: 3,
             color: 'white',
             position: 'relative',
@@ -356,7 +382,7 @@ const NewCommitmentPage = () => {
               right: 0,
               bottom: 0,
               background: 'rgba(255, 255, 255, 0.1)',
-              borderRadius: 3,
+              borderRadius: `${borderRadius}px`,
               zIndex: 0,
             }
           }}
@@ -367,19 +393,26 @@ const NewCommitmentPage = () => {
                 sx={{
                   p: 1.5,
                   bgcolor: 'rgba(255, 255, 255, 0.2)',
-                  borderRadius: 2,
+                  borderRadius: `${borderRadius / 2}px`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}
               >
-                <AssignmentIcon sx={{ fontSize: 32, color: 'white' }} />
+                <AssignmentIcon sx={{ fontSize: fontSize * 2.3, color: 'white' }} />
               </Box>
               <Box>
-                <Typography variant="h4" fontWeight="700" sx={{ color: 'white', mb: 0.5 }}>
+                <Typography variant="h4" fontWeight="700" sx={{ 
+                  color: 'white', 
+                  mb: 0.5,
+                  fontSize: `${fontSize + 8}px`
+                }}>
                   Nuevo Compromiso Financiero
                 </Typography>
-                <Typography variant="subtitle1" sx={{ color: 'rgba(255, 255, 255, 0.9)' }}>
+                <Typography variant="subtitle1" sx={{ 
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  fontSize: `${fontSize + 2}px`
+                }}>
                   Registra un nuevo compromiso para gestión empresarial
                 </Typography>
               </Box>
@@ -387,9 +420,9 @@ const NewCommitmentPage = () => {
             
             {preselectedCompany && (
               <motion.div
-                initial={{ opacity: 0, x: -20 }}
+                initial={animationsEnabled ? { opacity: 0, x: -20 } : { opacity: 1 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
+                transition={animationsEnabled ? { duration: 0.4, delay: 0.2 } : { duration: 0.1 }}
               >
                 <Chip
                   label={`Empresa preseleccionada: ${preselectedCompany.name}`}
@@ -410,26 +443,26 @@ const NewCommitmentPage = () => {
       </motion.div>
 
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={animationsEnabled ? { opacity: 0, y: 20 } : { opacity: 1 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
+        transition={animationsEnabled ? { duration: 0.5, delay: 0.1 } : { duration: 0.1 }}
       >
           <Card 
             elevation={0}
             sx={{ 
-              borderRadius: 3,
+              borderRadius: `${borderRadius}px`,
               overflow: 'hidden',
               border: `1px solid ${theme.palette.divider}`,
               boxShadow: theme.palette.mode === 'dark' 
                 ? '0 8px 32px rgba(0, 0, 0, 0.3)' 
                 : '0 8px 32px rgba(0, 0, 0, 0.1)',
-              transition: 'all 0.3s ease-in-out',
-              '&:hover': {
+              transition: animationsEnabled ? 'all 0.3s ease-in-out' : 'none',
+              '&:hover': animationsEnabled ? {
                 boxShadow: theme.palette.mode === 'dark' 
                   ? '0 12px 40px rgba(0, 0, 0, 0.4)' 
                   : '0 12px 40px rgba(0, 0, 0, 0.15)',
                 transform: 'translateY(-2px)'
-              }
+              } : {}
             }}
           >
             <CardContent sx={{ p: 4 }}>
@@ -437,27 +470,27 @@ const NewCommitmentPage = () => {
                 {/* Información de la Empresa */}
                 <Grid item xs={12}>
                   <motion.div
-                    initial={{ opacity: 0, x: -20 }}
+                    initial={animationsEnabled ? { opacity: 0, x: -20 } : { opacity: 1 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.5, delay: 0.2 }}
+                    transition={animationsEnabled ? { duration: 0.5, delay: 0.2 } : { duration: 0.1 }}
                   >
                     <Paper 
                       elevation={0} 
                       sx={{ 
                         p: 3, 
                         border: `1px solid ${theme.palette.divider}`,
-                        borderRadius: 3,
+                        borderRadius: `${borderRadius}px`,
                         background: theme.palette.mode === 'dark' 
                           ? 'rgba(255, 255, 255, 0.03)' 
                           : 'rgba(0, 0, 0, 0.02)',
-                        transition: 'all 0.3s ease-in-out',
-                        '&:hover': {
+                        transition: animationsEnabled ? 'all 0.3s ease-in-out' : 'none',
+                        '&:hover': animationsEnabled ? {
                           background: theme.palette.mode === 'dark' 
                             ? 'rgba(255, 255, 255, 0.05)' 
                             : 'rgba(0, 0, 0, 0.04)',
-                          borderColor: theme.palette.primary.main,
+                          borderColor: primaryColor,
                           transform: 'translateY(-1px)'
-                        }
+                        } : {}
                       }}
                     >
                       <Box display="flex" alignItems="center" gap={2} mb={3}>
@@ -465,7 +498,7 @@ const NewCommitmentPage = () => {
                           sx={{
                             p: 1,
                             background: getGradientBackground(),
-                            borderRadius: 2,
+                            borderRadius: `${borderRadius / 2}px`,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -474,9 +507,12 @@ const NewCommitmentPage = () => {
                               : '0 4px 12px rgba(0, 0, 0, 0.15)'
                           }}
                         >
-                          <BusinessIcon sx={{ fontSize: 20, color: 'white' }} />
+                          <BusinessIcon sx={{ fontSize: fontSize + 6, color: 'white' }} />
                         </Box>
-                        <Typography variant="h6" fontWeight="600" sx={{ color: theme.palette.text.primary }}>
+                        <Typography variant="h6" fontWeight="600" sx={{ 
+                          color: theme.palette.text.primary,
+                          fontSize: `${fontSize + 4}px`
+                        }}>
                           Información de la Empresa
                         </Typography>
                       </Box>
@@ -523,27 +559,27 @@ const NewCommitmentPage = () => {
                 {/* Detalles del Compromiso */}
                 <Grid item xs={12}>
                   <motion.div
-                    initial={{ opacity: 0, x: 20 }}
+                    initial={animationsEnabled ? { opacity: 0, x: 20 } : { opacity: 1 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.5, delay: 0.3 }}
+                    transition={animationsEnabled ? { duration: 0.5, delay: 0.3 } : { duration: 0.1 }}
                   >
                   <Paper 
                     elevation={0} 
                     sx={{ 
                       p: 3, 
                       border: `1px solid ${theme.palette.divider}`,
-                      borderRadius: 3,
+                      borderRadius: `${borderRadius}px`,
                       background: theme.palette.mode === 'dark' 
                         ? 'rgba(255, 255, 255, 0.03)' 
                         : 'rgba(0, 0, 0, 0.02)',
-                      transition: 'all 0.3s ease-in-out',
-                      '&:hover': {
+                      transition: animationsEnabled ? 'all 0.3s ease-in-out' : 'none',
+                      '&:hover': animationsEnabled ? {
                         background: theme.palette.mode === 'dark' 
                           ? 'rgba(255, 255, 255, 0.05)' 
                           : 'rgba(0, 0, 0, 0.04)',
-                        borderColor: theme.palette.primary.main,
+                        borderColor: primaryColor,
                         transform: 'translateY(-1px)'
-                      }
+                      } : {}
                     }}
                   >
                     <Box display="flex" alignItems="center" gap={2} mb={3}>
@@ -551,7 +587,7 @@ const NewCommitmentPage = () => {
                         sx={{
                           p: 1,
                           background: getGradientBackground(),
-                          borderRadius: 2,
+                          borderRadius: `${borderRadius / 2}px`,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -560,9 +596,12 @@ const NewCommitmentPage = () => {
                             : '0 4px 12px rgba(0, 0, 0, 0.15)'
                         }}
                       >
-                        <DescriptionIcon sx={{ fontSize: 20, color: 'white' }} />
+                        <DescriptionIcon sx={{ fontSize: fontSize + 6, color: 'white' }} />
                       </Box>
-                      <Typography variant="h6" fontWeight="600" sx={{ color: theme.palette.text.primary }}>
+                      <Typography variant="h6" fontWeight="600" sx={{ 
+                        color: theme.palette.text.primary,
+                        fontSize: `${fontSize + 4}px`
+                      }}>
                         Detalles del Compromiso
                       </Typography>
                     </Box>
@@ -854,15 +893,16 @@ const NewCommitmentPage = () => {
                         onClick={handleCancel}
                         disabled={saving}
                         sx={{ 
-                          borderRadius: 3,
+                          borderRadius: `${borderRadius}px`,
                           px: 3,
                           py: 1.5,
                           borderWidth: 2,
+                          fontSize: `${fontSize}px`,
                           fontWeight: 600,
                           textTransform: 'none',
                           position: 'relative',
                           overflow: 'hidden',
-                          '&:hover': {
+                          '&:hover': animationsEnabled ? {
                             borderWidth: 2,
                             transform: 'translateY(-2px)',
                             boxShadow: theme.palette.mode === 'dark' 
@@ -871,7 +911,7 @@ const NewCommitmentPage = () => {
                             '&::before': {
                               opacity: 1,
                             }
-                          },
+                          } : {},
                           '&::before': {
                             content: '""',
                             position: 'absolute',
@@ -880,22 +920,22 @@ const NewCommitmentPage = () => {
                             width: '100%',
                             height: '100%',
                             background: `linear-gradient(90deg, transparent, ${theme.palette.action.hover}, transparent)`,
-                            transition: 'all 0.6s ease',
+                            transition: animationsEnabled ? 'all 0.6s ease' : 'none',
                             opacity: 0,
                           },
-                          '&:hover::before': {
+                          '&:hover::before': animationsEnabled ? {
                             left: '100%',
                             opacity: 1,
-                          },
-                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                          } : {},
+                          transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
                         }}
                       >
                         Cancelar
                       </Button>
                     </motion.div>
                     <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                      whileHover={animationsEnabled ? { scale: 1.02 } : {}}
+                      whileTap={animationsEnabled ? { scale: 0.98 } : {}}
                     >
                       <Button
                         variant="contained"
@@ -903,19 +943,20 @@ const NewCommitmentPage = () => {
                         onClick={handleSaveCommitment}
                         disabled={saving || !formData.companyId || !formData.month || !formData.year || !formData.periodicity || !formData.beneficiary?.trim() || !formData.concept?.trim() || !formData.amount || !formData.paymentMethod}
                         sx={{ 
-                          borderRadius: 3,
+                          borderRadius: `${borderRadius}px`,
                           px: 4,
                           py: 1.5,
                           minWidth: 180,
                           background: getGradientBackground(),
                           fontWeight: 600,
                           textTransform: 'none',
+                          fontSize: `${fontSize}px`,
                           position: 'relative',
                           overflow: 'hidden',
                           boxShadow: theme.palette.mode === 'dark' 
                             ? '0 6px 20px rgba(0, 0, 0, 0.4)' 
                             : '0 6px 20px rgba(0, 0, 0, 0.25)',
-                          '&:hover': {
+                          '&:hover': animationsEnabled ? {
                             transform: 'translateY(-3px)',
                             boxShadow: theme.palette.mode === 'dark' 
                               ? '0 12px 30px rgba(0, 0, 0, 0.5)' 
@@ -923,7 +964,7 @@ const NewCommitmentPage = () => {
                             '&::before': {
                               opacity: 1,
                             }
-                          },
+                          } : {},
                           '&::before': {
                             content: '""',
                             position: 'absolute',
@@ -932,18 +973,18 @@ const NewCommitmentPage = () => {
                             width: '100%',
                             height: '100%',
                             background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                            transition: 'all 0.6s ease',
+                            transition: animationsEnabled ? 'all 0.6s ease' : 'none',
                             opacity: 0,
                           },
-                          '&:hover::before': {
+                          '&:hover::before': animationsEnabled ? {
                             left: '100%',
                             opacity: 1,
-                          },
+                          } : {},
                           '&:disabled': {
                             opacity: 0.6,
                             transform: 'none'
                           },
-                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                          transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
                         }}
                       >
                         {saving ? 'Guardando...' : 'Guardar Compromiso'}
@@ -959,42 +1000,42 @@ const NewCommitmentPage = () => {
 
         {/* Información de ayuda */}
         <motion.div
-          initial={{ opacity: 0, y: 30, scale: 0.95 }}
+          initial={animationsEnabled ? { opacity: 0, y: 30, scale: 0.95 } : { opacity: 1 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ 
+          transition={animationsEnabled ? { 
             duration: 0.6, 
             delay: 0.5,
             type: "spring",
             stiffness: 100,
             damping: 15
-          }}
+          } : { duration: 0.1 }}
         >
           <motion.div
-            animate={{ 
+            animate={animationsEnabled ? { 
               boxShadow: [
                 theme.palette.mode === 'dark' 
-                  ? '0 4px 12px rgba(33, 150, 243, 0.2)' 
-                  : '0 4px 12px rgba(33, 150, 243, 0.1)',
+                  ? `0 4px 12px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.2)` 
+                  : `0 4px 12px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.1)`,
                 theme.palette.mode === 'dark' 
-                  ? '0 8px 20px rgba(33, 150, 243, 0.3)' 
-                  : '0 8px 20px rgba(33, 150, 243, 0.2)',
+                  ? `0 8px 20px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.3)` 
+                  : `0 8px 20px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.2)`,
                 theme.palette.mode === 'dark' 
-                  ? '0 4px 12px rgba(33, 150, 243, 0.2)' 
-                  : '0 4px 12px rgba(33, 150, 243, 0.1)'
+                  ? `0 4px 12px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.2)` 
+                  : `0 4px 12px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.1)`
               ]
-            }}
-            transition={{ 
+            } : {}}
+            transition={animationsEnabled ? { 
               duration: 2,
               repeat: Infinity,
               repeatType: "reverse",
               ease: "easeInOut"
-            }}
+            } : {}}
           >
             <Alert 
               severity="info" 
               sx={{ 
                 mt: 3, 
-                borderRadius: 3,
+                borderRadius: `${borderRadius}px`,
                 border: `1px solid ${theme.palette.info.main}`,
                 background: theme.palette.mode === 'dark' 
                   ? 'rgba(33, 150, 243, 0.1)' 
@@ -1009,7 +1050,7 @@ const NewCommitmentPage = () => {
                   width: '100%',
                   height: '100%',
                   background: 'linear-gradient(90deg, transparent, rgba(33, 150, 243, 0.1), transparent)',
-                  animation: 'shimmer 3s infinite',
+                  animation: animationsEnabled ? 'shimmer 3s infinite' : 'none',
                 },
                 '@keyframes shimmer': {
                   '0%': { left: '-100%' },
@@ -1017,23 +1058,23 @@ const NewCommitmentPage = () => {
                 },
                 '& .MuiAlert-icon': {
                   alignItems: 'center',
-                  fontSize: 28,
-                  animation: 'pulse 2s infinite',
+                  fontSize: fontSize * 2,
+                  animation: animationsEnabled ? 'pulse 2s infinite' : 'none',
                 },
                 '@keyframes pulse': {
                   '0%, 100%': { transform: 'scale(1)' },
                   '50%': { transform: 'scale(1.1)' }
                 },
                 '& .MuiAlert-message': {
-                  fontSize: '0.95rem',
+                  fontSize: `${fontSize + 1}px`,
                   position: 'relative',
                   zIndex: 1
                 },
-                transition: 'all 0.3s ease-in-out',
-                '&:hover': {
+                transition: animationsEnabled ? 'all 0.3s ease-in-out' : 'none',
+                '&:hover': animationsEnabled ? {
                   transform: 'translateY(-2px)',
                   borderColor: theme.palette.info.dark,
-                }
+                } : {}
               }}
             >
               <Typography variant="body2" sx={{ fontWeight: 500 }}>
