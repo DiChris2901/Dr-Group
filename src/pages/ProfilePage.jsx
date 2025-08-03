@@ -815,6 +815,9 @@ const ProfilePage = () => {
               position: 'relative',
               overflow: 'hidden',
               mb: 2,
+              minHeight: 720, // Altura mínima consistente con las tarjetas de la derecha
+              display: 'flex',
+              flexDirection: 'column',
               transition: 'all 0.3s ease-out',
               '&:hover': {
                 boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)',
@@ -859,16 +862,23 @@ const ProfilePage = () => {
                 </Box>
               </Box>
               
-              <CardContent sx={{ textAlign: 'center', p: 3 }}>
-                {/* Avatar con anillo completo animado */}
-                <Box position="relative" display="inline-block" mb={3}>
+              <CardContent sx={{ 
+                textAlign: 'center', 
+                p: 4, // Aumentar padding
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between'
+              }}>
+                {/* Avatar con anillo completo animado - Más grande */}
+                <Box position="relative" display="inline-block" mb={4}>
                   {/* Anillo exterior completo con gradiente animado */}
                   <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
                     style={{
                       position: 'absolute',
-                      inset: -12,
+                      inset: -12, // Aumentar el anillo
                       borderRadius: '50%',
                       background: 'linear-gradient(45deg, #ff6b6b, #ee5a24, #fd79a8, #fdcb6e, #74b9ff, #6c5ce7, #a29bfe, #ff6b6b)',
                       backgroundSize: '400% 400%',
@@ -923,13 +933,13 @@ const ProfilePage = () => {
                     <Avatar
                       src={userProfile?.photoURL}
                       sx={{ 
-                        width: 120, 
-                        height: 120,
-                        fontSize: 48,
+                        width: 160, // Aumentar de 120 a 160
+                        height: 160, // Aumentar de 120 a 160
+                        fontSize: 64, // Aumentar fuente proporcionalmente
                         mx: 'auto',
-                        border: '4px solid',
+                        border: '5px solid', // Aumentar borde
                         borderColor: 'background.paper',
-                        boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+                        boxShadow: '0 12px 32px rgba(0, 0, 0, 0.2)', // Aumentar sombra
                         position: 'relative',
                         zIndex: 2
                       }}
@@ -1022,7 +1032,7 @@ const ProfilePage = () => {
                 </Box>
 
                 {/* Información básica */}
-                <Box mb={3}>
+                <Box mb={4}> {/* Aumentar margen inferior */}
                   <Box display="flex" alignItems="center" justifyContent="center" mb={1}>
                     <Typography variant="h6" fontWeight="bold" sx={{ mr: 1 }}>
                       {formData.name || 'Usuario'}
@@ -1040,7 +1050,7 @@ const ProfilePage = () => {
                   </Typography>
                   
                   {/* Badge de rol */}
-                  <Box display="flex" gap={1} justifyContent="center" mb={2}>
+                  <Box display="flex" gap={1} justifyContent="center" mb={3}> {/* Aumentar margen inferior */}
                     <Box 
                       sx={{
                         px: 2,
@@ -1179,7 +1189,10 @@ const ProfilePage = () => {
                 : 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)',
               border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.05)',
               position: 'relative',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              minHeight: 720, // Altura mínima igual que la tarjeta izquierda
+              display: 'flex',
+              flexDirection: 'column'
             }}>
               {/* Tabs Header */}
               <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
@@ -1234,7 +1247,7 @@ const ProfilePage = () => {
                     </Box>
                   </Box>
               
-              <CardContent sx={{ p: 3 }}>
+              <CardContent sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column' }}>
 
                 <Grid container spacing={2.5}>
                   {/* Nombre */}
@@ -1927,7 +1940,7 @@ const ProfilePage = () => {
                     </Box>
                   </Box>
 
-                  <CardContent sx={{ p: 3 }}>
+                  <CardContent sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column' }}>
                     <Grid container spacing={3}>
                       
                       {/* Cambiar Contraseña */}
