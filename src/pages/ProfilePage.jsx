@@ -1071,13 +1071,13 @@ const ProfilePage = () => {
                     </Box>
                   </Box>
 
-                  {/* Información adicional */}
-                  {formData.position && (
+                  {/* Información adicional - Solo si no es redundante con el rol */}
+                  {formData.position && formData.position !== 'Administrador' && (
                     <Typography variant="body2" fontWeight="medium" color="text.primary">
                       {formData.position}
                     </Typography>
                   )}
-                  {formData.department && (
+                  {formData.department && formData.department !== 'Administración' && (
                     <Typography variant="caption" color="text.secondary">
                       {formData.department}
                     </Typography>
