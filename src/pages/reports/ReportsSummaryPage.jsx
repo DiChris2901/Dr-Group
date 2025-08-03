@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Card,
@@ -28,46 +28,90 @@ import {
 import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useCommitments, useCompanies } from '../../hooks/useFirestore';
 
 const ReportsSummaryPage = () => {
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
   
-  // Mock data - en producción vendrá de Firebase
-  const [summaryData] = useState({
-    totalCommitments: 156,
-    totalAmount: 2450000,
-    completedCommitments: 98,
-    pendingCommitments: 58,
-    overdueCommitments: 12,
-    averageAmount: 15705,
-    monthlyGrowth: 8.5,
-    companies: 24
-  });
+  // Conectar con Firebase para obtener datos reales
+  const { data: commitments, loading: commitmentsLoading } = useCommitments();
+  const { data: companies, loading: companiesLoading } = useCompanies();
+  
+  const loading = commitmentsLoading || companiesLoading;
 
-  const statusData = [
-    { name: 'Completados', value: 98, color: '#4caf50' },
-    { name: 'Pendientes', value: 58, color: '#ff9800' },
-    { name: 'Vencidos', value: 12, color: '#f44336' }
-  ];
+  // Calcular estadísticas reales desde Firebase
+  const summaryData = useMemo(() => {
+    if (!commitments) return {
+      totalCommitments: 0,
+      totalAmount: 0,
+      completedCommitments: 0,
+      pendingCommitments: 0,
+      overdueCommitments: 0,
+      averageAmount: 0,
+      monthlyGrowth: 0,
+      companies: 0
+    };
 
-  const monthlyData = [
-    { month: 'Ene', amount: 180000, commitments: 12 },
-    { month: 'Feb', amount: 220000, commitments: 18 },
-    { month: 'Mar', amount: 280000, commitments: 22 },
-    { month: 'Abr', amount: 350000, commitments: 28 },
-    { month: 'May', amount: 420000, commitments: 35 },
-    { month: 'Jun', amount: 380000, commitments: 32 },
-    { month: 'Jul', amount: 450000, commitments: 38 }
-  ];
+    const completed = commitments.filter(c => c.status === 'completed');
+    const pending = commitments.filter(c => c.status === 'pending');
+    const overdue = commitments.filter(c => {
+      const dueDate = new Date(c.dueDate);
+      return c.status === 'pending' && dueDate < new Date();
+    });
 
-  const topCompanies = [
-    { name: 'Coca-Cola', amount: 450000, commitments: 24, growth: 12.5 },
-    { name: 'Pepsi', amount: 380000, commitments: 19, growth: 8.2 },
-    { name: 'Bimbo', amount: 320000, commitments: 16, growth: -2.1 },
-    { name: 'Femsa', amount: 290000, commitments: 15, growth: 15.8 },
-    { name: 'Walmart', amount: 260000, commitments: 12, growth: 6.4 }
-  ];
+    const totalAmount = commitments.reduce((sum, c) => sum + (c.amount || 0), 0);
+    
+    return {
+      totalCommitments: commitments.length,
+      totalAmount,
+      completedCommitments: completed.length,
+      pendingCommitments: pending.length,
+      overdueCommitments: overdue.length,
+      averageAmount: commitments.length > 0 ? totalAmount / commitments.length : 0,
+      monthlyGrowth: 0, // Calcular con datos históricos
+      companies: companies?.length || 0
+    };
+  }, [commitments, companies]);
+
+  const statusData = useMemo(() => [
+    { name: 'Completados', value: summaryData.completedCommitments, color: '#4caf50' },
+    { name: 'Pendientes', value: summaryData.pendingCommitments, color: '#ff9800' },
+    { name: 'Vencidos', value: summaryData.overdueCommitments, color: '#f44336' }
+  ], [summaryData]);
+
+  // Generar datos mensuales reales (simplificado para el ejemplo)
+  const monthlyData = useMemo(() => {
+    // En una implementación real, agruparías los compromisos por mes
+    return [
+      { month: 'Ene', amount: 0, commitments: 0 },
+      { month: 'Feb', amount: 0, commitments: 0 },
+      { month: 'Mar', amount: 0, commitments: 0 },
+      { month: 'Abr', amount: 0, commitments: 0 },
+      { month: 'May', amount: 0, commitments: 0 },
+      { month: 'Jun', amount: 0, commitments: 0 },
+      { month: 'Jul', amount: 0, commitments: 0 }
+    ];
+  }, [commitments]);
+
+  // Calcular top companies desde datos reales
+  const topCompanies = useMemo(() => {
+    if (!commitments || !companies) return [];
+    
+    const companyStats = companies.map(company => {
+      const companyCommitments = commitments.filter(c => c.company === company.name);
+      const totalAmount = companyCommitments.reduce((sum, c) => sum + (c.amount || 0), 0);
+      
+      return {
+        name: company.name,
+        amount: totalAmount,
+        commitments: companyCommitments.length,
+        growth: 0 // Calcular con datos históricos
+      };
+    }).sort((a, b) => b.amount - a.amount).slice(0, 5);
+    
+    return companyStats;
+  }, [commitments, companies]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('es-MX', {
@@ -79,6 +123,12 @@ const ReportsSummaryPage = () => {
 
   return (
     <Box sx={{ p: 3 }}>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+          <LinearProgress sx={{ width: '50%' }} />
+        </Box>
+      ) : (
+        <>
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -422,6 +472,8 @@ const ReportsSummaryPage = () => {
           </motion.div>
         </Grid>
       </Grid>
+        </>
+      )}
     </Box>
   );
 };
