@@ -23,6 +23,7 @@ import NewPaymentPage from './pages/NewPaymentPage';
 import ProfilePage from './pages/ProfilePage';
 import DataPage from './pages/DataPage';
 import CompaniesPage from './pages/CompaniesPage';
+import TasksPage from './pages/TasksPage';
 import UserManagementPage from './pages/UserManagementPage';
 import AdminSetupPage from './pages/AdminSetupPage';
 import ReceiptsPage from './pages/ReceiptsPage';
@@ -161,6 +162,14 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Gestión de Comprobantes" breadcrumbs={['Comprobantes']}>
             <ReceiptsPage />
+          </MainLayout>
+        } 
+      />
+      <Route 
+        path="/tasks" 
+        element={
+          <MainLayout title="Gestión de Tareas" breadcrumbs={['Tareas']}>
+            <TasksPage />
           </MainLayout>
         } 
       />

@@ -58,6 +58,7 @@ const gradients = useThemeGradients();
 - [ ] ¿Funciona en modo claro y oscuro?
 - [ ] ¿Sigo los patrones de espaciado estándar?
 - [ ] ¿Implementé estados disabled correctamente?
+- [ ] ¿Activé opciones de accesibilidad en el menú de configuración si el usuario lo requiere?
 
 ---
 
@@ -78,5 +79,6 @@ Todos los componentes deben alcanzar calidad enterprise comparable a:
 3. **Usa** configuración de `premiumTheme.js`
 4. **Aplica** el checklist de calidad
 5. **Prueba** en modo claro y oscuro
+6. **Habilita opciones de accesibilidad desde el menú solo si el usuario lo solicita**
 
 ¡Mantén siempre la consistencia visual! 🌟

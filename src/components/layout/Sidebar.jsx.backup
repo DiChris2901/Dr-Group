@@ -142,6 +142,12 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       color: secondaryColor
     },
     {
+      title: 'Tareas',
+      icon: Assignment,
+      path: '/tasks',
+      color: primaryColor
+    },
+    {
       title: 'Reportes',
       icon: Assessment,
       color: primaryColor,
