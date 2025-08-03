@@ -42,90 +42,12 @@ const ReportsCompanyPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [timeRange, setTimeRange] = useState('last6months');
 
+  // TODO: Conectar con Firebase - usar useCompanies() y useCommitments()
   // Mock data - en producción vendrá de Firebase
-  const companies = [
-    { 
-      id: 'coca-cola', 
-      name: 'Coca-Cola', 
-      totalAmount: 450000, 
-      commitments: 24, 
-      completed: 18, 
-      pending: 4, 
-      overdue: 2,
-      growth: 12.5,
-      avgAmount: 18750,
-      logo: '🥤'
-    },
-    { 
-      id: 'pepsi', 
-      name: 'Pepsi', 
-      totalAmount: 380000, 
-      commitments: 19, 
-      completed: 15, 
-      pending: 3, 
-      overdue: 1,
-      growth: 8.2,
-      avgAmount: 20000,
-      logo: '🥤'
-    },
-    { 
-      id: 'bimbo', 
-      name: 'Bimbo', 
-      totalAmount: 320000, 
-      commitments: 16, 
-      completed: 12, 
-      pending: 3, 
-      overdue: 1,
-      growth: -2.1,
-      avgAmount: 20000,
-      logo: '🍞'
-    },
-    { 
-      id: 'femsa', 
-      name: 'Femsa', 
-      totalAmount: 290000, 
-      commitments: 15, 
-      completed: 11, 
-      pending: 3, 
-      overdue: 1,
-      growth: 15.8,
-      avgAmount: 19333,
-      logo: '🏢'
-    },
-    { 
-      id: 'walmart', 
-      name: 'Walmart', 
-      totalAmount: 260000, 
-      commitments: 12, 
-      completed: 9, 
-      pending: 2, 
-      overdue: 1,
-      growth: 6.4,
-      avgAmount: 21667,
-      logo: '🛒'
-    },
-    { 
-      id: 'nestle', 
-      name: 'Nestlé', 
-      totalAmount: 240000, 
-      commitments: 14, 
-      completed: 10, 
-      pending: 3, 
-      overdue: 1,
-      growth: 4.2,
-      avgAmount: 17143,
-      logo: '☕'
-    }
-  ];
+  const companies = [];
 
-  const monthlyCompanyData = [
-    { month: 'Ene', 'Coca-Cola': 65000, 'Pepsi': 58000, 'Bimbo': 42000, 'Femsa': 38000 },
-    { month: 'Feb', 'Coca-Cola': 72000, 'Pepsi': 61000, 'Bimbo': 45000, 'Femsa': 41000 },
-    { month: 'Mar', 'Coca-Cola': 68000, 'Pepsi': 59000, 'Bimbo': 48000, 'Femsa': 43000 },
-    { month: 'Abr', 'Coca-Cola': 75000, 'Pepsi': 63000, 'Bimbo': 51000, 'Femsa': 46000 },
-    { month: 'May', 'Coca-Cola': 78000, 'Pepsi': 66000, 'Bimbo': 54000, 'Femsa': 48000 },
-    { month: 'Jun', 'Coca-Cola': 82000, 'Pepsi': 69000, 'Bimbo': 52000, 'Femsa': 50000 }
-  ];
+  // TODO: Conectar con Firebase - datos mensuales por empresa
+  const monthlyCompanyData = [];
 
   const filteredCompanies = companies.filter(company =>
     company.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
