@@ -35,6 +35,7 @@ import {
   Warning
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import { useFirestore } from '../hooks/useFirestore.js';
 
 const TasksManager = () => {
   const theme = useTheme();
@@ -57,60 +58,54 @@ const TasksManager = () => {
     }
   };
   
-  const [tasks, setTasks] = useState([
-    { id: 1, title: 'Revisar comprobantes pendientes', priority: 'high', completed: false, createdAt: new Date() },
-    { id: 2, title: 'Actualizar datos de empresas', priority: 'medium', completed: false, createdAt: new Date() },
-    { id: 3, title: 'Generar reporte mensual', priority: 'low', completed: true, createdAt: new Date() },
-    { id: 4, title: 'Configurar notificaciones', priority: 'medium', completed: false, createdAt: new Date() }
-  ]);
+  // Conectar con Firebase para obtener tareas reales
+  const { data: tasksData, loading, error, addDocument, updateDocument, deleteDocument } = useFirestore('tasks', {
+    orderBy: { field: 'createdAt', direction: 'desc' }
+  });
+  
+  const [tasks, setTasks] = useState(tasksData || []);
 
   const [editDialog, setEditDialog] = useState({ open: false, task: null });
   const [newTask, setNewTask] = useState({ title: '', priority: 'medium' });
 
-  // Simulamos persistencia local
+  // Sincronizar con datos de Firebase
   useEffect(() => {
-    const savedTasks = localStorage.getItem('dr_dashboard_tasks');
-    if (savedTasks) {
-      setTasks(JSON.parse(savedTasks));
+    if (tasksData) {
+      setTasks(tasksData);
     }
-  }, []);
+  }, [tasksData]);
 
-  useEffect(() => {
-    localStorage.setItem('dr_dashboard_tasks', JSON.stringify(tasks));
-  }, [tasks]);
-
-  const handleAddTask = () => {
+  const handleAddTask = async () => {
     if (newTask.title.trim()) {
       const task = {
-        id: Date.now(),
         title: newTask.title,
         priority: newTask.priority,
         completed: false,
-        createdAt: new Date()
+        createdAt: new Date().toISOString()
       };
-      setTasks([...tasks, task]);
+      
+      await addDocument(task);
       setNewTask({ title: '', priority: 'medium' });
     }
   };
 
-  const handleToggleTask = (taskId) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId ? { ...task, completed: !task.completed } : task
-    ));
+  const handleToggleTask = async (task) => {
+    await updateDocument(task.id, { completed: !task.completed });
   };
 
-  const handleDeleteTask = (taskId) => {
-    setTasks(tasks.filter(task => task.id !== taskId));
+  const handleDeleteTask = async (taskId) => {
+    await deleteDocument(taskId);
   };
 
   const handleEditTask = (task) => {
     setEditDialog({ open: true, task: { ...task } });
   };
 
-  const handleSaveEdit = () => {
-    setTasks(tasks.map(task => 
-      task.id === editDialog.task.id ? editDialog.task : task
-    ));
+  const handleSaveEdit = async () => {
+    await updateDocument(editDialog.task.id, {
+      title: editDialog.task.title,
+      priority: editDialog.task.priority
+    });
     setEditDialog({ open: false, task: null });
   };
 
@@ -263,7 +258,7 @@ const TasksManager = () => {
             {pendingTasks.map((task) => (
               <ListItem key={task.id} divider>
                 <ListItemIcon>
-                  <IconButton onClick={() => handleToggleTask(task.id)}>
+                  <IconButton onClick={() => handleToggleTask(task)}>
                     {getPriorityIcon(task.priority, task.completed)}
                   </IconButton>
                 </ListItemIcon>
@@ -356,7 +351,7 @@ const TasksManager = () => {
               {completedTasks.map((task) => (
                 <ListItem key={task.id} divider>
                   <ListItemIcon>
-                    <IconButton onClick={() => handleToggleTask(task.id)}>
+                    <IconButton onClick={() => handleToggleTask(task)}>
                       <CheckCircle color="success" />
                     </IconButton>
                   </ListItemIcon>
