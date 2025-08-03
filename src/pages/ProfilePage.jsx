@@ -1470,7 +1470,6 @@ const ProfilePage = () => {
                         >
                           <Person sx={{ fontSize: 18, color: '#667eea' }} />
                           Nombre completo
-                          <Chip size="small" label="Requerido" color="error" sx={{ ml: 0.5, fontSize: '0.65rem', height: 18 }} />
                         </Typography>
                         <TextField
                           fullWidth
@@ -1767,9 +1766,6 @@ const ProfilePage = () => {
                         >
                           <Business sx={{ fontSize: 18, color: '#fdcb6e' }} />
                           Departamento
-                          {!editing && (
-                            <Chip size="small" label="Solo lectura" color="default" sx={{ ml: 0.5, fontSize: '0.65rem', height: 18 }} />
-                          )}
                         </Typography>
                         
                         {editing ? (
@@ -1892,9 +1888,6 @@ const ProfilePage = () => {
                         >
                           <Business sx={{ fontSize: 18, color: '#e17055' }} />
                           Empresa
-                          {!editing && (
-                            <Chip size="small" label="Solo lectura" color="default" sx={{ ml: 0.5, fontSize: '0.65rem', height: 18 }} />
-                          )}
                         </Typography>
                         
                         {editing ? (
