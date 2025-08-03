@@ -964,7 +964,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           >
                             <ToggleButton value="grid">
                               <GridIcon sx={{ mr: 1 }} />
-                              Grid
+                              Cuadrícula
                             </ToggleButton>
                             <ToggleButton value="list">
                               <ListIcon sx={{ mr: 1 }} />
@@ -1197,21 +1197,32 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       </Typography>
                       
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        Selecciona qué widgets deseas mostrar en tu dashboard
+                        Personaliza qué widgets aparecen en tu panel de control. Puedes habilitar o deshabilitar cada elemento según tus preferencias.
                       </Typography>
 
                       <Stack spacing={1}>
                         {Object.entries(dashboardSettings.widgets).map(([key, enabled]) => (
-                          <FormControlLabel
+                          <Tooltip 
                             key={key}
-                            control={
-                              <Switch
-                                checked={enabled}
-                                onChange={(e) => updateDashboardSetting(`widgets.${key}`, e.target.checked)}
-                              />
-                            }
-                            label={getWidgetLabel(key)}
-                          />
+                            title={getWidgetDescription(key)} 
+                            placement="left" 
+                            arrow
+                          >
+                            <FormControlLabel
+                              control={
+                                <Switch
+                                  checked={enabled}
+                                  onChange={(e) => updateDashboardSetting(`widgets.${key}`, e.target.checked)}
+                                />
+                              }
+                              label={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  {getWidgetLabel(key)}
+                                  <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                </Box>
+                              }
+                            />
+                          </Tooltip>
                         ))}
                       </Stack>
                     </CardContent>
@@ -1419,22 +1430,53 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
 // Helper functions
 function getWidgetLabel(key) {
   const labels = {
-    totalCommitments: 'Total de Compromisos',
+    totalCommitments: 'Estadísticas Generales',
     monthlyOverview: 'Resumen Mensual',
     upcomingPayments: 'Próximos Pagos',
     companyBreakdown: 'Desglose por Empresa',
     recentActivity: 'Actividad Reciente',
-    analytics: 'Analytics y Gráficos'
+    analytics: 'Gráficas y Análisis',
+    stats: 'Estadísticas',
+    recentCommitments: 'Compromisos Recientes',
+    monthlyChart: 'Gráfica Mensual',
+    companiesOverview: 'Resumen de Empresas',
+    quickActions: 'Acciones Rápidas',
+    paymentsSummary: 'Resumen de Pagos',
+    alertsWidget: 'Alertas y Notificaciones',
+    financialOverview: 'Panorama Financiero'
   };
   return labels[key] || key;
 }
 
+function getWidgetDescription(key) {
+  const descriptions = {
+    totalCommitments: 'Muestra métricas clave como total de compromisos, montos y estado general',
+    monthlyOverview: 'Presenta un resumen de los compromisos y pagos del mes actual',
+    upcomingPayments: 'Lista los próximos pagos programados y fechas de vencimiento',
+    companyBreakdown: 'Desglosa los compromisos financieros organizados por empresa',
+    recentActivity: 'Muestra las últimas actividades y transacciones registradas',
+    analytics: 'Presenta gráficas interactivas y análisis de tendencias financieras',
+    stats: 'Estadísticas resumidas del estado actual de compromisos',
+    recentCommitments: 'Listado de los compromisos añadidos recientemente',
+    monthlyChart: 'Gráfica visual del progreso mensual de pagos',
+    companiesOverview: 'Vista general del estado financiero por empresa',
+    quickActions: 'Accesos rápidos a funciones frecuentemente utilizadas',
+    paymentsSummary: 'Resumen consolidado de todos los pagos realizados',
+    alertsWidget: 'Centro de notificaciones y alertas importantes',
+    financialOverview: 'Panorama completo del estado financiero general'
+  };
+  return descriptions[key] || 'Widget personalizable del dashboard';
+}
+
 function getNotificationLabel(key) {
   const labels = {
-    upcomingPayments: 'Próximos pagos',
-    overduePayments: 'Pagos vencidos',
-    highAmount: 'Montos altos',
-    systemUpdates: 'Actualizaciones del sistema'
+    upcomingPayments: 'Próximos Pagos',
+    overduePayments: 'Pagos Vencidos',
+    highAmount: 'Montos Elevados',
+    systemUpdates: 'Actualizaciones del Sistema',
+    commitmentAlerts: 'Alertas de Compromisos',
+    paymentReminders: 'Recordatorios de Pago',
+    monthlyReports: 'Reportes Mensuales'
   };
   return labels[key] || key;
 }
