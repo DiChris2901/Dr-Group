@@ -484,10 +484,13 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ x: 300, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 300, opacity: 0 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            initial={settings?.theme?.animations ? { x: 300, opacity: 0 } : { opacity: 0 }}
+            animate={settings?.theme?.animations ? { x: 0, opacity: 1 } : { opacity: 1 }}
+            exit={settings?.theme?.animations ? { x: 300, opacity: 0 } : { opacity: 0 }}
+            transition={settings?.theme?.animations ? 
+              { type: 'spring', damping: 25, stiffness: 200 } : 
+              { duration: 0.1 }
+            }
             style={{ height: '100%' }}
           >
             {/* Header */}
@@ -495,7 +498,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
               sx={{
                 p: 3,
                 borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-                background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)} 0%, transparent 100%)`
+                background: `linear-gradient(135deg, ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.05)} 0%, transparent 100%)`
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -504,22 +507,30 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     sx={{
                       width: 48,
                       height: 48,
-                      borderRadius: 2,
-                      background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                      borderRadius: settings?.theme?.borderRadius || 2,
+                      background: `linear-gradient(135deg, ${settings?.theme?.primaryColor || theme.palette.primary.main}, ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.7)})`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.25)}`
+                      boxShadow: `0 8px 24px ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.25)}`,
+                      transition: settings?.theme?.animations ? 'all 0.3s ease' : 'none'
                     }}
                   >
-                    <SettingsIcon sx={{ color: 'white', fontSize: 24 }} />
+                    <SettingsIcon sx={{ color: 'white', fontSize: (settings?.theme?.fontSize || 14) + 10 }} />
                   </Box>
                   <Box>
-                    <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                    <Typography variant="h5" sx={{ 
+                      fontWeight: 700, 
+                      color: 'text.primary',
+                      fontSize: `${(settings?.theme?.fontSize || 14) + 8}px`
+                    }}>
                       Configuración
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                      <Typography variant="body2" sx={{ 
+                        color: 'text.secondary',
+                        fontSize: `${(settings?.theme?.fontSize || 14) - 1}px`
+                      }}>
                         Personaliza tu dashboard
                       </Typography>
                       {settingsLoading && (
@@ -527,7 +538,11 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           label="Sincronizando..."
                           size="small"
                           color="primary"
-                          sx={{ fontSize: '0.7rem', height: 18 }}
+                          sx={{ 
+                            fontSize: `${(settings?.theme?.fontSize || 14) - 4}px`, 
+                            height: 18,
+                            borderRadius: `${(settings?.theme?.borderRadius || 8) / 2}px`
+                          }}
                         />
                       )}
                       {user && !settingsLoading && (
@@ -535,7 +550,11 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           label="Guardado en Firebase"
                           size="small"
                           color="success"
-                          sx={{ fontSize: '0.7rem', height: 18 }}
+                          sx={{ 
+                            fontSize: `${(settings?.theme?.fontSize || 14) - 4}px`, 
+                            height: 18,
+                            borderRadius: `${(settings?.theme?.borderRadius || 8) / 2}px`
+                          }}
                         />
                       )}
                       {settingsError && (
@@ -543,7 +562,11 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           label="Error de sincronización"
                           size="small"
                           color="error"
-                          sx={{ fontSize: '0.7rem', height: 18 }}
+                          sx={{ 
+                            fontSize: `${(settings?.theme?.fontSize || 14) - 4}px`, 
+                            height: 18,
+                            borderRadius: `${(settings?.theme?.borderRadius || 8) / 2}px`
+                          }}
                         />
                       )}
                     </Box>
@@ -614,8 +637,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   },
                   '& .MuiTabs-indicator': {
                     height: 3,
-                    borderRadius: '3px 3px 0 0',
-                    background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.primary.light})`,
+                    borderRadius: `${settings?.theme?.borderRadius || 3}px ${settings?.theme?.borderRadius || 3}px 0 0`,
+                    background: `linear-gradient(90deg, ${settings?.theme?.primaryColor || theme.palette.primary.main}, ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.7)})`,
                   },
                   '& .MuiTab-root': {
                     minHeight: 72,
@@ -623,23 +646,23 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     maxWidth: { xs: 160, sm: 180 },
                     textTransform: 'none',
                     fontWeight: 500,
-                    fontSize: '0.875rem',
+                    fontSize: `${(settings?.theme?.fontSize || 14) - 0.5}px`,
                     color: theme.palette.text.secondary,
                     padding: '12px 20px',
                     margin: '0 4px',
-                    borderRadius: '8px 8px 0 0',
-                    transition: 'all 0.2s ease-in-out',
+                    borderRadius: `${settings?.theme?.borderRadius || 8}px ${settings?.theme?.borderRadius || 8}px 0 0`,
+                    transition: settings?.theme?.animations ? 'all 0.2s ease-in-out' : 'color 0.1s',
                     '&:hover': {
-                      backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                      color: theme.palette.primary.main,
-                      transform: 'translateY(-1px)',
+                      backgroundColor: alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.08),
+                      color: settings?.theme?.primaryColor || theme.palette.primary.main,
+                      transform: settings?.theme?.animations ? 'translateY(-1px)' : 'none',
                     },
                     '&.Mui-selected': {
-                      color: theme.palette.primary.main,
+                      color: settings?.theme?.primaryColor || theme.palette.primary.main,
                       fontWeight: 600,
-                      backgroundColor: alpha(theme.palette.primary.main, 0.12),
+                      backgroundColor: alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.12),
                       '& .MuiSvgIcon-root': {
-                        color: theme.palette.primary.main,
+                        color: settings?.theme?.primaryColor || theme.palette.primary.main,
                       }
                     },
                     '&.Mui-disabled': {
@@ -687,9 +710,10 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             sx={{ 
                               ml: 1, 
                               height: 18, 
-                              fontSize: '0.625rem',
+                              fontSize: `${(settings?.theme?.fontSize || 14) - 4}px`,
                               backgroundColor: alpha(theme.palette.warning.main, 0.15),
                               color: theme.palette.warning.main,
+                              borderRadius: `${(settings?.theme?.borderRadius || 8) / 2}px`,
                               '& .MuiChip-label': {
                                 px: 1
                               }
@@ -718,7 +742,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   <Card 
                     sx={{ 
                       border: `2px solid ${settings?.theme?.primaryColor || theme.palette.primary.main}`,
-                      borderRadius: 3,
+                      borderRadius: settings?.theme?.borderRadius || 3,
                       overflow: 'hidden',
                       background: `linear-gradient(135deg, ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.05)} 0%, transparent 100%)`
                     }}
@@ -729,14 +753,14 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           sx={{
                             width: 40,
                             height: 40,
-                            borderRadius: 2,
+                            borderRadius: settings?.theme?.borderRadius || 2,
                             background: `linear-gradient(135deg, ${settings?.theme?.primaryColor || theme.palette.primary.main}, ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.7)})`,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center'
                           }}
                         >
-                          <PaletteIcon sx={{ color: 'white', fontSize: 20 }} />
+                          <PaletteIcon sx={{ color: 'white', fontSize: (settings?.theme?.fontSize || 14) + 6 }} />
                         </Box>
                         <Box>
                           <Typography 
