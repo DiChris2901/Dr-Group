@@ -38,9 +38,7 @@ import {
   Stack,
   Chip,
   Tooltip,
-  Badge,
-  Snackbar,
-  Fade
+  Badge
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -57,9 +55,6 @@ import {
   BarChart as ChartBarIcon,
   ShowChart as ChartLineIcon,
   DonutSmall as ChartDonutIcon,
-  PieChart as ChartPieIcon,
-  Timeline as ChartAreaIcon,
-  ScatterPlot as ChartScatterIcon,
   Speed as SpeedIcon,
   Schedule as ScheduleIcon,
   RestartAlt as RestartIcon,
@@ -67,74 +62,11 @@ import {
   FormatSize as FormatSizeIcon,
   Security as SecurityIcon,
   Language as LanguageIcon,
-  Storage as StorageIcon,
-  Save as SaveIcon,
-  CheckCircle as CheckCircleIcon,
-  Info as InfoIcon
+  Storage as StorageIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
 import { primaryColorPresets } from '../../theme/colorPresets';
-
-// Helper functions for chart configuration
-const getChartTypeIcon = (type, size = 24) => {
-  const iconProps = { sx: { fontSize: size, color: 'primary.main' } };
-  switch (type) {
-    case 'bar': return <ChartBarIcon {...iconProps} />;
-    case 'line': return <ChartLineIcon {...iconProps} />;
-    case 'pie': return <ChartPieIcon {...iconProps} />;
-    case 'donut': return <ChartDonutIcon {...iconProps} />;
-    case 'area': return <ChartAreaIcon {...iconProps} />;
-    case 'scatter': return <ChartScatterIcon {...iconProps} />;
-    default: return <ChartBarIcon {...iconProps} />;
-  }
-};
-
-const getChartTypeName = (type) => {
-  switch (type) {
-    case 'bar': return 'Gráfica de Barras';
-    case 'line': return 'Gráfica de Líneas';
-    case 'pie': return 'Gráfica Circular';
-    case 'donut': return 'Gráfica de Dona';
-    case 'area': return 'Gráfica de Área';
-    case 'scatter': return 'Gráfica de Dispersión';
-    default: return 'Gráfica de Barras';
-  }
-};
-
-const getChartTypeDescription = (type) => {
-  switch (type) {
-    case 'bar': return 'Ideal para comparar cantidades entre categorías';
-    case 'line': return 'Perfecta para mostrar tendencias en el tiempo';
-    case 'pie': return 'Excelente para mostrar proporciones del total';
-    case 'donut': return 'Similar al circular pero con espacio central';
-    case 'area': return 'Muestra evolución acumulativa en el tiempo';
-    case 'scatter': return 'Ideal para mostrar correlaciones entre variables';
-    default: return 'Gráfica versátil para múltiples propósitos';
-  }
-};
-
-const getChartSchemeDescription = (scheme) => {
-  switch (scheme) {
-    case 'corporate': return 'presentaciones empresariales y reportes formales';
-    case 'vibrant': return 'dashboards dinámicos y presentaciones llamativas';
-    case 'pastel': return 'interfaces suaves y amigables';
-    case 'monochrome': return 'reportes minimalistas y elegantes';
-    case 'ocean': return 'temas relacionados con datos y tecnología';
-    default: return 'uso general';
-  }
-};
-
-const getChartSchemeName = (scheme) => {
-  switch (scheme) {
-    case 'corporate': return 'Corporativo';
-    case 'vibrant': return 'Vibrante';
-    case 'pastel': return 'Pastel';
-    case 'monochrome': return 'Monocromático';
-    case 'ocean': return 'Océano';
-    default: return 'Corporativo';
-  }
-};
 
 // Tab Panel Component
 function TabPanel({ children, value, index, ...other }) {
@@ -159,30 +91,9 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
   const theme = useTheme();
   const { settings, updateSettings, resetSettings } = useSettings();
   const [activeTab, setActiveTab] = useState(0);
-  const [saveMessage, setSaveMessage] = useState('');
-  const [showSaveSuccess, setShowSaveSuccess] = useState(false);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
-  };
-
-  // Función para guardar configuración
-  const handleSaveSettings = () => {
-    setSaveMessage('Configuración guardada con éxito');
-    setShowSaveSuccess(true);
-    setTimeout(() => {
-      setShowSaveSuccess(false);
-    }, 3000);
-  };
-
-  // Función para restaurar configuración
-  const handleResetSettings = () => {
-    resetSettings();
-    setSaveMessage('Configuración restaurada a valores por defecto');
-    setShowSaveSuccess(true);
-    setTimeout(() => {
-      setShowSaveSuccess(false);
-    }, 3000);
   };
 
   // Valores por defecto para dashboard settings
@@ -200,11 +111,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
       companyBreakdown: true,
       recentActivity: true,
       analytics: true
-    },
-    charts: {
-      defaultType: 'bar',
-      animations: 'smooth',
-      colorScheme: 'corporate'
     },
     notifications: {
       enabled: true,
@@ -244,17 +150,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
     name: preset.name,
     colors: preset
   }));
-
-  // Familias de fuente mejoradas
-  const fontFamilies = [
-    { value: 'Inter', label: 'Inter', recommended: true, description: 'Moderna y legible para interfaces' },
-    { value: 'Roboto', label: 'Roboto', recommended: true, description: 'Diseñada por Google para pantallas' },
-    { value: 'Poppins', label: 'Poppins', recommended: false, description: 'Geométrica y amigable' },
-    { value: 'Open Sans', label: 'Open Sans', recommended: false, description: 'Humanista y neutral' },
-    { value: 'Lato', label: 'Lato', recommended: false, description: 'Semi-redondeada y elegante' },
-    { value: 'Source Sans Pro', label: 'Source Sans Pro', recommended: false, description: 'Diseñada por Adobe' },
-    { value: 'Nunito Sans', label: 'Nunito Sans', recommended: false, description: 'Redondeada y moderna' }
-  ];
 
   const tabs = [
     { label: 'Tema', icon: <PaletteIcon /> },
@@ -327,25 +222,9 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   </Box>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                  <Tooltip title="Guardar configuración">
-                    <Button
-                      variant="contained"
-                      size="small"
-                      startIcon={<SaveIcon />}
-                      onClick={handleSaveSettings}
-                      sx={{
-                        borderRadius: 2,
-                        textTransform: 'none',
-                        fontWeight: 600,
-                        px: 2
-                      }}
-                    >
-                      Guardar
-                    </Button>
-                  </Tooltip>
                   <Tooltip title="Restablecer configuración">
                     <IconButton
-                      onClick={handleResetSettings}
+                      onClick={resetSettings}
                       sx={{
                         color: 'text.secondary',
                         '&:hover': {
@@ -488,76 +367,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
 
             {/* Tab Content */}
             <Box sx={{ flex: 1, overflow: 'auto' }}>
-              {/* Vista Previa Instantánea - Parte Superior */}
-              <Box sx={{ p: 3, pb: 0 }}>
-                <Card 
-                  sx={{ 
-                    border: `2px solid ${settings?.theme?.primaryColor || theme.palette.primary.main}`,
-                    borderRadius: 3,
-                    overflow: 'hidden',
-                    background: `linear-gradient(135deg, ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.05)} 0%, transparent 100%)`
-                  }}
-                >
-                  <CardContent sx={{ p: 3 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                      <Box
-                        sx={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 2,
-                          background: `linear-gradient(135deg, ${settings?.theme?.primaryColor || theme.palette.primary.main}, ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.7)})`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <PaletteIcon sx={{ color: 'white', fontSize: 20 }} />
-                      </Box>
-                      <Box>
-                        <Typography 
-                          variant="h6" 
-                          sx={{ 
-                            fontFamily: settings?.theme?.fontFamily || 'Inter',
-                            fontSize: `${(settings?.theme?.fontSize || 14) + 2}px`,
-                            fontWeight: 600,
-                            color: settings?.theme?.primaryColor || theme.palette.primary.main
-                          }}
-                        >
-                          Vista Previa en Tiempo Real
-                        </Typography>
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            fontFamily: settings?.theme?.fontFamily || 'Inter',
-                            fontSize: `${settings?.theme?.fontSize || 14}px`,
-                            color: 'text.secondary'
-                          }}
-                        >
-                          {settings?.theme?.fontFamily || 'Inter'} • {settings?.theme?.fontSize || 14}px • Tema {settings?.theme?.mode === 'dark' ? 'Oscuro' : 'Claro'}
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      {[
-                        { label: 'Primario', color: settings?.theme?.primaryColor || theme.palette.primary.main },
-                        { label: 'Secundario', color: settings?.theme?.secondaryColor || theme.palette.secondary.main }
-                      ].map((item, index) => (
-                        <Chip
-                          key={index}
-                          label={item.label}
-                          sx={{
-                            backgroundColor: item.color,
-                            color: 'white',
-                            fontWeight: 600,
-                            fontSize: '0.75rem'
-                          }}
-                        />
-                      ))}
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Box>
-
               {/* TEMA TAB */}
               <TabPanel value={activeTab} index={0}>
                 <Stack spacing={3}>
@@ -567,22 +376,15 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
                         <PaletteIcon color="primary" />
                         Paleta de Colores
-                        <Tooltip title="Elige el color principal que se aplicará en toda la interfaz">
-                          <InfoIcon sx={{ fontSize: 16, color: 'text.secondary', ml: 1 }} />
-                        </Tooltip>
                       </Typography>
                       <Grid container spacing={1.5}>
                         {colorOptions.map(({ key, name, colors }) => (
                           <Grid item xs={6} sm={4} key={key}>
-                            <Tooltip 
-                              title={`${name} - Ideal para interfaces ${name.toLowerCase().includes('azul') ? 'corporativas' : name.toLowerCase().includes('verde') ? 'de crecimiento' : name.toLowerCase().includes('morado') ? 'creativas' : 'modernas'}`}
-                              placement="top"
-                            >
-                              <Card
-                                sx={{
-                                  cursor: 'pointer',
-                                  border: settings?.theme?.primaryColor === colors.main 
-                                    ? `2px solid ${colors.main}` 
+                            <Card
+                              sx={{
+                                cursor: 'pointer',
+                                border: settings?.theme?.primaryColor === colors.main 
+                                  ? `2px solid ${colors.main}` 
                                   : '2px solid transparent',
                                 transition: 'all 0.2s ease',
                                 '&:hover': {
@@ -613,7 +415,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                 </Typography>
                               </CardContent>
                             </Card>
-                            </Tooltip>
                           </Grid>
                         ))}
                       </Grid>
@@ -660,60 +461,38 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         Opciones Avanzadas
                       </Typography>
                       <Stack spacing={2}>
-                        <Tooltip 
-                          title="Las animaciones mejoran la experiencia visual pero pueden afectar el rendimiento en dispositivos lentos" 
-                          placement="top"
-                          arrow
-                        >
-                          <FormControlLabel
-                            control={
-                              <Switch
-                                checked={settings?.theme?.animations !== false}
-                                onChange={(e) => updateSettings('theme', { 
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={settings?.theme?.animations !== false}
+                              onChange={(e) => updateSettings('theme', { 
+                                ...settings.theme, 
+                                animations: e.target.checked 
+                              })}
+                            />
+                          }
+                          label="Habilitar animaciones"
+                        />
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={settings?.sidebar?.compactMode !== false}
+                              onChange={(e) => {
+                                const newCompactMode = e.target.checked;
+                                // Actualizar tanto en sidebar como en theme para compatibilidad
+                                updateSettings('sidebar', { 
+                                  ...settings.sidebar, 
+                                  compactMode: newCompactMode 
+                                });
+                                updateSettings('theme', { 
                                   ...settings.theme, 
-                                  animations: e.target.checked 
-                                })}
-                              />
-                            }
-                            label={
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                Habilitar animaciones
-                                <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                              </Box>
-                            }
-                          />
-                        </Tooltip>
-                        <Tooltip 
-                          title="El modo compacto reduce espacios y tamaños para mostrar más información en pantalla. Ideal para pantallas pequeñas o usuarios que prefieren una interfaz más densa" 
-                          placement="top"
-                          arrow
-                        >
-                          <FormControlLabel
-                            control={
-                              <Switch
-                                checked={settings?.sidebar?.compactMode !== false}
-                                onChange={(e) => {
-                                  const newCompactMode = e.target.checked;
-                                  // Actualizar tanto en sidebar como en theme para compatibilidad
-                                  updateSettings('sidebar', { 
-                                    ...settings.sidebar, 
-                                    compactMode: newCompactMode 
-                                  });
-                                  updateSettings('theme', { 
-                                    ...settings.theme, 
-                                    compactMode: newCompactMode 
-                                  });
-                                }}
-                              />
-                            }
-                            label={
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                Modo compacto
-                                <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                              </Box>
-                            }
-                          />
-                        </Tooltip>
+                                  compactMode: newCompactMode 
+                                });
+                              }}
+                            />
+                          }
+                          label="Modo compacto"
+                        />
                       </Stack>
                     </CardContent>
                   </Card>
@@ -728,16 +507,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       <Stack spacing={3}>
                         {/* Font Family */}
                         <FormControl fullWidth>
-                          <Tooltip 
-                            title="Selecciona la familia de fuente para toda la aplicación. Inter es la recomendada por su excelente legibilidad en pantallas digitales" 
-                            placement="top" 
-                            arrow
-                          >
-                            <FormLabel sx={{ mb: 1, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
-                              Familia de Fuente
-                              <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                            </FormLabel>
-                          </Tooltip>
+                          <FormLabel sx={{ mb: 1, fontWeight: 600 }}>Familia de Fuente</FormLabel>
                           <Select
                             value={settings?.theme?.fontFamily || 'Inter'}
                             onChange={(e) => updateSettings('theme', { 
@@ -752,10 +522,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             }}
                           >
                             <MenuItem value="Inter" sx={{ fontFamily: 'Inter' }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                                Inter
-                                <Chip label="Recomendada" size="small" color="primary" sx={{ ml: 1 }} />
-                              </Box>
+                              Inter (Recomendada)
                             </MenuItem>
                             <MenuItem value="Roboto" sx={{ fontFamily: 'Roboto' }}>
                               Roboto
@@ -770,10 +537,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                               Nunito Sans
                             </MenuItem>
                             <MenuItem value="system-ui" sx={{ fontFamily: 'system-ui' }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                                Sistema (system-ui)
-                                <Chip label="Rápida" size="small" color="success" sx={{ ml: 1 }} />
-                              </Box>
+                              Sistema (system-ui)
                             </MenuItem>
                             <MenuItem value="Arial" sx={{ fontFamily: 'Arial' }}>
                               Arial
@@ -786,17 +550,10 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
 
                         {/* Font Size */}
                         <Box sx={{ width: '100%' }}>
-                          <Tooltip 
-                            title="Ajusta el tamaño base de la fuente. El resto de elementos se escalarán proporcionalmente" 
-                            placement="top" 
-                            arrow
-                          >
-                            <FormLabel sx={{ mb: 2, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <FormatSizeIcon sx={{ fontSize: 18 }} />
-                              Tamaño de Fuente Base: {settings?.theme?.fontSize || 14}px
-                              <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                            </FormLabel>
-                          </Tooltip>
+                          <FormLabel sx={{ mb: 2, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <FormatSizeIcon sx={{ fontSize: 18 }} />
+                            Tamaño de Fuente Base: {settings?.theme?.fontSize || 14}px
+                          </FormLabel>
                           <Box sx={{ px: 1 }}>
                             <Slider
                               value={settings?.theme?.fontSize || 14}
@@ -980,214 +737,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     </CardContent>
                   </Card>
 
-                  {/* Chart Type Configuration */}
-                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
-                    <CardContent>
-                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <ChartBarIcon color="primary" />
-                        Tipos de Gráficas
-                      </Typography>
-                      
-                      <Grid container spacing={3}>
-                        {/* Default Chart Type */}
-                        <Grid item xs={12} sm={6}>
-                          <FormControl fullWidth>
-                            <Tooltip 
-                              title="Selecciona el tipo de gráfica predeterminado para los widgets del dashboard. Cada widget puede tener su propio tipo si es compatible" 
-                              placement="top" 
-                              arrow
-                            >
-                              <FormLabel sx={{ mb: 1, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                Tipo de Gráfica Predeterminado
-                                <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                              </FormLabel>
-                            </Tooltip>
-                            <Select
-                              value={dashboardSettings.charts?.defaultType || 'bar'}
-                              onChange={(e) => updateDashboardSetting('charts.defaultType', e.target.value)}
-                              size="small"
-                            >
-                              <MenuItem value="bar">
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <ChartBarIcon sx={{ fontSize: 18 }} />
-                                  Barras
-                                </Box>
-                              </MenuItem>
-                              <MenuItem value="line">
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <ChartLineIcon sx={{ fontSize: 18 }} />
-                                  Líneas
-                                </Box>
-                              </MenuItem>
-                              <MenuItem value="pie">
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <ChartPieIcon sx={{ fontSize: 18 }} />
-                                  Círculos (Pie)
-                                </Box>
-                              </MenuItem>
-                              <MenuItem value="donut">
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <ChartDonutIcon sx={{ fontSize: 18 }} />
-                                  Dona (Donut)
-                                </Box>
-                              </MenuItem>
-                              <MenuItem value="area">
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <ChartAreaIcon sx={{ fontSize: 18 }} />
-                                  Área
-                                </Box>
-                              </MenuItem>
-                              <MenuItem value="scatter">
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <ChartScatterIcon sx={{ fontSize: 18 }} />
-                                  Dispersión
-                                </Box>
-                              </MenuItem>
-                            </Select>
-                          </FormControl>
-                        </Grid>
-
-                        {/* Chart Animation */}
-                        <Grid item xs={12} sm={6}>
-                          <FormControl fullWidth>
-                            <Tooltip 
-                              title="Las animaciones en gráficas mejoran la experiencia visual pero pueden afectar el rendimiento" 
-                              placement="top" 
-                              arrow
-                            >
-                              <FormLabel sx={{ mb: 1, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                Animaciones en Gráficas
-                                <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                              </FormLabel>
-                            </Tooltip>
-                            <Select
-                              value={dashboardSettings.charts?.animations || 'smooth'}
-                              onChange={(e) => updateDashboardSetting('charts.animations', e.target.value)}
-                              size="small"
-                            >
-                              <MenuItem value="none">Sin Animaciones</MenuItem>
-                              <MenuItem value="smooth">Suaves</MenuItem>
-                              <MenuItem value="bounce">Con Rebote</MenuItem>
-                              <MenuItem value="elastic">Elásticas</MenuItem>
-                            </Select>
-                          </FormControl>
-                        </Grid>
-
-                        {/* Chart Colors */}
-                        <Grid item xs={12}>
-                          <FormLabel sx={{ mb: 2, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <PaletteIcon sx={{ fontSize: 18 }} />
-                            Esquema de Colores para Gráficas
-                          </FormLabel>
-                          <Grid container spacing={1}>
-                            {[
-                              { name: 'Corporativo', colors: ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe'], value: 'corporate' },
-                              { name: 'Vibrante', colors: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57'], value: 'vibrant' },
-                              { name: 'Pastel', colors: ['#a8e6cf', '#dcedc8', '#ffd3a5', '#fd9853', '#e1bee7'], value: 'pastel' },
-                              { name: 'Monocromático', colors: ['#2c3e50', '#34495e', '#7f8c8d', '#95a5a6', '#bdc3c7'], value: 'monochrome' },
-                              { name: 'Océano', colors: ['#667eea', '#764ba2', '#4facfe', '#00f2fe', '#667eea'], value: 'ocean' }
-                            ].map(({ name, colors, value }) => (
-                              <Grid item xs={6} sm={4} md={2.4} key={value}>
-                                <Tooltip title={`Esquema ${name}: ideal para ${getChartSchemeDescription(value)}`} arrow>
-                                  <Card
-                                    sx={{
-                                      p: 1,
-                                      cursor: 'pointer',
-                                      border: dashboardSettings.charts?.colorScheme === value ? 
-                                        `2px solid ${theme.palette.primary.main}` : 
-                                        `1px solid ${theme.palette.divider}`,
-                                      '&:hover': {
-                                        boxShadow: theme.shadows[4]
-                                      }
-                                    }}
-                                    onClick={() => updateDashboardSetting('charts.colorScheme', value)}
-                                  >
-                                    <Box sx={{ display: 'flex', mb: 1, height: 20 }}>
-                                      {colors.map((color, index) => (
-                                        <Box
-                                          key={index}
-                                          sx={{
-                                            flex: 1,
-                                            backgroundColor: color,
-                                            '&:first-of-type': { borderTopLeftRadius: 4, borderBottomLeftRadius: 4 },
-                                            '&:last-of-type': { borderTopRightRadius: 4, borderBottomRightRadius: 4 }
-                                          }}
-                                        />
-                                      ))}
-                                    </Box>
-                                    <Typography variant="caption" sx={{ fontWeight: 600, textAlign: 'center', display: 'block' }}>
-                                      {name}
-                                    </Typography>
-                                  </Card>
-                                </Tooltip>
-                              </Grid>
-                            ))}
-                          </Grid>
-                        </Grid>
-
-                        {/* Chart Preview */}
-                        <Grid item xs={12}>
-                          <Box 
-                            sx={{ 
-                              p: 3, 
-                              border: `1px solid ${theme.palette.divider}`,
-                              borderRadius: 2,
-                              backgroundColor: alpha(theme.palette.background.paper, 0.5)
-                            }}
-                          >
-                            <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                              Vista Previa de Gráficas
-                              {getChartTypeIcon(dashboardSettings.charts?.defaultType || 'bar')}
-                            </Typography>
-                            
-                            <Grid container spacing={2}>
-                              <Grid item xs={12} md={6}>
-                                <Box sx={{ 
-                                  height: 120, 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  justifyContent: 'center',
-                                  border: `1px dashed ${theme.palette.divider}`,
-                                  borderRadius: 1,
-                                  bgcolor: alpha(theme.palette.primary.main, 0.05)
-                                }}>
-                                  {getChartTypeIcon(dashboardSettings.charts?.defaultType || 'bar', 48)}
-                                  <Box sx={{ ml: 2 }}>
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                      {getChartTypeName(dashboardSettings.charts?.defaultType || 'bar')}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                      {getChartTypeDescription(dashboardSettings.charts?.defaultType || 'bar')}
-                                    </Typography>
-                                  </Box>
-                                </Box>
-                              </Grid>
-                              <Grid item xs={12} md={6}>
-                                <Box sx={{ p: 2 }}>
-                                  <Typography variant="subtitle2" sx={{ mb: 1 }}>Configuración Actual:</Typography>
-                                  <Stack spacing={1}>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                      <Typography variant="body2">Tipo:</Typography>
-                                      <Chip size="small" label={getChartTypeName(dashboardSettings.charts?.defaultType || 'bar')} />
-                                    </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                      <Typography variant="body2">Animación:</Typography>
-                                      <Chip size="small" label={dashboardSettings.charts?.animations || 'Suaves'} />
-                                    </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                      <Typography variant="body2">Esquema:</Typography>
-                                      <Chip size="small" label={getChartSchemeName(dashboardSettings.charts?.colorScheme || 'corporate')} />
-                                    </Box>
-                                  </Stack>
-                                </Box>
-                              </Grid>
-                            </Grid>
-                          </Box>
-                        </Grid>
-                      </Grid>
-                    </CardContent>
-                  </Card>
-
                   {/* Widgets Configuration */}
                   <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
                     <CardContent>
@@ -1214,64 +763,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           />
                         ))}
                       </Stack>
-                    </CardContent>
-                  </Card>
-
-                  {/* Reset Dashboard Settings */}
-                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
-                    <CardContent>
-                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <RestartIcon color="primary" />
-                        Restaurar Configuración
-                      </Typography>
-                      
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          Restaura todas las configuraciones del dashboard a sus valores predeterminados. 
-                          Esto incluye layout, gráficas, widgets y notificaciones.
-                        </Typography>
-                        
-                        <Box sx={{ display: 'flex', gap: 2 }}>
-                          <Button
-                            variant="outlined"
-                            color="warning"
-                            startIcon={<RestartIcon />}
-                            onClick={() => {
-                              updateSettings('dashboard', defaultDashboard);
-                              setSaveMessage('Configuración del dashboard restaurada a valores por defecto');
-                              setShowSaveSuccess(true);
-                              setTimeout(() => {
-                                setShowSaveSuccess(false);
-                              }, 3000);
-                            }}
-                            sx={{
-                              borderColor: theme.palette.warning.main,
-                              color: theme.palette.warning.main,
-                              '&:hover': {
-                                borderColor: theme.palette.warning.dark,
-                                backgroundColor: alpha(theme.palette.warning.main, 0.04)
-                              }
-                            }}
-                          >
-                            Restaurar Dashboard
-                          </Button>
-                          
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            startIcon={<SaveIcon />}
-                            onClick={handleSaveSettings}
-                            sx={{
-                              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-                              '&:hover': {
-                                background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`
-                              }
-                            }}
-                          >
-                            Guardar Cambios
-                          </Button>
-                        </Box>
-                      </Box>
                     </CardContent>
                   </Card>
                 </Stack>
