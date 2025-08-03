@@ -42,7 +42,8 @@ import {
   Receipt,
   AttachFile,
   Percent,
-  TrendingUp
+  TrendingUp,
+  Schedule
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
@@ -75,7 +76,8 @@ const CommitmentEditForm = ({
     dueDate: null,
     beneficiary: '',
     observations: '',
-    paymentMethod: 'transfer'
+    paymentMethod: 'transfer',
+    periodicity: 'monthly' // unique, monthly, bimonthly, quarterly, fourmonthly, biannual, annual
   });
 
   // Calcular progreso del formulario
@@ -87,6 +89,17 @@ const CommitmentEditForm = ({
     });
     return (filledFields.length / requiredFields.length) * 100;
   };
+
+  // Opciones para periodicidad (siguiendo el patrón de NewCommitmentPage)
+  const periodicityOptions = [
+    { value: 'unique', label: 'Pago único' },
+    { value: 'monthly', label: 'Mensual' },
+    { value: 'bimonthly', label: 'Bimestral' },
+    { value: 'quarterly', label: 'Trimestral' },
+    { value: 'fourmonthly', label: 'Cuatrimestral' },
+    { value: 'biannual', label: 'Semestral' },
+    { value: 'annual', label: 'Anual' }
+  ];
 
   // Validar campo en tiempo real
   const validateField = (field, value) => {
@@ -159,7 +172,8 @@ const CommitmentEditForm = ({
         dueDate: commitment.dueDate,
         beneficiary: commitment.beneficiary || '',
         observations: commitment.observations || '',
-        paymentMethod: commitment.paymentMethod || 'transfer'
+        paymentMethod: commitment.paymentMethod || 'transfer',
+        periodicity: commitment.periodicity || 'monthly'
       };
       setFormData(initialData);
       setOriginalData(initialData);
@@ -200,6 +214,7 @@ const CommitmentEditForm = ({
         beneficiary: formData.beneficiary.trim(),
         observations: formData.observations.trim(),
         paymentMethod: formData.paymentMethod,
+        periodicity: formData.periodicity,
         updatedAt: serverTimestamp(),
         updatedBy: currentUser.uid
       });
@@ -223,7 +238,8 @@ const CommitmentEditForm = ({
         dueDate: null,
         beneficiary: '',
         observations: '',
-        paymentMethod: 'transfer'
+        paymentMethod: 'transfer',
+        periodicity: 'monthly'
       });
       setErrors({});
     }
@@ -1044,6 +1060,46 @@ const CommitmentEditForm = ({
                           Tarjeta
                         </Box>
                       </MenuItem>
+                    </Select>
+                  </FormControl>
+                </motion.div>
+              </Grid>
+
+              {/* Periodicidad */}
+              <Grid item xs={12} md={6}>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6, duration: 0.3 }}
+                >
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Periodicidad</InputLabel>
+                    <Select
+                      value={formData.periodicity}
+                      onChange={(e) => handleFormChange('periodicity', e.target.value)}
+                      label="Periodicidad"
+                      startAdornment={
+                        <InputAdornment position="start" sx={{ ml: 1 }}>
+                          <Schedule color="info" fontSize="small" />
+                        </InputAdornment>
+                      }
+                      sx={{ 
+                        borderRadius: '12px',
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          transform: 'translateY(-1px)',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                        }
+                      }}
+                    >
+                      {periodicityOptions.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          <Box display="flex" alignItems="center">
+                            <Schedule sx={{ mr: 1, fontSize: 16 }} />
+                            {option.label}
+                          </Box>
+                        </MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
                 </motion.div>

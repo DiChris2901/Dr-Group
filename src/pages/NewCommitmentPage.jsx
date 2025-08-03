@@ -37,7 +37,7 @@ import {
   Payment as PaymentIcon,
   Schedule as ScheduleIcon,
   Settings as SettingsIcon,
-  TuneIcon
+  Tune as TuneIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
