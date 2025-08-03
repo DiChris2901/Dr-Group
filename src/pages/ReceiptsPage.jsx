@@ -58,6 +58,7 @@ import {
   useThemeGradients,
   shimmerEffect
 } from '../utils/designSystem.js';
+import { useFirestore } from '../hooks/useFirestore.js';
 
 // ✨ NUEVO: Styled components premium
 import { styled } from '@mui/material/styles';
@@ -452,85 +453,19 @@ const ReceiptsPage = () => {
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   // ✨ NUEVO: Estados para las nuevas funcionalidades
-  const [loading, setLoading] = useState(false);
+  const [downloadLoading, setDownloadLoading] = useState(false);
   const [cardStates, setCardStates] = useState({});
   const [showSmartAlert, setShowSmartAlert] = useState(true);
 
-  // Mock data - en producción vendrá de Firebase Storage
-  const [receipts] = useState([
-    {
-      id: 1,
-      name: 'Comprobante_Coca_Cola_Enero.pdf',
-      type: 'PDF',
-      size: '2.4 MB',
-      uploadDate: '2025-01-15',
-      company: 'Coca-Cola',
-      amount: '$25,000',
-      status: 'active',
-      url: '/files/receipts/coca_cola_enero.pdf'
-    },
-    {
-      id: 2,
-      name: 'Factura_Pepsi_Febrero.pdf',
-      type: 'PDF', 
-      size: '1.8 MB',
-      uploadDate: '2025-02-10',
-      company: 'Pepsi',
-      amount: '$18,500',
-      status: 'active',
-      url: '/files/receipts/pepsi_febrero.pdf'
-    },
-    {
-      id: 3,
-      name: 'Recibo_Bimbo_Marzo.jpg',
-      type: 'IMAGE',
-      size: '945 KB',
-      uploadDate: '2025-03-05',
-      company: 'Bimbo',
-      amount: '$12,300',
-      status: 'active',
-      url: '/files/receipts/bimbo_marzo.jpg'
-    },
-    {
-      id: 4,
-      name: 'Comprobante_Femsa_Abril.pdf',
-      type: 'PDF',
-      size: '3.1 MB',
-      uploadDate: '2025-04-20',
-      company: 'Femsa',
-      amount: '$31,750',
-      status: 'archived',
-      url: '/files/receipts/femsa_abril.pdf'
-    },
-    // ✨ NUEVO: Datos adicionales para probar las mejoras
-    {
-      id: 5,
-      name: 'Recibo_Samsung_Mayo.pdf',
-      type: 'PDF',
-      size: '4.2 MB',
-      uploadDate: '2025-05-15',
-      company: 'Samsung',
-      amount: '$45,600',
-      status: 'active',
-      url: '/files/receipts/samsung_mayo.pdf'
-    },
-    {
-      id: 6,
-      name: 'Comprobante_Apple_Junio.jpg',
-      type: 'IMAGE',
-      size: '1.7 MB',
-      uploadDate: '2025-06-10',
-      company: 'Apple',
-      amount: '$52,300',
-      status: 'active',
-      url: '/files/receipts/apple_junio.jpg'
-    }
-  ]);
+  // Conectar con Firebase para obtener archivos reales
+  const { data: receipts, loading, error } = useFirestore('files', {
+    orderBy: { field: 'uploadDate', direction: 'desc' }
+  });
 
-  const filteredReceipts = receipts.filter(receipt => {
-    const matchesSearch = receipt.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         receipt.company.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterType === 'all' || receipt.type.toLowerCase() === filterType;
+  const filteredReceipts = (receipts || []).filter(receipt => {
+    const matchesSearch = receipt.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         receipt.company?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filterType === 'all' || receipt.type?.toLowerCase() === filterType;
     return matchesSearch && matchesFilter;
   });
 
@@ -541,11 +476,11 @@ const ReceiptsPage = () => {
   };
 
   const handleDownload = async (receipt) => {
-    setLoading(true);
+    setDownloadLoading(true);
     // Simular descarga con delay
     await new Promise(resolve => setTimeout(resolve, 1500));
     console.log(`Descargando: ${receipt.name}`);
-    setLoading(false);
+    setDownloadLoading(false);
   };
 
   const handleDelete = (receipt) => {
