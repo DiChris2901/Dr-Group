@@ -48,7 +48,7 @@ const ReportsConceptPage = () => {
   const [tabValue, setTabValue] = useState(0);
 
   // Conectar con Firebase para obtener compromisos reales
-  const { data: commitments, loading } = useCommitments();
+  const { commitments, loading } = useCommitments();
 
   // Categorización automática inteligente por concepto
   const conceptsData = useMemo(() => {

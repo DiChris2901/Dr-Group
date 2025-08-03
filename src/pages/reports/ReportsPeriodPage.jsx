@@ -48,7 +48,7 @@ const ReportsPeriodPage = () => {
   const [comparisonMode, setComparisonMode] = useState('previous');
 
   // Conectar con Firebase para obtener compromisos reales
-  const { data: commitments, loading } = useCommitments();
+  const { commitments, loading } = useCommitments();
 
   // Calcular datos mensuales desde Firebase
   const monthlyData = useMemo(() => {

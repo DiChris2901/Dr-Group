@@ -45,7 +45,7 @@ const ReportsCompanyPage = () => {
 
   // Conectar con Firebase para obtener datos reales
   const { commitments, loading: commitmentsLoading } = useCommitments();
-  const { data: companiesData, loading: companiesLoading } = useCompanies();
+  const { companies: companiesData, loading: companiesLoading } = useCompanies();
   
   const loading = commitmentsLoading || companiesLoading;
 
