@@ -392,11 +392,10 @@ const ProfilePage = () => {
     setTimeout(() => setAlert({ open: false, message: '', severity: 'success' }), 5000);
   };
 
-  // Función para obtener el estado del usuario
-  const getUserStatus = () => {
-    if (!user?.emailVerified) return { text: 'Pendiente', color: 'warning', icon: <AccessTime /> };
-    if (userProfile?.status === 'suspended') return { text: 'Suspendido', color: 'error', icon: <Warning /> };
-    return { text: 'Activo', color: 'success', icon: <CheckCircle /> };
+  // Función para obtener el rol del usuario desde Firebase
+  const getUserRole = () => {
+    const role = userProfile?.role || formData.role || 'user';
+    return role === 'admin' || role === 'ADMIN' ? 'Administrador' : 'Usuario';
   };
 
   // Función para obtener el icono del dispositivo
@@ -650,18 +649,6 @@ const ProfilePage = () => {
                       }}>
                         {formData.name || 'Sin nombre'}
                       </Typography>
-                      {/* Estado del usuario */}
-                      <Chip
-                        icon={getUserStatus().icon}
-                        label={getUserStatus().text}
-                        color={getUserStatus().color}
-                        size="small"
-                        sx={{
-                          fontWeight: 'bold',
-                          color: 'white',
-                          '& .MuiChip-icon': { color: 'white' }
-                        }}
-                      />
                     </Box>
                     <Typography variant="h6" sx={{ 
                       color: alpha('#fff', 0.8), 
@@ -677,7 +664,7 @@ const ProfilePage = () => {
                         fontWeight: 600,
                         textShadow: '0 1px 2px rgba(0,0,0,0.3)'
                       }}>
-                        {formData.role === 'admin' ? 'Administrador' : 'Usuario'}
+                        {getUserRole()}
                       </Typography>
                       {/* Último acceso */}
                       <Typography variant="caption" sx={{ 
@@ -1052,35 +1039,35 @@ const ProfilePage = () => {
                     {formData.email}
                   </Typography>
                   
-                  {/* Badges de rol y estado */}
+                  {/* Badge de rol */}
                   <Box display="flex" gap={1} justifyContent="center" mb={2}>
                     <Box 
                       sx={{
                         px: 2,
                         py: 0.5,
                         borderRadius: 20,
-                        background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+                        background: (userProfile?.role === 'admin' || userProfile?.role === 'ADMIN') 
+                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                          : 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
                         color: 'white',
                         fontSize: '0.75rem',
-                        fontWeight: 'bold'
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5
                       }}
                     >
-                      {formData.role === 'admin' ? 'Administrador' : 'Usuario'}
-                    </Box>
-                    <Box 
-                      sx={{
-                        px: 2,
-                        py: 0.5,
-                        borderRadius: 20,
-                        background: user?.emailVerified 
-                          ? 'linear-gradient(135deg, #00b894 0%, #00a085 100%)'
-                          : 'linear-gradient(135deg, #fdcb6e 0%, #e17055 100%)',
-                        color: 'white',
-                        fontSize: '0.75rem',
-                        fontWeight: 'bold'
-                      }}
-                    >
-                      {user?.emailVerified ? 'Activo' : 'Pendiente'}
+                      {(userProfile?.role === 'admin' || userProfile?.role === 'ADMIN') ? (
+                        <>
+                          <AdminPanelSettings sx={{ fontSize: 14 }} />
+                          Administrador
+                        </>
+                      ) : (
+                        <>
+                          <Person sx={{ fontSize: 14 }} />
+                          Usuario
+                        </>
+                      )}
                     </Box>
                   </Box>
 
