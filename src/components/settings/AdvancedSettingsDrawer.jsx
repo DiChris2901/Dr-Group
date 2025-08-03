@@ -1291,63 +1291,291 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
               {/* NOTIFICACIONES TAB */}
               <TabPanel value={activeTab} index={2}>
                 <Stack spacing={3}>
-                  {/* Notifications Settings */}
+                  {/* Notifications Main Settings */}
                   <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
                     <CardContent>
                       <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
                         <NotificationsIcon color="primary" />
-                        Notificaciones y Alertas
+                        Configuración General
                       </Typography>
 
-                      <Stack spacing={3}>
+                      <Tooltip 
+                        title="Activa o desactiva todas las notificaciones del sistema. Cuando está deshabilitado, no recibirás ninguna alerta." 
+                        placement="top" 
+                        arrow
+                      >
                         <FormControlLabel
                           control={
                             <Switch
                               checked={dashboardSettings.notifications.enabled}
-                              onChange={(e) => updateDashboardSetting('notifications.enabled', e.target.checked)}
+                              onChange={(e) => {
+                                updateDashboardSetting('notifications.enabled', e.target.checked);
+                                // Feedback visual
+                                if (e.target.checked) {
+                                  setSaveMessage('Notificaciones habilitadas');
+                                } else {
+                                  setSaveMessage('Notificaciones deshabilitadas');
+                                }
+                                setShowSaveSuccess(true);
+                                setTimeout(() => setShowSaveSuccess(false), 2000);
+                              }}
                             />
                           }
-                          label="Habilitar notificaciones"
-                        />
-
-                        {dashboardSettings.notifications.enabled && (
-                          <>
-                            <Box>
-                              <FormLabel sx={{ mb: 1, fontWeight: 600 }}>Umbral de Monto para Alerta</FormLabel>
-                              <TextField
-                                type="number"
-                                value={dashboardSettings.notifications.alertThreshold}
-                                onChange={(e) => updateDashboardSetting('notifications.alertThreshold', Number(e.target.value))}
-                                InputProps={{
-                                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                                }}
-                                size="small"
-                                fullWidth
-                              />
+                          label={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              Habilitar Notificaciones
+                              <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                             </Box>
+                          }
+                        />
+                      </Tooltip>
+                    </CardContent>
+                  </Card>
 
-                            <Box>
-                              <FormLabel sx={{ mb: 1, fontWeight: 600, display: 'block' }}>Tipos de Notificaciones</FormLabel>
-                              <Stack spacing={1}>
-                                {Object.entries(dashboardSettings.notifications.types).map(([key, enabled]) => (
+                  {dashboardSettings.notifications.enabled && (
+                    <>
+                      {/* Threshold Configuration */}
+                      <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                        <CardContent>
+                          <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <SpeedIcon color="primary" />
+                            Configuración de Umbrales
+                          </Typography>
+                          
+                          <Box>
+                            <Tooltip 
+                              title="Establece el monto límite para recibir alertas automáticas. Se aplicará a compromisos y pagos que superen este valor." 
+                              placement="top" 
+                              arrow
+                            >
+                              <FormLabel sx={{ mb: 1, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                Umbral de Monto para Alerta
+                                <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                              </FormLabel>
+                            </Tooltip>
+                            <TextField
+                              type="number"
+                              value={dashboardSettings.notifications.alertThreshold}
+                              onChange={(e) => {
+                                const value = Number(e.target.value);
+                                if (value >= 0) {
+                                  updateDashboardSetting('notifications.alertThreshold', value);
+                                }
+                              }}
+                              InputProps={{
+                                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                              }}
+                              placeholder="Ej: 100000"
+                              helperText="Recibirás una alerta cuando se supere este monto"
+                              size="small"
+                              fullWidth
+                              error={dashboardSettings.notifications.alertThreshold < 0}
+                            />
+                          </Box>
+                        </CardContent>
+                      </Card>
+
+                      {/* Notification Types */}
+                      <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                        <CardContent>
+                          <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Badge color="primary" />
+                            Tipos de Notificaciones
+                          </Typography>
+                          
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            Personaliza qué tipos de alertas deseas recibir en el sistema
+                          </Typography>
+
+                          <Stack spacing={2}>
+                            {Object.entries(dashboardSettings.notifications.types).map(([key, enabled]) => (
+                              <Box 
+                                key={key}
+                                sx={{
+                                  p: 2,
+                                  border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                  borderRadius: 2,
+                                  bgcolor: enabled ? alpha(theme.palette.primary.main, 0.04) : 'transparent',
+                                  transition: 'all 0.3s ease'
+                                }}
+                              >
+                                <Tooltip 
+                                  title={getNotificationDescription(key)} 
+                                  placement="top" 
+                                  arrow
+                                >
                                   <FormControlLabel
-                                    key={key}
                                     control={
                                       <Switch
                                         checked={enabled}
-                                        onChange={(e) => updateDashboardSetting(`notifications.types.${key}`, e.target.checked)}
+                                        onChange={(e) => {
+                                          updateDashboardSetting(`notifications.types.${key}`, e.target.checked);
+                                          // Feedback visual
+                                          setSaveMessage(e.target.checked ? 
+                                            `${getNotificationLabel(key)} habilitado` : 
+                                            `${getNotificationLabel(key)} deshabilitado`
+                                          );
+                                          setShowSaveSuccess(true);
+                                          setTimeout(() => setShowSaveSuccess(false), 2000);
+                                        }}
                                       />
                                     }
-                                    label={getNotificationLabel(key)}
+                                    label={
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        {getNotificationIcon(key)}
+                                        <Box>
+                                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                            {getNotificationLabel(key)}
+                                          </Typography>
+                                          <Typography variant="caption" color="text.secondary">
+                                            {getNotificationDescription(key)}
+                                          </Typography>
+                                        </Box>
+                                      </Box>
+                                    }
+                                    sx={{ margin: 0, width: '100%' }}
                                   />
-                                ))}
-                              </Stack>
+                                </Tooltip>
+                              </Box>
+                            ))}
+                          </Stack>
+                        </CardContent>
+                      </Card>
+
+                      {/* Notification Preview */}
+                      <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                        <CardContent>
+                          <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <NotificationsIcon color="primary" />
+                            Vista Previa de Notificaciones
+                          </Typography>
+                          
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            Ejemplos de cómo se verán las notificaciones en tu dashboard
+                          </Typography>
+
+                          <Stack spacing={2}>
+                            {/* Sample notification previews */}
+                            <Box sx={{ 
+                              p: 2, 
+                              border: `1px solid ${theme.palette.warning.main}`,
+                              borderRadius: 2,
+                              bgcolor: alpha(theme.palette.warning.main, 0.1),
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 2
+                            }}>
+                              <NotificationsIcon sx={{ color: theme.palette.warning.main }} />
+                              <Box>
+                                <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                                  Pago Próximo a Vencer
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  El compromiso "Nómina Enero" vence en 3 días - ${dashboardSettings.notifications.alertThreshold?.toLocaleString() || '100,000'}
+                                </Typography>
+                              </Box>
                             </Box>
-                          </>
-                        )}
-                      </Stack>
-                    </CardContent>
-                  </Card>
+
+                            <Box sx={{ 
+                              p: 2, 
+                              border: `1px solid ${theme.palette.error.main}`,
+                              borderRadius: 2,
+                              bgcolor: alpha(theme.palette.error.main, 0.1),
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 2
+                            }}>
+                              <NotificationsIcon sx={{ color: theme.palette.error.main }} />
+                              <Box>
+                                <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                                  Monto Elevado Detectado
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  Se registró un compromiso de ${(dashboardSettings.notifications.alertThreshold * 1.5)?.toLocaleString() || '150,000'} - superior al umbral configurado
+                                </Typography>
+                              </Box>
+                            </Box>
+
+                            <Box sx={{ 
+                              p: 2, 
+                              border: `1px solid ${theme.palette.success.main}`,
+                              borderRadius: 2,
+                              bgcolor: alpha(theme.palette.success.main, 0.1),
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 2
+                            }}>
+                              <CheckCircleIcon sx={{ color: theme.palette.success.main }} />
+                              <Box>
+                                <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                                  Pago Completado
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  Se confirmó el pago de "Servicios Públicos" por $45,000
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+
+                      {/* Action Buttons */}
+                      <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                        <CardContent>
+                          <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <SettingsIcon color="primary" />
+                            Acciones de Configuración
+                          </Typography>
+                          
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              Gestiona tu configuración de notificaciones con las siguientes opciones
+                            </Typography>
+                            
+                            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                              <Button
+                                variant="outlined"
+                                color="warning"
+                                startIcon={<RestartIcon />}
+                                onClick={() => {
+                                  const defaultNotifications = defaultDashboard.notifications;
+                                  updateDashboardSetting('notifications', defaultNotifications);
+                                  setSaveMessage('Configuración de notificaciones restaurada a valores por defecto');
+                                  setShowSaveSuccess(true);
+                                  setTimeout(() => setShowSaveSuccess(false), 3000);
+                                }}
+                                sx={{
+                                  borderColor: theme.palette.warning.main,
+                                  color: theme.palette.warning.main,
+                                  '&:hover': {
+                                    borderColor: theme.palette.warning.dark,
+                                    backgroundColor: alpha(theme.palette.warning.main, 0.04)
+                                  }
+                                }}
+                              >
+                                Restaurar por Defecto
+                              </Button>
+                              
+                              <Button
+                                variant="contained"
+                                color="primary"
+                                startIcon={<SaveIcon />}
+                                onClick={handleSaveSettings}
+                                sx={{
+                                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                                  '&:hover': {
+                                    background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`
+                                  }
+                                }}
+                              >
+                                Guardar Cambios
+                              </Button>
+                            </Box>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </>
+                  )}
                 </Stack>
               </TabPanel>
 
@@ -1479,4 +1707,31 @@ function getNotificationLabel(key) {
     monthlyReports: 'Reportes Mensuales'
   };
   return labels[key] || key;
+}
+
+function getNotificationDescription(key) {
+  const descriptions = {
+    upcomingPayments: 'Alertas sobre compromisos próximos a vencer en los próximos días',
+    overduePayments: 'Notificaciones sobre pagos que han superado su fecha de vencimiento',
+    highAmount: 'Alertas automáticas cuando un compromiso supera el umbral de monto configurado',
+    systemUpdates: 'Notificaciones sobre actualizaciones y mantenimiento del sistema',
+    commitmentAlerts: 'Alertas generales sobre el estado de tus compromisos financieros',
+    paymentReminders: 'Recordatorios automáticos antes de las fechas de vencimiento',
+    monthlyReports: 'Resúmenes mensuales automáticos de tu actividad financiera'
+  };
+  return descriptions[key] || 'Notificación del sistema';
+}
+
+function getNotificationIcon(key) {
+  const iconProps = { sx: { fontSize: 20, color: 'primary.main' } };
+  switch (key) {
+    case 'upcomingPayments': return <ScheduleIcon {...iconProps} />;
+    case 'overduePayments': return <NotificationsIcon {...iconProps} />;
+    case 'highAmount': return <SpeedIcon {...iconProps} />;
+    case 'systemUpdates': return <SettingsIcon {...iconProps} />;
+    case 'commitmentAlerts': return <NotificationsIcon {...iconProps} />;
+    case 'paymentReminders': return <ScheduleIcon {...iconProps} />;
+    case 'monthlyReports': return <DashboardIcon {...iconProps} />;
+    default: return <NotificationsIcon {...iconProps} />;
+  }
 }
