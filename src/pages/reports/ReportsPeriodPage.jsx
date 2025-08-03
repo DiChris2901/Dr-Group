@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Card,
@@ -21,6 +21,7 @@ import {
   MenuItem
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { useCommitments } from '../../hooks/useFirestore';
 import {
   DateRange,
   GetApp,
@@ -46,12 +47,76 @@ const ReportsPeriodPage = () => {
   const [periodType, setPeriodType] = useState('monthly');
   const [comparisonMode, setComparisonMode] = useState('previous');
 
-  // TODO: Conectar con Firebase - usar useCommitments() para calcular datos por período
-  // TODO: Conectar con Firebase - datos reales de compromisos por período
-  const monthlyData = [];
+  // Conectar con Firebase para obtener compromisos reales
+  const { data: commitments, loading } = useCommitments();
 
-  // TODO: Conectar con Firebase - datos reales de compromisos semanales
-  const weeklyData = [];
+  // Calcular datos mensuales desde Firebase
+  const monthlyData = useMemo(() => {
+    if (!commitments) return [];
+    
+    const months = [];
+    const currentDate = new Date();
+    
+    // Generar últimos 12 meses
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+      
+      const monthCommitments = commitments.filter(c => {
+        const commitmentDate = new Date(c.dueDate);
+        return commitmentDate >= monthStart && commitmentDate <= monthEnd;
+      });
+      
+      const totalAmount = monthCommitments.reduce((sum, c) => sum + (c.amount || 0), 0);
+      const completed = monthCommitments.filter(c => c.status === 'completed').length;
+      const pending = monthCommitments.filter(c => c.status === 'pending').length;
+      const overdue = monthCommitments.filter(c => c.status === 'overdue').length;
+      
+      months.push({
+        period: date.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }),
+        amount: totalAmount,
+        commitments: monthCommitments.length,
+        completed,
+        pending,
+        overdue,
+        avgTicket: monthCommitments.length > 0 ? totalAmount / monthCommitments.length : 0
+      });
+    }
+    
+    return months;
+  }, [commitments]);
+
+  // Calcular datos semanales desde Firebase
+  const weeklyData = useMemo(() => {
+    if (!commitments) return [];
+    
+    const weeks = [];
+    const currentDate = new Date();
+    
+    // Generar últimas 8 semanas
+    for (let i = 7; i >= 0; i--) {
+      const weekStart = new Date(currentDate);
+      weekStart.setDate(currentDate.getDate() - (i * 7) - currentDate.getDay());
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      
+      const weekCommitments = commitments.filter(c => {
+        const commitmentDate = new Date(c.dueDate);
+        return commitmentDate >= weekStart && commitmentDate <= weekEnd;
+      });
+      
+      const totalAmount = weekCommitments.reduce((sum, c) => sum + (c.amount || 0), 0);
+      
+      weeks.push({
+        period: `Sem ${8 - i}`,
+        amount: totalAmount,
+        commitments: weekCommitments.length
+      });
+    }
+    
+    return weeks;
+  }, [commitments]);
 
   const currentData = periodType === 'weekly' ? weeklyData : monthlyData;
 
@@ -96,6 +161,14 @@ const ReportsPeriodPage = () => {
   return (
     // <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
       <Box sx={{ p: 3 }}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+            <Typography variant="h6" color="text.secondary">
+              Cargando datos de períodos...
+            </Typography>
+          </Box>
+        ) : (
+          <>
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -458,6 +531,8 @@ const ReportsPeriodPage = () => {
             </TableContainer>
           </CardContent>
         </Card>
+          </>
+        )}
       </Box>
     // </LocalizationProvider>
   );
