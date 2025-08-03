@@ -69,6 +69,13 @@ const DashboardHeader = ({ onOpenSettings }) => {
   const secondaryColor = settings?.theme?.secondaryColor || theme.palette.secondary.main;
   const borderRadius = settings?.theme?.borderRadius || 8;
   const animationsEnabled = settings?.theme?.animations !== false;
+  
+  // 📧 Configuraciones de Notificaciones
+  const notificationsEnabled = settings?.notifications?.enabled !== false;
+  const notificationSoundEnabled = settings?.notifications?.sound !== false;
+  
+  // 📐 Configuraciones de Layout
+  const compactMode = settings?.sidebar?.compactMode || false;
 
   const handleProfileMenuOpen = (event) => {
     setProfileMenuAnchor(event.currentTarget);
@@ -79,6 +86,13 @@ const DashboardHeader = ({ onOpenSettings }) => {
   };
 
   const handleNotificationsOpen = (event) => {
+    // 🔊 Sonido condicional en notificaciones
+    if (notificationSoundEnabled) {
+      // Crear sonido sutil para feedback auditivo
+      const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmUeCSGh2u+8g');
+      audio.volume = 0.1;
+      audio.play().catch(() => {}); // Ignorar errores de autoplay
+    }
     setNotificationsAnchor(event.currentTarget);
   };
 
@@ -166,7 +180,15 @@ const DashboardHeader = ({ onOpenSettings }) => {
   };
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'flex-end' }}>
+    <Box sx={{ 
+      display: 'flex', 
+      alignItems: 'center', 
+      width: '100%', 
+      justifyContent: 'flex-end',
+      // 📐 Altura dinámica según modo compacto
+      height: compactMode ? 60 : 72,
+      py: compactMode ? 1 : 1.5,
+    }}>
       {/* Controles del lado derecho */}
       <Box sx={{ 
         display: 'flex', 
@@ -174,9 +196,10 @@ const DashboardHeader = ({ onOpenSettings }) => {
         justifyContent: 'flex-end',
         gap: 1
       }}>
-        {/* Botón de notificaciones */}
-        <Tooltip title="Notificaciones y Alertas">
-          <IconButton
+        {/* Botón de notificaciones - Condicional según configuración */}
+        {notificationsEnabled && (
+          <Tooltip title="Notificaciones y Alertas">
+            <IconButton
             onClick={handleNotificationsOpen}
             sx={{
               width: 48,
@@ -224,6 +247,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
             </Badge>
           </IconButton>
         </Tooltip>
+        )}
 
         {/* Botón de calendario */}
         <Tooltip title="Calendario de Compromisos">
