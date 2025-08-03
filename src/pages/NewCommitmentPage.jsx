@@ -19,7 +19,8 @@ import {
   Paper,
   Divider,
   FormControlLabel,
-  Checkbox
+  Checkbox,
+  Autocomplete
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -37,7 +38,7 @@ import {
 import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
@@ -55,6 +56,11 @@ const NewCommitmentPage = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadingCompanies, setLoadingCompanies] = useState(true);
+  
+  // Estados para autocompletado
+  const [beneficiariesSuggestions, setBeneficiariesSuggestions] = useState([]);
+  const [conceptsSuggestions, setConceptsSuggestions] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(true);
 
   // Obtener empresa preseleccionada desde la navegación
   const preselectedCompany = location.state?.preselectedCompany;
@@ -145,6 +151,41 @@ const NewCommitmentPage = () => {
 
     return () => unsubscribe();
   }, [currentUser, addNotification]);
+
+  // Cargar sugerencias para autocompletado desde compromisos existentes
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const loadSuggestions = async () => {
+      setLoadingSuggestions(true);
+      try {
+        const q = query(collection(db, 'commitments'));
+        const snapshot = await getDocs(q);
+        
+        const beneficiariesSet = new Set();
+        const conceptsSet = new Set();
+        
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.beneficiary && data.beneficiary.trim()) {
+            beneficiariesSet.add(data.beneficiary.trim());
+          }
+          if (data.concept && data.concept.trim()) {
+            conceptsSet.add(data.concept.trim());
+          }
+        });
+        
+        setBeneficiariesSuggestions(Array.from(beneficiariesSet).sort());
+        setConceptsSuggestions(Array.from(conceptsSet).sort());
+      } catch (error) {
+        console.error('Error loading suggestions:', error);
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    };
+
+    loadSuggestions();
+  }, [currentUser]);
 
   // Mostrar notificación cuando se preselecciona una empresa
   useEffect(() => {
@@ -664,39 +705,161 @@ const NewCommitmentPage = () => {
 
                       {/* Fila 2: Beneficiario, Concepto */}
                       <Grid item xs={12} md={6}>
-                        <TextField
-                          fullWidth
-                          required
-                          label="Beneficiario"
+                        <Autocomplete
+                          freeSolo
+                          options={beneficiariesSuggestions}
                           value={formData.beneficiary}
-                          onChange={(e) => handleFormChange('beneficiary', e.target.value)}
+                          onChange={(event, newValue) => {
+                            handleFormChange('beneficiary', newValue || '');
+                          }}
+                          onInputChange={(event, newInputValue) => {
+                            handleFormChange('beneficiary', newInputValue || '');
+                          }}
                           disabled={saving}
-                          placeholder="Nombre de la entidad o persona a quien se le paga"
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <PersonIcon color="primary" />
-                              </InputAdornment>
-                            ),
+                          loading={loadingSuggestions}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              fullWidth
+                              required
+                              label="Beneficiario"
+                              placeholder="Nombre de la entidad o persona a quien se le paga"
+                              InputProps={{
+                                ...params.InputProps,
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <PersonIcon 
+                                      sx={{ 
+                                        color: primaryColor,
+                                        transition: animationsEnabled ? 'all 0.3s ease' : 'none'
+                                      }} 
+                                    />
+                                  </InputAdornment>
+                                ),
+                                endAdornment: (
+                                  <>
+                                    {loadingSuggestions ? <CircularProgress color="inherit" size={20} /> : null}
+                                    {params.InputProps.endAdornment}
+                                  </>
+                                ),
+                                sx: {
+                                  borderRadius: `${borderRadius}px`,
+                                  '& .MuiOutlinedInput-root': {
+                                    transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                                    '&:hover': animationsEnabled ? {
+                                      borderColor: primaryColor,
+                                      transform: 'translateY(-1px)',
+                                      boxShadow: theme.palette.mode === 'dark' 
+                                        ? `0 4px 12px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.2)` 
+                                        : `0 4px 12px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.15)`
+                                    } : {},
+                                    '&.Mui-focused': {
+                                      borderColor: primaryColor,
+                                      borderWidth: 2,
+                                      transform: 'translateY(-1px)',
+                                      boxShadow: theme.palette.mode === 'dark' 
+                                        ? `0 6px 16px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.3)` 
+                                        : `0 6px 16px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.2)`
+                                    }
+                                  }
+                                }
+                              }}
+                            />
+                          )}
+                          sx={{
+                            '& .MuiAutocomplete-listbox': {
+                              borderRadius: `${borderRadius}px`,
+                              fontSize: `${fontSize}px`
+                            },
+                            '& .MuiAutocomplete-option': {
+                              transition: animationsEnabled ? 'all 0.2s ease' : 'none',
+                              '&:hover': animationsEnabled ? {
+                                backgroundColor: theme.palette.mode === 'dark' 
+                                  ? `rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.1)` 
+                                  : `rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.08)`,
+                                transform: 'translateX(4px)'
+                              } : {}
+                            }
                           }}
                         />
                       </Grid>
 
                       <Grid item xs={12} md={6}>
-                        <TextField
-                          fullWidth
-                          required
-                          label="Concepto"
+                        <Autocomplete
+                          freeSolo
+                          options={conceptsSuggestions}
                           value={formData.concept}
-                          onChange={(e) => handleFormChange('concept', e.target.value)}
+                          onChange={(event, newValue) => {
+                            handleFormChange('concept', newValue || '');
+                          }}
+                          onInputChange={(event, newInputValue) => {
+                            handleFormChange('concept', newInputValue || '');
+                          }}
                           disabled={saving}
-                          placeholder="Descripción del pago o servicio"
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <DescriptionIcon color="primary" />
-                              </InputAdornment>
-                            ),
+                          loading={loadingSuggestions}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              fullWidth
+                              required
+                              label="Concepto"
+                              placeholder="Descripción del pago o servicio"
+                              InputProps={{
+                                ...params.InputProps,
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <DescriptionIcon 
+                                      sx={{ 
+                                        color: primaryColor,
+                                        transition: animationsEnabled ? 'all 0.3s ease' : 'none'
+                                      }} 
+                                    />
+                                  </InputAdornment>
+                                ),
+                                endAdornment: (
+                                  <>
+                                    {loadingSuggestions ? <CircularProgress color="inherit" size={20} /> : null}
+                                    {params.InputProps.endAdornment}
+                                  </>
+                                ),
+                                sx: {
+                                  borderRadius: `${borderRadius}px`,
+                                  '& .MuiOutlinedInput-root': {
+                                    transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                                    '&:hover': animationsEnabled ? {
+                                      borderColor: primaryColor,
+                                      transform: 'translateY(-1px)',
+                                      boxShadow: theme.palette.mode === 'dark' 
+                                        ? `0 4px 12px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.2)` 
+                                        : `0 4px 12px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.15)`
+                                    } : {},
+                                    '&.Mui-focused': {
+                                      borderColor: primaryColor,
+                                      borderWidth: 2,
+                                      transform: 'translateY(-1px)',
+                                      boxShadow: theme.palette.mode === 'dark' 
+                                        ? `0 6px 16px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.3)` 
+                                        : `0 6px 16px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.2)`
+                                    }
+                                  }
+                                }
+                              }}
+                            />
+                          )}
+                          sx={{
+                            '& .MuiAutocomplete-listbox': {
+                              borderRadius: `${borderRadius}px`,
+                              fontSize: `${fontSize}px`
+                            },
+                            '& .MuiAutocomplete-option': {
+                              transition: animationsEnabled ? 'all 0.2s ease' : 'none',
+                              '&:hover': animationsEnabled ? {
+                                backgroundColor: theme.palette.mode === 'dark' 
+                                  ? `rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.1)` 
+                                  : `rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.08)`,
+                                transform: 'translateX(4px)'
+                              } : {}
+                            }
                           }}
                         />
                       </Grid>
