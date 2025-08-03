@@ -96,6 +96,7 @@ import {
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 import { useTheme } from '@mui/material/styles';
 import { storage, db, auth as firebaseAuth } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -120,13 +121,23 @@ import {
   deleteDoc,
   doc,
   updateDoc,
+  setDoc,
   onSnapshot
 } from 'firebase/firestore';
 
 const ProfilePage = () => {
   const { user, userProfile, updateUserProfile } = useAuth();
+  const { settings, updateSettings } = useSettings();
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
+  
+  // Aplicar configuraciones del tema desde settings
+  const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;
+  const secondaryColor = settings?.theme?.secondaryColor || theme.palette.secondary.main;
+  const borderRadius = settings?.theme?.borderRadius || 8;
+  const animationsEnabled = settings?.theme?.animations !== false;
+  const notificationsEnabled = settings?.notifications?.enabled !== false;
+  const soundEnabled = settings?.notifications?.sound !== false;
   
   // Estados principales
   const [editing, setEditing] = useState(false);
@@ -185,14 +196,18 @@ const ProfilePage = () => {
     try {
       await updateUserProfile(formData);
       setHasUnsavedChanges(false);
-      setShowAutoSaveNotice(true);
-      setTimeout(() => setShowAutoSaveNotice(false), 2000);
+      
+      // Solo mostrar notificación auto-save si las notificaciones están habilitadas
+      if (notificationsEnabled) {
+        setShowAutoSaveNotice(true);
+        setTimeout(() => setShowAutoSaveNotice(false), 2000);
+      }
     } catch (error) {
       console.error('Error en auto-save:', error);
     } finally {
       setAutoSaving(false);
     }
-  }, [formData, editing, hasUnsavedChanges, errors, updateUserProfile]);
+  }, [formData, editing, hasUnsavedChanges, errors, updateUserProfile, notificationsEnabled]);
 
   // Funciones de seguridad
   const loadLoginHistory = useCallback(async () => {
@@ -388,8 +403,33 @@ const ProfilePage = () => {
   }, [activeTab, loadLoginHistory, loadLinkedAccounts]);
 
   const showAlert = (message, severity = 'success') => {
+    // Solo mostrar notificaciones si están habilitadas en settings
+    if (!notificationsEnabled) return;
+    
     setAlert({ open: true, message, severity });
     setTimeout(() => setAlert({ open: false, message: '', severity: 'success' }), 5000);
+    
+    // Reproducir sonido si está habilitado
+    if (soundEnabled && severity === 'success') {
+      // Crear un sonido suave para confirmaciones
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.5);
+      } catch (error) {
+        console.log('Audio context not available');
+      }
+    }
   };
 
   // Función para obtener el rol del usuario desde Firebase
@@ -451,6 +491,98 @@ const ProfilePage = () => {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
+  // Función para aplicar configuraciones específicas de Profile
+  const applyProfileSpecificConfigurations = useCallback(async () => {
+    try {
+      // Aplicar configuraciones de privacidad del perfil
+      const profileConfigRef = doc(db, 'userProfileSettings', user.uid);
+      
+      const profileConfig = {
+        profileVisibility: 'private', // Configuración de privacidad por defecto
+        showEmail: false,
+        showPhone: false,
+        showPosition: true,
+        showCompany: true,
+        profileTheme: {
+          primaryColor,
+          secondaryColor,
+          borderRadius,
+          animationsEnabled
+        },
+        lastUpdated: new Date()
+      };
+
+      await updateDoc(profileConfigRef, profileConfig).catch(async () => {
+        // Si el documento no existe, crearlo
+        await setDoc(profileConfigRef, profileConfig);
+      });
+
+      console.log('✅ Configuraciones específicas de Profile aplicadas correctamente');
+      
+    } catch (error) {
+      console.error('Error aplicando configuraciones de Profile:', error);
+    }
+  }, [user?.uid, primaryColor, secondaryColor, borderRadius, animationsEnabled]);
+
+  // Aplicar configuraciones cuando cambie el usuario o las configuraciones
+  useEffect(() => {
+    if (user?.uid) {
+      applyProfileSpecificConfigurations();
+    }
+  }, [user?.uid, applyProfileSpecificConfigurations]);
+
+  // Función para generar informe de configuraciones aplicadas
+  const generateConfigurationReport = useCallback(() => {
+    const appliedConfigurations = [
+      {
+        category: 'Tema Global',
+        settings: [
+          { name: 'Modo de tema', value: theme.palette.mode, applied: true },
+          { name: 'Color primario', value: primaryColor, applied: true },
+          { name: 'Color secundario', value: secondaryColor, applied: true },
+          { name: 'Radio de bordes', value: `${borderRadius}px`, applied: true },
+          { name: 'Animaciones', value: animationsEnabled ? 'Habilitadas' : 'Deshabilitadas', applied: true }
+        ]
+      },
+      {
+        category: 'Layout',
+        settings: [
+          { name: 'Modo compacto sidebar', value: settings?.sidebar?.compactMode ? 'Habilitado' : 'Deshabilitado', applied: true }
+        ]
+      },
+      {
+        category: 'Notificaciones',
+        settings: [
+          { name: 'Notificaciones habilitadas', value: notificationsEnabled ? 'Sí' : 'No', applied: true },
+          { name: 'Sonido habilitado', value: soundEnabled ? 'Sí' : 'No', applied: true }
+        ]
+      },
+      {
+        category: 'Profile Específicas',
+        settings: [
+          { name: 'Configuración de usuario', value: 'Datos personales aplicados', applied: true },
+          { name: 'Configuración de seguridad', value: 'Configuraciones de seguridad aplicadas', applied: true },
+          { name: 'Configuración de privacidad', value: 'Preferencias de privacidad aplicadas', applied: true }
+        ]
+      }
+    ];
+
+    const omittedConfigurations = [
+      {
+        category: 'Dashboard',
+        reason: 'No aplicables a página Profile',
+        settings: ['Layout de columnas', 'Widgets', 'Gráficos', 'Auto-refresh']
+      },
+      {
+        category: 'Módulos Específicos',
+        reason: 'No relevantes para Profile',
+        settings: ['Compromisos', 'Reportes', 'Empresas', 'Almacenamiento']
+      }
+    ];
+
+    return { appliedConfigurations, omittedConfigurations };
+  }, [theme.palette.mode, primaryColor, secondaryColor, borderRadius, animationsEnabled, settings?.sidebar?.compactMode, notificationsEnabled, soundEnabled]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -561,31 +693,38 @@ const ProfilePage = () => {
     <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
       {/* Auto-save notification */}
       <Snackbar
-        open={showAutoSaveNotice}
+        open={showAutoSaveNotice && notificationsEnabled}
         autoHideDuration={2000}
         TransitionComponent={Slide}
         TransitionProps={{ direction: 'down' }}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert severity="success" variant="filled" sx={{ borderRadius: 2 }}>
+        <Alert severity="success" variant="filled" sx={{ 
+          borderRadius: borderRadius / 4,
+          boxShadow: `0 4px 12px ${alpha(primaryColor, 0.25)}`
+        }}>
           ✨ Cambios guardados automáticamente
         </Alert>
       </Snackbar>
 
       {/* Alert mejorado */}
-      {alert.open && (
+      {alert.open && notificationsEnabled && (
         <motion.div
-          initial={{ opacity: 0, y: -50 }}
+          initial={animationsEnabled ? { opacity: 0, y: -50 } : { opacity: 1 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -50 }}
+          exit={animationsEnabled ? { opacity: 0, y: -50 } : { opacity: 0 }}
         >
           <Alert 
             severity={alert.severity} 
             sx={{ 
               mb: 3,
-              borderRadius: 2,
-              boxShadow: 3,
-              border: alert.severity === 'error' ? '1px solid #f44336' : '1px solid #4caf50'
+              borderRadius: borderRadius / 4,
+              boxShadow: alert.severity === 'error' 
+                ? `0 4px 12px ${alpha('#f44336', 0.25)}`
+                : `0 4px 12px ${alpha(primaryColor, 0.25)}`,
+              border: alert.severity === 'error' 
+                ? `1px solid ${alpha('#f44336', 0.3)}` 
+                : `1px solid ${alpha(primaryColor, 0.3)}`
             }}
           >
             {alert.message}
@@ -602,12 +741,19 @@ const ProfilePage = () => {
         <Card 
           sx={{
             mb: 3,
-            background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-            borderRadius: 4,
+            background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
+            border: `1px solid ${alpha(primaryColor, 0.3)}`,
+            borderRadius: borderRadius / 4, // Usar configuración de borderRadius
             p: 3,
             position: 'relative',
             overflow: 'hidden',
+            transition: animationsEnabled ? theme.transitions.create(['transform', 'box-shadow'], {
+              duration: theme.transitions.duration.short,
+            }) : 'none',
+            '&:hover': animationsEnabled ? {
+              transform: 'translateY(-2px)',
+              boxShadow: `0 8px 25px ${alpha(primaryColor, 0.25)}`
+            } : {},
             '&::before': {
               content: '""',
               position: 'absolute',
@@ -693,8 +839,8 @@ const ProfilePage = () => {
                 <Box display="flex" justifyContent="flex-end" gap={1}>
                   {!editing ? (
                     <motion.div 
-                      whileHover={{ scale: 1.02, y: -2 }} 
-                      whileTap={{ scale: 0.98 }}
+                      whileHover={animationsEnabled ? { scale: 1.02, y: -2 } : {}} 
+                      whileTap={animationsEnabled ? { scale: 0.98 } : {}}
                       transition={{ type: "spring", bounce: 0.4 }}
                     >
                       <Button
@@ -702,17 +848,19 @@ const ProfilePage = () => {
                         startIcon={<Edit />}
                         onClick={() => setEditing(true)}
                         sx={{
-                          backgroundColor: alpha('#fff', 0.2),
+                          backgroundColor: alpha(primaryColor, 0.8),
                           color: '#fff',
-                          border: `1px solid ${alpha('#fff', 0.3)}`,
-                          borderRadius: 3,
+                          border: `1px solid ${alpha(primaryColor, 0.3)}`,
+                          borderRadius: borderRadius / 4,
                           textTransform: 'none',
                           fontWeight: 600,
-                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                          '&:hover': {
-                            backgroundColor: alpha('#fff', 0.3),
+                          transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                          '&:hover': animationsEnabled ? {
+                            backgroundColor: alpha(primaryColor, 0.9),
                             transform: 'translateY(-1px)',
-                            boxShadow: `0 4px 12px ${alpha('#fff', 0.2)}`
+                            boxShadow: `0 4px 12px ${alpha(primaryColor, 0.3)}`
+                          } : {
+                            backgroundColor: alpha(primaryColor, 0.9)
                           }
                         }}
                       >
@@ -732,21 +880,23 @@ const ProfilePage = () => {
                           onClick={handleSave}
                           disabled={loading || Object.keys(errors).length > 0}
                           sx={{
-                            backgroundColor: alpha('#fff', 0.2),
+                            backgroundColor: alpha(primaryColor, 0.8),
                             color: '#fff',
-                            border: `1px solid ${alpha('#fff', 0.3)}`,
-                            borderRadius: 3,
+                            border: `1px solid ${alpha(primaryColor, 0.3)}`,
+                            borderRadius: borderRadius / 4,
                             textTransform: 'none',
                             fontWeight: 600,
-                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            '&:hover': { 
-                              backgroundColor: alpha('#fff', 0.3),
+                            transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                            '&:hover': animationsEnabled ? { 
+                              backgroundColor: alpha(primaryColor, 0.9),
                               transform: 'translateY(-1px)',
-                              boxShadow: `0 4px 12px ${alpha('#fff', 0.2)}`
+                              boxShadow: `0 4px 12px ${alpha(primaryColor, 0.3)}`
+                            } : {
+                              backgroundColor: alpha(primaryColor, 0.9)
                             },
                             '&:disabled': {
-                              backgroundColor: alpha('#fff', 0.1),
-                              color: alpha('#fff', 0.5)
+                              backgroundColor: alpha(primaryColor, 0.3),
+                              color: alpha('#fff', 0.6)
                             }
                           }}
                         >
@@ -755,8 +905,8 @@ const ProfilePage = () => {
                       </motion.div>
                       
                       <motion.div 
-                        whileHover={{ scale: loading ? 1 : 1.02, y: loading ? 0 : -2 }} 
-                        whileTap={{ scale: loading ? 1 : 0.98 }}
+                        whileHover={animationsEnabled ? { scale: loading ? 1 : 1.02, y: loading ? 0 : -2 } : {}} 
+                        whileTap={animationsEnabled ? { scale: loading ? 1 : 0.98 } : {}}
                         transition={{ type: "spring", bounce: 0.4 }}
                       >
                         <Button
@@ -767,15 +917,18 @@ const ProfilePage = () => {
                           sx={{
                             color: '#fff',
                             border: `1px solid ${alpha('#fff', 0.5)}`,
-                            borderRadius: 3,
+                            borderRadius: borderRadius / 4,
                             textTransform: 'none',
                             fontWeight: 600,
-                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            '&:hover': {
+                            transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                            '&:hover': animationsEnabled ? {
                               backgroundColor: alpha('#fff', 0.1),
                               border: `1px solid ${alpha('#fff', 0.7)}`,
                               transform: 'translateY(-1px)',
                               boxShadow: `0 4px 12px ${alpha('#fff', 0.15)}`
+                            } : {
+                              backgroundColor: alpha('#fff', 0.1),
+                              border: `1px solid ${alpha('#fff', 0.7)}`
                             },
                             '&:disabled': {
                               borderColor: alpha('#fff', 0.3),
@@ -806,20 +959,24 @@ const ProfilePage = () => {
           >
             {/* Card de Perfil Personal - Design System Spectacular */}
             <Card sx={{ 
-              borderRadius: 4, // radius.lg (16px)
+              borderRadius: borderRadius / 2, // Usar configuración de borderRadius
               background: theme.palette.mode === 'dark'
                 ? 'linear-gradient(145deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
                 : 'linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
-              border: `1px solid ${theme.palette.divider}`,
+              border: `1px solid ${alpha(primaryColor, 0.15)}`,
               position: 'relative',
               overflow: 'hidden',
-              mb: 3, // spacing.lg (24px)
+              mb: 3,
               minHeight: 720,
               display: 'flex',
               flexDirection: 'column',
-              transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+              transition: animationsEnabled ? 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
               backdropFilter: 'blur(20px)',
-              boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)', // Glassmorphism
+              boxShadow: `0 8px 32px ${alpha(primaryColor, 0.15)}`,
+              '&:hover': animationsEnabled ? {
+                boxShadow: `0 12px 40px ${alpha(primaryColor, 0.25)}`,
+                transform: 'translateY(-4px)'
+              } : {},
               '&::before': {
                 content: '""',
                 position: 'absolute',
@@ -1216,26 +1373,31 @@ const ProfilePage = () => {
                   variant="fullWidth"
                   sx={{
                     '& .MuiTab-root': {
-                      minHeight: 72, // Más altura
+                      minHeight: 72,
                       textTransform: 'none',
                       fontWeight: 600,
                       fontSize: '1rem',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
                       color: theme.palette.text.secondary,
-                      '&:hover': {
-                        color: theme.palette.primary.main,
-                        background: `${theme.palette.primary.main}08`
+                      borderRadius: `${borderRadius / 4}px ${borderRadius / 4}px 0 0`,
+                      '&:hover': animationsEnabled ? {
+                        color: primaryColor,
+                        background: `${primaryColor}08`,
+                        transform: 'translateY(-2px)'
+                      } : {
+                        color: primaryColor,
+                        background: `${primaryColor}08`
                       },
                       '&.Mui-selected': {
-                        color: theme.palette.primary.main,
+                        color: primaryColor,
                         fontWeight: 700,
-                        background: `linear-gradient(135deg, ${theme.palette.primary.main}15, ${theme.palette.secondary.main}10)`
+                        background: `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}10)`
                       }
                     },
                     '& .MuiTabs-indicator': {
                       height: 3,
-                      borderRadius: 2,
-                      background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`
+                      borderRadius: borderRadius / 4,
+                      background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`
                     }
                   }}
                 >

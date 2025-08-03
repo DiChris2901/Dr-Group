@@ -63,7 +63,12 @@ const DashboardHeader = ({ onOpenSettings }) => {
   };
 
   const isDarkMode = theme.palette.mode === 'dark';
+  
+  // 🎨 Design System Spectacular - Configuraciones dinámicas
   const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;
+  const secondaryColor = settings?.theme?.secondaryColor || theme.palette.secondary.main;
+  const borderRadius = settings?.theme?.borderRadius || 8;
+  const animationsEnabled = settings?.theme?.animations !== false;
 
   const handleProfileMenuOpen = (event) => {
     setProfileMenuAnchor(event.currentTarget);
@@ -177,24 +182,24 @@ const DashboardHeader = ({ onOpenSettings }) => {
               width: 48,
               height: 48,
               background: isDarkMode 
-                ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))'
-                : 'linear-gradient(135deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.04))',
-              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)'}`,
-              borderRadius: '12px',
+                ? `linear-gradient(135deg, ${primaryColor}20, ${secondaryColor}10)`
+                : `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}08)`,
+              border: `1px solid ${isDarkMode ? `${primaryColor}30` : `${primaryColor}20`}`,
+              borderRadius: `${borderRadius * 1.5}px`,
               backdropFilter: 'blur(10px)',
-              color: isDarkMode ? 'white' : 'text.primary',
+              color: primaryColor,
               '&:hover': {
                 background: isDarkMode 
-                  ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08))'
-                  : 'linear-gradient(135deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.06))',
-                transform: 'translateY(-1px)',
+                  ? `linear-gradient(135deg, ${primaryColor}30, ${secondaryColor}15)`
+                  : `linear-gradient(135deg, ${primaryColor}25, ${secondaryColor}12)`,
+                transform: animationsEnabled ? 'translateY(-1px)' : 'none',
                 boxShadow: isDarkMode 
                   ? '0 8px 16px rgba(0, 0, 0, 0.3)'
                   : '0 8px 16px rgba(0, 0, 0, 0.1)',
               },
-              transition: theme.transitions.create(['background', 'transform', 'box-shadow'], {
+              transition: animationsEnabled ? theme.transitions.create(['background', 'transform', 'box-shadow'], {
                 duration: theme.transitions.duration.short,
-              }),
+              }) : 'none',
             }}
           >
             <Badge 
@@ -228,24 +233,24 @@ const DashboardHeader = ({ onOpenSettings }) => {
               width: 48,
               height: 48,
               background: isDarkMode 
-                ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))'
-                : 'linear-gradient(135deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.04))',
-              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)'}`,
-              borderRadius: '12px',
+                ? `linear-gradient(135deg, ${primaryColor}20, ${secondaryColor}10)`
+                : `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}08)`,
+              border: `1px solid ${isDarkMode ? `${primaryColor}30` : `${primaryColor}20`}`,
+              borderRadius: `${borderRadius * 1.5}px`,
               backdropFilter: 'blur(10px)',
-              color: isDarkMode ? 'white' : 'text.primary',
+              color: primaryColor,
               '&:hover': {
                 background: isDarkMode 
-                  ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08))'
-                  : 'linear-gradient(135deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.06))',
-                transform: 'translateY(-1px)',
+                  ? `linear-gradient(135deg, ${primaryColor}30, ${secondaryColor}15)`
+                  : `linear-gradient(135deg, ${primaryColor}25, ${secondaryColor}12)`,
+                transform: animationsEnabled ? 'translateY(-1px)' : 'none',
                 boxShadow: isDarkMode 
                   ? '0 8px 16px rgba(0, 0, 0, 0.3)'
                   : '0 8px 16px rgba(0, 0, 0, 0.1)',
               },
-              transition: theme.transitions.create(['background', 'transform', 'box-shadow'], {
+              transition: animationsEnabled ? theme.transitions.create(['background', 'transform', 'box-shadow'], {
                 duration: theme.transitions.duration.short,
-              }),
+              }) : 'none',
             }}
           >
             <CalendarIcon sx={{ fontSize: 22 }} />
@@ -260,24 +265,24 @@ const DashboardHeader = ({ onOpenSettings }) => {
               width: 48,
               height: 48,
               background: isDarkMode 
-                ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))'
-                : 'linear-gradient(135deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.04))',
-              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)'}`,
-              borderRadius: '12px',
+                ? `linear-gradient(135deg, ${primaryColor}20, ${secondaryColor}10)`
+                : `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}08)`,
+              border: `1px solid ${isDarkMode ? `${primaryColor}30` : `${primaryColor}20`}`,
+              borderRadius: `${borderRadius * 1.5}px`,
               backdropFilter: 'blur(10px)',
-              color: isDarkMode ? 'white' : 'text.primary',
+              color: primaryColor,
               '&:hover': {
                 background: isDarkMode 
-                  ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08))'
-                  : 'linear-gradient(135deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.06))',
-                transform: 'translateY(-1px)',
+                  ? `linear-gradient(135deg, ${primaryColor}30, ${secondaryColor}15)`
+                  : `linear-gradient(135deg, ${primaryColor}25, ${secondaryColor}12)`,
+                transform: animationsEnabled ? 'translateY(-1px)' : 'none',
                 boxShadow: isDarkMode 
                   ? '0 8px 16px rgba(0, 0, 0, 0.3)'
                   : '0 8px 16px rgba(0, 0, 0, 0.1)',
               },
-              transition: theme.transitions.create(['background', 'transform', 'box-shadow'], {
+              transition: animationsEnabled ? theme.transitions.create(['background', 'transform', 'box-shadow'], {
                 duration: theme.transitions.duration.short,
-              }),
+              }) : 'none',
             }}
           >
             <CommitmentStatusIcon sx={{ fontSize: 22 }} />
@@ -292,24 +297,24 @@ const DashboardHeader = ({ onOpenSettings }) => {
               width: 48,
               height: 48,
               background: isDarkMode 
-                ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))'
-                : 'linear-gradient(135deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.04))',
-              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)'}`,
-              borderRadius: '12px',
+                ? `linear-gradient(135deg, ${primaryColor}20, ${secondaryColor}10)`
+                : `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}08)`,
+              border: `1px solid ${isDarkMode ? `${primaryColor}30` : `${primaryColor}20`}`,
+              borderRadius: `${borderRadius * 1.5}px`,
               backdropFilter: 'blur(10px)',
-              color: isDarkMode ? 'white' : 'text.primary',
+              color: primaryColor,
               '&:hover': {
                 background: isDarkMode 
-                  ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08))'
-                  : 'linear-gradient(135deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.06))',
-                transform: 'translateY(-1px)',
+                  ? `linear-gradient(135deg, ${primaryColor}30, ${secondaryColor}15)`
+                  : `linear-gradient(135deg, ${primaryColor}25, ${secondaryColor}12)`,
+                transform: animationsEnabled ? 'translateY(-1px)' : 'none',
                 boxShadow: isDarkMode 
                   ? '0 8px 16px rgba(0, 0, 0, 0.3)'
                   : '0 8px 16px rgba(0, 0, 0, 0.1)',
               },
-              transition: theme.transitions.create(['background', 'transform', 'box-shadow'], {
+              transition: animationsEnabled ? theme.transitions.create(['background', 'transform', 'box-shadow'], {
                 duration: theme.transitions.duration.short,
-              }),
+              }) : 'none',
             }}
           >
             <StorageIcon sx={{ fontSize: 22 }} />
@@ -324,25 +329,25 @@ const DashboardHeader = ({ onOpenSettings }) => {
               width: 48,
               height: 48,
               background: isDarkMode 
-                ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))'
-                : 'linear-gradient(135deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.04))',
-              border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)'}`,
-              borderRadius: '12px',
+                ? `linear-gradient(135deg, ${primaryColor}20, ${secondaryColor}10)`
+                : `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}08)`,
+              border: `1px solid ${isDarkMode ? `${primaryColor}30` : `${primaryColor}20`}`,
+              borderRadius: `${borderRadius * 1.5}px`,
               backdropFilter: 'blur(10px)',
-              color: isDarkMode ? '#fbbf24' : '#f59e0b', // Colores dorados para el tema
+              color: isDarkMode ? '#fbbf24' : secondaryColor, // Dorado en dark, secondary en light
               '&:hover': {
                 background: isDarkMode 
-                  ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1))'
-                  : 'linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.08))',
-                transform: 'translateY(-1px)',
+                  ? `linear-gradient(135deg, ${primaryColor}30, #fbbf2420)`
+                  : `linear-gradient(135deg, ${primaryColor}25, ${secondaryColor}15)`,
+                transform: animationsEnabled ? 'translateY(-1px)' : 'none',
                 boxShadow: isDarkMode 
                   ? '0 8px 16px rgba(0, 0, 0, 0.3)'
                   : '0 8px 16px rgba(0, 0, 0, 0.1)',
-                color: isDarkMode ? '#fcd34d' : '#d97706',
+                color: isDarkMode ? '#fcd34d' : primaryColor,
               },
-              transition: theme.transitions.create(['background', 'transform', 'box-shadow', 'color'], {
+              transition: animationsEnabled ? theme.transitions.create(['background', 'transform', 'box-shadow', 'color'], {
                 duration: theme.transitions.duration.short,
-              }),
+              }) : 'none',
             }}
           >
             {getThemeIcon()}
@@ -359,23 +364,24 @@ const DashboardHeader = ({ onOpenSettings }) => {
               width: 48,
               height: 48,
               background: isDarkMode 
-                ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))'
-                : 'linear-gradient(135deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.04))',
-              border: `2px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)'}`,
-              borderRadius: '14px',
+                ? `linear-gradient(135deg, ${primaryColor}25, ${secondaryColor}15)`
+                : `linear-gradient(135deg, ${primaryColor}20, ${secondaryColor}10)`,
+              border: `2px solid ${primaryColor}`,
+              borderRadius: `${borderRadius * 1.75}px`,
               backdropFilter: 'blur(10px)',
               '&:hover': {
                 background: isDarkMode 
-                  ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08))'
-                  : 'linear-gradient(135deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.06))',
-                transform: 'translateY(-1px)',
+                  ? `linear-gradient(135deg, ${primaryColor}35, ${secondaryColor}20)`
+                  : `linear-gradient(135deg, ${primaryColor}30, ${secondaryColor}15)`,
+                transform: animationsEnabled ? 'translateY(-1px) scale(1.02)' : 'none',
                 boxShadow: isDarkMode 
-                  ? '0 8px 16px rgba(0, 0, 0, 0.3)'
-                  : '0 8px 16px rgba(0, 0, 0, 0.1)',
+                  ? `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 20px ${primaryColor}40`
+                  : `0 8px 16px rgba(0, 0, 0, 0.1), 0 0 20px ${primaryColor}30`,
+                borderColor: secondaryColor,
               },
-              transition: theme.transitions.create(['background', 'transform', 'box-shadow'], {
+              transition: animationsEnabled ? theme.transitions.create(['background', 'transform', 'box-shadow', 'border-color'], {
                 duration: theme.transitions.duration.short,
-              }),
+              }) : 'none',
             }}
           >
             <ProfileAvatar
@@ -400,8 +406,10 @@ const DashboardHeader = ({ onOpenSettings }) => {
           sx: {
             mt: 1,
             minWidth: 200,
-            borderRadius: 2,
+            borderRadius: `${borderRadius}px`,
             boxShadow: theme.shadows[8],
+            border: `1px solid ${isDarkMode ? `${primaryColor}30` : `${primaryColor}20`}`,
+            backdropFilter: 'blur(10px)',
           },
         }}
       >
