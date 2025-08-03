@@ -44,7 +44,7 @@ const ReportsCompanyPage = () => {
   const [timeRange, setTimeRange] = useState('last6months');
 
   // Conectar con Firebase para obtener datos reales
-  const { data: commitments, loading: commitmentsLoading } = useCommitments();
+  const { commitments, loading: commitmentsLoading } = useCommitments();
   const { data: companiesData, loading: companiesLoading } = useCompanies();
   
   const loading = commitmentsLoading || companiesLoading;
