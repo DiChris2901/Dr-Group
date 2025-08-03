@@ -488,78 +488,78 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
 
             {/* Tab Content */}
             <Box sx={{ flex: 1, overflow: 'auto' }}>
-              {/* Vista Previa Instantánea - Parte Superior */}
-              <Box sx={{ p: 3, pb: 0 }}>
-                <Card 
-                  sx={{ 
-                    border: `2px solid ${settings?.theme?.primaryColor || theme.palette.primary.main}`,
-                    borderRadius: 3,
-                    overflow: 'hidden',
-                    background: `linear-gradient(135deg, ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.05)} 0%, transparent 100%)`
-                  }}
-                >
-                  <CardContent sx={{ p: 3 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                      <Box
-                        sx={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 2,
-                          background: `linear-gradient(135deg, ${settings?.theme?.primaryColor || theme.palette.primary.main}, ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.7)})`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <PaletteIcon sx={{ color: 'white', fontSize: 20 }} />
-                      </Box>
-                      <Box>
-                        <Typography 
-                          variant="h6" 
-                          sx={{ 
-                            fontFamily: settings?.theme?.fontFamily || 'Inter',
-                            fontSize: `${(settings?.theme?.fontSize || 14) + 2}px`,
-                            fontWeight: 600,
-                            color: settings?.theme?.primaryColor || theme.palette.primary.main
-                          }}
-                        >
-                          Vista Previa en Tiempo Real
-                        </Typography>
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            fontFamily: settings?.theme?.fontFamily || 'Inter',
-                            fontSize: `${settings?.theme?.fontSize || 14}px`,
-                            color: 'text.secondary'
-                          }}
-                        >
-                          {settings?.theme?.fontFamily || 'Inter'} • {settings?.theme?.fontSize || 14}px • Tema {settings?.theme?.mode === 'dark' ? 'Oscuro' : 'Claro'}
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                      {[
-                        { label: 'Primario', color: settings?.theme?.primaryColor || theme.palette.primary.main },
-                        { label: 'Secundario', color: settings?.theme?.secondaryColor || theme.palette.secondary.main }
-                      ].map((item, index) => (
-                        <Chip
-                          key={index}
-                          label={item.label}
-                          sx={{
-                            backgroundColor: item.color,
-                            color: 'white',
-                            fontWeight: 600,
-                            fontSize: '0.75rem'
-                          }}
-                        />
-                      ))}
-                    </Box>
-                  </CardContent>
-                </Card>
-              </Box>
-
               {/* TEMA TAB */}
               <TabPanel value={activeTab} index={0}>
+                {/* Vista Previa Instantánea - Solo en Tema */}
+                <Box sx={{ mb: 3 }}>
+                  <Card 
+                    sx={{ 
+                      border: `2px solid ${settings?.theme?.primaryColor || theme.palette.primary.main}`,
+                      borderRadius: 3,
+                      overflow: 'hidden',
+                      background: `linear-gradient(135deg, ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.05)} 0%, transparent 100%)`
+                    }}
+                  >
+                    <CardContent sx={{ p: 3 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                        <Box
+                          sx={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 2,
+                            background: `linear-gradient(135deg, ${settings?.theme?.primaryColor || theme.palette.primary.main}, ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.7)})`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <PaletteIcon sx={{ color: 'white', fontSize: 20 }} />
+                        </Box>
+                        <Box>
+                          <Typography 
+                            variant="h6" 
+                            sx={{ 
+                              fontFamily: settings?.theme?.fontFamily || 'Inter',
+                              fontSize: `${(settings?.theme?.fontSize || 14) + 2}px`,
+                              fontWeight: 600,
+                              color: settings?.theme?.primaryColor || theme.palette.primary.main
+                            }}
+                          >
+                            Vista Previa en Tiempo Real
+                          </Typography>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              fontFamily: settings?.theme?.fontFamily || 'Inter',
+                              fontSize: `${settings?.theme?.fontSize || 14}px`,
+                              color: 'text.secondary'
+                            }}
+                          >
+                            {settings?.theme?.fontFamily || 'Inter'} • {settings?.theme?.fontSize || 14}px • Tema {settings?.theme?.mode === 'dark' ? 'Oscuro' : 'Claro'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        {[
+                          { label: 'Primario', color: settings?.theme?.primaryColor || theme.palette.primary.main },
+                          { label: 'Secundario', color: settings?.theme?.secondaryColor || theme.palette.secondary.main }
+                        ].map((item, index) => (
+                          <Chip
+                            key={index}
+                            label={item.label}
+                            sx={{
+                              backgroundColor: item.color,
+                              color: 'white',
+                              fontWeight: 600,
+                              fontSize: '0.75rem'
+                            }}
+                          />
+                        ))}
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Box>
+
                 <Stack spacing={3}>
                   {/* Color Presets */}
                   <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
