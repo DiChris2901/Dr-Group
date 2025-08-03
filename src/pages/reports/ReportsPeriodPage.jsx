@@ -46,79 +46,12 @@ const ReportsPeriodPage = () => {
   const [periodType, setPeriodType] = useState('monthly');
   const [comparisonMode, setComparisonMode] = useState('previous');
 
-  // Mock data - en producción vendrá de Firebase
-  const monthlyData = [
-    { 
-      period: 'Ene 2025', 
-      amount: 180000, 
-      commitments: 12, 
-      completed: 9, 
-      pending: 2, 
-      overdue: 1,
-      avgTicket: 15000
-    },
-    { 
-      period: 'Feb 2025', 
-      amount: 220000, 
-      commitments: 18, 
-      completed: 14, 
-      pending: 3, 
-      overdue: 1,
-      avgTicket: 12222
-    },
-    { 
-      period: 'Mar 2025', 
-      amount: 280000, 
-      commitments: 22, 
-      completed: 18, 
-      pending: 3, 
-      overdue: 1,
-      avgTicket: 12727
-    },
-    { 
-      period: 'Abr 2025', 
-      amount: 350000, 
-      commitments: 28, 
-      completed: 22, 
-      pending: 4, 
-      overdue: 2,
-      avgTicket: 12500
-    },
-    { 
-      period: 'May 2025', 
-      amount: 420000, 
-      commitments: 35, 
-      completed: 28, 
-      pending: 5, 
-      overdue: 2,
-      avgTicket: 12000
-    },
-    { 
-      period: 'Jun 2025', 
-      amount: 380000, 
-      commitments: 32, 
-      completed: 26, 
-      pending: 4, 
-      overdue: 2,
-      avgTicket: 11875
-    },
-    { 
-      period: 'Jul 2025', 
-      amount: 450000, 
-      commitments: 38, 
-      completed: 30, 
-      pending: 6, 
-      overdue: 2,
-      avgTicket: 11842
-    }
-  ];
+  // TODO: Conectar con Firebase - usar useCommitments() para calcular datos por período
+  // TODO: Conectar con Firebase - datos reales de compromisos por período
+  const monthlyData = [];
 
-  const weeklyData = [
-    { period: 'Sem 1 Jul', amount: 95000, commitments: 8 },
-    { period: 'Sem 2 Jul', amount: 110000, commitments: 10 },
-    { period: 'Sem 3 Jul', amount: 125000, commitments: 12 },
-    { period: 'Sem 4 Jul', amount: 120000, commitments: 8 }
-  ];
+  // TODO: Conectar con Firebase - datos reales de compromisos semanales
+  const weeklyData = [];
 
   const currentData = periodType === 'weekly' ? weeklyData : monthlyData;
 
