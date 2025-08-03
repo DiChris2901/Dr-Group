@@ -35,7 +35,7 @@ const ReportsSummaryPage = () => {
   const isDarkMode = theme.palette.mode === 'dark';
   
   // Conectar con Firebase para obtener datos reales
-  const { data: commitments, loading: commitmentsLoading } = useCommitments();
+  const { commitments, loading: commitmentsLoading } = useCommitments();
   const { data: companies, loading: companiesLoading } = useCompanies();
   
   const loading = commitmentsLoading || companiesLoading;
