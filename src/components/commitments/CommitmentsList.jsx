@@ -214,6 +214,39 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
   // Hook para generar alertas automáticas de compromisos vencidos/próximos a vencer
   const { overdueCount, dueSoonCount } = useCommitmentAlerts(commitments);
 
+  // ✅ NUEVA FUNCIONALIDAD: Detección de montos elevados
+  useEffect(() => {
+    if (!commitments?.length || !settings.notifications?.enabled || !settings.notifications?.montosElevados) {
+      return;
+    }
+
+    const threshold = settings.notifications?.umbralesMonto || 100000;
+    const processedCommitments = new Set(JSON.parse(localStorage.getItem('processedHighAmountCommitments') || '[]'));
+
+    commitments.forEach(commitment => {
+      const commitmentId = commitment.id;
+      const amount = commitment.amount || 0;
+
+      // Solo procesar compromisos que superen el umbral y no hayan sido procesados antes
+      if (amount > threshold && !processedCommitments.has(commitmentId)) {
+        addAlert({
+          id: `high-amount-${commitmentId}`,
+          type: 'warning',
+          title: 'Monto Elevado Detectado',
+          message: `El compromiso "${commitment.concept || 'Sin concepto'}" por $${amount.toLocaleString()} supera el umbral configurado de $${threshold.toLocaleString()}`,
+          commitment: commitment,
+          timestamp: new Date(),
+          severity: 'warning',
+          persistent: true
+        });
+
+        // Marcar como procesado para evitar notificaciones duplicadas
+        processedCommitments.add(commitmentId);
+        localStorage.setItem('processedHighAmountCommitments', JSON.stringify([...processedCommitments]));
+      }
+    });
+  }, [commitments, settings.notifications, addAlert]);
+
   // Configuraciones del dashboard desde SettingsContext
   const dashboardConfig = settings.dashboard;
   const effectiveViewMode = viewMode || dashboardConfig.layout.viewMode;

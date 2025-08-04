@@ -1554,9 +1554,14 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         <FormControlLabel
                           control={
                             <Switch
-                              checked={dashboardSettings.notifications.enabled}
+                              checked={settings.notifications?.enabled || false}
                               onChange={(e) => {
-                                updateDashboardSetting('notifications.enabled', e.target.checked);
+                                updateSettings({
+                                  notifications: {
+                                    ...settings.notifications,
+                                    enabled: e.target.checked
+                                  }
+                                });
                                 // Feedback visual
                                 if (e.target.checked) {
                                   setSaveMessage('Notificaciones habilitadas');
@@ -1579,7 +1584,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     </CardContent>
                   </Card>
 
-                  {dashboardSettings.notifications.enabled && (
+                  {settings.notifications?.enabled && (
                     <>
                       {/* Threshold Configuration */}
                       <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
@@ -1602,11 +1607,19 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             </Tooltip>
                             <TextField
                               type="number"
-                              value={dashboardSettings.notifications.alertThreshold}
+                              value={settings.notifications?.umbralesMonto || 100000}
                               onChange={(e) => {
                                 const value = Number(e.target.value);
                                 if (value >= 0) {
-                                  updateDashboardSetting('notifications.alertThreshold', value);
+                                  updateSettings({
+                                    notifications: {
+                                      ...settings.notifications,
+                                      umbralesMonto: value
+                                    }
+                                  });
+                                  setSaveMessage('Umbral de monto actualizado');
+                                  setShowSaveSuccess(true);
+                                  setTimeout(() => setShowSaveSuccess(false), 2000);
                                 }
                               }}
                               InputProps={{
@@ -1616,7 +1629,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                               helperText="Recibirás una alerta cuando se supere este monto"
                               size="small"
                               fullWidth
-                              error={dashboardSettings.notifications.alertThreshold < 0}
+                              error={(settings.notifications?.umbralesMonto || 0) < 0}
                             />
                           </Box>
                         </CardContent>
@@ -1635,56 +1648,217 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           </Typography>
 
                           <Stack spacing={2}>
-                            {Object.entries(dashboardSettings.notifications.types).map(([key, enabled]) => (
-                              <Box 
-                                key={key}
-                                sx={{
-                                  p: 2,
-                                  border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-                                  borderRadius: 2,
-                                  bgcolor: enabled ? alpha(theme.palette.primary.main, 0.04) : 'transparent',
-                                  transition: 'all 0.3s ease'
-                                }}
+                            {/* Próximos Pagos */}
+                            <Box 
+                              sx={{
+                                p: 2,
+                                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                borderRadius: 2,
+                                bgcolor: settings.notifications?.proximosPagos ? alpha(theme.palette.primary.main, 0.04) : 'transparent',
+                                transition: 'all 0.3s ease'
+                              }}
+                            >
+                              <Tooltip 
+                                title="Alertas sobre compromisos próximos a vencer en los próximos días" 
+                                placement="top" 
+                                arrow
                               >
-                                <Tooltip 
-                                  title={getNotificationDescription(key)} 
-                                  placement="top" 
-                                  arrow
-                                >
-                                  <FormControlLabel
-                                    control={
-                                      <Switch
-                                        checked={enabled}
-                                        onChange={(e) => {
-                                          updateDashboardSetting(`notifications.types.${key}`, e.target.checked);
-                                          // Feedback visual
-                                          setSaveMessage(e.target.checked ? 
-                                            `${getNotificationLabel(key)} habilitado` : 
-                                            `${getNotificationLabel(key)} deshabilitado`
-                                          );
-                                          setShowSaveSuccess(true);
-                                          setTimeout(() => setShowSaveSuccess(false), 2000);
-                                        }}
-                                      />
-                                    }
-                                    label={
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        {getNotificationIcon(key)}
-                                        <Box>
-                                          <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                                            {getNotificationLabel(key)}
-                                          </Typography>
-                                          <Typography variant="caption" color="text.secondary">
-                                            {getNotificationDescription(key)}
-                                          </Typography>
-                                        </Box>
+                                <FormControlLabel
+                                  control={
+                                    <Switch
+                                      checked={settings.notifications?.proximosPagos || false}
+                                      onChange={(e) => {
+                                        updateSettings({
+                                          notifications: {
+                                            ...settings.notifications,
+                                            proximosPagos: e.target.checked
+                                          }
+                                        });
+                                        setSaveMessage(e.target.checked ? 
+                                          'Próximos Pagos habilitado' : 
+                                          'Próximos Pagos deshabilitado'
+                                        );
+                                        setShowSaveSuccess(true);
+                                        setTimeout(() => setShowSaveSuccess(false), 2000);
+                                      }}
+                                    />
+                                  }
+                                  label={
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <ScheduleIcon sx={{ fontSize: 20, color: 'primary.main' }} />
+                                      <Box>
+                                        <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                          Próximos Pagos
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                          Alertas sobre compromisos próximos a vencer en los próximos días
+                                        </Typography>
                                       </Box>
-                                    }
-                                    sx={{ margin: 0, width: '100%' }}
-                                  />
-                                </Tooltip>
-                              </Box>
-                            ))}
+                                    </Box>
+                                  }
+                                  sx={{ margin: 0, width: '100%' }}
+                                />
+                              </Tooltip>
+                            </Box>
+
+                            {/* Actualizaciones del Sistema */}
+                            <Box 
+                              sx={{
+                                p: 2,
+                                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                borderRadius: 2,
+                                bgcolor: settings.notifications?.actualizacionesSistema ? alpha(theme.palette.primary.main, 0.04) : 'transparent',
+                                transition: 'all 0.3s ease'
+                              }}
+                            >
+                              <Tooltip 
+                                title="Notificaciones sobre actualizaciones y mantenimiento del sistema" 
+                                placement="top" 
+                                arrow
+                              >
+                                <FormControlLabel
+                                  control={
+                                    <Switch
+                                      checked={settings.notifications?.actualizacionesSistema || false}
+                                      onChange={(e) => {
+                                        updateSettings({
+                                          notifications: {
+                                            ...settings.notifications,
+                                            actualizacionesSistema: e.target.checked
+                                          }
+                                        });
+                                        setSaveMessage(e.target.checked ? 
+                                          'Actualizaciones del Sistema habilitado' : 
+                                          'Actualizaciones del Sistema deshabilitado'
+                                        );
+                                        setShowSaveSuccess(true);
+                                        setTimeout(() => setShowSaveSuccess(false), 2000);
+                                      }}
+                                    />
+                                  }
+                                  label={
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <SettingsIcon sx={{ fontSize: 20, color: 'primary.main' }} />
+                                      <Box>
+                                        <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                          Actualizaciones del Sistema
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                          Notificaciones sobre actualizaciones y mantenimiento del sistema
+                                        </Typography>
+                                      </Box>
+                                    </Box>
+                                  }
+                                  sx={{ margin: 0, width: '100%' }}
+                                />
+                              </Tooltip>
+                            </Box>
+
+                            {/* Montos Elevados */}
+                            <Box 
+                              sx={{
+                                p: 2,
+                                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                borderRadius: 2,
+                                bgcolor: settings.notifications?.montosElevados ? alpha(theme.palette.primary.main, 0.04) : 'transparent',
+                                transition: 'all 0.3s ease'
+                              }}
+                            >
+                              <Tooltip 
+                                title="Alertas automáticas cuando un compromiso supera el umbral de monto configurado" 
+                                placement="top" 
+                                arrow
+                              >
+                                <FormControlLabel
+                                  control={
+                                    <Switch
+                                      checked={settings.notifications?.montosElevados || false}
+                                      onChange={(e) => {
+                                        updateSettings({
+                                          notifications: {
+                                            ...settings.notifications,
+                                            montosElevados: e.target.checked
+                                          }
+                                        });
+                                        setSaveMessage(e.target.checked ? 
+                                          'Montos Elevados habilitado' : 
+                                          'Montos Elevados deshabilitado'
+                                        );
+                                        setShowSaveSuccess(true);
+                                        setTimeout(() => setShowSaveSuccess(false), 2000);
+                                      }}
+                                    />
+                                  }
+                                  label={
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <SpeedIcon sx={{ fontSize: 20, color: 'primary.main' }} />
+                                      <Box>
+                                        <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                          Montos Elevados
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                          Alertas automáticas cuando un compromiso supera el umbral de monto configurado
+                                        </Typography>
+                                      </Box>
+                                    </Box>
+                                  }
+                                  sx={{ margin: 0, width: '100%' }}
+                                />
+                              </Tooltip>
+                            </Box>
+
+                            {/* Pagos Vencidos */}
+                            <Box 
+                              sx={{
+                                p: 2,
+                                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                borderRadius: 2,
+                                bgcolor: settings.notifications?.pagosVencidos ? alpha(theme.palette.primary.main, 0.04) : 'transparent',
+                                transition: 'all 0.3s ease'
+                              }}
+                            >
+                              <Tooltip 
+                                title="Notificaciones sobre pagos que han superado su fecha de vencimiento" 
+                                placement="top" 
+                                arrow
+                              >
+                                <FormControlLabel
+                                  control={
+                                    <Switch
+                                      checked={settings.notifications?.pagosVencidos || false}
+                                      onChange={(e) => {
+                                        updateSettings({
+                                          notifications: {
+                                            ...settings.notifications,
+                                            pagosVencidos: e.target.checked
+                                          }
+                                        });
+                                        setSaveMessage(e.target.checked ? 
+                                          'Pagos Vencidos habilitado' : 
+                                          'Pagos Vencidos deshabilitado'
+                                        );
+                                        setShowSaveSuccess(true);
+                                        setTimeout(() => setShowSaveSuccess(false), 2000);
+                                      }}
+                                    />
+                                  }
+                                  label={
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <NotificationsIcon sx={{ fontSize: 20, color: 'primary.main' }} />
+                                      <Box>
+                                        <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                                          Pagos Vencidos
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                          Notificaciones sobre pagos que han superado su fecha de vencimiento
+                                        </Typography>
+                                      </Box>
+                                    </Box>
+                                  }
+                                  sx={{ margin: 0, width: '100%' }}
+                                />
+                              </Tooltip>
+                            </Box>
                           </Stack>
                         </CardContent>
                       </Card>
@@ -1718,7 +1892,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                   Pago Próximo a Vencer
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                  El compromiso "Nómina Enero" vence en 3 días - ${dashboardSettings.notifications.alertThreshold?.toLocaleString() || '100,000'}
+                                  El compromiso "Nómina Enero" vence en 3 días - ${(settings.notifications?.umbralesMonto || 100000).toLocaleString()}
                                 </Typography>
                               </Box>
                             </Box>
@@ -1738,7 +1912,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                   Monto Elevado Detectado
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
-                                  Se registró un compromiso de ${(dashboardSettings.notifications.alertThreshold * 1.5)?.toLocaleString() || '150,000'} - superior al umbral configurado
+                                  Se registró un compromiso de ${((settings.notifications?.umbralesMonto || 100000) * 1.5).toLocaleString()} - superior al umbral configurado
                                 </Typography>
                               </Box>
                             </Box>
@@ -1785,8 +1959,29 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                 color="warning"
                                 startIcon={<RestartIcon />}
                                 onClick={() => {
-                                  const defaultNotifications = defaultDashboard.notifications;
-                                  updateDashboardSetting('notifications', defaultNotifications);
+                                  // Restaurar configuraciones por defecto de notificaciones
+                                  const defaultNotifications = {
+                                    enabled: true,
+                                    sound: true,
+                                    desktop: true,
+                                    email: false,
+                                    reminderDays: 3,
+                                    overdueAlerts: true,
+                                    weeklyReport: true,
+                                    proximosPagos: true,
+                                    actualizacionesSistema: true,
+                                    montosElevados: true,
+                                    pagosVencidos: true,
+                                    umbralesMonto: 100000,
+                                    dailyDigest: false,
+                                    instantAlerts: true,
+                                    batchNotifications: false
+                                  };
+                                  
+                                  updateSettings({
+                                    notifications: defaultNotifications
+                                  });
+                                  
                                   setSaveMessage('Configuración de notificaciones restaurada a valores por defecto');
                                   setShowSaveSuccess(true);
                                   setTimeout(() => setShowSaveSuccess(false), 3000);

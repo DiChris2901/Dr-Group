@@ -83,13 +83,25 @@ const defaultSettings = {
 
   // Configuración de Notificaciones
   notifications: {
-    enabled: true, // Habilitar notificaciones
+    enabled: true, // Habilitar notificaciones generales
     sound: true, // Sonido en notificaciones
     desktop: true, // Notificaciones de escritorio
     email: false, // Notificaciones por email
     reminderDays: 3, // Días de anticipación para recordatorios
     overdueAlerts: true, // Alertas de vencimientos
     weeklyReport: true, // Reporte semanal
+    
+    // Configuraciones específicas del menú de ajustes
+    proximosPagos: true, // Notificaciones de próximos pagos
+    actualizacionesSistema: true, // Notificaciones de actualizaciones
+    montosElevados: true, // Alertas de montos elevados
+    pagosVencidos: true, // Alertas de pagos vencidos
+    umbralesMonto: 100000, // Umbral de monto para alertas ($100,000)
+    
+    // Configuraciones adicionales
+    dailyDigest: false, // Resumen diario
+    instantAlerts: true, // Alertas instantáneas
+    batchNotifications: false, // Agrupar notificaciones
   },
 };
 
