@@ -1,0 +1,38 @@
+{
+  "recommendations": [
+    // Esenciales para React/JavaScript
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "bradlc.vscode-tailwindcss",
+    "ms-vscode.vscode-typescript-next",
+    
+    // React y JSX
+    "dsznajder.es7-react-js-snippets",
+    "formulahendry.auto-rename-tag",
+    "ms-vscode.vscode-json",
+    
+    // Firebase
+    "toba.vsfire",
+    
+    // Git y control de versiones
+    "eamodio.gitlens",
+    "github.vscode-pull-request-github",
+    
+    // Productividad
+    "ms-vscode.vscode-json",
+    "christian-kohler.path-intellisense",
+    "ms-vscode.vscode-json",
+    
+    // Temas (opcional)
+    "github.github-vscode-theme"
+  ],
+  "unwantedRecommendations": [
+    // Extensiones que pueden ralentizar VS Code
+    "ms-python.python",
+    "ms-dotnettools.csharp",
+    "ms-vscode.cpptools",
+    "ms-vscode.powershell",
+    "redhat.java",
+    "vscjava.vscode-java-pack"
+  ]
+}

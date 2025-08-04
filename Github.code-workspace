@@ -5,6 +5,7 @@
 		}
 	],
 	"settings": {
+		// Terminal optimizado
 		"terminal.integrated.defaultProfile.windows": "Command Prompt",
 		"terminal.integrated.profiles.windows": {
 			"PowerShell": {
@@ -24,10 +25,59 @@
 		"terminal.integrated.env.windows": {
 			"PATH": "${env:PATH}"
 		},
+		
+		// Tema y apariencia optimizada
 		"workbench.colorCustomizations": {
 			"editor.lineHighlightBackground": "#1d1d1d20",
-			"editorIndentGuide.background": "#ffffff10"
+			"editorIndentGuide.background": "#ffffff10",
+			"terminal.background": "#1e1e1e",
+			"terminal.foreground": "#cccccc"
 		},
-		"git.confirmSync": false
+		
+		// Git optimizado
+		"git.confirmSync": false,
+		"git.autofetch": true,
+		"git.autofetchPeriod": 180,
+		
+		// Configuraciones específicas del workspace
+		"files.associations": {
+			"*.jsx": "javascriptreact",
+			"*.json": "jsonc"
+		},
+		
+		// Exclusiones de archivos para mejor rendimiento
+		"files.watcherExclude": {
+			"**/node_modules/**": true,
+			"**/dist/**": true,
+			"**/build/**": true,
+			"**/backup/**": true,
+			"**/.git/**": true
+		},
+		
+		// Configuración de IntelliSense
+		"javascript.suggest.autoImports": true,
+		"typescript.suggest.autoImports": true,
+		"javascript.updateImportsOnFileMove.enabled": "always",
+		
+		// Formateo automático optimizado
+		"editor.formatOnSave": true,
+		"editor.codeActionsOnSave": {
+			"source.fixAll.eslint": "explicit",
+			"source.organizeImports": "explicit"
+		}
+	},
+	
+	// Extensiones recomendadas para el workspace
+	"extensions": {
+		"recommendations": [
+			"esbenp.prettier-vscode",
+			"dbaeumer.vscode-eslint",
+			"dsznajder.es7-react-js-snippets",
+			"bradlc.vscode-tailwindcss",
+			"ms-vscode.vscode-typescript-next",
+			"formulahendry.auto-rename-tag",
+			"eamodio.gitlens",
+			"github.github-vscode-theme"
+		]
 	}
 }
