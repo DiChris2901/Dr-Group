@@ -41,17 +41,21 @@ import {
   Share,
   NotificationAdd,
   GetApp,
-  Close
+  Close,
+  Receipt as ReceiptIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO, isAfter, isBefore, addDays, differenceInDays, differenceInHours } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { collection, query, orderBy, onSnapshot, where, doc, getDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { ref, deleteObject } from 'firebase/storage';
+import { db, storage } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
+import { useSettings } from '../../context/SettingsContext';
 import useCommitmentAlerts from '../../hooks/useCommitmentAlerts';
 import CommitmentEditForm from './CommitmentEditForm';
+import PaymentReceiptViewer from './PaymentReceiptViewer';
 
 // Componente para animación de conteo de montos
 const CountingNumber = ({ end, duration = 1000, prefix = '$' }) => {
@@ -131,9 +135,10 @@ const TimeProgress = ({ dueDate, createdAt }) => {
   );
 };
 
-const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
+const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = 'cards' }) => {
   const { currentUser } = useAuth();
   const { addNotification, addAlert } = useNotifications();
+  const { settings } = useSettings();
   const theme = useTheme();
   const [commitments, setCommitments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -141,11 +146,66 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
   const [selectedCommitment, setSelectedCommitment] = useState(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
   const [companyData, setCompanyData] = useState(null);
   const [loadingCompany, setLoadingCompany] = useState(false);
 
   // Hook para generar alertas automáticas de compromisos vencidos/próximos a vencer
   const { overdueCount, dueSoonCount } = useCommitmentAlerts(commitments);
+
+  // Configuraciones del dashboard desde SettingsContext
+  const dashboardConfig = settings.dashboard;
+  const effectiveViewMode = viewMode || dashboardConfig.layout.viewMode;
+  const cardSize = dashboardConfig.layout.cardSize;
+  const density = dashboardConfig.layout.density;
+  const columns = dashboardConfig.layout.columns;
+  const animationsEnabled = dashboardConfig.behavior.animationsEnabled;
+  const showTooltips = dashboardConfig.behavior.showTooltips;
+
+  // Funciones helper para aplicar configuraciones
+  const getSpacingByDensity = () => {
+    switch (density) {
+      case 'compact': return { grid: 1.5, card: 1, padding: 1.5 };
+      case 'spacious': return { grid: 4, card: 3, padding: 3 };
+      default: return { grid: 3, card: 2, padding: 2 }; // normal
+    }
+  };
+
+  const getCardSizeStyles = () => {
+    const base = {
+      small: { minHeight: 180, padding: 1.5, fontSize: '0.85rem' },
+      medium: { minHeight: 220, padding: 2, fontSize: '0.95rem' },
+      large: { minHeight: 280, padding: 3, fontSize: '1rem' }
+    };
+    return base[cardSize] || base.medium;
+  };
+
+  const getColumnsConfig = () => {
+    // Responsive columns basado en la configuración
+    const baseColumns = {
+      xs: Math.min(columns, 1),
+      sm: Math.min(columns, 2),
+      md: Math.min(columns, 3),
+      lg: Math.min(columns, 4),
+      xl: Math.min(columns, 6)
+    };
+    return baseColumns;
+  };
+
+  const spacing = getSpacingByDensity();
+  const cardStyles = getCardSizeStyles();
+  const responsiveColumns = getColumnsConfig();
+
+  // Función helper para verificar si un compromiso tiene pago válido
+  const hasValidPayment = (commitment) => {
+    return commitment.paid && (
+      commitment.paymentDate || 
+      commitment.paidAt || 
+      commitment.receiptUrl ||
+      commitment.receiptMetadata ||
+      commitment.paymentReference
+    );
+  };
 
   useEffect(() => {
     if (!currentUser) return;
@@ -239,7 +299,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
     if (commitment.paid) {
       return {
         label: 'Pagado',
-        color: 'success',
+        color: theme.palette.success.main,
+        chipColor: 'success',
         icon: <CheckCircle />,
         gradient: 'linear-gradient(135deg, #4caf50 0%, #8bc34a 100%)',
         shadowColor: 'rgba(76, 175, 80, 0.3)',
@@ -252,7 +313,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
       const urgency = Math.min(Math.abs(daysDifference), 30) / 30; // Más urgente = más rojo
       return {
         label: `Vencido (${Math.abs(daysDifference)} día${Math.abs(daysDifference) !== 1 ? 's' : ''})`,
-        color: 'error',
+        color: theme.palette.error.main,
+        chipColor: 'error',
         icon: <Warning />,
         gradient: `linear-gradient(135deg, #f44336 0%, #d32f2f ${urgency * 50}%, #b71c1c 100%)`,
         shadowColor: 'rgba(244, 67, 54, 0.4)',
@@ -264,7 +326,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
     if (isBefore(dueDate, threeDaysFromNow)) {
       return {
         label: `Próximo (${daysDifference} día${daysDifference !== 1 ? 's' : ''})`,
-        color: 'warning',
+        color: theme.palette.warning.main,
+        chipColor: 'warning',
         icon: <Schedule />,
         gradient: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
         shadowColor: 'rgba(255, 152, 0, 0.3)',
@@ -275,7 +338,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
 
     return {
       label: `Pendiente (${daysDifference} días)`,
-      color: 'info',
+      color: theme.palette.info.main,
+      chipColor: 'info',
       icon: <CalendarToday />,
       gradient: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
       shadowColor: 'rgba(33, 150, 243, 0.3)',
@@ -346,6 +410,28 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
     setSelectedCommitment(null);
   };
 
+  // Manejar visualización de comprobante de pago
+  const handleViewReceipt = (commitment) => {
+    // Verificar que el compromiso tenga pago válido
+    if (!commitment.paid) {
+      addNotification({
+        type: 'warning',
+        title: 'Compromiso no pagado',
+        message: 'Este compromiso aún no ha sido marcado como pagado',
+        icon: '⚠️'
+      });
+      return;
+    }
+
+    setSelectedCommitment(commitment);
+    setReceiptViewerOpen(true);
+  };
+
+  const handleCloseReceiptViewer = () => {
+    setReceiptViewerOpen(false);
+    setSelectedCommitment(null);
+  };
+
   const handleCommitmentSaved = () => {
     // Agregar notificación de éxito
     addNotification({
@@ -362,20 +448,89 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
   // Manejar eliminación de compromiso
   const handleDeleteCommitment = async (commitment) => {
     const confirmDelete = window.confirm(
-      `¿Estás seguro de que quieres eliminar el compromiso "${commitment.concept || commitment.description || 'Sin concepto'}"?\n\nEsta acción no se puede deshacer.`
+      `¿Estás seguro de que quieres eliminar el compromiso "${commitment.concept || commitment.description || 'Sin concepto'}"?\n\nEsta acción eliminará el compromiso y todos sus archivos adjuntos de forma permanente.`
     );
 
     if (!confirmDelete) return;
 
     try {
-      // Eliminar el documento de Firestore
+      // 1. Eliminar archivos de Firebase Storage si existen
+      const filesToDelete = [];
+      
+      // Eliminar comprobante de pago si existe
+      if (commitment.receiptUrl) {
+        try {
+          // Extraer el path del archivo desde la URL de Firebase Storage
+          let storagePath = '';
+          
+          if (commitment.receiptUrl.includes('firebase.googleapis.com')) {
+            // URL con token: extraer path entre /o/ y ?alt=
+            const pathMatch = commitment.receiptUrl.match(/\/o\/(.+?)\?/);
+            if (pathMatch) {
+              storagePath = decodeURIComponent(pathMatch[1]);
+            }
+          } else if (commitment.receiptUrl.includes('firebasestorage.googleapis.com')) {
+            // URL directa: extraer path después del bucket
+            const pathMatch = commitment.receiptUrl.match(/\/receipts\/.+$/);
+            if (pathMatch) {
+              storagePath = pathMatch[0].substring(1); // Remover la barra inicial
+            }
+          }
+          
+          if (storagePath) {
+            const fileRef = ref(storage, storagePath);
+            await deleteObject(fileRef);
+            filesToDelete.push('comprobante de pago');
+          }
+        } catch (storageError) {
+          console.warn('Error al eliminar comprobante de pago:', storageError);
+          // Continuar con la eliminación del documento aunque falle la eliminación del archivo
+        }
+      }
+      
+      // Eliminar otros archivos adjuntos si existen
+      if (commitment.attachments && Array.isArray(commitment.attachments)) {
+        for (const attachment of commitment.attachments) {
+          try {
+            if (attachment.url) {
+              let storagePath = '';
+              
+              if (attachment.url.includes('firebase.googleapis.com')) {
+                const pathMatch = attachment.url.match(/\/o\/(.+?)\?/);
+                if (pathMatch) {
+                  storagePath = decodeURIComponent(pathMatch[1]);
+                }
+              } else if (attachment.url.includes('firebasestorage.googleapis.com')) {
+                const pathMatch = attachment.url.match(/\/attachments\/.+$/);
+                if (pathMatch) {
+                  storagePath = pathMatch[0].substring(1);
+                }
+              }
+              
+              if (storagePath) {
+                const fileRef = ref(storage, storagePath);
+                await deleteObject(fileRef);
+                filesToDelete.push(attachment.name || 'archivo adjunto');
+              }
+            }
+          } catch (storageError) {
+            console.warn('Error al eliminar archivo adjunto:', storageError);
+          }
+        }
+      }
+
+      // 2. Eliminar el documento de Firestore
       await deleteDoc(doc(db, 'commitments', commitment.id));
       
-      // Mostrar notificación de éxito
+      // 3. Mostrar notificación de éxito
+      const deletedFilesMessage = filesToDelete.length > 0 
+        ? ` y ${filesToDelete.length} archivo${filesToDelete.length > 1 ? 's' : ''} adjunto${filesToDelete.length > 1 ? 's' : ''}` 
+        : '';
+      
       addNotification({
         type: 'success',
         title: '¡Compromiso eliminado!',
-        message: `Se eliminó exitosamente el compromiso "${commitment.concept || commitment.description || 'Sin concepto'}"`,
+        message: `Se eliminó exitosamente el compromiso "${commitment.concept || commitment.description || 'Sin concepto'}"${deletedFilesMessage}`,
         icon: '🗑️'
       });
 
@@ -386,7 +541,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
       addNotification({
         type: 'error',
         title: 'Error al eliminar',
-        message: 'No se pudo eliminar el compromiso. Inténtalo de nuevo.',
+        message: 'No se pudo eliminar el compromiso completamente. Algunos archivos pueden no haberse eliminado.',
         icon: '❌'
       });
     }
@@ -435,118 +590,706 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
 
   return (
     <Box>
-      <Grid container spacing={3}>
-        {commitments.map((commitment, index) => {
-          const statusInfo = getStatusInfo(commitment);
-          
-          return (
-            <Grid item xs={12} sm={6} md={4} key={commitment.id}>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.1 }}
+      {/* Contenido principal según modo de vista */}
+      {viewMode === 'list' ? (
+        // Vista Lista - Con configuraciones dashboard
+        <Box>
+          {commitments.map((commitment, index) => {
+            const statusInfo = getStatusInfo(commitment);
+            const dueDate = commitment.dueDate;
+            const today = new Date();
+            const daysUntilDue = differenceInDays(dueDate, today);
+            
+            const cardContent = (
+              <Card
+                sx={{
+                  mb: spacing.card,
+                  p: spacing.padding,
+                  minHeight: cardStyles.minHeight,
+                  border: '1px solid',
+                  borderColor: alpha(statusInfo.color, 0.3),
+                  '&:hover': {
+                    boxShadow: 3,
+                    transform: 'translateY(-2px)',
+                    transition: 'all 0.2s ease-in-out'
+                  }
+                }}
               >
-                <Card
-                  sx={{
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    transition: 'transform 0.2s ease-in-out',
-                    '&:hover': {
-                      transform: 'translateY(-4px)',
-                      boxShadow: 3
-                    }
-                  }}
-                >
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                      <Chip
-                        icon={statusInfo.icon}
-                        label={statusInfo.label}
-                        color={statusInfo.color}
-                        size="small"
-                      />
-                      <Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                    <Box sx={{ mr: spacing.card }}>
+                      {showTooltips ? (
+                        <Tooltip title={`Estado: ${statusInfo.label}`} arrow>
+                          <Chip 
+                            label={statusInfo.label}
+                            color={statusInfo.chipColor}
+                            size="small"
+                            sx={{ fontWeight: 600 }}
+                          />
+                        </Tooltip>
+                      ) : (
+                        <Chip 
+                          label={statusInfo.label}
+                          color={statusInfo.chipColor}
+                          size="small"
+                          sx={{ fontWeight: 600 }}
+                        />
+                      )}
+                    </Box>
+                    
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5, fontSize: cardStyles.fontSize }}>
+                        {commitment.description}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: cardStyles.fontSize }}>
+                        {commitment.companyName} • {format(dueDate, 'dd/MM/yyyy', { locale: es })}
+                      </Typography>
+                    </Box>
+                    
+                    <Box sx={{ textAlign: 'right', mr: spacing.card }}>
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: statusInfo.color, fontSize: `calc(${cardStyles.fontSize} * 1.3)` }}>
+                        <CountingNumber end={commitment.amount} />
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: `calc(${cardStyles.fontSize} * 0.8)` }}>
+                        {daysUntilDue >= 0 ? `${daysUntilDue} días restantes` : `${Math.abs(daysUntilDue)} días vencido`}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    {showTooltips ? (
+                      <>
+                        <Tooltip title="Ver detalles" arrow>
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handleViewCommitment(commitment)}
+                            sx={{ color: 'primary.main' }}
+                          >
+                            <Visibility />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Validar pago" arrow>
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handleViewReceipt(commitment)}
+                            sx={{ color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary' }}
+                          >
+                            <ReceiptIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Editar compromiso" arrow>
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handleEditFromCard(commitment)}
+                            sx={{ color: 'warning.main' }}
+                          >
+                            <Edit />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Eliminar compromiso" arrow>
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handleDeleteCommitment(commitment)}
+                            sx={{ color: 'error.main' }}
+                          >
+                            <Delete />
+                          </IconButton>
+                        </Tooltip>
+                      </>
+                    ) : (
+                      <>
                         <IconButton 
                           size="small" 
                           onClick={() => handleViewCommitment(commitment)}
-                          sx={{ mr: 1 }}
+                          sx={{ color: 'primary.main' }}
                         >
-                          <Visibility fontSize="small" />
+                          <Visibility />
                         </IconButton>
                         <IconButton 
                           size="small" 
-                          sx={{ mr: 1 }}
+                          onClick={() => handleViewReceipt(commitment)}
+                          sx={{ color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary' }}
+                        >
+                          <ReceiptIcon />
+                        </IconButton>
+                        <IconButton 
+                          size="small" 
                           onClick={() => handleEditFromCard(commitment)}
-                          title="Editar compromiso"
+                          sx={{ color: 'warning.main' }}
                         >
-                          <Edit fontSize="small" />
+                          <Edit />
                         </IconButton>
                         <IconButton 
                           size="small" 
-                          color="error"
                           onClick={() => handleDeleteCommitment(commitment)}
-                          title="Eliminar compromiso"
+                          sx={{ color: 'error.main' }}
                         >
-                          <Delete fontSize="small" />
+                          <Delete />
                         </IconButton>
-                      </Box>
+                      </>
+                    )}
+                  </Box>
+                </Box>
+              </Card>
+            );
+            
+            return animationsEnabled ? (
+              <motion.div
+                key={commitment.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+              >
+                {cardContent}
+              </motion.div>
+            ) : (
+              <div key={commitment.id}>
+                {cardContent}
+              </div>
+            );
+          })}
+        </Box>
+      ) : viewMode === 'table' ? (
+        // Vista Tabla
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Card sx={{ overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+            <Box sx={{ overflowX: 'auto' }}>
+              <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
+                {/* Encabezado de la tabla */}
+                <Box component="thead">
+                  <Box
+                    component="tr"
+                    sx={{
+                      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.secondary.main, 0.05)})`,
+                      borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`
+                    }}
+                  >
+                    <Box component="th" sx={{ p: spacing.padding, textAlign: 'left', fontWeight: 700, color: 'primary.main' }}>
+                      Estado
                     </Box>
-
-                    <Typography variant="h6" gutterBottom noWrap>
-                      {commitment.concept || commitment.description || 'Sin concepto'}
-                    </Typography>
-
-                    <Box display="flex" alignItems="center" mb={1}>
-                      <Business sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                      <Typography variant="body2" color="text.secondary" noWrap>
-                        {commitment.companyName || commitment.company || 'Sin empresa'}
-                      </Typography>
-                      {commitment.companyLogo && (
-                        <Box ml={1}>
-                          <img 
-                            src={commitment.companyLogo} 
-                            alt="Logo empresa"
-                            style={{ 
-                              width: 16, 
-                              height: 16, 
-                              borderRadius: 2,
-                              objectFit: 'contain'
-                            }}
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                            }}
-                          />
+                    <Box component="th" sx={{ p: spacing.padding, textAlign: 'left', fontWeight: 700, color: 'primary.main' }}>
+                      Descripción
+                    </Box>
+                    <Box component="th" sx={{ p: spacing.padding, textAlign: 'left', fontWeight: 700, color: 'primary.main' }}>
+                      Empresa
+                    </Box>
+                    <Box component="th" sx={{ p: spacing.padding, textAlign: 'right', fontWeight: 700, color: 'primary.main' }}>
+                      Monto
+                    </Box>
+                    <Box component="th" sx={{ p: spacing.padding, textAlign: 'center', fontWeight: 700, color: 'primary.main' }}>
+                      Vencimiento
+                    </Box>
+                    <Box component="th" sx={{ p: spacing.padding, textAlign: 'center', fontWeight: 700, color: 'primary.main' }}>
+                      Acciones
+                    </Box>
+                  </Box>
+                </Box>
+                
+                {/* Contenido de la tabla */}
+                <Box component="tbody">
+                  {commitments.map((commitment, index) => {
+                    const statusInfo = getStatusInfo(commitment);
+                    const dueDate = commitment.dueDate;
+                    const today = new Date();
+                    const daysUntilDue = differenceInDays(dueDate, today);
+                    
+                    return (
+                      <motion.tr
+                        key={commitment.id}
+                        component={Box}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                        sx={{
+                          borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+                          '&:hover': {
+                            backgroundColor: alpha(theme.palette.primary.main, 0.03),
+                            transform: 'scale(1.005)',
+                            transition: 'all 0.2s ease-in-out'
+                          }
+                        }}
+                      >
+                        <Box component="td" sx={{ p: spacing.padding }}>
+                          {showTooltips ? (
+                            <Tooltip title={`Estado: ${statusInfo.label}`} arrow>
+                              <Chip 
+                                label={statusInfo.label}
+                                color={statusInfo.chipColor}
+                                size="small"
+                                sx={{ fontWeight: 600 }}
+                              />
+                            </Tooltip>
+                          ) : (
+                            <Chip 
+                              label={statusInfo.label}
+                              color={statusInfo.chipColor}
+                              size="small"
+                              sx={{ fontWeight: 600 }}
+                            />
+                          )}
                         </Box>
-                      )}
-                    </Box>
+                        <Box component="td" sx={{ p: spacing.padding }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                            {commitment.concept || commitment.description || 'Sin concepto'}
+                          </Typography>
+                          {commitment.beneficiary && (
+                            <Typography variant="caption" color="text.secondary">
+                              Para: {commitment.beneficiary}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Box component="td" sx={{ p: spacing.padding }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Business sx={{ fontSize: 16, color: 'text.secondary' }} />
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {commitment.companyName || commitment.company || 'Sin empresa'}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box component="td" sx={{ p: spacing.padding, textAlign: 'right' }}>
+                          <Typography variant="h6" sx={{ fontWeight: 700, color: statusInfo.color }}>
+                            <CountingNumber end={commitment.amount} />
+                          </Typography>
+                        </Box>
+                        <Box component="td" sx={{ p: spacing.padding, textAlign: 'center' }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                            {format(dueDate, 'dd/MM/yyyy', { locale: es })}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {daysUntilDue >= 0 
+                              ? `${daysUntilDue} días restantes` 
+                              : `${Math.abs(daysUntilDue)} días vencido`
+                            }
+                          </Typography>
+                        </Box>
+                        <Box component="td" sx={{ p: spacing.padding, textAlign: 'center' }}>
+                          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                            {showTooltips ? (
+                              <>
+                                <Tooltip title="Ver detalles" arrow>
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => handleViewCommitment(commitment)}
+                                    sx={{ color: 'primary.main' }}
+                                  >
+                                    <Visibility />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Validar pago" arrow>
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => handleViewReceipt(commitment)}
+                                    sx={{ color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary' }}
+                                  >
+                                    <ReceiptIcon />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Editar compromiso" arrow>
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => handleEditFromCard(commitment)}
+                                    sx={{ color: 'info.main' }}
+                                  >
+                                    <Edit />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Eliminar compromiso" arrow>
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => handleDeleteCommitment(commitment)}
+                                    sx={{ color: 'error.main' }}
+                                  >
+                                    <Delete />
+                                  </IconButton>
+                                </Tooltip>
+                              </>
+                            ) : (
+                              <>
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => handleViewCommitment(commitment)}
+                                  sx={{ color: 'primary.main' }}
+                                >
+                                  <Visibility />
+                                </IconButton>
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => handleViewReceipt(commitment)}
+                                  sx={{ color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary' }}
+                                >
+                                  <ReceiptIcon />
+                                </IconButton>
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => handleEditFromCard(commitment)}
+                                  sx={{ color: 'info.main' }}
+                                >
+                                  <Edit />
+                                </IconButton>
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => handleDeleteCommitment(commitment)}
+                                  sx={{ color: 'error.main' }}
+                                >
+                                  <Delete />
+                                </IconButton>
+                              </>
+                            )}
+                          </Box>
+                        </Box>
+                      </motion.tr>
+                    );
+                  })}
+                </Box>
+              </Box>
+            </Box>
+          </Card>
+        </motion.div>
+      ) : (
+        // Vista Cards (por defecto) - Con configuraciones dashboard
+        <Grid container spacing={spacing.grid}>
+          {commitments.map((commitment, index) => {
+            const statusInfo = getStatusInfo(commitment);
+            
+            return (
+              <Grid item 
+                xs={12 / responsiveColumns.xs} 
+                sm={12 / responsiveColumns.sm} 
+                md={12 / responsiveColumns.md} 
+                lg={12 / responsiveColumns.lg} 
+                xl={12 / responsiveColumns.xl} 
+                key={commitment.id}
+              >
+                {animationsEnabled ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                  >
+                    <Card
+                      sx={{
+                        height: '100%',
+                        minHeight: cardStyles.minHeight,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        transition: 'transform 0.2s ease-in-out',
+                        '&:hover': {
+                          transform: 'translateY(-4px)',
+                          boxShadow: 3
+                        }
+                      }}
+                    >
+                      <CardContent sx={{ flexGrow: 1, p: cardStyles.padding }}>
+                        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={spacing.card}>
+                          {showTooltips ? (
+                            <Tooltip title={`Estado: ${statusInfo.label}`} arrow>
+                              <Chip
+                                icon={statusInfo.icon}
+                                label={statusInfo.label}
+                                color={statusInfo.chipColor}
+                                size="small"
+                              />
+                            </Tooltip>
+                          ) : (
+                            <Chip
+                              icon={statusInfo.icon}
+                              label={statusInfo.label}
+                              color={statusInfo.chipColor}
+                              size="small"
+                            />
+                          )}
+                          <Box>
+                            {showTooltips ? (
+                              <>
+                                <Tooltip title="Ver detalles" arrow>
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => handleViewCommitment(commitment)}
+                                    sx={{ mr: 1 }}
+                                  >
+                                    <Visibility fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Validar pago" arrow>
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => handleViewReceipt(commitment)}
+                                    sx={{ mr: 1, color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary' }}
+                                  >
+                                    <ReceiptIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Editar compromiso" arrow>
+                                  <IconButton 
+                                    size="small" 
+                                    sx={{ mr: 1 }}
+                                    onClick={() => handleEditFromCard(commitment)}
+                                  >
+                                    <Edit fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Eliminar compromiso" arrow>
+                                  <IconButton 
+                                    size="small" 
+                                    color="error"
+                                    onClick={() => handleDeleteCommitment(commitment)}
+                                  >
+                                    <Delete fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </>
+                            ) : (
+                              <>
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => handleViewCommitment(commitment)}
+                                  sx={{ mr: 1 }}
+                                >
+                                  <Visibility fontSize="small" />
+                                </IconButton>
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => handleViewReceipt(commitment)}
+                                  sx={{ mr: 1, color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary' }}
+                                >
+                                  <ReceiptIcon fontSize="small" />
+                                </IconButton>
+                                <IconButton 
+                                  size="small" 
+                                  sx={{ mr: 1 }}
+                                  onClick={() => handleEditFromCard(commitment)}
+                                >
+                                  <Edit fontSize="small" />
+                                </IconButton>
+                                <IconButton 
+                                  size="small" 
+                                  color="error"
+                                  onClick={() => handleDeleteCommitment(commitment)}
+                                >
+                                  <Delete fontSize="small" />
+                                </IconButton>
+                              </>
+                            )}
+                          </Box>
+                        </Box>
 
-                    <Box display="flex" alignItems="center" mb={2}>
-                      <CalendarToday sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                      <Typography variant="body2" color="text.secondary">
-                        {format(commitment.dueDate, 'dd MMM yyyy', { locale: es })}
+                        <Typography variant="h6" gutterBottom noWrap sx={{ fontSize: cardStyles.fontSize }}>
+                          {commitment.concept || commitment.description || 'Sin concepto'}
+                        </Typography>
+
+                        <Box display="flex" alignItems="center" mb={1}>
+                          <Business sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                          <Typography variant="body2" color="text.secondary" noWrap sx={{ fontSize: cardStyles.fontSize }}>
+                            {commitment.companyName || commitment.company || 'Sin empresa'}
+                          </Typography>
+                          {commitment.companyLogo && (
+                            <Box ml={1}>
+                              <img 
+                                src={commitment.companyLogo} 
+                                alt="Logo empresa"
+                                style={{ 
+                                  width: 16, 
+                                  height: 16, 
+                                  borderRadius: 2,
+                                  objectFit: 'contain'
+                                }}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            </Box>
+                          )}
+                        </Box>
+
+                        <Box display="flex" alignItems="center" mb={spacing.card}>
+                          <CalendarToday sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: cardStyles.fontSize }}>
+                            {format(commitment.dueDate, 'dd MMM yyyy', { locale: es })}
+                          </Typography>
+                        </Box>
+
+                        <Typography variant="h5" color="primary.main" fontWeight="bold" sx={{ fontSize: `calc(${cardStyles.fontSize} * 1.3)` }}>
+                          {formatCurrency(commitment.amount)}
+                        </Typography>
+
+                        {commitment.attachments && commitment.attachments.length > 0 && (
+                          <Box display="flex" alignItems="center" mt={1}>
+                            <AttachFile sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: `calc(${cardStyles.fontSize} * 0.8)` }}>
+                              {commitment.attachments.length} archivo(s)
+                            </Typography>
+                          </Box>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ) : (
+                  <Card
+                    sx={{
+                      height: '100%',
+                      minHeight: cardStyles.minHeight,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      transition: 'transform 0.2s ease-in-out',
+                      '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: 3
+                      }
+                    }}
+                  >
+                    <CardContent sx={{ flexGrow: 1, p: cardStyles.padding }}>
+                      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={spacing.card}>
+                        {showTooltips ? (
+                          <Tooltip title={`Estado: ${statusInfo.label}`} arrow>
+                            <Chip
+                              icon={statusInfo.icon}
+                              label={statusInfo.label}
+                              color={statusInfo.chipColor}
+                              size="small"
+                            />
+                          </Tooltip>
+                        ) : (
+                          <Chip
+                            icon={statusInfo.icon}
+                            label={statusInfo.label}
+                            color={statusInfo.chipColor}
+                            size="small"
+                          />
+                        )}
+                        <Box>
+                          {showTooltips ? (
+                            <>
+                              <Tooltip title="Ver detalles" arrow>
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => handleViewCommitment(commitment)}
+                                  sx={{ mr: 1 }}
+                                >
+                                  <Visibility fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Validar pago" arrow>
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => handleViewReceipt(commitment)}
+                                  sx={{ mr: 1, color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary' }}
+                                >
+                                  <ReceiptIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Editar compromiso" arrow>
+                                <IconButton 
+                                  size="small" 
+                                  sx={{ mr: 1 }}
+                                  onClick={() => handleEditFromCard(commitment)}
+                                >
+                                  <Edit fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Eliminar compromiso" arrow>
+                                <IconButton 
+                                  size="small" 
+                                  color="error"
+                                  onClick={() => handleDeleteCommitment(commitment)}
+                                >
+                                  <Delete fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </>
+                          ) : (
+                            <>
+                              <IconButton 
+                                size="small" 
+                                onClick={() => handleViewCommitment(commitment)}
+                                sx={{ mr: 1 }}
+                              >
+                                <Visibility fontSize="small" />
+                              </IconButton>
+                              <IconButton 
+                                size="small" 
+                                onClick={() => handleViewReceipt(commitment)}
+                                sx={{ mr: 1, color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary' }}
+                              >
+                                <ReceiptIcon fontSize="small" />
+                              </IconButton>
+                              <IconButton 
+                                size="small" 
+                                sx={{ mr: 1 }}
+                                onClick={() => handleEditFromCard(commitment)}
+                              >
+                                <Edit fontSize="small" />
+                              </IconButton>
+                              <IconButton 
+                                size="small" 
+                                color="error"
+                                onClick={() => handleDeleteCommitment(commitment)}
+                              >
+                                <Delete fontSize="small" />
+                              </IconButton>
+                            </>
+                          )}
+                        </Box>
+                      </Box>
+
+                      <Typography variant="h6" gutterBottom noWrap sx={{ fontSize: cardStyles.fontSize }}>
+                        {commitment.concept || commitment.description || 'Sin concepto'}
                       </Typography>
-                    </Box>
 
-                    <Typography variant="h5" color="primary.main" fontWeight="bold">
-                      {formatCurrency(commitment.amount)}
-                    </Typography>
+                      <Box display="flex" alignItems="center" mb={1}>
+                        <Business sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                        <Typography variant="body2" color="text.secondary" noWrap sx={{ fontSize: cardStyles.fontSize }}>
+                          {commitment.companyName || commitment.company || 'Sin empresa'}
+                        </Typography>
+                        {commitment.companyLogo && (
+                          <Box ml={1}>
+                            <img 
+                              src={commitment.companyLogo} 
+                              alt="Logo empresa"
+                              style={{ 
+                                width: 16, 
+                                height: 16, 
+                                borderRadius: 2,
+                                objectFit: 'contain'
+                              }}
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                              }}
+                            />
+                          </Box>
+                        )}
+                      </Box>
 
-                    {commitment.attachments && commitment.attachments.length > 0 && (
-                      <Box display="flex" alignItems="center" mt={1}>
-                        <AttachFile sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                        <Typography variant="caption" color="text.secondary">
-                          {commitment.attachments.length} archivo(s)
+                      <Box display="flex" alignItems="center" mb={spacing.card}>
+                        <CalendarToday sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: cardStyles.fontSize }}>
+                          {format(commitment.dueDate, 'dd MMM yyyy', { locale: es })}
                         </Typography>
                       </Box>
-                    )}
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </Grid>
-          );
-        })}
-      </Grid>
+
+                      <Typography variant="h5" color="primary.main" fontWeight="bold" sx={{ fontSize: `calc(${cardStyles.fontSize} * 1.3)` }}>
+                        {formatCurrency(commitment.amount)}
+                      </Typography>
+
+                      {commitment.attachments && commitment.attachments.length > 0 && (
+                        <Box display="flex" alignItems="center" mt={1}>
+                          <AttachFile sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: `calc(${cardStyles.fontSize} * 0.8)` }}>
+                            {commitment.attachments.length} archivo(s)
+                          </Typography>
+                        </Box>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </Grid>
+            );
+          })}
+        </Grid>
+      )}
 
       {/* Diálogo de vista detallada - Premium Design System v2.1 */}
       <Dialog
@@ -1285,6 +2028,13 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm }) => {
         onClose={handleCloseEditDialog}
         commitment={selectedCommitment}
         onSaved={handleCommitmentSaved}
+      />
+
+      {/* Visor de comprobantes de pago */}
+      <PaymentReceiptViewer
+        open={receiptViewerOpen}
+        onClose={handleCloseReceiptViewer}
+        commitment={selectedCommitment}
       />
     </Box>
   );

@@ -21,6 +21,7 @@ import {
   useThemeGradients,
   shimmerEffect
 } from '../utils/designSystem.js';
+import { useSettings } from '../context/SettingsContext';
 import CommitmentsFilters from '../components/commitments/CommitmentsFilters';
 import CommitmentsList from '../components/commitments/CommitmentsList';
 
@@ -28,6 +29,7 @@ const CommitmentsPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const gradients = useThemeGradients();
+  const { settings } = useSettings();
   const [searchTerm, setSearchTerm] = useState('');
   const [companyFilter, setCompanyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -53,18 +55,18 @@ const CommitmentsPage = () => {
     <Box sx={{ position: 'relative', minHeight: '100vh' }}>
       {/* Header Premium con Gradiente Dinámico */}
       <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, type: "spring" }}
+        initial={settings.theme?.animations ? { opacity: 0, y: -20 } : {}}
+        animate={settings.theme?.animations ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+        transition={settings.theme?.animations ? { duration: 0.6, type: "spring" } : { duration: 0 }}
       >
         <Paper
           elevation={0}
           sx={{
-            background: gradients.primary,
+            background: `linear-gradient(135deg, ${settings.theme?.primaryColor || '#667eea'} 0%, ${settings.theme?.secondaryColor || '#764ba2'} 100%)`,
             color: 'white',
-            p: 4,
+            p: settings.theme?.compactMode ? 3 : 4,
             mb: 4,
-            borderRadius: 4,
+            borderRadius: settings.theme?.borderRadius || 4,
             position: 'relative',
             overflow: 'hidden',
             ...shimmerEffect,
@@ -89,9 +91,9 @@ const CommitmentsPage = () => {
             <Box display="flex" justifyContent="space-between" alignItems="center">
               <Box>
                 <motion.div
-                  initial={{ x: -30, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.2, duration: 0.5 }}
+                  initial={settings.theme?.animations ? { x: -30, opacity: 0 } : {}}
+                  animate={settings.theme?.animations ? { x: 0, opacity: 1 } : { x: 0, opacity: 1 }}
+                  transition={settings.theme?.animations ? { delay: 0.2, duration: 0.5 } : { duration: 0 }}
                 >
                   <Typography 
                     variant="h3" 
@@ -99,6 +101,8 @@ const CommitmentsPage = () => {
                     gutterBottom
                     sx={{ 
                       fontWeight: 800,
+                      fontFamily: settings.theme?.fontFamily || 'inherit',
+                      fontSize: settings.theme?.fontSize ? `${settings.theme.fontSize * 2.5}px` : 'inherit',
                       textShadow: '0 2px 4px rgba(0,0,0,0.2)',
                       mb: 1
                     }}
@@ -110,6 +114,8 @@ const CommitmentsPage = () => {
                     sx={{ 
                       opacity: 0.9,
                       fontWeight: 400,
+                      fontFamily: settings.theme?.fontFamily || 'inherit',
+                      fontSize: settings.theme?.fontSize ? `${settings.theme.fontSize * 1.2}px` : 'inherit',
                       maxWidth: 600
                     }}
                   >
@@ -119,23 +125,24 @@ const CommitmentsPage = () => {
               </Box>
               
               <motion.div
-                initial={{ x: 30, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.3, duration: 0.5 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                initial={settings.theme?.animations ? { x: 30, opacity: 0 } : {}}
+                animate={settings.theme?.animations ? { x: 0, opacity: 1 } : { x: 0, opacity: 1 }}
+                transition={settings.theme?.animations ? { delay: 0.3, duration: 0.5 } : { duration: 0 }}
+                whileHover={settings.theme?.animations ? { scale: 1.05 } : {}}
+                whileTap={settings.theme?.animations ? { scale: 0.95 } : {}}
               >
                 <Button
                   variant="contained"
                   startIcon={<Add />}
                   onClick={handleAddCommitment}
-                  size="large"
+                  size={settings.theme?.compactMode ? "medium" : "large"}
                   sx={{
-                    py: 1.5,
-                    px: 4,
-                    fontSize: '1.1rem',
+                    py: settings.theme?.compactMode ? 1 : 1.5,
+                    px: settings.theme?.compactMode ? 3 : 4,
+                    fontSize: settings.theme?.fontSize ? `${settings.theme.fontSize * 1.1}px` : '1.1rem',
                     fontWeight: 700,
-                    borderRadius: 4,
+                    fontFamily: settings.theme?.fontFamily || 'inherit',
+                    borderRadius: settings.theme?.borderRadius || 4,
                     background: 'rgba(255, 255, 255, 0.2)',
                     backdropFilter: 'blur(10px)',
                     border: '1px solid rgba(255, 255, 255, 0.3)',
@@ -159,9 +166,9 @@ const CommitmentsPage = () => {
 
       {/* Filtros */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.2 }}
+        initial={settings.theme?.animations ? { opacity: 0, y: 20 } : {}}
+        animate={settings.theme?.animations ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+        transition={settings.theme?.animations ? { duration: 0.3, delay: 0.2 } : { duration: 0 }}
       >
         <CommitmentsFilters
           searchTerm={searchTerm}
@@ -175,14 +182,15 @@ const CommitmentsPage = () => {
 
       {/* Lista de compromisos */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.3 }}
+        initial={settings.theme?.animations ? { opacity: 0, y: 20 } : {}}
+        animate={settings.theme?.animations ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+        transition={settings.theme?.animations ? { duration: 0.3, delay: 0.3 } : { duration: 0 }}
       >
         <CommitmentsList
           searchTerm={searchTerm}
           companyFilter={companyFilter}
           statusFilter={statusFilter}
+          viewMode={settings.dashboard?.layout?.viewMode || 'cards'}
         />
       </motion.div>
     </Box>
