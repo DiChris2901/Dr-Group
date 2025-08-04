@@ -1,29 +1,23 @@
-import React, { useState } from 'react';
 import {
-  Box,
-  Typography,
-  Button,
-  Paper,
-  alpha
-} from '@mui/material';
-import {
-  TrendingUp,
-  Schedule,
-  Warning,
-  AccountBalance,
-  Add
+    Add
 } from '@mui/icons-material';
-import { motion } from 'framer-motion';
-import { useTheme } from '@mui/material/styles';
-import { useNavigate } from 'react-router-dom';
 import {
-  animationVariants,
-  useThemeGradients,
-  shimmerEffect
-} from '../utils/designSystem.js';
-import { useSettings } from '../context/SettingsContext';
+    Box,
+    Button,
+    Paper,
+    Typography
+} from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import CommitmentsFilters from '../components/commitments/CommitmentsFilters';
 import CommitmentsList from '../components/commitments/CommitmentsList';
+import { useSettings } from '../context/SettingsContext';
+import {
+    shimmerEffect,
+    useThemeGradients
+} from '../utils/designSystem.js';
 
 const CommitmentsPage = () => {
   const theme = useTheme();

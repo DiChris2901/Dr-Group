@@ -83,7 +83,7 @@
   "workbench.startupEditor": "none",
   "workbench.enableExperiments": false,
   "workbench.settings.enableNaturalLanguageSearch": false,
-  "workbench.colorTheme": "GitHub Dark Default",
+  "workbench.colorTheme": "PowerShell ISE",
   "workbench.iconTheme": "vs-seti",
   "workbench.tree.renderIndentGuides": "onHover",
   "workbench.tree.indent": 15,

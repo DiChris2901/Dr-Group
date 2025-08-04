@@ -42,7 +42,11 @@ import {
   NotificationAdd,
   GetApp,
   Close,
-  Receipt as ReceiptIcon
+  Receipt as ReceiptIcon,
+  Person,
+  Info,
+  Notes,
+  History
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO, isAfter, isBefore, addDays, differenceInDays, differenceInHours } from 'date-fns';
@@ -53,9 +57,65 @@ import { db, storage } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
 import { useSettings } from '../../context/SettingsContext';
+import { useThemeGradients, shimmerEffect } from '../../utils/designSystem';
 import useCommitmentAlerts from '../../hooks/useCommitmentAlerts';
 import CommitmentEditForm from './CommitmentEditForm';
 import PaymentReceiptViewer from './PaymentReceiptViewer';
+
+// Helper function para manejar fechas de Firebase de manera segura
+const safeToDate = (timestamp) => {
+  if (!timestamp) return null;
+  if (typeof timestamp.toDate === 'function') {
+    return timestamp.toDate();
+  }
+  if (timestamp instanceof Date) {
+    return timestamp;
+  }
+  if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+    return new Date(timestamp);
+  }
+  return null;
+};
+
+// Helper function para determinar el estado del compromiso
+const getCommitmentStatus = (commitment) => {
+  if (!commitment) return { text: 'DESCONOCIDO', color: 'grey', emoji: '❓' };
+  
+  // Si está marcado como pagado, es pagado (compatible con ambas propiedades)
+  if (commitment.isPaid || commitment.paid) {
+    return { text: 'PAGADO', color: 'success', emoji: '✅' };
+  }
+  
+  // Si no tiene fecha de vencimiento, es pendiente
+  const dueDate = safeToDate(commitment.dueDate);
+  if (!dueDate) {
+    return { text: 'PENDIENTE', color: 'warning', emoji: '⏳' };
+  }
+  
+  const today = new Date();
+  const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  
+  // Comparar solo las fechas, sin horas
+  if (dueDateOnly < todayOnly) {
+    return { text: 'VENCIDO', color: 'error', emoji: '⚠️' };
+  } else if (dueDateOnly.getTime() === todayOnly.getTime()) {
+    return { text: 'VENCE HOY', color: 'warning', emoji: '🔔' };
+  } else {
+    return { text: 'PENDIENTE', color: 'info', emoji: '⏳' };
+  }
+};
+
+// Helper function para obtener el color del estado
+const getStatusColor = (status) => {
+  switch (status.color) {
+    case 'success': return { bg: 'rgba(76, 175, 80, 0.3)', border: 'rgba(76, 175, 80, 0.5)' };
+    case 'error': return { bg: 'rgba(244, 67, 54, 0.3)', border: 'rgba(244, 67, 54, 0.5)' };
+    case 'warning': return { bg: 'rgba(255, 152, 0, 0.3)', border: 'rgba(255, 152, 0, 0.5)' };
+    case 'info': return { bg: 'rgba(33, 150, 243, 0.3)', border: 'rgba(33, 150, 243, 0.5)' };
+    default: return { bg: 'rgba(158, 158, 158, 0.3)', border: 'rgba(158, 158, 158, 0.5)' };
+  }
+};
 
 // Componente para animación de conteo de montos
 const CountingNumber = ({ end, duration = 1000, prefix = '$' }) => {
@@ -140,6 +200,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
   const { addNotification, addAlert } = useNotifications();
   const { settings } = useSettings();
   const theme = useTheme();
+  const gradients = useThemeGradients();
   const [commitments, setCommitments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -592,71 +653,216 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
     <Box>
       {/* Contenido principal según modo de vista */}
       {viewMode === 'list' ? (
-        // Vista Lista - Con configuraciones dashboard
-        <Box>
+        // Vista Lista Spectacular - Design System Premium v2.2
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: spacing.grid,
+          position: 'relative'
+        }}>
           {commitments.map((commitment, index) => {
             const statusInfo = getStatusInfo(commitment);
             const dueDate = commitment.dueDate;
             const today = new Date();
             const daysUntilDue = differenceInDays(dueDate, today);
+            const isOverdue = daysUntilDue < 0;
+            const isDueSoon = daysUntilDue <= 7 && daysUntilDue >= 0;
             
             const cardContent = (
               <Card
                 sx={{
-                  mb: spacing.card,
-                  p: spacing.padding,
-                  minHeight: cardStyles.minHeight,
-                  border: '1px solid',
-                  borderColor: alpha(statusInfo.color, 0.3),
+                  position: 'relative',
+                  overflow: 'hidden',
+                  background: theme.palette.mode === 'dark'
+                    ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
+                    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+                  backdropFilter: 'blur(20px)',
+                  border: `1px solid ${alpha(statusInfo.color, 0.15)}`,
+                  borderRadius: 3,
+                  transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: '-100%',
+                    width: '100%',
+                    height: '100%',
+                    background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.05)}, transparent)`,
+                    transition: 'left 0.8s ease-in-out',
+                    zIndex: 1
+                  },
                   '&:hover': {
-                    boxShadow: 3,
                     transform: 'translateY(-2px)',
-                    transition: 'all 0.2s ease-in-out'
+                    boxShadow: `0 8px 24px ${alpha(theme.palette.grey[500], 0.12)}`,
+                    '&::before': {
+                      left: '100%'
+                    }
                   }
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between',
+                  p: spacing.padding,
+                  position: 'relative',
+                  zIndex: 2
+                }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
                     <Box sx={{ mr: spacing.card }}>
                       {showTooltips ? (
                         <Tooltip title={`Estado: ${statusInfo.label}`} arrow>
                           <Chip 
+                            icon={statusInfo.icon}
                             label={statusInfo.label}
                             color={statusInfo.chipColor}
                             size="small"
-                            sx={{ fontWeight: 600 }}
+                            sx={{ 
+                              fontWeight: 600,
+                              background: `linear-gradient(135deg, ${alpha(statusInfo.color, 0.15)}, ${alpha(statusInfo.color, 0.25)})`,
+                              backdropFilter: 'blur(10px)',
+                              border: `1px solid ${alpha(statusInfo.color, 0.3)}`,
+                              '& .MuiChip-icon': {
+                                color: statusInfo.color
+                              }
+                            }}
                           />
                         </Tooltip>
                       ) : (
                         <Chip 
+                          icon={statusInfo.icon}
                           label={statusInfo.label}
                           color={statusInfo.chipColor}
                           size="small"
-                          sx={{ fontWeight: 600 }}
+                          sx={{ 
+                            fontWeight: 600,
+                            background: `linear-gradient(135deg, ${alpha(statusInfo.color, 0.15)}, ${alpha(statusInfo.color, 0.25)})`,
+                            backdropFilter: 'blur(10px)',
+                            border: `1px solid ${alpha(statusInfo.color, 0.3)}`,
+                            '& .MuiChip-icon': {
+                              color: statusInfo.color
+                            }
+                          }}
                         />
                       )}
                     </Box>
                     
                     <Box sx={{ flex: 1 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5, fontSize: cardStyles.fontSize }}>
+                      <Typography 
+                        variant="h6" 
+                        sx={{ 
+                          fontWeight: 700,
+                          mb: 0.5, 
+                          fontSize: cardStyles.fontSize,
+                          background: `linear-gradient(135deg, ${theme.palette.text.primary}, ${alpha(theme.palette.primary.main, 0.8)})`,
+                          backgroundClip: 'text',
+                          WebkitBackgroundClip: 'text',
+                          color: 'transparent',
+                          textShadow: theme.palette.mode === 'dark' ? '0 0 20px rgba(255,255,255,0.1)' : 'none'
+                        }}
+                      >
                         {commitment.description}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: cardStyles.fontSize }}>
-                        {commitment.companyName} • {format(dueDate, 'dd/MM/yyyy', { locale: es })}
-                      </Typography>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        gap: 1,
+                        p: 1,
+                        borderRadius: 2,
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.05)}, ${alpha(theme.palette.info.light, 0.02)})`,
+                        border: `1px solid ${alpha(theme.palette.info.main, 0.1)}`
+                      }}>
+                        <Business sx={{ 
+                          fontSize: 16, 
+                          color: theme.palette.info.main,
+                          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
+                        }} />
+                        <Typography 
+                          variant="body2" 
+                          color="text.secondary" 
+                          sx={{ 
+                            fontSize: cardStyles.fontSize,
+                            fontWeight: 500
+                          }}
+                        >
+                          {commitment.companyName}
+                        </Typography>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center',
+                          ml: 2,
+                          pl: 2,
+                          borderLeft: `1px solid ${alpha(theme.palette.divider, 0.3)}`
+                        }}>
+                          <CalendarToday sx={{ 
+                            fontSize: 16, 
+                            mr: 0.5,
+                            color: theme.palette.warning.main,
+                            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
+                          }} />
+                          <Typography 
+                            variant="body2" 
+                            color="text.secondary"
+                            sx={{ fontSize: cardStyles.fontSize }}
+                          >
+                            {format(dueDate, 'dd/MM/yyyy', { locale: es })}
+                          </Typography>
+                        </Box>
+                      </Box>
                     </Box>
                     
-                    <Box sx={{ textAlign: 'right', mr: spacing.card }}>
-                      <Typography variant="h6" sx={{ fontWeight: 700, color: statusInfo.color, fontSize: `calc(${cardStyles.fontSize} * 1.3)` }}>
+                    <Box sx={{ 
+                      textAlign: 'right', 
+                      mr: spacing.card,
+                      p: 2,
+                      borderRadius: 2,
+                      background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.05)}, ${alpha(theme.palette.success.light, 0.02)})`,
+                      border: `1px solid ${alpha(theme.palette.success.main, 0.1)}`
+                    }}>
+                      <Typography 
+                        variant="h6" 
+                        sx={{ 
+                          fontWeight: 800,
+                          fontSize: `calc(${cardStyles.fontSize} * 1.4)`,
+                          background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                          backgroundClip: 'text',
+                          WebkitBackgroundClip: 'text',
+                          color: 'transparent',
+                          textShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                          mb: 0.5
+                        }}
+                      >
                         <CountingNumber end={commitment.amount} />
                       </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: `calc(${cardStyles.fontSize} * 0.8)` }}>
+                      <Typography 
+                        variant="caption" 
+                        color={isOverdue ? 'error.main' : isDueSoon ? 'warning.main' : 'text.secondary'}
+                        sx={{ 
+                          fontSize: `calc(${cardStyles.fontSize} * 0.85)`,
+                          fontWeight: 600,
+                          textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                        }}
+                      >
                         {daysUntilDue >= 0 ? `${daysUntilDue} días restantes` : `${Math.abs(daysUntilDue)} días vencido`}
                       </Typography>
                     </Box>
                   </Box>
                   
-                  <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    gap: 0.5,
+                    '& .MuiIconButton-root': {
+                      background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.6)})`,
+                      backdropFilter: 'blur(10px)',
+                      border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': {
+                        transform: 'translateY(-2px) scale(1.1)',
+                        boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.2)}`,
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.primary.light, 0.05)})`
+                      }
+                    }
+                  }}>
                     {showTooltips ? (
                       <>
                         <Tooltip title="Ver detalles" arrow>
@@ -736,138 +942,377 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
             return animationsEnabled ? (
               <motion.div
                 key={commitment.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.05 }}
+                initial={{ opacity: 0, x: -30, scale: 0.95 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                transition={{ 
+                  duration: 0.6, 
+                  delay: index * 0.08,
+                  type: "spring",
+                  stiffness: 100,
+                  damping: 12
+                }}
+                whileHover={{ 
+                  scale: 1.01,
+                  transition: { duration: 0.3, type: "spring", stiffness: 400 }
+                }}
               >
                 {cardContent}
               </motion.div>
             ) : (
-              <div key={commitment.id}>
+              <Box key={commitment.id} sx={{ mb: spacing.grid }}>
                 {cardContent}
-              </div>
+              </Box>
             );
           })}
         </Box>
       ) : viewMode === 'table' ? (
-        // Vista Tabla
+        // Vista Tabla Spectacular - Design System Premium v2.2
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={animationsEnabled ? { opacity: 0, y: 30 } : { opacity: 1, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.6, type: "spring", stiffness: 100 }}
         >
-          <Card sx={{ overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
+          <Card sx={{ 
+            overflow: 'hidden', 
+            background: theme.palette.mode === 'dark'
+              ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
+              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+            backdropFilter: 'blur(20px)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+            borderRadius: 3,
+            boxShadow: `0 8px 32px ${alpha(theme.palette.grey[500], 0.15)}`,
+            position: 'relative',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 4,
+              background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              zIndex: 1
+            }
+          }}>
             <Box sx={{ overflowX: 'auto' }}>
               <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
-                {/* Encabezado de la tabla */}
+                {/* Encabezado Spectacular */}
                 <Box component="thead">
                   <Box
                     component="tr"
                     sx={{
-                      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.secondary.main, 0.05)})`,
-                      borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`
+                      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)}, ${alpha(theme.palette.secondary.main, 0.04)})`,
+                      backdropFilter: 'blur(10px)',
+                      borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                      position: 'relative',
+                      '&::after': {
+                        content: '""',
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: 1,
+                        background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.5)}, transparent)`
+                      }
                     }}
                   >
-                    <Box component="th" sx={{ p: spacing.padding, textAlign: 'left', fontWeight: 700, color: 'primary.main' }}>
+                    <Box component="th" sx={{ 
+                      p: spacing.padding, 
+                      textAlign: 'left', 
+                      fontWeight: 800, 
+                      fontSize: `calc(${cardStyles.fontSize} * 1.1)`,
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${alpha(theme.palette.primary.dark, 0.8)})`,
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      color: 'transparent',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                      borderRight: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                    }}>
                       Estado
                     </Box>
-                    <Box component="th" sx={{ p: spacing.padding, textAlign: 'left', fontWeight: 700, color: 'primary.main' }}>
+                    <Box component="th" sx={{ 
+                      p: spacing.padding, 
+                      textAlign: 'left', 
+                      fontWeight: 800, 
+                      fontSize: `calc(${cardStyles.fontSize} * 1.1)`,
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${alpha(theme.palette.primary.dark, 0.8)})`,
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      color: 'transparent',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                      borderRight: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                    }}>
                       Descripción
                     </Box>
-                    <Box component="th" sx={{ p: spacing.padding, textAlign: 'left', fontWeight: 700, color: 'primary.main' }}>
+                    <Box component="th" sx={{ 
+                      p: spacing.padding, 
+                      textAlign: 'left', 
+                      fontWeight: 800, 
+                      fontSize: `calc(${cardStyles.fontSize} * 1.1)`,
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${alpha(theme.palette.primary.dark, 0.8)})`,
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      color: 'transparent',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                      borderRight: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                    }}>
                       Empresa
                     </Box>
-                    <Box component="th" sx={{ p: spacing.padding, textAlign: 'right', fontWeight: 700, color: 'primary.main' }}>
+                    <Box component="th" sx={{ 
+                      p: spacing.padding, 
+                      textAlign: 'right', 
+                      fontWeight: 800, 
+                      fontSize: `calc(${cardStyles.fontSize} * 1.1)`,
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${alpha(theme.palette.primary.dark, 0.8)})`,
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      color: 'transparent',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                      borderRight: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                    }}>
                       Monto
                     </Box>
-                    <Box component="th" sx={{ p: spacing.padding, textAlign: 'center', fontWeight: 700, color: 'primary.main' }}>
+                    <Box component="th" sx={{ 
+                      p: spacing.padding, 
+                      textAlign: 'center', 
+                      fontWeight: 800, 
+                      fontSize: `calc(${cardStyles.fontSize} * 1.1)`,
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${alpha(theme.palette.primary.dark, 0.8)})`,
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      color: 'transparent',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                      borderRight: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                    }}>
                       Vencimiento
                     </Box>
-                    <Box component="th" sx={{ p: spacing.padding, textAlign: 'center', fontWeight: 700, color: 'primary.main' }}>
+                    <Box component="th" sx={{ 
+                      p: spacing.padding, 
+                      textAlign: 'center', 
+                      fontWeight: 800, 
+                      fontSize: `calc(${cardStyles.fontSize} * 1.1)`,
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${alpha(theme.palette.primary.dark, 0.8)})`,
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      color: 'transparent',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                    }}>
                       Acciones
                     </Box>
                   </Box>
                 </Box>
                 
-                {/* Contenido de la tabla */}
+                {/* Contenido Spectacular */}
                 <Box component="tbody">
                   {commitments.map((commitment, index) => {
                     const statusInfo = getStatusInfo(commitment);
                     const dueDate = commitment.dueDate;
                     const today = new Date();
                     const daysUntilDue = differenceInDays(dueDate, today);
+                    const isOverdue = daysUntilDue < 0;
+                    const isDueSoon = daysUntilDue <= 7 && daysUntilDue >= 0;
                     
                     return (
                       <motion.tr
                         key={commitment.id}
                         component={Box}
-                        initial={{ opacity: 0, y: 10 }}
+                        initial={animationsEnabled ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                        transition={{ duration: 0.4, delay: index * 0.06, type: "spring" }}
                         sx={{
-                          borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+                          background: index % 2 === 0 
+                            ? 'transparent'
+                            : alpha(theme.palette.primary.main, 0.02),
+                          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                          position: 'relative',
+                          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                           '&:hover': {
-                            backgroundColor: alpha(theme.palette.primary.main, 0.03),
-                            transform: 'scale(1.005)',
-                            transition: 'all 0.2s ease-in-out'
+                            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.04)}, ${alpha(theme.palette.secondary.main, 0.02)})`,
+                            transform: 'scale(1.002)',
+                            boxShadow: `inset 0 0 0 1px ${alpha(theme.palette.primary.main, 0.1)}`,
+                            '& .MuiIconButton-root': {
+                              transform: 'scale(1.1)'
+                            }
                           }
                         }}
                       >
-                        <Box component="td" sx={{ p: spacing.padding }}>
+                        <Box component="td" sx={{ 
+                          p: spacing.padding,
+                          borderRight: `1px solid ${alpha(theme.palette.divider, 0.05)}`
+                        }}>
                           {showTooltips ? (
                             <Tooltip title={`Estado: ${statusInfo.label}`} arrow>
                               <Chip 
+                                icon={statusInfo.icon}
                                 label={statusInfo.label}
                                 color={statusInfo.chipColor}
                                 size="small"
-                                sx={{ fontWeight: 600 }}
+                                sx={{ 
+                                  fontWeight: 700,
+                                  background: `linear-gradient(135deg, ${alpha(statusInfo.color, 0.15)}, ${alpha(statusInfo.color, 0.25)})`,
+                                  backdropFilter: 'blur(10px)',
+                                  border: `1px solid ${alpha(statusInfo.color, 0.3)}`,
+                                  '& .MuiChip-icon': {
+                                    color: statusInfo.color,
+                                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))'
+                                  }
+                                }}
                               />
                             </Tooltip>
                           ) : (
                             <Chip 
+                              icon={statusInfo.icon}
                               label={statusInfo.label}
                               color={statusInfo.chipColor}
                               size="small"
-                              sx={{ fontWeight: 600 }}
+                              sx={{ 
+                                fontWeight: 700,
+                                background: `linear-gradient(135deg, ${alpha(statusInfo.color, 0.15)}, ${alpha(statusInfo.color, 0.25)})`,
+                                backdropFilter: 'blur(10px)',
+                                border: `1px solid ${alpha(statusInfo.color, 0.3)}`,
+                                '& .MuiChip-icon': {
+                                  color: statusInfo.color,
+                                  filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))'
+                                }
+                              }}
                             />
                           )}
                         </Box>
-                        <Box component="td" sx={{ p: spacing.padding }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                        <Box component="td" sx={{ 
+                          p: spacing.padding,
+                          borderRight: `1px solid ${alpha(theme.palette.divider, 0.05)}`
+                        }}>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              fontWeight: 700, 
+                              mb: 0.5,
+                              fontSize: cardStyles.fontSize,
+                              background: `linear-gradient(135deg, ${theme.palette.text.primary}, ${alpha(theme.palette.primary.main, 0.7)})`,
+                              backgroundClip: 'text',
+                              WebkitBackgroundClip: 'text',
+                              color: 'transparent'
+                            }}
+                          >
                             {commitment.concept || commitment.description || 'Sin concepto'}
                           </Typography>
                           {commitment.beneficiary && (
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography 
+                              variant="caption" 
+                              color="text.secondary"
+                              sx={{
+                                display: 'block',
+                                p: 0.5,
+                                borderRadius: 1,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.05)}, ${alpha(theme.palette.info.light, 0.02)})`,
+                                border: `1px solid ${alpha(theme.palette.info.main, 0.1)}`
+                              }}
+                            >
                               Para: {commitment.beneficiary}
                             </Typography>
                           )}
                         </Box>
-                        <Box component="td" sx={{ p: spacing.padding }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Business sx={{ fontSize: 16, color: 'text.secondary' }} />
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        <Box component="td" sx={{ 
+                          p: spacing.padding,
+                          borderRight: `1px solid ${alpha(theme.palette.divider, 0.05)}`
+                        }}>
+                          <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1.5,
+                            p: 1,
+                            borderRadius: 2,
+                            background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.05)}, ${alpha(theme.palette.info.light, 0.02)})`,
+                            border: `1px solid ${alpha(theme.palette.info.main, 0.1)}`
+                          }}>
+                            <Business sx={{ 
+                              fontSize: 18, 
+                              color: theme.palette.info.main,
+                              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                            }} />
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                fontWeight: 600,
+                                fontSize: cardStyles.fontSize
+                              }}
+                            >
                               {commitment.companyName || commitment.company || 'Sin empresa'}
                             </Typography>
                           </Box>
                         </Box>
-                        <Box component="td" sx={{ p: spacing.padding, textAlign: 'right' }}>
-                          <Typography variant="h6" sx={{ fontWeight: 700, color: statusInfo.color }}>
+                        <Box component="td" sx={{ 
+                          p: spacing.padding, 
+                          textAlign: 'right',
+                          borderRight: `1px solid ${alpha(theme.palette.divider, 0.05)}`
+                        }}>
+                          <Typography 
+                            variant="h6" 
+                            sx={{ 
+                              fontWeight: 800,
+                              fontSize: `calc(${cardStyles.fontSize} * 1.3)`,
+                              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                              backgroundClip: 'text',
+                              WebkitBackgroundClip: 'text',
+                              color: 'transparent',
+                              textShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                            }}
+                          >
                             <CountingNumber end={commitment.amount} />
                           </Typography>
                         </Box>
-                        <Box component="td" sx={{ p: spacing.padding, textAlign: 'center' }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                            {format(dueDate, 'dd/MM/yyyy', { locale: es })}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {daysUntilDue >= 0 
-                              ? `${daysUntilDue} días restantes` 
-                              : `${Math.abs(daysUntilDue)} días vencido`
-                            }
-                          </Typography>
+                        <Box component="td" sx={{ 
+                          p: spacing.padding, 
+                          textAlign: 'center',
+                          borderRight: `1px solid ${alpha(theme.palette.divider, 0.05)}`
+                        }}>
+                          <Box sx={{
+                            p: 1.5,
+                            borderRadius: 2,
+                            background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.05)}, ${alpha(theme.palette.warning.light, 0.02)})`,
+                            border: `1px solid ${alpha(theme.palette.warning.main, 0.1)}`
+                          }}>
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                fontWeight: 700, 
+                                mb: 0.5,
+                                fontSize: cardStyles.fontSize
+                              }}
+                            >
+                              {format(dueDate, 'dd/MM/yyyy', { locale: es })}
+                            </Typography>
+                            <Typography 
+                              variant="caption" 
+                              color={isOverdue ? 'error.main' : isDueSoon ? 'warning.main' : 'success.main'}
+                              sx={{
+                                fontWeight: 600,
+                                textShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                              }}
+                            >
+                              {daysUntilDue >= 0 
+                                ? `${daysUntilDue} días restantes` 
+                                : `${Math.abs(daysUntilDue)} días vencido`
+                              }
+                            </Typography>
+                          </Box>
                         </Box>
                         <Box component="td" sx={{ p: spacing.padding, textAlign: 'center' }}>
-                          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                          <Box sx={{ 
+                            display: 'flex', 
+                            gap: 0.5, 
+                            justifyContent: 'center',
+                            '& .MuiIconButton-root': {
+                              background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.6)})`,
+                              backdropFilter: 'blur(10px)',
+                              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              '&:hover': {
+                                transform: 'translateY(-2px) scale(1.1)',
+                                boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.2)}`,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.primary.light, 0.05)})`
+                              }
+                            }
+                          }}>
                             {showTooltips ? (
                               <>
                                 <Tooltip title="Ver detalles" arrow>
@@ -950,10 +1395,15 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
           </Card>
         </motion.div>
       ) : (
-        // Vista Cards (por defecto) - Con configuraciones dashboard
+        // Vista Cards Spectacular - Design System Premium v2.2
         <Grid container spacing={spacing.grid}>
           {commitments.map((commitment, index) => {
             const statusInfo = getStatusInfo(commitment);
+            const dueDate = commitment.dueDate;
+            const today = new Date();
+            const daysUntilDue = differenceInDays(dueDate, today);
+            const isOverdue = daysUntilDue < 0;
+            const isDueSoon = daysUntilDue <= 7 && daysUntilDue >= 0;
             
             return (
               <Grid item 
@@ -966,9 +1416,20 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
               >
                 {animationsEnabled ? (
                   <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ 
+                      duration: 0.6, 
+                      delay: index * 0.1,
+                      type: "spring",
+                      stiffness: 100,
+                      damping: 12
+                    }}
+                    whileHover={{ 
+                      scale: 1.02, 
+                      y: -8,
+                      transition: { duration: 0.3, type: "spring", stiffness: 400 }
+                    }}
                   >
                     <Card
                       sx={{
@@ -976,14 +1437,54 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                         minHeight: cardStyles.minHeight,
                         display: 'flex',
                         flexDirection: 'column',
-                        transition: 'transform 0.2s ease-in-out',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        background: theme.palette.mode === 'dark'
+                          ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
+                          : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+                        backdropFilter: 'blur(20px)',
+                        border: `1px solid ${alpha(statusInfo.color, 0.2)}`,
+                        borderRadius: 3,
+                        transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: '-100%',
+                          width: '100%',
+                          height: '100%',
+                          background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.1)}, transparent)`,
+                          transition: 'left 0.8s ease-in-out',
+                          zIndex: 1
+                        },
                         '&:hover': {
-                          transform: 'translateY(-4px)',
-                          boxShadow: 3
+                          transform: 'translateY(-8px)',
+                          boxShadow: `0 12px 32px ${alpha(theme.palette.grey[500], 0.15)}`,
+                          '&::before': {
+                            left: '100%'
+                          }
+                        },
+                        '&::after': {
+                          content: '""',
+                          position: 'absolute',
+                          top: -2,
+                          left: -2,
+                          right: -2,
+                          bottom: -2,
+                          background: 'transparent',
+                          borderRadius: 3,
+                          opacity: 0,
+                          transition: 'opacity 0.3s ease',
+                          zIndex: -1
                         }
                       }}
                     >
-                      <CardContent sx={{ flexGrow: 1, p: cardStyles.padding }}>
+                      <CardContent sx={{ 
+                        flexGrow: 1, 
+                        p: cardStyles.padding,
+                        position: 'relative',
+                        zIndex: 2
+                      }}>
                         <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={spacing.card}>
                           {showTooltips ? (
                             <Tooltip title={`Estado: ${statusInfo.label}`} arrow>
@@ -992,6 +1493,15 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                                 label={statusInfo.label}
                                 color={statusInfo.chipColor}
                                 size="small"
+                                sx={{
+                                  background: `linear-gradient(135deg, ${alpha(statusInfo.color, 0.15)}, ${alpha(statusInfo.color, 0.25)})`,
+                                  backdropFilter: 'blur(10px)',
+                                  border: `1px solid ${alpha(statusInfo.color, 0.3)}`,
+                                  fontWeight: 600,
+                                  '& .MuiChip-icon': {
+                                    color: statusInfo.color
+                                  }
+                                }}
                               />
                             </Tooltip>
                           ) : (
@@ -1000,9 +1510,32 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                               label={statusInfo.label}
                               color={statusInfo.chipColor}
                               size="small"
+                              sx={{
+                                background: `linear-gradient(135deg, ${alpha(statusInfo.color, 0.15)}, ${alpha(statusInfo.color, 0.25)})`,
+                                backdropFilter: 'blur(10px)',
+                                border: `1px solid ${alpha(statusInfo.color, 0.3)}`,
+                                fontWeight: 600,
+                                '& .MuiChip-icon': {
+                                  color: statusInfo.color
+                                }
+                              }}
                             />
                           )}
-                          <Box>
+                          <Box sx={{
+                            display: 'flex',
+                            gap: 0.5,
+                            '& .MuiIconButton-root': {
+                              background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.6)})`,
+                              backdropFilter: 'blur(10px)',
+                              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              '&:hover': {
+                                transform: 'translateY(-2px) scale(1.1)',
+                                boxShadow: `0 8px 20px ${alpha(theme.palette.primary.main, 0.2)}`,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.primary.light, 0.05)})`
+                              }
+                            }
+                          }}>
                             {showTooltips ? (
                               <>
                                 <Tooltip title="Ver detalles" arrow>
@@ -1077,13 +1610,52 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                           </Box>
                         </Box>
 
-                        <Typography variant="h6" gutterBottom noWrap sx={{ fontSize: cardStyles.fontSize }}>
+                        <Typography 
+                          variant="h6" 
+                          gutterBottom 
+                          noWrap 
+                          sx={{ 
+                            fontSize: cardStyles.fontSize,
+                            fontWeight: 700,
+                            background: `linear-gradient(135deg, ${theme.palette.text.primary}, ${alpha(theme.palette.primary.main, 0.8)})`,
+                            backgroundClip: 'text',
+                            WebkitBackgroundClip: 'text',
+                            color: 'transparent',
+                            textShadow: theme.palette.mode === 'dark' ? '0 0 20px rgba(255,255,255,0.1)' : 'none',
+                            transition: 'all 0.3s ease'
+                          }}
+                        >
                           {commitment.concept || commitment.description || 'Sin concepto'}
                         </Typography>
 
-                        <Box display="flex" alignItems="center" mb={1}>
-                          <Business sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                          <Typography variant="body2" color="text.secondary" noWrap sx={{ fontSize: cardStyles.fontSize }}>
+                        <Box 
+                          display="flex" 
+                          alignItems="center" 
+                          mb={1}
+                          sx={{
+                            p: 1.5,
+                            borderRadius: 2,
+                            background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.05)}, ${alpha(theme.palette.info.light, 0.02)})`,
+                            border: `1px solid ${alpha(theme.palette.info.main, 0.1)}`,
+                            transition: 'all 0.3s ease'
+                          }}
+                        >
+                          <Business sx={{ 
+                            fontSize: 18, 
+                            mr: 1.5, 
+                            color: theme.palette.info.main,
+                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                          }} />
+                          <Typography 
+                            variant="body2" 
+                            color="text.secondary" 
+                            noWrap 
+                            sx={{ 
+                              fontSize: cardStyles.fontSize,
+                              fontWeight: 500,
+                              flex: 1
+                            }}
+                          >
                             {commitment.companyName || commitment.company || 'Sin empresa'}
                           </Typography>
                           {commitment.companyLogo && (
@@ -1092,10 +1664,11 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                                 src={commitment.companyLogo} 
                                 alt="Logo empresa"
                                 style={{ 
-                                  width: 16, 
-                                  height: 16, 
-                                  borderRadius: 2,
-                                  objectFit: 'contain'
+                                  width: 20, 
+                                  height: 20, 
+                                  borderRadius: 4,
+                                  objectFit: 'contain',
+                                  filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.15))'
                                 }}
                                 onError={(e) => {
                                   e.target.style.display = 'none';
@@ -1105,21 +1678,80 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                           )}
                         </Box>
 
-                        <Box display="flex" alignItems="center" mb={spacing.card}>
-                          <CalendarToday sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: cardStyles.fontSize }}>
+                        <Box 
+                          display="flex" 
+                          alignItems="center" 
+                          mb={spacing.card}
+                          sx={{
+                            p: 1.5,
+                            borderRadius: 2,
+                            background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.05)}, ${alpha(theme.palette.warning.light, 0.02)})`,
+                            border: `1px solid ${alpha(theme.palette.warning.main, 0.1)}`,
+                            transition: 'all 0.3s ease'
+                          }}
+                        >
+                          <CalendarToday sx={{ 
+                            fontSize: 18, 
+                            mr: 1.5, 
+                            color: theme.palette.warning.main,
+                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                          }} />
+                          <Typography 
+                            variant="body2" 
+                            color="text.secondary" 
+                            sx={{ 
+                              fontSize: cardStyles.fontSize,
+                              fontWeight: 500
+                            }}
+                          >
                             {format(commitment.dueDate, 'dd MMM yyyy', { locale: es })}
                           </Typography>
                         </Box>
 
-                        <Typography variant="h5" color="primary.main" fontWeight="bold" sx={{ fontSize: `calc(${cardStyles.fontSize} * 1.3)` }}>
+                        <Typography 
+                          variant="h5" 
+                          sx={{ 
+                            fontSize: `calc(${cardStyles.fontSize} * 1.4)`,
+                            fontWeight: 800,
+                            background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                            backgroundClip: 'text',
+                            WebkitBackgroundClip: 'text',
+                            color: 'transparent',
+                            textShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                            mb: 1,
+                            transition: 'all 0.3s ease'
+                          }}
+                        >
                           {formatCurrency(commitment.amount)}
                         </Typography>
 
                         {commitment.attachments && commitment.attachments.length > 0 && (
-                          <Box display="flex" alignItems="center" mt={1}>
-                            <AttachFile sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: `calc(${cardStyles.fontSize} * 0.8)` }}>
+                          <Box 
+                            display="flex" 
+                            alignItems="center" 
+                            mt={2}
+                            sx={{
+                              p: 1.5,
+                              borderRadius: 2,
+                              background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.05)}, ${alpha(theme.palette.success.light, 0.02)})`,
+                              border: `1px solid ${alpha(theme.palette.success.main, 0.1)}`,
+                              transition: 'all 0.3s ease'
+                            }}
+                          >
+                            <AttachFile sx={{ 
+                              fontSize: 18, 
+                              mr: 1.5, 
+                              color: theme.palette.success.main,
+                              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                            }} />
+                            <Typography 
+                              variant="caption" 
+                              color="text.secondary" 
+                              sx={{ 
+                                fontSize: `calc(${cardStyles.fontSize} * 0.9)`,
+                                fontWeight: 500
+                              }}
+                            >
                               {commitment.attachments.length} archivo(s)
                             </Typography>
                           </Box>
@@ -1134,14 +1766,27 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                       minHeight: cardStyles.minHeight,
                       display: 'flex',
                       flexDirection: 'column',
-                      transition: 'transform 0.2s ease-in-out',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      background: theme.palette.mode === 'dark'
+                        ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
+                        : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+                      backdropFilter: 'blur(20px)',
+                      border: `1px solid ${alpha(statusInfo.color, 0.2)}`,
+                      borderRadius: 3,
+                      transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&:hover': {
                         transform: 'translateY(-4px)',
-                        boxShadow: 3
+                        boxShadow: `0 8px 20px ${alpha(theme.palette.grey[500], 0.12)}`
                       }
                     }}
                   >
-                    <CardContent sx={{ flexGrow: 1, p: cardStyles.padding }}>
+                    <CardContent sx={{ 
+                      flexGrow: 1, 
+                      p: cardStyles.padding,
+                      position: 'relative',
+                      zIndex: 2
+                    }}>
                       <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={spacing.card}>
                         {showTooltips ? (
                           <Tooltip title={`Estado: ${statusInfo.label}`} arrow>
@@ -1150,6 +1795,15 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                               label={statusInfo.label}
                               color={statusInfo.chipColor}
                               size="small"
+                              sx={{
+                                background: `linear-gradient(135deg, ${alpha(statusInfo.color, 0.15)}, ${alpha(statusInfo.color, 0.25)})`,
+                                backdropFilter: 'blur(10px)',
+                                border: `1px solid ${alpha(statusInfo.color, 0.3)}`,
+                                fontWeight: 600,
+                                '& .MuiChip-icon': {
+                                  color: statusInfo.color
+                                }
+                              }}
                             />
                           </Tooltip>
                         ) : (
@@ -1158,9 +1812,32 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                             label={statusInfo.label}
                             color={statusInfo.chipColor}
                             size="small"
+                            sx={{
+                              background: `linear-gradient(135deg, ${alpha(statusInfo.color, 0.15)}, ${alpha(statusInfo.color, 0.25)})`,
+                              backdropFilter: 'blur(10px)',
+                              border: `1px solid ${alpha(statusInfo.color, 0.3)}`,
+                              fontWeight: 600,
+                              '& .MuiChip-icon': {
+                                color: statusInfo.color
+                              }
+                            }}
                           />
                         )}
-                        <Box>
+                        <Box sx={{
+                          display: 'flex',
+                          gap: 0.5,
+                          '& .MuiIconButton-root': {
+                            background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.6)})`,
+                            backdropFilter: 'blur(10px)',
+                            border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              transform: 'translateY(-2px) scale(1.1)',
+                              boxShadow: `0 8px 20px ${alpha(theme.palette.primary.main, 0.2)}`,
+                              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.primary.light, 0.05)})`
+                            }
+                          }
+                        }}>
                           {showTooltips ? (
                             <>
                               <Tooltip title="Ver detalles" arrow>
@@ -1235,13 +1912,52 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                         </Box>
                       </Box>
 
-                      <Typography variant="h6" gutterBottom noWrap sx={{ fontSize: cardStyles.fontSize }}>
+                      <Typography 
+                        variant="h6" 
+                        gutterBottom 
+                        noWrap 
+                        sx={{ 
+                          fontSize: cardStyles.fontSize,
+                          fontWeight: 700,
+                          background: `linear-gradient(135deg, ${theme.palette.text.primary}, ${alpha(theme.palette.primary.main, 0.8)})`,
+                          backgroundClip: 'text',
+                          WebkitBackgroundClip: 'text',
+                          color: 'transparent',
+                          textShadow: theme.palette.mode === 'dark' ? '0 0 20px rgba(255,255,255,0.1)' : 'none',
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
                         {commitment.concept || commitment.description || 'Sin concepto'}
                       </Typography>
 
-                      <Box display="flex" alignItems="center" mb={1}>
-                        <Business sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                        <Typography variant="body2" color="text.secondary" noWrap sx={{ fontSize: cardStyles.fontSize }}>
+                      <Box 
+                        display="flex" 
+                        alignItems="center" 
+                        mb={1}
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.05)}, ${alpha(theme.palette.info.light, 0.02)})`,
+                          border: `1px solid ${alpha(theme.palette.info.main, 0.1)}`,
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        <Business sx={{ 
+                          fontSize: 18, 
+                          mr: 1.5, 
+                          color: theme.palette.info.main,
+                          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                        }} />
+                        <Typography 
+                          variant="body2" 
+                          color="text.secondary" 
+                          noWrap 
+                          sx={{ 
+                            fontSize: cardStyles.fontSize,
+                            fontWeight: 500,
+                            flex: 1
+                          }}
+                        >
                           {commitment.companyName || commitment.company || 'Sin empresa'}
                         </Typography>
                         {commitment.companyLogo && (
@@ -1250,10 +1966,11 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                               src={commitment.companyLogo} 
                               alt="Logo empresa"
                               style={{ 
-                                width: 16, 
-                                height: 16, 
-                                borderRadius: 2,
-                                objectFit: 'contain'
+                                width: 20, 
+                                height: 20, 
+                                borderRadius: 4,
+                                objectFit: 'contain',
+                                filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.15))'
                               }}
                               onError={(e) => {
                                 e.target.style.display = 'none';
@@ -1263,21 +1980,80 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                         )}
                       </Box>
 
-                      <Box display="flex" alignItems="center" mb={spacing.card}>
-                        <CalendarToday sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: cardStyles.fontSize }}>
+                      <Box 
+                        display="flex" 
+                        alignItems="center" 
+                        mb={spacing.card}
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.05)}, ${alpha(theme.palette.warning.light, 0.02)})`,
+                          border: `1px solid ${alpha(theme.palette.warning.main, 0.1)}`,
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        <CalendarToday sx={{ 
+                          fontSize: 18, 
+                          mr: 1.5, 
+                          color: theme.palette.warning.main,
+                          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                        }} />
+                        <Typography 
+                          variant="body2" 
+                          color="text.secondary" 
+                          sx={{ 
+                            fontSize: cardStyles.fontSize,
+                            fontWeight: 500
+                          }}
+                        >
                           {format(commitment.dueDate, 'dd MMM yyyy', { locale: es })}
                         </Typography>
                       </Box>
 
-                      <Typography variant="h5" color="primary.main" fontWeight="bold" sx={{ fontSize: `calc(${cardStyles.fontSize} * 1.3)` }}>
+                      <Typography 
+                        variant="h5" 
+                        sx={{ 
+                          fontSize: `calc(${cardStyles.fontSize} * 1.4)`,
+                          fontWeight: 800,
+                          background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                          backgroundClip: 'text',
+                          WebkitBackgroundClip: 'text',
+                          color: 'transparent',
+                          textShadow: '0 4px 8px rgba(0,0,0,0.1)',
+                          mb: 1,
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
                         {formatCurrency(commitment.amount)}
                       </Typography>
 
                       {commitment.attachments && commitment.attachments.length > 0 && (
-                        <Box display="flex" alignItems="center" mt={1}>
-                          <AttachFile sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: `calc(${cardStyles.fontSize} * 0.8)` }}>
+                        <Box 
+                          display="flex" 
+                          alignItems="center" 
+                          mt={2}
+                          sx={{
+                            p: 1.5,
+                            borderRadius: 2,
+                            background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.05)}, ${alpha(theme.palette.success.light, 0.02)})`,
+                            border: `1px solid ${alpha(theme.palette.success.main, 0.1)}`,
+                            transition: 'all 0.3s ease'
+                          }}
+                        >
+                          <AttachFile sx={{ 
+                            fontSize: 18, 
+                            mr: 1.5, 
+                            color: theme.palette.success.main,
+                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
+                          }} />
+                          <Typography 
+                            variant="caption" 
+                            color="text.secondary" 
+                            sx={{ 
+                              fontSize: `calc(${cardStyles.fontSize} * 0.9)`,
+                              fontWeight: 500
+                            }}
+                          >
                             {commitment.attachments.length} archivo(s)
                           </Typography>
                         </Box>
@@ -1470,6 +2246,67 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                             </Typography>
                           )}
                         </Box>
+                        {/* Nueva fila con información adicional */}
+                        <Box display="flex" alignItems="center" gap={2} mt={0.5}>
+                          <Typography variant="body2" sx={{ 
+                            opacity: 0.85, 
+                            fontWeight: 500,
+                            fontSize: '0.875rem'
+                          }}>
+                            {(() => {
+                              switch(selectedCommitment?.periodicity) {
+                                case 'unique': return '🔄 Pago único';
+                                case 'monthly': return '📅 Mensual';
+                                case 'bimonthly': return '📅 Bimestral';
+                                case 'quarterly': return '📅 Trimestral';
+                                case 'fourmonthly': return '📅 Cuatrimestral';
+                                case 'biannual': return '📅 Semestral';
+                                case 'annual': return '📅 Anual';
+                                default: return '📅 Mensual';
+                              }
+                            })()}
+                          </Typography>
+                          <Typography variant="body2" sx={{ 
+                            opacity: 0.85, 
+                            fontWeight: 500,
+                            fontSize: '0.875rem'
+                          }}>
+                            • {(() => {
+                              switch(selectedCommitment?.paymentMethod) {
+                                case 'transfer': return '🏦 Transferencia';
+                                case 'cash': return '💵 Efectivo';
+                                case 'pse': return '💳 PSE';
+                                case 'check': return '📝 Cheque';
+                                case 'card': return '💳 Tarjeta';
+                                default: return '🏦 Transferencia';
+                              }
+                            })()}
+                          </Typography>
+                          {(() => {
+                            const status = getCommitmentStatus(selectedCommitment);
+                            const colors = getStatusColor(status);
+                            return (
+                              <Box
+                                sx={{
+                                  px: 1.5,
+                                  py: 0.5,
+                                  borderRadius: 1.5,
+                                  background: colors.bg,
+                                  border: `1px solid ${colors.border}`,
+                                  backdropFilter: 'blur(10px)'
+                                }}
+                              >
+                                <Typography variant="caption" sx={{ 
+                                  fontWeight: 600,
+                                  fontSize: '0.75rem',
+                                  color: 'rgba(255, 255, 255, 0.95)'
+                                }}>
+                                  {status.emoji} {status.text}
+                                </Typography>
+                              </Box>
+                            );
+                          })()}
+                        </Box>
                       </motion.div>
                     </Box>
                   </Box>
@@ -1655,7 +2492,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                   </motion.div>
                 </Grid>
 
-                {/* Información Adicional - SIEMPRE VISIBLE */}
+                {/* Información Adicional - COMPLETA Y MEJORADA */}
                 <Grid item xs={12}>
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -1665,75 +2502,302 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                     <Card
                       sx={{
                         p: 3,
-                        background: 'linear-gradient(135deg, rgba(96, 125, 139, 0.08) 0%, rgba(96, 125, 139, 0.03) 100%)',
-                        border: '1px solid rgba(96, 125, 139, 0.15)',
+                        background: gradients.paper,
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
                         borderRadius: 4,
-                        boxShadow: '0 4px 20px rgba(96, 125, 139, 0.1)'
+                        backdropFilter: 'blur(20px)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        ...shimmerEffect
                       }}
                     >
-                      <Typography variant="h6" sx={{ fontWeight: 700, mb: 3, color: 'primary.main' }}>
-                        📋 Información Adicional
-                      </Typography>
-                      
-                      <Grid container spacing={3}>
-                        {/* Beneficiario - Siempre presente */}
-                        <Grid item xs={12} md={6}>
-                          <motion.div
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.4, duration: 0.3 }}
-                          >
-                            <Box>
-                              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1, color: 'text.primary' }}>
-                                👤 Beneficiario
-                              </Typography>
-                              <Typography variant="body1" sx={{ 
-                                p: 2, 
-                                bgcolor: 'rgba(25, 118, 210, 0.1)', 
-                                borderRadius: 2,
-                                border: '1px solid rgba(25, 118, 210, 0.15)',
-                                fontWeight: 500,
-                                fontStyle: selectedCommitment.beneficiary ? 'normal' : 'italic',
-                                opacity: selectedCommitment.beneficiary ? 1 : 0.7
+                      <Box sx={{ position: 'relative', zIndex: 2 }}>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 700, 
+                          mb: 3, 
+                          color: 'primary.main',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1
+                        }}>
+                          <Info sx={{ fontSize: 24 }} />
+                          Información Adicional
+                        </Typography>
+                        
+                        <Grid container spacing={3}>
+                          {/* Primera fila: Beneficiario y Método de Pago */}
+                          <Grid item xs={12} md={6}>
+                            <motion.div
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.4, duration: 0.3 }}
+                            >
+                              <Box sx={{
+                                p: 2.5,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.08)}, ${alpha(theme.palette.info.light, 0.04)})`,
+                                borderRadius: 3,
+                                border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`,
+                                position: 'relative',
+                                overflow: 'hidden'
                               }}>
-                                {selectedCommitment.beneficiary || 'No especificado'}
-                              </Typography>
-                            </Box>
-                          </motion.div>
-                        </Grid>
+                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                                  <Person sx={{ color: 'info.main', fontSize: 20 }} />
+                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'info.main' }}>
+                                    Beneficiario
+                                  </Typography>
+                                </Box>
+                                <Typography variant="body1" sx={{ 
+                                  fontWeight: 500,
+                                  color: 'text.primary',
+                                  fontStyle: selectedCommitment.beneficiary ? 'normal' : 'italic',
+                                  opacity: selectedCommitment.beneficiary ? 1 : 0.7
+                                }}>
+                                  {selectedCommitment.beneficiary || 'No especificado'}
+                                </Typography>
+                              </Box>
+                            </motion.div>
+                          </Grid>
 
-                        {/* Observaciones - Siempre presente */}
-                        <Grid item xs={12} md={6}>
-                          <motion.div
-                            initial={{ opacity: 0, x: 20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.5, duration: 0.3 }}
-                          >
-                            <Box>
-                              <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1, color: 'text.primary' }}>
-                                📝 Observaciones
-                              </Typography>
-                              <Typography variant="body1" sx={{ 
-                                p: 2, 
-                                bgcolor: 'rgba(76, 175, 80, 0.1)', 
-                                borderRadius: 2,
-                                border: '1px solid rgba(76, 175, 80, 0.15)',
-                                fontWeight: 400,
-                                lineHeight: 1.6,
-                                fontStyle: selectedCommitment.observations ? 'normal' : 'italic',
-                                opacity: selectedCommitment.observations ? 1 : 0.7
+                          <Grid item xs={12} md={6}>
+                            <motion.div
+                              initial={{ opacity: 0, x: 20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.45, duration: 0.3 }}
+                            >
+                              <Box sx={{
+                                p: 2.5,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.08)}, ${alpha(theme.palette.success.light, 0.04)})`,
+                                borderRadius: 3,
+                                border: `1px solid ${alpha(theme.palette.success.main, 0.15)}`,
+                                position: 'relative',
+                                overflow: 'hidden'
                               }}>
-                                {selectedCommitment.observations || 'Sin observaciones adicionales'}
-                              </Typography>
-                            </Box>
-                          </motion.div>
+                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                                  <Payment sx={{ color: 'success.main', fontSize: 20 }} />
+                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'success.main' }}>
+                                    Método de Pago
+                                  </Typography>
+                                </Box>
+                                <Typography variant="body1" sx={{ 
+                                  fontWeight: 500,
+                                  color: 'text.primary'
+                                }}>
+                                  {(() => {
+                                    switch(selectedCommitment.paymentMethod) {
+                                      case 'transfer': return '🏦 Transferencia';
+                                      case 'cash': return '💵 Efectivo';
+                                      case 'pse': return '💳 PSE';
+                                      case 'check': return '📝 Cheque';
+                                      case 'card': return '💳 Tarjeta';
+                                      default: return '🏦 Transferencia';
+                                    }
+                                  })()}
+                                </Typography>
+                              </Box>
+                            </motion.div>
+                          </Grid>
+
+                          {/* Segunda fila: Periodicidad y Empresa */}
+                          <Grid item xs={12} md={6}>
+                            <motion.div
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.5, duration: 0.3 }}
+                            >
+                              <Box sx={{
+                                p: 2.5,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.08)}, ${alpha(theme.palette.warning.light, 0.04)})`,
+                                borderRadius: 3,
+                                border: `1px solid ${alpha(theme.palette.warning.main, 0.15)}`,
+                                position: 'relative',
+                                overflow: 'hidden'
+                              }}>
+                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                                  <Schedule sx={{ color: 'warning.main', fontSize: 20 }} />
+                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'warning.main' }}>
+                                    Periodicidad
+                                  </Typography>
+                                </Box>
+                                <Typography variant="body1" sx={{ 
+                                  fontWeight: 500,
+                                  color: 'text.primary'
+                                }}>
+                                  {(() => {
+                                    switch(selectedCommitment.periodicity) {
+                                      case 'unique': return '🔄 Pago único';
+                                      case 'monthly': return '📅 Mensual';
+                                      case 'bimonthly': return '📅 Bimestral';
+                                      case 'quarterly': return '📅 Trimestral';
+                                      case 'fourmonthly': return '📅 Cuatrimestral';
+                                      case 'biannual': return '📅 Semestral';
+                                      case 'annual': return '📅 Anual';
+                                      default: return '📅 Mensual';
+                                    }
+                                  })()}
+                                </Typography>
+                              </Box>
+                            </motion.div>
+                          </Grid>
+
+                          <Grid item xs={12} md={6}>
+                            <motion.div
+                              initial={{ opacity: 0, x: 20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.55, duration: 0.3 }}
+                            >
+                              <Box sx={{
+                                p: 2.5,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.08)}, ${alpha(theme.palette.secondary.light, 0.04)})`,
+                                borderRadius: 3,
+                                border: `1px solid ${alpha(theme.palette.secondary.main, 0.15)}`,
+                                position: 'relative',
+                                overflow: 'hidden'
+                              }}>
+                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                                  <Business sx={{ color: 'secondary.main', fontSize: 20 }} />
+                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'secondary.main' }}>
+                                    Empresa
+                                  </Typography>
+                                </Box>
+                                <Box display="flex" alignItems="center" gap={1.5}>
+                                  {companyData?.logoURL ? (
+                                    <Box
+                                      component="img"
+                                      src={companyData.logoURL}
+                                      alt={`Logo de ${companyData.name}`}
+                                      sx={{
+                                        width: 24,
+                                        height: 24,
+                                        borderRadius: 1,
+                                        objectFit: 'contain',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                        border: `1px solid ${alpha(theme.palette.divider, 0.2)}`
+                                      }}
+                                    />
+                                  ) : (
+                                    <Business sx={{ fontSize: 20, color: 'text.secondary' }} />
+                                  )}
+                                  <Typography variant="body1" sx={{ 
+                                    fontWeight: 500,
+                                    color: 'text.primary'
+                                  }}>
+                                    {companyData?.name || 'Empresa no especificada'}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </motion.div>
+                          </Grid>
+
+                          {/* Tercera fila: Observaciones (full width) */}
+                          <Grid item xs={12}>
+                            <motion.div
+                              initial={{ opacity: 0, y: 15 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.6, duration: 0.3 }}
+                            >
+                              <Box sx={{
+                                p: 2.5,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.06)}, ${alpha(theme.palette.primary.light, 0.03)})`,
+                                borderRadius: 3,
+                                border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+                                position: 'relative',
+                                overflow: 'hidden'
+                              }}>
+                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                                  <Notes sx={{ color: 'primary.main', fontSize: 20 }} />
+                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                                    Observaciones
+                                  </Typography>
+                                </Box>
+                                <Typography variant="body1" sx={{ 
+                                  fontWeight: 400,
+                                  lineHeight: 1.6,
+                                  color: 'text.primary',
+                                  fontStyle: selectedCommitment.observations ? 'normal' : 'italic',
+                                  opacity: selectedCommitment.observations ? 1 : 0.7
+                                }}>
+                                  {selectedCommitment.observations || 'Sin observaciones adicionales'}
+                                </Typography>
+                              </Box>
+                            </motion.div>
+                          </Grid>
+
+                          {/* Cuarta fila: Fechas del sistema */}
+                          <Grid item xs={12} md={6}>
+                            <motion.div
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.65, duration: 0.3 }}
+                            >
+                              <Box sx={{
+                                p: 2.5,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.grey[500], 0.08)}, ${alpha(theme.palette.grey[400], 0.04)})`,
+                                borderRadius: 3,
+                                border: `1px solid ${alpha(theme.palette.grey[500], 0.15)}`,
+                                position: 'relative',
+                                overflow: 'hidden'
+                              }}>
+                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                                  <History sx={{ color: 'text.secondary', fontSize: 20 }} />
+                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                                    Fecha de Creación
+                                  </Typography>
+                                </Box>
+                                <Typography variant="body1" sx={{ 
+                                  fontWeight: 500,
+                                  color: 'text.primary'
+                                }}>
+                                  {selectedCommitment.createdAt && safeToDate(selectedCommitment.createdAt)
+                                    ? format(safeToDate(selectedCommitment.createdAt), "dd 'de' MMMM 'de' yyyy", { locale: es })
+                                    : 'No disponible'
+                                  }
+                                </Typography>
+                              </Box>
+                            </motion.div>
+                          </Grid>
+
+                          {selectedCommitment.updatedAt && (
+                            <Grid item xs={12} md={6}>
+                              <motion.div
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.7, duration: 0.3 }}
+                              >
+                                <Box sx={{
+                                  p: 2.5,
+                                  background: `linear-gradient(135deg, ${alpha(theme.palette.grey[600], 0.08)}, ${alpha(theme.palette.grey[500], 0.04)})`,
+                                  borderRadius: 3,
+                                  border: `1px solid ${alpha(theme.palette.grey[600], 0.15)}`,
+                                  position: 'relative',
+                                  overflow: 'hidden'
+                                }}>
+                                  <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                                    <Edit sx={{ color: 'text.secondary', fontSize: 20 }} />
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                                      Última Modificación
+                                    </Typography>
+                                  </Box>
+                                  <Typography variant="body1" sx={{ 
+                                    fontWeight: 500,
+                                    color: 'text.primary'
+                                  }}>
+                                    {selectedCommitment.updatedAt && safeToDate(selectedCommitment.updatedAt)
+                                      ? format(safeToDate(selectedCommitment.updatedAt), "dd 'de' MMMM 'de' yyyy", { locale: es })
+                                      : 'No disponible'
+                                    }
+                                  </Typography>
+                                </Box>
+                              </motion.div>
+                            </Grid>
+                          )}
                         </Grid>
-                      </Grid>
+                      </Box>
                     </Card>
                   </motion.div>
                 </Grid>
 
-                {/* Archivos Adjuntos */}
+                {/* Archivos Adjuntos - MEJORADO */}
                 {selectedCommitment.attachments && selectedCommitment.attachments.length > 0 && (
                   <Grid item xs={12}>
                     <motion.div
@@ -1744,96 +2808,152 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                       <Card
                         sx={{
                           p: 3,
-                          background: 'linear-gradient(135deg, rgba(33, 150, 243, 0.1) 0%, rgba(33, 150, 243, 0.04) 100%)',
-                          border: '2px solid rgba(33, 150, 243, 0.2)',
+                          background: gradients.infoCard,
+                          border: `2px solid ${alpha(theme.palette.info.main, 0.2)}`,
                           borderRadius: 4,
                           boxShadow: '0 8px 32px rgba(33, 150, 243, 0.15)',
                           position: 'relative',
                           overflow: 'hidden',
-                          '&::before': {
-                            content: '""',
-                            position: 'absolute',
-                            top: -30,
-                            right: -30,
-                            width: 120,
-                            height: 120,
-                            borderRadius: '50%',
-                            background: 'radial-gradient(circle, rgba(33, 150, 243, 0.08) 0%, transparent 70%)',
-                            zIndex: 0
-                          }
+                          ...shimmerEffect
                         }}
                       >
-                        <Box display="flex" alignItems="center" justifyContent="center" mb={2} sx={{ position: 'relative', zIndex: 1 }}>
-                          <motion.div
-                            initial={{ scale: 0.5, rotate: -90 }}
-                            animate={{ scale: 1, rotate: 0 }}
-                            transition={{ delay: 0.5, duration: 0.5, type: "spring" }}
-                          >
-                            <Box
+                        <Box sx={{ position: 'relative', zIndex: 2 }}>
+                          <Typography variant="h6" sx={{ 
+                            fontWeight: 700, 
+                            mb: 3, 
+                            color: 'info.main',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                          }}>
+                            <AttachFile sx={{ fontSize: 24 }} />
+                            Archivos Adjuntos
+                            <Chip
+                              label={selectedCommitment.attachments.length}
+                              size="small"
                               sx={{
-                                width: 60,
-                                height: 60,
-                                borderRadius: 3,
-                                background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                mr: 2.5,
-                                boxShadow: '0 8px 24px rgba(33, 150, 243, 0.3)'
-                              }}
-                            >
-                              <AttachFile sx={{ color: 'white', fontSize: 30 }} />
-                            </Box>
-                          </motion.div>
-                          <Box textAlign="left">
-                            <Typography variant="body1" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
-                              Archivos Adjuntos
-                            </Typography>
-                            <motion.div
-                              initial={{ opacity: 0, scale: 0.8 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ delay: 0.6, duration: 0.4 }}
-                            >
-                              <Typography variant="h5" sx={{ fontWeight: 700, color: 'info.main' }}>
-                                <CountingNumber end={selectedCommitment.attachments.length} duration={800} prefix="" />
-                              </Typography>
-                            </motion.div>
-                            <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                              archivo(s) disponible(s)
-                            </Typography>
-                          </Box>
-                        </Box>
-                        
-                        {/* Botón para ver archivos */}
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.7, duration: 0.3 }}
-                        >
-                          <Box display="flex" justifyContent="center" mt={2}>
-                            <Button
-                              variant="outlined"
-                              startIcon={<Visibility />}
-                              sx={{
-                                borderColor: 'info.main',
-                                color: 'info.main',
-                                borderRadius: 3,
-                                px: 3,
-                                py: 1,
+                                ml: 1,
+                                background: `linear-gradient(135deg, ${theme.palette.info.main}, ${theme.palette.info.dark})`,
+                                color: 'white',
                                 fontWeight: 600,
-                                textTransform: 'none',
-                                '&:hover': {
-                                  bgcolor: 'rgba(33, 150, 243, 0.08)',
-                                  borderColor: 'info.dark',
-                                  transform: 'translateY(-2px)',
-                                  boxShadow: '0 4px 16px rgba(33, 150, 243, 0.2)'
-                                }
+                                fontSize: '0.75rem'
                               }}
-                            >
-                              Ver Archivos
-                            </Button>
-                          </Box>
-                        </motion.div>
+                            />
+                          </Typography>
+                          
+                          <Grid container spacing={2}>
+                            {selectedCommitment.attachments.map((attachment, index) => {
+                              const getFileIcon = (fileName) => {
+                                const extension = fileName.split('.').pop().toLowerCase();
+                                switch (extension) {
+                                  case 'pdf': return '📄';
+                                  case 'jpg': case 'jpeg': case 'png': case 'gif': return '🖼️';
+                                  case 'doc': case 'docx': return '📝';
+                                  case 'xls': case 'xlsx': return '📊';
+                                  case 'txt': return '📄';
+                                  default: return '📎';
+                                }
+                              };
+
+                              const getFileSize = (bytes) => {
+                                if (!bytes) return 'Tamaño desconocido';
+                                if (bytes < 1024) return bytes + ' B';
+                                if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+                                return (bytes / 1048576).toFixed(1) + ' MB';
+                              };
+
+                              return (
+                                <Grid item xs={12} sm={6} md={4} key={index}>
+                                  <motion.div
+                                    initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    transition={{ delay: 0.5 + (index * 0.1), duration: 0.3 }}
+                                    whileHover={{ scale: 1.02, y: -2 }}
+                                  >
+                                    <Box sx={{
+                                      p: 2.5,
+                                      background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.9)}, ${alpha(theme.palette.background.default, 0.7)})`,
+                                      borderRadius: 3,
+                                      border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`,
+                                      backdropFilter: 'blur(10px)',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.3s ease',
+                                      '&:hover': {
+                                        borderColor: theme.palette.info.main,
+                                        background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.05)}, ${alpha(theme.palette.info.light, 0.03)})`,
+                                        boxShadow: `0 8px 24px ${alpha(theme.palette.info.main, 0.2)}`
+                                      }
+                                    }}>
+                                      <Box display="flex" alignItems="center" gap={1.5} mb={1.5}>
+                                        <Typography sx={{ fontSize: '1.5rem' }}>
+                                          {getFileIcon(attachment.name || 'archivo')}
+                                        </Typography>
+                                        <Box flex={1} minWidth={0}>
+                                          <Typography variant="subtitle2" sx={{ 
+                                            fontWeight: 600,
+                                            color: 'text.primary',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap'
+                                          }}>
+                                            {attachment.name || 'Archivo sin nombre'}
+                                          </Typography>
+                                          <Typography variant="caption" sx={{ 
+                                            color: 'text.secondary',
+                                            fontSize: '0.75rem'
+                                          }}>
+                                            {getFileSize(attachment.size)}
+                                          </Typography>
+                                        </Box>
+                                      </Box>
+                                      
+                                      <Box display="flex" justifyContent="space-between" alignItems="center">
+                                        <Typography variant="caption" sx={{ 
+                                          color: 'info.main',
+                                          fontWeight: 500,
+                                          fontSize: '0.7rem'
+                                        }}>
+                                          {attachment.uploadedAt && safeToDate(attachment.uploadedAt)
+                                            ? format(safeToDate(attachment.uploadedAt), "dd/MM/yyyy", { locale: es })
+                                            : 'Fecha desconocida'
+                                          }
+                                        </Typography>
+                                        <Box display="flex" gap={0.5}>
+                                          <Tooltip title="Ver archivo">
+                                            <IconButton 
+                                              size="small" 
+                                              sx={{ 
+                                                color: 'info.main',
+                                                '&:hover': { 
+                                                  background: alpha(theme.palette.info.main, 0.1) 
+                                                }
+                                              }}
+                                            >
+                                              <Visibility sx={{ fontSize: 16 }} />
+                                            </IconButton>
+                                          </Tooltip>
+                                          <Tooltip title="Descargar">
+                                            <IconButton 
+                                              size="small" 
+                                              sx={{ 
+                                                color: 'success.main',
+                                                '&:hover': { 
+                                                  background: alpha(theme.palette.success.main, 0.1) 
+                                                }
+                                              }}
+                                            >
+                                              <GetApp sx={{ fontSize: 16 }} />
+                                            </IconButton>
+                                          </Tooltip>
+                                        </Box>
+                                      </Box>
+                                    </Box>
+                                  </motion.div>
+                                </Grid>
+                              );
+                            })}
+                          </Grid>
+                        </Box>
                       </Card>
                     </motion.div>
                   </Grid>

@@ -106,3 +106,36 @@ export function isValidNumber(value) {
 export function formatNumber(num) {
   return fNumber(num);
 }
+
+/**
+ * Format payment method for consistent display
+ */
+export function fPaymentMethod(method) {
+  if (!method) return 'Transferencia';
+  
+  const paymentMethods = {
+    'transfer': 'Transferencia',
+    'cash': 'Efectivo', 
+    'pse': 'PSE',
+    // Retrocompatibilidad con posibles valores antiguos
+    'check': 'Cheque',
+    'card': 'Tarjeta',
+    'transferencia': 'Transferencia',
+    'efectivo': 'Efectivo',
+    'tarjeta': 'Tarjeta',
+    'cheque': 'Cheque'
+  };
+  
+  return paymentMethods[method?.toLowerCase()] || method || 'Transferencia';
+}
+
+/**
+ * Get payment method options for forms
+ */
+export function getPaymentMethodOptions() {
+  return [
+    { value: 'transfer', label: 'Transferencia' },
+    { value: 'cash', label: 'Efectivo' },
+    { value: 'pse', label: 'PSE' }
+  ];
+}

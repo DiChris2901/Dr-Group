@@ -52,6 +52,7 @@ import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '@mui/material/styles';
 import PaymentPopupPremium from './PaymentPopupPremium';
+import { getPaymentMethodOptions } from '../../utils/formatUtils';
 
 const CommitmentEditForm = ({ 
   open, 
@@ -100,6 +101,9 @@ const CommitmentEditForm = ({
     { value: 'biannual', label: 'Semestral' },
     { value: 'annual', label: 'Anual' }
   ];
+
+  // Opciones para método de pago (centralizadas)
+  const paymentMethodOptions = getPaymentMethodOptions();
 
   // Validar campo en tiempo real
   const validateField = (field, value) => {
@@ -1036,30 +1040,16 @@ const CommitmentEditForm = ({
                         }
                       }}
                     >
-                      <MenuItem value="transfer">
-                        <Box display="flex" alignItems="center">
-                          <AccountBalance sx={{ mr: 1, fontSize: 16 }} />
-                          Transferencia
-                        </Box>
-                      </MenuItem>
-                      <MenuItem value="cash">
-                        <Box display="flex" alignItems="center">
-                          <AttachMoney sx={{ mr: 1, fontSize: 16 }} />
-                          Efectivo
-                        </Box>
-                      </MenuItem>
-                      <MenuItem value="check">
-                        <Box display="flex" alignItems="center">
-                          <Notes sx={{ mr: 1, fontSize: 16 }} />
-                          Cheque
-                        </Box>
-                      </MenuItem>
-                      <MenuItem value="card">
-                        <Box display="flex" alignItems="center">
-                          <Payment sx={{ mr: 1, fontSize: 16 }} />
-                          Tarjeta
-                        </Box>
-                      </MenuItem>
+                      {paymentMethodOptions.map((option) => (
+                        <MenuItem key={option.value} value={option.value}>
+                          <Box display="flex" alignItems="center">
+                            {option.value === 'transfer' && <AccountBalance sx={{ mr: 1, fontSize: 16 }} />}
+                            {option.value === 'cash' && <AttachMoney sx={{ mr: 1, fontSize: 16 }} />}
+                            {option.value === 'pse' && <Payment sx={{ mr: 1, fontSize: 16 }} />}
+                            {option.label}
+                          </Box>
+                        </MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
                 </motion.div>
@@ -1212,17 +1202,36 @@ const CommitmentEditForm = ({
             }}
           >
             {/* Botón Secundario - Acción Rápida */}
-            <Box sx={{ order: { xs: 2, sm: 1 }, width: { xs: '100%', sm: 'auto' } }}>
+            <Box sx={{ 
+              order: { xs: 2, sm: 1 }, 
+              width: { xs: '100%', sm: 'auto' },
+              minHeight: { xs: 'auto', sm: '50px' }, // Altura fija para evitar reflow
+              display: 'flex',
+              alignItems: 'center'
+            }}>
               <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                // 🔄 CACHE BUST: Optimización anti-lag v2.0
+                whileHover={{ scale: 1.01, y: -0.5 }}
+                whileTap={{ scale: 0.99 }}
+                transition={{ 
+                  type: "spring", 
+                  stiffness: 800, 
+                  damping: 40,
+                  mass: 0.4
+                }}
+                style={{ 
+                  width: '100%',
+                  opacity: paymentPopupOpen ? 0.5 : 1, // Más visible el cambio
+                  transition: 'opacity 0.15s ease',
+                  pointerEvents: paymentPopupOpen ? 'none' : 'auto' // Evitar clicks
+                }}
               >
                 <Button
                   variant="outlined"
                   size="medium"
                   startIcon={<CheckCircleOutline />}
                   onClick={() => setPaymentPopupOpen(true)}
+                  disabled={paymentPopupOpen} // Deshabilitar cuando popup abierto
                   sx={{
                     borderRadius: 3,
                     px: 3,
@@ -1234,8 +1243,10 @@ const CommitmentEditForm = ({
                     color: theme.palette.success.main,
                     backgroundColor: 'transparent',
                     minWidth: { xs: '100%', sm: '140px' },
+                    height: '42px', // Altura fija para mantener consistencia
                     position: 'relative',
                     overflow: 'hidden',
+                    willChange: 'transform, opacity',
                     '&::before': {
                       content: '""',
                       position: 'absolute',
@@ -1244,18 +1255,23 @@ const CommitmentEditForm = ({
                       width: '100%',
                       height: '100%',
                       background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.success.main, 0.12)}, transparent)`,
-                      transition: 'all 0.5s ease'
+                      transition: 'transform 0.5s ease',
+                      willChange: 'transform'
                     },
-                    '&:hover': {
+                    '&:hover:not(:disabled)': {
                       borderColor: theme.palette.success.dark,
                       backgroundColor: alpha(theme.palette.success.main, 0.08),
-                      transform: 'translateY(-1px)',
-                      boxShadow: `0 6px 20px ${alpha(theme.palette.success.main, 0.25)}`,
+                      boxShadow: `0 4px 12px ${alpha(theme.palette.success.main, 0.25)}`,
                       '&::before': {
-                        left: '100%'
+                        transform: 'translateX(200%)'
                       }
                     },
-                    transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                    '&:disabled': {
+                      borderColor: alpha(theme.palette.success.main, 0.3),
+                      color: alpha(theme.palette.success.main, 0.5),
+                      cursor: 'default'
+                    },
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
                   }}
                 >
                   Marcar Pagado

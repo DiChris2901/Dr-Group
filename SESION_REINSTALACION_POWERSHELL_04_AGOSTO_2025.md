@@ -19,8 +19,13 @@
 
 ### 3. Preparación para PowerShell
 - 📋 **Notas de sesión** documentadas
-- 🔄 **Git commit** pendiente
-- ⬆️ **Push al repositorio** pendiente
+- ✅ **Git commit** realizado
+- ✅ **Push al repositorio** completado
+
+### 4. Scripts de Reinstalación Creados
+- ✅ **reinstalar-powershell.bat** - Reinstalación automática de PowerShell 7
+- ✅ **reinstalar-vscode-completo.bat** - Reinstalación completa de VS Code
+- ✅ **respaldar-vscode-config.bat** - Respaldo de configuraciones VS Code
 
 ## 🛠️ Comandos de Restauración Ejecutados
 
@@ -70,14 +75,36 @@ del CommitmentsList_restore.jsx
 ## 🔄 Próximos Pasos
 
 ### Inmediatos
-1. **Reinstalar PowerShell** para mejor rendimiento
-2. **Verificar funcionamiento** del servidor de desarrollo
-3. **Probar todas las funcionalidades** restauradas
+1. **Respaldar configuraciones VS Code** (ejecutar `respaldar-vscode-config.bat`)
+2. **Reinstalar VS Code completamente** (ejecutar `reinstalar-vscode-completo.bat`)
+3. **Reinstalar PowerShell** (ejecutar `reinstalar-powershell.bat`)
+4. **Verificar funcionamiento** del servidor de desarrollo
+5. **Probar todas las funcionalidades** restauradas
 
 ### Desarrollo Futuro
 1. **Optimizar rendimiento** de la vista lista
 2. **Mejorar Design System** con más efectos visuales
 3. **Implementar nuevas configuraciones** dashboard
+
+## 🛠️ Scripts de Reinstalación Disponibles
+
+### 1. Respaldo de VS Code
+```bash
+# Respalda todas las configuraciones antes de reinstalar
+respaldar-vscode-config.bat
+```
+
+### 2. Reinstalación Completa de VS Code
+```bash
+# Elimina completamente VS Code y lo reinstala limpio
+reinstalar-vscode-completo.bat
+```
+
+### 3. Reinstalación de PowerShell
+```bash
+# Instala la última versión de PowerShell 7
+reinstalar-powershell.bat
+```
 
 ## 📈 Logros de la Sesión
 - ✅ **Crisis de código corrupto** resuelta completamente

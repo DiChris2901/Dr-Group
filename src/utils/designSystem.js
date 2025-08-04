@@ -138,6 +138,30 @@ export const animationVariants = {
       rotate: { duration: 10, repeat: Infinity, ease: "linear" },
       scale: { duration: 2, repeat: Infinity, ease: "easeInOut" }
     }
+  },
+
+  // Modal aparición optimizada - Sin lag v2.0
+  modalAppear: {
+    initial: { opacity: 0, scale: 0.98 },
+    animate: { opacity: 1, scale: 1 },
+    exit: { opacity: 0, scale: 0.98 },
+    transition: { 
+      type: "tween", 
+      duration: 0.15,
+      ease: "easeOut"
+    }
+  },
+
+  // Modal aparición para contenido (con delay stagger)
+  modalContent: {
+    initial: { opacity: 0, y: 12 },
+    animate: { opacity: 1, y: 0 },
+    transition: { 
+      delay: 0.1,
+      type: "spring", 
+      stiffness: 400, 
+      damping: 25
+    }
   }
 };
 

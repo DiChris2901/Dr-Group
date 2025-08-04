@@ -1,39 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import {
+  Business,
+  Clear,
+  FilterList,
+  Search,
+  Today
+} from '@mui/icons-material';
 import {
   Box,
-  Card,
-  CardContent,
-  TextField,
-  Select,
-  MenuItem,
+  Button,
+  Chip,
   FormControl,
-  InputLabel,
   Grid,
   IconButton,
   InputAdornment,
-  Chip,
-  Button,
-  Typography,
+  InputLabel,
+  MenuItem,
   Paper,
+  Select,
+  TextField,
+  Typography,
   alpha
 } from '@mui/material';
-import {
-  Search,
-  Clear,
-  FilterList,
-  Business,
-  Today
-} from '@mui/icons-material';
-import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
-import {
-  animationVariants,
-  useThemeGradients,
-  shimmerEffect
-} from '../../utils/designSystem.js';
 import { collection, getDocs } from 'firebase/firestore';
+import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import {
+  shimmerEffect,
+  useThemeGradients
+} from '../../utils/designSystem.js';
 
 const CommitmentsFilters = ({ 
   onSearchChange, 

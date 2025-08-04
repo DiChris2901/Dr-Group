@@ -46,6 +46,7 @@ import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, getDoc
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
+import { getPaymentMethodOptions } from '../utils/formatUtils';
 import { useSettings } from '../context/SettingsContext';
 import ConfigurationCompatibilityAnalyzer from '../components/settings/ConfigurationCompatibilityAnalyzer';
 
@@ -360,11 +361,7 @@ const NewCommitmentPage = () => {
     { value: 'annual', label: 'Anual' }
   ];
 
-  const paymentMethods = [
-    { value: 'transfer', label: 'Transferencia' },
-    { value: 'cash', label: 'Efectivo' },
-    { value: 'pse', label: 'PSE' }
-  ];
+  const paymentMethods = getPaymentMethodOptions();
 
   const months = [
     { value: 1, label: 'Enero' },

@@ -318,25 +318,44 @@ const PaymentPopupPremium = ({
           onClose={handleClose}
           maxWidth="xs"
           fullWidth
+          TransitionProps={{
+            timeout: { enter: 150, exit: 100 } // Ultra rápido
+          }}
+          BackdropProps={{
+            sx: {
+              backdropFilter: 'blur(8px)',
+              backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              willChange: 'opacity'
+            }
+          }}
           PaperProps={{
             sx: {
-              borderRadius: 4, // Más consistente con el sistema
+              borderRadius: 4,
               overflow: 'hidden',
-              backdropFilter: 'blur(20px)',
               background: gradients.paper,
               boxShadow: theme.palette.mode === 'dark' 
                 ? '0 8px 32px rgba(0,0,0,0.3)' 
-                : '0 8px 32px rgba(0,0,0,0.1)', // Sombras más sutiles como las tarjetas
+                : '0 8px 32px rgba(0,0,0,0.1)',
               border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
               ...shimmerEffect,
               maxWidth: '450px',
-              margin: 'auto'
+              margin: 'auto',
+              willChange: 'transform, opacity',
+              position: 'relative',
+              transform: 'translate3d(0, 0, 0)', // Force GPU layer
+              backfaceVisibility: 'hidden' // Optimize rendering
             }
           }}
         >
           <motion.div
             {...animationVariants.modalAppear}
-            style={{ position: 'relative', zIndex: 2 }}
+            style={{ 
+              position: 'relative', 
+              zIndex: 2,
+              willChange: 'transform, opacity',
+              contain: 'layout style paint', // Isolation CSS containment
+              isolation: 'isolate' // Create stacking context
+            }}
           >
             {/* Header Premium con Gradiente Dinámico */}
             <DialogTitle
@@ -372,9 +391,14 @@ const PaymentPopupPremium = ({
             >
               <Box sx={{ position: 'relative', zIndex: 2 }}>
                 <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.2, type: "spring", bounce: 0.5 }}
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ 
+                    delay: 0.15, 
+                    type: "spring", 
+                    stiffness: 400, 
+                    damping: 25
+                  }}
                 >
                   <CheckCircle sx={{ fontSize: 48, mb: 1, opacity: 0.9 }} />
                 </motion.div>
@@ -408,7 +432,7 @@ const PaymentPopupPremium = ({
 
             <DialogContent sx={{ p: 4, pt: 3 }}> {/* Más espacioso */}
               {/* Monto del Compromiso - Paper Premium */}
-              <motion.div {...animationVariants.slideUp}>
+              <motion.div {...animationVariants.modalContent}>
                 <Paper
                   elevation={0}
                   sx={{
@@ -420,7 +444,8 @@ const PaymentPopupPremium = ({
                     textAlign: 'center',
                     position: 'relative',
                     overflow: 'hidden',
-                    ...shimmerEffect
+                    ...shimmerEffect,
+                    willChange: 'transform, opacity'
                   }}
                 >
                   <Box sx={{ position: 'relative', zIndex: 2 }}>
@@ -447,8 +472,8 @@ const PaymentPopupPremium = ({
 
               {/* Campo de Intereses Premium */}
               <motion.div 
-                {...animationVariants.slideUp}
-                transition={{ delay: 0.1 }}
+                {...animationVariants.modalContent}
+                transition={{ delay: 0.05 }}
               >
                 <Box mb={2.5}>
                   <Typography 
@@ -477,6 +502,7 @@ const PaymentPopupPremium = ({
                         borderRadius: 4, // Consistente con el sistema
                         background: alpha(theme.palette.background.paper, 0.8),
                         transition: 'all 0.3s ease',
+                        willChange: 'transform, box-shadow',
                         '&:hover': {
                           transform: 'translateY(-1px)',
                           boxShadow: '0 4px 12px rgba(0,0,0,0.08)' // Sombra más sutil
@@ -505,8 +531,8 @@ const PaymentPopupPremium = ({
 
               {/* Total a Pagar - Paper Premium con Animación */}
               <motion.div 
-                {...animationVariants.slideUp}
-                transition={{ delay: 0.2 }}
+                {...animationVariants.modalContent}
+                transition={{ delay: 0.1 }}
               >
                 <Paper
                   elevation={0}
@@ -551,8 +577,8 @@ const PaymentPopupPremium = ({
 
               {/* Sección de Comprobante Premium - Con detección de comprobante existente */}
               <motion.div 
-                {...animationVariants.slideUp}
-                transition={{ delay: 0.3 }}
+                {...animationVariants.modalContent}
+                transition={{ delay: 0.15 }}
               >
                 <Box mb={4}>
                   <Typography 
@@ -774,7 +800,11 @@ const PaymentPopupPremium = ({
                 borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`
               }}
             >
-              <motion.div {...animationVariants.slideUp} style={{ flex: 1 }}>
+              <motion.div 
+                {...animationVariants.modalContent}
+                transition={{ delay: 0.2 }}
+                style={{ flex: 1 }}
+              >
                 <Button
                   onClick={handleClose}
                   size="large"

@@ -9,7 +9,9 @@ import {
   fPercentInteger,
   getNumberSuffix,
   isValidNumber,
-  formatNumber
+  formatNumber,
+  fPaymentMethod,
+  getPaymentMethodOptions
 } from './src/utils/formatUtils.js';
 
 console.log('🧪 Probando formatUtils...');
@@ -35,5 +37,15 @@ console.log('getNumberSuffix(1500000):', getNumberSuffix(1500000));
 // Test isValidNumber
 console.log('isValidNumber(123):', isValidNumber(123));
 console.log('isValidNumber("abc"):', isValidNumber("abc"));
+
+// Test fPaymentMethod
+console.log('fPaymentMethod("transfer"):', fPaymentMethod("transfer"));
+console.log('fPaymentMethod("cash"):', fPaymentMethod("cash"));
+console.log('fPaymentMethod("pse"):', fPaymentMethod("pse"));
+console.log('fPaymentMethod("TRANSFER"):', fPaymentMethod("TRANSFER"));
+console.log('fPaymentMethod(null):', fPaymentMethod(null));
+
+// Test getPaymentMethodOptions
+console.log('getPaymentMethodOptions():', getPaymentMethodOptions());
 
 console.log('✅ Todos los tests pasaron correctamente');
