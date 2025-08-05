@@ -1,6 +1,5 @@
 import {
-    Add,
-    Upload
+    Add
 } from '@mui/icons-material';
 import {
     Box,
@@ -14,7 +13,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CommitmentsFilters from '../components/commitments/CommitmentsFilters';
 import CommitmentsList from '../components/commitments/CommitmentsList';
-import ImportCommitmentsModal from '../components/commitments/ImportCommitmentsModal';
 import { useSettings } from '../context/SettingsContext';
 import { useNotifications } from '../context/NotificationsContext';
 import {
@@ -31,7 +29,6 @@ const CommitmentsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [companyFilter, setCompanyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [importModalOpen, setImportModalOpen] = useState(false);
 
   const handleSearchChange = (value) => {
     setSearchTerm(value);
@@ -48,23 +45,6 @@ const CommitmentsPage = () => {
   const handleAddCommitment = () => {
     // Navegar a la página de nuevo compromiso
     navigate('/commitments/new');
-  };
-
-  const handleImportExcel = () => {
-    setImportModalOpen(true);
-  };
-
-  const handleImportComplete = (results) => {
-    // Mostrar notificación de resumen
-    addNotification({
-      type: 'info',
-      title: '📊 Resumen de importación',
-      message: `✅ ${results.success} exitosos, ❌ ${results.errors} errores`,
-      duration: 5000
-    });
-    
-    // Cerrar modal
-    setImportModalOpen(false);
   };
 
   return (
@@ -146,41 +126,6 @@ const CommitmentsPage = () => {
                 transition={settings.theme?.animations ? { delay: 0.3, duration: 0.5 } : { duration: 0 }}
               >
                 <Box sx={{ display: 'flex', gap: 2 }}>
-                  {/* Botón Importar Excel */}
-                  <motion.div
-                    whileHover={settings.theme?.animations ? { scale: 1.05 } : {}}
-                    whileTap={settings.theme?.animations ? { scale: 0.95 } : {}}
-                  >
-                    <Button
-                      variant="outlined"
-                      startIcon={<Upload />}
-                      onClick={handleImportExcel}
-                      size={settings.theme?.compactMode ? "medium" : "large"}
-                      sx={{
-                        py: settings.theme?.compactMode ? 1 : 1.5,
-                        px: settings.theme?.compactMode ? 3 : 4,
-                        fontSize: settings.theme?.fontSize ? `${settings.theme.fontSize * 1.1}px` : '1.1rem',
-                        fontWeight: 700,
-                        fontFamily: settings.theme?.fontFamily || 'inherit',
-                        borderRadius: settings.theme?.borderRadius || 4,
-                        background: 'rgba(255, 255, 255, 0.1)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(255, 255, 255, 0.3)',
-                        color: 'white',
-                        textTransform: 'none',
-                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                        '&:hover': {
-                          background: 'rgba(255, 255, 255, 0.2)',
-                          borderColor: 'rgba(255, 255, 255, 0.4)',
-                          transform: 'translateY(-2px)',
-                          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15)'
-                        }
-                      }}
-                    >
-                      Importar Excel
-                    </Button>
-                  </motion.div>
-
                   {/* Botón Nuevo Compromiso */}
                   <motion.div
                     whileHover={settings.theme?.animations ? { scale: 1.05 } : {}}
@@ -250,13 +195,6 @@ const CommitmentsPage = () => {
           viewMode={settings.dashboard?.layout?.viewMode || 'cards'}
         />
       </motion.div>
-
-      {/* Modal de Importación */}
-      <ImportCommitmentsModal
-        open={importModalOpen}
-        onClose={() => setImportModalOpen(false)}
-        onImportComplete={handleImportComplete}
-      />
     </Box>
   );
 };

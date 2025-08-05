@@ -366,12 +366,29 @@ const NewCommitmentPage = () => {
             audio.play().catch(() => {});
           }
           
+          // Calcular próximas fechas para mostrar en la notificación
+          const nextDates = calculateNextDueDates(new Date(formData.dueDate), formData.periodicity, 3);
+          const nextDatesText = nextDates.slice(1).map(date => 
+            format(date, 'dd/MM/yyyy', { locale: es })
+          ).join(', ');
+          
           addNotification({
             type: 'success',
-            title: 'Compromisos recurrentes creados',
-            message: `Se crearon ${result.count} compromisos ${getPeriodicityDescription(formData.periodicity).toLowerCase()} para "${formData.companyName}"`,
+            title: '🔄 Sistema de Pagos Recurrentes Activado',
+            message: `Se crearon ${result.count} compromisos ${getPeriodicityDescription(formData.periodicity).toLowerCase()} para "${formData.companyName}". Próximas fechas: ${nextDatesText}${result.count > 3 ? ' y más...' : ''}`,
             icon: 'success',
-            color: 'success'
+            color: 'success',
+            duration: 8000 // Más tiempo para leer la información completa
+          });
+
+          // 📋 Notificación adicional para el centro de notificaciones con detalles de recurrencia
+          addNotification({
+            type: 'info',
+            title: '📊 Registro de Compromiso Recurrente',
+            message: `✅ Sistema recurrente configurado: ${getPeriodicityDescription(formData.periodicity)} • ${result.count} instancias • Beneficiario: ${formData.beneficiary} • Monto: $${formData.amount.toLocaleString('es-CO')} c/u • ID Grupo: ${result.groupId?.split('_')[1]}`,
+            icon: 'info',
+            color: 'info',
+            duration: 10000 // Mayor duración para información detallada
           });
         }
       } else {
@@ -388,10 +405,20 @@ const NewCommitmentPage = () => {
           
           addNotification({
             type: 'success',
-            title: 'Compromiso creado',
-            message: `Se creó exitosamente el compromiso para "${formData.companyName}"`,
+            title: '💼 Compromiso Único Creado',
+            message: `Se creó exitosamente el compromiso para "${formData.companyName}" por $${parseFloat(formData.amount).toLocaleString('es-CO')}`,
             icon: 'success',
             color: 'success'
+          });
+
+          // 📋 Notificación adicional para el centro de notificaciones con detalles
+          addNotification({
+            type: 'info',
+            title: '📝 Registro de Compromiso Individual',
+            message: `✅ Pago único registrado • Beneficiario: ${formData.beneficiary} • Vencimiento: ${format(new Date(formData.dueDate), 'dd/MM/yyyy', { locale: es })} • Monto: $${parseFloat(formData.amount).toLocaleString('es-CO')} • Método: ${formData.paymentMethod}`,
+            icon: 'info',
+            color: 'info',
+            duration: 8000
           });
         }
       }
