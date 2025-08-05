@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const NotificationsContext = createContext();
 
@@ -13,6 +13,28 @@ export const useNotifications = () => {
 export const NotificationsProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const [resolvedAlerts, setResolvedAlerts] = useState(new Set());
+
+  // Cargar alertas resueltas desde localStorage al inicializar
+  useEffect(() => {
+    try {
+      const savedResolvedAlerts = localStorage.getItem('dr_group_resolved_alerts');
+      if (savedResolvedAlerts) {
+        setResolvedAlerts(new Set(JSON.parse(savedResolvedAlerts)));
+      }
+    } catch (error) {
+      console.warn('Error cargando alertas resueltas:', error);
+    }
+  }, []);
+
+  // Guardar alertas resueltas en localStorage cuando cambien
+  useEffect(() => {
+    try {
+      localStorage.setItem('dr_group_resolved_alerts', JSON.stringify([...resolvedAlerts]));
+    } catch (error) {
+      console.warn('Error guardando alertas resueltas:', error);
+    }
+  }, [resolvedAlerts]);
 
   // Función para agregar notificación
   const addNotification = (notification) => {
@@ -25,14 +47,24 @@ export const NotificationsProvider = ({ children }) => {
     setNotifications(prev => [newNotification, ...prev]);
   };
 
-  // Función para agregar alerta
+  // Función para agregar alerta (solo si no está resuelta)
   const addAlert = (alert) => {
+    // No agregar la alerta si ya está en la lista de resueltas
+    if (resolvedAlerts.has(alert.id)) {
+      return;
+    }
+
     const newAlert = {
       id: Date.now() + Math.random(),
       timestamp: new Date(),
       ...alert
     };
-    setAlerts(prev => [newAlert, ...prev]);
+    setAlerts(prev => {
+      // Evitar duplicados
+      const exists = prev.some(existingAlert => existingAlert.id === alert.id);
+      if (exists) return prev;
+      return [newAlert, ...prev];
+    });
   };
 
   // Función para marcar notificación como leída
@@ -63,11 +95,23 @@ export const NotificationsProvider = ({ children }) => {
     setAlerts(prev => 
       prev.filter(alert => alert.id !== alertId)
     );
+    // Marcar como resuelta para evitar que se vuelva a mostrar
+    setResolvedAlerts(prev => new Set([...prev, alertId]));
   };
 
   // Función para limpiar todas las alertas
   const clearAllAlerts = () => {
+    // Marcar todas las alertas actuales como resueltas
+    const currentAlertIds = alerts.map(alert => alert.id);
+    setResolvedAlerts(prev => new Set([...prev, ...currentAlertIds]));
+    // Limpiar alertas del estado
     setAlerts([]);
+  };
+
+  // Función para restablecer alertas resueltas (útil para desarrollo/testing)
+  const resetResolvedAlerts = () => {
+    setResolvedAlerts(new Set());
+    localStorage.removeItem('dr_group_resolved_alerts');
   };
 
   // Contar notificaciones no leídas
@@ -85,7 +129,8 @@ export const NotificationsProvider = ({ children }) => {
     deleteNotification,
     clearAllNotifications,
     deleteAlert,
-    clearAllAlerts
+    clearAllAlerts,
+    resetResolvedAlerts // Nueva función para development
   };
 
   return (

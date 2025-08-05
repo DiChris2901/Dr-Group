@@ -46,9 +46,10 @@ const useCommitmentAlerts = (commitments) => {
       // Generar alertas para compromisos vencidos
       overdueCommitments.forEach(commitment => {
         const daysPastDue = Math.abs(differenceInDays(commitment.dueDate, today));
+        const alertId = `overdue-${commitment.id}`;
         
         addAlert({
-          id: `overdue-${commitment.id}`,
+          id: alertId,
           type: 'error',
           title: 'Pago Vencido',
           message: `El compromiso "${commitment.concept || 'Sin concepto'}" venció hace ${daysPastDue} día${daysPastDue !== 1 ? 's' : ''}`,
@@ -70,9 +71,10 @@ const useCommitmentAlerts = (commitments) => {
       // Generar alertas para compromisos próximos a vencer
       dueSoonCommitments.forEach(commitment => {
         const daysUntilDue = differenceInDays(commitment.dueDate, today);
+        const alertId = `due-soon-${commitment.id}`;
         
         addAlert({
-          id: `due-soon-${commitment.id}`,
+          id: alertId,
           type: 'warning',
           title: 'Próximo a Vencer',
           message: `El compromiso "${commitment.concept || 'Sin concepto'}" vence en ${daysUntilDue} día${daysUntilDue !== 1 ? 's' : ''}`,

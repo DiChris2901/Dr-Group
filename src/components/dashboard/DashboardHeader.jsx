@@ -1,44 +1,38 @@
-import React, { useState } from 'react';
 import {
-  Box,
-  IconButton,
-  Avatar,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
-  Divider,
-  Switch,
-  FormControlLabel,
-  Typography,
-  Badge,
-  Tooltip,
-  TextField,
-  InputAdornment
-} from '@mui/material';
-import {
-  Settings as SettingsIcon,
-  Person as PersonIcon,
-  Logout as LogoutIcon,
-  Notifications as NotificationsIcon,
-  DarkMode as DarkModeIcon,
-  LightMode as LightModeIcon,
-  Brightness4 as AutoModeIcon,
-  Search as SearchIcon,
-  Event as CalendarIcon,
-  Assessment as CommitmentStatusIcon,
-  Storage as StorageIcon
+    Brightness4 as AutoModeIcon,
+    Event as CalendarIcon,
+    Assessment as CommitmentStatusIcon,
+    DarkMode as DarkModeIcon,
+    LightMode as LightModeIcon,
+    Logout as LogoutIcon,
+    Notifications as NotificationsIcon,
+    Person as PersonIcon,
+    Settings as SettingsIcon,
+    Storage as StorageIcon
 } from '@mui/icons-material';
+import {
+    Badge,
+    Box,
+    Divider,
+    IconButton,
+    ListItemIcon,
+    ListItemText,
+    Menu,
+    MenuItem,
+    Tooltip,
+    Typography
+} from '@mui/material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSettings } from '../../context/SettingsContext';
-import { useNotifications } from '../../context/NotificationsContext';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationsContext';
+import { useSettings } from '../../context/SettingsContext';
+import CommitmentStatusMenu from '../commitments/CommitmentStatusMenu';
 import ProfileAvatar from '../common/ProfileAvatar';
 import NotificationsMenu from '../notifications/NotificationsMenu';
-import CalendarMenu from './CalendarMenu';
-import CommitmentStatusMenu from '../commitments/CommitmentStatusMenu';
 import StorageMenu from '../storage/StorageMenu';
+import CalendarMenu from './CalendarMenu';
 
 // Estilos CSS para animaciones spectacular del menú de avatar
 const avatarMenuStyles = `

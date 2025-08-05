@@ -33,7 +33,8 @@ import {
   Business as BusinessIcon,
   AttachMoney as MoneyIcon,
   Schedule as ScheduleIcon,
-  Assessment as ReportIcon
+  Assessment as ReportIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -149,7 +150,8 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
     deleteNotification, 
     clearAllNotifications,
     deleteAlert,
-    clearAllAlerts
+    clearAllAlerts,
+    resetResolvedAlerts
   } = useNotifications();
 
   // Configuraciones dinámicas del Design System
@@ -664,6 +666,33 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
               >
                 Resolver todas las alertas
               </Button>
+              
+              {/* Botón de desarrollo para restablecer alertas resueltas */}
+              {process.env.NODE_ENV === 'development' && (
+                <Button
+                  size="small"
+                  startIcon={<RefreshIcon />}
+                  onClick={() => {
+                    resetResolvedAlerts();
+                    window.location.reload(); // Recargar para regenerar alertas
+                  }}
+                  variant="outlined"
+                  sx={{ 
+                    mt: 1,
+                    textTransform: 'none',
+                    fontWeight: 500,
+                    borderRadius: `${settings.borderRadius || 12}px`,
+                    borderColor: theme.palette.warning.main,
+                    color: theme.palette.warning.main,
+                    '&:hover': {
+                      borderColor: theme.palette.warning.dark,
+                      backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                    },
+                  }}
+                >
+                  🔄 Dev: Restablecer Alertas
+                </Button>
+              )}
             </Box>
           )}
         </TabPanel>
