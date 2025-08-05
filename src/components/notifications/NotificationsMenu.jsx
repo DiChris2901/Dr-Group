@@ -408,6 +408,9 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                         fontWeight: notification.read ? 400 : 600,
                         variant: 'body2'
                       }}
+                      secondaryTypographyProps={{
+                        component: 'div'
+                      }}
                     />
                     
                     <ListItemSecondaryAction>
@@ -595,6 +598,9 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                           </Typography>
                         </Box>
                       }
+                      secondaryTypographyProps={{
+                        component: 'div'
+                      }}
                     />
                     
                     <ListItemSecondaryAction>

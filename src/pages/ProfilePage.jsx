@@ -2087,7 +2087,7 @@ const ProfilePage = () => {
                 type={showPasswords.confirm ? 'text' : 'password'}
                 value={passwordData.confirmPassword}
                 onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                error={passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword}
+                error={!!(passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword)}
                 helperText={
                   passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword
                     ? 'Las contraseñas no coinciden'
