@@ -43,16 +43,25 @@ import {
   AttachFile,
   Percent,
   TrendingUp,
-  Schedule
+  Schedule,
+  Repeat as RepeatIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { es } from 'date-fns/locale';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, serverTimestamp, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationsContext';
 import { useTheme } from '@mui/material/styles';
 import PaymentPopupPremium from './PaymentPopupPremium';
 import { getPaymentMethodOptions } from '../../utils/formatUtils';
+import { 
+  generateRecurringCommitments, 
+  saveRecurringCommitments, 
+  getPeriodicityDescription,
+  calculateNextDueDates 
+} from '../../utils/recurringCommitments';
 
 const CommitmentEditForm = ({ 
   open, 
@@ -61,6 +70,7 @@ const CommitmentEditForm = ({
   onSaved 
 }) => {
   const { currentUser } = useAuth();
+  const { addNotification, notificationsEnabled, notificationSoundEnabled } = useNotifications();
   const theme = useTheme();
   const [companies, setCompanies] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -78,7 +88,8 @@ const CommitmentEditForm = ({
     beneficiary: '',
     observations: '',
     paymentMethod: 'transfer',
-    periodicity: 'monthly' // unique, monthly, bimonthly, quarterly, fourmonthly, biannual, annual
+    periodicity: 'monthly', // unique, monthly, bimonthly, quarterly, fourmonthly, biannual, annual
+    recurringCount: 12 // número de cuotas para compromisos recurrentes
   });
 
   // Calcular progreso del formulario
@@ -177,7 +188,8 @@ const CommitmentEditForm = ({
         beneficiary: commitment.beneficiary || '',
         observations: commitment.observations || '',
         paymentMethod: commitment.paymentMethod || 'transfer',
-        periodicity: commitment.periodicity || 'monthly'
+        periodicity: commitment.periodicity || 'monthly',
+        recurringCount: commitment.recurringCount || 12
       };
       setFormData(initialData);
       setOriginalData(initialData);
@@ -194,6 +206,34 @@ const CommitmentEditForm = ({
   }, [formData, originalData]);
 
   const handleFormChange = (field, value) => {
+    // Detectar cambio de periodicidad para mostrar toast informativo
+    if (field === 'periodicity') {
+      const wasUnique = formData.periodicity === 'unique';
+      const isNowRecurring = value !== 'unique';
+      
+      // Toast informativo cuando se activa recurrencia
+      if (wasUnique && isNowRecurring && formData.dueDate) {
+        setTimeout(() => {
+          if (notificationsEnabled) {
+            // Calcular próximas fechas para el toast
+            const nextDates = calculateNextDueDates(new Date(formData.dueDate), value, 3);
+            const nextDatesText = nextDates.slice(1, 3).map(date => 
+              format(date, 'dd/MM/yyyy', { locale: es })
+            ).join(', ');
+            
+            addNotification({
+              type: 'info',
+              title: '🔄 Pagos Recurrentes Activados',
+              message: `Se configuró periodicidad ${getPeriodicityDescription(value).toLowerCase()}. Próximas fechas: ${nextDatesText}`,
+              icon: 'info',
+              color: 'info',
+              duration: 5000
+            });
+          }
+        }, 300); // Pequeño delay para que se vea el cambio visual primero
+      }
+    }
+
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -209,8 +249,8 @@ const CommitmentEditForm = ({
 
     setSaving(true);
     try {
-      const commitmentRef = doc(db, 'commitments', commitment.id);
-      await updateDoc(commitmentRef, {
+      // Datos del compromiso actualizado
+      const updatedData = {
         concept: formData.concept.trim(),
         companyId: formData.companyId,
         amount: parseFloat(formData.amount),
@@ -221,12 +261,265 @@ const CommitmentEditForm = ({
         periodicity: formData.periodicity,
         updatedAt: serverTimestamp(),
         updatedBy: currentUser.uid
-      });
+      };
+
+      // Actualizar el compromiso existente
+      const commitmentRef = doc(db, 'commitments', commitment.id);
+      await updateDoc(commitmentRef, updatedData);
+
+      // 🔄 Detectar cambios en la periodicidad para regenerar compromisos
+      const periodicityChanged = originalData.periodicity !== formData.periodicity;
+      const wasUnique = originalData.periodicity === 'unique';
+      const isNowRecurring = formData.periodicity !== 'unique';
+      const wasRecurring = originalData.periodicity !== 'unique';
+      const isNowUnique = formData.periodicity === 'unique';
+      
+      // 🗑️ CASO 1: Cambio DE recurrente A único - Solo eliminar compromisos relacionados
+      if (periodicityChanged && wasRecurring && isNowUnique) {
+        try {
+          // Obtener el nombre de la empresa para las notificaciones
+          const selectedCompany = companies.find(c => c.id === formData.companyId);
+          const companyName = selectedCompany?.name || 'Empresa';
+          
+          // Estrategia mejorada: buscar compromisos relacionados por múltiples criterios
+          const baseConcept = originalData.concept.replace(/ - (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre) \d{4}$/i, '');
+          
+          // Buscar compromisos relacionados con criterios más amplios
+          const commitmentsQuery = query(
+            collection(db, 'commitments'),
+            where('companyId', '==', originalData.companyId),
+            where('beneficiary', '==', originalData.beneficiary),
+            where('amount', '==', originalData.amount),
+            where('periodicity', '==', originalData.periodicity)
+          );
+          
+          const querySnapshot = await getDocs(commitmentsQuery);
+          const deletePromises = [];
+          let deletedCount = 0;
+          
+          querySnapshot.forEach((docSnap) => {
+            const docData = docSnap.data();
+            const docConcept = docData.concept || '';
+            
+            // Verificar si es parte de la misma serie (concepto base similar)
+            const isRelated = docConcept.includes(baseConcept) || docConcept.startsWith(baseConcept);
+            
+            // No eliminar el compromiso actual que estamos editando
+            const isCurrentCommitment = docSnap.id === commitment.id;
+            
+            // Solo eliminar si es relacionado y no es el actual
+            if (isRelated && !isCurrentCommitment) {
+              deletePromises.push(deleteDoc(docSnap.ref));
+              deletedCount++;
+              console.log(`🗑️ Marcado para eliminar (cambio a único): ${docConcept} (${docSnap.id})`);
+            }
+          });
+          
+          if (deletePromises.length > 0) {
+            await Promise.all(deletePromises);
+            console.log(`🗑️ Eliminados ${deletedCount} compromisos recurrentes al cambiar a pago único`);
+            
+            // Notificación de eliminación
+            if (notificationsEnabled) {
+              addNotification({
+                type: 'success',
+                title: '🗑️ Compromisos Recurrentes Eliminados',
+                message: `Se eliminaron ${deletedCount} compromisos ${getPeriodicityDescription(originalData.periodicity).toLowerCase()} y se convirtió a pago único para "${companyName}"`,
+                icon: 'success',
+                color: 'warning',
+                duration: 6000
+              });
+            }
+          }
+          
+          // Notificación simple para el cambio a único
+          if (notificationsEnabled) {
+            addNotification({
+              type: 'info',
+              title: '📝 Compromiso Convertido a Pago Único',
+              message: `Se actualizó el compromiso "${formData.concept}" de ${getPeriodicityDescription(originalData.periodicity).toLowerCase()} a pago único`,
+              icon: 'info',
+              color: 'info',
+              duration: 4000
+            });
+          }
+          
+        } catch (error) {
+          console.error('Error eliminando compromisos recurrentes:', error);
+          if (notificationsEnabled) {
+            addNotification({
+              type: 'warning',
+              title: '⚠️ Advertencia de Limpieza',
+              message: 'No se pudieron eliminar algunos compromisos recurrentes. Revisa posibles duplicados.',
+              icon: 'warning',
+              color: 'warning',
+              duration: 5000
+            });
+          }
+        }
+      }
+      // 🔄 CASO 2: Cambio entre periodicidades recurrentes O de único a recurrente
+      else if (periodicityChanged && isNowRecurring) {
+        // Obtener el nombre de la empresa para las notificaciones
+        const selectedCompany = companies.find(c => c.id === formData.companyId);
+        const companyName = selectedCompany?.name || 'Empresa';
+
+        // 🗑️ Si ya era recurrente pero cambió la periodicidad, eliminar compromisos relacionados del grupo anterior
+        if (wasRecurring && !wasUnique) {
+          try {
+            // Estrategia mejorada: buscar compromisos relacionados por múltiples criterios
+            // Usar el concepto base (sin sufijos de fecha) para encontrar la serie completa
+            const baseConcept = originalData.concept.replace(/ - (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre) \d{4}$/i, '');
+            
+            // Buscar compromisos relacionados con criterios más amplios
+            const commitmentsQuery = query(
+              collection(db, 'commitments'),
+              where('companyId', '==', originalData.companyId),
+              where('beneficiary', '==', originalData.beneficiary),
+              where('amount', '==', originalData.amount),
+              where('periodicity', '==', originalData.periodicity)
+            );
+            
+            const querySnapshot = await getDocs(commitmentsQuery);
+            const deletePromises = [];
+            let deletedCount = 0;
+            
+            querySnapshot.forEach((docSnap) => {
+              const docData = docSnap.data();
+              const docConcept = docData.concept || '';
+              
+              // Verificar si es parte de la misma serie (concepto base similar)
+              const isRelated = docConcept.includes(baseConcept) || docConcept.startsWith(baseConcept);
+              
+              // No eliminar el compromiso actual que estamos editando
+              const isCurrentCommitment = docSnap.id === commitment.id;
+              
+              // Solo eliminar si es relacionado y no es el actual
+              if (isRelated && !isCurrentCommitment) {
+                deletePromises.push(deleteDoc(docSnap.ref));
+                deletedCount++;
+                console.log(`🗑️ Marcado para eliminar: ${docConcept} (${docSnap.id})`);
+              }
+            });
+            
+            if (deletePromises.length > 0) {
+              await Promise.all(deletePromises);
+              console.log(`🗑️ Eliminados ${deletedCount} compromisos relacionados con periodicidad anterior (${originalData.periodicity})`);
+              
+              // Notificación de limpieza
+              if (notificationsEnabled) {
+                addNotification({
+                  type: 'info',
+                  title: '🗑️ Compromisos Anteriores Eliminados',
+                  message: `Se eliminaron ${deletedCount} compromisos con periodicidad ${getPeriodicityDescription(originalData.periodicity).toLowerCase()} para evitar duplicados`,
+                  icon: 'info',
+                  color: 'warning',
+                  duration: 4000
+                });
+              }
+            }
+          } catch (error) {
+            console.error('Error eliminando compromisos anteriores:', error);
+            if (notificationsEnabled) {
+              addNotification({
+                type: 'warning',
+                title: '⚠️ Advertencia de Limpieza',
+                message: 'No se pudieron eliminar algunos compromisos anteriores. Revisa posibles duplicados.',
+                icon: 'warning',
+                color: 'warning',
+                duration: 5000
+              });
+            }
+          }
+        }
+
+        // Generar nuevos compromisos recurrentes con la nueva periodicidad
+        const recurringData = {
+          ...updatedData,
+          companyName: companyName,
+          createdAt: serverTimestamp(),
+          createdBy: currentUser.uid
+        };
+
+        const recurringCommitments = await generateRecurringCommitments(
+          recurringData, 
+          formData.recurringCount || 12,
+          true // skipFirst = true porque el primero ya existe y se actualizó
+        );
+
+        if (recurringCommitments.length > 0) {
+          // Guardar los nuevos compromisos recurrentes
+          const result = await saveRecurringCommitments(recurringCommitments);
+
+          // 🔊 Notificación de éxito
+          if (notificationsEnabled) {
+            if (notificationSoundEnabled) {
+              const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmUeCSGh2u+8g');
+              audio.volume = 0.2;
+              audio.play().catch(() => {});
+            }
+            
+            // Calcular próximas fechas para mostrar en la notificación
+            const nextDates = calculateNextDueDates(new Date(formData.dueDate), formData.periodicity, 4);
+            const nextDatesText = nextDates.slice(1).map(date => 
+              format(date, 'dd/MM/yyyy', { locale: es })
+            ).join(', ');
+            
+            const titleText = wasUnique ? '🔄 Sistema de Pagos Recurrentes Activado' : '🔄 Periodicidad Actualizada';
+            const messageText = wasUnique 
+              ? `Se activó la recurrencia y se crearon ${result.count} compromisos ${getPeriodicityDescription(formData.periodicity).toLowerCase()} adicionales para "${companyName}"`
+              : `Se cambió de ${getPeriodicityDescription(originalData.periodicity).toLowerCase()} a ${getPeriodicityDescription(formData.periodicity).toLowerCase()} y se regeneraron ${result.count} compromisos para "${companyName}"`;
+            
+            addNotification({
+              type: 'success',
+              title: titleText,
+              message: `${messageText}. Próximas fechas: ${nextDatesText}${result.count > 3 ? ' y más...' : ''}`,
+              icon: 'success',
+              color: 'success',
+              duration: 8000
+            });
+
+            // 📋 Notificación adicional para el centro de notificaciones
+            addNotification({
+              type: 'info',
+              title: '📊 Periodicidad de Compromisos Actualizada',
+              message: `✅ Nueva periodicidad: ${getPeriodicityDescription(formData.periodicity)} • ${result.count + 1} total • Beneficiario: ${formData.beneficiary} • Monto: $${formData.amount.toLocaleString('es-CO')} c/u`,
+              icon: 'info',
+              color: 'info',
+              duration: 6000
+            });
+          }
+        }
+      } 
+      // 🔄 CASO 3: Sin cambio de periodicidad o cambio que no requiere procesamiento especial
+      else {
+        // Notificación simple para edición sin cambio de recurrencia
+        if (notificationsEnabled) {
+          addNotification({
+            type: 'success',
+            title: 'Compromiso Actualizado',
+            message: `Se actualizó correctamente el compromiso "${formData.concept}"`,
+            icon: 'success',
+            color: 'success',
+            duration: 4000
+          });
+        }
+      }
 
       onSaved?.();
       onClose();
     } catch (error) {
       console.error('Error updating commitment:', error);
+      if (notificationsEnabled) {
+        addNotification({
+          type: 'error',
+          title: 'Error al Actualizar',
+          message: 'No se pudo actualizar el compromiso. Intenta nuevamente.',
+          icon: 'error',
+          color: 'error',
+          duration: 5000
+        });
+      }
     } finally {
       setSaving(false);
     }
@@ -243,7 +536,8 @@ const CommitmentEditForm = ({
         beneficiary: '',
         observations: '',
         paymentMethod: 'transfer',
-        periodicity: 'monthly'
+        periodicity: 'monthly',
+        recurringCount: 12
       });
       setErrors({});
     }
@@ -1055,45 +1349,132 @@ const CommitmentEditForm = ({
                 </motion.div>
               </Grid>
 
-              {/* Periodicidad */}
+              {/* Periodicidad con Badge Dinámico */}
               <Grid item xs={12} md={6}>
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.6, duration: 0.3 }}
                 >
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Periodicidad</InputLabel>
-                    <Select
-                      value={formData.periodicity}
-                      onChange={(e) => handleFormChange('periodicity', e.target.value)}
-                      label="Periodicidad"
-                      startAdornment={
-                        <InputAdornment position="start" sx={{ ml: 1 }}>
-                          <Schedule color="info" fontSize="small" />
-                        </InputAdornment>
-                      }
-                      sx={{ 
-                        borderRadius: '12px',
-                        transition: 'all 0.3s ease',
-                        '&:hover': {
-                          transform: 'translateY(-1px)',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  <Box position="relative">
+                    <FormControl fullWidth size="small">
+                      <InputLabel>Periodicidad</InputLabel>
+                      <Select
+                        value={formData.periodicity}
+                        onChange={(e) => handleFormChange('periodicity', e.target.value)}
+                        label="Periodicidad"
+                        startAdornment={
+                          <InputAdornment position="start" sx={{ ml: 1 }}>
+                            <Schedule color="info" fontSize="small" />
+                          </InputAdornment>
                         }
-                      }}
-                    >
-                      {periodicityOptions.map((option) => (
-                        <MenuItem key={option.value} value={option.value}>
-                          <Box display="flex" alignItems="center">
-                            <Schedule sx={{ mr: 1, fontSize: 16 }} />
-                            {option.label}
-                          </Box>
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                        sx={{ 
+                          borderRadius: '12px',
+                          transition: 'all 0.3s ease',
+                          '&:hover': {
+                            transform: 'translateY(-1px)',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                          }
+                        }}
+                      >
+                        {periodicityOptions.map((option) => (
+                          <MenuItem key={option.value} value={option.value}>
+                            <Box display="flex" alignItems="center">
+                              <Schedule sx={{ mr: 1, fontSize: 16 }} />
+                              {option.label}
+                            </Box>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    {/* Badge Dinámico */}
+                    <AnimatePresence>
+                      {formData.periodicity !== 'unique' && formData.dueDate && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.8, y: -10 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.8, y: -10 }}
+                          transition={{ duration: 0.2, type: "spring", damping: 20 }}
+                          style={{
+                            position: 'absolute',
+                            top: -8,
+                            right: 8,
+                            zIndex: 1
+                          }}
+                        >
+                          <Chip
+                            icon={<RepeatIcon sx={{ fontSize: 14 }} />}
+                            label={(() => {
+                              if (!formData.dueDate) return `${formData.recurringCount || 12} cuotas`;
+                              const nextDates = calculateNextDueDates(new Date(formData.dueDate), formData.periodicity, 2);
+                              const nextDate = nextDates[1];
+                              return nextDate ? `Próxima: ${format(nextDate, 'dd/MM', { locale: es })}` : `${formData.recurringCount || 12} cuotas`;
+                            })()}
+                            size="small"
+                            color="info"
+                            variant="filled"
+                            sx={{
+                              fontSize: '0.7rem',
+                              height: 20,
+                              backgroundColor: alpha(theme.palette.info.main, 0.9),
+                              color: 'white',
+                              fontWeight: 500,
+                              boxShadow: `0 2px 8px ${alpha(theme.palette.info.main, 0.3)}`,
+                              '& .MuiChip-icon': {
+                                fontSize: 12,
+                                color: 'white'
+                              }
+                            }}
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </Box>
                 </motion.div>
               </Grid>
+
+              {/* Número de Cuotas - Solo para compromisos recurrentes */}
+              {formData.periodicity !== 'unique' && (
+                <Grid item xs={12} md={6}>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                    transition={{ delay: 0.65, duration: 0.3 }}
+                  >
+                    <TextField
+                      fullWidth
+                      label="Número de Cuotas"
+                      type="number"
+                      value={formData.recurringCount || 12}
+                      onChange={(e) => handleFormChange('recurringCount', parseInt(e.target.value) || 12)}
+                      variant="outlined"
+                      size="small"
+                      inputProps={{ min: 2, max: 120 }}
+                      helperText={`Total de cuotas ${getPeriodicityDescription(formData.periodicity).toLowerCase()}`}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <RepeatIcon color="secondary" />
+                          </InputAdornment>
+                        )
+                      }}
+                      sx={{ 
+                        '& .MuiOutlinedInput-root': { 
+                          borderRadius: '12px',
+                          transition: 'all 0.3s ease',
+                          background: alpha(theme.palette.secondary.main, 0.05),
+                          '&:hover': {
+                            transform: 'translateY(-1px)',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                          }
+                        }
+                      }}
+                    />
+                  </motion.div>
+                </Grid>
+              )}
 
               {/* Separador visual */}
               <Grid item xs={12}>

@@ -25,9 +25,10 @@ const PERIODICITY_MONTHS = {
  * Generar compromisos recurrentes basados en periodicidad
  * @param {Object} commitmentData - Datos del compromiso base
  * @param {number} instancesCount - Número de instancias a generar (por defecto 12)
+ * @param {boolean} skipFirst - Si es true, salta el primer compromiso (útil para ediciones)
  * @returns {Array} Array de compromisos generados
  */
-export const generateRecurringCommitments = async (commitmentData, instancesCount = 12) => {
+export const generateRecurringCommitments = async (commitmentData, instancesCount = 12, skipFirst = false) => {
   try {
     // Verificar que no sea pago único
     if (commitmentData.periodicity === 'unique') {
@@ -43,8 +44,11 @@ export const generateRecurringCommitments = async (commitmentData, instancesCoun
     const generatedCommitments = [];
     const baseDate = new Date(commitmentData.dueDate);
     
+    // Determinar índice inicial (0 si no skipFirst, 1 si skipFirst)
+    const startIndex = skipFirst ? 1 : 0;
+    
     // Generar compromisos recurrentes
-    for (let i = 0; i < instancesCount; i++) {
+    for (let i = startIndex; i < instancesCount + startIndex; i++) {
       const currentDate = addMonths(baseDate, i * monthsInterval);
       
       const commitment = {

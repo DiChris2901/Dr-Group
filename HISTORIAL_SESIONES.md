@@ -5,7 +5,40 @@
 - [Sesión 2 - 21 Julio 2025](#sesión-2---21-julio-2025)
 - [Sesión 3 - 29 Julio 2025](#sesión-3---29-julio-2025)
 - [Sesión 4 - 31 Julio 2025](#sesión-4---31-julio-2025)
+- [Sesión 5 - 04 Agosto 2025](#sesión-5---04-agosto-2025)
 - [Plantilla para Nuevas Sesiones](#plantilla-para-nuevas-sesiones)
+
+---
+
+## Sesión 5 - 04 Agosto 2025
+
+### 🎯 **Objetivo Principal:**
+Sistema de Notificaciones Avanzado para Compromisos Recurrentes + Limpieza Excel Import
+
+### ✅ **Logros Principales:**
+
+#### **1. Sistema de Notificaciones Mejorado**
+- **Notificaciones Duales**: Éxito + Información detallada
+- **Próximas Fechas**: Preview de siguientes 3 vencimientos
+- **Información Completa**: Beneficiario, monto, método, grupo ID
+- **Formateo**: Montos en pesos colombianos, fechas en español
+- **Duración Apropiada**: 8-10 segundos para información completa
+
+#### **2. Cleanup Excel Import System**
+- **Archivos Eliminados**: excelImporter.js, ImportCommitmentsModal.jsx
+- **Dependencias Removidas**: xlsx, react-dropzone
+- **Código Limpio**: Botones y handlers de importación eliminados
+- **Documentación**: Archivos de Excel import removidos
+
+#### **3. Mejoras Técnicas**
+- **Categorización Visual**: Íconos distintivos por tipo
+- **Seguimiento**: IDs únicos para grupos recurrentes  
+- **Formateo Inteligente**: toLocaleString, date-fns español
+- **User Experience**: Feedback inmediato + registro detallado
+
+### 🚀 **Commit:** `9424799`
+**Archivos Modificados:** 8 archivos (34 insertions, 1566 deletions)
+**Status:** Recurring commitment system optimized, Excel import removed
 
 ---
 

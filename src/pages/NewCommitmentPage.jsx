@@ -44,7 +44,7 @@ import {
   Event as EventIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import { useTheme } from '@mui/material/styles';
+import { useTheme, alpha } from '@mui/material/styles';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -249,6 +249,34 @@ const NewCommitmentPage = () => {
 
   // Manejar cambios en el formulario
   const handleFormChange = (field, value) => {
+    // Detectar cambio de periodicidad para mostrar toast informativo
+    if (field === 'periodicity') {
+      const wasUnique = formData.periodicity === 'unique';
+      const isNowRecurring = value !== 'unique';
+      
+      // Toast informativo cuando se activa recurrencia
+      if (wasUnique && isNowRecurring && formData.dueDate) {
+        setTimeout(() => {
+          if (notificationsEnabled) {
+            // Calcular próximas fechas para el toast
+            const nextDates = calculateNextDueDates(formData.dueDate, value, 3);
+            const nextDatesText = nextDates.slice(1, 3).map(date => 
+              format(date, 'dd/MM/yyyy', { locale: es })
+            ).join(', ');
+            
+            addNotification({
+              type: 'info',
+              title: '🔄 Pagos Recurrentes Activados',
+              message: `Se configuró periodicidad ${getPeriodicityDescription(value).toLowerCase()}. Próximas fechas: ${nextDatesText}`,
+              icon: 'info',
+              color: 'info',
+              duration: 5000
+            });
+          }
+        }, 300); // Pequeño delay para que se vea el cambio visual primero
+      }
+    }
+
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -789,114 +817,81 @@ const NewCommitmentPage = () => {
                       </Grid>
 
                       <Grid item xs={12} md={4}>
-                        <FormControl fullWidth required>
-                          <InputLabel>Periodicidad</InputLabel>
-                          <Select
-                            value={formData.periodicity}
-                            label="Periodicidad"
-                            onChange={(e) => handleFormChange('periodicity', e.target.value)}
-                            disabled={saving}
-                          >
-                            {periodicityOptions.map((option) => (
-                              <MenuItem key={option.value} value={option.value}>
-                                {option.label}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Grid>
-
-                      {/* 🔄 Información de Compromisos Recurrentes (Automático) */}
-                      {formData.periodicity !== 'unique' && (
-                        <Grid item xs={12}>
-                          <Paper 
-                            elevation={1}
-                            sx={{ 
-                              p: 2, 
-                              mt: 1,
-                              background: `linear-gradient(135deg, ${theme.palette.success.main}08, ${theme.palette.primary.main}08)`,
-                              border: `1px solid ${theme.palette.success.main}30`,
-                              borderRadius: 2,
-                              overflow: 'hidden'
-                            }}
-                          >
-                            <motion.div
-                              initial={{ opacity: 0, y: -10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ duration: 0.3 }}
+                        <Box position="relative">
+                          <FormControl fullWidth required>
+                            <InputLabel>Periodicidad</InputLabel>
+                            <Select
+                              value={formData.periodicity}
+                              label="Periodicidad"
+                              onChange={(e) => handleFormChange('periodicity', e.target.value)}
+                              disabled={saving}
+                              startAdornment={
+                                <InputAdornment position="start" sx={{ ml: 1 }}>
+                                  <ScheduleIcon color="info" fontSize="small" />
+                                </InputAdornment>
+                              }
+                              sx={{ 
+                                borderRadius: '12px',
+                                transition: 'all 0.3s ease',
+                                '&:hover': {
+                                  transform: 'translateY(-1px)',
+                                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                                }
+                              }}
                             >
-                              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                <RepeatIcon sx={{ mr: 1, color: 'success.main' }} />
-                                <Typography variant="h6" sx={{ fontWeight: 600, color: 'success.main' }}>
-                                  ✅ Compromiso Recurrente Automático
-                                </Typography>
-                              </Box>
-                              
-                              <Alert severity="info" sx={{ mb: 2 }}>
-                                <Typography variant="body2">
-                                  Este compromiso se <strong>replicará automáticamente</strong> porque seleccionaste periodicidad <strong>"{getPeriodicityDescription(formData.periodicity)}"</strong>
-                                </Typography>
-                              </Alert>
-                            </motion.div>
-                            
-                            <Grid container spacing={2}>
-                                <Grid item xs={12} md={6}>
-                                  <TextField
-                                    fullWidth
-                                    label="Número de compromisos a generar"
-                                    type="number"
-                                    value={formData.recurringCount}
-                                    InputProps={{
-                                      readOnly: true,
-                                      startAdornment: (
-                                        <InputAdornment position="start">
-                                          <TimelineIcon color="primary" />
-                                        </InputAdornment>
-                                      ),
-                                      inputProps: { min: 1, max: 24 },
-                                      sx: {
-                                        backgroundColor: 'action.hover',
-                                        '& .MuiOutlinedInput-notchedOutline': {
-                                          borderColor: 'primary.main',
-                                          borderStyle: 'dashed'
-                                        }
-                                      }
-                                    }}
-                                    helperText={`Se crearán automáticamente ${formData.recurringCount || getDefaultRecurringCount(formData.periodicity)} compromisos ${getPeriodicityDescription(formData.periodicity).toLowerCase()} (calculado automáticamente)`}
-                                  />
-                                </Grid>
-                                
-                                <Grid item xs={12} md={6}>
-                                  <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1, border: 1, borderColor: 'divider' }}>
-                                    <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
-                                      <EventIcon sx={{ mr: 1, fontSize: 16 }} />
-                                      Próximas fechas de vencimiento
-                                    </Typography>
-                                    {formData.dueDate && (
-                                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                                        {calculateNextDueDates(formData.dueDate, formData.periodicity, 3).map((date, index) => (
-                                          <Typography key={index} variant="body2" color="text.secondary">
-                                            {index + 1}. {format(date, 'dd/MM/yyyy', { locale: es })}
-                                          </Typography>
-                                        ))}
-                                        {formData.recurringCount > 3 && (
-                                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                            ... y {formData.recurringCount - 3} compromisos más
-                                          </Typography>
-                                        )}
-                                      </Box>
-                                    )}
-                                    {!formData.dueDate && (
-                                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                                        Selecciona una fecha de vencimiento para ver las próximas fechas
-                                      </Typography>
-                                    )}
+                              {periodicityOptions.map((option) => (
+                                <MenuItem key={option.value} value={option.value}>
+                                  <Box display="flex" alignItems="center">
+                                    <ScheduleIcon sx={{ mr: 1, fontSize: 16 }} />
+                                    {option.label}
                                   </Box>
-                                </Grid>
-                              </Grid>
-                          </Paper>
-                        </Grid>
-                      )}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+
+                          {/* Badge Dinámico */}
+                          {formData.periodicity !== 'unique' && formData.dueDate && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.8, y: -10 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.8, y: -10 }}
+                              transition={{ duration: 0.2, type: "spring", damping: 20 }}
+                              style={{
+                                position: 'absolute',
+                                top: -8,
+                                right: 8,
+                                zIndex: 1
+                              }}
+                            >
+                              <Chip
+                                icon={<RepeatIcon sx={{ fontSize: 14 }} />}
+                                label={(() => {
+                                  if (!formData.dueDate) return `${formData.recurringCount || getDefaultRecurringCount(formData.periodicity)} cuotas`;
+                                  const nextDates = calculateNextDueDates(formData.dueDate, formData.periodicity, 2);
+                                  const nextDate = nextDates[1];
+                                  return nextDate ? `Próxima: ${format(nextDate, 'dd/MM', { locale: es })}` : `${formData.recurringCount || getDefaultRecurringCount(formData.periodicity)} cuotas`;
+                                })()}
+                                size="small"
+                                color="info"
+                                variant="filled"
+                                sx={{
+                                  fontSize: '0.7rem',
+                                  height: 20,
+                                  backgroundColor: alpha(theme.palette.info.main, 0.9),
+                                  color: 'white',
+                                  fontWeight: 500,
+                                  boxShadow: `0 2px 8px ${alpha(theme.palette.info.main, 0.3)}`,
+                                  '& .MuiChip-icon': {
+                                    fontSize: 12,
+                                    color: 'white'
+                                  }
+                                }}
+                              />
+                            </motion.div>
+                          )}
+                        </Box>
+                      </Grid>
 
                       {/* Fila 2: Beneficiario, Concepto */}
                       <Grid item xs={12} md={6}>
