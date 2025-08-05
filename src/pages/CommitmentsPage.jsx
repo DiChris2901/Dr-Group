@@ -55,6 +55,8 @@ const CommitmentsPage = () => {
 
   // Función temporal para probar el modal de extensiones con datos simulados
   const handleTestExtensions = () => {
+    console.log('🧪 TEST: Iniciando prueba del modal...');
+    
     const simulatedExtensionData = {
       total: 2,
       needsExtension: 2,
@@ -86,8 +88,21 @@ const CommitmentsPage = () => {
       ]
     };
     
+    console.log('🧪 TEST: Datos simulados:', simulatedExtensionData);
+    console.log('🧪 TEST: Estado actual extendModalOpen:', extendModalOpen);
+    console.log('🧪 TEST: Estado actual commitmentsToExtend:', commitmentsToExtend);
+    
     setCommitmentsToExtend(simulatedExtensionData);
     setExtendModalOpen(true);
+    
+    console.log('🧪 TEST: Estados actualizados - Modal debería abrirse');
+    
+    // Verificar después de un momento
+    setTimeout(() => {
+      console.log('🧪 TEST: Verificación post-actualización:');
+      console.log('  - extendModalOpen:', extendModalOpen);
+      console.log('  - commitmentsToExtend:', commitmentsToExtend);
+    }, 100);
   };
 
   const handleAddCommitment = () => {
@@ -400,27 +415,35 @@ const CommitmentsPage = () => {
 
       {/* Modal de Extensión de Compromisos */}
       {commitmentsToExtend && (
-        <ExtendCommitmentsModal
-          open={extendModalOpen}
-          onClose={() => {
-            setExtendModalOpen(false);
-            setCommitmentsToExtend(null);
-          }}
-          commitmentsData={commitmentsToExtend}
-          onExtensionComplete={(result) => {
-            console.log('🎉 Extensión completada:', result);
-            addNotification({
-              type: 'success',
-              title: '✅ Extensión Exitosa',
-              message: `Se han extendido ${result.totalExtended} compromisos recurrentes.`,
-              duration: 5000
-            });
-            setExtendModalOpen(false);
-            setCommitmentsToExtend(null);
-            // Recargar la lista de compromisos
-            window.location.reload();
-          }}
-        />
+        <>
+          {console.log('🎭 RENDER: Modal ExtendCommitmentsModal renderizándose:', {
+            open: extendModalOpen,
+            commitmentsToExtend: commitmentsToExtend,
+            groupsCount: commitmentsToExtend.groups?.length
+          })}
+          <ExtendCommitmentsModal
+            open={extendModalOpen}
+            onClose={() => {
+              console.log('🎭 MODAL: Cerrando modal');
+              setExtendModalOpen(false);
+              setCommitmentsToExtend(null);
+            }}
+            commitmentsData={commitmentsToExtend}
+            onExtensionComplete={(result) => {
+              console.log('🎉 Extensión completada:', result);
+              addNotification({
+                type: 'success',
+                title: '✅ Extensión Exitosa',
+                message: `Se han extendido ${result.totalExtended} compromisos recurrentes.`,
+                duration: 5000
+              });
+              setExtendModalOpen(false);
+              setCommitmentsToExtend(null);
+              // Recargar la lista de compromisos
+              window.location.reload();
+            }}
+          />
+        </>
       )}
     </Box>
   );

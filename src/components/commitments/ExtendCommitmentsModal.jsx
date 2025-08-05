@@ -55,6 +55,12 @@ const ExtendCommitmentsModal = ({
   commitmentsToExtend,
   onExtensionComplete 
 }) => {
+  console.log('🎭 MODAL: ExtendCommitmentsModal instanciado:', {
+    open,
+    commitmentsToExtend,
+    groupsCount: commitmentsToExtend?.groups?.length
+  });
+  
   const { currentUser } = useAuth();
   const { addNotification, notificationsEnabled } = useNotifications();
   

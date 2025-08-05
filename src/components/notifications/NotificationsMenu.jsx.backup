@@ -1,0 +1,444 @@
+import React, { useState } from 'react';
+import {
+  Menu,
+  Box,
+  Typography,
+  Divider,
+  MenuItem,
+  IconButton,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemSecondaryAction,
+  Chip,
+  Button,
+  Tab,
+  Tabs,
+  Avatar,
+  Tooltip,
+  Badge,
+  alpha
+} from '@mui/material';
+import {
+  Close as CloseIcon,
+  Warning as WarningIcon,
+  Info as InfoIcon,
+  CheckCircle as CheckCircleIcon,
+  Error as ErrorIcon,
+  Business as BusinessIcon,
+  AttachMoney as MoneyIcon,
+  Schedule as ScheduleIcon,
+  Assessment as ReportIcon,
+  Delete as DeleteIcon,
+  DoneAll as DoneAllIcon,
+  Notifications as NotificationsIcon,
+  NotificationImportant as AlertIcon
+} from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
+import { formatDistanceToNow } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { useNotifications } from '../../context/NotificationsContext';
+
+function TabPanel({ children, value, index, ...other }) {
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`notifications-tabpanel-${index}`}
+      aria-labelledby={`notifications-tab-${index}`}
+      {...other}
+    >
+      {value === index && children}
+    </div>
+  );
+}
+
+const NotificationsMenu = ({ anchorEl, open, onClose }) => {
+  const theme = useTheme();
+  const {
+    notifications,
+    alerts,
+    unreadCount,
+    alertsCount,
+    markAsRead,
+    deleteNotification,
+    clearAllNotifications,
+    deleteAlert,
+    clearAllAlerts
+  } = useNotifications();
+
+  const [tabValue, setTabValue] = useState(0);
+
+  const handleTabChange = (event, newValue) => {
+    setTabValue(newValue);
+  };
+
+  const getNotificationIcon = (type) => {
+    const iconProps = { fontSize: 'small' };
+    switch (type) {
+      case 'warning':
+        return <WarningIcon {...iconProps} color="warning" />;
+      case 'error':
+        return <ErrorIcon {...iconProps} color="error" />;
+      case 'success':
+        return <CheckCircleIcon {...iconProps} color="success" />;
+      case 'payment':
+        return <MoneyIcon {...iconProps} color="primary" />;
+      case 'company':
+        return <BusinessIcon {...iconProps} color="primary" />;
+      case 'report':
+        return <ReportIcon {...iconProps} color="info" />;
+      case 'schedule':
+        return <ScheduleIcon {...iconProps} color="warning" />;
+      default:
+        return <InfoIcon {...iconProps} color="info" />;
+    }
+  };
+
+  const getNotificationColor = (type) => {
+    switch (type) {
+      case 'warning':
+        return theme.palette.warning.main;
+      case 'error':
+        return theme.palette.error.main;
+      case 'success':
+        return theme.palette.success.main;
+      case 'payment':
+      case 'company':
+        return theme.palette.primary.main;
+      case 'report':
+        return theme.palette.info.main;
+      default:
+        return theme.palette.info.main;
+    }
+  };
+
+  const formatTimeAgo = (timestamp) => {
+    return formatDistanceToNow(new Date(timestamp), { 
+      addSuffix: true, 
+      locale: es 
+    });
+  };
+
+  const handleNotificationClick = (notification) => {
+    if (!notification.read) {
+      markAsRead(notification.id);
+    }
+  };
+
+  const sortedNotifications = [...notifications].sort((a, b) => 
+    new Date(b.timestamp) - new Date(a.timestamp)
+  );
+
+  const sortedAlerts = [...alerts].sort((a, b) => 
+    new Date(b.timestamp) - new Date(a.timestamp)
+  );
+
+  return (
+    <Menu
+      anchorEl={anchorEl}
+      open={open}
+      onClose={onClose}
+      transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+      anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      PaperProps={{
+        sx: {
+          mt: 1,
+          minWidth: 380,
+          maxWidth: 420,
+          maxHeight: 600,
+          borderRadius: 2,
+          boxShadow: theme.shadows[16],
+          border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+        },
+      }}
+    >
+      {/* Header */}
+      <Box sx={{ px: 2, py: 1.5, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Centro de Notificaciones
+          </Typography>
+          <IconButton onClick={onClose} size="small">
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
+        
+        {/* Tabs */}
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
+          variant="fullWidth"
+          sx={{ mt: 1, minHeight: 40 }}
+        >
+          <Tab
+            icon={
+              <Badge badgeContent={unreadCount} color="error" max={99}>
+                <NotificationsIcon />
+              </Badge>
+            }
+            label="Notificaciones"
+            sx={{ minHeight: 40, textTransform: 'none' }}
+          />
+          <Tab
+            icon={
+              <Badge badgeContent={alertsCount} color="warning" max={99}>
+                <AlertIcon />
+              </Badge>
+            }
+            label="Alertas"
+            sx={{ minHeight: 40, textTransform: 'none' }}
+          />
+        </Tabs>
+      </Box>
+
+      {/* Notifications Tab */}
+      <TabPanel value={tabValue} index={0}>
+        <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
+          {sortedNotifications.length === 0 ? (
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+              <NotificationsIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+              <Typography variant="body2" color="text.secondary">
+                No hay notificaciones
+              </Typography>
+            </Box>
+          ) : (
+            <List sx={{ p: 0 }}>
+              {sortedNotifications.map((notification) => (
+                <ListItem
+                  key={notification.id}
+                  sx={{
+                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                    backgroundColor: notification.read 
+                      ? 'transparent' 
+                      : alpha(theme.palette.primary.main, 0.04),
+                    cursor: 'pointer',
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.action.hover, 0.1)
+                    }
+                  }}
+                  onClick={() => handleNotificationClick(notification)}
+                >
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <Avatar
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        backgroundColor: alpha(getNotificationColor(notification.type), 0.15),
+                        color: getNotificationColor(notification.type)
+                      }}
+                    >
+                      {getNotificationIcon(notification.type)}
+                    </Avatar>
+                  </ListItemIcon>
+                  
+                  <ListItemText
+                    primary={notification.title}
+                    secondary={
+                      <Box sx={{ mt: 0.5 }}>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                          }}
+                        >
+                          {notification.message}
+                        </Typography>
+                        
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+                          <Typography variant="caption" color="text.disabled">
+                            {formatRelativeTime(notification.timestamp)}
+                          </Typography>
+                          
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {!notification.read && (
+                              <Box
+                                sx={{
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: '50%',
+                                  backgroundColor: theme.palette.primary.main
+                                }}
+                              />
+                            )}
+                            
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteNotification(notification.id);
+                              }}
+                              sx={{ 
+                                p: 0.5,
+                                opacity: 0.7,
+                                '&:hover': { opacity: 1 }
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        </Box>
+                      </Box>
+                    }
+                    primaryTypographyProps={{
+                      variant: "body2",
+                      sx: {
+                        fontWeight: notification.read ? 400 : 600
+                      }
+                    }}
+                  />
+                              width: 8,
+                              height: 8,
+                              borderRadius: '50%',
+                              backgroundColor: theme.palette.primary.main
+                            }}
+                          />
+                        )}
+                      </Box>
+                    }
+                    secondary={
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          {notification.message}
+                        </Typography>
+                        <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem' }}>
+                          {formatTimeAgo(notification.timestamp)}
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                  
+                  <ListItemSecondaryAction>
+                    <Tooltip title="Eliminar">
+                      <IconButton
+                        edge="end"
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteNotification(notification.id);
+                        }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </Box>
+        
+        {sortedNotifications.length > 0 && (
+          <Box sx={{ p: 1, borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+            <Button
+              fullWidth
+              size="small"
+              startIcon={<DoneAllIcon />}
+              onClick={clearAllNotifications}
+            >
+              Limpiar todas
+            </Button>
+          </Box>
+        )}
+      </TabPanel>
+
+      {/* Alerts Tab */}
+      <TabPanel value={tabValue} index={1}>
+        <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
+          {sortedAlerts.length === 0 ? (
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+              <AlertIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+              <Typography variant="body2" color="text.secondary">
+                No hay alertas activas
+              </Typography>
+            </Box>
+          ) : (
+            <List sx={{ p: 0 }}>
+              {sortedAlerts.map((alert) => (
+                <ListItem
+                  key={alert.id}
+                  sx={{
+                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                    backgroundColor: alpha(theme.palette.warning.main, 0.04)
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <Avatar
+                      sx={{
+                        width: 32,
+                        height: 32,
+                        backgroundColor: alpha(theme.palette.warning.main, 0.15),
+                        color: theme.palette.warning.main
+                      }}
+                    >
+                      <WarningIcon fontSize="small" />
+                    </Avatar>
+                  </ListItemIcon>
+                  
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>
+                          {alert.title}
+                        </Typography>
+                        <Chip
+                          label={alert.priority || 'Media'}
+                          size="small"
+                          color={alert.priority === 'Alta' ? 'error' : 'warning'}
+                          sx={{ fontSize: '0.7rem' }}
+                        />
+                      </Box>
+                    }
+                    secondary={
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          {alert.message}
+                        </Typography>
+                        <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem' }}>
+                          {formatTimeAgo(alert.timestamp)}
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                  
+                  <ListItemSecondaryAction>
+                    <Tooltip title="Resolver">
+                      <IconButton
+                        edge="end"
+                        size="small"
+                        onClick={() => deleteAlert(alert.id)}
+                      >
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </Box>
+        
+        {sortedAlerts.length > 0 && (
+          <Box sx={{ p: 1, borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+            <Button
+              fullWidth
+              size="small"
+              startIcon={<DoneAllIcon />}
+              onClick={clearAllAlerts}
+              color="warning"
+            >
+              Resolver todas
+            </Button>
+          </Box>
+        )}
+      </TabPanel>
+    </Menu>
+  );
+};
+
+export default NotificationsMenu;

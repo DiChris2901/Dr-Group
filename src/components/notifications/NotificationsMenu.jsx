@@ -1,125 +1,67 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Menu,
-  Box,
+  MenuList,
   Typography,
-  Divider,
-  MenuItem,
+  Box,
   IconButton,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
-  ListItemSecondaryAction,
-  Chip,
-  Button,
-  Tab,
-  Tabs,
   Avatar,
-  Tooltip,
-  Badge,
-  alpha
+  alpha,
+  useTheme,
+  Button,
+  Tooltip
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  Warning as WarningIcon,
-  Info as InfoIcon,
-  CheckCircle as CheckCircleIcon,
-  Error as ErrorIcon,
-  Business as BusinessIcon,
-  AttachMoney as MoneyIcon,
-  Schedule as ScheduleIcon,
-  Assessment as ReportIcon,
   Delete as DeleteIcon,
-  DoneAll as DoneAllIcon,
   Notifications as NotificationsIcon,
-  NotificationImportant as AlertIcon
+  Info as InfoIcon,
+  CheckCircle as SuccessIcon,
+  Warning as WarningIcon,
+  Error as ErrorIcon
 } from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useNotifications } from '../../context/NotificationsContext';
 
-function TabPanel({ children, value, index, ...other }) {
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`notifications-tabpanel-${index}`}
-      aria-labelledby={`notifications-tab-${index}`}
-      {...other}
-    >
-      {value === index && children}
-    </div>
-  );
-}
+const getNotificationColor = (type) => {
+  const colors = {
+    success: '#4caf50',
+    error: '#f44336', 
+    warning: '#ff9800',
+    info: '#2196f3'
+  };
+  return colors[type] || colors.info;
+};
+
+const getNotificationIcon = (type) => {
+  const icons = {
+    success: <SuccessIcon fontSize="small" />,
+    error: <ErrorIcon fontSize="small" />,
+    warning: <WarningIcon fontSize="small" />,
+    info: <InfoIcon fontSize="small" />
+  };
+  return icons[type] || icons.info;
+};
+
+const formatRelativeTime = (timestamp) => {
+  if (!timestamp) return '';
+  
+  try {
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return formatDistanceToNow(date, { addSuffix: true, locale: es });
+  } catch (error) {
+    return 'Hace un momento';
+  }
+};
 
 const NotificationsMenu = ({ anchorEl, open, onClose }) => {
   const theme = useTheme();
-  const {
-    notifications,
-    alerts,
-    unreadCount,
-    alertsCount,
-    markAsRead,
-    deleteNotification,
-    clearAllNotifications,
-    deleteAlert,
-    clearAllAlerts
-  } = useNotifications();
-
-  const [tabValue, setTabValue] = useState(0);
-
-  const handleTabChange = (event, newValue) => {
-    setTabValue(newValue);
-  };
-
-  const getNotificationIcon = (type) => {
-    const iconProps = { fontSize: 'small' };
-    switch (type) {
-      case 'warning':
-        return <WarningIcon {...iconProps} color="warning" />;
-      case 'error':
-        return <ErrorIcon {...iconProps} color="error" />;
-      case 'success':
-        return <CheckCircleIcon {...iconProps} color="success" />;
-      case 'payment':
-        return <MoneyIcon {...iconProps} color="primary" />;
-      case 'company':
-        return <BusinessIcon {...iconProps} color="primary" />;
-      case 'report':
-        return <ReportIcon {...iconProps} color="info" />;
-      case 'schedule':
-        return <ScheduleIcon {...iconProps} color="warning" />;
-      default:
-        return <InfoIcon {...iconProps} color="info" />;
-    }
-  };
-
-  const getNotificationColor = (type) => {
-    switch (type) {
-      case 'warning':
-        return theme.palette.warning.main;
-      case 'error':
-        return theme.palette.error.main;
-      case 'success':
-        return theme.palette.success.main;
-      case 'payment':
-      case 'company':
-        return theme.palette.primary.main;
-      case 'report':
-        return theme.palette.info.main;
-      default:
-        return theme.palette.info.main;
-    }
-  };
-
-  const formatTimeAgo = (timestamp) => {
-    return formatDistanceToNow(new Date(timestamp), { 
-      addSuffix: true, 
-      locale: es 
-    });
-  };
+  const { notifications, markAsRead, deleteNotification, clearAllNotifications } = useNotifications();
 
   const handleNotificationClick = (notification) => {
     if (!notification.read) {
@@ -127,13 +69,18 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
     }
   };
 
-  const sortedNotifications = [...notifications].sort((a, b) => 
-    new Date(b.timestamp) - new Date(a.timestamp)
-  );
+  const handleClearAll = () => {
+    clearAllNotifications();
+  };
 
-  const sortedAlerts = [...alerts].sort((a, b) => 
-    new Date(b.timestamp) - new Date(a.timestamp)
-  );
+  const sortedNotifications = notifications
+    .sort((a, b) => {
+      const dateA = a.timestamp?.toDate ? a.timestamp.toDate() : new Date(a.timestamp);
+      const dateB = b.timestamp?.toDate ? b.timestamp.toDate() : new Date(b.timestamp);
+      return dateB - dateA;
+    });
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
     <Menu
@@ -144,57 +91,62 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
       anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
       PaperProps={{
         sx: {
+          width: 380,
+          maxHeight: 500,
           mt: 1,
-          minWidth: 380,
-          maxWidth: 420,
-          maxHeight: 600,
           borderRadius: 2,
-          boxShadow: theme.shadows[16],
-          border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-        },
+          boxShadow: theme.shadows[8],
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+        }
       }}
     >
-      {/* Header */}
-      <Box sx={{ px: 2, py: 1.5, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            Centro de Notificaciones
-          </Typography>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon fontSize="small" />
-          </IconButton>
+      <MenuList sx={{ p: 0 }}>
+        <Box sx={{ 
+          p: 2, 
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          backgroundColor: alpha(theme.palette.primary.main, 0.02)
+        }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Notificaciones
+              {unreadCount > 0 && (
+                <Box
+                  component="span"
+                  sx={{
+                    ml: 1,
+                    px: 1,
+                    py: 0.5,
+                    borderRadius: 1,
+                    backgroundColor: theme.palette.primary.main,
+                    color: 'white',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    minWidth: 20,
+                    textAlign: 'center'
+                  }}
+                >
+                  {unreadCount}
+                </Box>
+              )}
+            </Typography>
+            
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {notifications.length > 0 && (
+                <Tooltip title="Limpiar todas">
+                  <IconButton size="small" onClick={handleClearAll}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+              <Tooltip title="Cerrar">
+                <IconButton size="small" onClick={onClose}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Box>
+          </Box>
         </Box>
-        
-        {/* Tabs */}
-        <Tabs
-          value={tabValue}
-          onChange={handleTabChange}
-          variant="fullWidth"
-          sx={{ mt: 1, minHeight: 40 }}
-        >
-          <Tab
-            icon={
-              <Badge badgeContent={unreadCount} color="error" max={99}>
-                <NotificationsIcon />
-              </Badge>
-            }
-            label="Notificaciones"
-            sx={{ minHeight: 40, textTransform: 'none' }}
-          />
-          <Tab
-            icon={
-              <Badge badgeContent={alertsCount} color="warning" max={99}>
-                <AlertIcon />
-              </Badge>
-            }
-            label="Alertas"
-            sx={{ minHeight: 40, textTransform: 'none' }}
-          />
-        </Tabs>
-      </Box>
 
-      {/* Notifications Tab */}
-      <TabPanel value={tabValue} index={0}>
         <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
           {sortedNotifications.length === 0 ? (
             <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -234,165 +186,75 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                   </ListItemIcon>
                   
                   <ListItemText
-                    primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            fontWeight: notification.read ? 400 : 600,
-                            flex: 1
-                          }}
-                        >
-                          {notification.title}
-                        </Typography>
-                        {!notification.read && (
-                          <Box
-                            sx={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: '50%',
-                              backgroundColor: theme.palette.primary.main
-                            }}
-                          />
-                        )}
-                      </Box>
-                    }
-                    secondary={
-                      <Box>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                          {notification.message}
-                        </Typography>
-                        <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem' }}>
-                          {formatTimeAgo(notification.timestamp)}
-                        </Typography>
-                      </Box>
-                    }
+                    primary={notification.title}
+                    secondary={notification.message}
+                    primaryTypographyProps={{
+                      fontWeight: notification.read ? 400 : 600,
+                      variant: 'body2'
+                    }}
+                    secondaryTypographyProps={{
+                      variant: 'body2',
+                      color: 'text.secondary'
+                    }}
                   />
                   
-                  <ListItemSecondaryAction>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 1 }}>
+                    {!notification.read && (
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          backgroundColor: theme.palette.primary.main
+                        }}
+                      />
+                    )}
+                    
                     <Tooltip title="Eliminar">
                       <IconButton
-                        edge="end"
                         size="small"
                         onClick={(e) => {
                           e.stopPropagation();
                           deleteNotification(notification.id);
                         }}
+                        sx={{ 
+                          p: 0.5,
+                          opacity: 0.7,
+                          '&:hover': { opacity: 1 }
+                        }}
                       >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                  </ListItemSecondaryAction>
+                  </Box>
                 </ListItem>
               ))}
             </List>
           )}
         </Box>
-        
-        {sortedNotifications.length > 0 && (
-          <Box sx={{ p: 1, borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
-            <Button
-              fullWidth
-              size="small"
-              startIcon={<DoneAllIcon />}
-              onClick={clearAllNotifications}
-            >
-              Limpiar todas
-            </Button>
-          </Box>
-        )}
-      </TabPanel>
 
-      {/* Alerts Tab */}
-      <TabPanel value={tabValue} index={1}>
-        <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
-          {sortedAlerts.length === 0 ? (
-            <Box sx={{ p: 3, textAlign: 'center' }}>
-              <AlertIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-              <Typography variant="body2" color="text.secondary">
-                No hay alertas activas
-              </Typography>
-            </Box>
-          ) : (
-            <List sx={{ p: 0 }}>
-              {sortedAlerts.map((alert) => (
-                <ListItem
-                  key={alert.id}
-                  sx={{
-                    borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    backgroundColor: alpha(theme.palette.warning.main, 0.04)
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: 40 }}>
-                    <Avatar
-                      sx={{
-                        width: 32,
-                        height: 32,
-                        backgroundColor: alpha(theme.palette.warning.main, 0.15),
-                        color: theme.palette.warning.main
-                      }}
-                    >
-                      <WarningIcon fontSize="small" />
-                    </Avatar>
-                  </ListItemIcon>
-                  
-                  <ListItemText
-                    primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>
-                          {alert.title}
-                        </Typography>
-                        <Chip
-                          label={alert.priority || 'Media'}
-                          size="small"
-                          color={alert.priority === 'Alta' ? 'error' : 'warning'}
-                          sx={{ fontSize: '0.7rem' }}
-                        />
-                      </Box>
-                    }
-                    secondary={
-                      <Box>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                          {alert.message}
-                        </Typography>
-                        <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem' }}>
-                          {formatTimeAgo(alert.timestamp)}
-                        </Typography>
-                      </Box>
-                    }
-                  />
-                  
-                  <ListItemSecondaryAction>
-                    <Tooltip title="Resolver">
-                      <IconButton
-                        edge="end"
-                        size="small"
-                        onClick={() => deleteAlert(alert.id)}
-                      >
-                        <CloseIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </ListItemSecondaryAction>
-                </ListItem>
-              ))}
-            </List>
-          )}
-        </Box>
-        
-        {sortedAlerts.length > 0 && (
-          <Box sx={{ p: 1, borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+        {sortedNotifications.length > 0 && (
+          <Box sx={{ 
+            p: 1, 
+            borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+            textAlign: 'center'
+          }}>
             <Button
-              fullWidth
               size="small"
-              startIcon={<DoneAllIcon />}
-              onClick={clearAllAlerts}
-              color="warning"
+              onClick={handleClearAll}
+              sx={{ 
+                textTransform: 'none',
+                color: 'text.secondary',
+                '&:hover': {
+                  backgroundColor: alpha(theme.palette.action.hover, 0.1)
+                }
+              }}
             >
-              Resolver todas
+              🧹 Limpiar todas
             </Button>
           </Box>
         )}
-      </TabPanel>
+      </MenuList>
     </Menu>
   );
 };
