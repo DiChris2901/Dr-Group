@@ -2061,8 +2061,9 @@ const ProfilePage = () => {
                       >
                         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 3 }}>
                           <motion.div
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
+                            whileHover={{ scale: 1.02, y: -2 }}
+                            whileTap={{ scale: 0.98 }}
+                            transition={{ type: "spring", bounce: 0.4 }}
                           >
                             <Button
                               variant="outlined"
@@ -2070,25 +2071,18 @@ const ProfilePage = () => {
                               startIcon={<Cancel />}
                               aria-label="Cancelar edición y descartar cambios"
                               sx={{
-                                borderColor: 'transparent',
-                                background: isDarkMode 
-                                  ? 'linear-gradient(135deg, rgba(169, 169, 169, 0.15) 0%, rgba(128, 128, 128, 0.15) 100%)'
-                                  : 'linear-gradient(135deg, rgba(169, 169, 169, 0.08) 0%, rgba(128, 128, 128, 0.08) 100%)',
-                                backdropFilter: 'blur(10px)',
-                                color: 'text.secondary',
+                                color: theme.palette.text.primary,
+                                border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+                                borderRadius: borderRadius / 4,
+                                textTransform: 'none',
                                 fontWeight: 600,
-                                borderRadius: '16px',
-                                padding: '12px 24px',
-                                border: `2px solid ${isDarkMode ? 'rgba(169,169,169,0.2)' : 'rgba(128,128,128,0.2)'}`,
-                                boxShadow: '0 4px 15px rgba(169, 169, 169, 0.15)',
-                                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                                padding: '8px 16px',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                 '&:hover': {
-                                  background: isDarkMode 
-                                    ? 'linear-gradient(135deg, rgba(169, 169, 169, 0.25) 0%, rgba(128, 128, 128, 0.25) 100%)'
-                                    : 'linear-gradient(135deg, rgba(169, 169, 169, 0.15) 0%, rgba(128, 128, 128, 0.15) 100%)',
-                                  borderColor: isDarkMode ? 'rgba(169,169,169,0.4)' : 'rgba(128,128,128,0.4)',
-                                  transform: 'translateY(-2px)',
-                                  boxShadow: '0 8px 25px rgba(169, 169, 169, 0.25)'
+                                  backgroundColor: alpha(theme.palette.action.hover, 0.1),
+                                  border: `1px solid ${alpha(theme.palette.divider, 0.7)}`,
+                                  transform: 'translateY(-1px)',
+                                  boxShadow: `0 4px 12px ${alpha(theme.palette.action.hover, 0.15)}`
                                 }
                               }}
                             >
@@ -2096,51 +2090,77 @@ const ProfilePage = () => {
                             </Button>
                           </motion.div>
                           <motion.div
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
+                            whileHover={{ scale: 1.02, y: -2 }}
+                            whileTap={{ scale: 0.98 }}
+                            transition={{ type: "spring", bounce: 0.4 }}
                           >
                             <Button
                               variant="contained"
                               onClick={handleSave}
-                              startIcon={<Save />}
+                              startIcon={loading ? <CircularProgress size={16} /> : <Save />}
                               disabled={loading || Object.keys(errors).length > 0}
                               aria-label={loading ? 'Guardando cambios del perfil' : 'Guardar cambios del perfil'}
                               sx={{
-                                background: Object.keys(errors).length > 0 
-                                  ? 'linear-gradient(135deg, rgba(169, 169, 169, 0.5) 0%, rgba(128, 128, 128, 0.5) 100%)'
-                                  : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-                                backdropFilter: 'blur(10px)',
-                                borderRadius: '16px',
-                                padding: '12px 24px',
+                                backgroundColor: alpha(primaryColor, 0.8),
+                                color: '#fff',
+                                border: `1px solid ${alpha(primaryColor, 0.3)}`,
+                                borderRadius: borderRadius / 4,
+                                textTransform: 'none',
                                 fontWeight: 600,
-                                border: 'none',
-                                boxShadow: Object.keys(errors).length > 0 
-                                  ? '0 4px 15px rgba(169, 169, 169, 0.2)'
-                                  : `0 4px 20px ${theme.palette.primary.main}40`,
-                                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                                padding: '8px 16px',
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                                 '&:hover': Object.keys(errors).length === 0 ? {
-                                  background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
-                                  transform: 'translateY(-2px)',
-                                  boxShadow: `0 8px 25px ${theme.palette.primary.main}50`
+                                  backgroundColor: alpha(primaryColor, 0.9),
+                                  transform: 'translateY(-1px)',
+                                  boxShadow: `0 4px 12px ${alpha(primaryColor, 0.3)}`
                                 } : {},
                                 '&:disabled': {
-                                  background: 'linear-gradient(135deg, rgba(169, 169, 169, 0.5) 0%, rgba(128, 128, 128, 0.5) 100%)',
-                                  color: 'rgba(255,255,255,0.5)'
+                                  backgroundColor: alpha(primaryColor, 0.3),
+                                  color: alpha('#fff', 0.6)
                                 }
                               }}
                             >
-                              {loading ? (
-                                <>
-                                  <CircularProgress size={16} sx={{ color: 'white', mr: 1 }} />
-                                  Guardando...
-                                </>
-                              ) : (
-                                `Guardar cambios${Object.keys(errors).length > 0 ? ' (Corrige errores)' : ''}`
-                              )}
+                              {loading ? 'Guardando...' : `Guardar cambios${Object.keys(errors).length > 0 ? ' (Corrige errores)' : ''}`}
                             </Button>
                           </motion.div>
                         </Box>
                       </motion.div>
+                    </Grid>
+                  )}
+
+                  {/* Botón Editar cuando no está editando */}
+                  {!editing && (
+                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+                        <motion.div 
+                          whileHover={{ scale: 1.02, y: -2 }} 
+                          whileTap={{ scale: 0.98 }}
+                          transition={{ type: "spring", bounce: 0.4 }}
+                        >
+                          <Button
+                            variant="contained"
+                            startIcon={<Edit />}
+                            onClick={() => setEditing(true)}
+                            sx={{
+                              backgroundColor: alpha(primaryColor, 0.8),
+                              color: '#fff',
+                              border: `1px solid ${alpha(primaryColor, 0.3)}`,
+                              borderRadius: borderRadius / 4,
+                              textTransform: 'none',
+                              fontWeight: 600,
+                              padding: '8px 16px',
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              '&:hover': {
+                                backgroundColor: alpha(primaryColor, 0.9),
+                                transform: 'translateY(-1px)',
+                                boxShadow: `0 4px 12px ${alpha(primaryColor, 0.3)}`
+                              }
+                            }}
+                          >
+                            Editar Información
+                          </Button>
+                        </motion.div>
+                      </Box>
                     </Grid>
                   )}
 
