@@ -34,8 +34,6 @@ import {
   ListItemIcon,
   ListItemText,
   ListItemSecondaryAction,
-  Tab,
-  Tabs,
   Tooltip,
   Badge
 } from '@mui/material';
@@ -65,11 +63,9 @@ import {
   Verified,
   LocationOn,
   Settings,
-  Security,
   VpnKey,
   Shield,
   Delete,
-  History,
   Computer,
   Smartphone,
   Tablet,
@@ -78,7 +74,6 @@ import {
   VisibilityOff,
   AccountCircle,
   RestoreFromTrash,
-  DeleteForever,
   Warning,
   CheckCircle,
   AccessTime,
@@ -99,8 +94,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { 
   updatePassword, 
   reauthenticateWithCredential, 
-  EmailAuthProvider,
-  deleteUser
+  EmailAuthProvider
 } from 'firebase/auth';
 import { 
   collection, 
@@ -140,12 +134,10 @@ const ProfilePage = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
   const [showAutoSaveNotice, setShowAutoSaveNotice] = useState(false);
-  const [activeTab, setActiveTab] = useState(0);
   const fileInputRef = useRef(null);
 
   // Estados de seguridad
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -156,14 +148,6 @@ const ProfilePage = () => {
     new: false,
     confirm: false
   });
-  const [loginHistory, setLoginHistory] = useState([]);
-  const [securitySettings, setSecuritySettings] = useState({
-    twoFactorEnabled: false,
-    emailNotifications: true,
-    loginAlerts: true
-  });
-  const [loadingHistory, setLoadingHistory] = useState(false);
-  const [loadingDelete, setLoadingDelete] = useState(false);
   const [loadingPassword, setLoadingPassword] = useState(false);
 
   // Estado del formulario
@@ -199,32 +183,6 @@ const ProfilePage = () => {
       setAutoSaving(false);
     }
   }, [formData, editing, hasUnsavedChanges, errors, updateUserProfile, notificationsEnabled]);
-
-  // Funciones de seguridad
-  const loadLoginHistory = useCallback(async () => {
-    if (!user) return;
-    setLoadingHistory(true);
-    try {
-      const historyRef = collection(db, 'loginHistory');
-      const q = query(
-        historyRef,
-        where('userId', '==', user.uid),
-        orderBy('timestamp', 'desc'),
-        limit(10)
-      );
-      const querySnapshot = await getDocs(q);
-      const history = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setLoginHistory(history);
-    } catch (error) {
-      console.error('Error loading login history:', error);
-      setLoginHistory([]);
-    } finally {
-      setLoadingHistory(false);
-    }
-  }, [user]);
 
   const handleChangePassword = async () => {
     setLoadingPassword(true);
@@ -265,35 +223,6 @@ const ProfilePage = () => {
       showAlert(error.message || 'Error al cambiar la contraseña', 'error');
     } finally {
       setLoadingPassword(false);
-    }
-  };
-
-  const handleDeleteAccount = async () => {
-    setLoadingDelete(true);
-    try {
-      // Eliminar documentos del usuario de Firestore
-      if (userProfile) {
-        await deleteDoc(doc(db, 'users', user.uid));
-      }
-      
-      // Eliminar historial de login
-      const historyRef = collection(db, 'loginHistory');
-      const q = query(historyRef, where('userId', '==', user.uid));
-      const querySnapshot = await getDocs(q);
-      const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(deletePromises);
-      
-      // Eliminar cuenta de Firebase Auth
-      await deleteUser(user);
-      
-      showAlert('Cuenta eliminada exitosamente', 'success');
-      
-    } catch (error) {
-      console.error('Error deleting account:', error);
-      showAlert('Error al eliminar la cuenta', 'error');
-    } finally {
-      setLoadingDelete(false);
-      setShowDeleteDialog(false);
     }
   };
 
@@ -345,13 +274,6 @@ const ProfilePage = () => {
       });
     }
   }, [userProfile, user]);
-
-  // Cargar datos de seguridad al cambiar de tab
-  useEffect(() => {
-    if (activeTab === 1) { // Tab de Seguridad
-      loadLoginHistory();
-    }
-  }, [activeTab, loadLoginHistory]);
 
   const showAlert = (message, severity = 'success') => {
     // Solo mostrar notificaciones si están habilitadas en settings
@@ -614,10 +536,6 @@ const ProfilePage = () => {
     setEditing(false);
     setHasUnsavedChanges(false);
     setErrors({});
-  };
-
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
   };
 
   return (
@@ -1291,86 +1209,28 @@ const ProfilePage = () => {
                 '0%': { transform: 'translateX(-100%)' },
                 '100%': { transform: 'translateX(100%)' }
               }
-            }}>
-              {/* Tabs Header con Design System */}
-              <Box sx={{ 
-                borderBottom: `1px solid ${theme.palette.divider}`,
-                position: 'relative',
-                zIndex: 2
               }}>
-                <Tabs
-                  value={activeTab}
-                  onChange={handleTabChange}
-                  variant="fullWidth"
-                  sx={{
-                    '& .MuiTab-root': {
-                      minHeight: 72,
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      fontSize: '1rem',
-                      transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
-                      color: theme.palette.text.secondary,
-                      borderRadius: `${borderRadius / 4}px ${borderRadius / 4}px 0 0`,
-                      '&:hover': animationsEnabled ? {
-                        color: primaryColor,
-                        background: `${primaryColor}08`,
-                        transform: 'translateY(-2px)'
-                      } : {
-                        color: primaryColor,
-                        background: `${primaryColor}08`
-                      },
-                      '&.Mui-selected': {
-                        color: primaryColor,
-                        fontWeight: 700,
-                        background: `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}10)`
-                      }
-                    },
-                    '& .MuiTabs-indicator': {
-                      height: 3,
-                      borderRadius: borderRadius / 4,
-                      background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`
-                    }
-                  }}
-                >
-                  <Tab 
-                    icon={<Person />} 
-                    label="Información Personal" 
-                    iconPosition="start"
-                  />
-                  <Tab 
-                    icon={<Security />} 
-                    label="Seguridad y Privacidad" 
-                    iconPosition="start"
-                  />
-                </Tabs>
-              </Box>
-
-              {/* Tab Panel - Información Personal */}
-              {activeTab === 0 && (
+              {/* Header spectacular - Información Personal */}
+              <Box
+                sx={{
+                  p: 3,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2
+                }}
+              >
+                <Person sx={{ fontSize: 28 }} />
                 <Box>
-                  {/* Header spectacular */}
-                  <Box
-                    sx={{
-                      p: 3,
-                      background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                      color: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 2
-                    }}
-                  >
-                    <Person sx={{ fontSize: 28 }} />
-                    <Box>
-                      <Typography variant="h6" fontWeight="bold">
-                        Información Personal
-                      </Typography>
-                      <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                        Datos personales y profesionales
-                      </Typography>
-                    </Box>
-                  </Box>
-              
-              <CardContent sx={{ 
+                  <Typography variant="h6" fontWeight="bold">
+                    Información Personal
+                  </Typography>
+                  <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                    Datos personales y profesionales
+                  </Typography>
+                </Box>
+              </Box>              <CardContent sx={{ 
                 p: 4, // spacing.xl 
                 flex: 1, 
                 display: 'flex', 
@@ -2053,42 +1913,6 @@ const ProfilePage = () => {
                     </Grid>
                   )}
 
-                  {/* Botón Editar cuando no está editando */}
-                  {!editing && (
-                    <Grid item xs={12}>
-                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-                        <motion.div 
-                          whileHover={{ scale: 1.02, y: -2 }} 
-                          whileTap={{ scale: 0.98 }}
-                          transition={{ type: "spring", bounce: 0.4 }}
-                        >
-                          <Button
-                            variant="contained"
-                            startIcon={<Edit />}
-                            onClick={() => setEditing(true)}
-                            sx={{
-                              backgroundColor: alpha(primaryColor, 0.8),
-                              color: '#fff',
-                              border: `1px solid ${alpha(primaryColor, 0.3)}`,
-                              borderRadius: borderRadius / 4,
-                              textTransform: 'none',
-                              fontWeight: 600,
-                              padding: '8px 16px',
-                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                              '&:hover': {
-                                backgroundColor: alpha(primaryColor, 0.9),
-                                transform: 'translateY(-1px)',
-                                boxShadow: `0 4px 12px ${alpha(primaryColor, 0.3)}`
-                              }
-                            }}
-                          >
-                            Editar Información
-                          </Button>
-                        </motion.div>
-                      </Box>
-                    </Grid>
-                  )}
-
                   {/* Información de la Cuenta */}
                   {!editing && (
                     <Grid item xs={12}>
@@ -2151,304 +1975,44 @@ const ProfilePage = () => {
                               }
                             </Box>
                           </Box>
+                          
+                          {/* Botón Cambiar Contraseña */}
+                          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                            <motion.div 
+                              whileHover={{ scale: 1.02, y: -2 }} 
+                              whileTap={{ scale: 0.98 }}
+                              transition={{ type: "spring", bounce: 0.4 }}
+                            >
+                              <Button
+                                variant="outlined"
+                                startIcon={<Key />}
+                                onClick={() => setShowPasswordDialog(true)}
+                                sx={{
+                                  color: theme.palette.warning.main,
+                                  border: `1px solid ${alpha(theme.palette.warning.main, 0.3)}`,
+                                  borderRadius: borderRadius / 4,
+                                  textTransform: 'none',
+                                  fontWeight: 600,
+                                  padding: '8px 16px',
+                                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                  '&:hover': {
+                                    backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                                    border: `1px solid ${alpha(theme.palette.warning.main, 0.5)}`,
+                                    transform: 'translateY(-1px)',
+                                    boxShadow: `0 4px 12px ${alpha(theme.palette.warning.main, 0.3)}`
+                                  }
+                                }}
+                              >
+                                Cambiar Contraseña
+                              </Button>
+                            </motion.div>
+                          </Box>
                         </Box>
                       </motion.div>
                     </Grid>
                   )}
                 </Grid>
               </CardContent>
-                </Box>
-              )}
-
-              {/* Tab Panel - Seguridad */}
-              {activeTab === 1 && (
-                <Box>
-                  {/* Header spectacular */}
-                  <Box
-                    sx={{
-                      p: 3,
-                      background: `linear-gradient(135deg, ${theme.palette.error.main}, ${theme.palette.error.dark})`,
-                      color: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 2
-                    }}
-                  >
-                    <Security sx={{ fontSize: 28 }} />
-                    <Box>
-                      <Typography variant="h6" fontWeight="bold">
-                        Seguridad y Privacidad
-                      </Typography>
-                      <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                        Gestiona la seguridad de tu cuenta
-                      </Typography>
-                    </Box>
-                  </Box>
-
-                  <CardContent sx={{ 
-                    p: 4, 
-                    flex: 1, 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    position: 'relative',
-                    zIndex: 2
-                  }}>
-                    <Grid container spacing={theme.spacing(2)}>
-                      
-                      {/* Cambiar Contraseña */}
-                      <Grid item xs={12} md={6}>
-                        <motion.div
-                          whileHover={{ scale: 1.02, y: -4 }}
-                          transition={{ type: "spring", stiffness: 300 }}
-                        >
-                          <Card sx={{ 
-                            height: '100%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            background: isDarkMode 
-                              ? 'linear-gradient(135deg, rgba(231, 76, 60, 0.15) 0%, rgba(192, 57, 43, 0.15) 100%)'
-                              : 'linear-gradient(135deg, rgba(231, 76, 60, 0.08) 0%, rgba(192, 57, 43, 0.08) 100%)',
-                            backdropFilter: 'blur(20px)',
-                            border: `2px solid ${theme.palette.error.main}30`,
-                            borderRadius: '16px',
-                            boxShadow: `0 8px 32px ${theme.palette.error.main}20`,
-                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                            '&:hover': {
-                              boxShadow: `0 12px 40px ${theme.palette.error.main}30`,
-                              border: `2px solid ${theme.palette.error.main}50`
-                            }
-                          }}>
-                            <CardContent sx={{ 
-                              p: theme.spacing(2), 
-                              flex: 1, 
-                              display: 'flex', 
-                              flexDirection: 'column', 
-                              justifyContent: 'space-between' 
-                            }}>
-                              <Box display="flex" alignItems="center" gap={theme.spacing(2)} mb={theme.spacing(1.5)}>
-                                <VpnKey sx={{ color: theme.palette.error.main, fontSize: 28 }} />
-                                <Box>
-                                  <Typography variant="h6" fontWeight={600}>
-                                    Contraseña
-                                  </Typography>
-                                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                    Cambia tu contraseña de acceso
-                                  </Typography>
-                                </Box>
-                              </Box>
-                              <motion.div
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                              >
-                                <Button
-                                  variant="contained"
-                                  onClick={() => setShowPasswordDialog(true)}
-                                  startIcon={<Lock />}
-                                  sx={{
-                                    background: `linear-gradient(135deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
-                                    borderRadius: '12px',
-                                    padding: '12px 24px',
-                                    fontWeight: 600,
-                                    boxShadow: `0 4px 15px ${theme.palette.error.main}40`,
-                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    '&:hover': {
-                                      background: `linear-gradient(135deg, ${theme.palette.error.dark} 0%, ${theme.palette.error.main} 100%)`,
-                                      boxShadow: `0 6px 20px ${theme.palette.error.main}50`,
-                                      transform: 'translateY(-2px)'
-                                    }
-                                  }}
-                                >
-                                  Cambiar Contraseña
-                                </Button>
-                              </motion.div>
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      </Grid>
-
-                      {/* Historial de Actividad */}
-                      <Grid item xs={12}>
-                        <motion.div
-                          whileHover={{ scale: 1.01, y: -2 }}
-                          transition={{ type: "spring", stiffness: 300 }}
-                        >
-                          <Card sx={{ 
-                            background: isDarkMode 
-                              ? 'linear-gradient(135deg, rgba(155, 89, 182, 0.15) 0%, rgba(142, 68, 173, 0.15) 100%)'
-                              : 'linear-gradient(135deg, rgba(155, 89, 182, 0.08) 0%, rgba(142, 68, 173, 0.08) 100%)',
-                            backdropFilter: 'blur(20px)',
-                            border: `2px solid ${theme.palette.secondary.main}30`,
-                            borderRadius: '16px',
-                            boxShadow: `0 8px 32px ${theme.palette.secondary.main}20`,
-                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                            '&:hover': {
-                              boxShadow: `0 12px 40px ${theme.palette.secondary.main}30`,
-                              border: `2px solid ${theme.palette.secondary.main}50`
-                            }
-                          }}>
-                            <CardContent sx={{ 
-                              p: theme.spacing(2), 
-                              flex: 1, 
-                              display: 'flex', 
-                              flexDirection: 'column', 
-                              justifyContent: 'space-between' 
-                            }}>
-                              <Box display="flex" alignItems="center" justify="space-between" mb={theme.spacing(1.5)}>
-                                <Box display="flex" alignItems="center" gap={theme.spacing(2)}>
-                                  <History sx={{ color: theme.palette.secondary.main, fontSize: 28 }} />
-                                  <Box>
-                                    <Typography variant="h6" fontWeight={600}>
-                                      Historial de Actividad
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                      Últimos accesos y actividades
-                                    </Typography>
-                                  </Box>
-                                </Box>
-                                {loadingHistory && <CircularProgress size={24} sx={{ color: theme.palette.secondary.main }} />}
-                              </Box>
-                            
-                            <List>
-                              {loginHistory.length > 0 ? loginHistory.slice(0, 5).map((entry, index) => (
-                                <ListItem key={index} divider={index < 4}>
-                                  <ListItemIcon>
-                                    {getDeviceIcon(entry.userAgent)}
-                                  </ListItemIcon>
-                                  <ListItemText
-                                    primary={
-                                      <Box display="flex" alignItems="center" gap={1}>
-                                        <Typography variant="body2" fontWeight="medium">
-                                          {entry.action === 'login' ? 'Inicio de sesión' : 
-                                           entry.action === 'password_change' ? 'Cambio de contraseña' : 
-                                           'Actividad'}
-                                        </Typography>
-                                        <Chip 
-                                          size="small" 
-                                          label={entry.action === 'login' ? 'Login' : 'Seguridad'} 
-                                          color={entry.action === 'login' ? 'success' : 'warning'}
-                                        />
-                                      </Box>
-                                    }
-                                    secondary={
-                                      <Box>
-                                        <Typography variant="caption" color="text.secondary">
-                                          {entry.timestamp?.toDate?.() ? 
-                                            entry.timestamp.toDate().toLocaleString('es-ES') :
-                                            new Date(entry.timestamp).toLocaleString('es-ES')
-                                          }
-                                        </Typography>
-                                        <br />
-                                        <Typography variant="caption" color="text.secondary">
-                                          IP: {entry.ipAddress || 'Desconocida'}
-                                        </Typography>
-                                      </Box>
-                                    }
-                                  />
-                                </ListItem>
-                              )) : (
-                                <Typography variant="body2" color="text.secondary">
-                                  No hay historial disponible
-                                </Typography>
-                              )}
-                            </List>
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      </Grid>
-
-                      {/* Eliminar Cuenta */}
-                      <Grid item xs={12}>
-                        <motion.div
-                          whileHover={{ scale: 1.01, y: -2 }}
-                          transition={{ type: "spring", stiffness: 300 }}
-                        >
-                          <Card sx={{ 
-                            background: isDarkMode 
-                              ? 'linear-gradient(135deg, rgba(192, 57, 43, 0.18) 0%, rgba(169, 50, 38, 0.18) 100%)'
-                              : 'linear-gradient(135deg, rgba(192, 57, 43, 0.10) 0%, rgba(169, 50, 38, 0.10) 100%)',
-                            backdropFilter: 'blur(20px)',
-                            border: `3px solid ${theme.palette.error.main}40`,
-                            borderRadius: '16px',
-                            boxShadow: `0 8px 32px ${theme.palette.error.main}25`,
-                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                            '&:hover': {
-                              boxShadow: `0 12px 40px ${theme.palette.error.main}35`,
-                              border: `3px solid ${theme.palette.error.main}60`
-                            }
-                          }}>
-                            <CardContent sx={{ 
-                              p: theme.spacing(1.5), 
-                              flex: 1, 
-                              display: 'flex', 
-                              flexDirection: 'column', 
-                              justifyContent: 'space-between' 
-                            }}>
-                              <Box display="flex" alignItems="center" gap={theme.spacing(2)} mb={theme.spacing(1)}>
-                                <Warning sx={{ color: theme.palette.error.main, fontSize: 24 }} />
-                                <Box>
-                                  <Typography variant="h6" fontWeight={600} color="error">
-                                    Zona de Peligro
-                                  </Typography>
-                                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                    Acciones irreversibles
-                                  </Typography>
-                                </Box>
-                              </Box>
-                              
-                              <Alert 
-                                severity="warning" 
-                                sx={{ 
-                                  mb: theme.spacing(1.5),
-                                  borderRadius: '12px',
-                                  background: isDarkMode 
-                                    ? 'linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(245, 124, 0, 0.15) 100%)'
-                                    : 'linear-gradient(135deg, rgba(255, 152, 0, 0.08) 0%, rgba(245, 124, 0, 0.08) 100%)',
-                                  backdropFilter: 'blur(10px)',
-                                  border: `2px solid ${theme.palette.warning.main}30`,
-                                  fontWeight: 500,
-                                  fontSize: '0.8rem'
-                                }}
-                              >
-                                Eliminar tu cuenta es una acción permanente. Todos tus datos serán eliminados 
-                                y no podrán ser recuperados.
-                              </Alert>
-                              
-                              <motion.div
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                              >
-                                <Button
-                                  variant="contained"
-                                  color="error"
-                                  onClick={() => setShowDeleteDialog(true)}
-                                  startIcon={<DeleteForever />}
-                                  sx={{
-                                    background: `linear-gradient(135deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
-                                    borderRadius: '12px',
-                                    padding: '8px 16px',
-                                    fontWeight: 600,
-                                    fontSize: '0.8rem',
-                                    boxShadow: `0 3px 12px ${theme.palette.error.main}40`,
-                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    '&:hover': {
-                                      background: `linear-gradient(135deg, ${theme.palette.error.dark} 0%, #8B0000 100%)`,
-                                      boxShadow: `0 4px 15px ${theme.palette.error.main}50`,
-                                      transform: 'translateY(-1px)'
-                                    }
-                                  }}
-                                >
-                                  Eliminar Cuenta Permanentemente
-                                </Button>
-                              </motion.div>
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      </Grid>
-
-                    </Grid>
-                  </CardContent>
-                </Box>
-              )}
             </Card>
           </motion.div>
         </Grid>
@@ -2571,70 +2135,6 @@ const ProfilePage = () => {
             }}
           >
             {loadingPassword ? 'Cambiando...' : 'Cambiar Contraseña'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Dialog para eliminar cuenta */}
-      <Dialog 
-        open={showDeleteDialog} 
-        onClose={() => setShowDeleteDialog(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          <Box display="flex" alignItems="center" gap={2}>
-            <Warning sx={{ color: theme.palette.error.dark }} />
-            Eliminar Cuenta Permanentemente
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <Alert severity="error" sx={{ mb: 3 }}>
-            <Typography variant="body2" fontWeight="bold">
-              Esta acción es irreversible
-            </Typography>
-            <Typography variant="body2">
-              Se eliminarán permanentemente:
-            </Typography>
-            <Box component="ul" sx={{ mt: 1, mb: 0 }}>
-              <li>Tu perfil de usuario</li>
-              <li>Historial de actividad</li>
-              <li>Datos personales</li>
-              <li>Acceso a todas las funcionalidades</li>
-            </Box>
-          </Alert>
-          
-          <DialogContentText>
-            Para confirmar la eliminación, escribe <strong>ELIMINAR</strong> en el campo de abajo:
-          </DialogContentText>
-          
-          <TextField
-            fullWidth
-            placeholder="Escribe ELIMINAR para confirmar"
-            sx={{ mt: 2 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            onClick={() => setShowDeleteDialog(false)}
-            disabled={loadingDelete}
-          >
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleDeleteAccount}
-            variant="contained"
-            color="error"
-            disabled={loadingDelete}
-            startIcon={loadingDelete ? <CircularProgress size={16} /> : <DeleteForever />}
-            sx={{
-              background: 'linear-gradient(135deg, #c0392b 0%, #a93226 100%)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #a93226 0%, #922b21 100%)'
-              }
-            }}
-          >
-            {loadingDelete ? 'Eliminando...' : 'Eliminar Cuenta'}
           </Button>
         </DialogActions>
       </Dialog>
