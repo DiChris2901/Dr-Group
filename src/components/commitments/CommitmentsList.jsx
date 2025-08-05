@@ -201,6 +201,30 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
   const { settings } = useSettings();
   const theme = useTheme();
   const gradients = useThemeGradients();
+  
+  // Hook para detectar el tamaño de pantalla y densidad
+  const [screenInfo, setScreenInfo] = useState({
+    height: window.innerHeight,
+    width: window.innerWidth,
+    pixelRatio: window.devicePixelRatio || 1
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setScreenInfo({
+        height: window.innerHeight,
+        width: window.innerWidth,
+        pixelRatio: window.devicePixelRatio || 1
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Determinar si es una pantalla de menor resolución que necesita ajustes especiales
+  const isLowerResScreen = screenInfo.height <= 1080 || (screenInfo.width <= 1920 && screenInfo.height <= 1200);
+  
   const [commitments, setCommitments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -2113,8 +2137,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
         fullWidth
         sx={{
           '& .MuiDialog-paper': {
-            margin: '32px', // Agregar margen desde los bordes de la pantalla
-            maxHeight: 'calc(100vh - 64px)', // Limitar altura para evitar que toque los bordes
+            margin: isLowerResScreen ? '16px' : '32px', // Ajuste simple
+            maxHeight: isLowerResScreen ? 'calc(100vh - 32px)' : 'calc(100vh - 64px)', // Más conservador
           }
         }}
         PaperProps={{
@@ -3007,9 +3031,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
             
             <DialogActions 
               sx={{ 
-                p: 4, 
-                pb: 8, // Mucho más espacio en la parte inferior
-                mb: 2, // Margen inferior adicional
+                p: 4,
+                pb: isLowerResScreen ? 6 : 5, // Ajuste más conservador
                 background: `
                   linear-gradient(135deg, rgba(248, 250, 252, 0.95) 0%, rgba(241, 245, 249, 0.9) 100%),
                   linear-gradient(225deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.6) 100%)
