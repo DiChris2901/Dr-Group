@@ -24,7 +24,9 @@ import {
   Alert,
   LinearProgress,
   Divider,
-  Paper
+  Paper,
+  alpha,
+  useTheme
 } from '@mui/material';
 import {
   CalendarToday,
@@ -43,11 +45,18 @@ import { format, addYears } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
+import { useSettings } from '../../context/SettingsContext';
 import { 
   generateExtensionCommitments, 
   saveRecurringCommitments,
   getPeriodicityDescription 
 } from '../../utils/recurringCommitments';
+import {
+  shimmerEffect,
+  useThemeGradients,
+  paperGradient,
+  animationVariants
+} from '../../utils/designSystem';
 
 const ExtendCommitmentsModal = ({ 
   open, 
@@ -55,14 +64,11 @@ const ExtendCommitmentsModal = ({
   commitmentsToExtend,
   onExtensionComplete 
 }) => {
-  console.log('🎭 MODAL: ExtendCommitmentsModal instanciado:', {
-    open,
-    commitmentsToExtend,
-    groupsCount: commitmentsToExtend?.groups?.length
-  });
-  
   const { currentUser } = useAuth();
   const { addNotification, notificationsEnabled } = useNotifications();
+  const { settings } = useSettings();
+  const theme = useTheme();
+  const gradients = useThemeGradients();
   
   const [selectedGroups, setSelectedGroups] = useState({});
   const [targetYear, setTargetYear] = useState(new Date().getFullYear() + 1);
@@ -187,14 +193,6 @@ const ExtendCommitmentsModal = ({
             message: `Se extendieron ${successfulExtensions.length} grupos con ${totalNewCommitments} compromisos para ${targetYear}${adjustmentPercentage !== 0 ? ` (ajuste: ${adjustmentPercentage > 0 ? '+' : ''}${adjustmentPercentage}%)` : ''}`,
             duration: 8000
           });
-
-          // Notificación detallada
-          addNotification({
-            type: 'info',
-            title: '📊 Detalles de Extensión',
-            message: `✅ Grupos procesados: ${successfulExtensions.length} • Año objetivo: ${targetYear} • Total compromisos: ${totalNewCommitments}`,
-            duration: 6000
-          });
         }
       }
 
@@ -236,254 +234,488 @@ const ExtendCommitmentsModal = ({
   if (!commitmentsToExtend) return null;
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={!extending ? onClose : undefined}
-      maxWidth="md" 
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 4,
-          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
-        }
-      }}
-    >
-      <DialogTitle>
-        <Box display="flex" alignItems="center" gap={2}>
-          <Box
-            sx={{
-              p: 1.5,
-              borderRadius: 2,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white'
-            }}
-          >
-            <CalendarToday />
-          </Box>
-          <Box>
-            <Typography variant="h5" fontWeight="700">
-              🔄 Extender Compromisos Recurrentes
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Replica compromisos para el siguiente período
-            </Typography>
-          </Box>
-        </Box>
-      </DialogTitle>
-
-      <DialogContent sx={{ p: 3 }}>
-        <Grid container spacing={3}>
-          {/* Resumen de grupos */}
-          <Grid item xs={12}>
-            <Alert severity="info" sx={{ mb: 2 }}>
-              Se encontraron <strong>{commitmentsToExtend.total}</strong> grupos de compromisos recurrentes. 
-              <strong> {commitmentsToExtend.needsExtension}</strong> necesitan extensión.
-            </Alert>
-          </Grid>
-
-          {/* Configuración de extensión */}
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2, borderRadius: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                ⚙️ Configuración de Extensión
-              </Typography>
-              
-              <Box sx={{ mb: 2 }}>
-                <FormControl fullWidth>
-                  <InputLabel>Año Objetivo</InputLabel>
-                  <Select
-                    value={targetYear}
-                    label="Año Objetivo"
-                    onChange={(e) => setTargetYear(e.target.value)}
-                    disabled={extending}
-                  >
-                    {availableYears.map(year => (
-                      <MenuItem key={year} value={year}>
-                        {year}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-
-              <Box sx={{ mb: 2 }}>
-                <TextField
-                  fullWidth
-                  label="Ajuste de Monto (%)"
-                  type="number"
-                  value={adjustmentPercentage}
-                  onChange={(e) => setAdjustmentPercentage(parseFloat(e.target.value) || 0)}
-                  disabled={extending}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <TrendingUp color={adjustmentPercentage > 0 ? 'success' : adjustmentPercentage < 0 ? 'error' : 'action'} />
-                      </InputAdornment>
-                    ),
-                    inputProps: { min: -50, max: 100, step: 0.1 }
-                  }}
-                  helperText="Porcentaje de incremento/descuento para nuevos compromisos"
-                />
-              </Box>
-            </Paper>
-          </Grid>
-
-          {/* Estadísticas */}
-          <Grid item xs={12} md={6}>
-            <Paper sx={{ p: 2, borderRadius: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                📊 Resumen de Extensión
-              </Typography>
-              
-              <Box sx={{ mb: 1 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Grupos seleccionados: <strong>{selectedCount}</strong>
-                </Typography>
-              </Box>
-              
-              <Box sx={{ mb: 1 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Monto estimado anual: <strong>${totalAmount.toLocaleString('es-CO')}</strong>
-                </Typography>
-              </Box>
-              
-              {adjustmentPercentage !== 0 && (
-                <Box sx={{ mb: 1 }}>
-                  <Typography variant="body2" color={adjustmentPercentage > 0 ? 'success.main' : 'error.main'}>
-                    Monto ajustado: <strong>${adjustedAmount.toLocaleString('es-CO')}</strong>
-                    <Chip 
-                      size="small" 
-                      label={`${adjustmentPercentage > 0 ? '+' : ''}${adjustmentPercentage}%`}
-                      color={adjustmentPercentage > 0 ? 'success' : 'error'}
-                      sx={{ ml: 1 }}
-                    />
-                  </Typography>
-                </Box>
-              )}
-            </Paper>
-          </Grid>
-
-          {/* Lista de grupos */}
-          <Grid item xs={12}>
-            <Typography variant="h6" gutterBottom>
-              📋 Compromisos a Extender
-            </Typography>
-            
-            <List sx={{ maxHeight: 300, overflow: 'auto' }}>
-              {commitmentsToExtend.groups.map((group, index) => (
-                <motion.div
-                  key={group.groupId}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <ListItem
-                    sx={{
-                      border: 1,
-                      borderColor: 'divider',
-                      borderRadius: 2,
-                      mb: 1,
-                      bgcolor: selectedGroups[group.groupId] ? 'action.selected' : 'background.paper'
-                    }}
-                  >
-                    <ListItemIcon>
-                      <RepeatIcon color={selectedGroups[group.groupId] ? 'primary' : 'action'} />
-                    </ListItemIcon>
-                    
-                    <ListItemText
-                      primary={
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontWeight: 600 }}>
-                            {group.concept}
-                          </span>
-                          <Chip 
-                            size="small" 
-                            label={getPeriodicityDescription(group.periodicity)}
-                            color="info"
-                          />
-                        </span>
-                      }
-                      secondary={
-                        <span>
-                          <span style={{ color: 'text.secondary', display: 'block', marginBottom: '4px' }}>
-                            <Business sx={{ fontSize: 14, mr: 0.5, verticalAlign: 'middle' }} />
-                            {group.companyName} • 
-                            <Person sx={{ fontSize: 14, mx: 0.5, verticalAlign: 'middle' }} />
-                            {group.beneficiary} • 
-                            <AttachMoney sx={{ fontSize: 14, mx: 0.5, verticalAlign: 'middle' }} />
-                            ${group.amount.toLocaleString('es-CO')}
-                          </span>
-                          <span style={{ fontSize: '0.75rem', color: 'text.secondary' }}>
-                            {group.commitmentsCount} compromisos • 
-                            Último vencimiento: {format(new Date(group.lastDueDate), 'dd/MM/yyyy', { locale: es })}
-                          </span>
-                        </span>
-                      }
-                    />
-                    
-                    <ListItemSecondaryAction>
-                      <Switch
-                        checked={selectedGroups[group.groupId] || false}
-                        onChange={() => handleGroupToggle(group.groupId)}
-                        disabled={extending}
-                        color="primary"
-                      />
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                </motion.div>
-              ))}
-            </List>
-          </Grid>
-
-          {/* Progreso de extensión */}
-          <AnimatePresence>
-            {extending && (
-              <Grid item xs={12}>
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  <Paper sx={{ p: 2, borderRadius: 2 }}>
-                    <Typography variant="body2" gutterBottom>
-                      Procesando extensión... {Math.round(extensionProgress)}%
-                    </Typography>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={extensionProgress} 
-                      sx={{ height: 8, borderRadius: 4 }}
-                    />
-                  </Paper>
-                </motion.div>
-              </Grid>
-            )}
-          </AnimatePresence>
-        </Grid>
-      </DialogContent>
-
-      <DialogActions sx={{ p: 3, gap: 2 }}>
-        <Button
-          onClick={onClose}
-          disabled={extending}
-          startIcon={<Close />}
-        >
-          Cancelar
-        </Button>
-        
-        <Button
-          variant="contained"
-          onClick={handleExtendCommitments}
-          disabled={extending || selectedCount === 0}
-          startIcon={extending ? <Schedule /> : <CheckCircle />}
-          sx={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            px: 4
+    <AnimatePresence>
+      {open && (
+        <Dialog 
+          open={open} 
+          onClose={!extending ? onClose : undefined}
+          maxWidth="md" 
+          fullWidth
+          PaperProps={{
+            component: motion.div,
+            initial: settings.theme?.animations ? { 
+              opacity: 0, 
+              scale: 0.9, 
+              y: 50 
+            } : {},
+            animate: settings.theme?.animations ? { 
+              opacity: 1, 
+              scale: 1, 
+              y: 0 
+            } : { opacity: 1, scale: 1, y: 0 },
+            exit: settings.theme?.animations ? { 
+              opacity: 0, 
+              scale: 0.95, 
+              y: 20 
+            } : {},
+            transition: settings.theme?.animations ? { 
+              duration: 0.4, 
+              ease: [0.4, 0, 0.2, 1] 
+            } : { duration: 0 },
+            sx: {
+              borderRadius: 4,
+              background: theme.palette.mode === 'dark' 
+                ? `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.95)} 0%, ${alpha(theme.palette.background.default, 0.98)} 100%)`
+                : paperGradient(theme),
+              backdropFilter: 'blur(20px)',
+              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 20px 40px rgba(0, 0, 0, 0.4)'
+                : '0 20px 40px rgba(31, 38, 135, 0.15)',
+              overflow: 'hidden',
+              position: 'relative',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '1px',
+                background: gradients.primary,
+                opacity: 0.8
+              }
+            }
           }}
         >
-          {extending ? 'Procesando...' : `Extender ${selectedCount} Grupos`}
-        </Button>
-      </DialogActions>
-    </Dialog>
+          <DialogTitle sx={{ pb: 2 }}>
+            <motion.div
+              initial={settings.theme?.animations ? { opacity: 0, x: -20 } : {}}
+              animate={settings.theme?.animations ? { opacity: 1, x: 0 } : { opacity: 1, x: 0 }}
+              transition={settings.theme?.animations ? { delay: 0.1, duration: 0.4 } : { duration: 0 }}
+            >
+              <Box display="flex" alignItems="center" gap={2}>
+                <Box
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 3,
+                    background: gradients.primary,
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 8px 25px rgba(102, 126, 234, 0.3)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    ...shimmerEffect
+                  }}
+                >
+                  <RepeatIcon sx={{ fontSize: 28 }} />
+                </Box>
+                <Box>
+                  <Typography 
+                    variant="h5" 
+                    fontWeight="800"
+                    sx={{
+                      background: gradients.text,
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      mb: 0.5
+                    }}
+                  >
+                    Extender Compromisos Recurrentes
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    sx={{
+                      color: alpha(theme.palette.text.secondary, 0.8),
+                      fontWeight: 500
+                    }}
+                  >
+                    Replica compromisos para el siguiente período
+                  </Typography>
+                </Box>
+                {!extending && (
+                  <Box sx={{ ml: 'auto' }}>
+                    <motion.div
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <Button
+                        onClick={onClose}
+                        size="small"
+                        sx={{
+                          minWidth: 'auto',
+                          p: 1,
+                          borderRadius: 2,
+                          color: alpha(theme.palette.text.secondary, 0.7),
+                          '&:hover': {
+                            backgroundColor: alpha(theme.palette.error.main, 0.1),
+                            color: theme.palette.error.main
+                          }
+                        }}
+                      >
+                        <Close />
+                      </Button>
+                    </motion.div>
+                  </Box>
+                )}
+              </Box>
+            </motion.div>
+          </DialogTitle>
+
+          <DialogContent sx={{ p: 3, pb: 1 }}>
+            <motion.div
+              initial={settings.theme?.animations ? { opacity: 0, y: 20 } : {}}
+              animate={settings.theme?.animations ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+              transition={settings.theme?.animations ? { delay: 0.2, duration: 0.4 } : { duration: 0 }}
+            >
+              <Grid container spacing={3}>
+                {/* Resumen de grupos */}
+                <Grid item xs={12}>
+                  <Alert 
+                    severity="info" 
+                    sx={{ 
+                      mb: 2,
+                      borderRadius: 3,
+                      background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.info.main, 0.05)} 100%)`,
+                      border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+                    }}
+                  >
+                    Se encontraron <strong>{commitmentsToExtend.total}</strong> grupos de compromisos recurrentes. 
+                    <strong> {commitmentsToExtend.needsExtension}</strong> necesitan extensión.
+                  </Alert>
+                </Grid>
+
+                {/* Configuración */}
+                <Grid item xs={12} md={6}>
+                  <Paper 
+                    sx={{ 
+                      p: 3, 
+                      borderRadius: 3,
+                      background: `linear-gradient(135deg, ${alpha('#ffffff', 0.9)} 0%, ${alpha('#f8fafc', 0.8)} 100%)`,
+                      backdropFilter: 'blur(10px)',
+                      border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                      boxShadow: '0 8px 32px rgba(31, 38, 135, 0.15)'
+                    }}
+                  >
+                    <Typography variant="h6" fontWeight="700" mb={2}>
+                      ⚙️ Configuración de Extensión
+                    </Typography>
+                    
+                    <FormControl fullWidth sx={{ mb: 2 }}>
+                      <InputLabel>Año Objetivo</InputLabel>
+                      <Select
+                        value={targetYear}
+                        label="Año Objetivo"
+                        onChange={(e) => setTargetYear(e.target.value)}
+                        disabled={extending}
+                        sx={{ borderRadius: 2 }}
+                      >
+                        {availableYears.map(year => (
+                          <MenuItem key={year} value={year}>
+                            {year}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <TextField
+                      fullWidth
+                      label="Ajuste de Monto (%)"
+                      type="number"
+                      value={adjustmentPercentage}
+                      onChange={(e) => setAdjustmentPercentage(parseFloat(e.target.value) || 0)}
+                      disabled={extending}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <TrendingUp sx={{ color: alpha(theme.palette.primary.main, 0.7) }} />
+                          </InputAdornment>
+                        )
+                      }}
+                      helperText="Porcentaje de incremento/descuento para nuevos compromisos"
+                    />
+                  </Paper>
+                </Grid>
+
+                {/* Resumen */}
+                <Grid item xs={12} md={6}>
+                  <Paper 
+                    sx={{ 
+                      p: 3, 
+                      borderRadius: 3,
+                      background: `linear-gradient(135deg, ${alpha('#10b981', 0.08)} 0%, ${alpha('#3b82f6', 0.08)} 100%)`,
+                      backdropFilter: 'blur(10px)',
+                      border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+                      boxShadow: '0 8px 32px rgba(16, 185, 129, 0.1)'
+                    }}
+                  >
+                    <Typography variant="h6" fontWeight="700" mb={2}>
+                      📊 Resumen de Extensión
+                    </Typography>
+                    
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                      <Typography variant="body2" color="text.secondary">
+                        Grupos seleccionados:
+                      </Typography>
+                      <Chip 
+                        label={selectedCount}
+                        size="small"
+                        color="primary"
+                        sx={{ fontWeight: 700 }}
+                      />
+                    </Box>
+                    
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                      <Typography variant="body2" color="text.secondary">
+                        Monto estimado anual:
+                      </Typography>
+                      <Typography variant="h6" fontWeight="700" color="success.main">
+                        ${totalAmount.toLocaleString('es-CO')}
+                      </Typography>
+                    </Box>
+                    
+                    {adjustmentPercentage !== 0 && (
+                      <Box 
+                        sx={{ 
+                          p: 2, 
+                          borderRadius: 2,
+                          background: adjustmentPercentage > 0 
+                            ? alpha(theme.palette.success.main, 0.1)
+                            : alpha(theme.palette.error.main, 0.1),
+                          border: `1px solid ${adjustmentPercentage > 0 
+                            ? alpha(theme.palette.success.main, 0.3)
+                            : alpha(theme.palette.error.main, 0.3)}`
+                        }}
+                      >
+                        <Box display="flex" alignItems="center" justifyContent="space-between">
+                          <Typography 
+                            variant="body2" 
+                            color={adjustmentPercentage > 0 ? 'success.main' : 'error.main'}
+                            fontWeight="600"
+                          >
+                            Monto ajustado:
+                          </Typography>
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <Typography 
+                              variant="h6" 
+                              fontWeight="700"
+                              color={adjustmentPercentage > 0 ? 'success.main' : 'error.main'}
+                            >
+                              ${adjustedAmount.toLocaleString('es-CO')}
+                            </Typography>
+                            <Chip 
+                              size="small" 
+                              label={`${adjustmentPercentage > 0 ? '+' : ''}${adjustmentPercentage}%`}
+                              color={adjustmentPercentage > 0 ? 'success' : 'error'}
+                              sx={{ fontWeight: 700 }}
+                            />
+                          </Box>
+                        </Box>
+                      </Box>
+                    )}
+                  </Paper>
+                </Grid>
+
+                {/* Lista de compromisos */}
+                <Grid item xs={12}>
+                  <Typography variant="h6" fontWeight="700" mb={2}>
+                    📋 Compromisos a Extender
+                  </Typography>
+                  
+                  <List 
+                    sx={{ 
+                      maxHeight: 300, 
+                      overflow: 'auto',
+                      background: alpha('#ffffff', 0.5),
+                      backdropFilter: 'blur(10px)',
+                      borderRadius: 3,
+                      border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                      p: 1
+                    }}
+                  >
+                    {commitmentsToExtend.groups.map((group, index) => (
+                      <motion.div
+                        key={group.groupId}
+                        initial={settings.theme?.animations ? { opacity: 0, y: 20 } : {}}
+                        animate={settings.theme?.animations ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+                        transition={settings.theme?.animations ? { delay: (index * 0.1) + 0.8 } : { duration: 0 }}
+                      >
+                        <ListItem
+                          sx={{
+                            border: `1px solid ${selectedGroups[group.groupId] 
+                              ? alpha(theme.palette.primary.main, 0.3)
+                              : alpha(theme.palette.divider, 0.2)
+                            }`,
+                            borderRadius: 2,
+                            mb: 1,
+                            background: selectedGroups[group.groupId] 
+                              ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`
+                              : `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)} 0%, ${alpha(theme.palette.background.default, 0.9)} 100%)`,
+                            cursor: 'pointer',
+                            '&:hover': {
+                              borderColor: alpha(theme.palette.primary.main, 0.4)
+                            }
+                          }}
+                          onClick={() => handleGroupToggle(group.groupId)}
+                        >
+                          <ListItemIcon>
+                            <RepeatIcon 
+                              color={selectedGroups[group.groupId] ? 'primary' : 'action'}
+                              sx={{ fontSize: 24 }}
+                            />
+                          </ListItemIcon>
+                          
+                          <ListItemText
+                            primary={
+                              <Box display="flex" alignItems="center" gap={1}>
+                                <Typography 
+                                  variant="subtitle1" 
+                                  fontWeight="700"
+                                  sx={{ 
+                                    color: selectedGroups[group.groupId] 
+                                      ? theme.palette.primary.main 
+                                      : theme.palette.text.primary 
+                                  }}
+                                >
+                                  {group.concept}
+                                </Typography>
+                                <Chip 
+                                  size="small" 
+                                  label={getPeriodicityDescription(group.periodicity)}
+                                  color={selectedGroups[group.groupId] ? "primary" : "default"}
+                                  sx={{ fontSize: '0.7rem', fontWeight: 600 }}
+                                />
+                              </Box>
+                            }
+                            secondary={
+                              <Box sx={{ mt: 1 }}>
+                                <Box display="flex" alignItems="center" flexWrap="wrap" gap={0.5} mb={0.5}>
+                                  <Business sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                  <Typography variant="body2" color="text.secondary" fontWeight="500">
+                                    {group.companyName}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">•</Typography>
+                                  <Person sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                  <Typography variant="body2" color="text.secondary" fontWeight="500">
+                                    {group.beneficiary}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">•</Typography>
+                                  <AttachMoney sx={{ fontSize: 14, color: 'success.main' }} />
+                                  <Typography variant="body2" color="success.main" fontWeight="700">
+                                    ${group.amount.toLocaleString('es-CO')}
+                                  </Typography>
+                                </Box>
+                                <Typography variant="caption" color="text.secondary">
+                                  {group.commitmentsCount} compromisos • 
+                                  Último vencimiento: {format(new Date(group.lastDueDate), 'dd/MM/yyyy', { locale: es })}
+                                </Typography>
+                              </Box>
+                            }
+                          />
+                          
+                          <ListItemSecondaryAction>
+                            <Switch
+                              checked={selectedGroups[group.groupId] || false}
+                              onChange={() => handleGroupToggle(group.groupId)}
+                              disabled={extending}
+                              color="primary"
+                            />
+                          </ListItemSecondaryAction>
+                        </ListItem>
+                      </motion.div>
+                    ))}
+                  </List>
+                </Grid>
+
+                {/* Progreso */}
+                <AnimatePresence>
+                  {extending && (
+                    <Grid item xs={12}>
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <Paper 
+                          sx={{ 
+                            p: 3, 
+                            borderRadius: 3,
+                            background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)} 0%, ${alpha(theme.palette.info.main, 0.1)} 100%)`,
+                            border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`
+                          }}
+                        >
+                          <Box display="flex" alignItems="center" gap={2} mb={2}>
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                            >
+                              <Schedule sx={{ color: theme.palette.warning.main, fontSize: 24 }} />
+                            </motion.div>
+                            <Typography variant="h6" fontWeight="700">
+                              Procesando extensión... {Math.round(extensionProgress)}%
+                            </Typography>
+                          </Box>
+                          <LinearProgress 
+                            variant="determinate" 
+                            value={extensionProgress} 
+                            sx={{ 
+                              height: 12, 
+                              borderRadius: 6,
+                              background: alpha(theme.palette.warning.main, 0.1)
+                            }}
+                          />
+                        </Paper>
+                      </motion.div>
+                    </Grid>
+                  )}
+                </AnimatePresence>
+              </Grid>
+            </motion.div>
+          </DialogContent>
+
+          <DialogActions sx={{ p: 3, gap: 2 }}>
+            <Button
+              onClick={onClose}
+              disabled={extending}
+              startIcon={<Close />}
+              sx={{
+                borderRadius: 2,
+                px: 3,
+                py: 1,
+                fontWeight: 600
+              }}
+            >
+              Cancelar
+            </Button>
+            
+            <Button
+              variant="contained"
+              onClick={handleExtendCommitments}
+              disabled={extending || selectedCount === 0}
+              startIcon={extending ? <Schedule /> : <CheckCircle />}
+              sx={{
+                background: extending 
+                  ? gradients.warning
+                  : gradients.primary,
+                px: 4,
+                py: 1.5,
+                borderRadius: 3,
+                fontWeight: 700,
+                boxShadow: selectedCount > 0 && !extending 
+                  ? '0 8px 25px rgba(102, 126, 234, 0.4)'
+                  : 'none'
+              }}
+            >
+              {extending ? 'Procesando...' : `Extender ${selectedCount} Grupos`}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
+    </AnimatePresence>
   );
 };
 
