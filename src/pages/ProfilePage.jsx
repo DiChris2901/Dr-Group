@@ -76,8 +76,6 @@ import {
   ExitToApp,
   Visibility,
   VisibilityOff,
-  Google,
-  Microsoft,
   AccountCircle,
   RestoreFromTrash,
   DeleteForever,
@@ -90,9 +88,7 @@ import {
   Key,
   Lock,
   LockOpen,
-  PersonRemove,
-  LinkOff,
-  Link
+  PersonRemove
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -104,11 +100,7 @@ import {
   updatePassword, 
   reauthenticateWithCredential, 
   EmailAuthProvider,
-  deleteUser,
-  linkWithPopup,
-  GoogleAuthProvider,
-  OAuthProvider,
-  unlink
+  deleteUser
 } from 'firebase/auth';
 import { 
   collection, 
@@ -165,7 +157,6 @@ const ProfilePage = () => {
     confirm: false
   });
   const [loginHistory, setLoginHistory] = useState([]);
-  const [linkedAccounts, setLinkedAccounts] = useState([]);
   const [securitySettings, setSecuritySettings] = useState({
     twoFactorEnabled: false,
     emailNotifications: true,
@@ -235,16 +226,6 @@ const ProfilePage = () => {
     }
   }, [user]);
 
-  const loadLinkedAccounts = useCallback(() => {
-    if (!user?.providerData) return;
-    const accounts = user.providerData.map(provider => ({
-      providerId: provider.providerId,
-      email: provider.email,
-      displayName: provider.displayName
-    }));
-    setLinkedAccounts(accounts);
-  }, [user]);
-
   const handleChangePassword = async () => {
     setLoadingPassword(true);
     try {
@@ -284,35 +265,6 @@ const ProfilePage = () => {
       showAlert(error.message || 'Error al cambiar la contraseña', 'error');
     } finally {
       setLoadingPassword(false);
-    }
-  };
-
-  const handleLinkAccount = async (provider) => {
-    try {
-      let authProvider;
-      if (provider === 'google') {
-        authProvider = new GoogleAuthProvider();
-      } else if (provider === 'microsoft') {
-        authProvider = new OAuthProvider('microsoft.com');
-      }
-      
-      await linkWithPopup(user, authProvider);
-      showAlert(`Cuenta de ${provider} vinculada exitosamente`, 'success');
-      loadLinkedAccounts();
-    } catch (error) {
-      console.error('Error linking account:', error);
-      showAlert(`Error al vincular cuenta de ${provider}`, 'error');
-    }
-  };
-
-  const handleUnlinkAccount = async (providerId) => {
-    try {
-      await unlink(user, providerId);
-      showAlert('Cuenta desvinculada exitosamente', 'success');
-      loadLinkedAccounts();
-    } catch (error) {
-      console.error('Error unlinking account:', error);
-      showAlert('Error al desvincular cuenta', 'error');
     }
   };
 
@@ -398,9 +350,8 @@ const ProfilePage = () => {
   useEffect(() => {
     if (activeTab === 1) { // Tab de Seguridad
       loadLoginHistory();
-      loadLinkedAccounts();
     }
-  }, [activeTab, loadLoginHistory, loadLinkedAccounts]);
+  }, [activeTab, loadLoginHistory]);
 
   const showAlert = (message, severity = 'success') => {
     // Solo mostrar notificaciones si están habilitadas en settings
@@ -443,26 +394,6 @@ const ProfilePage = () => {
     if (userAgent?.includes('Mobile')) return <Smartphone />;
     if (userAgent?.includes('Tablet')) return <Tablet />;
     return <Computer />;
-  };
-
-  // Función para obtener el nombre del proveedor
-  const getProviderName = (providerId) => {
-    switch (providerId) {
-      case 'google.com': return 'Google';
-      case 'microsoft.com': return 'Microsoft';
-      case 'password': return 'Email/Contraseña';
-      default: return providerId;
-    }
-  };
-
-  // Función para obtener el icono del proveedor
-  const getProviderIcon = (providerId) => {
-    switch (providerId) {
-      case 'google.com': return <Google />;
-      case 'microsoft.com': return <Microsoft />;
-      case 'password': return <Email />;
-      default: return <AccountCircle />;
-    }
   };
 
   // Validación en tiempo real
@@ -2330,153 +2261,6 @@ const ProfilePage = () => {
                                   Cambiar Contraseña
                                 </Button>
                               </motion.div>
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      </Grid>
-
-                      {/* Cuentas Vinculadas */}
-                      <Grid item xs={12} md={6}>
-                        <motion.div
-                          whileHover={{ scale: 1.02, y: -4 }}
-                          transition={{ type: "spring", stiffness: 300 }}
-                        >
-                          <Card sx={{ 
-                            height: '100%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            background: isDarkMode 
-                              ? 'linear-gradient(135deg, rgba(52, 152, 219, 0.15) 0%, rgba(41, 128, 185, 0.15) 100%)'
-                              : 'linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(41, 128, 185, 0.08) 100%)',
-                            backdropFilter: 'blur(20px)',
-                            border: `2px solid ${theme.palette.info.main}30`,
-                            borderRadius: '16px',
-                            boxShadow: `0 8px 32px ${theme.palette.info.main}20`,
-                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                            '&:hover': {
-                              boxShadow: `0 12px 40px ${theme.palette.info.main}30`,
-                              border: `2px solid ${theme.palette.info.main}50`
-                            }
-                          }}>
-                            <CardContent sx={{ 
-                              p: theme.spacing(2), 
-                              flex: 1, 
-                              display: 'flex', 
-                              flexDirection: 'column', 
-                              justifyContent: 'space-between' 
-                            }}>
-                              <Box display="flex" alignItems="center" gap={theme.spacing(2)} mb={theme.spacing(1.5)}>
-                                <Link sx={{ color: theme.palette.info.main, fontSize: 28 }} />
-                                <Box>
-                                  <Typography variant="h6" fontWeight={600}>
-                                    Cuentas Vinculadas
-                                  </Typography>
-                                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                    Gestiona cuentas externas
-                                  </Typography>
-                                </Box>
-                              </Box>
-                            
-                            <List dense>
-                              {linkedAccounts.length > 0 ? linkedAccounts.map((account, index) => (
-                                <ListItem key={index} sx={{ px: 0 }}>
-                                  <ListItemIcon>
-                                    {getProviderIcon(account.providerId)}
-                                  </ListItemIcon>
-                                  <ListItemText
-                                    primary={getProviderName(account.providerId)}
-                                    secondary={account.email}
-                                  />
-                                  {account.providerId !== 'password' && (
-                                    <ListItemSecondaryAction>
-                                      <IconButton
-                                        edge="end"
-                                        onClick={() => handleUnlinkAccount(account.providerId)}
-                                        size="small"
-                                        sx={{ color: 'error.main' }}
-                                      >
-                                        <LinkOff />
-                                      </IconButton>
-                                    </ListItemSecondaryAction>
-                                  )}
-                                </ListItem>
-                              )) : (
-                                <Typography variant="body2" color="text.secondary">
-                                  Solo autenticación por email
-                                </Typography>
-                              )}
-                            </List>
-                            
-                            <Box display="flex" gap={theme.spacing(1.5)} mt={theme.spacing(1.5)}>
-                              <motion.div
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                              >
-                                <Button
-                                  size="medium"
-                                  variant="outlined"
-                                  startIcon={<Google />}
-                                  onClick={() => handleLinkAccount('google')}
-                                  disabled={linkedAccounts.some(acc => acc.providerId === 'google.com')}
-                                  sx={{
-                                    borderColor: 'transparent',
-                                    background: isDarkMode 
-                                      ? 'linear-gradient(135deg, rgba(66, 133, 244, 0.15) 0%, rgba(52, 168, 83, 0.15) 100%)'
-                                      : 'linear-gradient(135deg, rgba(66, 133, 244, 0.08) 0%, rgba(52, 168, 83, 0.08) 100%)',
-                                    backdropFilter: 'blur(10px)',
-                                    borderRadius: '12px',
-                                    padding: '8px 16px',
-                                    fontWeight: 600,
-                                    border: `2px solid rgba(66, 133, 244, 0.3)`,
-                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    '&:hover': {
-                                      background: isDarkMode 
-                                        ? 'linear-gradient(135deg, rgba(66, 133, 244, 0.25) 0%, rgba(52, 168, 83, 0.25) 100%)'
-                                        : 'linear-gradient(135deg, rgba(66, 133, 244, 0.15) 0%, rgba(52, 168, 83, 0.15) 100%)',
-                                      borderColor: 'rgba(66, 133, 244, 0.6)',
-                                      transform: 'translateY(-2px)',
-                                      boxShadow: '0 4px 15px rgba(66, 133, 244, 0.3)'
-                                    }
-                                  }}
-                                >
-                                  Google
-                                </Button>
-                              </motion.div>
-                              <motion.div
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                              >
-                                <Button
-                                  size="medium"
-                                  variant="outlined"
-                                  startIcon={<Microsoft />}
-                                  onClick={() => handleLinkAccount('microsoft')}
-                                  disabled={linkedAccounts.some(acc => acc.providerId === 'microsoft.com')}
-                                  sx={{
-                                    borderColor: 'transparent',
-                                    background: isDarkMode 
-                                      ? 'linear-gradient(135deg, rgba(0, 120, 212, 0.15) 0%, rgba(16, 110, 190, 0.15) 100%)'
-                                      : 'linear-gradient(135deg, rgba(0, 120, 212, 0.08) 0%, rgba(16, 110, 190, 0.08) 100%)',
-                                    backdropFilter: 'blur(10px)',
-                                    borderRadius: '12px',
-                                    padding: '8px 16px',
-                                    fontWeight: 600,
-                                    border: `2px solid rgba(0, 120, 212, 0.3)`,
-                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    '&:hover': {
-                                      background: isDarkMode 
-                                        ? 'linear-gradient(135deg, rgba(0, 120, 212, 0.25) 0%, rgba(16, 110, 190, 0.25) 100%)'
-                                        : 'linear-gradient(135deg, rgba(0, 120, 212, 0.15) 0%, rgba(16, 110, 190, 0.15) 100%)',
-                                      borderColor: 'rgba(0, 120, 212, 0.6)',
-                                      transform: 'translateY(-2px)',
-                                      boxShadow: '0 4px 15px rgba(0, 120, 212, 0.3)'
-                                    }
-                                  }}
-                                >
-                                  Microsoft
-                                </Button>
-                              </motion.div>
-                            </Box>
                             </CardContent>
                           </Card>
                         </motion.div>
