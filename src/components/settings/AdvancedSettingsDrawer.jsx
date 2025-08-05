@@ -72,8 +72,6 @@ import {
   History as HistoryIcon,
   Devices as DevicesIcon,
   Email as EmailIcon,
-  DeleteForever as DeleteIcon,
-  Warning as WarningIcon,
   Computer as ComputerIcon,
   Smartphone as SmartphoneIcon,
   Tablet as TabletIcon,
@@ -86,7 +84,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { useAuth } from '../../context/AuthContext';
 import { primaryColorPresets } from '../../theme/colorPresets';
 import { auth, db } from '../../config/firebase';
-import { signOut, deleteUser, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { signOut, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { collection, query, where, orderBy, limit, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -188,33 +186,9 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
   });
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [loadingSessions, setLoadingSessions] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
-  };
-
-  // Función para guardar configuración
-  const handleSaveSettings = async () => {
-    try {
-      setSaveMessage('Guardando configuración...');
-      setShowSaveSuccess(true);
-      
-      // Las configuraciones ya se guardan automáticamente en Firebase
-      // Solo mostramos confirmación al usuario
-      setTimeout(() => {
-        setSaveMessage('Configuración guardada con éxito en Firebase');
-      }, 1000);
-      
-      setTimeout(() => {
-        setShowSaveSuccess(false);
-      }, 3000);
-    } catch (error) {
-      setSaveMessage('Error al guardar configuración');
-      setTimeout(() => {
-        setShowSaveSuccess(false);
-      }, 3000);
-    }
   };
 
   // Función para restaurar configuración
@@ -311,42 +285,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
     } catch (error) {
       console.error('Error logging out from all devices:', error);
       setSaveMessage('Error al cerrar sesiones');
-    }
-  };
-
-  const handleDeleteAccount = async () => {
-    if (!user) return;
-    
-    try {
-      setSaveMessage('Eliminando cuenta...');
-      setShowSaveSuccess(true);
-      
-      // Eliminar datos del usuario de Firestore
-      const userRef = doc(db, 'users', user.uid);
-      await deleteDoc(userRef);
-      
-      // Eliminar historial de login
-      const historyRef = collection(db, 'loginHistory');
-      const historyQuery = query(historyRef, where('userId', '==', user.uid));
-      const historySnapshot = await getDocs(historyQuery);
-      const historyDeletePromises = historySnapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(historyDeletePromises);
-      
-      // Eliminar sesiones activas
-      const sessionsRef = collection(db, 'activeSessions');
-      const sessionsQuery = query(sessionsRef, where('userId', '==', user.uid));
-      const sessionsSnapshot = await getDocs(sessionsQuery);
-      const sessionsDeletePromises = sessionsSnapshot.docs.map(doc => deleteDoc(doc.ref));
-      await Promise.all(sessionsDeletePromises);
-      
-      // Eliminar cuenta de Firebase Auth
-      await deleteUser(user);
-      
-      setSaveMessage('Cuenta eliminada exitosamente');
-      onClose();
-    } catch (error) {
-      console.error('Error deleting account:', error);
-      setSaveMessage('Error al eliminar la cuenta. Es posible que necesites volver a autenticarte.');
     }
   };
 
@@ -545,18 +483,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           }}
                         />
                       )}
-                      {user && !settingsLoading && (
-                        <Chip
-                          label="Guardado en Firebase"
-                          size="small"
-                          color="success"
-                          sx={{ 
-                            fontSize: `${(settings?.theme?.fontSize || 14) - 4}px`, 
-                            height: 18,
-                            borderRadius: `${(settings?.theme?.borderRadius || 8) / 2}px`
-                          }}
-                        />
-                      )}
                       {settingsError && (
                         <Chip
                           label="Error de sincronización"
@@ -573,22 +499,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   </Box>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1 }}>
-                  <Tooltip title="Guardar configuración">
-                    <Button
-                      variant="contained"
-                      size="small"
-                      startIcon={<SaveIcon />}
-                      onClick={handleSaveSettings}
-                      sx={{
-                        borderRadius: 2,
-                        textTransform: 'none',
-                        fontWeight: 600,
-                        px: 2
-                      }}
-                    >
-                      Guardar
-                    </Button>
-                  </Tooltip>
                   <Tooltip title="Restablecer configuración">
                     <IconButton
                       onClick={handleResetSettings}
@@ -737,76 +647,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
             <Box sx={{ flex: 1, overflow: 'auto' }}>
               {/* TEMA TAB */}
               <TabPanel value={activeTab} index={0}>
-                {/* Vista Previa Instantánea - Solo en Tema */}
-                <Box sx={{ mb: 3 }}>
-                  <Card 
-                    sx={{ 
-                      border: `2px solid ${settings?.theme?.primaryColor || theme.palette.primary.main}`,
-                      borderRadius: settings?.theme?.borderRadius || 3,
-                      overflow: 'hidden',
-                      background: `linear-gradient(135deg, ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.05)} 0%, transparent 100%)`
-                    }}
-                  >
-                    <CardContent sx={{ p: 3 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                        <Box
-                          sx={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: settings?.theme?.borderRadius || 2,
-                            background: `linear-gradient(135deg, ${settings?.theme?.primaryColor || theme.palette.primary.main}, ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.7)})`,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          <PaletteIcon sx={{ color: 'white', fontSize: (settings?.theme?.fontSize || 14) + 6 }} />
-                        </Box>
-                        <Box>
-                          <Typography 
-                            variant="h6" 
-                            sx={{ 
-                              fontFamily: settings?.theme?.fontFamily || 'Inter',
-                              fontSize: `${(settings?.theme?.fontSize || 14) + 2}px`,
-                              fontWeight: 600,
-                              color: settings?.theme?.primaryColor || theme.palette.primary.main
-                            }}
-                          >
-                            Vista Previa en Tiempo Real
-                          </Typography>
-                          <Typography 
-                            variant="body2" 
-                            sx={{ 
-                              fontFamily: settings?.theme?.fontFamily || 'Inter',
-                              fontSize: `${settings?.theme?.fontSize || 14}px`,
-                              color: 'text.secondary'
-                            }}
-                          >
-                            {settings?.theme?.fontFamily || 'Inter'} • {settings?.theme?.fontSize || 14}px • Tema {settings?.theme?.mode === 'dark' ? 'Oscuro' : 'Claro'}
-                          </Typography>
-                        </Box>
-                      </Box>
-                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                        {[
-                          { label: 'Primario', color: settings?.theme?.primaryColor || theme.palette.primary.main },
-                          { label: 'Secundario', color: settings?.theme?.secondaryColor || theme.palette.secondary.main }
-                        ].map((item, index) => (
-                          <Chip
-                            key={index}
-                            label={item.label}
-                            sx={{
-                              backgroundColor: item.color,
-                              color: 'white',
-                              fontWeight: 600,
-                              fontSize: '0.75rem'
-                            }}
-                          />
-                        ))}
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Box>
-
                 <Stack spacing={3}>
                   {/* Color Presets */}
                   <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
@@ -1514,20 +1354,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             Restaurar Dashboard
                           </Button>
                           
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            startIcon={<SaveIcon />}
-                            onClick={handleSaveSettings}
-                            sx={{
-                              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-                              '&:hover': {
-                                background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`
-                              }
-                            }}
-                          >
-                            Guardar Cambios
-                          </Button>
+
                         </Box>
                       </Box>
                     </CardContent>
@@ -1998,20 +1825,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                 Restaurar por Defecto
                               </Button>
                               
-                              <Button
-                                variant="contained"
-                                color="primary"
-                                startIcon={<SaveIcon />}
-                                onClick={handleSaveSettings}
-                                sx={{
-                                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-                                  '&:hover': {
-                                    background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`
-                                  }
-                                }}
-                              >
-                                Guardar Cambios
-                              </Button>
+
                             </Box>
                           </Box>
                         </CardContent>
@@ -2248,81 +2062,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           }
                         />
                       </Stack>
-                    </CardContent>
-                  </Card>
-
-                  {/* Eliminar Cuenta */}
-                  <Card sx={{ border: `1px solid ${alpha(theme.palette.error.main, 0.2)}` }}>
-                    <CardContent>
-                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, color: 'error.main' }}>
-                        <DeleteIcon />
-                        Zona Peligrosa
-                      </Typography>
-
-                      <Alert severity="warning" sx={{ mb: 2 }}>
-                        <Typography variant="body2">
-                          <strong>¡Atención!</strong> Esta acción es irreversible. Al eliminar tu cuenta se perderán todos tus datos permanentemente.
-                        </Typography>
-                      </Alert>
-
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          Si eliminas tu cuenta, se borrarán:
-                        </Typography>
-                        <List dense sx={{ ml: 2 }}>
-                          <ListItem sx={{ py: 0.5 }}>
-                            <Typography variant="body2">• Todos tus compromisos financieros</Typography>
-                          </ListItem>
-                          <ListItem sx={{ py: 0.5 }}>
-                            <Typography variant="body2">• Historial de pagos y transacciones</Typography>
-                          </ListItem>
-                          <ListItem sx={{ py: 0.5 }}>
-                            <Typography variant="body2">• Configuraciones personalizadas</Typography>
-                          </ListItem>
-                          <ListItem sx={{ py: 0.5 }}>
-                            <Typography variant="body2">• Archivos y documentos subidos</Typography>
-                          </ListItem>
-                        </List>
-
-                        {!showDeleteConfirm ? (
-                          <Button
-                            variant="outlined"
-                            color="error"
-                            startIcon={<WarningIcon />}
-                            onClick={() => setShowDeleteConfirm(true)}
-                            sx={{ alignSelf: 'flex-start' }}
-                          >
-                            Quiero eliminar mi cuenta
-                          </Button>
-                        ) : (
-                          <Box sx={{ p: 2, backgroundColor: alpha(theme.palette.error.main, 0.05), borderRadius: 1, border: `1px solid ${alpha(theme.palette.error.main, 0.2)}` }}>
-                            <Typography variant="body2" sx={{ mb: 2, fontWeight: 600 }}>
-                              ¿Estás completamente seguro?
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                              Esta acción no se puede deshacer. Tu cuenta y todos los datos asociados se eliminarán permanentemente.
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 2 }}>
-                              <Button
-                                variant="contained"
-                                color="error"
-                                size="small"
-                                startIcon={<DeleteIcon />}
-                                onClick={handleDeleteAccount}
-                              >
-                                Sí, eliminar permanentemente
-                              </Button>
-                              <Button
-                                variant="outlined"
-                                size="small"
-                                onClick={() => setShowDeleteConfirm(false)}
-                              >
-                                Cancelar
-                              </Button>
-                            </Box>
-                          </Box>
-                        )}
-                      </Box>
                     </CardContent>
                   </Card>
 
