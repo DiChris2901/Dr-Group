@@ -22,13 +22,14 @@ const PERIODICITY_MONTHS = {
 };
 
 /**
- * Generar compromisos recurrentes basados en periodicidad
+ * Generar compromisos recurrentes basados en periodicidad con límite temporal
  * @param {Object} commitmentData - Datos del compromiso base
  * @param {number} instancesCount - Número de instancias a generar (por defecto 12)
  * @param {boolean} skipFirst - Si es true, salta el primer compromiso (útil para ediciones)
+ * @param {Date} maxDate - Fecha límite hasta la cual generar compromisos (opcional)
  * @returns {Array} Array de compromisos generados
  */
-export const generateRecurringCommitments = async (commitmentData, instancesCount = 12, skipFirst = false) => {
+export const generateRecurringCommitments = async (commitmentData, instancesCount = 12, skipFirst = false, maxDate = null) => {
   try {
     // Verificar que no sea pago único
     if (commitmentData.periodicity === 'unique') {
@@ -41,15 +42,27 @@ export const generateRecurringCommitments = async (commitmentData, instancesCoun
       throw new Error(`Periodicidad no válida: ${commitmentData.periodicity}`);
     }
 
+    // Establecer límite temporal por defecto: fin del año siguiente
+    const currentYear = new Date().getFullYear();
+    const defaultMaxDate = new Date(currentYear + 1, 11, 31); // 31 de diciembre del año siguiente
+    const effectiveMaxDate = maxDate || defaultMaxDate;
+
     const generatedCommitments = [];
     const baseDate = new Date(commitmentData.dueDate);
     
     // Determinar índice inicial (0 si no skipFirst, 1 si skipFirst)
     const startIndex = skipFirst ? 1 : 0;
     
-    // Generar compromisos recurrentes
-    for (let i = startIndex; i < instancesCount + startIndex; i++) {
+    // Generar compromisos recurrentes con límite temporal
+    let generatedCount = 0;
+    for (let i = startIndex; i < instancesCount + startIndex && generatedCount < instancesCount; i++) {
       const currentDate = addMonths(baseDate, i * monthsInterval);
+      
+      // Verificar límite temporal
+      if (currentDate > effectiveMaxDate) {
+        console.log(`⏱️ Límite temporal alcanzado: ${currentDate.toISOString()} > ${effectiveMaxDate.toISOString()}`);
+        break;
+      }
       
       const commitment = {
         ...commitmentData,
@@ -69,7 +82,12 @@ export const generateRecurringCommitments = async (commitmentData, instancesCoun
       };
 
       generatedCommitments.push(commitment);
+      generatedCount++;
     }
+
+    // Log del resultado
+    const limitedByTime = generatedCount < instancesCount;
+    console.log(`📅 Compromisos generados: ${generatedCount}/${instancesCount}${limitedByTime ? ' (limitado por fecha)' : ''}`);
 
     return generatedCommitments;
   } catch (error) {
@@ -169,4 +187,113 @@ export const calculateNextDueDates = (startDate, periodicity, count = 6) => {
  */
 export const isValidPeriodicity = (periodicity) => {
   return periodicity === 'unique' || periodicity in PERIODICITY_MONTHS;
+};
+
+/**
+ * Calcular el límite temporal recomendado basado en la fecha actual
+ * @param {number} yearsAhead - Años hacia adelante (por defecto 1)
+ * @returns {Date} Fecha límite
+ */
+export const calculateTemporalLimit = (yearsAhead = 1) => {
+  const currentYear = new Date().getFullYear();
+  return new Date(currentYear + yearsAhead, 11, 31); // 31 de diciembre
+};
+
+/**
+ * Verificar si hay compromisos que requieren extensión temporal
+ * @param {Array} commitments - Array de compromisos a verificar
+ * @param {number} monthsAhead - Meses hacia adelante para verificar (por defecto 3)
+ * @returns {Object} Información sobre compromisos que necesitan extensión
+ */
+export const checkCommitmentsForExtension = (commitments, monthsAhead = 3) => {
+  const today = new Date();
+  const checkDate = addMonths(today, monthsAhead);
+  
+  const recurringGroups = {};
+  
+  // Agrupar compromisos recurrentes
+  commitments.forEach(commitment => {
+    if (commitment.isRecurring && commitment.recurringGroup) {
+      if (!recurringGroups[commitment.recurringGroup]) {
+        recurringGroups[commitment.recurringGroup] = {
+          commitments: [],
+          periodicity: commitment.periodicity,
+          concept: commitment.concept.split(' - ')[0], // Concepto base
+          companyId: commitment.companyId,
+          companyName: commitment.companyName,
+          beneficiary: commitment.beneficiary,
+          amount: commitment.amount
+        };
+      }
+      recurringGroups[commitment.recurringGroup].commitments.push(commitment);
+    }
+  });
+  
+  // Verificar cuáles grupos necesitan extensión
+  const needsExtension = [];
+  
+  Object.entries(recurringGroups).forEach(([groupId, group]) => {
+    const lastCommitment = group.commitments
+      .sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate))[0];
+    
+    if (lastCommitment && new Date(lastCommitment.dueDate) < checkDate) {
+      needsExtension.push({
+        groupId,
+        ...group,
+        lastDueDate: lastCommitment.dueDate,
+        commitmentsCount: group.commitments.length
+      });
+    }
+  });
+  
+  return {
+    total: Object.keys(recurringGroups).length,
+    needsExtension: needsExtension.length,
+    groups: needsExtension
+  };
+};
+
+/**
+ * Generar compromisos de extensión para el siguiente período
+ * @param {Object} groupData - Datos del grupo de compromisos
+ * @param {number} extensionCount - Número de compromisos a extender (por defecto 12)
+ * @param {number} yearToExtend - Año al cual extender (por defecto año siguiente)
+ * @returns {Array} Array de compromisos de extensión
+ */
+export const generateExtensionCommitments = async (groupData, extensionCount = 12, yearToExtend = null) => {
+  try {
+    const targetYear = yearToExtend || (new Date().getFullYear() + 1);
+    const lastDueDate = new Date(groupData.lastDueDate);
+    
+    // Calcular la siguiente fecha basada en la periodicidad
+    const monthsInterval = PERIODICITY_MONTHS[groupData.periodicity];
+    const nextStartDate = addMonths(lastDueDate, monthsInterval);
+    
+    // Crear datos base para la extensión
+    const baseCommitmentData = {
+      concept: groupData.concept,
+      companyId: groupData.companyId,
+      companyName: groupData.companyName,
+      beneficiary: groupData.beneficiary,
+      amount: groupData.amount,
+      periodicity: groupData.periodicity,
+      paymentMethod: 'transfer', // Valor por defecto, se puede personalizar
+      observations: `Extensión automática para ${targetYear}`,
+      dueDate: nextStartDate
+    };
+    
+    // Generar compromisos con límite temporal del año objetivo
+    const maxDate = new Date(targetYear, 11, 31);
+    const extensionCommitments = await generateRecurringCommitments(
+      baseCommitmentData,
+      extensionCount,
+      false, // No skipFirst porque son nuevos compromisos
+      maxDate
+    );
+    
+    return extensionCommitments;
+  } catch (error) {
+    console.error('Error generating extension commitments:', error);
+    throw error;
+  }
 };
