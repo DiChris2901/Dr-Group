@@ -40,6 +40,28 @@ import CalendarMenu from './CalendarMenu';
 import CommitmentStatusMenu from '../commitments/CommitmentStatusMenu';
 import StorageMenu from '../storage/StorageMenu';
 
+// Estilos CSS para animaciones spectacular del menú de avatar
+const avatarMenuStyles = `
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+  
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+`;
+
+// Inyectar estilos si no existen
+if (typeof document !== 'undefined' && !document.getElementById('avatar-menu-spectacular-styles')) {
+  const styleSheet = document.createElement('style');
+  styleSheet.id = 'avatar-menu-spectacular-styles';
+  styleSheet.type = 'text/css';
+  styleSheet.innerText = avatarMenuStyles;
+  document.head.appendChild(styleSheet);
+}
+
 const DashboardHeader = ({ onOpenSettings }) => {
   const navigate = useNavigate();
   const theme = useMuiTheme();
@@ -419,7 +441,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
         </Tooltip>
       </Box>
 
-      {/* Menú de perfil */}
+      {/* Menú de perfil - Design System Spectacular */}
       <Menu
         anchorEl={profileMenuAnchor}
         open={Boolean(profileMenuAnchor)}
@@ -429,49 +451,288 @@ const DashboardHeader = ({ onOpenSettings }) => {
         PaperProps={{
           sx: {
             mt: 1,
-            minWidth: 200,
-            borderRadius: `${borderRadius}px`,
-            boxShadow: theme.shadows[8],
-            border: `1px solid ${isDarkMode ? `${primaryColor}30` : `${primaryColor}20`}`,
-            backdropFilter: 'blur(10px)',
+            minWidth: 280,
+            maxWidth: 320,
+            borderRadius: `${borderRadius * 1.5}px`,
+            background: isDarkMode
+              ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95))'
+              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95))',
+            backdropFilter: 'blur(20px) saturate(180%)',
+            boxShadow: isDarkMode 
+              ? `0 20px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px ${primaryColor}30`
+              : `0 20px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px ${primaryColor}20`,
+            border: `1px solid ${isDarkMode ? `${primaryColor}40` : `${primaryColor}25`}`,
+            overflow: 'visible',
+            '&::before': {
+              content: '""',
+              display: 'block',
+              position: 'absolute',
+              top: 0,
+              right: 14,
+              width: 12,
+              height: 12,
+              background: isDarkMode
+                ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95))'
+                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95))',
+              transform: 'translateY(-50%) rotate(45deg)',
+              zIndex: 0,
+              border: `1px solid ${isDarkMode ? `${primaryColor}40` : `${primaryColor}25`}`,
+              borderBottom: 'none',
+              borderRight: 'none'
+            }
           },
         }}
       >
-        {/* Información del usuario */}
-        <Box sx={{ px: 2, py: 1.5 }}>
-          <Typography variant="subtitle2" fontWeight={600}>
-            {userProfile.name}
-          </Typography>
-          <Typography variant="caption" color="textSecondary">
-            {userProfile.email}
-          </Typography>
+        {/* Información del usuario - Header Spectacular */}
+        <Box sx={{ 
+          px: 0, 
+          py: 0,
+          background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
+          borderRadius: `${borderRadius * 1.5}px ${borderRadius * 1.5}px 0 0`,
+          position: 'relative',
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: animationsEnabled ? 
+              'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)' : 
+              'none',
+            transform: 'translateX(-100%)',
+            animation: animationsEnabled ? 'shimmer 4s infinite' : 'none'
+          }
+        }}>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 2, 
+            p: 2.5,
+            position: 'relative',
+            zIndex: 1
+          }}>
+            <Box sx={{ position: 'relative' }}>
+              <ProfileAvatar
+                photoURL={userProfile?.photoURL}
+                name={userProfile?.name}
+                email={userProfile?.email}
+                size={56}
+                border={true}
+                sx={{
+                  border: '3px solid rgba(255, 255, 255, 0.3)',
+                  boxShadow: '0 8px 20px rgba(0, 0, 0, 0.2)',
+                  '&:hover': {
+                    transform: animationsEnabled ? 'scale(1.05)' : 'none',
+                    boxShadow: '0 12px 25px rgba(0, 0, 0, 0.3)'
+                  },
+                  transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
+                }}
+              />
+              {/* Indicador de estado online */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 2,
+                  right: 2,
+                  width: 16,
+                  height: 16,
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  border: '2px solid white',
+                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
+                  animation: animationsEnabled ? 'pulse 2s infinite' : 'none'
+                }}
+              />
+            </Box>
+            
+            <Box sx={{ flex: 1, color: 'white' }}>
+              <Typography 
+                variant="h6" 
+                sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '1.1rem',
+                  mb: 0.5,
+                  textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                }}
+              >
+                {userProfile.name}
+              </Typography>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  opacity: 0.9,
+                  fontSize: '0.85rem',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.3)'
+                }}
+              >
+                {userProfile.email}
+              </Typography>
+              <Box
+                sx={{
+                  mt: 1,
+                  px: 1.5,
+                  py: 0.5,
+                  borderRadius: `${borderRadius / 2}px`,
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(10px)',
+                  display: 'inline-flex',
+                  alignItems: 'center'
+                }}
+              >
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}
+                >
+                  {userProfile.role || 'Admin'}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
         </Box>
         
-        <Divider />
+        <Divider sx={{ 
+          borderColor: isDarkMode ? `${primaryColor}30` : `${primaryColor}20`,
+          my: 0 
+        }} />
 
-        {/* Opciones del menú */}
-        <MenuItem onClick={handleNavigateToProfile}>
-          <ListItemIcon>
-            <PersonIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Mi Perfil" />
-        </MenuItem>
+        {/* Opciones del menú - Design System Spectacular */}
+        <Box sx={{ p: 1 }}>
+          <MenuItem 
+            onClick={handleNavigateToProfile}
+            sx={{
+              borderRadius: `${borderRadius}px`,
+              mb: 0.5,
+              px: 2,
+              py: 1.5,
+              background: 'transparent',
+              transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+              '&:hover': {
+                background: `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}08)`,
+                transform: animationsEnabled ? 'translateX(4px)' : 'none',
+                boxShadow: `0 4px 12px ${isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.08)'}`,
+                '& .MuiListItemIcon-root': {
+                  color: primaryColor,
+                  transform: animationsEnabled ? 'scale(1.1)' : 'none'
+                },
+                '& .MuiListItemText-primary': {
+                  color: primaryColor,
+                  fontWeight: 600
+                }
+              }
+            }}
+          >
+            <ListItemIcon sx={{ 
+              minWidth: 40,
+              color: theme.palette.text.secondary,
+              transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
+            }}>
+              <PersonIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Mi Perfil" 
+              primaryTypographyProps={{
+                fontWeight: 500,
+                fontSize: '0.95rem',
+                transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
+              }}
+            />
+          </MenuItem>
 
-        <MenuItem onClick={handleOpenSettings}>
-          <ListItemIcon>
-            <SettingsIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Configuración" />
-        </MenuItem>
+          <MenuItem 
+            onClick={handleOpenSettings}
+            sx={{
+              borderRadius: `${borderRadius}px`,
+              mb: 0.5,
+              px: 2,
+              py: 1.5,
+              background: 'transparent',
+              transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+              '&:hover': {
+                background: `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}08)`,
+                transform: animationsEnabled ? 'translateX(4px)' : 'none',
+                boxShadow: `0 4px 12px ${isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.08)'}`,
+                '& .MuiListItemIcon-root': {
+                  color: primaryColor,
+                  transform: animationsEnabled ? 'scale(1.1) rotate(45deg)' : 'none'
+                },
+                '& .MuiListItemText-primary': {
+                  color: primaryColor,
+                  fontWeight: 600
+                }
+              }
+            }}
+          >
+            <ListItemIcon sx={{ 
+              minWidth: 40,
+              color: theme.palette.text.secondary,
+              transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
+            }}>
+              <SettingsIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Configuración" 
+              primaryTypographyProps={{
+                fontWeight: 500,
+                fontSize: '0.95rem',
+                transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
+              }}
+            />
+          </MenuItem>
+        </Box>
 
-        <Divider />
+        <Divider sx={{ 
+          borderColor: isDarkMode ? `${primaryColor}30` : `${primaryColor}20`,
+          my: 0.5 
+        }} />
 
-        <MenuItem onClick={handleLogout}>
-          <ListItemIcon>
-            <LogoutIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Cerrar Sesión" />
-        </MenuItem>
+        <Box sx={{ p: 1 }}>
+          <MenuItem 
+            onClick={handleLogout}
+            sx={{
+              borderRadius: `${borderRadius}px`,
+              px: 2,
+              py: 1.5,
+              background: 'transparent',
+              transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+              '&:hover': {
+                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.08))',
+                transform: animationsEnabled ? 'translateX(4px)' : 'none',
+                boxShadow: `0 4px 12px rgba(239, 68, 68, 0.2)`,
+                '& .MuiListItemIcon-root': {
+                  color: theme.palette.error.main,
+                  transform: animationsEnabled ? 'scale(1.1)' : 'none'
+                },
+                '& .MuiListItemText-primary': {
+                  color: theme.palette.error.main,
+                  fontWeight: 600
+                }
+              }
+            }}
+          >
+            <ListItemIcon sx={{ 
+              minWidth: 40,
+              color: theme.palette.text.secondary,
+              transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
+            }}>
+              <LogoutIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Cerrar Sesión" 
+              primaryTypographyProps={{
+                fontWeight: 500,
+                fontSize: '0.95rem',
+                transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
+              }}
+            />
+          </MenuItem>
+        </Box>
       </Menu>
 
       {/* Menú de notificaciones */}

@@ -28,6 +28,24 @@ import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import { useFirestore } from '../../hooks/useFirestore';
 import { fCurrency } from '../../utils/formatNumber';
+import { useSettings } from '../../context/SettingsContext';
+
+// Estilos CSS para animaciones spectacular
+const shimmerStyles = `
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+`;
+
+// Inyectar estilos si no existen
+if (typeof document !== 'undefined' && !document.getElementById('calendar-shimmer-styles')) {
+  const styleSheet = document.createElement('style');
+  styleSheet.id = 'calendar-shimmer-styles';
+  styleSheet.type = 'text/css';
+  styleSheet.innerText = shimmerStyles;
+  document.head.appendChild(styleSheet);
+}
 
 const CalendarMenu = ({ anchorEl, open, onClose }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -36,6 +54,13 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
   const [hoveredDate, setHoveredDate] = useState(null);
   const { data: commitments = [], loading } = useFirestore('commitments');
   const theme = useTheme();
+  const { settings } = useSettings();
+
+  // Configuraciones dinámicas del Design System
+  const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;
+  const secondaryColor = settings?.theme?.secondaryColor || theme.palette.secondary.main;
+  const borderRadius = settings?.theme?.borderRadius || 12;
+  const animationsEnabled = settings?.theme?.animations !== false;
 
   // Obtener compromisos reales del mes actual
   const getCommitmentsForDate = (date) => {
@@ -137,14 +162,18 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
       onClose={onClose}
       PaperProps={{
         sx: {
-          width: 360,
-          maxHeight: 450,
-          bgcolor: 'background.paper',
-          borderRadius: '12px',
-          boxShadow: theme.shadows[8],
+          width: 380,
+          maxHeight: 480,
+          bgcolor: 'transparent',
+          borderRadius: `${borderRadius}px`,
+          boxShadow: `0 8px 32px ${alpha(primaryColor, 0.25)}`,
           border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
           overflow: 'visible',
           mt: 1,
+          background: theme.palette.mode === 'dark'
+            ? 'rgba(30, 30, 30, 0.95)'
+            : 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(20px)',
           '&::before': {
             content: '""',
             display: 'block',
@@ -153,47 +182,80 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
             right: 14,
             width: 10,
             height: 10,
-            bgcolor: 'background.paper',
+            bgcolor: theme.palette.mode === 'dark' 
+              ? 'rgba(30, 30, 30, 0.95)' 
+              : 'rgba(255, 255, 255, 0.95)',
             transform: 'translateY(-50%) rotate(45deg)',
             zIndex: 0,
+            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+            borderBottom: 'none',
+            borderRight: 'none'
           },
         },
       }}
       transformOrigin={{ horizontal: 'right', vertical: 'top' }}
       anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
     >
-      <Box sx={{ p: 1.5 }}>
-        {/* Header del calendario */}
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          mb: 1.5
-        }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <EventIcon sx={{ color: 'primary.main' }} />
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Calendario
-            </Typography>
+      <motion.div
+        initial={animationsEnabled ? { opacity: 0, y: -10 } : {}}
+        animate={animationsEnabled ? { opacity: 1, y: 0 } : {}}
+        transition={animationsEnabled ? { type: 'spring', stiffness: 300, damping: 30 } : {}}
+      >
+        <Box sx={{ p: 1.5 }}>
+          {/* Header del calendario con gradiente spectacular */}
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            mb: 1.5,
+            p: 1.5,
+            mx: -1.5,
+            mt: -1.5,
+            borderRadius: `${borderRadius}px ${borderRadius}px 0 0`,
+            background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
+            color: 'white',
+            position: 'relative',
+            overflow: 'hidden',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: animationsEnabled ? 
+                'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)' : 
+                'none',
+              transform: 'translateX(-100%)',
+              animation: animationsEnabled ? 'shimmer 3s infinite' : 'none'
+            }
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, position: 'relative', zIndex: 1 }}>
+              <EventIcon sx={{ color: 'white', fontSize: 22 }} />
+              <Typography variant="h6" sx={{ fontWeight: 700, color: 'white' }}>
+                Calendario
+              </Typography>
+            </Box>
+            
+            <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+              <IconButton 
+                size="small"
+                onClick={goToToday}
+                sx={{ 
+                  borderRadius: `${borderRadius / 2}px`,
+                  bgcolor: 'rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                  '&:hover': {
+                    bgcolor: 'rgba(255, 255, 255, 0.3)',
+                    transform: animationsEnabled ? 'scale(1.05)' : 'none'
+                  }
+                }}
+              >
+                <Today fontSize="small" />
+              </IconButton>
+            </Box>
           </Box>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <IconButton 
-              size="small"
-              onClick={goToToday}
-              sx={{ 
-                borderRadius: '8px',
-                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                color: 'primary.main',
-                '&:hover': {
-                  bgcolor: alpha(theme.palette.primary.main, 0.2)
-                }
-              }}
-            >
-              <Today fontSize="small" />
-            </IconButton>
-          </Box>
-        </Box>
 
         {/* Navegación del mes */}
         <Box sx={{ 
@@ -473,6 +535,7 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
           </Box>
         )}
       </Box>
+      </motion.div>
     </Menu>
   );
 };

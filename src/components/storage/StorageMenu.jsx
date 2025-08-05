@@ -23,38 +23,63 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useStorageStats } from '../../hooks/useStorageStats';
+import { useSettings } from '../../context/SettingsContext';
+
+// Estilos CSS para animaciones spectacular
+const shimmerStyles = `
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+`;
+
+// Inyectar estilos si no existen
+if (typeof document !== 'undefined' && !document.getElementById('storage-shimmer-styles')) {
+  const styleSheet = document.createElement('style');
+  styleSheet.id = 'storage-shimmer-styles';
+  styleSheet.type = 'text/css';
+  styleSheet.innerText = shimmerStyles;
+  document.head.appendChild(styleSheet);
+}
 
 const StorageMenu = ({ anchorEl, open, onClose }) => {
   const theme = useTheme();
+  const { settings } = useSettings();
   const storageStats = useStorageStats();
+  
+  // Configuraciones dinámicas del Design System
+  const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;
+  const secondaryColor = settings?.theme?.secondaryColor || theme.palette.secondary.main;
+  const borderRadius = settings?.theme?.borderRadius || 12;
+  const animationsEnabled = settings?.theme?.animations !== false;
   
   const usagePercentage = storageStats.total > 0 ? (storageStats.used / storageStats.total) * 100 : 0;
   
   const getStorageStatus = () => {
     if (usagePercentage > 90) return { 
       status: 'critical', 
-      color: '#f44336', 
+      color: theme.palette.error.main, 
       message: '¡Crítico!',
       icon: Warning,
       description: 'Espacio casi agotado'
     };
     if (usagePercentage > 75) return { 
       status: 'warning', 
-      color: '#ff9800', 
+      color: theme.palette.warning.main, 
       message: 'Alto uso',
       icon: Warning,
       description: 'Considere limpiar archivos'
     };
     if (usagePercentage > 50) return { 
       status: 'moderate', 
-      color: '#2196f3', 
+      color: primaryColor, 
       message: 'Moderado',
       icon: Info,
       description: 'Uso normal del espacio'
     };
     return { 
       status: 'good', 
-      color: '#4caf50', 
+      color: theme.palette.success.main, 
       message: 'Óptimo',
       icon: CheckCircle,
       description: 'Espacio disponible'
@@ -109,14 +134,18 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
       onClose={onClose}
       PaperProps={{
         sx: {
-          width: 420,
-          maxHeight: 550,
-          bgcolor: 'background.paper',
-          borderRadius: '12px',
-          boxShadow: theme.shadows[8],
+          width: 440,
+          maxHeight: 580,
+          bgcolor: 'transparent',
+          borderRadius: `${borderRadius}px`,
+          boxShadow: `0 8px 32px ${alpha(primaryColor, 0.25)}`,
           border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
           overflow: 'visible',
           mt: 1,
+          background: theme.palette.mode === 'dark'
+            ? 'rgba(30, 30, 30, 0.95)'
+            : 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(20px)',
           '&::before': {
             content: '""',
             display: 'block',
@@ -125,72 +154,103 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
             right: 14,
             width: 10,
             height: 10,
-            bgcolor: 'background.paper',
+            bgcolor: theme.palette.mode === 'dark' 
+              ? 'rgba(30, 30, 30, 0.95)' 
+              : 'rgba(255, 255, 255, 0.95)',
             transform: 'translateY(-50%) rotate(45deg)',
             zIndex: 0,
+            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+            borderBottom: 'none',
+            borderRight: 'none'
           },
         },
       }}
       transformOrigin={{ horizontal: 'right', vertical: 'top' }}
       anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
     >
-      <Box sx={{ p: 2 }}>
-        {/* Header */}
+      <Box sx={{ p: 0 }}>
+        {/* Header spectacular con gradiente dinámico */}
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
+          initial={animationsEnabled ? { opacity: 0, y: -10 } : {}}
+          animate={animationsEnabled ? { opacity: 1, y: 0 } : {}}
+          transition={animationsEnabled ? { type: 'spring', stiffness: 300, damping: 30 } : {}}
         >
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'space-between',
-            mb: 1.5 
+            p: 2,
+            borderRadius: `${borderRadius}px ${borderRadius}px 0 0`,
+            background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
+            color: 'white',
+            position: 'relative',
+            overflow: 'hidden',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: animationsEnabled ? 
+                'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)' : 
+                'none',
+              transform: 'translateX(-100%)',
+              animation: animationsEnabled ? 'shimmer 3s infinite' : 'none'
+            }
           }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
               <Storage sx={{ 
-                color: storageStatus.color, 
+                color: 'white', 
                 mr: 1, 
-                fontSize: 20 
+                fontSize: 22 
               }} />
               <Box>
-                <Typography variant="h6" fontWeight="600" color="text.primary">
+                <Typography variant="h6" fontWeight="700" color="white">
                   Almacenamiento
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)' }}>
                   {storageStats.used || 0} GB de {storageStats.total || 5} GB
                 </Typography>
               </Box>
             </Box>
             
-            {/* Indicador de estado */}
-            <Box sx={{ textAlign: 'right' }}>
+            {/* Indicador de estado mejorado */}
+            <Box sx={{ textAlign: 'right', position: 'relative', zIndex: 1 }}>
               <Chip
-                icon={<storageStatus.icon sx={{ fontSize: 16 }} />}
+                icon={<storageStatus.icon sx={{ fontSize: 16, color: 'white' }} />}
                 label={storageStatus.message}
                 size="small"
                 sx={{
-                  bgcolor: alpha(storageStatus.color, 0.1),
-                  color: storageStatus.color,
-                  border: `1px solid ${alpha(storageStatus.color, 0.2)}`,
-                  fontWeight: 600
+                  bgcolor: 'rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  fontWeight: 700,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                 }}
               />
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.3 }}>
+              <Typography variant="caption" sx={{ 
+                color: 'rgba(255,255,255,0.8)', 
+                display: 'block', 
+                mt: 0.3,
+                fontSize: '0.7rem'
+              }}>
                 {storageStatus.description}
               </Typography>
             </Box>
           </Box>
         </motion.div>
 
-        <Divider sx={{ mb: 2 }} />
+        {/* Contenido del menú */}
+        <Box sx={{ p: 2 }}>
+          <Divider sx={{ mb: 2 }} />
 
-        {/* Progreso de uso */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
+          {/* Progreso de uso */}
+          <motion.div
+            initial={animationsEnabled ? { opacity: 0, y: 10 } : {}}
+            animate={animationsEnabled ? { opacity: 1, y: 0 } : {}}
+            transition={animationsEnabled ? { delay: 0.1 } : {}}
+          >
           <Box sx={{ mb: 2.5 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
               <Typography variant="body2" fontWeight="600" color="text.primary">
@@ -334,6 +394,7 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
             <CircularProgress size={20} />
           </Box>
         )}
+        </Box>
       </Box>
     </Menu>
   );

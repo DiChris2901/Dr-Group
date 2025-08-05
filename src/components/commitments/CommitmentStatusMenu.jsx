@@ -21,6 +21,24 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useFirestore } from '../../hooks/useFirestore';
 import { fCurrency } from '../../utils/formatNumber';
+import { useSettings } from '../../context/SettingsContext';
+
+// Estilos CSS para animaciones spectacular
+const shimmerStyles = `
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+`;
+
+// Inyectar estilos si no existen
+if (typeof document !== 'undefined' && !document.getElementById('commitment-shimmer-styles')) {
+  const styleSheet = document.createElement('style');
+  styleSheet.id = 'commitment-shimmer-styles';
+  styleSheet.type = 'text/css';
+  styleSheet.innerText = shimmerStyles;
+  document.head.appendChild(styleSheet);
+}
 
 const CountUp = ({ value, duration = 1000 }) => {
   const [displayValue, setDisplayValue] = useState(0);
@@ -46,6 +64,13 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
   const [hoveredCard, setHoveredCard] = useState(null);
   const { data: commitments = [], loading } = useFirestore('commitments');
   const theme = useTheme();
+  const { settings } = useSettings();
+
+  // Configuraciones dinámicas del Design System
+  const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;
+  const secondaryColor = settings?.theme?.secondaryColor || theme.palette.secondary.main;
+  const borderRadius = settings?.theme?.borderRadius || 12;
+  const animationsEnabled = settings?.theme?.animations !== false;
 
   // Calcular estadísticas de compromisos
   const getCommitmentStats = () => {
@@ -133,10 +158,10 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
   // Calcular el progreso general
   const overallProgress = stats.total > 0 ? (stats.completed / stats.total) * 100 : 0;
   const getProgressColor = () => {
-    if (overallProgress >= 80) return '#4caf50';
-    if (overallProgress >= 60) return '#2196f3';
-    if (overallProgress >= 40) return '#ff9800';
-    return '#f44336';
+    if (overallProgress >= 80) return primaryColor;
+    if (overallProgress >= 60) return theme.palette.info.main;
+    if (overallProgress >= 40) return theme.palette.warning.main;
+    return theme.palette.error.main;
   };
 
   return (
@@ -146,14 +171,18 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
       onClose={onClose}
       PaperProps={{
         sx: {
-          width: 400,
-          maxHeight: 520,
-          bgcolor: 'background.paper',
-          borderRadius: '12px',
-          boxShadow: theme.shadows[8],
+          width: 420,
+          maxHeight: 550,
+          bgcolor: 'transparent',
+          borderRadius: `${borderRadius}px`,
+          boxShadow: `0 8px 32px ${alpha(primaryColor, 0.25)}`,
           border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
           overflow: 'visible',
           mt: 1,
+          background: theme.palette.mode === 'dark'
+            ? 'rgba(30, 30, 30, 0.95)'
+            : 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(20px)',
           '&::before': {
             content: '""',
             display: 'block',
@@ -162,52 +191,75 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
             right: 14,
             width: 10,
             height: 10,
-            bgcolor: 'background.paper',
+            bgcolor: theme.palette.mode === 'dark' 
+              ? 'rgba(30, 30, 30, 0.95)' 
+              : 'rgba(255, 255, 255, 0.95)',
             transform: 'translateY(-50%) rotate(45deg)',
             zIndex: 0,
+            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+            borderBottom: 'none',
+            borderRight: 'none'
           },
         },
       }}
       transformOrigin={{ horizontal: 'right', vertical: 'top' }}
       anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
     >
-      <Box sx={{ p: 2 }}>
-        {/* Header */}
+      <Box sx={{ p: 0 }}>
+        {/* Header spectacular con gradiente dinámico */}
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
+          initial={animationsEnabled ? { opacity: 0, y: -10 } : {}}
+          animate={animationsEnabled ? { opacity: 1, y: 0 } : {}}
+          transition={animationsEnabled ? { type: 'spring', stiffness: 300, damping: 30 } : {}}
         >
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
             justifyContent: 'space-between',
-            mb: 1.5 
+            p: 2,
+            borderRadius: `${borderRadius}px ${borderRadius}px 0 0`,
+            background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
+            color: 'white',
+            position: 'relative',
+            overflow: 'hidden',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: animationsEnabled ? 
+                'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)' : 
+                'none',
+              transform: 'translateX(-100%)',
+              animation: animationsEnabled ? 'shimmer 3s infinite' : 'none'
+            }
           }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
               <Assessment sx={{ 
-                color: getProgressColor(), 
+                color: 'white', 
                 mr: 1, 
-                fontSize: 20 
+                fontSize: 22 
               }} />
               <Box>
-                <Typography variant="h6" fontWeight="600" color="text.primary">
+                <Typography variant="h6" fontWeight="700" color="white">
                   Estado de Compromisos
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)' }}>
                   {stats.total} total • {stats.thisMonth} este mes
                 </Typography>
               </Box>
             </Box>
             
-            {/* Indicador de progreso circular */}
-            <Box sx={{ position: 'relative', width: 40, height: 40 }}>
+            {/* Indicador de progreso circular mejorado */}
+            <Box sx={{ position: 'relative', width: 45, height: 45, zIndex: 1 }}>
               <Box sx={{
                 position: 'absolute',
                 width: '100%',
                 height: '100%',
                 borderRadius: '50%',
-                background: `conic-gradient(${getProgressColor()} ${overallProgress * 3.6}deg, ${alpha(theme.palette.grey[300], 0.3)} 0deg)`,
+                background: `conic-gradient(rgba(255,255,255,0.9) ${overallProgress * 3.6}deg, rgba(255,255,255,0.2) 0deg)`,
                 '&::before': {
                   content: '""',
                   position: 'absolute',
@@ -217,7 +269,7 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
                   width: '70%',
                   height: '70%',
                   borderRadius: '50%',
-                  background: theme.palette.background.paper,
+                  background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
                 }
               }} />
               <Box sx={{
@@ -227,9 +279,9 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
                 transform: 'translate(-50%, -50%)',
                 textAlign: 'center'
               }}>
-                <Typography variant="caption" fontWeight="600" sx={{ 
-                  color: getProgressColor(), 
-                  fontSize: '0.7rem' 
+                <Typography variant="caption" fontWeight="700" sx={{ 
+                  color: 'white', 
+                  fontSize: '0.75rem' 
                 }}>
                   {overallProgress.toFixed(0)}%
                 </Typography>
@@ -238,10 +290,12 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
           </Box>
         </motion.div>
 
-        <Divider sx={{ mb: 2 }} />
+        {/* Contenido del menú */}
+        <Box sx={{ p: 2 }}>
+          <Divider sx={{ mb: 2 }} />
 
-        {/* Tarjetas de estado en grid 2x2 */}
-        <Grid container spacing={2} sx={{ mb: 2 }}>
+          {/* Tarjetas de estado en grid 2x2 */}
+          <Grid container spacing={2} sx={{ mb: 2 }}>
           {statusCards.map((card, index) => (
             <Grid item xs={6} key={card.id}>
               <motion.div
@@ -375,6 +429,7 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
             </Box>
           </Box>
         </motion.div>
+        </Box>
       </Box>
     </Menu>
   );

@@ -1,0 +1,3542 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Grid,
+  TextField,
+  Button,
+  Avatar,
+  styled,
+  IconButton,
+  Alert,
+  Divider,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  CircularProgress,
+  Chip,
+  Snackbar,
+  Slide,
+  InputAdornment,
+  FormControlLabel,
+  Switch,
+  alpha,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemSecondaryAction,
+  Tab,
+  Tabs,
+  Tooltip,
+  Badge
+} from '@mui/material';
+
+// Styled components para animaciones CSS
+const StyledContainer = styled(Box)(({ theme }) => ({
+  '@keyframes shimmer': {
+    '0%': { left: '-100%' },
+    '100%': { left: '100%' }
+  },
+  '@keyframes float': {
+    '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
+    '50%': { transform: 'translateY(-20px) rotate(180deg)' }
+  }
+}));
+
+import {
+  PhotoCamera,
+  Edit,
+  Save,
+  Cancel,
+  Person,
+  Email,
+  Phone,
+  Business,
+  Work,
+  Verified,
+  LocationOn,
+  Settings,
+  Security,
+  VpnKey,
+  Shield,
+  Delete,
+  History,
+  Computer,
+  Smartphone,
+  Tablet,
+  ExitToApp,
+  Visibility,
+  VisibilityOff,
+  Google,
+  Microsoft,
+  AccountCircle,
+  RestoreFromTrash,
+  DeleteForever,
+  Warning,
+  CheckCircle,
+  AccessTime,
+  Devices,
+  NotificationImportant,
+  AdminPanelSettings,
+  Key,
+  Lock,
+  LockOpen,
+  PersonRemove,
+  LinkOff,
+  Link,
+  Notifications,
+  Domain
+} from '@mui/icons-material';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
+import { useTheme } from '@mui/material/styles';
+import { storage, db, auth as firebaseAuth } from '../config/firebase';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { 
+  updatePassword, 
+  reauthenticateWithCredential, 
+  EmailAuthProvider,
+  deleteUser,
+  linkWithPopup,
+  GoogleAuthProvider,
+  OAuthProvider,
+  unlink
+} from 'firebase/auth';
+import { 
+  collection, 
+  addDoc, 
+  query, 
+  where, 
+  orderBy, 
+  limit, 
+  getDocs,
+  deleteDoc,
+  doc,
+  updateDoc,
+  setDoc,
+  onSnapshot
+} from 'firebase/firestore';
+
+const ProfilePage = () => {
+  const { user, userProfile, updateUserProfile } = useAuth();
+  const { settings, updateSettings } = useSettings();
+  const theme = useTheme();
+  const isDarkMode = theme.palette.mode === 'dark';
+  
+  // Aplicar configuraciones del tema desde settings
+  const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;
+  const secondaryColor = settings?.theme?.secondaryColor || theme.palette.secondary.main;
+  const borderRadius = settings?.theme?.borderRadius || 8;
+  const animationsEnabled = settings?.theme?.animations !== false;
+  const notificationsEnabled = settings?.notifications?.enabled !== false;
+  const soundEnabled = settings?.notifications?.sound !== false;
+  
+  // Estados principales
+  const [editing, setEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [alert, setAlert] = useState({ open: false, message: '', severity: 'success' });
+  const [errors, setErrors] = useState({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [showAutoSaveNotice, setShowAutoSaveNotice] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
+  const fileInputRef = useRef(null);
+
+  // Estados de seguridad
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  });
+  const [loginHistory, setLoginHistory] = useState([]);
+  const [linkedAccounts, setLinkedAccounts] = useState([]);
+  const [securitySettings, setSecuritySettings] = useState({
+    twoFactorEnabled: false,
+    emailNotifications: true,
+    loginAlerts: true
+  });
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingDelete, setLoadingDelete] = useState(false);
+  const [loadingPassword, setLoadingPassword] = useState(false);
+
+  // Estado del formulario
+  const [formData, setFormData] = useState({
+    name: userProfile?.name || '',
+    email: userProfile?.email || user?.email || '',
+    phone: userProfile?.phone || '',
+    position: userProfile?.position || '',
+    department: userProfile?.department || '',
+    company: userProfile?.company || '',
+    location: userProfile?.location || '',
+    bio: userProfile?.bio || '',
+    role: userProfile?.role || 'user'
+  });
+
+  // Auto-save function estabilizada con useCallback
+  const performAutoSave = useCallback(async () => {
+    if (!editing || !hasUnsavedChanges || Object.keys(errors).length > 0) return;
+    
+    setAutoSaving(true);
+    try {
+      await updateUserProfile(formData);
+      setHasUnsavedChanges(false);
+      
+      // Solo mostrar notificación auto-save si las notificaciones están habilitadas
+      if (notificationsEnabled) {
+        setShowAutoSaveNotice(true);
+        setTimeout(() => setShowAutoSaveNotice(false), 2000);
+      }
+    } catch (error) {
+      console.error('Error en auto-save:', error);
+    } finally {
+      setAutoSaving(false);
+    }
+  }, [formData, editing, hasUnsavedChanges, errors, updateUserProfile, notificationsEnabled]);
+
+  // Funciones de seguridad
+  const loadLoginHistory = useCallback(async () => {
+    if (!user) return;
+    setLoadingHistory(true);
+    try {
+      const historyRef = collection(db, 'loginHistory');
+      const q = query(
+        historyRef,
+        where('userId', '==', user.uid),
+        orderBy('timestamp', 'desc'),
+        limit(10)
+      );
+      const querySnapshot = await getDocs(q);
+      const history = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setLoginHistory(history);
+    } catch (error) {
+      console.error('Error loading login history:', error);
+      setLoginHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, [user]);
+
+  const loadLinkedAccounts = useCallback(() => {
+    if (!user?.providerData) return;
+    const accounts = user.providerData.map(provider => ({
+      providerId: provider.providerId,
+      email: provider.email,
+      displayName: provider.displayName
+    }));
+    setLinkedAccounts(accounts);
+  }, [user]);
+
+  const handleChangePassword = async () => {
+    setLoadingPassword(true);
+    try {
+      if (passwordData.newPassword !== passwordData.confirmPassword) {
+        throw new Error('Las contraseñas no coinciden');
+      }
+      
+      if (passwordData.newPassword.length < 6) {
+        throw new Error('La contraseña debe tener al menos 6 caracteres');
+      }
+
+      // Reautenticar al usuario
+      const credential = EmailAuthProvider.credential(
+        user.email,
+        passwordData.currentPassword
+      );
+      await reauthenticateWithCredential(user, credential);
+      
+      // Cambiar la contraseña
+      await updatePassword(user, passwordData.newPassword);
+      
+      // Registrar el cambio en el historial
+      await addDoc(collection(db, 'loginHistory'), {
+        userId: user.uid,
+        action: 'password_change',
+        timestamp: new Date(),
+        ipAddress: 'Unknown',
+        userAgent: navigator.userAgent
+      });
+
+      showAlert('Contraseña actualizada exitosamente', 'success');
+      setShowPasswordDialog(false);
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      
+    } catch (error) {
+      console.error('Error changing password:', error);
+      showAlert(error.message || 'Error al cambiar la contraseña', 'error');
+    } finally {
+      setLoadingPassword(false);
+    }
+  };
+
+  const handleLinkAccount = async (provider) => {
+    try {
+      let authProvider;
+      if (provider === 'google') {
+        authProvider = new GoogleAuthProvider();
+      } else if (provider === 'microsoft') {
+        authProvider = new OAuthProvider('microsoft.com');
+      }
+      
+      await linkWithPopup(user, authProvider);
+      showAlert(`Cuenta de ${provider} vinculada exitosamente`, 'success');
+      loadLinkedAccounts();
+    } catch (error) {
+      console.error('Error linking account:', error);
+      showAlert(`Error al vincular cuenta de ${provider}`, 'error');
+    }
+  };
+
+  const handleUnlinkAccount = async (providerId) => {
+    try {
+      await unlink(user, providerId);
+      showAlert('Cuenta desvinculada exitosamente', 'success');
+      loadLinkedAccounts();
+    } catch (error) {
+      console.error('Error unlinking account:', error);
+      showAlert('Error al desvincular cuenta', 'error');
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setLoadingDelete(true);
+    try {
+      // Eliminar documentos del usuario de Firestore
+      if (userProfile) {
+        await deleteDoc(doc(db, 'users', user.uid));
+      }
+      
+      // Eliminar historial de login
+      const historyRef = collection(db, 'loginHistory');
+      const q = query(historyRef, where('userId', '==', user.uid));
+      const querySnapshot = await getDocs(q);
+      const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      
+      // Eliminar cuenta de Firebase Auth
+      await deleteUser(user);
+      
+      showAlert('Cuenta eliminada exitosamente', 'success');
+      
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      showAlert('Error al eliminar la cuenta', 'error');
+    } finally {
+      setLoadingDelete(false);
+      setShowDeleteDialog(false);
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    try {
+      setUploadingPhoto(true);
+      
+      // Si hay una foto actual, intentar eliminarla del storage
+      if (userProfile?.photoURL && userProfile.photoURL.includes('firebase')) {
+        try {
+          const photoRef = ref(storage, userProfile.photoURL);
+          await deleteObject(photoRef);
+        } catch (error) {
+          console.log('Error eliminando foto anterior:', error);
+        }
+      }
+      
+      await updateUserProfile({ photoURL: null });
+      showAlert('Foto de perfil eliminada exitosamente', 'success');
+    } catch (error) {
+      console.error('Error removing photo:', error);
+      showAlert('Error al eliminar la foto', 'error');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  // Auto-save después de 3 segundos de inactividad
+  useEffect(() => {
+    if (!editing || !hasUnsavedChanges || Object.keys(errors).length > 0) return;
+    
+    const timer = setTimeout(performAutoSave, 3000);
+    return () => clearTimeout(timer);
+  }, [performAutoSave]);
+
+  // Actualizar formData cuando cambie userProfile
+  useEffect(() => {
+    if (userProfile) {
+      setFormData({
+        name: userProfile.name || '',
+        email: userProfile.email || user?.email || '',
+        phone: userProfile.phone || '',
+        position: userProfile.position || '',
+        department: userProfile.department || '',
+        company: userProfile.company || '',
+        location: userProfile.location || '',
+        bio: userProfile.bio || '',
+        role: userProfile.role || 'user'
+      });
+    }
+  }, [userProfile, user]);
+
+  // Cargar datos de seguridad al cambiar de tab
+  useEffect(() => {
+    if (activeTab === 1) { // Tab de Seguridad
+      loadLoginHistory();
+      loadLinkedAccounts();
+    }
+  }, [activeTab, loadLoginHistory, loadLinkedAccounts]);
+
+  const showAlert = (message, severity = 'success') => {
+    // Solo mostrar notificaciones si están habilitadas en settings
+    if (!notificationsEnabled) return;
+    
+    setAlert({ open: true, message, severity });
+    setTimeout(() => setAlert({ open: false, message: '', severity: 'success' }), 5000);
+    
+    // Reproducir sonido si está habilitado
+    if (soundEnabled && severity === 'success') {
+      // Crear un sonido suave para confirmaciones
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.5);
+      } catch (error) {
+        console.log('Audio context not available');
+      }
+    }
+  };
+
+  // Función para obtener el rol del usuario desde Firebase
+  const getUserRole = () => {
+    const role = userProfile?.role || formData.role || 'user';
+    return role === 'admin' || role === 'ADMIN' ? 'Administrador' : 'Usuario';
+  };
+
+  // Función para obtener el icono del dispositivo
+  const getDeviceIcon = (userAgent) => {
+    if (userAgent?.includes('Mobile')) return <Smartphone />;
+    if (userAgent?.includes('Tablet')) return <Tablet />;
+    return <Computer />;
+  };
+
+  // Función para obtener el nombre del proveedor
+  const getProviderName = (providerId) => {
+    switch (providerId) {
+      case 'google.com': return 'Google';
+      case 'microsoft.com': return 'Microsoft';
+      case 'password': return 'Email/Contraseña';
+      default: return providerId;
+    }
+  };
+
+  // Función para obtener el icono del proveedor
+  const getProviderIcon = (providerId) => {
+    switch (providerId) {
+      case 'google.com': return <Google />;
+      case 'microsoft.com': return <Microsoft />;
+      case 'password': return <Email />;
+      default: return <AccountCircle />;
+    }
+  };
+
+  // Validación en tiempo real
+  const validateField = (field, value) => {
+    const newErrors = { ...errors };
+    
+    switch (field) {
+      case 'name':
+        if (!value || value.trim().length < 2) {
+          newErrors.name = 'El nombre debe tener al menos 2 caracteres';
+        } else {
+          delete newErrors.name;
+        }
+        break;
+      case 'phone':
+        if (value && !/^\d{7,15}$/.test(value.replace(/[\s\-\(\)]/g, ''))) {
+          newErrors.phone = 'Formato de teléfono inválido';
+        } else {
+          delete newErrors.phone;
+        }
+        break;
+      default:
+        break;
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Función para aplicar configuraciones específicas de Profile
+  const applyProfileSpecificConfigurations = useCallback(async () => {
+    try {
+      // Aplicar configuraciones de privacidad del perfil
+      const profileConfigRef = doc(db, 'userProfileSettings', user.uid);
+      
+      const profileConfig = {
+        profileVisibility: 'private', // Configuración de privacidad por defecto
+        showEmail: false,
+        showPhone: false,
+        showPosition: true,
+        showCompany: true,
+        profileTheme: {
+          primaryColor,
+          secondaryColor,
+          borderRadius,
+          animationsEnabled
+        },
+        lastUpdated: new Date()
+      };
+
+      await updateDoc(profileConfigRef, profileConfig).catch(async () => {
+        // Si el documento no existe, crearlo
+        await setDoc(profileConfigRef, profileConfig);
+      });
+
+      console.log('✅ Configuraciones específicas de Profile aplicadas correctamente');
+      
+    } catch (error) {
+      console.error('Error aplicando configuraciones de Profile:', error);
+    }
+  }, [user?.uid, primaryColor, secondaryColor, borderRadius, animationsEnabled]);
+
+  // Aplicar configuraciones cuando cambie el usuario o las configuraciones
+  useEffect(() => {
+    if (user?.uid) {
+      applyProfileSpecificConfigurations();
+    }
+  }, [user?.uid, applyProfileSpecificConfigurations]);
+
+  // Función para generar informe de configuraciones aplicadas
+  const generateConfigurationReport = useCallback(() => {
+    const appliedConfigurations = [
+      {
+        category: 'Tema Global',
+        settings: [
+          { name: 'Modo de tema', value: theme.palette.mode, applied: true },
+          { name: 'Color primario', value: primaryColor, applied: true },
+          { name: 'Color secundario', value: secondaryColor, applied: true },
+          { name: 'Radio de bordes', value: `${borderRadius}px`, applied: true },
+          { name: 'Animaciones', value: animationsEnabled ? 'Habilitadas' : 'Deshabilitadas', applied: true }
+        ]
+      },
+      {
+        category: 'Layout',
+        settings: [
+          { name: 'Modo compacto sidebar', value: settings?.sidebar?.compactMode ? 'Habilitado' : 'Deshabilitado', applied: true }
+        ]
+      },
+      {
+        category: 'Notificaciones',
+        settings: [
+          { name: 'Notificaciones habilitadas', value: notificationsEnabled ? 'Sí' : 'No', applied: true },
+          { name: 'Sonido habilitado', value: soundEnabled ? 'Sí' : 'No', applied: true }
+        ]
+      },
+      {
+        category: 'Profile Específicas',
+        settings: [
+          { name: 'Configuración de usuario', value: 'Datos personales aplicados', applied: true },
+          { name: 'Configuración de seguridad', value: 'Configuraciones de seguridad aplicadas', applied: true },
+          { name: 'Configuración de privacidad', value: 'Preferencias de privacidad aplicadas', applied: true }
+        ]
+      }
+    ];
+
+    const omittedConfigurations = [
+      {
+        category: 'Dashboard',
+        reason: 'No aplicables a página Profile',
+        settings: ['Layout de columnas', 'Widgets', 'Gráficos', 'Auto-refresh']
+      },
+      {
+        category: 'Módulos Específicos',
+        reason: 'No relevantes para Profile',
+        settings: ['Compromisos', 'Reportes', 'Empresas', 'Almacenamiento']
+      }
+    ];
+
+    return { appliedConfigurations, omittedConfigurations };
+  }, [theme.palette.mode, primaryColor, secondaryColor, borderRadius, animationsEnabled, settings?.sidebar?.compactMode, notificationsEnabled, soundEnabled]);
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
+    // Validar en tiempo real solo si estamos editando
+    if (editing) {
+      validateField(field, value);
+      setHasUnsavedChanges(true);
+    }
+  };
+
+  const handlePhotoUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showAlert('Por favor selecciona una imagen válida', 'error');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showAlert('La imagen debe ser menor a 5MB', 'error');
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      // Eliminar foto anterior si existe
+      if (userProfile?.photoURL && userProfile.photoURL.includes('firebase')) {
+        try {
+          const oldPhotoRef = ref(storage, userProfile.photoURL);
+          await deleteObject(oldPhotoRef);
+        } catch (error) {
+          console.log('Error eliminando foto anterior:', error);
+        }
+      }
+
+      const imageRef = ref(storage, `profile-photos/${user.uid}/${Date.now()}_${file.name}`);
+      await uploadBytes(imageRef, file);
+      const photoURL = await getDownloadURL(imageRef);
+      await updateUserProfile({ photoURL });
+      showAlert('Foto de perfil actualizada exitosamente');
+    } catch (error) {
+      console.error('Error al subir la foto:', error);
+      showAlert('Error al subir la foto', 'error');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleSave = async () => {
+    // Validar todos los campos antes de guardar
+    const isValid = Object.keys(formData).every(field => 
+      validateField(field, formData[field])
+    );
+    
+    if (!isValid) {
+      showAlert('Por favor corrige los errores antes de guardar', 'error');
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      await updateUserProfile(formData);
+      setEditing(false);
+      setHasUnsavedChanges(false);
+      setErrors({});
+      showAlert('Perfil actualizado exitosamente');
+    } catch (error) {
+      console.error('Error al guardar:', error);
+      showAlert('Error al guardar los cambios', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancel = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('¿Estás seguro de que quieres descartar los cambios?')) {
+        return;
+      }
+    }
+    
+    setFormData({
+      name: userProfile?.name || '',
+      email: userProfile?.email || user?.email || '',
+      phone: userProfile?.phone || '',
+      position: userProfile?.position || '',
+      department: userProfile?.department || '',
+      company: userProfile?.company || '',
+      location: userProfile?.location || '',
+      bio: userProfile?.bio || '',
+      role: userProfile?.role || 'user'
+    });
+    setEditing(false);
+    setHasUnsavedChanges(false);
+    setErrors({});
+  };
+
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+  };
+
+  return (
+    <Box sx={{ p: 3, maxWidth: 1200, mx: 'auto' }}>
+      {/* Auto-save notification */}
+      <Snackbar
+        open={showAutoSaveNotice && notificationsEnabled}
+        autoHideDuration={2000}
+        TransitionComponent={Slide}
+        TransitionProps={{ direction: 'down' }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity="success" variant="filled" sx={{ 
+          borderRadius: borderRadius / 4,
+          boxShadow: `0 4px 12px ${alpha(primaryColor, 0.25)}`
+        }}>
+          ✨ Cambios guardados automáticamente
+        </Alert>
+      </Snackbar>
+
+      {/* Alert mejorado */}
+      {alert.open && notificationsEnabled && (
+        <motion.div
+          initial={animationsEnabled ? { opacity: 0, y: -50 } : { opacity: 1 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={animationsEnabled ? { opacity: 0, y: -50 } : { opacity: 0 }}
+        >
+          <Alert 
+            severity={alert.severity} 
+            sx={{ 
+              mb: 3,
+              borderRadius: borderRadius / 4,
+              boxShadow: alert.severity === 'error' 
+                ? `0 4px 12px ${alpha('#f44336', 0.25)}`
+                : `0 4px 12px ${alpha(primaryColor, 0.25)}`,
+              border: alert.severity === 'error' 
+                ? `1px solid ${alpha('#f44336', 0.3)}` 
+                : `1px solid ${alpha(primaryColor, 0.3)}`
+            }}
+          >
+            {alert.message}
+          </Alert>
+        </motion.div>
+      )}
+
+      {/* Header estilo menú topbar */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <Card 
+          sx={{
+            mb: 3,
+            background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
+            border: `1px solid ${alpha(primaryColor, 0.3)}`,
+            borderRadius: borderRadius / 4, // Usar configuración de borderRadius
+            p: 3,
+            position: 'relative',
+            overflow: 'hidden',
+            transition: animationsEnabled ? theme.transitions.create(['transform', 'box-shadow'], {
+              duration: theme.transitions.duration.short,
+            }) : 'none',
+            '&:hover': animationsEnabled ? {
+              transform: 'translateY(-2px)',
+              boxShadow: `0 8px 25px ${alpha(primaryColor, 0.25)}`
+            } : {},
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: `linear-gradient(135deg, ${alpha('#fff', 0.1)}, transparent)`,
+              pointerEvents: 'none'
+            },
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              top: -50,
+              right: -50,
+              width: 120,
+              height: 120,
+              borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.1)',
+              '@keyframes float': {
+                '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
+                '50%': { transform: 'translateY(-20px) rotate(180deg)' }
+              },
+              animation: 'float 6s ease-in-out infinite',
+              zIndex: 1
+            }
+          }}
+        >
+          <Box sx={{ position: 'relative', zIndex: 2 }}>
+            <Grid container spacing={3} alignItems="center">
+              <Grid item xs={12} md={8}>
+                <Box display="flex" alignItems="center" gap={2}>
+                  <Box>
+                    <Box display="flex" alignItems="center" gap={2} mb={1}>
+                      <Typography variant="h4" sx={{ 
+                        color: '#fff', 
+                        fontWeight: 800,
+                        textShadow: '0 2px 4px rgba(0,0,0,0.3)' 
+                      }}>
+                        {formData.name || 'Sin nombre'}
+                      </Typography>
+                    </Box>
+                    <Typography variant="h6" sx={{ 
+                      color: alpha('#fff', 0.8), 
+                      fontWeight: 500,
+                      opacity: 0.9 
+                    }}>
+                      {formData.position || 'Sin cargo'} • {formData.company || 'Sin empresa'}
+                    </Typography>
+                    <Box display="flex" alignItems="center" gap={1} mt={1}>
+                      <Verified sx={{ color: alpha('#fff', 0.7), fontSize: 16 }} />
+                      <Typography variant="caption" sx={{ 
+                        color: alpha('#fff', 0.7),
+                        fontWeight: 600,
+                        textShadow: '0 1px 2px rgba(0,0,0,0.3)'
+                      }}>
+                        {getUserRole()}
+                      </Typography>
+                      {/* Último acceso */}
+                      <Typography variant="caption" sx={{ 
+                        color: alpha('#fff', 0.6),
+                        ml: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 0.5
+                      }}>
+                        <AccessTime sx={{ fontSize: 12 }} />
+                        Último acceso: {user?.metadata?.lastSignInTime ? 
+                          new Date(user.metadata.lastSignInTime).toLocaleDateString('es-ES', {
+                            day: '2-digit',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }) : 'Hoy'
+                        }
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </Grid>
+              
+              <Grid item xs={12} md={4}>
+                <Box display="flex" justifyContent="flex-end" gap={1}>
+                  {!editing ? (
+                    <motion.div 
+                      whileHover={animationsEnabled ? { scale: 1.02, y: -2 } : {}} 
+                      whileTap={animationsEnabled ? { scale: 0.98 } : {}}
+                      transition={{ type: "spring", bounce: 0.4 }}
+                    >
+                      <Button
+                        variant="contained"
+                        startIcon={<Edit />}
+                        onClick={() => setEditing(true)}
+                        sx={{
+                          backgroundColor: alpha(primaryColor, 0.8),
+                          color: '#fff',
+                          border: `1px solid ${alpha(primaryColor, 0.3)}`,
+                          borderRadius: borderRadius / 4,
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                          '&:hover': animationsEnabled ? {
+                            backgroundColor: alpha(primaryColor, 0.9),
+                            transform: 'translateY(-1px)',
+                            boxShadow: `0 4px 12px ${alpha(primaryColor, 0.3)}`
+                          } : {
+                            backgroundColor: alpha(primaryColor, 0.9)
+                          }
+                        }}
+                      >
+                        Editar Perfil
+                      </Button>
+                    </motion.div>
+                  ) : (
+                    <Box display="flex" gap={1}>
+                      <motion.div 
+                        whileHover={{ scale: loading ? 1 : 1.02, y: loading ? 0 : -2 }} 
+                        whileTap={{ scale: loading ? 1 : 0.98 }}
+                        transition={{ type: "spring", bounce: 0.4 }}
+                      >
+                        <Button
+                          variant="contained"
+                          startIcon={loading ? <CircularProgress size={16} /> : <Save />}
+                          onClick={handleSave}
+                          disabled={loading || Object.keys(errors).length > 0}
+                          sx={{
+                            backgroundColor: alpha(primaryColor, 0.8),
+                            color: '#fff',
+                            border: `1px solid ${alpha(primaryColor, 0.3)}`,
+                            borderRadius: borderRadius / 4,
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                            '&:hover': animationsEnabled ? { 
+                              backgroundColor: alpha(primaryColor, 0.9),
+                              transform: 'translateY(-1px)',
+                              boxShadow: `0 4px 12px ${alpha(primaryColor, 0.3)}`
+                            } : {
+                              backgroundColor: alpha(primaryColor, 0.9)
+                            },
+                            '&:disabled': {
+                              backgroundColor: alpha(primaryColor, 0.3),
+                              color: alpha('#fff', 0.6)
+                            }
+                          }}
+                        >
+                          {loading ? 'Guardando...' : 'Guardar'}
+                        </Button>
+                      </motion.div>
+                      
+                      <motion.div 
+                        whileHover={animationsEnabled ? { scale: loading ? 1 : 1.02, y: loading ? 0 : -2 } : {}} 
+                        whileTap={animationsEnabled ? { scale: loading ? 1 : 0.98 } : {}}
+                        transition={{ type: "spring", bounce: 0.4 }}
+                      >
+                        <Button
+                          variant="outlined"
+                          startIcon={<Cancel />}
+                          onClick={handleCancel}
+                          disabled={loading}
+                          sx={{
+                            color: '#fff',
+                            border: `1px solid ${alpha('#fff', 0.5)}`,
+                            borderRadius: borderRadius / 4,
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                            '&:hover': animationsEnabled ? {
+                              backgroundColor: alpha('#fff', 0.1),
+                              border: `1px solid ${alpha('#fff', 0.7)}`,
+                              transform: 'translateY(-1px)',
+                              boxShadow: `0 4px 12px ${alpha('#fff', 0.15)}`
+                            } : {
+                              backgroundColor: alpha('#fff', 0.1),
+                              border: `1px solid ${alpha('#fff', 0.7)}`
+                            },
+                            '&:disabled': {
+                              borderColor: alpha('#fff', 0.3),
+                              color: alpha('#fff', 0.5)
+                            }
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                      </motion.div>
+                    </Box>
+                  )}
+                </Box>
+              </Grid>
+            </Grid>
+          </Box>
+        </Card>
+      </motion.div>
+
+      <Grid container spacing={3}>
+        {/* Columna izquierda - Foto y datos básicos */}
+        <Grid item xs={12} lg={4}>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            whileHover={{ y: -4, scale: 1.01 }}
+          >
+            {/* Card de Perfil Personal - Design System Spectacular */}
+            <Card sx={{ 
+              borderRadius: borderRadius / 2, // Usar configuración de borderRadius
+              background: theme.palette.mode === 'dark'
+                ? 'linear-gradient(145deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
+                : 'linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+              border: `1px solid ${alpha(primaryColor, 0.15)}`,
+              position: 'relative',
+              overflow: 'hidden',
+              mb: 3,
+              minHeight: 720,
+              display: 'flex',
+              flexDirection: 'column',
+              transition: animationsEnabled ? 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+              backdropFilter: 'blur(20px)',
+              boxShadow: `0 8px 32px ${alpha(primaryColor, 0.15)}`,
+              '&:hover': animationsEnabled ? {
+                boxShadow: `0 12px 40px ${alpha(primaryColor, 0.25)}`,
+                transform: 'translateY(-4px)'
+              } : {},
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: '-100%',
+                width: '100%',
+                height: '100%',
+                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
+                animation: 'shimmer 3s infinite',
+                zIndex: 1,
+                pointerEvents: 'none'
+              },
+              '@keyframes shimmer': {
+                '0%': { transform: 'translateX(-100%)' },
+                '100%': { transform: 'translateX(100%)' }
+              }
+            }}>
+              {/* Header con gradiente spectacular */}
+              <Box
+                sx={{
+                  p: 3, // spacing.lg
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  position: 'relative',
+                  zIndex: 2
+                }}
+              >
+                <Person sx={{ fontSize: 28 }} />
+                <Box>
+                  <Typography variant="h6" fontWeight="bold">
+                    Perfil Personal
+                  </Typography>
+                  <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                    Información básica
+                  </Typography>
+                </Box>
+              </Box>
+              
+              <CardContent sx={{ 
+                textAlign: 'center', 
+                p: 4, // spacing.xl (32px)
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                position: 'relative',
+                zIndex: 2
+              }}>
+                {/* Avatar con Design System Spectacular */}
+                <Box position="relative" display="inline-block" mb={4}>
+                  <Avatar
+                    src={userProfile?.photoURL}
+                    sx={{ 
+                      width: 160,
+                      height: 160,
+                      fontSize: 64,
+                      mx: 'auto',
+                      boxShadow: `0 8px 25px ${theme.palette.primary.main}20`, // Primary shadow
+                      transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                      border: `3px solid ${theme.palette.primary.main}30`,
+                      '&:hover': {
+                        transform: 'scale(1.05) translateY(-4px)',
+                        boxShadow: `0 12px 40px ${theme.palette.primary.main}30`,
+                        border: `3px solid ${theme.palette.primary.main}60`
+                      }
+                    }}
+                  >
+                    {!userProfile?.photoURL && formData.name?.charAt(0)?.toUpperCase()}
+                  </Avatar>
+                  
+                  {uploadingPhoto && (
+                    <CircularProgress 
+                      size={32} 
+                      sx={{ 
+                        position: 'absolute', 
+                        top: '50%', 
+                        left: '50%', 
+                        ml: -2, 
+                        mt: -2,
+                        zIndex: 3
+                      }} 
+                    />
+                  )}
+                  
+                  {!uploadingPhoto && (
+                    <Box sx={{ position: 'absolute', bottom: 4, right: 4, display: 'flex', gap: 1 }}>
+                      {/* Botón para cambiar foto - Design System */}
+                      <motion.div
+                        whileHover={{ scale: 1.1, y: -2 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Tooltip title="Cambiar foto">
+                          <IconButton
+                            onClick={() => fileInputRef.current?.click()}
+                            sx={{
+                              bgcolor: theme.palette.primary.main,
+                              color: 'white',
+                              width: 40,
+                              height: 40,
+                              boxShadow: `0 4px 12px ${theme.palette.primary.main}40`,
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                              '&:hover': { 
+                                bgcolor: theme.palette.primary.dark,
+                                boxShadow: `0 6px 20px ${theme.palette.primary.main}60`,
+                                transform: 'translateY(-2px)'
+                              }
+                            }}
+                          >
+                            <PhotoCamera fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </motion.div>
+                      
+                      {/* Botón para eliminar foto - Design System */}
+                      {userProfile?.photoURL && (
+                        <motion.div
+                          whileHover={{ scale: 1.1, y: -2 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <Tooltip title="Eliminar foto">
+                            <IconButton
+                              onClick={handleRemovePhoto}
+                              sx={{
+                                bgcolor: theme.palette.error.main,
+                                color: 'white',
+                                width: 40,
+                                height: 40,
+                                boxShadow: `0 4px 12px ${theme.palette.error.main}40`,
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                '&:hover': { 
+                                  bgcolor: theme.palette.error.dark,
+                                  boxShadow: `0 6px 20px ${theme.palette.error.main}60`,
+                                  transform: 'translateY(-2px)'
+                                }
+                              }}
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </motion.div>
+                      )}
+                    </Box>
+                  )}
+                  
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handlePhotoUpload}
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                  />
+                </Box>
+
+                {/* Información básica */}
+                <Box mb={4}>
+                  <Box display="flex" alignItems="center" justifyContent="center" mb={2}>
+                    <Typography 
+                      variant="h5" 
+                      sx={{ 
+                        fontWeight: 800, 
+                        textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                        mr: 1,
+                        background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent'
+                      }}
+                    >
+                      {formData.name || 'Usuario'}
+                    </Typography>
+                    <motion.div
+                      animate={{ rotate: [0, 10, -10, 0] }}
+                      transition={{ duration: 2, repeat: Infinity, repeatDelay: 5 }}
+                    >
+                      <Verified sx={{ color: theme.palette.primary.main, fontSize: 24 }} />
+                    </motion.div>
+                  </Box>
+                  
+                  <Typography 
+                    variant="body1" 
+                    sx={{ 
+                      opacity: 0.9, 
+                      fontWeight: 500,
+                      mb: 3
+                    }}
+                  >
+                    {formData.email}
+                  </Typography>
+                  
+                  {/* Badge de rol con Design System */}
+                  <Box display="flex" gap={1} justifyContent="center" mb={3}>
+                    <Box 
+                      sx={{
+                        px: 3, // spacing.lg
+                        py: 1,
+                        borderRadius: 25, // Más redondeado
+                        background: (userProfile?.role === 'admin' || userProfile?.role === 'ADMIN') 
+                          ? `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`
+                          : `linear-gradient(135deg, ${theme.palette.info.light}, ${theme.palette.info.main})`,
+                        color: 'white',
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        boxShadow: `0 4px 12px ${theme.palette.primary.main}40`,
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: `0 8px 25px ${theme.palette.primary.main}60`
+                        }
+                      }}
+                    >
+                      {(userProfile?.role === 'admin' || userProfile?.role === 'ADMIN') ? (
+                        <>
+                          <AdminPanelSettings sx={{ fontSize: 14 }} />
+                          Administrador
+                        </>
+                      ) : (
+                        <>
+                          <Person sx={{ fontSize: 14 }} />
+                          Usuario
+                        </>
+                      )}
+                    </Box>
+                  </Box>
+
+                  {/* Información adicional - Solo si no es redundante con el rol */}
+                  {formData.position && formData.position !== 'Administrador' && (
+                    <Typography variant="body2" fontWeight="medium" color="text.primary">
+                      {formData.position}
+                    </Typography>
+                  )}
+                  {formData.department && formData.department !== 'Administración' && (
+                    <Typography variant="caption" color="text.secondary">
+                      {formData.department}
+                    </Typography>
+                  )}
+                  {formData.company && (
+                    <Box 
+                      sx={{
+                        mt: 2,
+                        p: 2, // spacing.md
+                        borderRadius: 3, // radius.md
+                        background: `linear-gradient(135deg, ${theme.palette.success.light}15, ${theme.palette.success.main}10)`,
+                        border: `1px solid ${theme.palette.success.main}30`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          background: `linear-gradient(135deg, ${theme.palette.success.light}25, ${theme.palette.success.main}20)`,
+                          border: `1px solid ${theme.palette.success.main}50`
+                        }
+                      }}
+                    >
+                      <Business sx={{ color: theme.palette.success.main, fontSize: 18 }} />
+                      <Typography 
+                        variant="caption" 
+                        sx={{ 
+                          fontWeight: 600, 
+                          textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                          color: theme.palette.success.dark
+                        }}
+                      >
+                        {formData.company}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+
+                <Divider sx={{ my: 3, opacity: 0.6 }} /> {/* Más espaciado */}
+
+                {/* Configuración con Design System */}
+                <Box>
+                  <Typography 
+                    variant="subtitle2" 
+                    sx={{ 
+                      fontWeight: 700,
+                      mb: 2,
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 1,
+                      color: theme.palette.primary.main
+                    }}
+                  >
+                    <Box 
+                      sx={{ 
+                        width: 8, 
+                        height: 8, 
+                        borderRadius: '50%', 
+                        background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                        boxShadow: `0 2px 8px ${theme.palette.primary.main}40`
+                      }} 
+                    />
+                    Configuración
+                  </Typography>
+                  
+                  <Box display="flex" flexDirection="column" gap={0.5}>
+                    <Box 
+                      display="flex" 
+                      alignItems="center" 
+                      justifyContent="space-between"
+                      sx={{
+                        p: 1,
+                        borderRadius: 1.5,
+                        background: isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)'
+                      }}
+                    >
+                      <Typography variant="caption" fontWeight="medium">
+                        Tema
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {isDarkMode ? 'Oscuro' : 'Claro'}
+                      </Typography>
+                    </Box>
+
+                    <Box 
+                      display="flex" 
+                      alignItems="center" 
+                      justifyContent="space-between"
+                      sx={{
+                        p: 1,
+                        borderRadius: 1.5,
+                        background: isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)'
+                      }}
+                    >
+                      <Typography variant="caption" fontWeight="medium">
+                        Notificaciones
+                      </Typography>
+                      <Typography variant="caption" color="success.main" fontWeight="bold">
+                        Activas
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </Grid>
+
+        {/* Columna derecha - Formulario con Tabs */}
+        <Grid item xs={12} lg={8}>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
+            <Card sx={{ 
+              borderRadius: 4, // radius.lg (16px)
+              background: theme.palette.mode === 'dark'
+                ? 'linear-gradient(145deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
+                : 'linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+              border: `1px solid ${theme.palette.divider}`,
+              position: 'relative',
+              overflow: 'hidden',
+              minHeight: 720,
+              display: 'flex',
+              flexDirection: 'column',
+              transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+              backdropFilter: 'blur(20px)',
+              boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)', // Glassmorphism
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: '-100%',
+                width: '100%',
+                height: '100%',
+                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
+                animation: 'shimmer 3s infinite',
+                zIndex: 1,
+                pointerEvents: 'none'
+              },
+              '@keyframes shimmer': {
+                '0%': { transform: 'translateX(-100%)' },
+                '100%': { transform: 'translateX(100%)' }
+              }
+            }}>
+              {/* Tabs Header con Design System */}
+              <Box sx={{ 
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                position: 'relative',
+                zIndex: 2
+              }}>
+                <Tabs
+                  value={activeTab}
+                  onChange={handleTabChange}
+                  variant="fullWidth"
+                  sx={{
+                    '& .MuiTab-root': {
+                      minHeight: 72,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      fontSize: '1rem',
+                      transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                      color: theme.palette.text.secondary,
+                      borderRadius: `${borderRadius / 4}px ${borderRadius / 4}px 0 0`,
+                      '&:hover': animationsEnabled ? {
+                        color: primaryColor,
+                        background: `${primaryColor}08`,
+                        transform: 'translateY(-2px)'
+                      } : {
+                        color: primaryColor,
+                        background: `${primaryColor}08`
+                      },
+                      '&.Mui-selected': {
+                        color: primaryColor,
+                        fontWeight: 700,
+                        background: `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}10)`
+                      }
+                    },
+                    '& .MuiTabs-indicator': {
+                      height: 3,
+                      borderRadius: borderRadius / 4,
+                      background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`
+                    }
+                  }}
+                >
+                  <Tab 
+                    icon={<Person />} 
+                    label="Información Personal" 
+                    iconPosition="start"
+                  />
+                  <Tab 
+                    icon={<Security />} 
+                    label="Seguridad y Privacidad" 
+                    iconPosition="start"
+                  />
+                </Tabs>
+              </Box>
+
+              {/* Tab Panel - Información Personal */}
+              {activeTab === 0 && (
+                <Box>
+                  {/* Header elegante siguiendo el patrón de Perfil Personal */}
+                  <Box
+                    sx={{
+                      p: 3,
+                      background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2,
+                      position: 'relative',
+                      zIndex: 2
+                    }}
+                  >
+                    <Person sx={{ fontSize: 28 }} />
+                    <Box>
+                      <Typography variant="h6" fontWeight="bold">
+                        Información Personal
+                      </Typography>
+                      <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                        Datos personales y profesionales
+                      </Typography>
+                    </Box>
+                  </Box>
+              
+              <CardContent sx={{ 
+                textAlign: 'left',
+                p: 4,
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                position: 'relative',
+                zIndex: 2,
+                background: isDarkMode 
+                  ? 'linear-gradient(145deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
+                  : 'linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+                backdropFilter: 'blur(20px)'
+              }}>
+
+                {/* Sección de Datos Personales */}
+                <Box mb={4}>
+                  <Typography 
+                    variant="subtitle2" 
+                    sx={{ 
+                      fontWeight: 700,
+                      mb: 3,
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 1,
+                      color: primaryColor
+                    }}
+                  >
+                    <Box 
+                      sx={{ 
+                        width: 8, 
+                        height: 8, 
+                        borderRadius: '50%', 
+                        background: `linear-gradient(45deg, ${primaryColor}, ${secondaryColor})`,
+                        boxShadow: `0 2px 8px ${alpha(primaryColor, 0.4)}`
+                      }} 
+                    />
+                    Datos Personales
+                  </Typography>
+
+                  <Grid container spacing={3}>
+                    {/* Nombre */}
+                    <Grid item xs={12} sm={6}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 3,
+                          background: editing 
+                            ? `linear-gradient(135deg, ${alpha(primaryColor, 0.15)}, ${alpha(primaryColor, 0.10)})`
+                            : isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                          border: editing 
+                            ? `1px solid ${alpha(primaryColor, 0.3)}`
+                            : isDarkMode ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': editing ? {
+                            background: `linear-gradient(135deg, ${alpha(primaryColor, 0.25)}, ${alpha(primaryColor, 0.20)})`,
+                            border: `1px solid ${alpha(primaryColor, 0.5)}`
+                          } : {}
+                        }}
+                      >
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            fontWeight: 600,
+                            color: 'text.secondary',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            mb: 1
+                          }}
+                        >
+                          <Person sx={{ fontSize: 16, color: primaryColor }} />
+                          Nombre completo
+                        </Typography>
+                        {editing ? (
+                          <TextField
+                            fullWidth
+                            value={formData.name}
+                            onChange={(e) => handleInputChange('name', e.target.value)}
+                            variant="outlined"
+                            placeholder="Ingresa tu nombre completo"
+                            error={!!errors.name}
+                            helperText={errors.name}
+                            size="small"
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: 'transparent',
+                                '& fieldset': { border: 'none' }
+                              }
+                            }}
+                          />
+                        ) : (
+                          <Typography variant="body1" fontWeight="medium">
+                            {formData.name || 'No especificado'}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Grid>
+
+                    {/* Email */}
+                    <Grid item xs={12} sm={6}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 3,
+                          background: isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                          border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)'
+                        }}
+                      >
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            fontWeight: 600,
+                            color: 'text.secondary',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            mb: 1
+                          }}
+                        >
+                          <Email sx={{ fontSize: 16, color: '#6c5ce7' }} />
+                          Correo electrónico
+                        </Typography>
+                        <Typography variant="body1" fontWeight="medium">
+                          {formData.email}
+                        </Typography>
+                      </Box>
+                    </Grid>
+
+                    {/* Teléfono */}
+                    <Grid item xs={12} sm={6}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 3,
+                          background: editing 
+                            ? `linear-gradient(135deg, ${alpha('#00b894', 0.15)}, ${alpha('#00b894', 0.10)})`
+                            : isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                          border: editing 
+                            ? '1px solid rgba(0, 184, 148, 0.3)'
+                            : isDarkMode ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': editing ? {
+                            background: `linear-gradient(135deg, ${alpha('#00b894', 0.25)}, ${alpha('#00b894', 0.20)})`,
+                            border: '1px solid rgba(0, 184, 148, 0.5)'
+                          } : {}
+                        }}
+                      >
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            fontWeight: 600,
+                            color: 'text.secondary',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            mb: 1
+                          }}
+                        >
+                          <Phone sx={{ fontSize: 16, color: '#00b894' }} />
+                          Teléfono
+                        </Typography>
+                        {editing ? (
+                          <TextField
+                            fullWidth
+                            value={formData.phone}
+                            onChange={(e) => handleInputChange('phone', e.target.value)}
+                            variant="outlined"
+                            placeholder="Ingresa tu teléfono"
+                            size="small"
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: 'transparent',
+                                '& fieldset': { border: 'none' }
+                              }
+                            }}
+                          />
+                        ) : (
+                          <Typography variant="body1" fontWeight="medium">
+                            {formData.phone || 'No especificado'}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Grid>
+
+                    {/* Cargo */}
+                    <Grid item xs={12} sm={6}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 3,
+                          background: editing 
+                            ? `linear-gradient(135deg, ${alpha('#fdcb6e', 0.15)}, ${alpha('#fdcb6e', 0.10)})`
+                            : isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                          border: editing 
+                            ? '1px solid rgba(253, 203, 110, 0.3)'
+                            : isDarkMode ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': editing ? {
+                            background: `linear-gradient(135deg, ${alpha('#fdcb6e', 0.25)}, ${alpha('#fdcb6e', 0.20)})`,
+                            border: '1px solid rgba(253, 203, 110, 0.5)'
+                          } : {}
+                        }}
+                      >
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            fontWeight: 600,
+                            color: 'text.secondary',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            mb: 1
+                          }}
+                        >
+                          <Work sx={{ fontSize: 16, color: '#fdcb6e' }} />
+                          Cargo
+                        </Typography>
+                        {editing ? (
+                          <TextField
+                            fullWidth
+                            value={formData.position}
+                            onChange={(e) => handleInputChange('position', e.target.value)}
+                            variant="outlined"
+                            placeholder="Ingresa tu cargo"
+                            size="small"
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: 'transparent',
+                                '& fieldset': { border: 'none' }
+                              }
+                            }}
+                          />
+                        ) : (
+                          <Typography variant="body1" fontWeight="medium">
+                            {formData.position || 'No especificado'}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Box>
+
+                <Divider sx={{ my: 3, opacity: 0.6 }} />
+
+                {/* Sección Profesional */}
+                <Box mb={4}>
+                  <Typography 
+                    variant="subtitle2" 
+                    sx={{ 
+                      fontWeight: 700,
+                      mb: 3,
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 1,
+                      color: secondaryColor
+                    }}
+                  >
+                    <Box 
+                      sx={{ 
+                        width: 8, 
+                        height: 8, 
+                        borderRadius: '50%', 
+                        background: `linear-gradient(45deg, ${secondaryColor}, ${primaryColor})`,
+                        boxShadow: `0 2px 8px ${alpha(secondaryColor, 0.4)}`
+                      }} 
+                    />
+                    Información Profesional
+                  </Typography>
+
+                  <Grid container spacing={3}>
+                    {/* Departamento */}
+                    <Grid item xs={12} sm={6}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 3,
+                          background: editing 
+                            ? `linear-gradient(135deg, ${alpha('#e17055', 0.15)}, ${alpha('#e17055', 0.10)})`
+                            : isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                          border: editing 
+                            ? '1px solid rgba(225, 112, 85, 0.3)'
+                            : isDarkMode ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': editing ? {
+                            background: `linear-gradient(135deg, ${alpha('#e17055', 0.25)}, ${alpha('#e17055', 0.20)})`,
+                            border: '1px solid rgba(225, 112, 85, 0.5)'
+                          } : {}
+                        }}
+                      >
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            fontWeight: 600,
+                            color: 'text.secondary',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            mb: 1
+                          }}
+                        >
+                          <Domain sx={{ fontSize: 16, color: '#e17055' }} />
+                          Departamento
+                        </Typography>
+                        {editing ? (
+                          <TextField
+                            fullWidth
+                            value={formData.department}
+                            onChange={(e) => handleInputChange('department', e.target.value)}
+                            variant="outlined"
+                            placeholder="Ingresa tu departamento"
+                            size="small"
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: 'transparent',
+                                '& fieldset': { border: 'none' }
+                              }
+                            }}
+                          />
+                        ) : (
+                          <Typography variant="body1" fontWeight="medium">
+                            {formData.department || 'No especificado'}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Grid>
+
+                    {/* Empresa */}
+                    <Grid item xs={12} sm={6}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 3,
+                          background: editing 
+                            ? `linear-gradient(135deg, ${alpha('#a29bfe', 0.15)}, ${alpha('#a29bfe', 0.10)})`
+                            : isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                          border: editing 
+                            ? '1px solid rgba(162, 155, 254, 0.3)'
+                            : isDarkMode ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': editing ? {
+                            background: `linear-gradient(135deg, ${alpha('#a29bfe', 0.25)}, ${alpha('#a29bfe', 0.20)})`,
+                            border: '1px solid rgba(162, 155, 254, 0.5)'
+                          } : {}
+                        }}
+                      >
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            fontWeight: 600,
+                            color: 'text.secondary',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            mb: 1
+                          }}
+                        >
+                          <Business sx={{ fontSize: 16, color: '#a29bfe' }} />
+                          Empresa
+                        </Typography>
+                        {editing ? (
+                          <TextField
+                            fullWidth
+                            value={formData.company}
+                            onChange={(e) => handleInputChange('company', e.target.value)}
+                            variant="outlined"
+                            placeholder="Ingresa tu empresa"
+                            size="small"
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: 'transparent',
+                                '& fieldset': { border: 'none' }
+                              }
+                            }}
+                          />
+                        ) : (
+                          <Typography variant="body1" fontWeight="medium">
+                            {formData.company || 'No especificado'}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Grid>
+
+                    {/* Ubicación */}
+                    <Grid item xs={12}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 3,
+                          background: editing 
+                            ? `linear-gradient(135deg, ${alpha('#fd79a8', 0.15)}, ${alpha('#fd79a8', 0.10)})`
+                            : isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                          border: editing 
+                            ? '1px solid rgba(253, 121, 168, 0.3)'
+                            : isDarkMode ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': editing ? {
+                            background: `linear-gradient(135deg, ${alpha('#fd79a8', 0.25)}, ${alpha('#fd79a8', 0.20)})`,
+                            border: '1px solid rgba(253, 121, 168, 0.5)'
+                          } : {}
+                        }}
+                      >
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            fontWeight: 600,
+                            color: 'text.secondary',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            mb: 1
+                          }}
+                        >
+                          <LocationOn sx={{ fontSize: 16, color: '#fd79a8' }} />
+                          Ubicación
+                        </Typography>
+                        {editing ? (
+                          <TextField
+                            fullWidth
+                            value={formData.location}
+                            onChange={(e) => handleInputChange('location', e.target.value)}
+                            variant="outlined"
+                            placeholder="Ingresa tu ubicación"
+                            size="small"
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: 'transparent',
+                                '& fieldset': { border: 'none' }
+                              }
+                            }}
+                          />
+                        ) : (
+                          <Typography variant="body1" fontWeight="medium">
+                            {formData.location || 'No especificado'}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Box>
+
+                <Divider sx={{ my: 3, opacity: 0.6 }} />
+
+                {/* Botones de Acción */}
+                <Box display="flex" gap={2} justifyContent="center">
+                  {!editing ? (
+                    <motion.div
+                      whileHover={animationsEnabled ? { scale: 1.05, y: -2 } : {}}
+                      whileTap={animationsEnabled ? { scale: 0.95 } : {}}
+                    >
+                      <Button
+                        variant="contained"
+                        startIcon={<Edit />}
+                        onClick={() => setEditing(true)}
+                        sx={{
+                          px: 4,
+                          py: 1.5,
+                          borderRadius: 3,
+                          background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
+                          fontWeight: 600,
+                          boxShadow: `0 4px 12px ${alpha(primaryColor, 0.4)}`,
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': {
+                            boxShadow: `0 6px 20px ${alpha(primaryColor, 0.6)}`,
+                            transform: animationsEnabled ? 'translateY(-2px)' : 'none'
+                          }
+                        }}
+                      >
+                        Editar Información
+                      </Button>
+                    </motion.div>
+                  ) : (
+                    <>
+                      <motion.div
+                        whileHover={animationsEnabled ? { scale: 1.05, y: -2 } : {}}
+                        whileTap={animationsEnabled ? { scale: 0.95 } : {}}
+                      >
+                        <Button
+                          variant="outlined"
+                          startIcon={<Cancel />}
+                          onClick={handleCancelEdit}
+                          sx={{
+                            px: 3,
+                            py: 1.5,
+                            borderRadius: 3,
+                            borderColor: 'error.main',
+                            color: 'error.main',
+                            fontWeight: 600,
+                            '&:hover': {
+                              borderColor: 'error.dark',
+                              backgroundColor: alpha(theme.palette.error.main, 0.1)
+                            }
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                      </motion.div>
+                      <motion.div
+                        whileHover={animationsEnabled ? { scale: 1.05, y: -2 } : {}}
+                        whileTap={animationsEnabled ? { scale: 0.95 } : {}}
+                      >
+                        <Button
+                          variant="contained"
+                          startIcon={saving ? <CircularProgress size={16} /> : <Save />}
+                          onClick={handleSave}
+                          disabled={saving}
+                          sx={{
+                            px: 4,
+                            py: 1.5,
+                            borderRadius: 3,
+                            background: `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})`,
+                            fontWeight: 600,
+                            boxShadow: `0 4px 12px ${alpha(theme.palette.success.main, 0.4)}`,
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              boxShadow: `0 6px 20px ${alpha(theme.palette.success.main, 0.6)}`,
+                              transform: animationsEnabled ? 'translateY(-2px)' : 'none'
+                            }
+                          }}
+                        >
+                          {saving ? 'Guardando...' : 'Guardar Cambios'}
+                        </Button>
+                      </motion.div>
+                    </>
+                  )}
+                </Box>
+              </CardContent>
+            </Box>
+          )}
+
+          {/* Tab Panel - Seguridad y Privacidad */}
+          {activeTab === 1 && (
+            <Box>
+              {/* Header elegante siguiendo el patrón de Perfil Personal */}
+              <Box
+                sx={{
+                  p: 3,
+                  background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  position: 'relative',
+                  zIndex: 2
+                }}
+              >
+                <Security sx={{ fontSize: 28 }} />
+                <Box>
+                  <Typography variant="h6" fontWeight="bold">
+                    Seguridad y Privacidad
+                  </Typography>
+                  <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                    Configuración de seguridad y preferencias
+                  </Typography>
+                </Box>
+              </Box>
+          
+              <CardContent sx={{ 
+                textAlign: 'left',
+                p: 4,
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                position: 'relative',
+                zIndex: 2,
+                background: isDarkMode 
+                  ? 'linear-gradient(145deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
+                  : 'linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+                backdropFilter: 'blur(20px)'
+              }}>
+
+                {/* Sección de Contraseña */}
+                <Box mb={4}>
+                  <Typography 
+                    variant="subtitle2" 
+                    sx={{ 
+                      fontWeight: 700,
+                      mb: 3,
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 1,
+                      color: primaryColor
+                    }}
+                  >
+                    <Box 
+                      sx={{ 
+                        width: 8, 
+                        height: 8, 
+                        borderRadius: '50%', 
+                        background: `linear-gradient(45deg, ${primaryColor}, ${secondaryColor})`,
+                        boxShadow: `0 2px 8px ${alpha(primaryColor, 0.4)}`
+                      }} 
+                    />
+                    Contraseña y Acceso
+                  </Typography>
+
+                  <Grid container spacing={3}>
+                    {/* Cambiar Contraseña */}
+                    <Grid item xs={12}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 3,
+                          background: isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                          border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)'
+                        }}
+                      >
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            fontWeight: 600,
+                            color: 'text.secondary',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            mb: 1
+                          }}
+                        >
+                          <Lock sx={{ fontSize: 16, color: '#e74c3c' }} />
+                          Contraseña
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          Tu contraseña debe tener al menos 8 caracteres
+                        </Typography>
+                        <Button
+                          variant="outlined"
+                          startIcon={<VpnKey />}
+                          sx={{
+                            borderColor: '#e74c3c',
+                            color: '#e74c3c',
+                            '&:hover': {
+                              borderColor: '#c0392b',
+                              backgroundColor: alpha('#e74c3c', 0.1)
+                            }
+                          }}
+                        >
+                          Cambiar Contraseña
+                        </Button>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Box>
+
+                <Divider sx={{ my: 3, opacity: 0.6 }} />
+
+                {/* Sección de Preferencias */}
+                <Box mb={4}>
+                  <Typography 
+                    variant="subtitle2" 
+                    sx={{ 
+                      fontWeight: 700,
+                      mb: 3,
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 1,
+                      color: secondaryColor
+                    }}
+                  >
+                    <Box 
+                      sx={{ 
+                        width: 8, 
+                        height: 8, 
+                        borderRadius: '50%', 
+                        background: `linear-gradient(45deg, ${secondaryColor}, ${primaryColor})`,
+                        boxShadow: `0 2px 8px ${alpha(secondaryColor, 0.4)}`
+                      }} 
+                    />
+                    Preferencias de Privacidad
+                  </Typography>
+
+                  <Grid container spacing={3}>
+                    {/* Notificaciones */}
+                    <Grid item xs={12} sm={6}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 3,
+                          background: isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                          border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)'
+                        }}
+                      >
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            fontWeight: 600,
+                            color: 'text.secondary',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            mb: 1
+                          }}
+                        >
+                          <Notifications sx={{ fontSize: 16, color: '#3498db' }} />
+                          Notificaciones por Email
+                        </Typography>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              defaultChecked
+                              sx={{
+                                '& .MuiSwitch-switchBase.Mui-checked': {
+                                  color: '#3498db'
+                                },
+                                '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                  backgroundColor: '#3498db'
+                                }
+                              }}
+                            />
+                          }
+                          label="Recibir notificaciones"
+                        />
+                      </Box>
+                    </Grid>
+
+                    {/* Visibilidad del Perfil */}
+                    <Grid item xs={12} sm={6}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 3,
+                          background: isDarkMode ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                          border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)'
+                        }}
+                      >
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            fontWeight: 600,
+                            color: 'text.secondary',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            mb: 1
+                          }}
+                        >
+                          <Visibility sx={{ fontSize: 16, color: '#9b59b6' }} />
+                          Perfil Público
+                        </Typography>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              defaultChecked={false}
+                              sx={{
+                                '& .MuiSwitch-switchBase.Mui-checked': {
+                                  color: '#9b59b6'
+                                },
+                                '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                  backgroundColor: '#9b59b6'
+                                }
+                              }}
+                            />
+                          }
+                          label="Perfil visible para otros"
+                        />
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Box>
+              </CardContent>
+            </Box>
+          )}
+                              backdropFilter: 'blur(10px)',
+                              '&:hover': editing ? {
+                                backgroundColor: `${theme.palette.primary.main}20`,
+                                borderColor: `${theme.palette.primary.main}50`,
+                                transform: 'translateY(-2px)',
+                                boxShadow: `0 8px 25px ${theme.palette.primary.main}20`
+                              } : {},
+                              '&.Mui-focused': {
+                                backgroundColor: `${theme.palette.primary.main}25`,
+                                borderColor: theme.palette.primary.main,
+                                boxShadow: `0 0 0 3px ${theme.palette.primary.main}15`,
+                                transform: 'translateY(-2px)'
+                              },
+                              '& fieldset': {
+                                border: 'none'
+                              }
+                            },
+                            '& .MuiInputBase-input': {
+                              padding: '18px 20px', // Más padding
+                              fontSize: '1rem',
+                              fontWeight: editing ? 500 : 400,
+                              color: editing ? 'text.primary' : 'text.secondary'
+                            }
+                          }}
+                        />
+                      </Box>
+                    </motion.div>
+                  </Grid>
+
+                  {/* Email */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ position: 'relative' }}>
+                      <Typography 
+                        variant="body2" 
+                        fontWeight="medium" 
+                        sx={{ 
+                          mb: 1.5, 
+                          color: 'text.primary',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1
+                        }}
+                      >
+                        <Email sx={{ fontSize: 18, color: '#6c5ce7' }} />
+                        Correo electrónico
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        value={formData.email}
+                        disabled={true}
+                        variant="outlined"
+                        inputProps={{
+                          'aria-label': 'Correo electrónico (solo lectura)',
+                          readOnly: true
+                        }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            background: isDarkMode 
+                              ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%)'
+                              : 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)',
+                            backdropFilter: 'blur(10px)',
+                            border: `2px solid ${theme.palette.primary.main}20`,
+                            borderRadius: '16px',
+                            boxShadow: '0 4px 20px rgba(102, 126, 234, 0.1)',
+                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '& fieldset': {
+                              border: 'none'
+                            }
+                          },
+                          '& .MuiInputBase-input': {
+                            padding: '18px 20px',
+                            fontSize: '1rem',
+                            color: 'text.secondary',
+                            fontWeight: 500
+                          }
+                        }}
+                      />
+                    </Box>
+                  </Grid>
+
+                  {/* Teléfono */}
+                  <Grid item xs={12} sm={6}>
+                    <motion.div
+                      whileHover={editing ? { scale: 1.02 } : {}}
+                      transition={{ type: "spring", stiffness: 400 }}
+                    >
+                      <Box sx={{ position: 'relative' }}>
+                        <Typography 
+                          variant="body2" 
+                          fontWeight="medium" 
+                          sx={{ 
+                            mb: 1.5, 
+                            color: 'text.primary',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                          }}
+                        >
+                          <Phone sx={{ fontSize: 18, color: '#00b894' }} />
+                          Teléfono
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          value={formData.phone}
+                          onChange={(e) => handleInputChange('phone', e.target.value)}
+                          disabled={!editing}
+                          variant="outlined"
+                          placeholder="Ingresa tu número de teléfono"
+                          error={!!errors.phone}
+                          helperText={errors.phone || 'Formato: +57 300 123 4567'}
+                          inputProps={{
+                            'aria-label': 'Número de teléfono',
+                            'aria-describedby': errors.phone ? 'phone-error' : 'phone-helper'
+                          }}
+                          FormHelperTextProps={{
+                            id: errors.phone ? 'phone-error' : 'phone-helper'
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              background: editing 
+                                ? (isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(0, 184, 148, 0.18) 0%, rgba(85, 239, 196, 0.15) 100%)'
+                                  : 'linear-gradient(135deg, rgba(0, 184, 148, 0.10) 0%, rgba(85, 239, 196, 0.08) 100%)')
+                                : (isDarkMode 
+                                  ? 'rgba(255, 255, 255, 0.08)'
+                                  : 'rgba(0, 0, 0, 0.04)'),
+                              backdropFilter: 'blur(10px)',
+                              border: editing 
+                                ? `2px solid ${theme.palette.success.main}40`
+                                : `2px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                              borderRadius: '16px',
+                              boxShadow: editing 
+                                ? '0 4px 20px rgba(0, 184, 148, 0.12)'
+                                : '0 2px 12px rgba(0,0,0,0.05)',
+                              transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                              '&:hover': editing ? {
+                                background: isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(0, 184, 148, 0.25) 0%, rgba(85, 239, 196, 0.22) 100%)'
+                                  : 'linear-gradient(135deg, rgba(0, 184, 148, 0.15) 0%, rgba(85, 239, 196, 0.12) 100%)',
+                                borderColor: theme.palette.success.main,
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 8px 25px rgba(0, 184, 148, 0.2)'
+                              } : {},
+                              '&.Mui-focused': {
+                                background: isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(0, 184, 148, 0.3) 0%, rgba(85, 239, 196, 0.28) 100%)'
+                                  : 'linear-gradient(135deg, rgba(0, 184, 148, 0.18) 0%, rgba(85, 239, 196, 0.15) 100%)',
+                                borderColor: theme.palette.success.main,
+                                boxShadow: `0 0 0 4px ${theme.palette.success.main}20`
+                              },
+                              '& fieldset': {
+                                border: 'none'
+                              }
+                            },
+                            '& .MuiInputBase-input': {
+                              padding: '18px 20px',
+                              fontSize: '1rem',
+                              fontWeight: editing ? 500 : 400,
+                              color: editing ? 'text.primary' : 'text.secondary'
+                            },
+                            '& .MuiFormHelperText-root': {
+                              marginTop: '8px',
+                              fontWeight: 500,
+                              color: errors.phone ? 'error.main' : 'text.secondary'
+                            }
+                          }}
+                        />
+                      </Box>
+                    </motion.div>
+                  </Grid>
+
+                  {/* Cargo */}
+                  <Grid item xs={12} sm={6}>
+                    <motion.div
+                      whileHover={editing ? { scale: 1.02 } : {}}
+                      transition={{ type: "spring", stiffness: 400 }}
+                    >
+                      <Box sx={{ position: 'relative' }}>
+                        <Typography 
+                          variant="body2" 
+                          fontWeight="medium" 
+                          sx={{ 
+                            mb: 1.5, 
+                            color: 'text.primary',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                          }}
+                        >
+                          <Work sx={{ fontSize: 18, color: '#74b9ff' }} />
+                          Cargo
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          value={formData.position}
+                          onChange={(e) => handleInputChange('position', e.target.value)}
+                          disabled={!editing}
+                          variant="outlined"
+                          placeholder="Ingresa tu cargo"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              background: editing 
+                                ? (isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(116, 185, 255, 0.18) 0%, rgba(161, 196, 253, 0.15) 100%)'
+                                  : 'linear-gradient(135deg, rgba(116, 185, 255, 0.10) 0%, rgba(161, 196, 253, 0.08) 100%)')
+                                : (isDarkMode 
+                                  ? 'rgba(255, 255, 255, 0.08)'
+                                  : 'rgba(0, 0, 0, 0.04)'),
+                              backdropFilter: 'blur(10px)',
+                              border: editing 
+                                ? `2px solid ${theme.palette.info.main}40`
+                                : `2px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                              borderRadius: '16px',
+                              boxShadow: editing 
+                                ? '0 4px 20px rgba(116, 185, 255, 0.12)'
+                                : '0 2px 12px rgba(0,0,0,0.05)',
+                              transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                              '&:hover': editing ? {
+                                background: isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(116, 185, 255, 0.25) 0%, rgba(161, 196, 253, 0.22) 100%)'
+                                  : 'linear-gradient(135deg, rgba(116, 185, 255, 0.15) 0%, rgba(161, 196, 253, 0.12) 100%)',
+                                borderColor: theme.palette.info.main,
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 8px 25px rgba(116, 185, 255, 0.2)'
+                              } : {},
+                              '&.Mui-focused': {
+                                background: isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(116, 185, 255, 0.3) 0%, rgba(161, 196, 253, 0.28) 100%)'
+                                  : 'linear-gradient(135deg, rgba(116, 185, 255, 0.18) 0%, rgba(161, 196, 253, 0.15) 100%)',
+                                borderColor: theme.palette.info.main,
+                                boxShadow: `0 0 0 4px ${theme.palette.info.main}20`
+                              },
+                              '& fieldset': {
+                                border: 'none'
+                              }
+                            },
+                            '& .MuiInputBase-input': {
+                              padding: '18px 20px',
+                              fontSize: '1rem',
+                              fontWeight: editing ? 500 : 400,
+                              color: editing ? 'text.primary' : 'text.secondary'
+                            }
+                          }}
+                        />
+                      </Box>
+                    </motion.div>
+                  </Grid>
+
+                  {/* Departamento - Solo lectura si no está editando */}
+                  <Grid item xs={12} sm={6}>
+                    <motion.div
+                      whileHover={editing ? { scale: 1.02 } : {}}
+                      transition={{ type: "spring", stiffness: 400 }}
+                    >
+                      <Box sx={{ position: 'relative' }}>
+                        <Typography 
+                          variant="body2" 
+                          fontWeight="medium" 
+                          sx={{ 
+                            mb: 1.5, 
+                            color: 'text.primary',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                          }}
+                        >
+                          <Business sx={{ fontSize: 18, color: '#fdcb6e' }} />
+                          Departamento
+                        </Typography>
+                        
+                        {editing ? (
+                          <FormControl fullWidth disabled={!editing}>
+                            <Select
+                              value={formData.department}
+                              onChange={(e) => handleInputChange('department', e.target.value)}
+                              variant="outlined"
+                              displayEmpty
+                              sx={{
+                                borderRadius: '16px !important',
+                                '& .MuiOutlinedInput-root': {
+                                  background: editing 
+                                    ? (isDarkMode 
+                                      ? 'linear-gradient(135deg, rgba(253, 203, 110, 0.18) 0%, rgba(255, 231, 146, 0.15) 100%)'
+                                      : 'linear-gradient(135deg, rgba(253, 203, 110, 0.10) 0%, rgba(255, 231, 146, 0.08) 100%)')
+                                    : (isDarkMode 
+                                      ? 'rgba(255, 255, 255, 0.08)'
+                                      : 'rgba(0, 0, 0, 0.04)'),
+                                  backdropFilter: 'blur(10px)',
+                                  border: editing 
+                                    ? `2px solid ${theme.palette.warning.main}40`
+                                    : `2px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                                  borderRadius: '16px !important',
+                                  boxShadow: editing 
+                                    ? '0 4px 20px rgba(253, 203, 110, 0.12)'
+                                    : '0 2px 12px rgba(0,0,0,0.05)',
+                                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                                  '&:hover': editing ? {
+                                    background: isDarkMode 
+                                      ? 'linear-gradient(135deg, rgba(253, 203, 110, 0.25) 0%, rgba(255, 231, 146, 0.22) 100%)'
+                                      : 'linear-gradient(135deg, rgba(253, 203, 110, 0.15) 0%, rgba(255, 231, 146, 0.12) 100%)',
+                                    borderColor: theme.palette.warning.main,
+                                    transform: 'translateY(-2px)',
+                                    boxShadow: '0 8px 25px rgba(253, 203, 110, 0.2)'
+                                  } : {},
+                                  '&.Mui-focused': {
+                                    background: isDarkMode 
+                                      ? 'linear-gradient(135deg, rgba(253, 203, 110, 0.3) 0%, rgba(255, 231, 146, 0.28) 100%)'
+                                      : 'linear-gradient(135deg, rgba(253, 203, 110, 0.18) 0%, rgba(255, 231, 146, 0.15) 100%)',
+                                    borderColor: theme.palette.warning.main,
+                                    boxShadow: `0 0 0 4px ${theme.palette.warning.main}20`
+                                  },
+                                  '& fieldset': {
+                                    border: 'none',
+                                    borderRadius: '16px !important'
+                                  },
+                                  '& .MuiOutlinedInput-notchedOutline': {
+                                    borderRadius: '16px !important'
+                                  }
+                                },
+                                '& .MuiSelect-select': {
+                                  padding: '18px 20px',
+                                  fontSize: '1rem',
+                                  fontWeight: editing ? 500 : 400,
+                                  color: editing ? 'text.primary' : 'text.secondary',
+                                  borderRadius: '16px !important'
+                                },
+                                '& .MuiSelect-icon': {
+                                  color: editing ? theme.palette.warning.main : 'text.secondary'
+                                }
+                              }}
+                            >
+                              <MenuItem value="" disabled>
+                                <em>Selecciona un departamento</em>
+                              </MenuItem>
+                              <MenuItem value="Administración">Administración</MenuItem>
+                              <MenuItem value="Finanzas">Finanzas</MenuItem>
+                              <MenuItem value="Contabilidad">Contabilidad</MenuItem>
+                              <MenuItem value="Recursos Humanos">Recursos Humanos</MenuItem>
+                              <MenuItem value="Operaciones">Operaciones</MenuItem>
+                              <MenuItem value="Tecnología">Tecnología</MenuItem>
+                              <MenuItem value="Ventas">Ventas</MenuItem>
+                              <MenuItem value="Marketing">Marketing</MenuItem>
+                            </Select>
+                          </FormControl>
+                        ) : (
+                          <Box 
+                            sx={{
+                              p: '18px 20px',
+                              borderRadius: '16px',
+                              background: isDarkMode 
+                                ? 'linear-gradient(135deg, rgba(253, 203, 110, 0.12) 0%, rgba(255, 231, 146, 0.10) 100%)'
+                                : 'linear-gradient(135deg, rgba(253, 203, 110, 0.06) 0%, rgba(255, 231, 146, 0.04) 100%)',
+                              backdropFilter: 'blur(10px)',
+                              border: `2px solid ${theme.palette.warning.main}20`,
+                              boxShadow: '0 2px 12px rgba(253, 203, 110, 0.08)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 2
+                            }}
+                          >
+                            <Business sx={{ color: '#fdcb6e', fontSize: 20 }} />
+                            <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                              {formData.department || 'Sin departamento asignado'}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    </motion.div>
+                  </Grid>
+
+                  {/* Empresa - Solo lectura si no está editando */}
+                  <Grid item xs={12} sm={6}>
+                    <motion.div
+                      whileHover={editing ? { scale: 1.02 } : {}}
+                      transition={{ type: "spring", stiffness: 400 }}
+                    >
+                      <Box sx={{ position: 'relative' }}>
+                        <Typography 
+                          variant="body2" 
+                          fontWeight="medium" 
+                          sx={{ 
+                            mb: 1.5, 
+                            color: 'text.primary',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                          }}
+                        >
+                          <Business sx={{ fontSize: 18, color: '#e17055' }} />
+                          Empresa
+                        </Typography>
+                        
+                        {editing ? (
+                          <TextField
+                            fullWidth
+                            value={formData.company}
+                            onChange={(e) => handleInputChange('company', e.target.value)}
+                            disabled={!editing}
+                            variant="outlined"
+                            placeholder="Ingresa el nombre de tu empresa"
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                background: editing 
+                                  ? (isDarkMode 
+                                    ? 'linear-gradient(135deg, rgba(225, 112, 85, 0.18) 0%, rgba(255, 127, 80, 0.15) 100%)'
+                                    : 'linear-gradient(135deg, rgba(225, 112, 85, 0.10) 0%, rgba(255, 127, 80, 0.08) 100%)')
+                                  : (isDarkMode 
+                                    ? 'rgba(255, 255, 255, 0.08)'
+                                    : 'rgba(0, 0, 0, 0.04)'),
+                                backdropFilter: 'blur(10px)',
+                                border: editing 
+                                  ? `2px solid ${theme.palette.error.main}40`
+                                  : `2px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                                borderRadius: '16px',
+                                boxShadow: editing 
+                                  ? '0 4px 20px rgba(225, 112, 85, 0.12)'
+                                  : '0 2px 12px rgba(0,0,0,0.05)',
+                                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                                '&:hover': editing ? {
+                                  background: isDarkMode 
+                                    ? 'linear-gradient(135deg, rgba(225, 112, 85, 0.25) 0%, rgba(255, 127, 80, 0.22) 100%)'
+                                    : 'linear-gradient(135deg, rgba(225, 112, 85, 0.15) 0%, rgba(255, 127, 80, 0.12) 100%)',
+                                  borderColor: theme.palette.error.main,
+                                  transform: 'translateY(-2px)',
+                                  boxShadow: '0 8px 25px rgba(225, 112, 85, 0.2)'
+                                } : {},
+                                '&.Mui-focused': {
+                                  background: isDarkMode 
+                                    ? 'linear-gradient(135deg, rgba(225, 112, 85, 0.3) 0%, rgba(255, 127, 80, 0.28) 100%)'
+                                    : 'linear-gradient(135deg, rgba(225, 112, 85, 0.18) 0%, rgba(255, 127, 80, 0.15) 100%)',
+                                  borderColor: theme.palette.error.main,
+                                  boxShadow: `0 0 0 4px ${theme.palette.error.main}20`
+                                },
+                                '& fieldset': {
+                                  border: 'none'
+                                }
+                              },
+                              '& .MuiInputBase-input': {
+                                padding: '18px 20px',
+                                fontSize: '1rem',
+                                fontWeight: editing ? 500 : 400,
+                                color: editing ? 'text.primary' : 'text.secondary'
+                              }
+                            }}
+                          />
+                        ) : (
+                          <Box 
+                            sx={{
+                              p: '18px 20px',
+                              borderRadius: '16px',
+                              background: isDarkMode 
+                                ? 'linear-gradient(135deg, rgba(225, 112, 85, 0.12) 0%, rgba(255, 127, 80, 0.10) 100%)'
+                                : 'linear-gradient(135deg, rgba(225, 112, 85, 0.06) 0%, rgba(255, 127, 80, 0.04) 100%)',
+                              backdropFilter: 'blur(10px)',
+                              border: `2px solid ${theme.palette.error.main}20`,
+                              boxShadow: '0 2px 12px rgba(225, 112, 85, 0.08)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 2
+                            }}
+                          >
+                            <Business sx={{ color: '#e17055', fontSize: 20 }} />
+                            <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                              {formData.company || 'Sin empresa asignada'}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    </motion.div>
+                  </Grid>
+
+                  {/* Ubicación */}
+                  <Grid item xs={12}>
+                    <motion.div
+                      whileHover={editing ? { scale: 1.01 } : {}}
+                      transition={{ type: "spring", stiffness: 400 }}
+                    >
+                      <Box sx={{ position: 'relative' }}>
+                        <Typography 
+                          variant="body2" 
+                          fontWeight="medium" 
+                          sx={{ 
+                            mb: 1.5, 
+                            color: 'text.primary',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                          }}
+                        >
+                          <LocationOn sx={{ fontSize: 18, color: '#fd79a8' }} />
+                          Ubicación
+                        </Typography>
+                        <TextField
+                          fullWidth
+                          value={formData.location}
+                          onChange={(e) => handleInputChange('location', e.target.value)}
+                          disabled={!editing}
+                          variant="outlined"
+                          placeholder="Ingresa tu ubicación"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              background: editing 
+                                ? (isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(253, 121, 168, 0.18) 0%, rgba(255, 159, 198, 0.15) 100%)'
+                                  : 'linear-gradient(135deg, rgba(253, 121, 168, 0.10) 0%, rgba(255, 159, 198, 0.08) 100%)')
+                                : (isDarkMode 
+                                  ? 'rgba(255, 255, 255, 0.08)'
+                                  : 'rgba(0, 0, 0, 0.04)'),
+                              backdropFilter: 'blur(10px)',
+                              border: editing 
+                                ? `2px solid ${theme.palette.secondary.main}40`
+                                : `2px solid ${isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                              borderRadius: '16px',
+                              boxShadow: editing 
+                                ? '0 4px 20px rgba(253, 121, 168, 0.12)'
+                                : '0 2px 12px rgba(0,0,0,0.05)',
+                              transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                              '&:hover': editing ? {
+                                background: isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(253, 121, 168, 0.25) 0%, rgba(255, 159, 198, 0.22) 100%)'
+                                  : 'linear-gradient(135deg, rgba(253, 121, 168, 0.15) 0%, rgba(255, 159, 198, 0.12) 100%)',
+                                borderColor: theme.palette.secondary.main,
+                                transform: 'translateY(-2px)',
+                                boxShadow: '0 8px 25px rgba(253, 121, 168, 0.2)'
+                              } : {},
+                              '&.Mui-focused': {
+                                background: isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(253, 121, 168, 0.3) 0%, rgba(255, 159, 198, 0.28) 100%)'
+                                  : 'linear-gradient(135deg, rgba(253, 121, 168, 0.18) 0%, rgba(255, 159, 198, 0.15) 100%)',
+                                borderColor: theme.palette.secondary.main,
+                                boxShadow: `0 0 0 4px ${theme.palette.secondary.main}20`
+                              },
+                              '& fieldset': {
+                                border: 'none'
+                              }
+                            },
+                            '& .MuiInputBase-input': {
+                              padding: '18px 20px',
+                              fontSize: '1rem',
+                              fontWeight: editing ? 500 : 400,
+                              color: editing ? 'text.primary' : 'text.secondary'
+                            }
+                          }}
+                        />
+                      </Box>
+                    </motion.div>
+                  </Grid>
+
+                  {/* Botones de acción */}
+                  {editing && (
+                    <Grid item xs={12}>
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 3 }}>
+                          <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            <Button
+                              variant="outlined"
+                              onClick={handleCancel}
+                              startIcon={<Cancel />}
+                              aria-label="Cancelar edición y descartar cambios"
+                              sx={{
+                                borderColor: 'transparent',
+                                background: isDarkMode 
+                                  ? 'linear-gradient(135deg, rgba(169, 169, 169, 0.15) 0%, rgba(128, 128, 128, 0.15) 100%)'
+                                  : 'linear-gradient(135deg, rgba(169, 169, 169, 0.08) 0%, rgba(128, 128, 128, 0.08) 100%)',
+                                backdropFilter: 'blur(10px)',
+                                color: 'text.secondary',
+                                fontWeight: 600,
+                                borderRadius: '16px',
+                                padding: '12px 24px',
+                                border: `2px solid ${isDarkMode ? 'rgba(169,169,169,0.2)' : 'rgba(128,128,128,0.2)'}`,
+                                boxShadow: '0 4px 15px rgba(169, 169, 169, 0.15)',
+                                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                                '&:hover': {
+                                  background: isDarkMode 
+                                    ? 'linear-gradient(135deg, rgba(169, 169, 169, 0.25) 0%, rgba(128, 128, 128, 0.25) 100%)'
+                                    : 'linear-gradient(135deg, rgba(169, 169, 169, 0.15) 0%, rgba(128, 128, 128, 0.15) 100%)',
+                                  borderColor: isDarkMode ? 'rgba(169,169,169,0.4)' : 'rgba(128,128,128,0.4)',
+                                  transform: 'translateY(-2px)',
+                                  boxShadow: '0 8px 25px rgba(169, 169, 169, 0.25)'
+                                }
+                              }}
+                            >
+                              Cancelar
+                            </Button>
+                          </motion.div>
+                          <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            <Button
+                              variant="contained"
+                              onClick={handleSave}
+                              startIcon={<Save />}
+                              disabled={loading || Object.keys(errors).length > 0}
+                              aria-label={loading ? 'Guardando cambios del perfil' : 'Guardar cambios del perfil'}
+                              sx={{
+                                background: Object.keys(errors).length > 0 
+                                  ? 'linear-gradient(135deg, rgba(169, 169, 169, 0.5) 0%, rgba(128, 128, 128, 0.5) 100%)'
+                                  : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                                backdropFilter: 'blur(10px)',
+                                borderRadius: '16px',
+                                padding: '12px 24px',
+                                fontWeight: 600,
+                                border: 'none',
+                                boxShadow: Object.keys(errors).length > 0 
+                                  ? '0 4px 15px rgba(169, 169, 169, 0.2)'
+                                  : `0 4px 20px ${theme.palette.primary.main}40`,
+                                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                                '&:hover': Object.keys(errors).length === 0 ? {
+                                  background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
+                                  transform: 'translateY(-2px)',
+                                  boxShadow: `0 8px 25px ${theme.palette.primary.main}50`
+                                } : {},
+                                '&:disabled': {
+                                  background: 'linear-gradient(135deg, rgba(169, 169, 169, 0.5) 0%, rgba(128, 128, 128, 0.5) 100%)',
+                                  color: 'rgba(255,255,255,0.5)'
+                                }
+                              }}
+                            >
+                              {loading ? (
+                                <>
+                                  <CircularProgress size={16} sx={{ color: 'white', mr: 1 }} />
+                                  Guardando...
+                                </>
+                              ) : (
+                                `Guardar cambios${Object.keys(errors).length > 0 ? ' (Corrige errores)' : ''}`
+                              )}
+                            </Button>
+                          </motion.div>
+                        </Box>
+                      </motion.div>
+                    </Grid>
+                  )}
+
+                  {/* Información de la Cuenta */}
+                  {!editing && (
+                    <Grid item xs={12}>
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 0.4 }}
+                      >
+                        <Box sx={{ mt: 2 }}>
+                          <Divider sx={{ mb: 2 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>
+                              Información de la Cuenta
+                            </Typography>
+                          </Divider>
+                          
+                          {/* Badges pequeñas de información de cuenta */}
+                          <Box display="flex" gap={1} justifyContent="center">
+                            <Box 
+                              sx={{
+                                px: 2,
+                                py: 0.5,
+                                borderRadius: 20,
+                                background: 'linear-gradient(135deg, #00b894 0%, #00a085 100%)',
+                                color: 'white',
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5
+                              }}
+                            >
+                              <Business sx={{ fontSize: 14 }} />
+                              Registro: {user?.metadata?.creationTime ? 
+                                new Date(user.metadata.creationTime).toLocaleDateString('es-ES', {
+                                  day: '2-digit',
+                                  month: 'short'
+                                }) : 'N/A'
+                              }
+                            </Box>
+                            <Box 
+                              sx={{
+                                px: 2,
+                                py: 0.5,
+                                borderRadius: 20,
+                                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                color: 'white',
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5
+                              }}
+                            >
+                              <Person sx={{ fontSize: 14 }} />
+                              Acceso: {user?.metadata?.lastSignInTime ? 
+                                new Date(user.metadata.lastSignInTime).toLocaleDateString('es-ES', {
+                                  day: '2-digit',
+                                  month: 'short'
+                                }) : 'Hoy'
+                              }
+                            </Box>
+                          </Box>
+                        </Box>
+                      </motion.div>
+                    </Grid>
+                  )}
+                </Grid>
+              </CardContent>
+                </Box>
+              )}
+
+              {/* Tab Panel - Seguridad */}
+              {activeTab === 1 && (
+                <Box>
+                  {/* Header de Seguridad */}
+                  <Box
+                    sx={{
+                      p: theme.spacing(3),
+                      background: `linear-gradient(135deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
+                      backdropFilter: 'blur(20px)',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: theme.spacing(2),
+                      borderRadius: '16px 16px 0 0',
+                      boxShadow: `0 4px 20px ${theme.palette.error.main}30`
+                    }}
+                  >
+                    <Security sx={{ fontSize: 32 }} />
+                    <Box>
+                      <Typography variant="h5" fontWeight={700}>
+                        Seguridad y Privacidad
+                      </Typography>
+                      <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                        Gestiona la seguridad de tu cuenta
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <CardContent sx={{ p: theme.spacing(2), flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    <Grid container spacing={theme.spacing(2)}>
+                      
+                      {/* Cambiar Contraseña */}
+                      <Grid item xs={12} md={6}>
+                        <motion.div
+                          whileHover={{ scale: 1.02, y: -4 }}
+                          transition={{ type: "spring", stiffness: 300 }}
+                        >
+                          <Card sx={{ 
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            background: isDarkMode 
+                              ? 'linear-gradient(135deg, rgba(231, 76, 60, 0.15) 0%, rgba(192, 57, 43, 0.15) 100%)'
+                              : 'linear-gradient(135deg, rgba(231, 76, 60, 0.08) 0%, rgba(192, 57, 43, 0.08) 100%)',
+                            backdropFilter: 'blur(20px)',
+                            border: `2px solid ${theme.palette.error.main}30`,
+                            borderRadius: '16px',
+                            boxShadow: `0 8px 32px ${theme.palette.error.main}20`,
+                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              boxShadow: `0 12px 40px ${theme.palette.error.main}30`,
+                              border: `2px solid ${theme.palette.error.main}50`
+                            }
+                          }}>
+                            <CardContent sx={{ 
+                              p: theme.spacing(2), 
+                              flex: 1, 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              justifyContent: 'space-between' 
+                            }}>
+                              <Box display="flex" alignItems="center" gap={theme.spacing(2)} mb={theme.spacing(1.5)}>
+                                <VpnKey sx={{ color: theme.palette.error.main, fontSize: 28 }} />
+                                <Box>
+                                  <Typography variant="h6" fontWeight={600}>
+                                    Contraseña
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                    Cambia tu contraseña de acceso
+                                  </Typography>
+                                </Box>
+                              </Box>
+                              <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                <Button
+                                  variant="contained"
+                                  onClick={() => setShowPasswordDialog(true)}
+                                  startIcon={<Lock />}
+                                  sx={{
+                                    background: `linear-gradient(135deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
+                                    borderRadius: '12px',
+                                    padding: '12px 24px',
+                                    fontWeight: 600,
+                                    boxShadow: `0 4px 15px ${theme.palette.error.main}40`,
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    '&:hover': {
+                                      background: `linear-gradient(135deg, ${theme.palette.error.dark} 0%, ${theme.palette.error.main} 100%)`,
+                                      boxShadow: `0 6px 20px ${theme.palette.error.main}50`,
+                                      transform: 'translateY(-2px)'
+                                    }
+                                  }}
+                                >
+                                  Cambiar Contraseña
+                                </Button>
+                              </motion.div>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      </Grid>
+
+                      {/* Cuentas Vinculadas */}
+                      <Grid item xs={12} md={6}>
+                        <motion.div
+                          whileHover={{ scale: 1.02, y: -4 }}
+                          transition={{ type: "spring", stiffness: 300 }}
+                        >
+                          <Card sx={{ 
+                            height: '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            background: isDarkMode 
+                              ? 'linear-gradient(135deg, rgba(52, 152, 219, 0.15) 0%, rgba(41, 128, 185, 0.15) 100%)'
+                              : 'linear-gradient(135deg, rgba(52, 152, 219, 0.08) 0%, rgba(41, 128, 185, 0.08) 100%)',
+                            backdropFilter: 'blur(20px)',
+                            border: `2px solid ${theme.palette.info.main}30`,
+                            borderRadius: '16px',
+                            boxShadow: `0 8px 32px ${theme.palette.info.main}20`,
+                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              boxShadow: `0 12px 40px ${theme.palette.info.main}30`,
+                              border: `2px solid ${theme.palette.info.main}50`
+                            }
+                          }}>
+                            <CardContent sx={{ 
+                              p: theme.spacing(2), 
+                              flex: 1, 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              justifyContent: 'space-between' 
+                            }}>
+                              <Box display="flex" alignItems="center" gap={theme.spacing(2)} mb={theme.spacing(1.5)}>
+                                <Link sx={{ color: theme.palette.info.main, fontSize: 28 }} />
+                                <Box>
+                                  <Typography variant="h6" fontWeight={600}>
+                                    Cuentas Vinculadas
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                    Gestiona cuentas externas
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            
+                            <List dense>
+                              {linkedAccounts.length > 0 ? linkedAccounts.map((account, index) => (
+                                <ListItem key={index} sx={{ px: 0 }}>
+                                  <ListItemIcon>
+                                    {getProviderIcon(account.providerId)}
+                                  </ListItemIcon>
+                                  <ListItemText
+                                    primary={getProviderName(account.providerId)}
+                                    secondary={account.email}
+                                  />
+                                  {account.providerId !== 'password' && (
+                                    <ListItemSecondaryAction>
+                                      <IconButton
+                                        edge="end"
+                                        onClick={() => handleUnlinkAccount(account.providerId)}
+                                        size="small"
+                                        sx={{ color: 'error.main' }}
+                                      >
+                                        <LinkOff />
+                                      </IconButton>
+                                    </ListItemSecondaryAction>
+                                  )}
+                                </ListItem>
+                              )) : (
+                                <Typography variant="body2" color="text.secondary">
+                                  Solo autenticación por email
+                                </Typography>
+                              )}
+                            </List>
+                            
+                            <Box display="flex" gap={theme.spacing(1.5)} mt={theme.spacing(1.5)}>
+                              <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                <Button
+                                  size="medium"
+                                  variant="outlined"
+                                  startIcon={<Google />}
+                                  onClick={() => handleLinkAccount('google')}
+                                  disabled={linkedAccounts.some(acc => acc.providerId === 'google.com')}
+                                  sx={{
+                                    borderColor: 'transparent',
+                                    background: isDarkMode 
+                                      ? 'linear-gradient(135deg, rgba(66, 133, 244, 0.15) 0%, rgba(52, 168, 83, 0.15) 100%)'
+                                      : 'linear-gradient(135deg, rgba(66, 133, 244, 0.08) 0%, rgba(52, 168, 83, 0.08) 100%)',
+                                    backdropFilter: 'blur(10px)',
+                                    borderRadius: '12px',
+                                    padding: '8px 16px',
+                                    fontWeight: 600,
+                                    border: `2px solid rgba(66, 133, 244, 0.3)`,
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    '&:hover': {
+                                      background: isDarkMode 
+                                        ? 'linear-gradient(135deg, rgba(66, 133, 244, 0.25) 0%, rgba(52, 168, 83, 0.25) 100%)'
+                                        : 'linear-gradient(135deg, rgba(66, 133, 244, 0.15) 0%, rgba(52, 168, 83, 0.15) 100%)',
+                                      borderColor: 'rgba(66, 133, 244, 0.6)',
+                                      transform: 'translateY(-2px)',
+                                      boxShadow: '0 4px 15px rgba(66, 133, 244, 0.3)'
+                                    }
+                                  }}
+                                >
+                                  Google
+                                </Button>
+                              </motion.div>
+                              <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                <Button
+                                  size="medium"
+                                  variant="outlined"
+                                  startIcon={<Microsoft />}
+                                  onClick={() => handleLinkAccount('microsoft')}
+                                  disabled={linkedAccounts.some(acc => acc.providerId === 'microsoft.com')}
+                                  sx={{
+                                    borderColor: 'transparent',
+                                    background: isDarkMode 
+                                      ? 'linear-gradient(135deg, rgba(0, 120, 212, 0.15) 0%, rgba(16, 110, 190, 0.15) 100%)'
+                                      : 'linear-gradient(135deg, rgba(0, 120, 212, 0.08) 0%, rgba(16, 110, 190, 0.08) 100%)',
+                                    backdropFilter: 'blur(10px)',
+                                    borderRadius: '12px',
+                                    padding: '8px 16px',
+                                    fontWeight: 600,
+                                    border: `2px solid rgba(0, 120, 212, 0.3)`,
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    '&:hover': {
+                                      background: isDarkMode 
+                                        ? 'linear-gradient(135deg, rgba(0, 120, 212, 0.25) 0%, rgba(16, 110, 190, 0.25) 100%)'
+                                        : 'linear-gradient(135deg, rgba(0, 120, 212, 0.15) 0%, rgba(16, 110, 190, 0.15) 100%)',
+                                      borderColor: 'rgba(0, 120, 212, 0.6)',
+                                      transform: 'translateY(-2px)',
+                                      boxShadow: '0 4px 15px rgba(0, 120, 212, 0.3)'
+                                    }
+                                  }}
+                                >
+                                  Microsoft
+                                </Button>
+                              </motion.div>
+                            </Box>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      </Grid>
+
+                      {/* Historial de Actividad */}
+                      <Grid item xs={12}>
+                        <motion.div
+                          whileHover={{ scale: 1.01, y: -2 }}
+                          transition={{ type: "spring", stiffness: 300 }}
+                        >
+                          <Card sx={{ 
+                            background: isDarkMode 
+                              ? 'linear-gradient(135deg, rgba(155, 89, 182, 0.15) 0%, rgba(142, 68, 173, 0.15) 100%)'
+                              : 'linear-gradient(135deg, rgba(155, 89, 182, 0.08) 0%, rgba(142, 68, 173, 0.08) 100%)',
+                            backdropFilter: 'blur(20px)',
+                            border: `2px solid ${theme.palette.secondary.main}30`,
+                            borderRadius: '16px',
+                            boxShadow: `0 8px 32px ${theme.palette.secondary.main}20`,
+                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              boxShadow: `0 12px 40px ${theme.palette.secondary.main}30`,
+                              border: `2px solid ${theme.palette.secondary.main}50`
+                            }
+                          }}>
+                            <CardContent sx={{ 
+                              p: theme.spacing(2), 
+                              flex: 1, 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              justifyContent: 'space-between' 
+                            }}>
+                              <Box display="flex" alignItems="center" justify="space-between" mb={theme.spacing(1.5)}>
+                                <Box display="flex" alignItems="center" gap={theme.spacing(2)}>
+                                  <History sx={{ color: theme.palette.secondary.main, fontSize: 28 }} />
+                                  <Box>
+                                    <Typography variant="h6" fontWeight={600}>
+                                      Historial de Actividad
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                      Últimos accesos y actividades
+                                    </Typography>
+                                  </Box>
+                                </Box>
+                                {loadingHistory && <CircularProgress size={24} sx={{ color: theme.palette.secondary.main }} />}
+                              </Box>
+                            
+                            <List>
+                              {loginHistory.length > 0 ? loginHistory.slice(0, 5).map((entry, index) => (
+                                <ListItem key={index} divider={index < 4}>
+                                  <ListItemIcon>
+                                    {getDeviceIcon(entry.userAgent)}
+                                  </ListItemIcon>
+                                  <ListItemText
+                                    primary={
+                                      <Box display="flex" alignItems="center" gap={1}>
+                                        <Typography variant="body2" fontWeight="medium">
+                                          {entry.action === 'login' ? 'Inicio de sesión' : 
+                                           entry.action === 'password_change' ? 'Cambio de contraseña' : 
+                                           'Actividad'}
+                                        </Typography>
+                                        <Chip 
+                                          size="small" 
+                                          label={entry.action === 'login' ? 'Login' : 'Seguridad'} 
+                                          color={entry.action === 'login' ? 'success' : 'warning'}
+                                        />
+                                      </Box>
+                                    }
+                                    secondary={
+                                      <Box>
+                                        <Typography variant="caption" color="text.secondary">
+                                          {entry.timestamp?.toDate?.() ? 
+                                            entry.timestamp.toDate().toLocaleString('es-ES') :
+                                            new Date(entry.timestamp).toLocaleString('es-ES')
+                                          }
+                                        </Typography>
+                                        <br />
+                                        <Typography variant="caption" color="text.secondary">
+                                          IP: {entry.ipAddress || 'Desconocida'}
+                                        </Typography>
+                                      </Box>
+                                    }
+                                  />
+                                </ListItem>
+                              )) : (
+                                <Typography variant="body2" color="text.secondary">
+                                  No hay historial disponible
+                                </Typography>
+                              )}
+                            </List>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      </Grid>
+
+                      {/* Eliminar Cuenta */}
+                      <Grid item xs={12}>
+                        <motion.div
+                          whileHover={{ scale: 1.01, y: -2 }}
+                          transition={{ type: "spring", stiffness: 300 }}
+                        >
+                          <Card sx={{ 
+                            background: isDarkMode 
+                              ? 'linear-gradient(135deg, rgba(192, 57, 43, 0.18) 0%, rgba(169, 50, 38, 0.18) 100%)'
+                              : 'linear-gradient(135deg, rgba(192, 57, 43, 0.10) 0%, rgba(169, 50, 38, 0.10) 100%)',
+                            backdropFilter: 'blur(20px)',
+                            border: `3px solid ${theme.palette.error.main}40`,
+                            borderRadius: '16px',
+                            boxShadow: `0 8px 32px ${theme.palette.error.main}25`,
+                            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              boxShadow: `0 12px 40px ${theme.palette.error.main}35`,
+                              border: `3px solid ${theme.palette.error.main}60`
+                            }
+                          }}>
+                            <CardContent sx={{ 
+                              p: theme.spacing(1.5), 
+                              flex: 1, 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              justifyContent: 'space-between' 
+                            }}>
+                              <Box display="flex" alignItems="center" gap={theme.spacing(2)} mb={theme.spacing(1)}>
+                                <Warning sx={{ color: theme.palette.error.main, fontSize: 24 }} />
+                                <Box>
+                                  <Typography variant="h6" fontWeight={600} color="error">
+                                    Zona de Peligro
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                    Acciones irreversibles
+                                  </Typography>
+                                </Box>
+                              </Box>
+                              
+                              <Alert 
+                                severity="warning" 
+                                sx={{ 
+                                  mb: theme.spacing(1.5),
+                                  borderRadius: '12px',
+                                  background: isDarkMode 
+                                    ? 'linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(245, 124, 0, 0.15) 100%)'
+                                    : 'linear-gradient(135deg, rgba(255, 152, 0, 0.08) 0%, rgba(245, 124, 0, 0.08) 100%)',
+                                  backdropFilter: 'blur(10px)',
+                                  border: `2px solid ${theme.palette.warning.main}30`,
+                                  fontWeight: 500,
+                                  fontSize: '0.8rem'
+                                }}
+                              >
+                                Eliminar tu cuenta es una acción permanente. Todos tus datos serán eliminados 
+                                y no podrán ser recuperados.
+                              </Alert>
+                              
+                              <motion.div
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                <Button
+                                  variant="contained"
+                                  color="error"
+                                  onClick={() => setShowDeleteDialog(true)}
+                                  startIcon={<DeleteForever />}
+                                  sx={{
+                                    background: `linear-gradient(135deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
+                                    borderRadius: '12px',
+                                    padding: '8px 16px',
+                                    fontWeight: 600,
+                                    fontSize: '0.8rem',
+                                    boxShadow: `0 3px 12px ${theme.palette.error.main}40`,
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    '&:hover': {
+                                      background: `linear-gradient(135deg, ${theme.palette.error.dark} 0%, #8B0000 100%)`,
+                                      boxShadow: `0 4px 15px ${theme.palette.error.main}50`,
+                                      transform: 'translateY(-1px)'
+                                    }
+                                  }}
+                                >
+                                  Eliminar Cuenta Permanentemente
+                                </Button>
+                              </motion.div>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      </Grid>
+
+                    </Grid>
+                  </CardContent>
+                </Box>
+              )}
+            </Card>
+          </motion.div>
+        </Grid>
+      </Grid>
+
+      {/* Dialog para cambiar contraseña */}
+      <Dialog 
+        open={showPasswordDialog} 
+        onClose={() => setShowPasswordDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={2}>
+            <VpnKey sx={{ color: '#e74c3c' }} />
+            Cambiar Contraseña
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 3 }}>
+            Para cambiar tu contraseña, primero confirma tu contraseña actual y luego ingresa la nueva.
+          </DialogContentText>
+          
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Contraseña actual"
+                type={showPasswords.current ? 'text' : 'password'}
+                value={passwordData.currentPassword}
+                onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
+                        edge="end"
+                      >
+                        {showPasswords.current ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Nueva contraseña"
+                type={showPasswords.new ? 'text' : 'password'}
+                value={passwordData.newPassword}
+                onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                helperText="Mínimo 6 caracteres"
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
+                        edge="end"
+                      >
+                        {showPasswords.new ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Confirmar nueva contraseña"
+                type={showPasswords.confirm ? 'text' : 'password'}
+                value={passwordData.confirmPassword}
+                onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                error={passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword}
+                helperText={
+                  passwordData.confirmPassword && passwordData.newPassword !== passwordData.confirmPassword
+                    ? 'Las contraseñas no coinciden'
+                    : ''
+                }
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
+                        edge="end"
+                      >
+                        {showPasswords.confirm ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setShowPasswordDialog(false)}
+            disabled={loadingPassword}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleChangePassword}
+            variant="contained"
+            disabled={
+              loadingPassword || 
+              !passwordData.currentPassword || 
+              !passwordData.newPassword || 
+              passwordData.newPassword !== passwordData.confirmPassword ||
+              passwordData.newPassword.length < 6
+            }
+            startIcon={loadingPassword ? <CircularProgress size={16} /> : <Lock />}
+            sx={{
+              background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #c0392b 0%, #a93226 100%)'
+              }
+            }}
+          >
+            {loadingPassword ? 'Cambiando...' : 'Cambiar Contraseña'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog para eliminar cuenta */}
+      <Dialog 
+        open={showDeleteDialog} 
+        onClose={() => setShowDeleteDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={2}>
+            <Warning sx={{ color: '#c0392b' }} />
+            Eliminar Cuenta Permanentemente
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 3 }}>
+            <Typography variant="body2" fontWeight="bold">
+              Esta acción es irreversible
+            </Typography>
+            <Typography variant="body2">
+              Se eliminarán permanentemente:
+            </Typography>
+            <Box component="ul" sx={{ mt: 1, mb: 0 }}>
+              <li>Tu perfil de usuario</li>
+              <li>Historial de actividad</li>
+              <li>Datos personales</li>
+              <li>Acceso a todas las funcionalidades</li>
+            </Box>
+          </Alert>
+          
+          <DialogContentText>
+            Para confirmar la eliminación, escribe <strong>ELIMINAR</strong> en el campo de abajo:
+          </DialogContentText>
+          
+          <TextField
+            fullWidth
+            placeholder="Escribe ELIMINAR para confirmar"
+            sx={{ mt: 2 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setShowDeleteDialog(false)}
+            disabled={loadingDelete}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleDeleteAccount}
+            variant="contained"
+            color="error"
+            disabled={loadingDelete}
+            startIcon={loadingDelete ? <CircularProgress size={16} /> : <DeleteForever />}
+            sx={{
+              background: 'linear-gradient(135deg, #c0392b 0%, #a93226 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #a93226 0%, #922b21 100%)'
+              }
+            }}
+          >
+            {loadingDelete ? 'Eliminando...' : 'Eliminar Cuenta'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+};
+export default ProfilePage;
