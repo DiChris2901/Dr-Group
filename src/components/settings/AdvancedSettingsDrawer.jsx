@@ -1,7 +1,43 @@
 /**
  * Professional Settings Drawer with Tabs
  * Complete configuration system for DR Group Dashboard
+ * Enhanced with Spectacular Design System effects
  */
+
+// Inyectar estilos CSS para animaciones spectacular
+const spectacularStyles = `
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+  }
+  
+  @keyframes pulse-glow {
+    0%, 100% { 
+      box-shadow: 0 0 8px rgba(102, 126, 234, 0.3);
+    }
+    50% { 
+      box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);
+    }
+  }
+  
+  @keyframes gradient-shift {
+    0%, 100% { 
+      background-position: 0% 50%;
+    }
+    50% { 
+      background-position: 100% 50%;
+    }
+  }
+`;
+
+// Inyectar estilos si no existen
+if (typeof document !== 'undefined' && !document.getElementById('settings-spectacular-styles')) {
+  const styleSheet = document.createElement('style');
+  styleSheet.id = 'settings-spectacular-styles';
+  styleSheet.type = 'text/css';
+  styleSheet.innerText = spectacularStyles;
+  document.head.appendChild(styleSheet);
+}
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -408,10 +444,31 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
       PaperProps={{
         sx: {
           width: { xs: '100vw', sm: 520, md: 600, lg: 650 },
-          background: alpha(theme.palette.background.paper, 0.95),
-          backdropFilter: 'blur(20px)',
-          borderLeft: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-          zIndex: 1300
+          background: `linear-gradient(135deg, 
+            ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
+            ${alpha(theme.palette.background.paper, 0.98)} 15%,
+            ${alpha(theme.palette.background.paper, 0.98)} 85%,
+            ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.03)} 100%
+          )`,
+          backdropFilter: 'blur(20px) saturate(180%)',
+          borderLeft: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+          boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.12)}`,
+          zIndex: 1300,
+          position: 'relative',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: `linear-gradient(45deg, 
+              ${alpha(settings?.theme?.primaryColor || '#667eea', 0.02)} 0%, 
+              transparent 50%, 
+              ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.02)} 100%
+            )`,
+            pointerEvents: 'none'
+          }
         }
       }}
       ModalProps={{
@@ -435,8 +492,27 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
             <Box
               sx={{
                 p: 3,
-                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-                background: `linear-gradient(135deg, ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.05)} 0%, transparent 100%)`
+                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                background: `linear-gradient(135deg, 
+                  ${alpha(settings?.theme?.primaryColor || '#667eea', 0.08)} 0%, 
+                  ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.04)} 100%
+                )`,
+                backdropFilter: 'blur(10px)',
+                position: 'relative',
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  bottom: 0,
+                  left: '20%',
+                  right: '20%',
+                  height: '1px',
+                  background: `linear-gradient(90deg, 
+                    transparent 0%, 
+                    ${settings?.theme?.primaryColor || '#667eea'} 50%, 
+                    transparent 100%
+                  )`,
+                  boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
+                }
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -445,13 +521,37 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     sx={{
                       width: 48,
                       height: 48,
-                      borderRadius: settings?.theme?.borderRadius || 2,
-                      background: `linear-gradient(135deg, ${settings?.theme?.primaryColor || theme.palette.primary.main}, ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.7)})`,
+                      borderRadius: (settings?.theme?.borderRadius || 2) * 1.5,
+                      background: `linear-gradient(135deg, 
+                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                      )`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: `0 8px 24px ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.25)}`,
-                      transition: settings?.theme?.animations ? 'all 0.3s ease' : 'none'
+                      boxShadow: `0 8px 24px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`,
+                      position: 'relative',
+                      overflow: 'hidden',
+                      transition: settings?.theme?.animations ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                      '&::before': settings?.theme?.animations ? {
+                        content: '""',
+                        position: 'absolute',
+                        top: '-50%',
+                        left: '-50%',
+                        width: '200%',
+                        height: '200%',
+                        background: `linear-gradient(45deg, 
+                          transparent 30%, 
+                          ${alpha('#ffffff', 0.1)} 50%, 
+                          transparent 70%
+                        )`,
+                        animation: 'shimmer 3s infinite',
+                        transform: 'translateX(-100%)'
+                      } : {},
+                      '&:hover': settings?.theme?.animations ? {
+                        transform: 'translateY(-2px) scale(1.05)',
+                        boxShadow: `0 12px 32px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.4)}`
+                      } : {}
                     }}
                   >
                     <SettingsIcon sx={{ color: 'white', fontSize: (settings?.theme?.fontSize || 14) + 10 }} />
@@ -670,13 +770,53 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                   cursor: 'pointer',
                                   border: settings?.theme?.primaryColor === colors.main 
                                     ? `2px solid ${colors.main}` 
-                                  : '2px solid transparent',
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                  transform: 'translateY(-2px)',
-                                  boxShadow: `0 8px 24px ${alpha(colors.main, 0.25)}`
-                                }
-                              }}
+                                    : '2px solid transparent',
+                                  borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                                  position: 'relative',
+                                  overflow: 'hidden',
+                                  background: `linear-gradient(135deg, 
+                                    ${alpha(colors.main, 0.05)} 0%, 
+                                    ${alpha(theme.palette.background.paper, 0.95)} 100%
+                                  )`,
+                                  backdropFilter: 'blur(10px)',
+                                  transition: settings?.theme?.animations ? 
+                                    'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' : 
+                                    'all 0.2s ease',
+                                  '&::before': settings?.theme?.primaryColor === colors.main ? {
+                                    content: '""',
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    background: `linear-gradient(45deg, 
+                                      transparent 30%, 
+                                      ${alpha(colors.main, 0.1)} 50%, 
+                                      transparent 70%
+                                    )`,
+                                    animation: settings?.theme?.animations ? 'shimmer 2s infinite' : 'none'
+                                  } : {},
+                                  '&:hover': {
+                                    transform: settings?.theme?.animations ? 
+                                      'translateY(-4px) scale(1.02)' : 
+                                      'translateY(-2px)',
+                                    boxShadow: `0 12px 32px ${alpha(colors.main, 0.3)}`,
+                                    border: `2px solid ${alpha(colors.main, 0.6)}`,
+                                    '&::after': settings?.theme?.animations ? {
+                                      content: '""',
+                                      position: 'absolute',
+                                      top: 0,
+                                      left: 0,
+                                      right: 0,
+                                      bottom: 0,
+                                      background: `linear-gradient(135deg, 
+                                        ${alpha(colors.main, 0.1)} 0%, 
+                                        transparent 100%
+                                      )`,
+                                      pointerEvents: 'none'
+                                    } : {}
+                                  }
+                                }}
                               onClick={() => {
                                 const newTheme = { 
                                   ...settings.theme, 
@@ -689,10 +829,33 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                 <Box
                                   sx={{
                                     width: '100%',
-                                    height: 32,
-                                    borderRadius: 1,
-                                    background: `linear-gradient(135deg, ${colors.light}, ${colors.main}, ${colors.dark})`,
-                                    mb: 1
+                                    height: 36,
+                                    borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
+                                    background: `linear-gradient(135deg, 
+                                      ${colors.light} 0%, 
+                                      ${colors.main} 50%, 
+                                      ${colors.dark} 100%
+                                    )`,
+                                    backgroundSize: '200% 200%',
+                                    mb: 1.5,
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                    boxShadow: `0 4px 12px ${alpha(colors.main, 0.25)}`,
+                                    animation: settings?.theme?.animations ? 'gradient-shift 3s ease infinite' : 'none',
+                                    '&::after': {
+                                      content: '""',
+                                      position: 'absolute',
+                                      top: 0,
+                                      left: 0,
+                                      right: 0,
+                                      bottom: 0,
+                                      background: `linear-gradient(135deg, 
+                                        ${alpha('#ffffff', 0.2)} 0%, 
+                                        transparent 50%, 
+                                        ${alpha('#000000', 0.1)} 100%
+                                      )`,
+                                      pointerEvents: 'none'
+                                    }
                                   }}
                                 />
                                 <Typography variant="caption" sx={{ fontWeight: 600 }}>
@@ -713,7 +876,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       <Typography variant="h6" sx={{ mb: 2 }}>
                         Modo de Tema
                       </Typography>
-                      <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Box sx={{ display: 'flex', gap: 2 }}>
                         <Button
                           variant={settings?.theme?.mode === 'light' ? 'contained' : 'outlined'}
                           startIcon={<LightModeIcon />}
@@ -721,9 +884,52 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             ...settings.theme, 
                             mode: 'light' 
                           })}
-                          sx={{ flex: 1, py: 1.5 }}
+                          sx={{ 
+                            flex: 1, 
+                            py: 2, 
+                            borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                            position: 'relative',
+                            overflow: 'hidden',
+                            transition: settings?.theme?.animations ? 
+                              'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' : 
+                              'all 0.2s ease',
+                            ...(settings?.theme?.mode === 'light' ? {
+                              background: `linear-gradient(135deg, 
+                                #ffd700 0%, 
+                                #ffa500 50%, 
+                                #ff8c00 100%
+                              )`,
+                              boxShadow: `0 6px 20px ${alpha('#ffa500', 0.3)}`,
+                              color: 'white',
+                              '&::before': settings?.theme?.animations ? {
+                                content: '""',
+                                position: 'absolute',
+                                top: '-50%',
+                                left: '-50%',
+                                width: '200%',
+                                height: '200%',
+                                background: `linear-gradient(45deg, 
+                                  transparent 30%, 
+                                  ${alpha('#ffffff', 0.2)} 50%, 
+                                  transparent 70%
+                                )`,
+                                animation: 'shimmer 3s infinite',
+                                transform: 'translateX(-100%)'
+                              } : {}
+                            } : {
+                              borderColor: alpha(theme.palette.divider, 0.12),
+                              '&:hover': {
+                                borderColor: '#ffa500',
+                                backgroundColor: alpha('#ffa500', 0.08)
+                              }
+                            }),
+                            '&:hover': settings?.theme?.mode === 'light' ? {
+                              transform: settings?.theme?.animations ? 'translateY(-2px) scale(1.02)' : 'none',
+                              boxShadow: `0 8px 25px ${alpha('#ffa500', 0.4)}`
+                            } : {}
+                          }}
                         >
-                          Claro
+                          ☀️ Claro
                         </Button>
                         <Button
                           variant={settings?.theme?.mode === 'dark' ? 'contained' : 'outlined'}
@@ -732,9 +938,52 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             ...settings.theme, 
                             mode: 'dark' 
                           })}
-                          sx={{ flex: 1, py: 1.5 }}
+                          sx={{ 
+                            flex: 1, 
+                            py: 2,
+                            borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                            position: 'relative',
+                            overflow: 'hidden',
+                            transition: settings?.theme?.animations ? 
+                              'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' : 
+                              'all 0.2s ease',
+                            ...(settings?.theme?.mode === 'dark' ? {
+                              background: `linear-gradient(135deg, 
+                                #2c3e50 0%, 
+                                #3498db 50%, 
+                                #9b59b6 100%
+                              )`,
+                              boxShadow: `0 6px 20px ${alpha('#3498db', 0.3)}`,
+                              color: 'white',
+                              '&::before': settings?.theme?.animations ? {
+                                content: '""',
+                                position: 'absolute',
+                                top: '-50%',
+                                left: '-50%',
+                                width: '200%',
+                                height: '200%',
+                                background: `linear-gradient(45deg, 
+                                  transparent 30%, 
+                                  ${alpha('#ffffff', 0.1)} 50%, 
+                                  transparent 70%
+                                )`,
+                                animation: 'shimmer 3s infinite',
+                                transform: 'translateX(-100%)'
+                              } : {}
+                            } : {
+                              borderColor: alpha(theme.palette.divider, 0.12),
+                              '&:hover': {
+                                borderColor: '#3498db',
+                                backgroundColor: alpha('#3498db', 0.08)
+                              }
+                            }),
+                            '&:hover': settings?.theme?.mode === 'dark' ? {
+                              transform: settings?.theme?.animations ? 'translateY(-2px) scale(1.02)' : 'none',
+                              boxShadow: `0 8px 25px ${alpha('#3498db', 0.4)}`
+                            } : {}
+                          }}
                         >
-                          Oscuro
+                          🌙 Oscuro
                         </Button>
                       </Box>
                     </CardContent>
