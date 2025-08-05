@@ -428,7 +428,7 @@ const CommitmentsPage = () => {
               setExtendModalOpen(false);
               setCommitmentsToExtend(null);
             }}
-            commitmentsData={commitmentsToExtend}
+            commitmentsToExtend={commitmentsToExtend}
             onExtensionComplete={(result) => {
               console.log('🎉 Extensión completada:', result);
               addNotification({
