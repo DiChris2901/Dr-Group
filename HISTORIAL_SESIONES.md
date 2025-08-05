@@ -6,7 +6,35 @@
 - [Sesión 3 - 29 Julio 2025](#sesión-3---29-julio-2025)
 - [Sesión 4 - 31 Julio 2025](#sesión-4---31-julio-2025)
 - [Sesión 5 - 04 Agosto 2025](#sesión-5---04-agosto-2025)
+- [Sesión 6 - 05 Agosto 2025](#sesión-6---05-agosto-2025)
 - [Plantilla para Nuevas Sesiones](#plantilla-para-nuevas-sesiones)
+
+---
+
+## Sesión 6 - 05 Agosto 2025
+
+### 🎯 **Objetivo Principal:**
+Corrección de errores de validación DOM en ExtendCommitmentsModal
+
+### ✅ **Logros Principales:**
+
+#### **1. Corrección DOM Validation**
+- ✅ Eliminadas advertencias validateDOMNesting en ExtendCommitmentsModal
+- ✅ Reemplazo de Typography/Box anidados por elementos HTML válidos
+- ✅ Corrección de estructura DOM en ListItemText y Alert
+- ✅ Console limpio sin errores de validación
+
+#### **2. Mejoras en Estabilidad**
+- ✅ Modal funcionando sin advertencias DOM
+- ✅ Preservación completa de funcionalidad
+- ✅ Mantenimiento del Design System Spectacular
+- ✅ Mejor rendimiento al eliminar validaciones fallidas
+
+### 📁 **Archivos Modificados:**
+- `src/components/commitments/ExtendCommitmentsModal.jsx` - Corrección anidamiento DOM
+
+### 🔄 **Commits Realizados:**
+- `fix: Resolve DOM nesting validation warnings in ExtendCommitmentsModal`
 
 ---
 
