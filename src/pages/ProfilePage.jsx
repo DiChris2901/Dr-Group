@@ -1417,11 +1417,11 @@ const ProfilePage = () => {
               {/* Tab Panel - Información Personal */}
               {activeTab === 0 && (
                 <Box>
-                  {/* Header optimizado */}
+                  {/* Header spectacular */}
                   <Box
                     sx={{
-                      p: 2.5,
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      p: 3,
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                       color: 'white',
                       display: 'flex',
                       alignItems: 'center',
@@ -2213,32 +2213,36 @@ const ProfilePage = () => {
               {/* Tab Panel - Seguridad */}
               {activeTab === 1 && (
                 <Box>
-                  {/* Header de Seguridad */}
+                  {/* Header spectacular */}
                   <Box
                     sx={{
-                      p: theme.spacing(3),
-                      background: `linear-gradient(135deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
-                      backdropFilter: 'blur(20px)',
+                      p: 3,
+                      background: `linear-gradient(135deg, ${theme.palette.error.main}, ${theme.palette.error.dark})`,
                       color: 'white',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: theme.spacing(2),
-                      borderRadius: '16px 16px 0 0',
-                      boxShadow: `0 4px 20px ${theme.palette.error.main}30`
+                      gap: 2
                     }}
                   >
-                    <Security sx={{ fontSize: 32 }} />
+                    <Security sx={{ fontSize: 28 }} />
                     <Box>
-                      <Typography variant="h5" fontWeight={700}>
+                      <Typography variant="h6" fontWeight="bold">
                         Seguridad y Privacidad
                       </Typography>
-                      <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 500 }}>
+                      <Typography variant="caption" sx={{ opacity: 0.9 }}>
                         Gestiona la seguridad de tu cuenta
                       </Typography>
                     </Box>
                   </Box>
 
-                  <CardContent sx={{ p: theme.spacing(2), flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <CardContent sx={{ 
+                    p: 4, 
+                    flex: 1, 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    position: 'relative',
+                    zIndex: 2
+                  }}>
                     <Grid container spacing={theme.spacing(2)}>
                       
                       {/* Cambiar Contraseña */}
