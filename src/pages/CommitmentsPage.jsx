@@ -53,6 +53,43 @@ const CommitmentsPage = () => {
     setCommitmentsData(newCommitmentsData);
   };
 
+  // Función temporal para probar el modal de extensiones con datos simulados
+  const handleTestExtensions = () => {
+    const simulatedExtensionData = {
+      total: 2,
+      needsExtension: 2,
+      groups: [
+        {
+          groupId: 'test_group_1',
+          concept: 'Nómina Administrativos',
+          periodicity: 'monthly',
+          companyId: 'company1',
+          companyName: 'DiverGames SAS',
+          beneficiary: 'Empleados Admin',
+          amount: 2500000,
+          commitmentsCount: 12,
+          lastDueDate: new Date('2025-07-15'),
+          commitments: []
+        },
+        {
+          groupId: 'test_group_2',
+          concept: 'Arriendo Oficina',
+          periodicity: 'monthly',
+          companyId: 'company2',
+          companyName: 'TechCorp Ltd',
+          beneficiary: 'Inmobiliaria XYZ',
+          amount: 1800000,
+          commitmentsCount: 12,
+          lastDueDate: new Date('2025-06-30'),
+          commitments: []
+        }
+      ]
+    };
+    
+    setCommitmentsToExtend(simulatedExtensionData);
+    setExtendModalOpen(true);
+  };
+
   const handleAddCommitment = () => {
     // Navegar a la página de nuevo compromiso
     navigate('/commitments/new');
@@ -87,13 +124,37 @@ const CommitmentsPage = () => {
     const extensionCheck = checkCommitmentsForExtension(commitmentsData, 3);
     console.log('🎯 Resultado verificación:', extensionCheck);
     
-    if (extensionCheck.needsExtension === 0) {
+    // Verificar si hay compromisos recurrentes en general (no solo los que necesitan extensión)
+    const recurringCommitments = commitmentsData.filter(c => c.isRecurring && c.recurringGroup);
+    console.log('🔄 Compromisos recurrentes encontrados:', recurringCommitments.length);
+    
+    if (recurringCommitments.length === 0) {
       addNotification({
-        type: 'success',
-        title: '✅ Compromisos Actualizados',
-        message: 'Todos los compromisos recurrentes están al día. No se requieren extensiones.',
-        duration: 5000
+        type: 'info',
+        title: '📋 Sin Compromisos Recurrentes',
+        message: 'No se encontraron compromisos recurrentes para extender. Crea compromisos con periodicidad para usar esta función.',
+        duration: 6000
       });
+      return;
+    }
+    
+    if (extensionCheck.needsExtension === 0) {
+      // Si hay compromisos recurrentes pero no necesitan extensión, dar opción de forzar
+      addNotification({
+        type: 'warning',
+        title: '📅 Extensión Manual Disponible',
+        message: `Se encontraron ${recurringCommitments.length} compromisos recurrentes. Todos están al día, pero puedes forzar una extensión si es necesario.`,
+        duration: 8000
+      });
+      
+      // Forzar la apertura del modal con todos los grupos recurrentes usando fecha pasada
+      setTimeout(() => {
+        const forcedExtensionCheck = checkCommitmentsForExtension(commitmentsData, -12);
+        if (forcedExtensionCheck.needsExtension > 0) {
+          setCommitmentsToExtend(forcedExtensionCheck);
+          setExtendModalOpen(true);
+        }
+      }, 2000);
     } else {
       setCommitmentsToExtend(extensionCheck);
       setExtendModalOpen(true);
@@ -213,6 +274,41 @@ const CommitmentsPage = () => {
                     }}
                   >
                     Extender
+                  </Button>
+                </motion.div>
+
+                {/* Botón de Prueba Temporal - REMOVER EN PRODUCCIÓN */}
+                <motion.div
+                  initial={settings.theme?.animations ? { x: 25, opacity: 0 } : {}}
+                  animate={settings.theme?.animations ? { x: 0, opacity: 1 } : { x: 0, opacity: 1 }}
+                  transition={settings.theme?.animations ? { delay: 0.25, duration: 0.5 } : { duration: 0 }}
+                  whileHover={settings.theme?.animations ? { scale: 1.05 } : {}}
+                  whileTap={settings.theme?.animations ? { scale: 0.95 } : {}}
+                >
+                  <Button
+                    variant="outlined"
+                    startIcon={<Assignment />}
+                    onClick={handleTestExtensions}
+                    size="medium"
+                    sx={{
+                      py: 1,
+                      px: 2,
+                      fontSize: '0.9rem',
+                      fontWeight: 500,
+                      borderRadius: `${settings.theme?.borderRadius || 16}px`,
+                      border: '1px solid rgba(255, 193, 7, 0.5)',
+                      color: 'rgba(255, 193, 7, 0.9)',
+                      textTransform: 'none',
+                      backdropFilter: 'blur(10px)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': {
+                        background: 'rgba(255, 193, 7, 0.1)',
+                        borderColor: 'rgba(255, 193, 7, 0.8)',
+                        color: 'rgba(255, 193, 7, 1)'
+                      }
+                    }}
+                  >
+                    🧪 Test
                   </Button>
                 </motion.div>
 

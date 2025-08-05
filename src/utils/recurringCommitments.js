@@ -251,14 +251,17 @@ export const checkCommitmentsForExtension = (commitments, monthsAhead = 3) => {
     const lastCommitment = group.commitments
       .sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate))[0];
     
+    const needsExtensionCheck = monthsAhead < 0 ? true : new Date(lastCommitment.dueDate) < checkDate;
+    
     console.log(`📆 Grupo ${groupId}:`, {
       concept: group.concept,
       lastDueDate: lastCommitment.dueDate,
       checkDate: checkDate,
-      needsExtension: new Date(lastCommitment.dueDate) < checkDate
+      needsExtension: needsExtensionCheck,
+      forced: monthsAhead < 0
     });
     
-    if (lastCommitment && new Date(lastCommitment.dueDate) < checkDate) {
+    if (lastCommitment && needsExtensionCheck) {
       needsExtension.push({
         groupId,
         ...group,
