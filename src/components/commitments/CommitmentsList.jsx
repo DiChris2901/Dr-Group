@@ -2111,6 +2111,12 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
         onClose={handleCloseViewDialog}
         maxWidth="md"
         fullWidth
+        sx={{
+          '& .MuiDialog-paper': {
+            margin: '32px', // Agregar margen desde los bordes de la pantalla
+            maxHeight: 'calc(100vh - 64px)', // Limitar altura para evitar que toque los bordes
+          }
+        }}
         PaperProps={{
           sx: {
             borderRadius: 4,
@@ -3002,6 +3008,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
             <DialogActions 
               sx={{ 
                 p: 4, 
+                pb: 8, // Mucho más espacio en la parte inferior
+                mb: 2, // Margen inferior adicional
                 background: `
                   linear-gradient(135deg, rgba(248, 250, 252, 0.95) 0%, rgba(241, 245, 249, 0.9) 100%),
                   linear-gradient(225deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.6) 100%)
