@@ -22,7 +22,8 @@ import {
   Checkbox,
   Autocomplete,
   Fab,
-  Tooltip
+  Tooltip,
+  Switch
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -37,7 +38,10 @@ import {
   Payment as PaymentIcon,
   Schedule as ScheduleIcon,
   Settings as SettingsIcon,
-  Tune as TuneIcon
+  Tune as TuneIcon,
+  Repeat as RepeatIcon,
+  Timeline as TimelineIcon,
+  Event as EventIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -47,6 +51,14 @@ import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { getPaymentMethodOptions } from '../utils/formatUtils';
+import { 
+  generateRecurringCommitments, 
+  saveRecurringCommitments, 
+  getPeriodicityDescription,
+  calculateNextDueDates 
+} from '../utils/recurringCommitments';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { useSettings } from '../context/SettingsContext';
 import ConfigurationCompatibilityAnalyzer from '../components/settings/ConfigurationCompatibilityAnalyzer';
 
@@ -74,6 +86,19 @@ const NewCommitmentPage = () => {
   // Obtener empresa preseleccionada desde la navegación
   const preselectedCompany = location.state?.preselectedCompany;
 
+  // 🔄 Calcular número de compromisos sugerido según periodicidad (para 1 año)
+  const getDefaultRecurringCount = (periodicity) => {
+    const counts = {
+      'monthly': 12,      // 12 meses = 1 año
+      'bimonthly': 6,     // 6 bimestres = 1 año  
+      'quarterly': 4,     // 4 trimestres = 1 año
+      'fourmonthly': 3,   // 3 cuatrimestres = 1 año
+      'biannual': 2,      // 2 semestres = 1 año
+      'annual': 1         // 1 año
+    };
+    return counts[periodicity] || 12;
+  };
+
   // Formulario para nuevo compromiso
   const [formData, setFormData] = useState({
     companyId: preselectedCompany?.id || '',
@@ -88,7 +113,9 @@ const NewCommitmentPage = () => {
     paymentMethod: 'transfer', // transfer, check, cash, debit, credit
     observations: '',
     deferredPayment: false,
-    status: 'pending' // pending, paid, overdue
+    status: 'pending', // pending, paid, overdue
+    // 🔄 Solo contador para compromisos recurrentes (automático según periodicidad)
+    recurringCount: getDefaultRecurringCount('monthly') // Valor dinámico basado en periodicidad inicial
   });
 
   // 🎨 Design System Spectacular - Configuraciones dinámicas
@@ -209,6 +236,17 @@ const NewCommitmentPage = () => {
     }
   }, [preselectedCompany, companies, addNotification]);
 
+  // 🔄 Actualizar contador de compromisos según periodicidad
+  useEffect(() => {
+    if (formData.periodicity && formData.periodicity !== 'unique') {
+      const defaultCount = getDefaultRecurringCount(formData.periodicity);
+      setFormData(prev => ({
+        ...prev,
+        recurringCount: defaultCount
+      }));
+    }
+  }, [formData.periodicity]);
+
   // Manejar cambios en el formulario
   const handleFormChange = (field, value) => {
     setFormData(prev => ({
@@ -309,24 +347,53 @@ const NewCommitmentPage = () => {
         updatedBy: currentUser.uid
       };
 
-      await addDoc(collection(db, 'commitments'), commitmentData);
-      
-      // 🔊 Notificación con sonido condicional
-      if (notificationsEnabled) {
-        if (notificationSoundEnabled) {
-          // Sonido de éxito
-          const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmUeCSGh2u+8g');
-          audio.volume = 0.2;
-          audio.play().catch(() => {}); // Ignorar errores de autoplay
+      // 🔄 Si la periodicidad NO es "único", generar compromisos recurrentes automáticamente
+      if (formData.periodicity !== 'unique') {
+        // Generar compromisos recurrentes automáticamente
+        const recurringCommitments = await generateRecurringCommitments(
+          commitmentData, 
+          formData.recurringCount || 12
+        );
+
+        // Guardar todos los compromisos recurrentes
+        const result = await saveRecurringCommitments(recurringCommitments);
+
+        // 🔊 Notificación de éxito para compromisos recurrentes
+        if (notificationsEnabled) {
+          if (notificationSoundEnabled) {
+            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmUeCSGh2u+8g');
+            audio.volume = 0.2;
+            audio.play().catch(() => {});
+          }
+          
+          addNotification({
+            type: 'success',
+            title: 'Compromisos recurrentes creados',
+            message: `Se crearon ${result.count} compromisos ${getPeriodicityDescription(formData.periodicity).toLowerCase()} para "${formData.companyName}"`,
+            icon: 'success',
+            color: 'success'
+          });
         }
+      } else {
+        // Guardar compromiso único
+        await addDoc(collection(db, 'commitments'), commitmentData);
         
-        addNotification({
-          type: 'success',
-          title: 'Compromiso creado',
-          message: `Se creó exitosamente el compromiso para "${formData.companyName}"`,
-          icon: 'success',
-          color: 'success'
-        });
+        // 🔊 Notificación con sonido condicional
+        if (notificationsEnabled) {
+          if (notificationSoundEnabled) {
+            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmUeCSGh2u+8g');
+            audio.volume = 0.2;
+            audio.play().catch(() => {});
+          }
+          
+          addNotification({
+            type: 'success',
+            title: 'Compromiso creado',
+            message: `Se creó exitosamente el compromiso para "${formData.companyName}"`,
+            icon: 'success',
+            color: 'success'
+          });
+        }
       }
 
       // Navegar de vuelta a la lista de compromisos
@@ -550,10 +617,14 @@ const NewCommitmentPage = () => {
                             justifyContent: 'center',
                             boxShadow: theme.palette.mode === 'dark' 
                               ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
-                              : '0 4px 12px rgba(0, 0, 0, 0.15)'
+                              : '0 4px 12px rgba(0, 0, 0, 0.15)',
+                            mr: 2
                           }}
                         >
-                          <BusinessIcon sx={{ fontSize: fontSize + 6, color: 'white' }} />
+                          <BusinessIcon sx={{ 
+                            fontSize: fontSize + 6, 
+                            color: 'white'
+                          }} />
                         </Box>
                         <Typography variant="h6" fontWeight="600" sx={{ 
                           color: theme.palette.text.primary,
@@ -707,6 +778,98 @@ const NewCommitmentPage = () => {
                           </Select>
                         </FormControl>
                       </Grid>
+
+                      {/* 🔄 Información de Compromisos Recurrentes (Automático) */}
+                      {formData.periodicity !== 'unique' && (
+                        <Grid item xs={12}>
+                          <Paper 
+                            elevation={1}
+                            sx={{ 
+                              p: 2, 
+                              mt: 1,
+                              background: `linear-gradient(135deg, ${theme.palette.success.main}08, ${theme.palette.primary.main}08)`,
+                              border: `1px solid ${theme.palette.success.main}30`,
+                              borderRadius: 2,
+                              overflow: 'hidden'
+                            }}
+                          >
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                                <RepeatIcon sx={{ mr: 1, color: 'success.main' }} />
+                                <Typography variant="h6" sx={{ fontWeight: 600, color: 'success.main' }}>
+                                  ✅ Compromiso Recurrente Automático
+                                </Typography>
+                              </Box>
+                              
+                              <Alert severity="info" sx={{ mb: 2 }}>
+                                <Typography variant="body2">
+                                  Este compromiso se <strong>replicará automáticamente</strong> porque seleccionaste periodicidad <strong>"{getPeriodicityDescription(formData.periodicity)}"</strong>
+                                </Typography>
+                              </Alert>
+                            </motion.div>
+                            
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} md={6}>
+                                  <TextField
+                                    fullWidth
+                                    label="Número de compromisos a generar"
+                                    type="number"
+                                    value={formData.recurringCount}
+                                    InputProps={{
+                                      readOnly: true,
+                                      startAdornment: (
+                                        <InputAdornment position="start">
+                                          <TimelineIcon color="primary" />
+                                        </InputAdornment>
+                                      ),
+                                      inputProps: { min: 1, max: 24 },
+                                      sx: {
+                                        backgroundColor: 'action.hover',
+                                        '& .MuiOutlinedInput-notchedOutline': {
+                                          borderColor: 'primary.main',
+                                          borderStyle: 'dashed'
+                                        }
+                                      }
+                                    }}
+                                    helperText={`Se crearán automáticamente ${formData.recurringCount || getDefaultRecurringCount(formData.periodicity)} compromisos ${getPeriodicityDescription(formData.periodicity).toLowerCase()} (calculado automáticamente)`}
+                                  />
+                                </Grid>
+                                
+                                <Grid item xs={12} md={6}>
+                                  <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1, border: 1, borderColor: 'divider' }}>
+                                    <Typography variant="subtitle2" sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
+                                      <EventIcon sx={{ mr: 1, fontSize: 16 }} />
+                                      Próximas fechas de vencimiento
+                                    </Typography>
+                                    {formData.dueDate && (
+                                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                        {calculateNextDueDates(formData.dueDate, formData.periodicity, 3).map((date, index) => (
+                                          <Typography key={index} variant="body2" color="text.secondary">
+                                            {index + 1}. {format(date, 'dd/MM/yyyy', { locale: es })}
+                                          </Typography>
+                                        ))}
+                                        {formData.recurringCount > 3 && (
+                                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                            ... y {formData.recurringCount - 3} compromisos más
+                                          </Typography>
+                                        )}
+                                      </Box>
+                                    )}
+                                    {!formData.dueDate && (
+                                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                        Selecciona una fecha de vencimiento para ver las próximas fechas
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                </Grid>
+                              </Grid>
+                          </Paper>
+                        </Grid>
+                      )}
 
                       {/* Fila 2: Beneficiario, Concepto */}
                       <Grid item xs={12} md={6}>
@@ -871,55 +1034,34 @@ const NewCommitmentPage = () => {
 
                       {/* Fila 3: Valor a cancelar, Método de pago */}
                       <Grid item xs={12} md={6}>
-                        <motion.div
-                          animate={formData.amount ? { scale: [1, 1.02, 1] } : {}}
-                          transition={{ duration: 0.3 }}
-                        >
-                          <TextField
-                            fullWidth
-                            required
-                            label="Valor a cancelar"
-                            type="number"
-                            value={formData.amount}
-                            onChange={(e) => handleFormChange('amount', e.target.value)}
-                            disabled={saving}
-                            InputProps={{
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <motion.div
-                                    animate={formData.amount ? { 
-                                      color: [theme.palette.primary.main, theme.palette.success.main, theme.palette.primary.main],
-                                      scale: [1, 1.1, 1]
-                                    } : {}}
-                                    transition={{ duration: 0.5 }}
-                                  >
-                                    <MoneyIcon color="primary" />
-                                  </motion.div>
-                                  $
-                                </InputAdornment>
-                              ),
-                              sx: {
-                                '& .MuiOutlinedInput-root': {
-                                  '&.Mui-focused': {
-                                    '& .MuiOutlinedInput-notchedOutline': {
-                                      borderColor: theme.palette.success.main,
-                                      borderWidth: 2,
-                                    }
+                        <TextField
+                          fullWidth
+                          required
+                          label="Valor a cancelar"
+                          type="number"
+                          value={formData.amount}
+                          onChange={(e) => handleFormChange('amount', e.target.value)}
+                          disabled={saving}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <MoneyIcon color="primary" />
+                                $
+                              </InputAdornment>
+                            ),
+                            sx: {
+                              '& .MuiOutlinedInput-root': {
+                                '&.Mui-focused': {
+                                  '& .MuiOutlinedInput-notchedOutline': {
+                                    borderColor: theme.palette.success.main,
+                                    borderWidth: 2,
                                   }
                                 }
                               }
-                            }}
-                            helperText={
-                              <motion.div
-                                initial={{ opacity: 0, y: -10 }}
-                                animate={{ opacity: formData.amount ? 1 : 0, y: formData.amount ? 0 : -10 }}
-                                transition={{ duration: 0.3 }}
-                              >
-                                {formData.amount ? formatCurrency(formData.amount) : ''}
-                              </motion.div>
                             }
-                          />
-                        </motion.div>
+                          }}
+                          helperText={formData.amount ? formatCurrency(formData.amount) : ''}
+                        />
                       </Grid>
 
                       <Grid item xs={12} md={6}>
@@ -1038,7 +1180,10 @@ const NewCommitmentPage = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.4 }}
                   >
-                    <Divider sx={{ my: 3, borderColor: theme.palette.divider }} />
+                    <Divider sx={{ 
+                      my: 3, 
+                      borderColor: theme.palette.divider
+                    }} />
                     <Box 
                       display="flex" 
                       gap={2} 
@@ -1111,27 +1256,26 @@ const NewCommitmentPage = () => {
                         onClick={handleSaveCommitment}
                         disabled={saving || !formData.companyId || !formData.month || !formData.year || !formData.periodicity || !formData.beneficiary?.trim() || !formData.concept?.trim() || !formData.amount || !formData.paymentMethod}
                         sx={{ 
-                          borderRadius: `${borderRadius}px`,
-                          px: 4,
+                          borderRadius: 2,
+                          px: 3,
                           py: 1.5,
                           minWidth: 180,
                           background: getGradientBackground(),
                           fontWeight: 600,
                           textTransform: 'none',
-                          fontSize: `${fontSize}px`,
-                          position: 'relative',
-                          overflow: 'hidden',
+                          fontSize: `${fontSize + 2}px`,
                           boxShadow: theme.palette.mode === 'dark' 
-                            ? '0 6px 20px rgba(0, 0, 0, 0.4)' 
-                            : '0 6px 20px rgba(0, 0, 0, 0.25)',
+                            ? '0 8px 25px rgba(0, 0, 0, 0.4)' 
+                            : '0 8px 25px rgba(0, 0, 0, 0.15)',
+                          border: 'none',
                           '&:hover': animationsEnabled ? {
-                            transform: 'translateY(-3px)',
+                            transform: 'translateY(-2px)',
                             boxShadow: theme.palette.mode === 'dark' 
-                              ? '0 12px 30px rgba(0, 0, 0, 0.5)' 
-                              : '0 12px 30px rgba(0, 0, 0, 0.35)',
-                            '&::before': {
-                              opacity: 1,
-                            }
+                              ? '0 12px 40px rgba(0, 0, 0, 0.5)' 
+                              : '0 12px 40px rgba(0, 0, 0, 0.2)'
+                          } : {},
+                          '&:active': animationsEnabled ? {
+                            transform: 'translateY(-1px) scale(0.98)',
                           } : {},
                           '&::before': {
                             content: '""',
