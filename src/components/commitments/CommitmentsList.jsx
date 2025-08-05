@@ -195,7 +195,7 @@ const TimeProgress = ({ dueDate, createdAt }) => {
   );
 };
 
-const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = 'cards' }) => {
+const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = 'cards', onCommitmentsChange }) => {
   const { currentUser } = useAuth();
   const { addNotification, addAlert } = useNotifications();
   const { settings } = useSettings();
@@ -373,6 +373,11 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
 
         setCommitments(filteredCommitments);
         setLoading(false);
+        
+        // Notificar al componente padre sobre los datos de compromisos
+        if (onCommitmentsChange) {
+          onCommitmentsChange(filteredCommitments);
+        }
       },
       (error) => {
         console.error('Error fetching commitments:', error);

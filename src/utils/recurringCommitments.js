@@ -206,13 +206,25 @@ export const calculateTemporalLimit = (yearsAhead = 1) => {
  * @returns {Object} Información sobre compromisos que necesitan extensión
  */
 export const checkCommitmentsForExtension = (commitments, monthsAhead = 3) => {
+  console.log('🔍 checkCommitmentsForExtension iniciado');
+  console.log('📊 Compromisos recibidos:', commitments.length);
+  
   const today = new Date();
   const checkDate = addMonths(today, monthsAhead);
+  console.log('📅 Fecha límite para verificar:', checkDate.toISOString());
   
   const recurringGroups = {};
   
   // Agrupar compromisos recurrentes
-  commitments.forEach(commitment => {
+  commitments.forEach((commitment, index) => {
+    console.log(`📋 Compromiso ${index + 1}:`, {
+      concept: commitment.concept,
+      isRecurring: commitment.isRecurring,
+      recurringGroup: commitment.recurringGroup,
+      periodicity: commitment.periodicity,
+      dueDate: commitment.dueDate
+    });
+    
     if (commitment.isRecurring && commitment.recurringGroup) {
       if (!recurringGroups[commitment.recurringGroup]) {
         recurringGroups[commitment.recurringGroup] = {
@@ -229,12 +241,22 @@ export const checkCommitmentsForExtension = (commitments, monthsAhead = 3) => {
     }
   });
   
+  console.log('📦 Grupos recurrentes encontrados:', Object.keys(recurringGroups).length);
+  console.log('🔍 Grupos:', Object.keys(recurringGroups));
+  
   // Verificar cuáles grupos necesitan extensión
   const needsExtension = [];
   
   Object.entries(recurringGroups).forEach(([groupId, group]) => {
     const lastCommitment = group.commitments
       .sort((a, b) => new Date(b.dueDate) - new Date(a.dueDate))[0];
+    
+    console.log(`📆 Grupo ${groupId}:`, {
+      concept: group.concept,
+      lastDueDate: lastCommitment.dueDate,
+      checkDate: checkDate,
+      needsExtension: new Date(lastCommitment.dueDate) < checkDate
+    });
     
     if (lastCommitment && new Date(lastCommitment.dueDate) < checkDate) {
       needsExtension.push({
@@ -246,11 +268,15 @@ export const checkCommitmentsForExtension = (commitments, monthsAhead = 3) => {
     }
   });
   
-  return {
+  const result = {
     total: Object.keys(recurringGroups).length,
     needsExtension: needsExtension.length,
     groups: needsExtension
   };
+  
+  console.log('🎯 Resultado final:', result);
+  
+  return result;
 };
 
 /**

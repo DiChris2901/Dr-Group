@@ -49,12 +49,20 @@ const CommitmentsPage = () => {
     setStatusFilter(value);
   };
 
+  const handleCommitmentsDataChange = (newCommitmentsData) => {
+    setCommitmentsData(newCommitmentsData);
+  };
+
   const handleAddCommitment = () => {
     // Navegar a la página de nuevo compromiso
     navigate('/commitments/new');
   };
 
   const handleCheckExtensions = () => {
+    console.log('🔍 Verificando extensiones...');
+    console.log('📊 Datos de compromisos:', commitmentsData);
+    console.log('📋 Total compromisos:', commitmentsData.length);
+    
     if (commitmentsData.length === 0) {
       addNotification({
         type: 'info',
@@ -65,7 +73,19 @@ const CommitmentsPage = () => {
       return;
     }
 
+    // Mostrar algunos compromisos de ejemplo para depuración
+    if (commitmentsData.length > 0) {
+      console.log('🔬 Ejemplo de compromiso:', {
+        concept: commitmentsData[0].concept,
+        isRecurring: commitmentsData[0].isRecurring,
+        recurringGroup: commitmentsData[0].recurringGroup,
+        periodicity: commitmentsData[0].periodicity,
+        dueDate: commitmentsData[0].dueDate
+      });
+    }
+
     const extensionCheck = checkCommitmentsForExtension(commitmentsData, 3);
+    console.log('🎯 Resultado verificación:', extensionCheck);
     
     if (extensionCheck.needsExtension === 0) {
       addNotification({
@@ -266,6 +286,7 @@ const CommitmentsPage = () => {
           companyFilter={companyFilter}
           statusFilter={statusFilter}
           viewMode={settings.dashboard?.layout?.viewMode || 'cards'}
+          onCommitmentsChange={handleCommitmentsDataChange}
         />
       </motion.div>
     </Box>
