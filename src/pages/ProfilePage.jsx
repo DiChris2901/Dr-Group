@@ -1468,7 +1468,7 @@ const ProfilePage = () => {
                             textShadow: '0 1px 2px rgba(0,0,0,0.3)'
                           }}
                         >
-                          <Person sx={{ fontSize: 18, color: '#667eea' }} />
+                          <Person sx={{ fontSize: 18, color: theme.palette.primary.main }} />
                           Nombre completo
                         </Typography>
                         <TextField
@@ -1531,17 +1531,18 @@ const ProfilePage = () => {
                   <Grid item xs={12} sm={6}>
                     <Box sx={{ position: 'relative' }}>
                       <Typography 
-                        variant="body2" 
-                        fontWeight="medium" 
+                        variant="body1" 
                         sx={{ 
-                          mb: 1.5, 
-                          color: 'text.primary',
+                          mb: 2, 
+                          fontWeight: 600,
+                          color: theme.palette.primary.main,
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 1
+                          gap: 1,
+                          textShadow: '0 1px 2px rgba(0,0,0,0.3)'
                         }}
                       >
-                        <Email sx={{ fontSize: 18, color: '#6c5ce7' }} />
+                        <Email sx={{ fontSize: 18, color: theme.palette.secondary.main }} />
                         Correo electrónico
                       </Typography>
                       <TextField
@@ -1586,17 +1587,18 @@ const ProfilePage = () => {
                     >
                       <Box sx={{ position: 'relative' }}>
                         <Typography 
-                          variant="body2" 
-                          fontWeight="medium" 
+                          variant="body1" 
                           sx={{ 
-                            mb: 1.5, 
-                            color: 'text.primary',
+                            mb: 2, 
+                            fontWeight: 600,
+                            color: theme.palette.primary.main,
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 1
+                            gap: 1,
+                            textShadow: '0 1px 2px rgba(0,0,0,0.3)'
                           }}
                         >
-                          <Phone sx={{ fontSize: 18, color: '#00b894' }} />
+                          <Phone sx={{ fontSize: 18, color: theme.palette.success.main }} />
                           Teléfono
                         </Typography>
                         <TextField
@@ -1677,17 +1679,18 @@ const ProfilePage = () => {
                     >
                       <Box sx={{ position: 'relative' }}>
                         <Typography 
-                          variant="body2" 
-                          fontWeight="medium" 
+                          variant="body1" 
                           sx={{ 
-                            mb: 1.5, 
-                            color: 'text.primary',
+                            mb: 2, 
+                            fontWeight: 600,
+                            color: theme.palette.primary.main,
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 1
+                            gap: 1,
+                            textShadow: '0 1px 2px rgba(0,0,0,0.3)'
                           }}
                         >
-                          <Work sx={{ fontSize: 18, color: '#74b9ff' }} />
+                          <Work sx={{ fontSize: 18, color: theme.palette.info.main }} />
                           Cargo
                         </Typography>
                         <TextField
@@ -1754,17 +1757,17 @@ const ProfilePage = () => {
                     >
                       <Box sx={{ position: 'relative' }}>
                         <Typography 
-                          variant="body2" 
-                          fontWeight="medium" 
+                          variant="body1" 
                           sx={{ 
-                            mb: 1.5, 
-                            color: 'text.primary',
+                            mb: 2, 
+                            fontWeight: 600,
+                            color: theme.palette.primary.main,
                             display: 'flex',
                             alignItems: 'center',
                             gap: 1
                           }}
                         >
-                          <Business sx={{ fontSize: 18, color: '#fdcb6e' }} />
+                          <Business sx={{ fontSize: 18, color: theme.palette.warning.main }} />
                           Departamento
                         </Typography>
                         
@@ -1858,7 +1861,7 @@ const ProfilePage = () => {
                               gap: 2
                             }}
                           >
-                            <Business sx={{ color: '#fdcb6e', fontSize: 20 }} />
+                            <Business sx={{ color: theme.palette.warning.main, fontSize: 20 }} />
                             <Typography variant="body1" sx={{ fontWeight: 500 }}>
                               {formData.department || 'Sin departamento asignado'}
                             </Typography>
@@ -1876,17 +1879,18 @@ const ProfilePage = () => {
                     >
                       <Box sx={{ position: 'relative' }}>
                         <Typography 
-                          variant="body2" 
-                          fontWeight="medium" 
+                          variant="body1" 
                           sx={{ 
-                            mb: 1.5, 
-                            color: 'text.primary',
+                            mb: 2, 
+                            fontWeight: 600,
+                            color: theme.palette.primary.main,
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 1
+                            gap: 1,
+                            textShadow: '0 1px 2px rgba(0,0,0,0.3)'
                           }}
                         >
-                          <Business sx={{ fontSize: 18, color: '#e17055' }} />
+                          <Business sx={{ fontSize: 18, color: theme.palette.warning.main }} />
                           Empresa
                         </Typography>
                         
@@ -1959,7 +1963,7 @@ const ProfilePage = () => {
                               gap: 2
                             }}
                           >
-                            <Business sx={{ color: '#e17055', fontSize: 20 }} />
+                            <Business sx={{ color: theme.palette.secondary.main, fontSize: 20 }} />
                             <Typography variant="body1" sx={{ fontWeight: 500 }}>
                               {formData.company || 'Sin empresa asignada'}
                             </Typography>
@@ -1977,17 +1981,18 @@ const ProfilePage = () => {
                     >
                       <Box sx={{ position: 'relative' }}>
                         <Typography 
-                          variant="body2" 
-                          fontWeight="medium" 
+                          variant="body1" 
                           sx={{ 
-                            mb: 1.5, 
-                            color: 'text.primary',
+                            mb: 2, 
+                            fontWeight: 600,
+                            color: theme.palette.primary.main,
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 1
+                            gap: 1,
+                            textShadow: '0 1px 2px rgba(0,0,0,0.3)'
                           }}
                         >
-                          <LocationOn sx={{ fontSize: 18, color: '#fd79a8' }} />
+                          <LocationOn sx={{ fontSize: 18, color: theme.palette.error.main }} />
                           Ubicación
                         </Typography>
                         <TextField
@@ -2660,7 +2665,7 @@ const ProfilePage = () => {
       >
         <DialogTitle>
           <Box display="flex" alignItems="center" gap={2}>
-            <VpnKey sx={{ color: '#e74c3c' }} />
+            <VpnKey sx={{ color: theme.palette.error.main }} />
             Cambiar Contraseña
           </Box>
         </DialogTitle>
@@ -2781,7 +2786,7 @@ const ProfilePage = () => {
       >
         <DialogTitle>
           <Box display="flex" alignItems="center" gap={2}>
-            <Warning sx={{ color: '#c0392b' }} />
+            <Warning sx={{ color: theme.palette.error.dark }} />
             Eliminar Cuenta Permanentemente
           </Box>
         </DialogTitle>
