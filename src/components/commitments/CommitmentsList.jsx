@@ -151,73 +151,11 @@ const CountingNumber = ({ end, duration = 1000, prefix = '$' }) => {
 
 // Componente para progreso de tiempo
 const TimeProgress = ({ dueDate, createdAt, isPaid }) => {
-  // Si el compromiso está pagado, no mostrar progreso de tiempo
-  if (isPaid) {
-    return (
-      <Box sx={{ width: '100%', mb: 2 }}>
-        <Box display="flex" justifyContent="center" alignItems="center" p={2}>
-          <Typography 
-            variant="body2" 
-            sx={{ 
-              color: 'success.main',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1
-            }}
-          >
-            ✅ Compromiso completado y pagado
-          </Typography>
-        </Box>
-      </Box>
-    );
-  }
-
-  const today = new Date();
-  const totalDays = differenceInDays(dueDate, createdAt);
-  const remainingDays = differenceInDays(dueDate, today);
-  const progress = Math.max(0, Math.min(100, ((totalDays - remainingDays) / totalDays) * 100));
-  
-  const getProgressColor = () => {
-    if (remainingDays < 0) return 'error';
-    if (remainingDays <= 3) return 'warning';
-    return 'success';
-  };
-
-  return (
-    <Box sx={{ width: '100%', mb: 2 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-        <Typography variant="caption" color="text.secondary">
-          Progreso del compromiso
-        </Typography>
-        <Typography variant="caption" color={`${getProgressColor()}.main`} fontWeight="bold">
-          {remainingDays > 0 ? `${remainingDays} días restantes` : 
-           remainingDays === 0 ? 'Vence hoy' : `${Math.abs(remainingDays)} días vencido`}
-        </Typography>
-      </Box>
-      <LinearProgress
-        variant="determinate"
-        value={progress}
-        color={getProgressColor()}
-        sx={{
-          height: 8,
-          borderRadius: 4,
-          backgroundColor: 'rgba(0, 0, 0, 0.08)',
-          '& .MuiLinearProgress-bar': {
-            borderRadius: 4,
-            background: remainingDays < 0 
-              ? 'linear-gradient(90deg, #f44336 0%, #ff5722 100%)'
-              : remainingDays <= 3
-              ? 'linear-gradient(90deg, #ff9800 0%, #ffc107 100%)'
-              : 'linear-gradient(90deg, #4caf50 0%, #8bc34a 100%)'
-          }
-        }}
-      />
-    </Box>
-  );
+  // Ya no mostramos información de progreso porque está en la fecha de vencimiento
+  return null;
 };
 
-const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = 'cards', onCommitmentsChange }) => {
+const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, viewMode = 'cards', onCommitmentsChange }) => {
   const { currentUser } = useAuth();
   const { addNotification, addAlert } = useNotifications();
   const { settings } = useSettings();
@@ -353,16 +291,11 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
     setLoading(true);
     setError(null);
 
-    // Crear la consulta base
-    let q = query(
+    // Crear la consulta base - sin filtros en Firebase
+    const q = query(
       collection(db, 'commitments'),
       orderBy('dueDate', 'asc')
     );
-
-    // Agregar filtros si es necesario
-    if (companyFilter && companyFilter !== 'all') {
-      q = query(q, where('companyId', '==', companyFilter));
-    }
 
     // Escuchar cambios en tiempo real
     const unsubscribe = onSnapshot(
@@ -381,6 +314,13 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
 
         // Aplicar filtros locales
         let filteredCommitments = commitmentsData;
+
+        // Filtro por empresa
+        if (companyFilter && companyFilter !== 'all') {
+          filteredCommitments = filteredCommitments.filter(commitment => 
+            commitment.companyId === companyFilter
+          );
+        }
 
         // Filtro por término de búsqueda
         if (searchTerm) {
@@ -417,6 +357,14 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
           });
         }
 
+        // Filtro por año
+        if (yearFilter && yearFilter !== 'all') {
+          filteredCommitments = filteredCommitments.filter(commitment => {
+            const commitmentYear = commitment.dueDate.getFullYear().toString();
+            return commitmentYear === yearFilter;
+          });
+        }
+
         setCommitments(filteredCommitments);
         setLoading(false);
         
@@ -433,7 +381,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
     );
 
     return () => unsubscribe();
-  }, [currentUser, companyFilter, statusFilter, searchTerm]);
+  }, [currentUser, companyFilter, statusFilter, searchTerm, yearFilter]);
 
   const getStatusInfo = (commitment) => {
     const today = new Date();
@@ -928,7 +876,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                         }}
                       >
                         {commitment.paid 
-                          ? '✅ Pagado' 
+                          ? '' 
                           : (daysUntilDue >= 0 ? `${daysUntilDue} días restantes` : `${Math.abs(daysUntilDue)} días vencido`)
                         }
                       </Typography>
@@ -1377,7 +1325,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                               }}
                             >
                               {commitment.paid 
-                                ? '✅ Pagado' 
+                                ? '' 
                                 : (daysUntilDue >= 0 
                                   ? `${daysUntilDue} días restantes` 
                                   : `${Math.abs(daysUntilDue)} días vencido`)
@@ -2541,48 +2489,6 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                           }}>
                             {format(selectedCommitment.dueDate, 'dd \'de\' MMMM \'de\' yyyy', { locale: es })}
                           </Typography>
-                        </Box>
-
-                        {/* Indicador de días restantes */}
-                        <Box textAlign="right">
-                          <motion.div
-                            initial={{ scale: 0, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            transition={{ delay: 0.4, duration: 0.5, type: "spring" }}
-                          >
-                            <Chip
-                              label={(() => {
-                                if (selectedCommitment.paid) return '✅ Pagado';
-                                const days = differenceInDays(selectedCommitment.dueDate, new Date());
-                                if (days < 0) return `${Math.abs(days)} días vencido`;
-                                if (days === 0) return 'Vence hoy';
-                                if (days === 1) return 'Vence mañana';
-                                return `${days} días restantes`;
-                              })()}
-                              size="medium"
-                              sx={{
-                                fontWeight: 600,
-                                bgcolor: (() => {
-                                  const days = differenceInDays(selectedCommitment.dueDate, new Date());
-                                  if (days < 0) return alpha(theme.palette.error.main, 0.1);
-                                  if (days <= 3) return alpha(theme.palette.warning.main, 0.1);
-                                  return alpha(theme.palette.success.main, 0.1);
-                                })(),
-                                color: (() => {
-                                  const days = differenceInDays(selectedCommitment.dueDate, new Date());
-                                  if (days < 0) return theme.palette.error.main;
-                                  if (days <= 3) return theme.palette.warning.main;
-                                  return theme.palette.success.main;
-                                })(),
-                                border: `1px solid ${(() => {
-                                  const days = differenceInDays(selectedCommitment.dueDate, new Date());
-                                  if (days < 0) return alpha(theme.palette.error.main, 0.3);
-                                  if (days <= 3) return alpha(theme.palette.warning.main, 0.3);
-                                  return alpha(theme.palette.success.main, 0.3);
-                                })()}`
-                              }}
-                            />
-                          </motion.div>
                         </Box>
                       </Box>
                     </Card>

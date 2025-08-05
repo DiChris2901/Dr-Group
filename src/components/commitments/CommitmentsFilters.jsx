@@ -1,5 +1,6 @@
 import {
   Business,
+  CalendarToday,
   Clear,
   FilterList,
   Search,
@@ -36,14 +37,17 @@ const CommitmentsFilters = ({
   onSearchChange, 
   onCompanyChange, 
   onStatusChange,
+  onYearChange,
   searchTerm = '',
   companyFilter = 'all',
-  statusFilter = 'all'
+  statusFilter = 'all',
+  yearFilter = 'all'
 }) => {
   const { currentUser } = useAuth();
   const theme = useTheme();
   const gradients = useThemeGradients();
   const [companies, setCompanies] = useState([]);
+  const [availableYears, setAvailableYears] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -65,8 +69,29 @@ const CommitmentsFilters = ({
       }
     };
 
+    const fetchAvailableYears = async () => {
+      try {
+        const commitmentsSnapshot = await getDocs(collection(db, 'commitments'));
+        const years = new Set();
+        commitmentsSnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.dueDate) {
+            const date = data.dueDate.toDate ? data.dueDate.toDate() : new Date(data.dueDate);
+            years.add(date.getFullYear());
+          }
+        });
+        
+        // Convertir a array y ordenar de mayor a menor
+        const sortedYears = Array.from(years).sort((a, b) => b - a);
+        setAvailableYears(sortedYears);
+      } catch (error) {
+        console.error('Error fetching available years:', error);
+      }
+    };
+
     if (currentUser) {
       fetchCompanies();
+      fetchAvailableYears();
     }
   }, [currentUser]);
 
@@ -86,10 +111,15 @@ const CommitmentsFilters = ({
     onStatusChange(event.target.value);
   };
 
+  const handleYearChange = (event) => {
+    onYearChange(event.target.value);
+  };
+
   const handleClearFilters = () => {
     onSearchChange('');
     onCompanyChange('all');
     onStatusChange('all');
+    onYearChange('all');
   };
 
   const statusOptions = [
@@ -100,7 +130,7 @@ const CommitmentsFilters = ({
     { value: 'paid', label: 'Pagados', color: 'success' }
   ];
 
-  const hasActiveFilters = searchTerm || companyFilter !== 'all' || statusFilter !== 'all';
+  const hasActiveFilters = searchTerm || companyFilter !== 'all' || statusFilter !== 'all' || yearFilter !== 'all';
 
   return (
     <motion.div
@@ -182,7 +212,7 @@ const CommitmentsFilters = ({
 
           <Grid container spacing={3}>
             {/* Campo de búsqueda */}
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={3}>
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -234,7 +264,7 @@ const CommitmentsFilters = ({
             </Grid>
 
             {/* Filtro por empresa */}
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={3}>
               <motion.div
                 initial={{ opacity: 0, x: 0 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -294,7 +324,7 @@ const CommitmentsFilters = ({
             </Grid>
 
             {/* Filtro por estado */}
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={3}>
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -348,6 +378,60 @@ const CommitmentsFilters = ({
                 </FormControl>
               </motion.div>
             </Grid>
+
+            {/* Filtro por año */}
+            <Grid item xs={12} md={3}>
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.6 }}
+              >
+                <FormControl 
+                  fullWidth
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 4,
+                      background: alpha(theme.palette.background.paper, 0.8),
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                      },
+                      '&.Mui-focused': {
+                        boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
+                      }
+                    }
+                  }}
+                >
+                  <InputLabel>Año</InputLabel>
+                  <Select
+                    value={yearFilter}
+                    onChange={handleYearChange}
+                    label="Año"
+                    startAdornment={
+                      <InputAdornment position="start">
+                        <CalendarToday color="primary" />
+                      </InputAdornment>
+                    }
+                  >
+                    <MenuItem value="all">
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <CalendarToday fontSize="small" />
+                        Todos los años
+                      </Box>
+                    </MenuItem>
+                    {availableYears.map((year) => (
+                      <MenuItem key={year} value={year.toString()}>
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <CalendarToday fontSize="small" color="primary" />
+                          {year}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </motion.div>
+            </Grid>
           </Grid>
 
           {/* Chips de filtros activos */}
@@ -389,6 +473,16 @@ const CommitmentsFilters = ({
                       color="warning"
                       variant="outlined"
                       onDelete={() => onStatusChange('all')}
+                      sx={{ borderRadius: 2 }}
+                    />
+                  )}
+                  {yearFilter !== 'all' && (
+                    <Chip
+                      label={`Año: ${yearFilter}`}
+                      size="small"
+                      color="secondary"
+                      variant="outlined"
+                      onDelete={() => onYearChange('all')}
                       sx={{ borderRadius: 2 }}
                     />
                   )}

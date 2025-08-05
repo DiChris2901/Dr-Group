@@ -1,6 +1,5 @@
 import {
     Add,
-    Assignment,
     CalendarToday
 } from '@mui/icons-material';
 import {
@@ -33,6 +32,7 @@ const CommitmentsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [companyFilter, setCompanyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [yearFilter, setYearFilter] = useState('all');
   const [commitmentsData, setCommitmentsData] = useState([]);
   const [extendModalOpen, setExtendModalOpen] = useState(false);
   const [commitmentsToExtend, setCommitmentsToExtend] = useState(null);
@@ -49,60 +49,12 @@ const CommitmentsPage = () => {
     setStatusFilter(value);
   };
 
-  const handleCommitmentsDataChange = (newCommitmentsData) => {
-    setCommitmentsData(newCommitmentsData);
+  const handleYearChange = (value) => {
+    setYearFilter(value);
   };
 
-  // Función temporal para probar el modal de extensiones con datos simulados
-  const handleTestExtensions = () => {
-    console.log('🧪 TEST: Iniciando prueba del modal...');
-    
-    const simulatedExtensionData = {
-      total: 2,
-      needsExtension: 2,
-      groups: [
-        {
-          groupId: 'test_group_1',
-          concept: 'Nómina Administrativos',
-          periodicity: 'monthly',
-          companyId: 'company1',
-          companyName: 'DiverGames SAS',
-          beneficiary: 'Empleados Admin',
-          amount: 2500000,
-          commitmentsCount: 12,
-          lastDueDate: new Date('2025-07-15'),
-          commitments: []
-        },
-        {
-          groupId: 'test_group_2',
-          concept: 'Arriendo Oficina',
-          periodicity: 'monthly',
-          companyId: 'company2',
-          companyName: 'TechCorp Ltd',
-          beneficiary: 'Inmobiliaria XYZ',
-          amount: 1800000,
-          commitmentsCount: 12,
-          lastDueDate: new Date('2025-06-30'),
-          commitments: []
-        }
-      ]
-    };
-    
-    console.log('🧪 TEST: Datos simulados:', simulatedExtensionData);
-    console.log('🧪 TEST: Estado actual extendModalOpen:', extendModalOpen);
-    console.log('🧪 TEST: Estado actual commitmentsToExtend:', commitmentsToExtend);
-    
-    setCommitmentsToExtend(simulatedExtensionData);
-    setExtendModalOpen(true);
-    
-    console.log('🧪 TEST: Estados actualizados - Modal debería abrirse');
-    
-    // Verificar después de un momento
-    setTimeout(() => {
-      console.log('🧪 TEST: Verificación post-actualización:');
-      console.log('  - extendModalOpen:', extendModalOpen);
-      console.log('  - commitmentsToExtend:', commitmentsToExtend);
-    }, 100);
+  const handleCommitmentsDataChange = (newCommitmentsData) => {
+    setCommitmentsData(newCommitmentsData);
   };
 
   const handleAddCommitment = () => {
@@ -237,7 +189,7 @@ const CommitmentsPage = () => {
                     justifyContent: 'center'
                   }}
                 >
-                  <Assignment sx={{ fontSize: (settings.theme?.fontSize || 16) * 2.3, color: 'white' }} />
+                  <CalendarToday sx={{ fontSize: (settings.theme?.fontSize || 16) * 2.3, color: 'white' }} />
                 </Box>
                 <Box>
                   <Typography 
@@ -304,41 +256,6 @@ const CommitmentsPage = () => {
                   </Button>
                 </motion.div>
 
-                {/* Botón de Prueba Temporal - REMOVER EN PRODUCCIÓN */}
-                <motion.div
-                  initial={settings.theme?.animations ? { x: 25, opacity: 0 } : {}}
-                  animate={settings.theme?.animations ? { x: 0, opacity: 1 } : { x: 0, opacity: 1 }}
-                  transition={settings.theme?.animations ? { delay: 0.25, duration: 0.5 } : { duration: 0 }}
-                  whileHover={settings.theme?.animations ? { scale: 1.05 } : {}}
-                  whileTap={settings.theme?.animations ? { scale: 0.95 } : {}}
-                >
-                  <Button
-                    variant="outlined"
-                    startIcon={<Assignment />}
-                    onClick={handleTestExtensions}
-                    size="medium"
-                    sx={{
-                      py: 1,
-                      px: 2,
-                      fontSize: '0.9rem',
-                      fontWeight: 500,
-                      borderRadius: `${settings.theme?.borderRadius || 16}px`,
-                      border: '1px solid rgba(255, 193, 7, 0.5)',
-                      color: 'rgba(255, 193, 7, 0.9)',
-                      textTransform: 'none',
-                      backdropFilter: 'blur(10px)',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '&:hover': {
-                        background: 'rgba(255, 193, 7, 0.1)',
-                        borderColor: 'rgba(255, 193, 7, 0.8)',
-                        color: 'rgba(255, 193, 7, 1)'
-                      }
-                    }}
-                  >
-                    🧪 Test
-                  </Button>
-                </motion.div>
-
                 {/* Botón Nuevo Compromiso */}
                 <motion.div
                   initial={settings.theme?.animations ? { x: 30, opacity: 0 } : {}}
@@ -392,9 +309,11 @@ const CommitmentsPage = () => {
           searchTerm={searchTerm}
           companyFilter={companyFilter}
           statusFilter={statusFilter}
+          yearFilter={yearFilter}
           onSearchChange={handleSearchChange}
           onCompanyChange={handleCompanyChange}
           onStatusChange={handleStatusChange}
+          onYearChange={handleYearChange}
         />
       </motion.div>
 
@@ -408,6 +327,7 @@ const CommitmentsPage = () => {
           searchTerm={searchTerm}
           companyFilter={companyFilter}
           statusFilter={statusFilter}
+          yearFilter={yearFilter}
           viewMode={settings.dashboard?.layout?.viewMode || 'cards'}
           onCommitmentsChange={handleCommitmentsDataChange}
         />
