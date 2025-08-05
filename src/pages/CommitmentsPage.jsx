@@ -139,23 +139,35 @@ const CommitmentsPage = () => {
     }
     
     if (extensionCheck.needsExtension === 0) {
-      // Si hay compromisos recurrentes pero no necesitan extensión, dar opción de forzar
+      // Si hay compromisos recurrentes pero no necesitan extensión, forzar apertura del modal
+      console.log('🔄 Forzando apertura del modal para compromisos recurrentes...');
+      
       addNotification({
-        type: 'warning',
-        title: '📅 Extensión Manual Disponible',
-        message: `Se encontraron ${recurringCommitments.length} compromisos recurrentes. Todos están al día, pero puedes forzar una extensión si es necesario.`,
-        duration: 8000
+        type: 'info',
+        title: '� Abriendo Extensión Manual',
+        message: `Se encontraron ${recurringCommitments.length} compromisos recurrentes. Abriendo opciones de extensión...`,
+        duration: 3000
       });
       
       // Forzar la apertura del modal con todos los grupos recurrentes usando fecha pasada
-      setTimeout(() => {
-        const forcedExtensionCheck = checkCommitmentsForExtension(commitmentsData, -12);
-        if (forcedExtensionCheck.needsExtension > 0) {
-          setCommitmentsToExtend(forcedExtensionCheck);
-          setExtendModalOpen(true);
-        }
-      }, 2000);
+      const forcedExtensionCheck = checkCommitmentsForExtension(commitmentsData, -12);
+      console.log('🎯 Datos forzados para modal:', forcedExtensionCheck);
+      
+      if (forcedExtensionCheck.needsExtension > 0) {
+        console.log('✅ Abriendo modal con datos forzados');
+        setCommitmentsToExtend(forcedExtensionCheck);
+        setExtendModalOpen(true);
+      } else {
+        console.log('❌ No se pudieron forzar datos para el modal');
+        addNotification({
+          type: 'error',
+          title: 'Error en Extensión',
+          message: 'No se pudieron procesar los compromisos recurrentes para extensión.',
+          duration: 5000
+        });
+      }
     } else {
+      console.log('✅ Abriendo modal con extensiones necesarias');
       setCommitmentsToExtend(extensionCheck);
       setExtendModalOpen(true);
     }
@@ -385,6 +397,31 @@ const CommitmentsPage = () => {
           onCommitmentsChange={handleCommitmentsDataChange}
         />
       </motion.div>
+
+      {/* Modal de Extensión de Compromisos */}
+      {commitmentsToExtend && (
+        <ExtendCommitmentsModal
+          open={extendModalOpen}
+          onClose={() => {
+            setExtendModalOpen(false);
+            setCommitmentsToExtend(null);
+          }}
+          commitmentsData={commitmentsToExtend}
+          onExtensionComplete={(result) => {
+            console.log('🎉 Extensión completada:', result);
+            addNotification({
+              type: 'success',
+              title: '✅ Extensión Exitosa',
+              message: `Se han extendido ${result.totalExtended} compromisos recurrentes.`,
+              duration: 5000
+            });
+            setExtendModalOpen(false);
+            setCommitmentsToExtend(null);
+            // Recargar la lista de compromisos
+            window.location.reload();
+          }}
+        />
+      )}
     </Box>
   );
 };
