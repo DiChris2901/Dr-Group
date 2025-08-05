@@ -150,7 +150,29 @@ const CountingNumber = ({ end, duration = 1000, prefix = '$' }) => {
 };
 
 // Componente para progreso de tiempo
-const TimeProgress = ({ dueDate, createdAt }) => {
+const TimeProgress = ({ dueDate, createdAt, isPaid }) => {
+  // Si el compromiso está pagado, no mostrar progreso de tiempo
+  if (isPaid) {
+    return (
+      <Box sx={{ width: '100%', mb: 2 }}>
+        <Box display="flex" justifyContent="center" alignItems="center" p={2}>
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              color: 'success.main',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}
+          >
+            ✅ Compromiso completado y pagado
+          </Typography>
+        </Box>
+      </Box>
+    );
+  }
+
   const today = new Date();
   const totalDays = differenceInDays(dueDate, createdAt);
   const remainingDays = differenceInDays(dueDate, today);
@@ -898,14 +920,17 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                       </Typography>
                       <Typography 
                         variant="caption" 
-                        color={isOverdue ? 'error.main' : isDueSoon ? 'warning.main' : 'text.secondary'}
+                        color={commitment.paid ? 'success.main' : (isOverdue ? 'error.main' : isDueSoon ? 'warning.main' : 'text.secondary')}
                         sx={{ 
                           fontSize: `calc(${cardStyles.fontSize} * 0.85)`,
                           fontWeight: 600,
                           textShadow: '0 1px 2px rgba(0,0,0,0.1)'
                         }}
                       >
-                        {daysUntilDue >= 0 ? `${daysUntilDue} días restantes` : `${Math.abs(daysUntilDue)} días vencido`}
+                        {commitment.paid 
+                          ? '✅ Pagado' 
+                          : (daysUntilDue >= 0 ? `${daysUntilDue} días restantes` : `${Math.abs(daysUntilDue)} días vencido`)
+                        }
                       </Typography>
                     </Box>
                   </Box>
@@ -1343,17 +1368,19 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                             >
                               {format(dueDate, 'dd/MM/yyyy', { locale: es })}
                             </Typography>
-                            <Typography 
-                              variant="caption" 
-                              color={isOverdue ? 'error.main' : isDueSoon ? 'warning.main' : 'success.main'}
+                            <Typography
+                              variant="caption"
+                              color={commitment.paid ? 'success.main' : (isOverdue ? 'error.main' : isDueSoon ? 'warning.main' : 'success.main')}
                               sx={{
                                 fontWeight: 600,
                                 textShadow: '0 1px 2px rgba(0,0,0,0.1)'
                               }}
                             >
-                              {daysUntilDue >= 0 
-                                ? `${daysUntilDue} días restantes` 
-                                : `${Math.abs(daysUntilDue)} días vencido`
+                              {commitment.paid 
+                                ? '✅ Pagado' 
+                                : (daysUntilDue >= 0 
+                                  ? `${daysUntilDue} días restantes` 
+                                  : `${Math.abs(daysUntilDue)} días vencido`)
                               }
                             </Typography>
                           </Box>
@@ -2137,8 +2164,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
         fullWidth
         sx={{
           '& .MuiDialog-paper': {
-            margin: isLowerResScreen ? '16px' : '32px', // Ajuste simple
-            maxHeight: isLowerResScreen ? 'calc(100vh - 32px)' : 'calc(100vh - 64px)', // Más conservador
+            margin: '24px', // Margen fijo y seguro
+            maxHeight: 'calc(100vh - 48px)', // Altura segura
           }
         }}
         PaperProps={{
@@ -2449,6 +2476,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                     <TimeProgress 
                       dueDate={selectedCommitment.dueDate} 
                       createdAt={selectedCommitment.createdAt || new Date()} 
+                      isPaid={selectedCommitment.paid || selectedCommitment.isPaid}
                     />
                   </motion.div>
                 </Grid>
@@ -2524,6 +2552,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
                           >
                             <Chip
                               label={(() => {
+                                if (selectedCommitment.paid) return '✅ Pagado';
                                 const days = differenceInDays(selectedCommitment.dueDate, new Date());
                                 if (days < 0) return `${Math.abs(days)} días vencido`;
                                 if (days === 0) return 'Vence hoy';
@@ -3032,7 +3061,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, viewMode = '
             <DialogActions 
               sx={{ 
                 p: 4,
-                pb: isLowerResScreen ? 6 : 5, // Ajuste más conservador
+                pb: 6, // Padding inferior fijo y razonable
                 background: `
                   linear-gradient(135deg, rgba(248, 250, 252, 0.95) 0%, rgba(241, 245, 249, 0.9) 100%),
                   linear-gradient(225deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.6) 100%)
