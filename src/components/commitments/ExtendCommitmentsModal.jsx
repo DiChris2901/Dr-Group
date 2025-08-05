@@ -276,10 +276,8 @@ const ExtendCommitmentsModal = ({
           {/* Resumen de grupos */}
           <Grid item xs={12}>
             <Alert severity="info" sx={{ mb: 2 }}>
-              <Typography variant="body2">
-                Se encontraron <strong>{commitmentsToExtend.total}</strong> grupos de compromisos recurrentes. 
-                <strong> {commitmentsToExtend.needsExtension}</strong> necesitan extensión.
-              </Typography>
+              Se encontraron <strong>{commitmentsToExtend.total}</strong> grupos de compromisos recurrentes. 
+              <strong> {commitmentsToExtend.needsExtension}</strong> necesitan extensión.
             </Alert>
           </Grid>
 
@@ -394,32 +392,32 @@ const ExtendCommitmentsModal = ({
                     
                     <ListItemText
                       primary={
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Typography variant="body1" fontWeight="600">
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontWeight: 600 }}>
                             {group.concept}
-                          </Typography>
+                          </span>
                           <Chip 
                             size="small" 
                             label={getPeriodicityDescription(group.periodicity)}
                             color="info"
                           />
-                        </Box>
+                        </span>
                       }
                       secondary={
-                        <Box>
-                          <Typography variant="body2" color="text.secondary">
+                        <span>
+                          <span style={{ color: 'text.secondary', display: 'block', marginBottom: '4px' }}>
                             <Business sx={{ fontSize: 14, mr: 0.5, verticalAlign: 'middle' }} />
                             {group.companyName} • 
                             <Person sx={{ fontSize: 14, mx: 0.5, verticalAlign: 'middle' }} />
                             {group.beneficiary} • 
                             <AttachMoney sx={{ fontSize: 14, mx: 0.5, verticalAlign: 'middle' }} />
                             ${group.amount.toLocaleString('es-CO')}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
+                          </span>
+                          <span style={{ fontSize: '0.75rem', color: 'text.secondary' }}>
                             {group.commitmentsCount} compromisos • 
                             Último vencimiento: {format(new Date(group.lastDueDate), 'dd/MM/yyyy', { locale: es })}
-                          </Typography>
-                        </Box>
+                          </span>
+                        </span>
                       }
                     />
                     
