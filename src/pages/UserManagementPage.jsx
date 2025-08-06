@@ -60,6 +60,7 @@ import {
   updateDoc, 
   deleteDoc, 
   doc,
+  setDoc,
   serverTimestamp,
   query,
   where 
@@ -76,13 +77,9 @@ import { db, auth } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 
-// Permisos y roles
+// Permisos y roles simplificados
 import { 
-  PERMISSIONS, 
-  PERMISSION_TRANSLATIONS,
-  USER_ROLES, 
-  hasPermission, 
-  getRolePermissions 
+  USER_ROLES
 } from '../utils/userPermissions';
 
 const UserManagementPage = () => {
@@ -169,76 +166,65 @@ const UserManagementPage = () => {
   };
 
   const handleOpenModal = async (user = null) => {
-    if (user) {
-      // Editar usuario existente
-      setEditingUser(user);
+    try {
+      console.log('🔧 Abriendo modal de usuario...', user ? 'Editando' : 'Creando nuevo');
       
-      // Obtener nombre correcto - priorizar Firebase Auth para usuario actual
-      let displayName = user.displayName || '';
-      
-      // Si es el usuario actual y tenemos su displayName de Firebase Auth
-      if (user.email === currentUser?.email && currentUser?.displayName) {
-        displayName = currentUser.displayName;
+      if (user) {
+        // Editar usuario existente
+        setEditingUser(user);
+        
+        const userData = {
+          email: user.email || '',
+          displayName: user.displayName || user.name || '',
+          phone: user.phone || '',
+          role: user.role || 'EMPLOYEE',
+          permissions: user.permissions || [],
+          companies: user.companies || [],
+          isActive: user.isActive !== false,
+          department: user.department || '',
+          notes: user.notes || ''
+        };
+        
+        setFormData(userData);
+        setOriginalFormData(JSON.parse(JSON.stringify(userData)));
+        setHasUnsavedChanges(false);
+      } else {
+        // Crear nuevo usuario - versión simplificada
+        setEditingUser(null);
+        const newUserData = {
+          email: '',
+          displayName: '',
+          phone: '',
+          role: 'EMPLOYEE',
+          permissions: [
+            'view_commitments',
+            'view_receipts'
+          ], // Permisos básicos simplificados
+          companies: [],
+          isActive: true,
+          department: '',
+          notes: '',
+          temporalPassword: 'DRGroup2025!'
+        };
+        
+        console.log('📋 Datos del nuevo usuario:', newUserData);
+        setFormData(newUserData);
+        setOriginalFormData(JSON.parse(JSON.stringify(newUserData)));
+        setHasUnsavedChanges(false);
       }
       
-      // Si aún no hay nombre, usar el de Firebase Auth o generar uno
-      if (!displayName) {
-        if (currentUser?.displayName && user.email === currentUser?.email) {
-          displayName = currentUser.displayName;
-        } else if (user.email) {
-          // Generar nombre básico del email
-          const emailName = user.email.split('@')[0];
-          displayName = emailName.charAt(0).toUpperCase() + emailName.slice(1);
-        }
-      }
+      console.log('✅ Abriendo modal...');
+      setOpenModal(true);
       
-      // Manejar permisos según el rol
-      let userPermissions = user.permissions || [];
-      let userRole = user.role || 'EMPLOYEE';
-      
-      // Asegurar que los administradores tengan todos los permisos
-      if (userRole === 'ADMIN') {
-        userPermissions = Object.values(PERMISSIONS);
-      } else if (userPermissions.length === 0) {
-        userPermissions = getRolePermissions(userRole);
-      }
-      
-      const userData = {
-        email: user.email || '',
-        displayName: displayName,
-        phone: user.phone || '',
-        role: userRole,
-        permissions: userPermissions,
-        companies: user.companies || [],
-        isActive: user.isActive !== false,
-        department: user.department || '',
-        notes: user.notes || ''
-      };
-      
-      setFormData(userData);
-      setOriginalFormData(JSON.parse(JSON.stringify(userData)));
-      setHasUnsavedChanges(false);
-    } else {
-      // Crear nuevo usuario
-      setEditingUser(null);
-      const newUserData = {
-        email: '',
-        displayName: '',
-        phone: '',
-        role: 'EMPLOYEE',
-        permissions: getRolePermissions('EMPLOYEE'),
-        companies: [],
-        isActive: true,
-        department: '',
-        notes: '',
-        temporalPassword: 'DRGroup2025!' // Contraseña por defecto
-      };
-      
-      setFormData(newUserData);
-      setOriginalFormData(JSON.parse(JSON.stringify(newUserData)));
-      setHasUnsavedChanges(false);
+    } catch (error) {
+      console.error('❌ Error abriendo modal:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error al Abrir Formulario',
+        message: 'No se pudo abrir el formulario de usuario',
+        icon: 'error'
+      });
     }
-    setOpenModal(true);
   };
 
   const handleCloseModal = () => {
@@ -281,13 +267,45 @@ const UserManagementPage = () => {
   };
 
   const handleRoleChange = (newRole) => {
-    let newPermissions;
+    console.log('🔧 Cambiando rol a:', newRole);
     
-    // Si es admin, dar todos los permisos
+    let newPermissions = [];
+    
+    // Permisos simplificados por rol
     if (newRole === 'ADMIN') {
-      newPermissions = Object.values(PERMISSIONS);
+      newPermissions = [
+        'admin_access',
+        'system_config',
+        'manage_users',
+        'view_users',
+        'view_commitments',
+        'create_commitments',
+        'edit_commitments',
+        'delete_commitments',
+        'view_receipts',
+        'download_receipts',
+        'upload_receipts',
+        'delete_receipts',
+        'generate_reports',
+        'export_data'
+      ];
+    } else if (newRole === 'MANAGER') {
+      newPermissions = [
+        'view_commitments',
+        'create_commitments',
+        'edit_commitments',
+        'view_receipts',
+        'download_receipts',
+        'upload_receipts',
+        'generate_reports',
+        'export_data'
+      ];
     } else {
-      newPermissions = getRolePermissions(newRole);
+      newPermissions = [
+        'view_commitments',
+        'view_receipts',
+        'download_receipts'
+      ];
     }
     
     updateFormData({
@@ -315,7 +333,7 @@ const UserManagementPage = () => {
       await updateDoc(doc(db, 'users', user.id), {
         status: 'ACTIVE',
         authCompleted: true,
-        updatedAt: serverTimestamp()
+        updatedAt: new Date()
       });
       
       // Eliminar de pending_auth_users si existe
@@ -365,9 +383,9 @@ const UserManagementPage = () => {
         isActive: formData.isActive,
         department: formData.department,
         notes: formData.notes,
-        updatedAt: serverTimestamp(),
+        updatedAt: new Date(),
         ...(editingUser ? {} : { 
-          createdAt: serverTimestamp(),
+          createdAt: new Date(),
           createdBy: currentUser.uid 
         })
       };
@@ -385,70 +403,89 @@ const UserManagementPage = () => {
           throw new Error('Ya existe un usuario con este email');
         }
         
-        // 🚀 SOLUCIÓN AUTOMÁTICA AVANZADA: Crear usuario completo sin logout
-        console.log('� Creando usuario completo automáticamente...');
-        
-        // Guardar credenciales del admin actual para re-autenticación
-        const adminEmail = currentUser.email;
-        const adminUid = currentUser.uid;
+        // 🚀 Crear usuario completo
+        console.log('🔧 Creando usuario completo automáticamente...');
         
         try {
-          console.log('💾 Guardando sesión admin:', adminEmail);
+          console.log('🔧 Iniciando creación de usuario...');
+          console.log('📧 Email:', formData.email.toLowerCase());
+          console.log('👤 Usuario actual:', currentUser?.email);
           
-          // 1. Crear usuario en Firebase Authentication (esto causará logout temporal)
+          // Guardar credenciales del admin para restaurar después
+          const adminEmail = currentUser.email;
+          const adminPassword = prompt('Para crear el usuario, ingresa tu contraseña de administrador:');
+          if (!adminPassword) {
+            throw new Error('Se requiere la contraseña del administrador para crear usuarios');
+          }
+          
+          // 1. Crear usuario en Firebase Authentication
           const userCredential = await createUserWithEmailAndPassword(
             auth, 
             formData.email.toLowerCase(), 
             formData.temporalPassword || 'DRGroup2025!'
           );
           
-          console.log('✅ Usuario creado en Auth:', userCredential.user.uid);
+          console.log('✅ Usuario creado en Authentication:', userCredential.user.uid);
           
-          // 2. Agregar UID de Auth a los datos de Firestore
-          userData.authUid = userCredential.user.uid;
-          userData.status = 'ACTIVE'; // Usuario completamente funcional
+          // 2. Preparar datos simplificados para Firestore
+          const simpleUserData = {
+            email: formData.email.toLowerCase(),
+            displayName: formData.displayName,
+            name: formData.displayName,
+            phone: formData.phone || '',
+            role: formData.role,
+            permissions: formData.permissions,
+            companies: formData.companies,
+            isActive: true,
+            department: formData.department || 'Administración',
+            position: formData.role === 'ADMIN' ? 'Administrador' : 'Usuario',
+            authUid: userCredential.user.uid,
+            status: 'ACTIVE',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            createdBy: currentUser.uid,
+            notes: formData.notes || 'Usuario creado desde panel de administración'
+          };
           
-          // 3. Inmediatamente desloguear al usuario recién creado
-          await signOut(auth);
-          console.log('🚪 Usuario nuevo deslogueado');
+          // 3. Crear documento en Firestore usando el UID de Auth como ID
+          console.log('� Creando documento en Firestore con UID:', userCredential.user.uid);
+          console.log('📋 Datos a guardar:', simpleUserData);
           
-          // 4. Crear documento en Firestore con authUid
-          const docRef = await addDoc(collection(db, 'users'), userData);
-          console.log('✅ Usuario creado en Firestore con ID:', docRef.id);
+          await setDoc(doc(db, 'users', userCredential.user.uid), simpleUserData);
+          console.log('✅ Usuario guardado en Firestore con ID:', userCredential.user.uid);
           
-          // 5. CRÍTICO: Mostrar notificación de que el admin debe volver a loguearse
-          addNotification({
-            type: 'warning',
-            title: '⚠️ Usuario Creado - Vuelve a Iniciar Sesión',
-            message: `Usuario "${formData.displayName}" creado exitosamente. DEBES volver a iniciar sesión como admin para continuar.`,
-            icon: 'warning'
-          });
-          
-          // 6. Mostrar instrucciones claras en consola
-          console.log('🎯 === USUARIO CREADO EXITOSAMENTE ===');
-          console.log(`📧 Email: ${formData.email.toLowerCase()}`);
-          console.log(`🔑 Password inicial: ${formData.temporalPassword || 'DRGroup2025!'}`);
-          console.log(`🆔 Auth UID: ${userCredential.user.uid}`);
-          console.log('✅ El usuario YA PUEDE iniciar sesión');
-          console.log('⚠️ ADMIN: Debes volver a loguearte para continuar');
-          console.log('==========================================');
-          
-          // 7. Enviar email de reset para contraseña personalizada
+          // 4. Enviar email de reset para que configure su propia contraseña
           try {
             await sendPasswordResetEmail(auth, formData.email.toLowerCase());
-            console.log('✅ Email de reset enviado');
+            console.log('📧 Email de reset enviado para configurar contraseña');
           } catch (emailError) {
-            console.warn('⚠️ Error enviando email de reset:', emailError);
+            console.warn('⚠️ No se pudo enviar email de reset:', emailError.message);
           }
+          
+          // 5. Restaurar sesión del administrador
+          console.log('🔄 Restaurando sesión del administrador...');
+          await signInWithEmailAndPassword(auth, adminEmail, adminPassword);
+          console.log('✅ Sesión del administrador restaurada');
+          
+          // 6. Mostrar resultado exitoso
+          console.log('� === USUARIO CREADO COMPLETAMENTE ===');
+          console.log(`📧 Email: ${formData.email.toLowerCase()}`);
+          console.log(`🔑 Password temporal: ${formData.temporalPassword || 'DRGroup2025!'}`);
+          console.log(`🆔 Auth UID: ${userCredential.user.uid}`);
+          console.log(`🆔 UID: ${userCredential.user.uid}`);
+          console.log('✅ El usuario puede iniciar sesión inmediatamente');
+          console.log('==========================================');
           
         } catch (authError) {
-          console.error('❌ Error en creación automática:', authError);
+          console.error('❌ Error creando usuario:', authError);
           
           if (authError.code === 'auth/email-already-in-use') {
-            throw new Error('Este email ya está registrado en el sistema');
+            throw new Error('Este email ya está registrado');
+          } else if (authError.code === 'permission-denied') {
+            throw new Error('Sin permisos para crear usuarios. Verifica las reglas de Firestore');
           }
           
-          throw new Error(`Error creando usuario: ${authError.message}`);
+          throw new Error(`Error: ${authError.message}`);
         }
       }
 
@@ -544,7 +581,7 @@ const UserManagementPage = () => {
             targetUser: userToDelete.email,
             performedBy: currentUser.email,
             performedByUid: currentUser.uid,
-            timestamp: serverTimestamp(),
+            timestamp: new Date(),
             details: {
               deletedUser: {
                 email: userToDelete.email,
@@ -607,7 +644,7 @@ const UserManagementPage = () => {
       
       await updateDoc(doc(db, 'users', user.id), {
         isActive: newStatus,
-        updatedAt: serverTimestamp()
+        updatedAt: new Date()
       });
       
       await loadUsers();
@@ -647,26 +684,26 @@ const UserManagementPage = () => {
   const getPermissionGroups = () => {
     const groups = {
       'Comprobantes': [
-        PERMISSIONS.VIEW_RECEIPTS,
-        PERMISSIONS.DOWNLOAD_RECEIPTS,
-        PERMISSIONS.UPLOAD_RECEIPTS,
-        PERMISSIONS.DELETE_RECEIPTS
+        'view_receipts',
+        'download_receipts',
+        'upload_receipts',
+        'delete_receipts'
       ],
       'Compromisos': [
-        PERMISSIONS.VIEW_COMMITMENTS,
-        PERMISSIONS.CREATE_COMMITMENTS,
-        PERMISSIONS.EDIT_COMMITMENTS,
-        PERMISSIONS.DELETE_COMMITMENTS
+        'view_commitments',
+        'create_commitments',
+        'edit_commitments',
+        'delete_commitments'
       ],
       'Reportes': [
-        PERMISSIONS.GENERATE_REPORTS,
-        PERMISSIONS.EXPORT_DATA
+        'generate_reports',
+        'export_data'
       ],
       'Administración': [
-        PERMISSIONS.MANAGE_USERS,
-        PERMISSIONS.VIEW_USERS,
-        PERMISSIONS.ADMIN_ACCESS,
-        PERMISSIONS.SYSTEM_CONFIG
+        'manage_users',
+        'view_users',
+        'admin_access',
+        'system_config'
       ]
     };
     return groups;
@@ -866,14 +903,16 @@ const UserManagementPage = () => {
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Eliminar usuario">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDeleteUser(user.id)}
-                            sx={{ color: 'error.main' }}
-                            disabled={user.role === 'ADMIN' && users.filter(u => u.role === 'ADMIN').length === 1}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDeleteUser(user.id)}
+                              sx={{ color: 'error.main' }}
+                              disabled={user.role === 'ADMIN' && users.filter(u => u.role === 'ADMIN').length === 1}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </span>
                         </Tooltip>
                       </Box>
                     </TableCell>
@@ -1067,7 +1106,7 @@ const UserManagementPage = () => {
                           }
                           label={
                             <Typography variant="body2">
-                              {PERMISSION_TRANSLATIONS[permission] || permission.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase())}
+                              {permission.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase())}
                             </Typography>
                           }
                         />

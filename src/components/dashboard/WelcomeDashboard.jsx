@@ -31,7 +31,7 @@ import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../../context/AuthContext';
 import { useDashboardStats } from '../../hooks/useDashboardStats';
 import { useNavigate } from 'react-router-dom';
-import { createSampleData } from '../../utils/sampleData';
+// import { createSampleData } from '../../utils/sampleData'; // Eliminado - solo datos reales
 import {
   animationVariants,
   useThemeGradients,
@@ -203,19 +203,7 @@ const WelcomeDashboard = () => {
 
   // Componente de acciones rápidas
   const QuickActionsSection = () => {
-    const handleCreateSampleData = async () => {
-      try {
-        const result = await createSampleData();
-        if (result.success) {
-          alert('¡Datos de ejemplo creados exitosamente! Ya puedes ver compromisos reales.');
-          window.location.reload();
-        } else {
-          alert('Error al crear datos de ejemplo: ' + result.error);
-        }
-      } catch (error) {
-        alert('Error: ' + error.message);
-      }
-    };
+    // Función de datos demo eliminada - solo datos reales
 
     const quickActions = [
       {
@@ -233,14 +221,6 @@ const WelcomeDashboard = () => {
         color: 'success.main',
         action: () => navigate('/commitments'),
         gradient: 'linear-gradient(45deg, #4caf50 30%, #81c784 90%)'
-      },
-      {
-        title: 'Cargar Datos Demo',
-        description: 'Crear datos de ejemplo para probar',
-        icon: Upload,
-        color: 'warning.main',
-        action: handleCreateSampleData,
-        gradient: 'linear-gradient(45deg, #ff9800 30%, #ffb74d 90%)'
       },
       {
         title: 'Ver Reportes',

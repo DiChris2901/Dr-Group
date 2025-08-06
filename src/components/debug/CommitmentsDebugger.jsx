@@ -21,13 +21,13 @@ import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { createSampleData } from '../../utils/sampleData';
+// import { createSampleData } from '../../utils/sampleData'; // Eliminado - solo datos reales
 
 const CommitmentsDebugger = () => {
   const [commitments, setCommitments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [creatingData, setCreatingData] = useState(false);
+  // const [creatingData, setCreatingData] = useState(false); // Eliminado - solo datos reales
 
   const fetchCommitments = async () => {
     setLoading(true);
@@ -69,6 +69,8 @@ const CommitmentsDebugger = () => {
     }
   };
 
+  // Función de datos demo eliminada - solo datos reales
+  /* 
   const handleCreateSampleData = async () => {
     setCreatingData(true);
     try {
@@ -88,6 +90,7 @@ const CommitmentsDebugger = () => {
       setCreatingData(false);
     }
   };
+  */
 
   useEffect(() => {
     fetchCommitments();
@@ -110,14 +113,7 @@ const CommitmentsDebugger = () => {
             {loading ? <CircularProgress size={20} /> : '🔄 Recargar'}
           </Button>
           
-          <Button 
-            variant="contained" 
-            onClick={handleCreateSampleData}
-            disabled={creatingData}
-            sx={{ mr: 1 }}
-          >
-            {creatingData ? <CircularProgress size={20} /> : '🏢 Crear Datos de Muestra'}
-          </Button>
+          {/* Botón de datos demo eliminado - solo datos reales */}
           
           <Chip 
             label={`${commitments.length} compromisos encontrados`}

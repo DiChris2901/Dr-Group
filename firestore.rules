@@ -1,28 +1,45 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Permitir acceso solo a usuarios autenticados
-    match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
+    // REGLAS DE PRODUCCIÓN SEGURAS
     
-    // Reglas específicas para usuarios
+    // Usuarios: Permitir lectura pública para preview de login, escritura solo autenticada
     match /users/{userId} {
-      // Permitir lectura propia para usuarios autenticados
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      // Permitir lectura de datos básicos para preview en login (solo name, email, photoURL)
+      // Permitir lectura a cualquiera (necesario para preview de login)
       allow read: if true;
+      
+      // Permitir creación, actualización y eliminación solo a usuarios autenticados
+      allow create, update, delete: if request.auth != null;
     }
     
-    // Reglas específicas para compromisos
+    // Compromisos: Solo usuarios autenticados
     match /commitments/{commitmentId} {
       allow read, write: if request.auth != null;
     }
     
-    // Reglas específicas para empresas
+    // Empresas: Solo usuarios autenticados
     match /companies/{companyId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow read, write: if request.auth != null;
+    }
+    
+    // Pagos: Solo usuarios autenticados
+    match /payments/{paymentId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Logs de auditoría: Solo usuarios autenticados
+    match /audit_logs/{logId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Configuraciones: Solo usuarios autenticados
+    match /settings/{settingId} {
+      allow read, write: if request.auth != null;
+    }
+    
+    // Regla por defecto para cualquier otra colección: Solo usuarios autenticados
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }

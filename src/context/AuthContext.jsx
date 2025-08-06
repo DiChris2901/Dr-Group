@@ -50,6 +50,8 @@ export const AuthProvider = ({ children }) => {
       const q = query(usersRef, where('email', '==', email));
       const querySnapshot = await getDocs(q);
       
+      console.log('📊 Resultados de búsqueda:', querySnapshot.size, 'documentos encontrados');
+      
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
         const userData = {
@@ -112,23 +114,43 @@ export const AuthProvider = ({ children }) => {
   // Cargar perfil del usuario desde Firestore
   const loadUserProfile = async (user) => {
     try {
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
+      console.log('🔍 Cargando perfil para usuario:', user.uid, user.email);
+      
+      // Primero intentar buscar por UID
+      let userDocRef = doc(db, 'users', user.uid);
+      let userDoc = await getDoc(userDocRef);
       
       if (userDoc.exists()) {
+        console.log('✅ Perfil encontrado por UID:', userDoc.data());
         setUserProfile({
           uid: user.uid,
           email: user.email,
           ...userDoc.data()
         });
-      } else {
-        // Usuario no tiene perfil en Firestore - NO crear automáticamente
-        console.warn('⚠️ Usuario autenticado sin perfil en Firestore:', user.email);
-        console.warn('⚠️ Debe ser creado manualmente desde UserManagementPage');
-        setUserProfile(null);
+        return;
       }
+      
+      // Si no se encuentra por UID, buscar por email
+      console.log('🔍 No encontrado por UID, buscando por email...');
+      const userByEmail = await getUserByEmail(user.email);
+      
+      if (userByEmail) {
+        console.log('✅ Perfil encontrado por email:', userByEmail);
+        setUserProfile({
+          uid: user.uid,
+          email: user.email,
+          ...userByEmail
+        });
+        return;
+      }
+      
+      // Usuario no tiene perfil en Firestore
+      console.warn('⚠️ Usuario autenticado sin perfil en Firestore:', user.email);
+      console.warn('⚠️ Debe ser creado manualmente desde UserManagementPage');
+      setUserProfile(null);
+      
     } catch (error) {
-      console.error('Error cargando perfil del usuario:', error);
+      console.error('❌ Error cargando perfil del usuario:', error);
       setError('Error cargando datos del usuario');
     }
   };
