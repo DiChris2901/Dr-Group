@@ -14,14 +14,22 @@ import {
   IconButton,
   Avatar,
   Fade,
-  Chip
+  Chip,
+  Skeleton,
+  Badge,
+  Tooltip
 } from '@mui/material';
 import {
   Email,
   Lock,
   Visibility,
   VisibilityOff,
-  BusinessCenter
+  BusinessCenter,
+  Verified,
+  StarBorder,
+  Security,
+  Diamond,
+  AutoAwesome
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
@@ -39,6 +47,7 @@ const LoginForm = () => {
   const [loading, setLoading] = useState(false);
   const [userPreview, setUserPreview] = useState(null);
   const [emailCheckLoading, setEmailCheckLoading] = useState(false);
+  const [showSkeleton, setShowSkeleton] = useState(false);
   const [hasAdmins, setHasAdmins] = useState(true); // Por defecto asumimos que hay admins
   const [checkingAdmins, setCheckingAdmins] = useState(true);
   const { login, error, setError, getUserByEmail, checkEmailExists } = useAuth();
@@ -52,6 +61,24 @@ const LoginForm = () => {
   const animationsEnabled = settings?.theme?.animations !== false;
   const fontSize = settings?.theme?.fontSize || 14;
   const compactMode = settings?.sidebar?.compactMode || false;
+
+  // 🕒 Helper para formatear tiempo relativo
+  const formatRelativeTime = (dateString) => {
+    if (!dateString) return 'Nunca';
+    
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffMs = now - date;
+    const diffMinutes = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMinutes < 1) return 'Ahora mismo';
+    if (diffMinutes < 60) return `Hace ${diffMinutes} min`;
+    if (diffHours < 24) return `Hace ${diffHours}h`;
+    if (diffDays < 30) return `Hace ${diffDays} días`;
+    return date.toLocaleDateString();
+  };
 
   // Verificar si existen administradores en el sistema
   const checkForAdmins = async () => {
@@ -80,12 +107,19 @@ const LoginForm = () => {
   const checkUserEmail = async (emailValue) => {
     if (!emailValue || !emailValue.includes('@')) {
       setUserPreview(null);
+      setShowSkeleton(false);
       return;
     }
 
     setEmailCheckLoading(true);
+    setShowSkeleton(true);
+    setUserPreview(null);
+    
     try {
       console.log('🔍 Verificando email:', emailValue);
+      
+      // Simular delay mínimo para mostrar skeleton
+      await new Promise(resolve => setTimeout(resolve, 800));
       
       // Primero intentar obtener datos reales de Firebase
       const realUser = await checkEmailExists(emailValue);
@@ -96,30 +130,48 @@ const LoginForm = () => {
           email: emailValue,
           name: realUser.name || realUser.displayName,
           position: realUser.position || realUser.role || 'Usuario del Sistema',
+          department: realUser.department || 'DR Group',
           photoURL: realUser.photoURL,
-          isRealUser: true
+          lastLogin: realUser.lastLogin || new Date().toISOString(),
+          accountType: realUser.role === 'ADMIN' ? 'Administrador' : 
+                      realUser.role === 'MANAGER' ? 'Gerente' : 'Usuario',
+          isRealUser: true,
+          isActive: realUser.isActive !== false,
+          joinDate: realUser.createdAt || new Date().toISOString()
         });
       } else {
         console.log('💡 Creando preview genérico para:', emailValue);
         // Fallback: crear preview genérico si no se puede acceder a Firebase
         const emailUser = emailValue.toLowerCase();
         
-        // Lista de usuarios conocidos (como fallback)
+        // Lista de usuarios conocidos (como fallback) con más información
         const knownUsers = {
           'admin@drgroup.com': {
             name: 'Administrador DR Group',
             position: 'Administrador del Sistema',
-            photoURL: null
+            department: 'Tecnología',
+            photoURL: null,
+            accountType: 'Administrador',
+            lastLogin: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 horas atrás
+            joinDate: '2024-01-01T00:00:00.000Z'
           },
           'diego@drgroup.com': {
             name: 'Diego Rodriguez',
             position: 'Director Ejecutivo',
-            photoURL: null
+            department: 'Dirección General',
+            photoURL: null,
+            accountType: 'Administrador',
+            lastLogin: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 min atrás
+            joinDate: '2024-01-01T00:00:00.000Z'
           },
           'daruedagu@gmail.com': {
             name: 'Daruedagu',
-            position: 'Usuario del Sistema',
-            photoURL: null
+            position: 'Analista de Sistemas',
+            department: 'Tecnología',
+            photoURL: null,
+            accountType: 'Usuario',
+            lastLogin: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 día atrás
+            joinDate: '2024-06-01T00:00:00.000Z'
           }
         };
 
@@ -127,16 +179,22 @@ const LoginForm = () => {
           setUserPreview({
             email: emailValue,
             ...knownUsers[emailUser],
-            isRealUser: false
+            isRealUser: false,
+            isActive: true
           });
         } else {
-          // Preview genérico para emails desconocidos
+          // Preview genérico mejorado para emails desconocidos
           const genericUser = {
             email: emailValue,
             name: emailValue.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
             position: 'Usuario del Sistema',
+            department: emailValue.split('@')[1]?.split('.')[0]?.toUpperCase() || 'Sistema',
             photoURL: null,
-            isRealUser: false
+            accountType: 'Usuario',
+            lastLogin: null,
+            joinDate: new Date().toISOString(),
+            isRealUser: false,
+            isActive: false
           };
           setUserPreview(genericUser);
         }
@@ -146,6 +204,7 @@ const LoginForm = () => {
       setUserPreview(null);
     } finally {
       setEmailCheckLoading(false);
+      setShowSkeleton(false);
     }
   };
 
@@ -217,6 +276,7 @@ const LoginForm = () => {
         justifyContent: 'center',
         padding: compactMode ? 2 : 3,
         position: 'relative',
+        overflow: 'hidden',
         '&::before': {
           content: '""',
           position: 'absolute',
@@ -224,8 +284,12 @@ const LoginForm = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: `radial-gradient(circle at 25% 25%, ${primaryColor}06 0%, transparent 50%), 
-                      radial-gradient(circle at 75% 75%, ${secondaryColor}04 0%, transparent 50%)`,
+          background: `
+            radial-gradient(circle at 25% 25%, ${primaryColor}08 0%, transparent 50%), 
+            radial-gradient(circle at 75% 75%, ${secondaryColor}06 0%, transparent 50%),
+            radial-gradient(circle at 10% 80%, ${primaryColor}05 0%, transparent 40%),
+            radial-gradient(circle at 90% 20%, ${secondaryColor}04 0%, transparent 45%)
+          `,
           zIndex: 0
         },
         '&::after': {
@@ -235,34 +299,101 @@ const LoginForm = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: `
-            radial-gradient(circle at 20% 80%, ${primaryColor}03 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, ${secondaryColor}03 0%, transparent 50%),
-            radial-gradient(circle at 40% 40%, ${primaryColor}02 0%, transparent 30%)
+          backgroundImage: `
+            radial-gradient(circle at 2px 2px, ${primaryColor}06 1px, transparent 0),
+            radial-gradient(circle at 30px 30px, ${secondaryColor}04 1px, transparent 0)
           `,
-          animation: animationsEnabled ? 'floatParticles 20s ease-in-out infinite' : 'none',
+          backgroundSize: '60px 60px, 80px 80px',
+          animation: animationsEnabled ? 'patternDrift 25s linear infinite' : 'none',
+          opacity: 0.4,
           zIndex: 0,
-          '@keyframes floatParticles': {
-            '0%, 100%': { 
-              transform: 'translateY(0) translateX(0) scale(1)',
-              opacity: 0.7 
-            },
-            '25%': { 
-              transform: 'translateY(-10px) translateX(5px) scale(1.05)',
-              opacity: 0.8 
-            },
-            '50%': { 
-              transform: 'translateY(-5px) translateX(-10px) scale(0.95)',
-              opacity: 0.6 
-            },
-            '75%': { 
-              transform: 'translateY(8px) translateX(-5px) scale(1.02)',
-              opacity: 0.9 
-            }
+          '@keyframes patternDrift': {
+            '0%': { transform: 'translate(0, 0)' },
+            '100%': { transform: 'translate(60px, 60px)' }
           }
         }
       }}
     >
+      {/* Luces ambientales flotantes */}
+      {animationsEnabled && (
+        <>
+          <Box
+            sx={{
+              position: 'absolute',
+              top: '15%',
+              left: '10%',
+              width: 180,
+              height: 180,
+              borderRadius: '50%',
+              background: `radial-gradient(circle, ${primaryColor}12 0%, transparent 70%)`,
+              filter: 'blur(60px)',
+              animation: 'floatLight1 12s ease-in-out infinite',
+              zIndex: 0,
+              '@keyframes floatLight1': {
+                '0%, 100%': { 
+                  transform: 'translate(0, 0) scale(1)',
+                  opacity: 0.3
+                },
+                '50%': { 
+                  transform: 'translate(20px, -15px) scale(1.1)',
+                  opacity: 0.5
+                }
+              }
+            }}
+          />
+          <Box
+            sx={{
+              position: 'absolute',
+              top: '60%',
+              right: '15%',
+              width: 140,
+              height: 140,
+              borderRadius: '50%',
+              background: `radial-gradient(circle, ${secondaryColor}10 0%, transparent 70%)`,
+              filter: 'blur(50px)',
+              animation: 'floatLight2 10s ease-in-out infinite',
+              animationDelay: '3s',
+              zIndex: 0,
+              '@keyframes floatLight2': {
+                '0%, 100%': { 
+                  transform: 'translate(0, 0) scale(1)',
+                  opacity: 0.25
+                },
+                '50%': { 
+                  transform: 'translate(-15px, 10px) scale(1.15)',
+                  opacity: 0.4
+                }
+              }
+            }}
+          />
+          <Box
+            sx={{
+              position: 'absolute',
+              bottom: '25%',
+              left: '20%',
+              width: 100,
+              height: 100,
+              borderRadius: '50%',
+              background: `radial-gradient(circle, ${primaryColor}08 0%, transparent 70%)`,
+              filter: 'blur(40px)',
+              animation: 'floatLight3 8s ease-in-out infinite',
+              animationDelay: '6s',
+              zIndex: 0,
+              '@keyframes floatLight3': {
+                '0%, 100%': { 
+                  transform: 'translate(0, 0) scale(1)',
+                  opacity: 0.2
+                },
+                '50%': { 
+                  transform: 'translate(10px, -20px) scale(1.2)',
+                  opacity: 0.35
+                }
+              }
+            }}
+          />
+        </>
+      )}
+
       <Container maxWidth="sm" sx={{ position: 'relative', zIndex: 1 }}>
         <motion.div
           initial={animationsEnabled ? { opacity: 0, y: 50, scale: 0.95 } : { opacity: 1, y: 0, scale: 1 }}
@@ -282,7 +413,11 @@ const LoginForm = () => {
                 ${theme.palette.mode === 'dark' ? 'rgba(30, 41, 59, 0.98)' : 'rgba(255, 255, 255, 0.98)'} 100%
               )`,
               backdropFilter: 'blur(40px)',
-              boxShadow: `0 8px 32px ${theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.12)'}`,
+              boxShadow: `
+                0 8px 32px ${theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.12)'},
+                0 4px 16px ${primaryColor}08,
+                inset 0 1px 0 rgba(255,255,255,0.1)
+              `,
               position: 'relative',
               overflow: 'hidden',
               transition: animationsEnabled ? 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
@@ -296,18 +431,48 @@ const LoginForm = () => {
                 background: `linear-gradient(90deg,
                   ${primaryColor} 0%,
                   ${secondaryColor} 100%
-                )`
+                )`,
+                zIndex: 2
               },
+              '&::after': animationsEnabled ? {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: `
+                  radial-gradient(circle at 15% 15%, ${primaryColor}04 0%, transparent 40%),
+                  radial-gradient(circle at 85% 85%, ${secondaryColor}03 0%, transparent 40%)
+                `,
+                animation: 'floatGlow 12s ease-in-out infinite',
+                pointerEvents: 'none',
+                '@keyframes floatGlow': {
+                  '0%, 100%': { 
+                    transform: 'translateY(0) scale(1)',
+                    opacity: 0.6 
+                  },
+                  '33%': { 
+                    transform: 'translateY(-2px) scale(1.02)',
+                    opacity: 0.8 
+                  },
+                  '66%': { 
+                    transform: 'translateY(1px) scale(0.98)',
+                    opacity: 0.7 
+                  }
+                }
+              } : {},
               '&:hover': animationsEnabled ? {
                 transform: 'translateY(-4px)',
                 boxShadow: `
                   0 16px 48px ${theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(0, 0, 0, 0.15)'},
-                  0 8px 24px ${theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.10)'}
+                  0 8px 24px ${primaryColor}12,
+                  inset 0 1px 0 rgba(255,255,255,0.2)
                 `
               } : {}
             }}
           >
-            {/* Header Card similar al drawer de configuración */}
+            {/* Header Card con efectos spectacular mejorados */}
             <Box
               sx={{
                 background: `linear-gradient(135deg,
@@ -321,18 +486,37 @@ const LoginForm = () => {
                 alignItems: 'center',
                 gap: 3,
                 position: 'relative',
-                '&::after': animationsEnabled ? {
+                '&::before': {
                   content: '""',
                   position: 'absolute',
                   bottom: 0,
+                  left: '10%',
+                  right: '10%',
+                  height: '1px',
+                  background: `linear-gradient(90deg, 
+                    transparent, 
+                    ${theme.palette.divider}30, 
+                    transparent
+                  )`
+                },
+                '&::after': animationsEnabled ? {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
                   left: 0,
                   right: 0,
-                  height: '1px',
-                  background: `linear-gradient(90deg, transparent, ${theme.palette.divider}30, transparent)`,
+                  bottom: 0,
+                  background: `linear-gradient(45deg, transparent 30%, ${primaryColor}02 50%, transparent 70%)`,
+                  animation: 'shimmer 6s infinite',
+                  pointerEvents: 'none',
+                  '@keyframes shimmer': {
+                    '0%': { transform: 'translateX(-100%)' },
+                    '100%': { transform: 'translateX(100%)' }
+                  }
                 } : {}
               }}
             >
-              {/* Avatar Icon con estilo del drawer */}
+              {/* Avatar Icon con efectos spectacular mejorados */}
               <Box sx={{
                 background: `linear-gradient(135deg, 
                   ${primaryColor}, 
@@ -342,9 +526,14 @@ const LoginForm = () => {
                 p: 2,
                 display: 'flex',
                 alignItems: 'center',
-                boxShadow: `0 4px 16px ${primaryColor}30`,
+                boxShadow: `
+                  0 6px 20px ${primaryColor}35,
+                  0 3px 10px ${primaryColor}25,
+                  inset 0 1px 0 rgba(255,255,255,0.3)
+                `,
                 position: 'relative',
                 overflow: 'hidden',
+                transition: animationsEnabled ? 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
                 '&::before': animationsEnabled ? {
                   content: '""',
                   position: 'absolute',
@@ -358,6 +547,27 @@ const LoginForm = () => {
                     '0%': { transform: 'translateX(-100%)' },
                     '100%': { transform: 'translateX(100%)' }
                   }
+                } : {},
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  top: -2,
+                  left: -2,
+                  right: -2,
+                  bottom: -2,
+                  background: `linear-gradient(45deg, ${primaryColor}, ${secondaryColor})`,
+                  borderRadius: `${borderRadius + 2}px`,
+                  zIndex: -1,
+                  opacity: 0.3,
+                  filter: 'blur(4px)'
+                },
+                '&:hover': animationsEnabled ? {
+                  transform: 'scale(1.05)',
+                  boxShadow: `
+                    0 8px 25px ${primaryColor}45,
+                    0 4px 12px ${primaryColor}30,
+                    inset 0 1px 0 rgba(255,255,255,0.4)
+                  `
                 } : {}
               }}>
                 <BusinessCenter 
@@ -484,12 +694,12 @@ const LoginForm = () => {
               )}
 
               <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
-                {/* Preview del usuario mejorado */}
-                {userPreview && (
+                {/* Skeleton Loading State */}
+                {showSkeleton && (
                   <motion.div
                     initial={animationsEnabled ? { opacity: 0, y: -10, scale: 0.95 } : { opacity: 1, y: 0, scale: 1 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    transition={animationsEnabled ? { duration: 0.4, ease: [0.4, 0, 0.2, 1] } : { duration: 0 }}
+                    transition={animationsEnabled ? { duration: 0.3, ease: [0.4, 0, 0.2, 1] } : { duration: 0 }}
                   >
                     <Box 
                       sx={{ 
@@ -528,89 +738,270 @@ const LoginForm = () => {
                           right: 0,
                           bottom: 0,
                           background: `linear-gradient(45deg, transparent 30%, ${primaryColor}03 50%, transparent 70%)`,
-                          animation: 'shimmer 3s infinite'
+                          animation: 'shimmer 2s infinite'
                         } : {}
                       }}
                     >
-                      <Avatar
-                        src={userPreview.photoURL}
-                        sx={{ 
-                          width: compactMode ? 40 : 48, 
-                          height: compactMode ? 40 : 48,
-                          background: !userPreview.photoURL ? `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` : 'transparent',
-                          border: userPreview.isRealUser 
-                            ? `2px solid ${primaryColor}` 
-                            : `1px solid ${theme.palette.divider}40`,
-                          boxShadow: `0 4px 16px ${primaryColor}25`,
-                          position: 'relative',
-                          zIndex: 2,
-                          fontSize: compactMode ? '1rem' : '1.2rem',
-                          fontWeight: 700,
-                          color: 'white',
-                          '&::before': userPreview.isRealUser && animationsEnabled ? {
-                            content: '""',
-                            position: 'absolute',
-                            top: -2,
-                            left: -2,
-                            right: -2,
-                            bottom: -2,
-                            background: `linear-gradient(45deg, ${primaryColor}, ${secondaryColor})`,
-                            borderRadius: '50%',
-                            zIndex: -1,
-                            animation: 'pulse-glow 2s infinite',
-                            '@keyframes pulse-glow': {
-                              '0%, 100%': { 
-                                opacity: 0.5,
-                                transform: 'scale(1)' 
-                              },
-                              '50%': { 
-                                opacity: 0.8,
-                                transform: 'scale(1.05)' 
-                              }
-                            }
-                          } : {}
+                      {/* Avatar Skeleton */}
+                      <Skeleton 
+                        variant="circular" 
+                        width={compactMode ? 40 : 48} 
+                        height={compactMode ? 40 : 48}
+                        sx={{
+                          background: `linear-gradient(90deg, 
+                            ${theme.palette.action.hover} 0%, 
+                            ${theme.palette.action.selected} 50%, 
+                            ${theme.palette.action.hover} 100%
+                          )`,
+                          backgroundSize: '200% 100%',
+                          animation: animationsEnabled ? 'shimmer-skeleton 1.5s infinite' : 'none',
+                          '@keyframes shimmer-skeleton': {
+                            '0%': { backgroundPosition: '-200% 0' },
+                            '100%': { backgroundPosition: '200% 0' }
+                          }
                         }}
-                      >
-                        {!userPreview.photoURL && (userPreview.name?.charAt(0) || userPreview.email?.charAt(0)?.toUpperCase())}
-                      </Avatar>
-                      <Box sx={{ position: 'relative', zIndex: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                          <Typography 
-                            variant="body1" 
-                            fontWeight={700} 
-                            sx={{ 
-                              color: theme.palette.text.primary,
-                              fontSize: compactMode ? '1rem' : '1.1rem'
-                            }}
-                          >
-                            {userPreview.name || 'Usuario'}
-                          </Typography>
-                          {userPreview.isRealUser && (
-                            <Chip 
-                              label="Verificado" 
-                              size="small" 
-                              sx={{ 
-                                height: 22, 
-                                fontSize: '0.7rem',
-                                fontWeight: 600,
-                                background: `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})`,
-                                color: theme.palette.success.contrastText,
-                                border: 'none'
-                              }}
-                            />
-                          )}
-                        </Box>
-                        <Typography 
-                          variant="body2" 
+                      />
+                      
+                      {/* Text Skeleton */}
+                      <Box sx={{ flex: 1 }}>
+                        <Skeleton 
+                          variant="text" 
+                          width="60%" 
+                          height={compactMode ? 24 : 28}
                           sx={{ 
-                            color: theme.palette.text.secondary,
-                            fontWeight: 500
+                            mb: 0.5,
+                            background: `linear-gradient(90deg, 
+                              ${theme.palette.action.hover} 0%, 
+                              ${theme.palette.action.selected} 50%, 
+                              ${theme.palette.action.hover} 100%
+                            )`,
+                            backgroundSize: '200% 100%',
+                            animation: animationsEnabled ? 'shimmer-skeleton 1.5s infinite' : 'none'
                           }}
-                        >
-                          {userPreview.position || userPreview.email}
-                        </Typography>
+                        />
+                        <Skeleton 
+                          variant="text" 
+                          width="80%" 
+                          height={20}
+                          sx={{
+                            background: `linear-gradient(90deg, 
+                              ${theme.palette.action.hover} 0%, 
+                              ${theme.palette.action.selected} 50%, 
+                              ${theme.palette.action.hover} 100%
+                            )`,
+                            backgroundSize: '200% 100%',
+                            animation: animationsEnabled ? 'shimmer-skeleton 1.5s infinite' : 'none'
+                          }}
+                        />
                       </Box>
                     </Box>
+                  </motion.div>
+                )}
+
+                {/* Preview del usuario - Estilo Drawer Sutil */}
+                {userPreview && !showSkeleton && (
+                  <motion.div
+                    initial={animationsEnabled ? { opacity: 0, y: -5 } : { opacity: 1, y: 0 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={animationsEnabled ? { 
+                      duration: 0.4, 
+                      ease: [0.4, 0, 0.2, 1]
+                    } : { duration: 0 }}
+                    whileHover={animationsEnabled ? { 
+                      y: -2
+                    } : {}}
+                  >
+                    <Paper
+                      elevation={0}
+                      sx={{
+                        mb: compactMode ? 3 : 4,
+                        border: `1px solid ${theme.palette.divider}15`,
+                        borderRadius: `${borderRadius}px`,
+                        background: `linear-gradient(135deg,
+                          ${primaryColor}04 0%,
+                          ${theme.palette.mode === 'dark' ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)'} 100%
+                        )`,
+                        backdropFilter: 'blur(20px)',
+                        boxShadow: `0 4px 16px ${theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.08)'}`,
+                        position: 'relative',
+                        overflow: 'hidden',
+                        transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: '4px',
+                          background: `linear-gradient(90deg,
+                            ${primaryColor} 0%,
+                            ${secondaryColor} 100%
+                          )`
+                        },
+                        '&:hover': animationsEnabled ? {
+                          transform: 'translateY(-2px)',
+                          boxShadow: `0 8px 24px ${theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(0, 0, 0, 0.12)'}`
+                        } : {}
+                      }}
+                    >
+                      {/* Contenido principal */}
+                      <Box
+                        sx={{
+                          p: compactMode ? 2.5 : 3,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: compactMode ? 2 : 2.5
+                        }}
+                      >
+                        {/* Avatar sutil */}
+                        <Box sx={{ position: 'relative' }}>
+                          <Avatar
+                            src={userPreview.photoURL}
+                            sx={{
+                              width: compactMode ? 48 : 56,
+                              height: compactMode ? 48 : 56,
+                              background: !userPreview.photoURL 
+                                ? `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` 
+                                : 'transparent',
+                              fontSize: compactMode ? '1.2rem' : '1.4rem',
+                              fontWeight: 700,
+                              color: 'white',
+                              boxShadow: `0 4px 12px ${primaryColor}25`,
+                              border: `2px solid ${theme.palette.background.paper}`,
+                              transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                              '&:hover': animationsEnabled ? {
+                                transform: 'scale(1.05)',
+                                boxShadow: `0 6px 16px ${primaryColor}30`
+                              } : {}
+                            }}
+                          >
+                            {!userPreview.photoURL && (userPreview.name?.charAt(0) || userPreview.email?.charAt(0)?.toUpperCase())}
+                          </Avatar>
+                          
+                          {/* Badge de verificación sutil */}
+                          {userPreview.isRealUser && (
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                bottom: -2,
+                                right: -2,
+                                width: 18,
+                                height: 18,
+                                borderRadius: '50%',
+                                background: `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})`,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: `2px solid ${theme.palette.background.paper}`,
+                                boxShadow: `0 2px 8px ${theme.palette.success.main}40`
+                              }}
+                            >
+                              <Verified sx={{ fontSize: '0.7rem', color: 'white' }} />
+                            </Box>
+                          )}
+                        </Box>
+
+                        {/* Información del usuario */}
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography 
+                            variant="h6" 
+                            sx={{ 
+                              color: theme.palette.text.primary,
+                              fontSize: compactMode ? '1rem' : '1.1rem',
+                              fontWeight: 700,
+                              mb: 0.5,
+                              lineHeight: 1.2
+                            }}
+                          >
+                            {userPreview.name || 'Usuario del Sistema'}
+                          </Typography>
+                          
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: theme.palette.text.secondary,
+                              fontSize: compactMode ? '0.85rem' : '0.9rem',
+                              fontWeight: 500,
+                              mb: userPreview.isRealUser ? 1.5 : 0
+                            }}
+                          >
+                            {userPreview.position}
+                          </Typography>
+
+                          {/* Badges sutiles */}
+                          {userPreview.isRealUser && (
+                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                              <Chip 
+                                label="Verificado" 
+                                size="small" 
+                                icon={<Verified sx={{ fontSize: '0.75rem' }} />}
+                                sx={{ 
+                                  height: 24, 
+                                  fontSize: '0.7rem',
+                                  fontWeight: 600,
+                                  background: theme.palette.success.main,
+                                  color: 'white',
+                                  border: 'none',
+                                  '& .MuiChip-icon': {
+                                    color: 'white'
+                                  }
+                                }}
+                              />
+                              
+                              <Chip 
+                                label={userPreview.accountType || 'Usuario'} 
+                                size="small" 
+                                sx={{ 
+                                  height: 24, 
+                                  fontSize: '0.7rem',
+                                  fontWeight: 600,
+                                  background: userPreview.accountType === 'Administrador' 
+                                    ? theme.palette.warning.main
+                                    : theme.palette.info.main,
+                                  color: 'white',
+                                  border: 'none'
+                                }}
+                              />
+                            </Box>
+                          )}
+                        </Box>
+                      </Box>
+
+                      {/* Footer sutil con último acceso */}
+                      {userPreview.isRealUser && userPreview.lastLogin && (
+                        <Box
+                          sx={{
+                            px: compactMode ? 2.5 : 3,
+                            pb: compactMode ? 2 : 2.5,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 1
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: 4,
+                              height: 4,
+                              borderRadius: '50%',
+                              background: theme.palette.success.main,
+                              opacity: 0.8
+                            }}
+                          />
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              color: theme.palette.text.secondary,
+                              fontSize: '0.7rem',
+                              fontWeight: 500,
+                              opacity: 0.7
+                            }}
+                          >
+                            Último acceso: {formatRelativeTime(userPreview.lastLogin)}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Paper>
                   </motion.div>
                 )}
 
@@ -853,16 +1244,45 @@ const LoginForm = () => {
                 animate={{ opacity: 1 }}
                 transition={animationsEnabled ? { delay: 1.4, duration: 0.6 } : { duration: 0 }}
               >
-                <Box sx={{ textAlign: 'center', mt: compactMode ? 3 : 4 }}>
+                <Box sx={{ textAlign: 'center', mt: compactMode ? 3 : 4, position: 'relative' }}>
+                  {/* Efecto de partículas sutil */}
+                  {animationsEnabled && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: -10,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: 200,
+                        height: 20,
+                        background: `radial-gradient(circle, ${primaryColor}08 0%, transparent 70%)`,
+                        borderRadius: '50%',
+                        animation: 'pulseGlow 4s ease-in-out infinite',
+                        '@keyframes pulseGlow': {
+                          '0%, 100%': { opacity: 0.3, transform: 'translateX(-50%) scale(1)' },
+                          '50%': { opacity: 0.6, transform: 'translateX(-50%) scale(1.1)' }
+                        }
+                      }}
+                    />
+                  )}
+                  
                   <Typography 
                     variant="body2" 
                     sx={{ 
                       color: theme.palette.text.secondary,
                       fontWeight: 500,
-                      fontSize: `${fontSize - 1}px`
+                      fontSize: `${fontSize - 1}px`,
+                      position: 'relative',
+                      zIndex: 1,
+                      '&::before': {
+                        content: '"🔒"',
+                        marginRight: 1,
+                        fontSize: '1rem',
+                        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
+                      }
                     }}
                   >
-                    🔒 Sistema de Gestión Financiera Empresarial
+                    Sistema de Gestión Financiera Empresarial
                   </Typography>
                   
                   {/* Enlace para configuración inicial - Solo aparece si no hay administradores */}
