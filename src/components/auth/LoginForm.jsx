@@ -29,7 +29,9 @@ import {
   StarBorder,
   Security,
   Diamond,
-  AutoAwesome
+  AutoAwesome,
+  PersonOff,
+  Block
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
@@ -140,11 +142,10 @@ const LoginForm = () => {
           joinDate: realUser.createdAt || new Date().toISOString()
         });
       } else {
-        console.log('💡 Creando preview genérico para:', emailValue);
-        // Fallback: crear preview genérico si no se puede acceder a Firebase
-        const emailUser = emailValue.toLowerCase();
+        console.log('⚠️ Usuario no encontrado en Firebase:', emailValue);
         
-        // Lista de usuarios conocidos (como fallback) con más información
+        // Verificar si es un usuario conocido del sistema (fallback)
+        const emailUser = emailValue.toLowerCase();
         const knownUsers = {
           'admin@drgroup.com': {
             name: 'Administrador DR Group',
@@ -152,7 +153,7 @@ const LoginForm = () => {
             department: 'Tecnología',
             photoURL: null,
             accountType: 'Administrador',
-            lastLogin: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 horas atrás
+            lastLogin: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
             joinDate: '2024-01-01T00:00:00.000Z'
           },
           'diego@drgroup.com': {
@@ -161,7 +162,7 @@ const LoginForm = () => {
             department: 'Dirección General',
             photoURL: null,
             accountType: 'Administrador',
-            lastLogin: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 min atrás
+            lastLogin: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
             joinDate: '2024-01-01T00:00:00.000Z'
           },
           'daruedagu@gmail.com': {
@@ -170,12 +171,13 @@ const LoginForm = () => {
             department: 'Tecnología',
             photoURL: null,
             accountType: 'Usuario',
-            lastLogin: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 día atrás
+            lastLogin: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
             joinDate: '2024-06-01T00:00:00.000Z'
           }
         };
 
         if (knownUsers[emailUser]) {
+          // Usuario conocido del sistema pero no en Firebase
           setUserPreview({
             email: emailValue,
             ...knownUsers[emailUser],
@@ -183,20 +185,20 @@ const LoginForm = () => {
             isActive: true
           });
         } else {
-          // Preview genérico mejorado para emails desconocidos
-          const genericUser = {
+          // Usuario completamente desconocido - mostrar alerta
+          setUserPreview({
             email: emailValue,
-            name: emailValue.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
-            position: 'Usuario del Sistema',
-            department: emailValue.split('@')[1]?.split('.')[0]?.toUpperCase() || 'Sistema',
+            name: null,
+            position: null,
+            department: null,
             photoURL: null,
-            accountType: 'Usuario',
+            accountType: null,
             lastLogin: null,
-            joinDate: new Date().toISOString(),
+            joinDate: null,
             isRealUser: false,
-            isActive: false
-          };
-          setUserPreview(genericUser);
+            isActive: false,
+            isUnregistered: true // Flag para identificar usuario no registrado
+          });
         }
       }
     } catch (error) {
@@ -798,8 +800,143 @@ const LoginForm = () => {
                   </motion.div>
                 )}
 
-                {/* Preview del usuario - Estilo Drawer Sutil */}
-                {userPreview && !showSkeleton && (
+                {/* 🚨 Alerta para usuario no registrado */}
+                {userPreview && userPreview.isUnregistered && !showSkeleton && (
+                  <motion.div
+                    initial={animationsEnabled ? { opacity: 0, y: -5, scale: 0.95 } : { opacity: 1, y: 0, scale: 1 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={animationsEnabled ? { 
+                      duration: 0.4, 
+                      ease: [0.4, 0, 0.2, 1]
+                    } : { duration: 0 }}
+                    whileHover={animationsEnabled ? { 
+                      y: -2
+                    } : {}}
+                  >
+                    <Alert
+                      severity="error"
+                      icon={<PersonOff sx={{ fontSize: '1.2rem' }} />}
+                      sx={{
+                        mb: compactMode ? 3 : 4,
+                        border: `1px solid ${theme.palette.divider}15`,
+                        borderRadius: `${borderRadius}px`,
+                        background: `linear-gradient(135deg,
+                          ${primaryColor}04 0%,
+                          ${theme.palette.mode === 'dark' ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)'} 100%
+                        )`,
+                        backdropFilter: 'blur(20px)',
+                        boxShadow: `0 4px 16px ${theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.08)'}`,
+                        position: 'relative',
+                        overflow: 'hidden',
+                        transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: '4px',
+                          background: `linear-gradient(90deg,
+                            ${primaryColor} 0%,
+                            ${secondaryColor} 100%
+                          )`
+                        },
+                        '&::after': animationsEnabled ? {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          background: `linear-gradient(45deg, transparent 30%, ${primaryColor}03 50%, transparent 70%)`,
+                          animation: 'shimmer 3s infinite',
+                          pointerEvents: 'none'
+                        } : {},
+                        '&:hover': animationsEnabled ? {
+                          transform: 'translateY(-2px)',
+                          boxShadow: `0 8px 24px ${theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(0, 0, 0, 0.12)'}`
+                        } : {},
+                        '& .MuiAlert-icon': {
+                          color: primaryColor,
+                          fontSize: '1.2rem',
+                          opacity: 0.8
+                        },
+                        '& .MuiAlert-message': {
+                          width: '100%'
+                        }
+                      }}
+                    >
+                      <Box sx={{ width: '100%' }}>
+                        <Typography 
+                          variant="h6" 
+                          sx={{ 
+                            color: theme.palette.text.primary,
+                            fontWeight: 600,
+                            mb: 1,
+                            fontSize: compactMode ? '0.95rem' : '1rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                          }}
+                        >
+                          Usuario No Registrado
+                        </Typography>
+                        
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: theme.palette.text.secondary,
+                            mb: 2,
+                            fontSize: compactMode ? '0.8rem' : '0.85rem',
+                            lineHeight: 1.5
+                          }}
+                        >
+                          El correo <strong style={{ color: primaryColor }}>{userPreview.email}</strong> no está registrado en el sistema DR Group.
+                        </Typography>
+
+                        <Box sx={{ 
+                          display: 'flex', 
+                          gap: 1, 
+                          flexWrap: 'wrap',
+                          alignItems: 'center'
+                        }}>
+                          <Chip 
+                            label="No Autorizado" 
+                            size="small" 
+                            icon={<Block sx={{ fontSize: '0.75rem' }} />}
+                            sx={{ 
+                              height: 22, 
+                              fontSize: '0.65rem',
+                              fontWeight: 600,
+                              background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
+                              color: 'white',
+                              border: 'none',
+                              boxShadow: `0 2px 8px ${primaryColor}25`,
+                              '& .MuiChip-icon': {
+                                color: 'white'
+                              }
+                            }}
+                          />
+                          
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              color: theme.palette.text.secondary,
+                              fontSize: '0.65rem',
+                              fontStyle: 'italic',
+                              opacity: 0.8
+                            }}
+                          >
+                            Contacte al administrador para obtener acceso
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Alert>
+                  </motion.div>
+                )}
+
+                {/* 👤 Preview del usuario registrado - Estilo Drawer Sutil */}
+                {userPreview && !userPreview.isUnregistered && !showSkeleton && (
                   <motion.div
                     initial={animationsEnabled ? { opacity: 0, y: -5 } : { opacity: 1, y: 0 }}
                     animate={{ opacity: 1, y: 0 }}
