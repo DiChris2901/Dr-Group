@@ -8,7 +8,6 @@ import { AuthProvider } from './context/AuthContext';
 import { CustomThemeProvider, useTheme } from './context/ThemeContext';
 import SettingsProvider from './context/SettingsContext';
 import { NotificationsProvider } from './context/NotificationsContext';
-import ToastProvider from './context/ToastContext';
 
 // Components
 import LoginForm from './components/auth/LoginForm';
@@ -31,7 +30,7 @@ import ReportsSummaryPage from './pages/reports/ReportsSummaryPage';
 import ReportsCompanyPage from './pages/reports/ReportsCompanyPage';
 import ReportsPeriodPage from './pages/reports/ReportsPeriodPage';
 import ReportsConceptPage from './pages/reports/ReportsConceptPage';
-import WelcomeDashboardSimple from './components/dashboard/WelcomeDashboardSimple';
+import WelcomeDashboard from './components/dashboard/WelcomeDashboard';
 
 // Nuevos módulos profesionales
 import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
@@ -53,17 +52,17 @@ const DashboardLayout = () => {
         path="/" 
         element={
           <MainLayout title="Dashboard Ejecutivo" breadcrumbs={['Inicio']}>
-            <WelcomeDashboardSimple />
+            <WelcomeDashboard />
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/dashboard" 
         element={
           <MainLayout title="Dashboard Ejecutivo" breadcrumbs={['Inicio']}>
-            <WelcomeDashboardSimple />
+            <WelcomeDashboard />
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/data" 
@@ -71,7 +70,7 @@ const DashboardLayout = () => {
           <MainLayout title="Centro de Análisis de Datos" breadcrumbs={['DATA']}>
             <DataPage />
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/commitments" 
@@ -79,7 +78,7 @@ const DashboardLayout = () => {
           <MainLayout title="Compromisos Financieros" breadcrumbs={['Compromisos']}>
             <CommitmentsPage />
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/commitments/new" 
@@ -87,7 +86,7 @@ const DashboardLayout = () => {
           <MainLayout title="Nuevo Compromiso" breadcrumbs={['Compromisos', 'Nuevo']}>
             <NewCommitmentPage />
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/commitments/due" 
@@ -95,7 +94,7 @@ const DashboardLayout = () => {
           <MainLayout title="Compromisos Próximos a Vencer" breadcrumbs={['Compromisos', 'Próximos a Vencer']}>
             <DueCommitmentsPage />
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/companies" 
@@ -103,7 +102,7 @@ const DashboardLayout = () => {
           <MainLayout title="Gestión de Empresas" breadcrumbs={['Empresas']}>
             <CompaniesPage />
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/payments" 
@@ -111,7 +110,7 @@ const DashboardLayout = () => {
           <MainLayout title="Gestión de Pagos" breadcrumbs={['Pagos']}>
             <PaymentsPage />
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/payments/new" 
@@ -119,7 +118,7 @@ const DashboardLayout = () => {
           <MainLayout title="Nuevo Pago" breadcrumbs={['Pagos', 'Nuevo']}>
             <NewPaymentPage />
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/reports" 
@@ -130,7 +129,7 @@ const DashboardLayout = () => {
               <p>Próximamente: Generación de reportes</p>
             </Box>
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/reports/summary" 
@@ -138,7 +137,7 @@ const DashboardLayout = () => {
           <MainLayout title="Resumen Ejecutivo" breadcrumbs={['Reportes', 'Resumen']}>
             <ReportsSummaryPage />
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/reports/company" 
@@ -146,7 +145,7 @@ const DashboardLayout = () => {
           <MainLayout title="Reportes por Empresa" breadcrumbs={['Reportes', 'Por Empresa']}>
             <ReportsCompanyPage />
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/reports/period" 
@@ -154,7 +153,7 @@ const DashboardLayout = () => {
           <MainLayout title="Reportes por Período" breadcrumbs={['Reportes', 'Por Período']}>
             <ReportsPeriodPage />
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/reports/concept" 
@@ -162,7 +161,7 @@ const DashboardLayout = () => {
           <MainLayout title="Reportes por Concepto" breadcrumbs={['Reportes', 'Por Concepto']}>
             <ReportsConceptPage />
           </MainLayout>
-        }
+        } 
       />
       
       {/* ===== NUEVOS MÓDULOS PROFESIONALES ===== */}
@@ -172,7 +171,7 @@ const DashboardLayout = () => {
           <MainLayout title="Dashboard Ejecutivo" breadcrumbs={['Reportes', 'Ejecutivo']}>
             <ExecutiveDashboardPage />
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/tools" 
@@ -180,7 +179,7 @@ const DashboardLayout = () => {
           <MainLayout title="Herramientas Avanzadas" breadcrumbs={['Herramientas']}>
             <AdvancedToolsPage />
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/monitoring" 
@@ -188,7 +187,7 @@ const DashboardLayout = () => {
           <MainLayout title="Monitoreo Tiempo Real" breadcrumbs={['Monitoreo']}>
             <MonitoringPage />
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/alerts" 
@@ -196,7 +195,7 @@ const DashboardLayout = () => {
           <MainLayout title="Centro de Alertas" breadcrumbs={['Alertas']}>
             <AlertsCenterPage />
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/kpis" 
@@ -204,7 +203,7 @@ const DashboardLayout = () => {
           <MainLayout title="KPIs Financieros" breadcrumbs={['KPIs']}>
             <FinancialKPIsPage />
           </MainLayout>
-        }
+        } 
       />
       {/* ========================================= */}
       <Route 
@@ -213,7 +212,7 @@ const DashboardLayout = () => {
           <MainLayout title="Gestión de Comprobantes" breadcrumbs={['Comprobantes']}>
             <ReceiptsPage />
           </MainLayout>
-        }
+        } 
       />
       <Route 
         path="/profile" 
@@ -221,7 +220,7 @@ const DashboardLayout = () => {
           <MainLayout title="Mi Perfil" breadcrumbs={['Perfil']}>
             <ProfilePage />
           </MainLayout>
-        }
+        } 
       />
       {/* Ruta temporal sin restricción de rol */}
       <Route 
@@ -230,7 +229,7 @@ const DashboardLayout = () => {
           <MainLayout title="Gestión de Usuarios" breadcrumbs={['Administración', 'Usuarios']}>
             <UserManagementPage />
           </MainLayout>
-        }
+        } 
       />
       {/* {userProfile?.role === 'ADMIN' && (
         <>
@@ -240,7 +239,7 @@ const DashboardLayout = () => {
               <MainLayout title="Gestión de Usuarios" breadcrumbs={['Administración', 'Usuarios']}>
                 <UserManagementPage />
               </MainLayout>
-            }
+            } 
           />
         </>
       )} */}
@@ -288,9 +287,7 @@ function App() {
         <CssBaseline />
         <AuthProvider>
           <NotificationsProvider>
-            <ToastProvider>
-              <AppContent />
-            </ToastProvider>
+            <AppContent />
           </NotificationsProvider>
         </AuthProvider>
       </CustomThemeProvider>

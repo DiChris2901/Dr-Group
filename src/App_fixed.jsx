@@ -8,7 +8,6 @@ import { AuthProvider } from './context/AuthContext';
 import { CustomThemeProvider, useTheme } from './context/ThemeContext';
 import SettingsProvider from './context/SettingsContext';
 import { NotificationsProvider } from './context/NotificationsContext';
-import ToastProvider from './context/ToastContext';
 
 // Components
 import LoginForm from './components/auth/LoginForm';
@@ -31,7 +30,7 @@ import ReportsSummaryPage from './pages/reports/ReportsSummaryPage';
 import ReportsCompanyPage from './pages/reports/ReportsCompanyPage';
 import ReportsPeriodPage from './pages/reports/ReportsPeriodPage';
 import ReportsConceptPage from './pages/reports/ReportsConceptPage';
-import WelcomeDashboardSimple from './components/dashboard/WelcomeDashboardSimple';
+import WelcomeDashboard from './components/dashboard/WelcomeDashboard';
 
 // Nuevos módulos profesionales
 import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
@@ -53,7 +52,7 @@ const DashboardLayout = () => {
         path="/" 
         element={
           <MainLayout title="Dashboard Ejecutivo" breadcrumbs={['Inicio']}>
-            <WelcomeDashboardSimple />
+            <WelcomeDashboard />
           </MainLayout>
         }
       />
@@ -61,7 +60,7 @@ const DashboardLayout = () => {
         path="/dashboard" 
         element={
           <MainLayout title="Dashboard Ejecutivo" breadcrumbs={['Inicio']}>
-            <WelcomeDashboardSimple />
+            <WelcomeDashboard />
           </MainLayout>
         }
       />
@@ -288,9 +287,7 @@ function App() {
         <CssBaseline />
         <AuthProvider>
           <NotificationsProvider>
-            <ToastProvider>
-              <AppContent />
-            </ToastProvider>
+            <AppContent />
           </NotificationsProvider>
         </AuthProvider>
       </CustomThemeProvider>
