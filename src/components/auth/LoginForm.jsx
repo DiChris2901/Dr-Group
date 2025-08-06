@@ -37,6 +37,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 import { useSettings } from '../../context/SettingsContext';
+import { useNavigate } from 'react-router-dom';
 
 // Firebase imports para verificar administradores
 import { collection, query, where, getDocs } from 'firebase/firestore';
@@ -55,6 +56,7 @@ const LoginForm = () => {
   const { login, error, setError, getUserByEmail, checkEmailExists } = useAuth();
   const theme = useMuiTheme();
   const { settings } = useSettings();
+  const navigate = useNavigate();
 
   // 🎨 Design System Spectacular - Configuraciones dinámicas del usuario
   const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;
@@ -232,6 +234,8 @@ const LoginForm = () => {
 
     try {
       await login(email, password);
+      // ✅ Navegar al dashboard después del login exitoso
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       console.error('Error en login:', err);
       
