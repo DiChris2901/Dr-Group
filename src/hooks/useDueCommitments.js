@@ -28,13 +28,37 @@ export const useDueCommitments = () => {
 
         snapshot.forEach((doc) => {
           const data = doc.data();
-          const dueDate = data.dueDate?.toDate ? data.dueDate.toDate() : new Date(data.dueDate);
           
-          // Solo incluir compromisos que están vencidos, próximos a vencer o pendientes
-          const isDue = dueDate <= sevenDaysFromNow;
-          const isPending = data.status === 'pending' || data.status === 'overdue';
+          // ✅ Validación segura de fecha de vencimiento
+          let dueDate = null;
+          if (data.dueDate) {
+            try {
+              if (typeof data.dueDate.toDate === 'function') {
+                dueDate = data.dueDate.toDate();
+              } else if (data.dueDate instanceof Date) {
+                dueDate = data.dueDate;
+              } else if (typeof data.dueDate === 'string' || typeof data.dueDate === 'number') {
+                dueDate = new Date(data.dueDate);
+              }
+              
+              // Validar que la fecha es válida
+              if (!dueDate || isNaN(dueDate.getTime())) {
+                console.warn(`⚠️ Fecha inválida para compromiso ${doc.id}:`, data.dueDate);
+                dueDate = null;
+              }
+            } catch (error) {
+              console.warn(`⚠️ Error procesando fecha para compromiso ${doc.id}:`, error);
+              dueDate = null;
+            }
+          }
           
-          if (isDue && isPending) {
+          // Solo procesar compromisos con fechas válidas
+          if (dueDate) {
+            // Solo incluir compromisos que están vencidos, próximos a vencer o pendientes
+            const isDue = dueDate <= sevenDaysFromNow;
+            const isPending = data.status === 'pending' || data.status === 'overdue';
+            
+            if (isDue && isPending) {
             const daysUntilDue = differenceInDays(dueDate, now);
             let status = 'upcoming';
             let priority = data.priority || 'medium';
@@ -52,7 +76,8 @@ export const useDueCommitments = () => {
 
             commitmentsData.push({
               id: doc.id,
-              title: data.title || data.description || 'Compromiso sin título',
+              // Campos transformados para la vista
+              title: data.title || data.concept || data.description || 'Compromiso sin título',
               company: data.company || data.companyName || 'Sin empresa',
               amount: parseFloat(data.amount) || 0,
               dueDate: dueDate,
@@ -60,14 +85,30 @@ export const useDueCommitments = () => {
               status: status,
               description: data.description || data.notes || '',
               category: data.category || 'general',
-              paymentMethod: data.paymentMethod || 'transfer',
               createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
               updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(),
               userId: data.userId,
-              daysUntilDue: daysUntilDue
+              daysUntilDue: daysUntilDue,
+              
+              // ✅ CAMPOS ORIGINALES DE FIREBASE PARA EDICIÓN
+              concept: data.concept || data.description || '',
+              companyId: data.companyId || '',
+              beneficiary: data.beneficiary || '',
+              observations: data.observations || '',
+              paymentMethod: data.paymentMethod || 'transfer',
+              periodicity: data.periodicity || 'monthly',
+              recurringCount: data.recurringCount || 12,
+              paid: data.paid || false,
+              receiptUrl: data.receiptUrl || null,
+              receiptMetadata: data.receiptMetadata || null,
+              attachmentUrls: data.attachmentUrls || [],
+              
+              // Campos adicionales que puedan necesitarse
+              ...data // Incluir todos los campos originales como fallback
             });
-          }
-        });
+            } // Cerrar if (isDue && isPending)
+          } // Cerrar if (dueDate)
+        }); // Cerrar snapshot.forEach
 
         // Ordenar por prioridad y fecha de vencimiento
         const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };

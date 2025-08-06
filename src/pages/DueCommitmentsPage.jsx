@@ -58,7 +58,8 @@ import {
   Payment,
   AttachFile,
   Share,
-  GetApp
+  GetApp,
+  NotificationAdd
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, differenceInDays, isAfter, isBefore, addDays } from 'date-fns';
@@ -68,6 +69,12 @@ import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
 import { useDueCommitments } from '../hooks/useDueCommitments';
 import { useSettings } from '../context/SettingsContext';
+import { useNotifications } from '../context/NotificationsContext';
+
+// Firebase
+import { doc, updateDoc, deleteDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { ref, deleteObject } from 'firebase/storage';
+import { db, storage } from '../config/firebase';
 
 // Componentes de compromisos
 import CommitmentEditForm from '../components/commitments/CommitmentEditForm';
@@ -98,11 +105,67 @@ const StyledContainer = styled(Box)(({ theme }) => ({
   }
 }));
 
+// Helper function para manejar fechas de Firebase de manera segura
+const safeToDate = (timestamp) => {
+  if (!timestamp) return null;
+  if (typeof timestamp.toDate === 'function') {
+    return timestamp.toDate();
+  }
+  if (timestamp instanceof Date) {
+    return timestamp;
+  }
+  if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+    return new Date(timestamp);
+  }
+  return null;
+};
+
+// Helper function para determinar el estado del compromiso
+const getCommitmentStatus = (commitment) => {
+  if (!commitment) return { text: 'DESCONOCIDO', color: 'grey', emoji: '❓' };
+  
+  // Si está marcado como pagado, es pagado (compatible con ambas propiedades)
+  if (commitment.isPaid || commitment.paid) {
+    return { text: 'PAGADO', color: 'success', emoji: '✅' };
+  }
+  
+  // Si no tiene fecha de vencimiento, es pendiente
+  const dueDate = safeToDate(commitment.dueDate);
+  if (!dueDate) {
+    return { text: 'PENDIENTE', color: 'warning', emoji: '⏳' };
+  }
+  
+  const today = new Date();
+  const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  
+  // Comparar solo las fechas, sin horas
+  if (dueDateOnly < todayOnly) {
+    return { text: 'VENCIDO', color: 'error', emoji: '⚠️' };
+  } else if (dueDateOnly.getTime() === todayOnly.getTime()) {
+    return { text: 'VENCE HOY', color: 'warning', emoji: '🔔' };
+  } else {
+    return { text: 'PENDIENTE', color: 'info', emoji: '⏳' };
+  }
+};
+
+// Helper function para obtener el color del estado
+const getStatusColor = (status) => {
+  switch (status.color) {
+    case 'success': return { bg: 'rgba(76, 175, 80, 0.3)', border: 'rgba(76, 175, 80, 0.5)' };
+    case 'error': return { bg: 'rgba(244, 67, 54, 0.3)', border: 'rgba(244, 67, 54, 0.5)' };
+    case 'warning': return { bg: 'rgba(255, 152, 0, 0.3)', border: 'rgba(255, 152, 0, 0.5)' };
+    case 'info': return { bg: 'rgba(33, 150, 243, 0.3)', border: 'rgba(33, 150, 243, 0.5)' };
+    default: return { bg: 'rgba(158, 158, 158, 0.3)', border: 'rgba(158, 158, 158, 0.5)' };
+  }
+};
+
 const DueCommitmentsPage = () => {
   const theme = useTheme();
   const gradients = useThemeGradients();
   const { settings } = useSettings();
-  const { userProfile } = useAuth();
+  const { userProfile, currentUser } = useAuth();
+  const { addNotification } = useNotifications();
   const { 
     commitments, 
     loading, 
@@ -123,6 +186,75 @@ const DueCommitmentsPage = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [commitmentToDelete, setCommitmentToDelete] = useState(null);
+  const [companyData, setCompanyData] = useState(null);
+
+  // Función para obtener información del estado con detalles completos
+  const getStatusInfo = (commitment) => {
+    const today = new Date();
+    const dueDate = commitment.dueDate;
+    const threeDaysFromNow = addDays(today, 3);
+    const daysDifference = differenceInDays(dueDate, today);
+
+    if (commitment.paid) {
+      return {
+        label: 'Pagado',
+        color: theme.palette.success.main,
+        chipColor: 'success',
+        icon: <CheckCircle />,
+        gradient: 'linear-gradient(135deg, #4caf50 0%, #8bc34a 100%)',
+        shadowColor: 'rgba(76, 175, 80, 0.3)',
+        action: 'Ver Comprobante',
+        actionIcon: <GetApp />
+      };
+    }
+
+    if (isBefore(dueDate, today)) {
+      const urgency = Math.min(Math.abs(daysDifference), 30) / 30; // Más urgente = más rojo
+      return {
+        label: `Vencido (${Math.abs(daysDifference)} día${Math.abs(daysDifference) !== 1 ? 's' : ''})`,
+        color: theme.palette.error.main,
+        chipColor: 'error',
+        icon: <Warning />,
+        gradient: `linear-gradient(135deg, #f44336 0%, #d32f2f ${urgency * 50}%, #b71c1c 100%)`,
+        shadowColor: 'rgba(244, 67, 54, 0.4)',
+        action: 'Pagar Ahora',
+        actionIcon: <Payment />
+      };
+    }
+
+    if (isBefore(dueDate, threeDaysFromNow)) {
+      return {
+        label: `Próximo (${daysDifference} día${daysDifference !== 1 ? 's' : ''})`,
+        color: theme.palette.warning.main,
+        chipColor: 'warning',
+        icon: <Schedule />,
+        gradient: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
+        shadowColor: 'rgba(255, 152, 0, 0.3)',
+        action: 'Programar Pago',
+        actionIcon: <NotificationAdd />
+      };
+    }
+
+    return {
+      label: `Pendiente (${daysDifference} días)`,
+      color: theme.palette.info.main,
+      chipColor: 'info',
+      icon: <CalendarToday />,
+      gradient: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
+      shadowColor: 'rgba(33, 150, 243, 0.3)',
+      action: 'Ver Detalles',
+      actionIcon: <Visibility />
+    };
+  };
+
+  const formatCurrency = (amount) => {
+    if (!amount) return '$0';
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
 
   useEffect(() => {
     // Filtrar compromisos según prioridad y empresa usando datos reales
@@ -145,10 +277,22 @@ const DueCommitmentsPage = () => {
     setRefreshing(false);
   };
 
-  // Funciones para manejar acciones de compromisos
+  // Funciones para manejar acciones de compromisos con Firebase
   const handleViewCommitment = async (commitment) => {
     setSelectedCommitment(commitment);
     setViewDialogOpen(true);
+    
+    // Obtener datos de la empresa si existe companyId
+    if (commitment.companyId) {
+      try {
+        const companyDoc = await getDoc(doc(db, 'companies', commitment.companyId));
+        if (companyDoc.exists()) {
+          setCompanyData(companyDoc.data());
+        }
+      } catch (error) {
+        console.error('Error fetching company data:', error);
+      }
+    }
   };
 
   const handleEditCommitment = (commitment) => {
@@ -164,6 +308,7 @@ const DueCommitmentsPage = () => {
   const handleCloseViewDialog = () => {
     setViewDialogOpen(false);
     setSelectedCommitment(null);
+    setCompanyData(null);
   };
 
   const handleCloseEditDialog = () => {
@@ -174,23 +319,84 @@ const DueCommitmentsPage = () => {
   const confirmDelete = async () => {
     if (commitmentToDelete) {
       try {
-        // Aquí integrarías con Firebase para eliminar el compromiso
-        console.log('Eliminando compromiso:', commitmentToDelete.id);
+        console.log('🗑️ Iniciando eliminación del compromiso:', commitmentToDelete.id);
         
-        // Simular eliminación exitosa
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // 1. Eliminar archivos de Firebase Storage si existen
+        const filesToDelete = [];
         
-        // Refrescar la lista
-        refreshCommitments();
+        // Eliminar comprobante de pago si existe
+        if (commitmentToDelete.receiptUrl) {
+          try {
+            // Extraer el path del archivo desde la URL de Firebase Storage
+            let storagePath = '';
+            
+            if (commitmentToDelete.receiptUrl.includes('firebase.googleapis.com')) {
+              // URL de descarga de Firebase Storage
+              const urlParts = commitmentToDelete.receiptUrl.split('/o/')[1];
+              if (urlParts) {
+                storagePath = decodeURIComponent(urlParts.split('?')[0]);
+                console.log('📂 Path del comprobante a eliminar:', storagePath);
+                
+                const fileRef = ref(storage, storagePath);
+                await deleteObject(fileRef);
+                console.log('✅ Comprobante eliminado de Firebase Storage');
+              }
+            }
+          } catch (storageError) {
+            console.warn('⚠️ Error al eliminar comprobante de Storage:', storageError.message);
+            // Continuar con la eliminación aunque falle Storage
+          }
+        }
+
+        // Eliminar otros archivos adjuntos si existen
+        if (commitmentToDelete.attachmentUrls && Array.isArray(commitmentToDelete.attachmentUrls)) {
+          for (const url of commitmentToDelete.attachmentUrls) {
+            try {
+              if (url.includes('firebase.googleapis.com')) {
+                const urlParts = url.split('/o/')[1];
+                if (urlParts) {
+                  const storagePath = decodeURIComponent(urlParts.split('?')[0]);
+                  console.log('📎 Path del archivo adjunto a eliminar:', storagePath);
+                  
+                  const fileRef = ref(storage, storagePath);
+                  await deleteObject(fileRef);
+                  console.log('✅ Archivo adjunto eliminado de Firebase Storage');
+                }
+              }
+            } catch (storageError) {
+              console.warn('⚠️ Error al eliminar archivo adjunto de Storage:', storageError.message);
+              // Continuar con siguiente archivo
+            }
+          }
+        }
+
+        // 2. Eliminar el documento de Firestore
+        await deleteDoc(doc(db, 'commitments', commitmentToDelete.id));
+        console.log('✅ Compromiso eliminado de Firestore');
         
-        // Cerrar dialog
+        // 3. Mostrar notificación de éxito
+        addNotification({
+          type: 'success',
+          title: '🗑️ Compromiso Eliminado',
+          message: `El compromiso "${commitmentToDelete.concept || commitmentToDelete.description || 'Sin concepto'}" ha sido eliminado correctamente`,
+          duration: 5000
+        });
+        
+        // 4. Cerrar dialog y limpiar estado
         setDeleteDialogOpen(false);
         setCommitmentToDelete(null);
         
-        // Mostrar notificación de éxito (puedes agregar un snackbar aquí)
-        console.log('Compromiso eliminado exitosamente');
+        // 5. Refrescar datos (opcional ya que onSnapshot actualiza automáticamente)
+        refreshCommitments();
+        
       } catch (error) {
-        console.error('Error al eliminar compromiso:', error);
+        console.error('❌ Error al eliminar compromiso:', error);
+        addNotification({
+          type: 'error',
+          title: '❌ Error al Eliminar',
+          message: `No se pudo eliminar el compromiso: ${error.message}`,
+          duration: 8000
+        });
       }
     }
   };
@@ -198,6 +404,19 @@ const DueCommitmentsPage = () => {
   const cancelDelete = () => {
     setDeleteDialogOpen(false);
     setCommitmentToDelete(null);
+  };
+
+  // Función para manejar el éxito de la edición
+  const handleCommitmentSaved = () => {
+    addNotification({
+      type: 'success',
+      title: '💾 Compromiso Actualizado',
+      message: 'Los cambios se han guardado correctamente en Firebase',
+      duration: 4000
+    });
+    
+    handleCloseEditDialog();
+    refreshCommitments(); // Refrescar la lista después de editar
   };
 
   const getPriorityColor = (priority) => {
@@ -228,23 +447,30 @@ const DueCommitmentsPage = () => {
   };
 
   const getDaysUntilDue = (dueDate) => {
-    return differenceInDays(dueDate, new Date());
+    const safeDueDate = safeToDate(dueDate);
+    if (!safeDueDate) return 0;
+    return differenceInDays(safeDueDate, new Date());
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0
-    }).format(amount);
+  // Función segura para formatear fechas
+  const formatSafeDate = (dateValue, formatString = 'dd/MM/yyyy') => {
+    const safeDate = safeToDate(dateValue);
+    if (!safeDate) return 'Sin fecha';
+    try {
+      return format(safeDate, formatString, { locale: es });
+    } catch (error) {
+      console.warn('Error formatting date:', error);
+      return 'Fecha inválida';
+    }
   };
 
   // Función auxiliar para obtener texto de estado
   const getStatusText = (commitment) => {
-    if (!commitment?.dueDate) return 'Sin fecha';
+    const safeDueDate = safeToDate(commitment?.dueDate);
+    if (!safeDueDate) return 'Sin fecha';
+    
     const today = new Date();
-    const dueDate = commitment.dueDate;
-    const daysUntilDue = differenceInDays(dueDate, today);
+    const daysUntilDue = differenceInDays(safeDueDate, today);
     
     if (daysUntilDue < 0) return 'Vencido';
     if (daysUntilDue === 0) return 'Vence hoy';
@@ -266,9 +492,6 @@ const DueCommitmentsPage = () => {
     }
     return null;
   };
-
-  // Estado para información de la empresa
-  const [companyData, setCompanyData] = useState(null);
 
   // Obtener empresas únicas para el filtro
   const getUniqueCompanies = () => {
@@ -890,7 +1113,7 @@ const DueCommitmentsPage = () => {
                             opacity: 0.7
                           }} />
                           <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {commitment.dueDate ? format(commitment.dueDate, 'dd/MM/yyyy', { locale: es }) : 'Sin fecha'}
+                            {formatSafeDate(commitment.dueDate)}
                           </Typography>
                         </Stack>
                       </TableCell>
@@ -1053,7 +1276,7 @@ const DueCommitmentsPage = () => {
       )}
       
       {/* Modales y Dialogs */}
-      {/* Diálogo de vista detallada - Premium Design System v2.1 */}
+      {/* Diálogo de vista detallada - Premium Design System v2.1 COMPLETO */}
       <Dialog
         open={viewDialogOpen}
         onClose={handleCloseViewDialog}
@@ -1061,8 +1284,8 @@ const DueCommitmentsPage = () => {
         fullWidth
         sx={{
           '& .MuiDialog-paper': {
-            margin: '24px', // Margen fijo y seguro
-            maxHeight: 'calc(100vh - 48px)', // Altura segura
+            margin: '24px',
+            maxHeight: 'calc(100vh - 48px)',
           }
         }}
         PaperProps={{
@@ -1076,7 +1299,6 @@ const DueCommitmentsPage = () => {
             border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
             overflow: 'hidden',
             position: 'relative',
-            // Shimmer effect premium
             '&::before': {
               content: '""',
               position: 'absolute',
@@ -1189,7 +1411,24 @@ const DueCommitmentsPage = () => {
                           }
                         }}
                       >
-                        <Business sx={{ fontSize: 28, color: 'white', zIndex: 1 }} />
+                        {companyData?.logoURL ? (
+                          <Box
+                            component="img"
+                            src={companyData.logoURL}
+                            alt={`Logo de ${companyData.name}`}
+                            sx={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 2,
+                              objectFit: 'contain',
+                              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                              border: '1px solid rgba(255, 255, 255, 0.3)',
+                              zIndex: 1
+                            }}
+                          />
+                        ) : (
+                          <Business sx={{ fontSize: 28, color: 'white', zIndex: 1 }} />
+                        )}
                       </Box>
                     </motion.div>
                     
@@ -1201,7 +1440,7 @@ const DueCommitmentsPage = () => {
                         transition={{ delay: 0.3, duration: 0.5 }}
                       >
                         <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.3, textShadow: '0 2px 4px rgba(0,0,0,0.3)', fontSize: '1.25rem' }}>
-                          {selectedCommitment?.title || selectedCommitment?.description || 'Sin concepto'}
+                          {selectedCommitment?.concept || selectedCommitment?.description || selectedCommitment?.title || 'Sin concepto'}
                         </Typography>
                         <Box display="flex" alignItems="center" gap={2}>
                           <Typography 
@@ -1215,9 +1454,11 @@ const DueCommitmentsPage = () => {
                           >
                             {formatCurrency(selectedCommitment?.amount || 0)}
                           </Typography>
-                          <Typography variant="body2" sx={{ opacity: 0.8, fontWeight: 500 }}>
-                            • {selectedCommitment?.company || 'Sin empresa'}
-                          </Typography>
+                          {companyData && (
+                            <Typography variant="body2" sx={{ opacity: 0.8, fontWeight: 500 }}>
+                              • {companyData.name}
+                            </Typography>
+                          )}
                         </Box>
                         {/* Nueva fila con información adicional */}
                         <Box display="flex" alignItems="center" gap={2} mt={0.5}>
@@ -1226,14 +1467,34 @@ const DueCommitmentsPage = () => {
                             fontWeight: 500,
                             fontSize: '0.875rem'
                           }}>
-                            📅 {selectedCommitment?.periodicity || 'Mensual'}
+                            {(() => {
+                              switch(selectedCommitment?.periodicity) {
+                                case 'unique': return '🔄 Pago único';
+                                case 'monthly': return '📅 Mensual';
+                                case 'bimonthly': return '📅 Bimestral';
+                                case 'quarterly': return '📅 Trimestral';
+                                case 'fourmonthly': return '📅 Cuatrimestral';
+                                case 'biannual': return '📅 Semestral';
+                                case 'annual': return '📅 Anual';
+                                default: return '📅 Mensual';
+                              }
+                            })()}
                           </Typography>
                           <Typography variant="body2" sx={{ 
                             opacity: 0.85, 
                             fontWeight: 500,
                             fontSize: '0.875rem'
                           }}>
-                            • 🏦 {selectedCommitment?.paymentMethod || 'Transferencia'}
+                            • {(() => {
+                              switch(selectedCommitment?.paymentMethod) {
+                                case 'transfer': return '🏦 Transferencia';
+                                case 'cash': return '💵 Efectivo';
+                                case 'pse': return '💳 PSE';
+                                case 'check': return '📝 Cheque';
+                                case 'card': return '💳 Tarjeta';
+                                default: return '🏦 Transferencia';
+                              }
+                            })()}
                           </Typography>
                         </Box>
                       </motion.div>
@@ -1254,14 +1515,18 @@ const DueCommitmentsPage = () => {
                         transition={{ type: "spring", bounce: 0.5 }}
                       >
                         <Chip
-                          label={getStatusText(selectedCommitment)}
+                          icon={getStatusInfo(selectedCommitment).icon}
+                          label={getStatusInfo(selectedCommitment).label}
                           size="medium"
                           sx={{ 
                             bgcolor: 'rgba(255, 255, 255, 0.2)',
                             color: 'white',
                             fontWeight: 600,
                             backdropFilter: 'blur(10px)',
-                            border: '1px solid rgba(255, 255, 255, 0.3)'
+                            border: '1px solid rgba(255, 255, 255, 0.3)',
+                            '& .MuiChip-icon': {
+                              color: 'white'
+                            }
                           }}
                         />
                       </motion.div>
@@ -1285,7 +1550,7 @@ const DueCommitmentsPage = () => {
                             }
                           }}
                         >
-                          <MoreHoriz />
+                          <Close />
                         </IconButton>
                       </motion.div>
                     </Box>
@@ -1348,13 +1613,13 @@ const DueCommitmentsPage = () => {
                             textTransform: 'capitalize',
                             mb: 0.2
                           }}>
-                            {selectedCommitment.dueDate ? format(selectedCommitment.dueDate, 'EEEE', { locale: es }) : 'Sin fecha'}
+                            {formatSafeDate(selectedCommitment.dueDate, 'EEEE')}
                           </Typography>
                           <Typography variant="body1" sx={{ 
                             fontWeight: 500,
                             color: 'text.secondary'
                           }}>
-                            {selectedCommitment.dueDate ? format(selectedCommitment.dueDate, 'dd \'de\' MMMM \'de\' yyyy', { locale: es }) : 'No especificada'}
+                            {formatSafeDate(selectedCommitment.dueDate, 'dd \'de\' MMMM \'de\' yyyy')}
                           </Typography>
                         </Box>
                       </Box>
@@ -1362,7 +1627,7 @@ const DueCommitmentsPage = () => {
                   </motion.div>
                 </Grid>
 
-                {/* Información Adicional */}
+                {/* Información Adicional COMPLETA */}
                 <Grid item xs={12}>
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -1407,12 +1672,12 @@ const DueCommitmentsPage = () => {
                           alignItems: 'center',
                           gap: 1
                         }}>
-                          <Assignment sx={{ fontSize: 24 }} />
+                          <Info sx={{ fontSize: 24 }} />
                           Información Adicional
                         </Typography>
                         
                         <Grid container spacing={3}>
-                          {/* Primera fila: Empresa y Prioridad */}
+                          {/* Primera fila: Beneficiario y Método de Pago */}
                           <Grid item xs={12} md={6}>
                             <motion.div
                               initial={{ opacity: 0, x: -20 }}
@@ -1428,16 +1693,18 @@ const DueCommitmentsPage = () => {
                                 overflow: 'hidden'
                               }}>
                                 <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                                  <Business sx={{ color: 'info.main', fontSize: 20 }} />
+                                  <Person sx={{ color: 'info.main', fontSize: 20 }} />
                                   <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'info.main' }}>
-                                    Empresa
+                                    Beneficiario
                                   </Typography>
                                 </Box>
                                 <Typography variant="body1" sx={{ 
                                   fontWeight: 500,
-                                  color: 'text.primary'
+                                  color: 'text.primary',
+                                  fontStyle: selectedCommitment.beneficiary ? 'normal' : 'italic',
+                                  opacity: selectedCommitment.beneficiary ? 1 : 0.7
                                 }}>
-                                  {selectedCommitment.company || 'No especificada'}
+                                  {selectedCommitment.beneficiary || 'No especificado'}
                                 </Typography>
                               </Box>
                             </motion.div>
@@ -1451,6 +1718,46 @@ const DueCommitmentsPage = () => {
                             >
                               <Box sx={{
                                 p: 2.5,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.08)}, ${alpha(theme.palette.success.light, 0.04)})`,
+                                borderRadius: 3,
+                                border: `1px solid ${alpha(theme.palette.success.main, 0.15)}`,
+                                position: 'relative',
+                                overflow: 'hidden'
+                              }}>
+                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                                  <Payment sx={{ color: 'success.main', fontSize: 20 }} />
+                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'success.main' }}>
+                                    Método de Pago
+                                  </Typography>
+                                </Box>
+                                <Typography variant="body1" sx={{ 
+                                  fontWeight: 500,
+                                  color: 'text.primary'
+                                }}>
+                                  {(() => {
+                                    switch(selectedCommitment.paymentMethod) {
+                                      case 'transfer': return '🏦 Transferencia';
+                                      case 'cash': return '💵 Efectivo';
+                                      case 'pse': return '💳 PSE';
+                                      case 'check': return '📝 Cheque';
+                                      case 'card': return '💳 Tarjeta';
+                                      default: return '🏦 Transferencia';
+                                    }
+                                  })()}
+                                </Typography>
+                              </Box>
+                            </motion.div>
+                          </Grid>
+
+                          {/* Segunda fila: Periodicidad y Empresa */}
+                          <Grid item xs={12} md={6}>
+                            <motion.div
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.5, duration: 0.3 }}
+                            >
+                              <Box sx={{
+                                p: 2.5,
                                 background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.08)}, ${alpha(theme.palette.warning.light, 0.04)})`,
                                 borderRadius: 3,
                                 border: `1px solid ${alpha(theme.palette.warning.main, 0.15)}`,
@@ -1458,49 +1765,178 @@ const DueCommitmentsPage = () => {
                                 overflow: 'hidden'
                               }}>
                                 <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                                  <Flag sx={{ color: 'warning.main', fontSize: 20 }} />
+                                  <Schedule sx={{ color: 'warning.main', fontSize: 20 }} />
                                   <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'warning.main' }}>
-                                    Prioridad
+                                    Periodicidad
                                   </Typography>
                                 </Box>
                                 <Typography variant="body1" sx={{ 
                                   fontWeight: 500,
                                   color: 'text.primary'
                                 }}>
-                                  {selectedCommitment.priority || 'Media'}
+                                  {(() => {
+                                    switch(selectedCommitment.periodicity) {
+                                      case 'unique': return '🔄 Pago único';
+                                      case 'monthly': return '📅 Mensual';
+                                      case 'bimonthly': return '📅 Bimestral';
+                                      case 'quarterly': return '📅 Trimestral';
+                                      case 'fourmonthly': return '📅 Cuatrimestral';
+                                      case 'biannual': return '📅 Semestral';
+                                      case 'annual': return '📅 Anual';
+                                      default: return '📅 Mensual';
+                                    }
+                                  })()}
                                 </Typography>
                               </Box>
                             </motion.div>
                           </Grid>
-                          
-                          {/* Descripción completa */}
-                          {selectedCommitment.description && (
-                            <Grid item xs={12}>
+
+                          <Grid item xs={12} md={6}>
+                            <motion.div
+                              initial={{ opacity: 0, x: 20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.55, duration: 0.3 }}
+                            >
+                              <Box sx={{
+                                p: 2.5,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.08)}, ${alpha(theme.palette.secondary.light, 0.04)})`,
+                                borderRadius: 3,
+                                border: `1px solid ${alpha(theme.palette.secondary.main, 0.15)}`,
+                                position: 'relative',
+                                overflow: 'hidden'
+                              }}>
+                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                                  <Business sx={{ color: 'secondary.main', fontSize: 20 }} />
+                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'secondary.main' }}>
+                                    Empresa
+                                  </Typography>
+                                </Box>
+                                <Box display="flex" alignItems="center" gap={1.5}>
+                                  {companyData?.logoURL ? (
+                                    <Box
+                                      component="img"
+                                      src={companyData.logoURL}
+                                      alt={`Logo de ${companyData.name}`}
+                                      sx={{
+                                        width: 24,
+                                        height: 24,
+                                        borderRadius: 1,
+                                        objectFit: 'contain',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                        border: `1px solid ${alpha(theme.palette.divider, 0.2)}`
+                                      }}
+                                    />
+                                  ) : (
+                                    <Business sx={{ fontSize: 20, color: 'text.secondary' }} />
+                                  )}
+                                  <Typography variant="body1" sx={{ 
+                                    fontWeight: 500,
+                                    color: 'text.primary'
+                                  }}>
+                                    {companyData?.name || selectedCommitment.company || 'Empresa no especificada'}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </motion.div>
+                          </Grid>
+
+                          {/* Tercera fila: Observaciones (full width) */}
+                          <Grid item xs={12}>
+                            <motion.div
+                              initial={{ opacity: 0, y: 15 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.6, duration: 0.3 }}
+                            >
+                              <Box sx={{
+                                p: 2.5,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.06)}, ${alpha(theme.palette.primary.light, 0.03)})`,
+                                borderRadius: 3,
+                                border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+                                position: 'relative',
+                                overflow: 'hidden'
+                              }}>
+                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                                  <Notes sx={{ color: 'primary.main', fontSize: 20 }} />
+                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                                    Observaciones
+                                  </Typography>
+                                </Box>
+                                <Typography variant="body1" sx={{ 
+                                  fontWeight: 400,
+                                  lineHeight: 1.6,
+                                  color: 'text.primary',
+                                  fontStyle: selectedCommitment.observations ? 'normal' : 'italic',
+                                  opacity: selectedCommitment.observations ? 1 : 0.7
+                                }}>
+                                  {selectedCommitment.observations || 'Sin observaciones adicionales'}
+                                </Typography>
+                              </Box>
+                            </motion.div>
+                          </Grid>
+
+                          {/* Cuarta fila: Fechas del sistema */}
+                          <Grid item xs={12} md={6}>
+                            <motion.div
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: 0.65, duration: 0.3 }}
+                            >
+                              <Box sx={{
+                                p: 2.5,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.grey[500], 0.08)}, ${alpha(theme.palette.grey[400], 0.04)})`,
+                                borderRadius: 3,
+                                border: `1px solid ${alpha(theme.palette.grey[500], 0.15)}`,
+                                position: 'relative',
+                                overflow: 'hidden'
+                              }}>
+                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
+                                  <History sx={{ color: 'text.secondary', fontSize: 20 }} />
+                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                                    Fecha de Creación
+                                  </Typography>
+                                </Box>
+                                <Typography variant="body1" sx={{ 
+                                  fontWeight: 500,
+                                  color: 'text.primary'
+                                }}>
+                                  {selectedCommitment.createdAt && safeToDate(selectedCommitment.createdAt)
+                                    ? formatSafeDate(selectedCommitment.createdAt, "dd 'de' MMMM 'de' yyyy")
+                                    : 'No disponible'
+                                  }
+                                </Typography>
+                              </Box>
+                            </motion.div>
+                          </Grid>
+
+                          {selectedCommitment.updatedAt && (
+                            <Grid item xs={12} md={6}>
                               <motion.div
-                                initial={{ opacity: 0, y: 15 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.5, duration: 0.3 }}
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.7, duration: 0.3 }}
                               >
                                 <Box sx={{
                                   p: 2.5,
-                                  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.06)}, ${alpha(theme.palette.primary.light, 0.03)})`,
+                                  background: `linear-gradient(135deg, ${alpha(theme.palette.grey[600], 0.08)}, ${alpha(theme.palette.grey[500], 0.04)})`,
                                   borderRadius: 3,
-                                  border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+                                  border: `1px solid ${alpha(theme.palette.grey[600], 0.15)}`,
                                   position: 'relative',
                                   overflow: 'hidden'
                                 }}>
                                   <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                                    <Assignment sx={{ color: 'primary.main', fontSize: 20 }} />
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                                      Descripción
+                                    <Edit sx={{ color: 'text.secondary', fontSize: 20 }} />
+                                    <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                                      Última Modificación
                                     </Typography>
                                   </Box>
                                   <Typography variant="body1" sx={{ 
-                                    fontWeight: 400,
-                                    lineHeight: 1.6,
+                                    fontWeight: 500,
                                     color: 'text.primary'
                                   }}>
-                                    {selectedCommitment.description}
+                                    {selectedCommitment.updatedAt && safeToDate(selectedCommitment.updatedAt)
+                                      ? formatSafeDate(selectedCommitment.updatedAt, "dd 'de' MMMM 'de' yyyy")
+                                      : 'No disponible'
+                                    }
                                   </Typography>
                                 </Box>
                               </motion.div>
@@ -1573,6 +2009,39 @@ const DueCommitmentsPage = () => {
                 <motion.div
                   initial={{ opacity: 0, y: 20, scale: 0.9 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ delay: 0.2, duration: 0.4, type: "spring", stiffness: 100 }}
+                  whileHover={{ scale: 1.03, y: -2 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  <Button 
+                    variant="outlined"
+                    startIcon={<Share />}
+                    sx={{ 
+                      borderRadius: 3.5,
+                      px: 4,
+                      py: 1.5,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      fontSize: '0.95rem',
+                      borderColor: 'primary.main',
+                      color: 'primary.main',
+                      borderWidth: '2px',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': {
+                        bgcolor: 'rgba(25, 118, 210, 0.08)',
+                        borderColor: 'primary.dark',
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 6px 20px rgba(25, 118, 210, 0.25)'
+                      }
+                    }}
+                  >
+                    Compartir
+                  </Button>
+                </motion.div>
+                
+                <motion.div
+                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ delay: 0.3, duration: 0.4, type: "spring", stiffness: 100 }}
                   whileHover={{ scale: 1.03, y: -2 }}
                   whileTap={{ scale: 0.97 }}
@@ -1625,10 +2094,7 @@ const DueCommitmentsPage = () => {
         open={editDialogOpen}
         commitment={selectedCommitment}
         onClose={handleCloseEditDialog}
-        onSuccess={() => {
-          handleCloseEditDialog();
-          refreshCommitments(); // Refrescar la lista después de editar
-        }}
+        onSaved={handleCommitmentSaved}
       />
       
       <DeleteConfirmDialog 

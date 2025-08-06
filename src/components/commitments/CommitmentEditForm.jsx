@@ -63,6 +63,33 @@ import {
   calculateNextDueDates 
 } from '../../utils/recurringCommitments';
 
+// Helper function para manejar fechas de Firebase de manera segura
+const safeToDate = (timestamp) => {
+  if (!timestamp) return null;
+  if (typeof timestamp.toDate === 'function') {
+    return timestamp.toDate();
+  }
+  if (timestamp instanceof Date) {
+    return timestamp;
+  }
+  if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+    return new Date(timestamp);
+  }
+  return null;
+};
+
+// Función segura para formatear fechas
+const formatSafeDate = (dateValue, formatString = 'yyyy-MM-dd') => {
+  const safeDate = safeToDate(dateValue);
+  if (!safeDate) return '';
+  try {
+    return format(safeDate, formatString, { locale: es });
+  } catch (error) {
+    console.warn('Error formatting date in CommitmentEditForm:', error);
+    return '';
+  }
+};
+
 const CommitmentEditForm = ({ 
   open, 
   onClose, 
@@ -184,13 +211,14 @@ const CommitmentEditForm = ({
         concept: commitment.concept || commitment.description || '',
         companyId: commitment.companyId || '',
         amount: commitment.amount || '',
-        dueDate: commitment.dueDate,
+        dueDate: safeToDate(commitment.dueDate),
         beneficiary: commitment.beneficiary || '',
         observations: commitment.observations || '',
         paymentMethod: commitment.paymentMethod || 'transfer',
         periodicity: commitment.periodicity || 'monthly',
         recurringCount: commitment.recurringCount || 12
       };
+      
       setFormData(initialData);
       setOriginalData(initialData);
       setHasChanges(false);
@@ -216,19 +244,21 @@ const CommitmentEditForm = ({
         setTimeout(() => {
           if (notificationsEnabled) {
             // Calcular próximas fechas para el toast
-            const nextDates = calculateNextDueDates(new Date(formData.dueDate), value, 3);
-            const nextDatesText = nextDates.slice(1, 3).map(date => 
-              format(date, 'dd/MM/yyyy', { locale: es })
-            ).join(', ');
-            
-            addNotification({
-              type: 'info',
-              title: '🔄 Pagos Recurrentes Activados',
-              message: `Se configuró periodicidad ${getPeriodicityDescription(value).toLowerCase()}. Próximas fechas: ${nextDatesText}`,
-              icon: 'info',
-              color: 'info',
-              duration: 5000
-            });
+            if (formData.dueDate) {
+              const nextDates = calculateNextDueDates(safeToDate(formData.dueDate) || new Date(), value, 3);
+              const nextDatesText = nextDates.slice(1, 3).map(date => 
+                formatSafeDate(date, 'dd/MM/yyyy')
+              ).join(', ');
+              
+              addNotification({
+                type: 'info',
+                title: '🔄 Pagos Recurrentes Activados',
+                message: `Se configuró periodicidad ${getPeriodicityDescription(value).toLowerCase()}. Próximas fechas: ${nextDatesText}`,
+                icon: 'info',
+                color: 'info',
+                duration: 5000
+              });
+            }
           }
         }, 300); // Pequeño delay para que se vea el cambio visual primero
       }
@@ -460,9 +490,9 @@ const CommitmentEditForm = ({
             }
             
             // Calcular próximas fechas para mostrar en la notificación
-            const nextDates = calculateNextDueDates(new Date(formData.dueDate), formData.periodicity, 4);
+            const nextDates = calculateNextDueDates(safeToDate(formData.dueDate) || new Date(), formData.periodicity, 4);
             const nextDatesText = nextDates.slice(1).map(date => 
-              format(date, 'dd/MM/yyyy', { locale: es })
+              formatSafeDate(date, 'dd/MM/yyyy')
             ).join(', ');
             
             const titleText = wasUnique ? '🔄 Sistema de Pagos Recurrentes Activado' : '🔄 Periodicidad Actualizada';
@@ -1273,7 +1303,7 @@ const CommitmentEditForm = ({
                     fullWidth
                     label="Fecha de Vencimiento"
                     type="date"
-                    value={formData.dueDate ? format(formData.dueDate, 'yyyy-MM-dd') : ''}
+                    value={formatSafeDate(formData.dueDate, 'yyyy-MM-dd')}
                     onChange={(e) => handleFormChange('dueDate', new Date(e.target.value))}
                     variant="outlined"
                     required
@@ -1407,9 +1437,11 @@ const CommitmentEditForm = ({
                             icon={<RepeatIcon sx={{ fontSize: 14 }} />}
                             label={(() => {
                               if (!formData.dueDate) return `${formData.recurringCount || 12} cuotas`;
-                              const nextDates = calculateNextDueDates(new Date(formData.dueDate), formData.periodicity, 2);
+                              const safeDueDate = safeToDate(formData.dueDate);
+                              if (!safeDueDate) return `${formData.recurringCount || 12} cuotas`;
+                              const nextDates = calculateNextDueDates(safeDueDate, formData.periodicity, 2);
                               const nextDate = nextDates[1];
-                              return nextDate ? `Próxima: ${format(nextDate, 'dd/MM', { locale: es })}` : `${formData.recurringCount || 12} cuotas`;
+                              return nextDate ? `Próxima: ${formatSafeDate(nextDate, 'dd/MM')}` : `${formData.recurringCount || 12} cuotas`;
                             })()}
                             size="small"
                             color="info"
