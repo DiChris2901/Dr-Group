@@ -74,7 +74,6 @@ import { useNotifications } from '../context/NotificationsContext';
 // Firebase
 import { doc, updateDoc, deleteDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { ref, deleteObject } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 
 // Componentes de compromisos
