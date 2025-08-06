@@ -36,8 +36,6 @@ import WelcomeDashboardSimple from './components/dashboard/WelcomeDashboardSimpl
 // Nuevos módulos profesionales
 import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
 import AdvancedToolsPage from './pages/AdvancedToolsPage';
-import MonitoringPage from './pages/MonitoringPage';
-import AlertsCenterPage from './pages/AlertsCenterPage';
 import FinancialKPIsPage from './pages/FinancialKPIsPage';
 
 // Hook de autenticación
@@ -179,22 +177,6 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Herramientas Avanzadas" breadcrumbs={['Herramientas']}>
             <AdvancedToolsPage />
-          </MainLayout>
-        }
-      />
-      <Route 
-        path="/monitoring" 
-        element={
-          <MainLayout title="Monitoreo Tiempo Real" breadcrumbs={['Monitoreo']}>
-            <MonitoringPage />
-          </MainLayout>
-        }
-      />
-      <Route 
-        path="/alerts" 
-        element={
-          <MainLayout title="Centro de Alertas" breadcrumbs={['Alertas']}>
-            <AlertsCenterPage />
           </MainLayout>
         }
       />

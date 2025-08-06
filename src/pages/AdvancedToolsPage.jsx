@@ -40,6 +40,7 @@ import {
   Settings
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import { useAdvancedTools } from '../hooks/useAdvancedTools';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 
 // Componente de herramienta individual
@@ -214,6 +215,14 @@ const AdvancedSearchTool = ({ open, onClose }) => {
 const AdvancedToolsPage = () => {
   const theme = useTheme();
   const { stats } = useDashboardStats();
+  const { 
+    recentCalculations, 
+    exportHistory, 
+    importHistory, 
+    systemTools, 
+    loading: toolsLoading, 
+    error: toolsError 
+  } = useAdvancedTools();
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
 

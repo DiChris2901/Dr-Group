@@ -82,24 +82,6 @@ const WelcomeDashboardSimple = () => {
       category: 'tools'
     },
     {
-      title: 'Monitoreo Tiempo Real',
-      description: 'Seguimiento activo de compromisos críticos',
-      icon: Notifications,
-      color: 'warning.main',
-      action: () => navigate('/monitoring'),
-      gradient: 'linear-gradient(135deg, #ff9800 0%, #ffb74d 100%)',
-      category: 'monitoring'
-    },
-    {
-      title: 'Centro de Alertas',
-      description: 'Notificaciones y compromisos próximos a vencer',
-      icon: Warning,
-      color: 'error.main',
-      action: () => navigate('/alerts'),
-      gradient: 'linear-gradient(135deg, #f44336 0%, #ef5350 100%)',
-      category: 'alerts'
-    },
-    {
       title: 'Acceso Rápido',
       description: 'Nuevo compromiso, pagos y gestión empresas',
       icon: Add,
