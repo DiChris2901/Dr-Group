@@ -25,7 +25,6 @@ import { useNotificationSystem } from '../../hooks/useNotificationSystem';
 import Sidebar from './Sidebar';
 import DashboardHeader from '../dashboard/DashboardHeader';
 import FloatingSearchButton from '../common/FloatingSearchButton';
-import RealTimeStats from '../common/RealTimeStats';
 import { AdvancedSettingsDrawer, SettingsButton } from '../settings';
 
 const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
@@ -319,21 +318,6 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
             {children}
           </motion.div>
         </Container>
-
-        {/* Footer con estadísticas en tiempo real */}
-        <Box
-          sx={{
-            position: 'fixed',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            zIndex: 1000,
-            p: 2,
-            backgroundColor: 'transparent'
-          }}
-        >
-          <RealTimeStats />
-        </Box>
       </Box>
 
       {/* Botón flotante de búsqueda */}

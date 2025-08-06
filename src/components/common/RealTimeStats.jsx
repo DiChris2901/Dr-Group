@@ -1,13 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Chip, useTheme } from '@mui/material';
-import { motion } from 'framer-motion';
+import { 
+  Box, 
+  Typography, 
+  Chip, 
+  useTheme, 
+  IconButton, 
+  Tooltip,
+  Collapse 
+} from '@mui/material';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Timeline, 
   TrendingUp, 
   Business, 
   AttachMoney,
   Speed,
-  Security
+  Security,
+  KeyboardArrowUp,
+  KeyboardArrowDown,
+  Visibility,
+  VisibilityOff
 } from '@mui/icons-material';
 
 const RealTimeStats = () => {
@@ -83,17 +95,20 @@ const RealTimeStats = () => {
         sx={{
           display: 'flex',
           alignItems: 'center',
-          gap: 3,
-          p: 2,
+          gap: { xs: 1, sm: 2, md: 3 },
+          p: { xs: 1, sm: 1.5, md: 2 },
           background: theme.palette.mode === 'dark' 
-            ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(51, 65, 85, 0.8))'
-            : 'linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(248, 250, 252, 0.8))',
+            ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(51, 65, 85, 0.9))'
+            : 'linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.9))',
           backdropFilter: 'blur(20px)',
-          borderRadius: '12px',
+          borderRadius: '16px 16px 0 0', // Solo bordes superiores redondeados
           border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'}`,
-          boxShadow: '0 4px 16px rgba(31, 38, 135, 0.2)',
+          borderBottom: 'none', // Sin borde inferior para pegarse al bottom
+          boxShadow: '0 -4px 16px rgba(31, 38, 135, 0.2)', // Sombra hacia arriba
           flexWrap: 'wrap',
-          justifyContent: 'center'
+          justifyContent: 'center',
+          minHeight: { xs: 50, sm: 60, md: 70 }, // Altura mínima responsiva
+          maxHeight: 80, // Altura máxima para evitar interferencia
         }}
       >
         {statsItems.map((item, index) => (
@@ -103,25 +118,32 @@ const RealTimeStats = () => {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.3, delay: index * 0.1 }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 } }}>
               <Box sx={{ color: item.color, display: 'flex', alignItems: 'center' }}>
                 {item.icon}
               </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+              <Typography 
+                variant="caption" 
+                color="text.secondary" 
+                sx={{ 
+                  fontSize: { xs: '0.65rem', sm: '0.7rem', md: '0.75rem' },
+                  display: { xs: 'none', sm: 'block' } // Ocultar labels en móvil para compactar
+                }}
+              >
                 {item.label}:
               </Typography>
               <Chip
                 label={item.value}
                 size="small"
                 sx={{
-                  height: '20px',
-                  fontSize: '0.7rem',
+                  height: { xs: '18px', sm: '20px' },
+                  fontSize: { xs: '0.6rem', sm: '0.65rem', md: '0.7rem' },
                   fontWeight: 'bold',
                   background: `${item.color}20`,
                   color: item.color,
                   border: `1px solid ${item.color}30`,
                   '& .MuiChip-label': {
-                    px: 1
+                    px: { xs: 0.5, sm: 1 }
                   }
                 }}
               />
@@ -129,9 +151,33 @@ const RealTimeStats = () => {
           </motion.div>
         ))}
         
-        <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          ml: { xs: 0, sm: 1, md: 2 },
+          mt: { xs: 1, sm: 0 }, // En móvil, mover a nueva línea
+          width: { xs: '100%', sm: 'auto' }, // En móvil, ocupar todo el ancho
+          justifyContent: { xs: 'center', sm: 'flex-start' }
+        }}>
+          <Typography 
+            variant="caption" 
+            color="text.secondary" 
+            sx={{ 
+              fontSize: { xs: '0.65rem', sm: '0.7rem' },
+              display: { xs: 'none', md: 'block' } // Solo mostrar en desktop
+            }}
+          >
             Última actualización: {stats.lastUpdate}
+          </Typography>
+          <Typography 
+            variant="caption" 
+            color="text.secondary" 
+            sx={{ 
+              fontSize: '0.65rem',
+              display: { xs: 'block', md: 'none' } // Solo mostrar en móvil/tablet
+            }}
+          >
+            {stats.lastUpdate}
           </Typography>
           <motion.div
             animate={{ scale: [1, 1.2, 1] }}
@@ -140,8 +186,8 @@ const RealTimeStats = () => {
           >
             <Box
               sx={{
-                width: '6px',
-                height: '6px',
+                width: { xs: '4px', sm: '6px' },
+                height: { xs: '4px', sm: '6px' },
                 backgroundColor: '#4caf50',
                 borderRadius: '50%',
                 opacity: 0.8

@@ -36,7 +36,6 @@ import { useDashboardStats } from '../../hooks/useDashboardStats';
 import { useStorageStats } from '../../hooks/useStorageStats';
 import { useFirestore } from '../../hooks/useFirestore';
 import { fCurrency } from '../../utils/formatNumber';
-import DashboardHeader from './DashboardHeader';
 import { useNavigate } from 'react-router-dom';
 
 const WelcomeDashboardSimple = () => {
@@ -158,9 +157,6 @@ const WelcomeDashboardSimple = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      {/* Header del Dashboard */}
-      <DashboardHeader />
-
       <Box sx={{ p: 3 }}>
         {/* Saludo personalizado */}
         <motion.div

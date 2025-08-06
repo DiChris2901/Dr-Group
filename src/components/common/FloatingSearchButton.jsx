@@ -88,8 +88,8 @@ const FloatingSearchButton = ({ sidebarHoverExpanded = false, currentSidebarWidt
 
   // Calcular posición del botón con manejo mejorado
   const getButtonPosition = () => {
-    // Usar la misma altura que el botón de la derecha para alineación paralela
-    const baseOffset = 16; // Misma altura que el FAB de la derecha
+    // Posición base original sin interferencia
+    const baseOffset = 16; // Posición original
 
     if (sidebarPosition === 'left') {
       return {
@@ -245,7 +245,7 @@ const FloatingSearchButton = ({ sidebarHoverExpanded = false, currentSidebarWidt
                 transition={{ duration: 0.2 }}
                 style={{
                   position: 'fixed',
-                  bottom: 90, // Altura fija desde el fondo para aparecer arriba del botón
+                  bottom: 86, // Elevado para aparecer arriba del botón (16 + 70)
                   left: sidebarPosition === 'left' ? sidebarOffset : 20,
                   right: sidebarPosition === 'right' ? sidebarOffset : 20,
                   width: isMobile ? 'calc(100vw - 40px)' : '400px',

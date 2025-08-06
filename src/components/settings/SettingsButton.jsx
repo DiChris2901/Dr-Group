@@ -31,7 +31,7 @@ export function SettingsButton({ onClick }) {
       whileTap={{ scale: 0.95 }}
       style={{
         position: 'fixed',
-        bottom: 24,
+        bottom: 24, // Posición original
         right: 24,
         zIndex: 1200,
       }}
