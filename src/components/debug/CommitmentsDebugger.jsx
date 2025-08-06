@@ -21,7 +21,7 @@ import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-// import { createSampleData } from '../../utils/sampleData'; // Eliminado - solo datos reales
+
 
 const CommitmentsDebugger = () => {
   const [commitments, setCommitments] = useState([]);
@@ -68,29 +68,6 @@ const CommitmentsDebugger = () => {
       setLoading(false);
     }
   };
-
-  // Función de datos demo eliminada - solo datos reales
-  /* 
-  const handleCreateSampleData = async () => {
-    setCreatingData(true);
-    try {
-      console.log('🏢 Creando datos de muestra...');
-      await createSampleData();
-      console.log('✅ Datos de muestra creados');
-      
-      // Recargar compromisos después de crear datos
-      setTimeout(() => {
-        fetchCommitments();
-      }, 1000);
-      
-    } catch (error) {
-      console.error('❌ Error creando datos de muestra:', error);
-      setError(error.message);
-    } finally {
-      setCreatingData(false);
-    }
-  };
-  */
 
   useEffect(() => {
     fetchCommitments();

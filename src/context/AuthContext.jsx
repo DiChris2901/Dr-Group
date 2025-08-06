@@ -91,6 +91,41 @@ export const AuthProvider = ({ children }) => {
 
       const userDocRef = doc(db, 'users', currentUser.uid);
       
+      // Verificar si el documento existe, si no, crearlo
+      const userDoc = await getDoc(userDocRef);
+      
+      if (!userDoc.exists()) {
+        console.log('📝 Documento de usuario no existe, creándolo...');
+        // Crear documento base del usuario
+        const baseUserData = {
+          uid: currentUser.uid,
+          email: currentUser.email,
+          displayName: currentUser.displayName || '',
+          photoURL: currentUser.photoURL || '',
+          role: 'viewer', // Rol por defecto
+          status: 'active',
+          companies: [],
+          permissions: {
+            dashboard: true,
+            commitments: false,
+            users: false,
+            reports: false,
+            settings: false
+          },
+          theme: {
+            darkMode: false,
+            primaryColor: '#1976d2',
+            secondaryColor: '#dc004e'
+          },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          lastLogin: new Date()
+        };
+        
+        await setDoc(userDocRef, baseUserData);
+        console.log('✅ Documento de usuario creado exitosamente');
+      }
+      
       // Actualizar en Firestore
       await updateDoc(userDocRef, {
         ...updates,
@@ -144,10 +179,42 @@ export const AuthProvider = ({ children }) => {
         return;
       }
       
-      // Usuario no tiene perfil en Firestore
-      console.warn('⚠️ Usuario autenticado sin perfil en Firestore:', user.email);
-      console.warn('⚠️ Debe ser creado manualmente desde UserManagementPage');
-      setUserProfile(null);
+      // Usuario no tiene perfil en Firestore, crearlo automáticamente
+      console.log('📝 Usuario sin perfil en Firestore, creando documento automáticamente...');
+      
+      const baseUserData = {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName || '',
+        photoURL: user.photoURL || '',
+        role: 'viewer', // Rol por defecto
+        status: 'active',
+        companies: [],
+        permissions: {
+          dashboard: true,
+          commitments: false,
+          users: false,
+          reports: false,
+          settings: false
+        },
+        theme: {
+          darkMode: false,
+          primaryColor: '#1976d2',
+          secondaryColor: '#dc004e'
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        lastLogin: new Date()
+      };
+      
+      await setDoc(userDocRef, baseUserData);
+      console.log('✅ Documento de usuario creado automáticamente');
+      
+      setUserProfile({
+        uid: user.uid,
+        email: user.email,
+        ...baseUserData
+      });
       
     } catch (error) {
       console.error('❌ Error cargando perfil del usuario:', error);

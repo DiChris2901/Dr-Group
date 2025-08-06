@@ -31,7 +31,7 @@ import { useTheme } from '@mui/material/styles';
 import { useAuth } from '../../context/AuthContext';
 import { useDashboardStats } from '../../hooks/useDashboardStats';
 import { useNavigate } from 'react-router-dom';
-// import { createSampleData } from '../../utils/sampleData'; // Eliminado - solo datos reales
+
 import {
   animationVariants,
   useThemeGradients,
