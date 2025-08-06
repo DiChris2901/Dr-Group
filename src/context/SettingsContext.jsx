@@ -78,6 +78,14 @@ const defaultSettings = {
       showTrends: true,
       compactMode: false,
       transparencyLevel: 80
+    },
+    charts: {
+      defaultType: 'bar', // Tipo de gráfica predeterminado 
+      animations: 'smooth', // Animaciones en gráficas: 'none', 'smooth', 'bounce', 'elastic'
+      colorScheme: 'corporativo', // Esquema de colores para gráficas
+      showDataLabels: true, // Mostrar etiquetas de datos
+      enableZoom: true, // Habilitar zoom en gráficas
+      gridLines: true // Mostrar líneas de cuadrícula
     }
   },
 

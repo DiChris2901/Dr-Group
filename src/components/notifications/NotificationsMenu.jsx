@@ -528,12 +528,12 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                         sx={{
                           width: 32,
                           height: 32,
-                          background: settings.enableAnimations 
+                          background: animationsEnabled 
                             ? `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`
                             : primaryColor,
                           color: 'white',
                           boxShadow: `0 4px 20px ${alpha(primaryColor, 0.4)}`,
-                          animation: settings.enableAnimations ? 'shimmer 3s infinite, pulse 2s infinite' : 'none',
+                          animation: animationsEnabled ? 'shimmer 3s infinite, pulse 2s infinite' : 'none',
                           '&:hover': {
                             transform: 'scale(1.1)',
                             boxShadow: `0 6px 25px ${alpha(primaryColor, 0.5)}`
@@ -635,7 +635,7 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
               borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
               textAlign: 'center',
               background: alpha(theme.palette.background.paper, 0.8),
-              backdropFilter: settings.enableAnimations ? 'blur(10px)' : 'none'
+              backdropFilter: animationsEnabled ? 'blur(10px)' : 'none'
             }}>
               <Button
                 size="small"
@@ -646,18 +646,18 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                   textTransform: 'none',
                   fontWeight: 600,
                   borderRadius: `${settings.borderRadius || 12}px`,
-                  background: settings.enableAnimations 
+                  background: animationsEnabled 
                     ? `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`
                     : primaryColor,
                   color: 'white',
                   boxShadow: `0 4px 16px ${alpha(primaryColor, 0.4)}`,
                   px: 3,
                   py: 1,
-                  animation: settings.enableAnimations ? 'shimmer 3s infinite' : 'none',
+                  animation: animationsEnabled ? 'shimmer 3s infinite' : 'none',
                   '&:hover': {
                     transform: 'translateY(-2px) scale(1.05)',
                     boxShadow: `0 8px 25px ${alpha(primaryColor, 0.5)}`,
-                    background: settings.enableAnimations 
+                    background: animationsEnabled 
                       ? `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`
                       : primaryColor,
                   },

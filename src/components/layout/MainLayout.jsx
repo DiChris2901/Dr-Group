@@ -26,7 +26,6 @@ import Sidebar from './Sidebar';
 import DashboardHeader from '../dashboard/DashboardHeader';
 import FloatingSearchButton from '../common/FloatingSearchButton';
 import { AdvancedSettingsDrawer, SettingsButton } from '../settings';
-import NotificationsTestPanel from '../debug/NotificationsTestPanel';
 
 const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
   const navigate = useNavigate();
@@ -335,9 +334,6 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
         open={settingsOpen} 
         onClose={() => setSettingsOpen(false)} 
       />
-
-      {/* Panel de prueba de notificaciones (solo en desarrollo) */}
-      <NotificationsTestPanel />
     </Box>
   );
 };

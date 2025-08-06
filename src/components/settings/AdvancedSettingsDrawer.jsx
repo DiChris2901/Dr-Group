@@ -426,6 +426,18 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
     }
     
     current[keys[keys.length - 1]] = value;
+    
+    // 🔄 Sincronización: Mantener charts.defaultType y appearance.chartType alineados
+    if (path === 'charts.defaultType') {
+      // Si se cambia charts.defaultType, actualizar también appearance.chartType
+      if (!updatedDashboard.appearance) updatedDashboard.appearance = {};
+      updatedDashboard.appearance.chartType = value;
+    } else if (path === 'appearance.chartType') {
+      // Si se cambia appearance.chartType, actualizar también charts.defaultType
+      if (!updatedDashboard.charts) updatedDashboard.charts = {};
+      updatedDashboard.charts.defaultType = value;
+    }
+    
     updateSettings('dashboard', updatedDashboard);
   };
 
@@ -1819,13 +1831,20 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                               placement="top" 
                               arrow
                             >
-                              <FormLabel sx={{ mb: 1, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                Tipo de Gráfica Predeterminado
+                              <FormLabel sx={{ 
+                                mb: 1, 
+                                fontWeight: 600, 
+                                display: 'flex', 
+                                alignItems: 'center', // Centrar verticalmente
+                                gap: 1,
+                                minHeight: '32px' // Altura más razonable
+                              }}>
+                                Tipo de Gráfica
                                 <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                               </FormLabel>
                             </Tooltip>
                             <Select
-                              value={dashboardSettings.charts?.defaultType || 'bar'}
+                              value={dashboardSettings.charts?.defaultType || dashboardSettings.appearance?.chartType || 'bar'}
                               onChange={(e) => updateDashboardSetting('charts.defaultType', e.target.value)}
                               size="small"
                             >
@@ -1877,8 +1896,15 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                               placement="top" 
                               arrow
                             >
-                              <FormLabel sx={{ mb: 1, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                Animaciones en Gráficas
+                              <FormLabel sx={{ 
+                                mb: 1, 
+                                fontWeight: 600, 
+                                display: 'flex', 
+                                alignItems: 'center', // Centrar verticalmente
+                                gap: 1,
+                                minHeight: '32px' // Altura más razonable
+                              }}>
+                                Animaciones
                                 <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                               </FormLabel>
                             </Tooltip>
