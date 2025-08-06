@@ -73,6 +73,7 @@ import { useNotifications } from '../context/NotificationsContext';
 
 // Firebase
 import { doc, updateDoc, deleteDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ref, deleteObject } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 
@@ -102,6 +103,10 @@ const StyledContainer = styled(Box)(({ theme }) => ({
     '50%': { 
       boxShadow: `0 0 0 10px ${theme.palette.error.main}00` 
     }
+  },
+  '@keyframes spin': {
+    '0%': { transform: 'rotate(0deg)' },
+    '100%': { transform: 'rotate(360deg)' }
   }
 }));
 
@@ -187,6 +192,10 @@ const DueCommitmentsPage = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [commitmentToDelete, setCommitmentToDelete] = useState(null);
   const [companyData, setCompanyData] = useState(null);
+  
+  // Estados para formulario de pago
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [commitmentToPay, setCommitmentToPay] = useState(null);
 
   // Función para obtener información del estado con detalles completos
   const getStatusInfo = (commitment) => {
@@ -417,6 +426,63 @@ const DueCommitmentsPage = () => {
     
     handleCloseEditDialog();
     refreshCommitments(); // Refrescar la lista después de editar
+  };
+
+  // Funciones para manejar pagos
+  const handlePayCommitment = (commitment) => {
+    setCommitmentToPay(commitment);
+    setPaymentDialogOpen(true);
+  };
+
+  const handleClosePaymentDialog = () => {
+    setPaymentDialogOpen(false);
+    setCommitmentToPay(null);
+  };
+
+  const handlePaymentSuccess = async (paymentData) => {
+    try {
+      if (!commitmentToPay) return;
+
+      // Actualizar el compromiso como pagado en Firebase
+      const commitmentRef = doc(db, 'commitments', commitmentToPay.id);
+      await updateDoc(commitmentRef, {
+        isPaid: true,
+        paid: true,
+        paymentDate: new Date(),
+        paymentAmount: paymentData.totalAmount,
+        interestPaid: paymentData.interestAmount || 0,
+        receiptUrl: paymentData.receiptUrl || null,
+        paymentMethod: paymentData.paymentMethod || 'efectivo',
+        paymentNotes: paymentData.notes || '',
+        updatedAt: new Date()
+      });
+
+      // Mostrar notificación de éxito
+      addNotification({
+        type: 'success',
+        title: '💰 Pago Registrado',
+        message: `El pago de ${new Intl.NumberFormat('es-CO', {
+          style: 'currency',
+          currency: 'COP'
+        }).format(paymentData.totalAmount)} ha sido registrado correctamente`,
+        duration: 5000
+      });
+
+      // Cerrar el diálogo
+      handleClosePaymentDialog();
+      
+      // Refrescar los datos
+      refreshCommitments();
+
+    } catch (error) {
+      console.error('❌ Error al registrar pago:', error);
+      addNotification({
+        type: 'error',
+        title: '❌ Error al Registrar Pago',
+        message: `No se pudo registrar el pago: ${error.message}`,
+        duration: 8000
+      });
+    }
   };
 
   const getPriorityColor = (priority) => {
@@ -1182,6 +1248,14 @@ const DueCommitmentsPage = () => {
                               hoverColor: theme.palette.info.dark,
                               action: () => handleViewCommitment(commitment)
                             },
+                            // Solo mostrar botón de pagar si el compromiso no está pagado
+                            ...(!commitment.paid && !commitment.isPaid ? [{
+                              icon: Payment, 
+                              tooltip: 'Marcar como pagado', 
+                              color: theme.palette.success.main,
+                              hoverColor: theme.palette.success.dark,
+                              action: () => handlePayCommitment(commitment)
+                            }] : []),
                             { 
                               icon: Edit, 
                               tooltip: 'Editar', 
@@ -2097,6 +2171,14 @@ const DueCommitmentsPage = () => {
         onSaved={handleCommitmentSaved}
       />
       
+      {/* Diálogo de Formulario de Pago */}
+      <PaymentFormDialog
+        open={paymentDialogOpen}
+        commitment={commitmentToPay}
+        onSuccess={handlePaymentSuccess}
+        onCancel={handleClosePaymentDialog}
+      />
+      
       <DeleteConfirmDialog 
         open={deleteDialogOpen}
         commitment={commitmentToDelete}
@@ -2104,6 +2186,429 @@ const DueCommitmentsPage = () => {
         onCancel={cancelDelete}
       />
     </StyledContainer>
+  );
+};
+
+// Componente para Formulario de Pago - Basado en el diseño spectacular
+const PaymentFormDialog = ({ open, commitment, onSuccess, onCancel }) => {
+  const theme = useTheme();
+  const gradients = useThemeGradients();
+  const [formData, setFormData] = useState({
+    baseAmount: 0,
+    interestAmount: 0,
+    totalAmount: 0,
+    notes: '',
+    receiptFile: null,
+    receiptUrl: '',
+    paymentMethod: 'efectivo'
+  });
+  const [uploading, setUploading] = useState(false);
+
+  // Inicializar datos cuando se abre el diálogo
+  useEffect(() => {
+    if (open && commitment) {
+      const baseAmount = commitment.amount || 0;
+      setFormData({
+        baseAmount: baseAmount,
+        interestAmount: 0,
+        totalAmount: baseAmount,
+        notes: '',
+        receiptFile: null,
+        receiptUrl: '',
+        paymentMethod: 'efectivo'
+      });
+    }
+  }, [open, commitment]);
+
+  const handleInterestChange = (value) => {
+    const interestAmount = parseFloat(value) || 0;
+    const newTotal = formData.baseAmount + interestAmount;
+    setFormData(prev => ({
+      ...prev,
+      interestAmount,
+      totalAmount: newTotal
+    }));
+  };
+
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setFormData(prev => ({ ...prev, receiptFile: file }));
+    }
+  };
+
+  const uploadReceiptFile = async (file) => {
+    if (!file) return null;
+    
+    try {
+      setUploading(true);
+      const timestamp = Date.now();
+      const fileName = `receipts/${commitment.id}_${timestamp}_${file.name}`;
+      const storageRef = ref(storage, fileName);
+      
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      return downloadURL;
+    } catch (error) {
+      console.error('Error uploading receipt:', error);
+      throw error;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleConfirmPayment = async () => {
+    try {
+      let receiptUrl = '';
+      
+      // Subir comprobante si se seleccionó
+      if (formData.receiptFile) {
+        receiptUrl = await uploadReceiptFile(formData.receiptFile);
+      }
+
+      const paymentData = {
+        totalAmount: formData.totalAmount,
+        interestAmount: formData.interestAmount,
+        baseAmount: formData.baseAmount,
+        receiptUrl,
+        notes: formData.notes,
+        paymentMethod: formData.paymentMethod
+      };
+
+      await onSuccess(paymentData);
+    } catch (error) {
+      console.error('Error processing payment:', error);
+    }
+  };
+
+  if (!commitment) return null;
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onCancel}
+      maxWidth="sm"
+      fullWidth
+      PaperProps={{
+        sx: {
+          borderRadius: 4,
+          backdropFilter: 'blur(20px)',
+          background: theme.palette.mode === 'dark'
+            ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
+            : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+          boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          overflow: 'hidden',
+        }
+      }}
+    >
+      {/* Header con gradiente spectacular */}
+      <Box
+        sx={{
+          background: gradients.primary,
+          color: 'white',
+          p: 3,
+          textAlign: 'center',
+          position: 'relative'
+        }}
+      >
+        <IconButton
+          onClick={onCancel}
+          sx={{
+            position: 'absolute',
+            right: 16,
+            top: 16,
+            color: 'white',
+            '&:hover': { backgroundColor: alpha('#fff', 0.1) }
+          }}
+        >
+          <Close />
+        </IconButton>
+        
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", duration: 0.6 }}
+        >
+          <Box
+            sx={{
+              width: 60,
+              height: 60,
+              backgroundColor: alpha('#fff', 0.2),
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mx: 'auto',
+              mb: 2
+            }}
+          >
+            <CheckCircle sx={{ fontSize: 32, color: 'white' }} />
+          </Box>
+        </motion.div>
+        
+        <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
+          Marcar como Pagado
+        </Typography>
+        <Typography variant="body2" sx={{ opacity: 0.9 }}>
+          {commitment.concept || 'Retención en la Fuente'}
+        </Typography>
+      </Box>
+
+      <DialogContent sx={{ p: 3 }}>
+        {/* Monto del Compromiso */}
+        <Box
+          sx={{
+            background: alpha(theme.palette.primary.main, 0.05),
+            borderRadius: 3,
+            p: 3,
+            mb: 3,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
+          }}
+        >
+          <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
+            <Box
+              sx={{
+                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                borderRadius: 2,
+                p: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <Business sx={{ color: theme.palette.primary.main, fontSize: 20 }} />
+            </Box>
+            <Typography variant="subtitle2" color="text.secondary">
+              Monto del Compromiso
+            </Typography>
+          </Stack>
+          
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: 800,
+              color: theme.palette.primary.main,
+              textAlign: 'center'
+            }}
+          >
+            $ {formData.baseAmount.toLocaleString()}
+          </Typography>
+        </Box>
+
+        {/* Intereses Adicionales */}
+        <Box sx={{ mb: 3 }}>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+            <TrendingUp sx={{ color: theme.palette.warning.main, fontSize: 20 }} />
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              ¿Pagaste intereses adicionales?
+            </Typography>
+          </Stack>
+          
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Intereses (opcional)
+          </Typography>
+          
+          <Box
+            sx={{
+              position: 'relative',
+              '& input': {
+                fontSize: '1.2rem',
+                fontWeight: 600,
+                pl: 3
+              }
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{
+                position: 'absolute',
+                left: 12,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: theme.palette.text.secondary,
+                zIndex: 1,
+                fontWeight: 600
+              }}
+            >
+              $
+            </Typography>
+            <input
+              type="number"
+              placeholder="0"
+              value={formData.interestAmount}
+              onChange={(e) => handleInterestChange(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '16px 12px 16px 32px',
+                border: `2px solid ${alpha(theme.palette.divider, 0.3)}`,
+                borderRadius: '12px',
+                fontSize: '1.1rem',
+                backgroundColor: theme.palette.background.paper,
+                color: theme.palette.text.primary,
+                outline: 'none',
+                transition: 'all 0.3s ease',
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = theme.palette.primary.main;
+                e.target.style.boxShadow = `0 0 0 3px ${alpha(theme.palette.primary.main, 0.1)}`;
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = alpha(theme.palette.divider, 0.3);
+                e.target.style.boxShadow = 'none';
+              }}
+            />
+          </Box>
+          
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Ingresa cualquier interés adicional que hayas pagado
+          </Typography>
+        </Box>
+
+        {/* Total a Pagar */}
+        <Box
+          sx={{
+            background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.light, 0.05)} 100%)`,
+            borderRadius: 3,
+            p: 3,
+            mb: 3,
+            border: `2px solid ${alpha(theme.palette.success.main, 0.2)}`,
+            textAlign: 'center'
+          }}
+        >
+          <Stack direction="row" alignItems="center" justifyContent="center" spacing={1} sx={{ mb: 1 }}>
+            <TrendingUp sx={{ color: theme.palette.success.main, fontSize: 20 }} />
+            <Typography variant="subtitle2" color="text.secondary">
+              Total a Pagar
+            </Typography>
+          </Stack>
+          
+          <Typography
+            variant="h3"
+            sx={{
+              fontWeight: 900,
+              color: theme.palette.success.main,
+              fontSize: '2.5rem'
+            }}
+          >
+            $ {formData.totalAmount.toLocaleString()}
+          </Typography>
+        </Box>
+
+        {/* Comprobante de Pago */}
+        <Box sx={{ mb: 3 }}>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+            <AttachFile sx={{ color: theme.palette.info.main, fontSize: 20 }} />
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              Comprobante de Pago
+            </Typography>
+          </Stack>
+          
+          <Box
+            sx={{
+              border: `2px dashed ${alpha(theme.palette.primary.main, 0.3)}`,
+              borderRadius: 3,
+              p: 4,
+              textAlign: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                borderColor: theme.palette.primary.main,
+                backgroundColor: alpha(theme.palette.primary.main, 0.02)
+              }
+            }}
+            onClick={() => document.getElementById('receipt-upload').click()}
+          >
+            <input
+              id="receipt-upload"
+              type="file"
+              accept="image/*,.pdf"
+              onChange={handleFileSelect}
+              style={{ display: 'none' }}
+            />
+            
+            <AttachFile sx={{ fontSize: 48, color: theme.palette.primary.main, mb: 2 }} />
+            <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.primary.main, mb: 1 }}>
+              Seleccionar Archivo
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Arrastra aquí tu comprobante o haz clic para seleccionar
+            </Typography>
+            
+            {formData.receiptFile && (
+              <Typography variant="body2" sx={{ mt: 2, color: theme.palette.success.main, fontWeight: 600 }}>
+                ✓ {formData.receiptFile.name}
+              </Typography>
+            )}
+          </Box>
+        </Box>
+      </DialogContent>
+
+      {/* Botones de Acción */}
+      <DialogActions sx={{ p: 3, gap: 2 }}>
+        <Button
+          onClick={onCancel}
+          variant="outlined"
+          sx={{
+            borderRadius: 3,
+            px: 4,
+            py: 1.5,
+            fontWeight: 600,
+            borderColor: alpha(theme.palette.text.secondary, 0.3),
+            color: theme.palette.text.secondary,
+            '&:hover': {
+              borderColor: theme.palette.text.primary,
+              backgroundColor: alpha(theme.palette.text.primary, 0.05)
+            }
+          }}
+        >
+          Cancelar
+        </Button>
+        
+        <Button
+          onClick={handleConfirmPayment}
+          variant="contained"
+          disabled={uploading}
+          sx={{
+            borderRadius: 3,
+            px: 4,
+            py: 1.5,
+            fontWeight: 700,
+            background: gradients.success,
+            '&:hover': {
+              background: `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
+              transform: 'translateY(-2px)',
+              boxShadow: `0 8px 25px ${alpha(theme.palette.success.main, 0.4)}`
+            },
+            '&:disabled': {
+              background: alpha(theme.palette.action.disabled, 0.12)
+            }
+          }}
+        >
+          {uploading ? (
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <Box
+                sx={{
+                  width: 16,
+                  height: 16,
+                  border: '2px solid',
+                  borderColor: `${alpha('#fff', 0.3)} ${alpha('#fff', 0.3)} ${alpha('#fff', 0.3)} transparent`,
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }}
+              />
+              <span>Subiendo...</span>
+            </Stack>
+          ) : (
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <CheckCircle sx={{ fontSize: 18 }} />
+              <span>Confirmar Pago</span>
+            </Stack>
+          )}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 
