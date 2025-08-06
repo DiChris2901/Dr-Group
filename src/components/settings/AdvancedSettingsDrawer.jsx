@@ -28,6 +28,22 @@ const spectacularStyles = `
       background-position: 100% 50%;
     }
   }
+
+  @keyframes title-underline {
+    0%, 100% { width: 0%; }
+    50% { width: 100%; }
+  }
+
+  @keyframes icon-pulse {
+    0%, 100% { 
+      transform: scale(1);
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+    }
+    50% { 
+      transform: scale(1.1);
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+    }
+  }
 `;
 
 // Inyectar estilos si no existen
@@ -113,7 +129,8 @@ import {
   Tablet as TabletIcon,
   ExitToApp as LogoutIcon,
   AccessTime as TimeIcon,
-  LocationOn as LocationIcon
+  LocationOn as LocationIcon,
+  Contrast as ContrastIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
@@ -494,24 +511,44 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                 p: 3,
                 borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
                 background: `linear-gradient(135deg, 
-                  ${alpha(settings?.theme?.primaryColor || '#667eea', 0.08)} 0%, 
-                  ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.04)} 100%
+                  ${alpha(settings?.theme?.primaryColor || '#667eea', 0.12)} 0%, 
+                  ${alpha(theme.palette.background.paper, 0.95)} 25%,
+                  ${alpha(theme.palette.background.paper, 0.95)} 75%,
+                  ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.12)} 100%
                 )`,
-                backdropFilter: 'blur(10px)',
+                backdropFilter: 'blur(20px)',
                 position: 'relative',
+                overflow: 'hidden',
+                '&::before': settings?.theme?.animations ? {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: '-100%',
+                  width: '100%',
+                  height: '100%',
+                  background: `linear-gradient(90deg, 
+                    transparent 0%, 
+                    ${alpha('#ffffff', 0.1)} 50%, 
+                    transparent 100%
+                  )`,
+                  animation: 'shimmer 4s infinite',
+                  pointerEvents: 'none'
+                } : {},
                 '&::after': {
                   content: '""',
                   position: 'absolute',
                   bottom: 0,
-                  left: '20%',
-                  right: '20%',
-                  height: '1px',
+                  left: '15%',
+                  right: '15%',
+                  height: '2px',
                   background: `linear-gradient(90deg, 
                     transparent 0%, 
-                    ${settings?.theme?.primaryColor || '#667eea'} 50%, 
+                    ${settings?.theme?.primaryColor || '#667eea'} 25%,
+                    ${settings?.theme?.secondaryColor || '#764ba2'} 75%,
                     transparent 100%
                   )`,
-                  boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
+                  boxShadow: `0 0 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.4)}`,
+                  borderRadius: '1px'
                 }
               }}
             >
@@ -519,9 +556,9 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                   <Box
                     sx={{
-                      width: 48,
-                      height: 48,
-                      borderRadius: (settings?.theme?.borderRadius || 2) * 1.5,
+                      width: 56,
+                      height: 56,
+                      borderRadius: (settings?.theme?.borderRadius || 2) * 2,
                       background: `linear-gradient(135deg, 
                         ${settings?.theme?.primaryColor || '#667eea'} 0%, 
                         ${settings?.theme?.secondaryColor || '#764ba2'} 100%
@@ -529,10 +566,10 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: `0 8px 24px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`,
+                      boxShadow: `0 12px 32px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.4)}`,
                       position: 'relative',
                       overflow: 'hidden',
-                      transition: settings?.theme?.animations ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                      transition: settings?.theme?.animations ? 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
                       '&::before': settings?.theme?.animations ? {
                         content: '""',
                         position: 'absolute',
@@ -542,32 +579,80 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         height: '200%',
                         background: `linear-gradient(45deg, 
                           transparent 30%, 
-                          ${alpha('#ffffff', 0.1)} 50%, 
+                          ${alpha('#ffffff', 0.15)} 50%, 
                           transparent 70%
                         )`,
                         animation: 'shimmer 3s infinite',
                         transform: 'translateX(-100%)'
                       } : {},
+                      '&::after': {
+                        content: '""',
+                        position: 'absolute',
+                        inset: '2px',
+                        borderRadius: 'inherit',
+                        background: `linear-gradient(135deg, 
+                          ${alpha('#ffffff', 0.1)} 0%, 
+                          transparent 50%,
+                          ${alpha('#000000', 0.05)} 100%
+                        )`,
+                        pointerEvents: 'none'
+                      },
                       '&:hover': settings?.theme?.animations ? {
-                        transform: 'translateY(-2px) scale(1.05)',
-                        boxShadow: `0 12px 32px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.4)}`
+                        transform: 'translateY(-3px) scale(1.05) rotate(5deg)',
+                        boxShadow: `0 16px 40px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.5)}`
                       } : {}
                     }}
                   >
-                    <SettingsIcon sx={{ color: 'white', fontSize: (settings?.theme?.fontSize || 14) + 10 }} />
+                    <SettingsIcon sx={{ 
+                      color: 'white', 
+                      fontSize: (settings?.theme?.fontSize || 14) + 12,
+                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
+                      animation: settings?.theme?.animations ? 'icon-pulse 2s infinite' : 'none'
+                    }} />
                   </Box>
                   <Box>
                     <Typography variant="h5" sx={{ 
-                      fontWeight: 700, 
-                      color: 'text.primary',
-                      fontSize: `${(settings?.theme?.fontSize || 14) + 8}px`
+                      fontWeight: 800, 
+                      background: `linear-gradient(135deg, 
+                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                      )`,
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      fontSize: `${(settings?.theme?.fontSize || 14) + 10}px`,
+                      textShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                      position: 'relative',
+                      '&::after': settings?.theme?.animations ? {
+                        content: '""',
+                        position: 'absolute',
+                        bottom: '-2px',
+                        left: 0,
+                        width: '0%',
+                        height: '2px',
+                        background: `linear-gradient(90deg, 
+                          ${settings?.theme?.primaryColor || '#667eea'}, 
+                          ${settings?.theme?.secondaryColor || '#764ba2'}
+                        )`,
+                        borderRadius: '1px',
+                        transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                        animation: 'title-underline 3s infinite'
+                      } : {}
                     }}>
                       Configuración
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Typography variant="body2" sx={{ 
                         color: 'text.secondary',
-                        fontSize: `${(settings?.theme?.fontSize || 14) - 1}px`
+                        fontSize: `${(settings?.theme?.fontSize || 14) - 1}px`,
+                        fontWeight: 500,
+                        background: `linear-gradient(90deg, 
+                          ${alpha(settings?.theme?.primaryColor || '#667eea', 0.7)} 0%, 
+                          ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.7)} 100%
+                        )`,
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent'
                       }}>
                         Personaliza tu dashboard
                       </Typography>
@@ -630,7 +715,27 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
             <Box sx={{ 
               borderBottom: 1, 
               borderColor: 'divider',
-              backgroundColor: alpha(theme.palette.background.default, 0.3)
+              background: `linear-gradient(135deg, 
+                ${alpha(settings?.theme?.primaryColor || '#667eea', 0.02)} 0%, 
+                ${alpha(theme.palette.background.default, 0.95)} 50%,
+                ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.02)} 100%
+              )`,
+              backdropFilter: 'blur(10px)',
+              position: 'relative',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '1px',
+                background: `linear-gradient(90deg, 
+                  transparent 0%, 
+                  ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)} 20%,
+                  ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.3)} 80%,
+                  transparent 100%
+                )`,
+              }
             }}>
               <Tabs
                 value={activeTab}
@@ -646,33 +751,71 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     }
                   },
                   '& .MuiTabs-indicator': {
-                    height: 3,
+                    height: 4,
                     borderRadius: `${settings?.theme?.borderRadius || 3}px ${settings?.theme?.borderRadius || 3}px 0 0`,
-                    background: `linear-gradient(90deg, ${settings?.theme?.primaryColor || theme.palette.primary.main}, ${alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.7)})`,
+                    background: `linear-gradient(135deg, 
+                      ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                      ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                    )`,
+                    boxShadow: `0 2px 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.4)}`,
                   },
                   '& .MuiTab-root': {
                     minHeight: 72,
                     minWidth: { xs: 120, sm: 140 },
                     maxWidth: { xs: 160, sm: 180 },
                     textTransform: 'none',
-                    fontWeight: 500,
+                    fontWeight: 600,
                     fontSize: `${(settings?.theme?.fontSize || 14) - 0.5}px`,
                     color: theme.palette.text.secondary,
                     padding: '12px 20px',
                     margin: '0 4px',
                     borderRadius: `${settings?.theme?.borderRadius || 8}px ${settings?.theme?.borderRadius || 8}px 0 0`,
-                    transition: settings?.theme?.animations ? 'all 0.2s ease-in-out' : 'color 0.1s',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    transition: settings?.theme?.animations ? 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' : 'color 0.1s',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      background: `linear-gradient(135deg, 
+                        ${alpha(settings?.theme?.primaryColor || '#667eea', 0.08)} 0%, 
+                        transparent 100%
+                      )`,
+                      opacity: 0,
+                      transition: 'opacity 0.3s ease'
+                    },
                     '&:hover': {
-                      backgroundColor: alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.08),
+                      backgroundColor: alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.12),
                       color: settings?.theme?.primaryColor || theme.palette.primary.main,
-                      transform: settings?.theme?.animations ? 'translateY(-1px)' : 'none',
+                      transform: settings?.theme?.animations ? 'translateY(-2px) scale(1.02)' : 'none',
+                      boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
+                      '&::before': {
+                        opacity: 1
+                      }
                     },
                     '&.Mui-selected': {
                       color: settings?.theme?.primaryColor || theme.palette.primary.main,
-                      fontWeight: 600,
-                      backgroundColor: alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.12),
+                      fontWeight: 700,
+                      background: `linear-gradient(135deg, 
+                        ${alpha(settings?.theme?.primaryColor || '#667eea', 0.15)} 0%, 
+                        ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.08)} 100%
+                      )`,
+                      backdropFilter: 'blur(10px)',
+                      boxShadow: `0 4px 16px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`,
+                      transform: settings?.theme?.animations ? 'translateY(-1px)' : 'none',
+                      '&::before': {
+                        opacity: 1,
+                        background: `linear-gradient(135deg, 
+                          ${alpha(settings?.theme?.primaryColor || '#667eea', 0.1)} 0%, 
+                          ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.05)} 100%
+                        )`
+                      },
                       '& .MuiSvgIcon-root': {
                         color: settings?.theme?.primaryColor || theme.palette.primary.main,
+                        filter: `drop-shadow(0 2px 4px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)})`
                       }
                     },
                     '&.Mui-disabled': {
@@ -749,10 +892,61 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
               <TabPanel value={activeTab} index={0}>
                 <Stack spacing={3}>
                   {/* Color Presets */}
-                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                  <Card sx={{ 
+                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                    background: `linear-gradient(135deg, 
+                      ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
+                      ${alpha(theme.palette.background.paper, 0.98)} 100%
+                    )`,
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      background: `linear-gradient(90deg, 
+                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                      )`,
+                      boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
+                    }
+                  }}>
                     <CardContent>
-                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <PaletteIcon color="primary" />
+                      <Typography variant="h6" sx={{ 
+                        mb: 3, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1.5,
+                        fontWeight: 700,
+                        background: `linear-gradient(135deg, 
+                          ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                          ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                        )`,
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                      }}>
+                        <Box sx={{
+                          p: 1,
+                          borderRadius: '8px',
+                          background: `linear-gradient(135deg, 
+                            ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                            ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                          )`,
+                          color: 'white',
+                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <PaletteIcon sx={{ fontSize: 20 }} />
+                        </Box>
                         Paleta de Colores
                         <Tooltip title="Elige el color principal que se aplicará en toda la interfaz">
                           <InfoIcon sx={{ fontSize: 16, color: 'text.secondary', ml: 1 }} />
@@ -871,9 +1065,61 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   </Card>
 
                   {/* Mode Selection */}
-                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                  <Card sx={{ 
+                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                    background: `linear-gradient(135deg, 
+                      ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.03)} 0%, 
+                      ${alpha(theme.palette.background.paper, 0.98)} 100%
+                    )`,
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      background: `linear-gradient(90deg, 
+                        ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                        ${settings?.theme?.primaryColor || '#667eea'} 100%
+                      )`,
+                      boxShadow: `0 0 8px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.3)}`
+                    }
+                  }}>
                     <CardContent>
-                      <Typography variant="h6" sx={{ mb: 2 }}>
+                      <Typography variant="h6" sx={{ 
+                        mb: 3, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1.5,
+                        fontWeight: 700,
+                        background: `linear-gradient(135deg, 
+                          ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                          ${settings?.theme?.primaryColor || '#667eea'} 100%
+                        )`,
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                      }}>
+                        <Box sx={{
+                          p: 1,
+                          borderRadius: '8px',
+                          background: `linear-gradient(135deg, 
+                            ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                            ${settings?.theme?.primaryColor || '#667eea'} 100%
+                          )`,
+                          color: 'white',
+                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.25)}`,
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <ContrastIcon sx={{ fontSize: 20 }} />
+                        </Box>
                         Modo de Tema
                       </Typography>
                       <Box sx={{ display: 'flex', gap: 2 }}>
@@ -990,9 +1236,61 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   </Card>
 
                   {/* Advanced Options */}
-                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                  <Card sx={{ 
+                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                    background: `linear-gradient(135deg, 
+                      ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
+                      ${alpha(theme.palette.background.paper, 0.98)} 100%
+                    )`,
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      background: `linear-gradient(90deg, 
+                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                      )`,
+                      boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
+                    }
+                  }}>
                     <CardContent>
-                      <Typography variant="h6" sx={{ mb: 2 }}>
+                      <Typography variant="h6" sx={{ 
+                        mb: 3, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1.5,
+                        fontWeight: 700,
+                        background: `linear-gradient(135deg, 
+                          ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                          ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                        )`,
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                      }}>
+                        <Box sx={{
+                          p: 1,
+                          borderRadius: '8px',
+                          background: `linear-gradient(135deg, 
+                            ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                            ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                          )`,
+                          color: 'white',
+                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <SettingsIcon sx={{ fontSize: 20 }} />
+                        </Box>
                         Opciones Avanzadas
                       </Typography>
                       <Stack spacing={2}>
@@ -1055,10 +1353,61 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   </Card>
 
                   {/* Typography Settings */}
-                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                  <Card sx={{ 
+                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                    background: `linear-gradient(135deg, 
+                      ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.03)} 0%, 
+                      ${alpha(theme.palette.background.paper, 0.98)} 100%
+                    )`,
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      background: `linear-gradient(90deg, 
+                        ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                        ${settings?.theme?.primaryColor || '#667eea'} 100%
+                      )`,
+                      boxShadow: `0 0 8px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.3)}`
+                    }
+                  }}>
                     <CardContent>
-                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <TextFieldsIcon color="primary" />
+                      <Typography variant="h6" sx={{ 
+                        mb: 3, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1.5,
+                        fontWeight: 700,
+                        background: `linear-gradient(135deg, 
+                          ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                          ${settings?.theme?.primaryColor || '#667eea'} 100%
+                        )`,
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                      }}>
+                        <Box sx={{
+                          p: 1,
+                          borderRadius: '8px',
+                          background: `linear-gradient(135deg, 
+                            ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                            ${settings?.theme?.primaryColor || '#667eea'} 100%
+                          )`,
+                          color: 'white',
+                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.25)}`,
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <TextFieldsIcon sx={{ fontSize: 20 }} />
+                        </Box>
                         Tipografía
                       </Typography>
                       <Stack spacing={3}>
@@ -1248,10 +1597,61 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
               <TabPanel value={activeTab} index={1}>
                 <Stack spacing={3}>
                   {/* Layout Configuration */}
-                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                  <Card sx={{ 
+                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                    background: `linear-gradient(135deg, 
+                      ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
+                      ${alpha(theme.palette.background.paper, 0.98)} 100%
+                    )`,
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      background: `linear-gradient(90deg, 
+                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                      )`,
+                      boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
+                    }
+                  }}>
                     <CardContent>
-                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <GridIcon color="primary" />
+                      <Typography variant="h6" sx={{ 
+                        mb: 3, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1.5,
+                        fontWeight: 700,
+                        background: `linear-gradient(135deg, 
+                          ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                          ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                        )`,
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                      }}>
+                        <Box sx={{
+                          p: 1,
+                          borderRadius: '8px',
+                          background: `linear-gradient(135deg, 
+                            ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                            ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                          )`,
+                          color: 'white',
+                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <GridIcon sx={{ fontSize: 20 }} />
+                        </Box>
                         Layout y Visualización
                       </Typography>
                       
@@ -1297,6 +1697,41 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             exclusive
                             onChange={(e, value) => value && updateDashboardSetting('layout.viewMode', value)}
                             size="small"
+                            sx={{
+                              borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
+                              background: alpha(theme.palette.background.paper, 0.8),
+                              backdropFilter: 'blur(10px)',
+                              border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                              '& .MuiToggleButton-root': {
+                                border: 'none',
+                                borderRadius: `${(settings?.theme?.borderRadius || 8)}px !important`,
+                                mx: 0.5,
+                                transition: settings?.theme?.animations ? 
+                                  'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 
+                                  'all 0.2s ease',
+                                '&.Mui-selected': {
+                                  background: `linear-gradient(135deg, 
+                                    ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                                    ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                                  )`,
+                                  color: 'white',
+                                  boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`,
+                                  transform: settings?.theme?.animations ? 'translateY(-1px)' : 'none',
+                                  '&:hover': {
+                                    background: `linear-gradient(135deg, 
+                                      ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                                      ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                                    )`,
+                                    transform: settings?.theme?.animations ? 'translateY(-2px)' : 'none',
+                                    boxShadow: `0 6px 16px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.4)}`
+                                  }
+                                },
+                                '&:hover': {
+                                  backgroundColor: alpha(settings?.theme?.primaryColor || '#667eea', 0.08),
+                                  transform: settings?.theme?.animations ? 'translateY(-1px)' : 'none'
+                                }
+                              }
+                            }}
                           >
                             <ToggleButton value="grid">
                               <GridIcon sx={{ mr: 1 }} />
@@ -1317,10 +1752,61 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   </Card>
 
                   {/* Chart Type Configuration */}
-                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                  <Card sx={{ 
+                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                    background: `linear-gradient(135deg, 
+                      ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.03)} 0%, 
+                      ${alpha(theme.palette.background.paper, 0.98)} 100%
+                    )`,
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      background: `linear-gradient(90deg, 
+                        ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                        ${settings?.theme?.primaryColor || '#667eea'} 100%
+                      )`,
+                      boxShadow: `0 0 8px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.3)}`
+                    }
+                  }}>
                     <CardContent>
-                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <ChartBarIcon color="primary" />
+                      <Typography variant="h6" sx={{ 
+                        mb: 3, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1.5,
+                        fontWeight: 700,
+                        background: `linear-gradient(135deg, 
+                          ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                          ${settings?.theme?.primaryColor || '#667eea'} 100%
+                        )`,
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                      }}>
+                        <Box sx={{
+                          p: 1,
+                          borderRadius: '8px',
+                          background: `linear-gradient(135deg, 
+                            ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                            ${settings?.theme?.primaryColor || '#667eea'} 100%
+                          )`,
+                          color: 'white',
+                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.25)}`,
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <ChartBarIcon sx={{ fontSize: 20 }} />
+                        </Box>
                         Tipos de Gráficas
                       </Typography>
                       
@@ -1427,26 +1913,92 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                 <Tooltip title={`Esquema ${name}: ideal para ${getChartSchemeDescription(value)}`} arrow>
                                   <Card
                                     sx={{
-                                      p: 1,
+                                      p: 1.5,
                                       cursor: 'pointer',
+                                      borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
                                       border: dashboardSettings.charts?.colorScheme === value ? 
-                                        `2px solid ${theme.palette.primary.main}` : 
-                                        `1px solid ${theme.palette.divider}`,
+                                        `2px solid ${colors[0]}` : 
+                                        `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                      background: `linear-gradient(135deg, 
+                                        ${alpha(colors[0], 0.05)} 0%, 
+                                        ${alpha(theme.palette.background.paper, 0.95)} 100%
+                                      )`,
+                                      backdropFilter: 'blur(10px)',
+                                      position: 'relative',
+                                      overflow: 'hidden',
+                                      transition: settings?.theme?.animations ? 
+                                        'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' : 
+                                        'all 0.2s ease',
+                                      '&::before': dashboardSettings.charts?.colorScheme === value ? {
+                                        content: '""',
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        background: `linear-gradient(45deg, 
+                                          transparent 30%, 
+                                          ${alpha(colors[0], 0.1)} 50%, 
+                                          transparent 70%
+                                        )`,
+                                        animation: settings?.theme?.animations ? 'shimmer 2s infinite' : 'none'
+                                      } : {},
                                       '&:hover': {
-                                        boxShadow: theme.shadows[4]
+                                        transform: settings?.theme?.animations ? 'translateY(-3px) scale(1.02)' : 'translateY(-2px)',
+                                        boxShadow: `0 8px 24px ${alpha(colors[0], 0.25)}`,
+                                        border: `2px solid ${alpha(colors[0], 0.6)}`,
+                                        '&::after': {
+                                          content: '""',
+                                          position: 'absolute',
+                                          top: 0,
+                                          left: 0,
+                                          right: 0,
+                                          bottom: 0,
+                                          background: `linear-gradient(135deg, 
+                                            ${alpha(colors[0], 0.08)} 0%, 
+                                            transparent 100%
+                                          )`,
+                                          pointerEvents: 'none'
+                                        }
                                       }
                                     }}
                                     onClick={() => updateDashboardSetting('charts.colorScheme', value)}
                                   >
-                                    <Box sx={{ display: 'flex', mb: 1, height: 20 }}>
+                                    <Box sx={{ 
+                                      display: 'flex', 
+                                      mb: 1.5, 
+                                      height: 24,
+                                      borderRadius: `${(settings?.theme?.borderRadius || 8) * 0.75}px`,
+                                      overflow: 'hidden',
+                                      boxShadow: `0 2px 8px ${alpha(colors[0], 0.2)}`,
+                                      border: `1px solid ${alpha(colors[0], 0.1)}`
+                                    }}>
                                       {colors.map((color, index) => (
                                         <Box
                                           key={index}
                                           sx={{
                                             flex: 1,
                                             backgroundColor: color,
-                                            '&:first-of-type': { borderTopLeftRadius: 4, borderBottomLeftRadius: 4 },
-                                            '&:last-of-type': { borderTopRightRadius: 4, borderBottomRightRadius: 4 }
+                                            position: 'relative',
+                                            transition: settings?.theme?.animations ? 'all 0.3s ease' : 'none',
+                                            '&:hover': settings?.theme?.animations ? {
+                                              transform: 'scaleY(1.1)',
+                                              zIndex: 1
+                                            } : {},
+                                            '&::after': {
+                                              content: '""',
+                                              position: 'absolute',
+                                              top: 0,
+                                              left: 0,
+                                              right: 0,
+                                              bottom: 0,
+                                              background: `linear-gradient(135deg, 
+                                                ${alpha('#ffffff', 0.2)} 0%, 
+                                                transparent 50%, 
+                                                ${alpha('#000000', 0.1)} 100%
+                                              )`,
+                                              pointerEvents: 'none'
+                                            }
                                           }}
                                         />
                                       ))}
@@ -1525,10 +2077,61 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   </Card>
 
                   {/* Widgets Configuration */}
-                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                  <Card sx={{ 
+                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                    background: `linear-gradient(135deg, 
+                      ${alpha('#4facfe', 0.03)} 0%, 
+                      ${alpha(theme.palette.background.paper, 0.98)} 100%
+                    )`,
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      background: `linear-gradient(90deg, 
+                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                      )`,
+                      boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
+                    }
+                  }}>
                     <CardContent>
-                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <DashboardIcon color="primary" />
+                      <Typography variant="h6" sx={{ 
+                        mb: 3, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1.5,
+                        fontWeight: 700,
+                        background: `linear-gradient(135deg, 
+                          ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                          ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                        )`,
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                      }}>
+                        <Box sx={{
+                          p: 1,
+                          borderRadius: '8px',
+                          background: `linear-gradient(135deg, 
+                            ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                            ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                          )`,
+                          color: 'white',
+                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <DashboardIcon sx={{ fontSize: 20 }} />
+                        </Box>
                         Widgets del Dashboard
                       </Typography>
                       
@@ -1565,10 +2168,61 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   </Card>
 
                   {/* Reset Dashboard Settings */}
-                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                  <Card sx={{ 
+                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                    background: `linear-gradient(135deg, 
+                      ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
+                      ${alpha(theme.palette.background.paper, 0.98)} 100%
+                    )`,
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      background: `linear-gradient(90deg, 
+                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                      )`,
+                      boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
+                    }
+                  }}>
                     <CardContent>
-                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <RestartIcon color="primary" />
+                      <Typography variant="h6" sx={{ 
+                        mb: 3, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1.5,
+                        fontWeight: 700,
+                        background: `linear-gradient(135deg, 
+                          ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                          ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                        )`,
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                      }}>
+                        <Box sx={{
+                          p: 1,
+                          borderRadius: '8px',
+                          background: `linear-gradient(135deg, 
+                            ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                            ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                          )`,
+                          color: 'white',
+                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <RestartIcon sx={{ fontSize: 20 }} />
+                        </Box>
                         Restaurar Configuración
                       </Typography>
                       
@@ -1581,7 +2235,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         <Box sx={{ display: 'flex', gap: 2 }}>
                           <Button
                             variant="outlined"
-                            color="warning"
                             startIcon={<RestartIcon />}
                             onClick={() => {
                               updateSettings('dashboard', defaultDashboard);
@@ -1592,12 +2245,47 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                               }, 3000);
                             }}
                             sx={{
-                              borderColor: theme.palette.warning.main,
-                              color: theme.palette.warning.main,
+                              borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                              borderColor: '#ff6b6b',
+                              color: '#ff6b6b',
+                              background: `linear-gradient(135deg, 
+                                ${alpha('#ff6b6b', 0.05)} 0%, 
+                                transparent 100%
+                              )`,
+                              backdropFilter: 'blur(10px)',
+                              position: 'relative',
+                              overflow: 'hidden',
+                              transition: settings?.theme?.animations ? 
+                                'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' : 
+                                'all 0.2s ease',
                               '&:hover': {
-                                borderColor: theme.palette.warning.dark,
-                                backgroundColor: alpha(theme.palette.warning.main, 0.04)
-                              }
+                                borderColor: '#ff5252',
+                                background: `linear-gradient(135deg, 
+                                  #ff6b6b 0%, 
+                                  #ffa726 100%
+                                )`,
+                                color: 'white',
+                                transform: settings?.theme?.animations ? 'translateY(-2px)' : 'none',
+                                boxShadow: `0 8px 24px ${alpha('#ff6b6b', 0.3)}`,
+                                '&::before': settings?.theme?.animations ? {
+                                  content: '""',
+                                  position: 'absolute',
+                                  top: '-50%',
+                                  left: '-50%',
+                                  width: '200%',
+                                  height: '200%',
+                                  background: `linear-gradient(45deg, 
+                                    transparent 30%, 
+                                    ${alpha('#ffffff', 0.2)} 50%, 
+                                    transparent 70%
+                                  )`,
+                                  animation: 'shimmer 2s infinite',
+                                  transform: 'translateX(-100%)'
+                                } : {}
+                              },
+                              py: 1.5,
+                              px: 3,
+                              fontWeight: 600
                             }}
                           >
                             Restaurar Dashboard
@@ -1615,10 +2303,61 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
               <TabPanel value={activeTab} index={2}>
                 <Stack spacing={3}>
                   {/* Notifications Main Settings */}
-                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                  <Card sx={{ 
+                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                    background: `linear-gradient(135deg, 
+                      ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
+                      ${alpha(theme.palette.background.paper, 0.98)} 100%
+                    )`,
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      background: `linear-gradient(90deg, 
+                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                      )`,
+                      boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
+                    }
+                  }}>
                     <CardContent>
-                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <NotificationsIcon color="primary" />
+                      <Typography variant="h6" sx={{ 
+                        mb: 3, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1.5,
+                        fontWeight: 700,
+                        background: `linear-gradient(135deg, 
+                          ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                          ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                        )`,
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                      }}>
+                        <Box sx={{
+                          p: 1,
+                          borderRadius: '8px',
+                          background: `linear-gradient(135deg, 
+                            ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                            ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                          )`,
+                          color: 'white',
+                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <NotificationsIcon sx={{ fontSize: 20 }} />
+                        </Box>
                         Configuración General
                       </Typography>
 
@@ -1663,10 +2402,61 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   {settings.notifications?.enabled && (
                     <>
                       {/* Threshold Configuration */}
-                      <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                      <Card sx={{ 
+                        border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                        borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                        background: `linear-gradient(135deg, 
+                          ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.03)} 0%, 
+                          ${alpha(theme.palette.background.paper, 0.98)} 100%
+                        )`,
+                        backdropFilter: 'blur(10px)',
+                        boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: '3px',
+                          background: `linear-gradient(90deg, 
+                            ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                            ${settings?.theme?.primaryColor || '#667eea'} 100%
+                          )`,
+                          boxShadow: `0 0 8px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.3)}`
+                        }
+                      }}>
                         <CardContent>
-                          <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <SpeedIcon color="primary" />
+                          <Typography variant="h6" sx={{ 
+                            mb: 3, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1.5,
+                            fontWeight: 700,
+                            background: `linear-gradient(135deg, 
+                              ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                              ${settings?.theme?.primaryColor || '#667eea'} 100%
+                            )`,
+                            backgroundClip: 'text',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                          }}>
+                            <Box sx={{
+                              p: 1,
+                              borderRadius: '8px',
+                              background: `linear-gradient(135deg, 
+                                ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                                ${settings?.theme?.primaryColor || '#667eea'} 100%
+                              )`,
+                              color: 'white',
+                              boxShadow: `0 4px 12px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.25)}`,
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}>
+                              <SpeedIcon sx={{ fontSize: 20 }} />
+                            </Box>
                             Configuración de Umbrales
                           </Typography>
                           
@@ -1712,10 +2502,61 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       </Card>
 
                       {/* Notification Types */}
-                      <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                      <Card sx={{ 
+                        border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                        borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                        background: `linear-gradient(135deg, 
+                          ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
+                          ${alpha(theme.palette.background.paper, 0.98)} 100%
+                        )`,
+                        backdropFilter: 'blur(10px)',
+                        boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: '3px',
+                          background: `linear-gradient(90deg, 
+                            ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                            ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                          )`,
+                          boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
+                        }
+                      }}>
                         <CardContent>
-                          <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Badge color="primary" />
+                          <Typography variant="h6" sx={{ 
+                            mb: 3, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1.5,
+                            fontWeight: 700,
+                            background: `linear-gradient(135deg, 
+                              ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                              ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                            )`,
+                            backgroundClip: 'text',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                          }}>
+                            <Box sx={{
+                              p: 1,
+                              borderRadius: '8px',
+                              background: `linear-gradient(135deg, 
+                                ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                                ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                              )`,
+                              color: 'white',
+                              boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}>
+                              <NotificationsIcon sx={{ fontSize: 20 }} />
+                            </Box>
                             Tipos de Notificaciones
                           </Typography>
                           
@@ -1940,10 +2781,61 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       </Card>
 
                       {/* Notification Preview */}
-                      <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                      <Card sx={{ 
+                        border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                        borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                        background: `linear-gradient(135deg, 
+                          ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.03)} 0%, 
+                          ${alpha(theme.palette.background.paper, 0.98)} 100%
+                        )`,
+                        backdropFilter: 'blur(10px)',
+                        boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: '3px',
+                          background: `linear-gradient(90deg, 
+                            ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                            ${settings?.theme?.primaryColor || '#667eea'} 100%
+                          )`,
+                          boxShadow: `0 0 8px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.3)}`
+                        }
+                      }}>
                         <CardContent>
-                          <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <NotificationsIcon color="primary" />
+                          <Typography variant="h6" sx={{ 
+                            mb: 3, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1.5,
+                            fontWeight: 700,
+                            background: `linear-gradient(135deg, 
+                              ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                              ${settings?.theme?.primaryColor || '#667eea'} 100%
+                            )`,
+                            backgroundClip: 'text',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                          }}>
+                            <Box sx={{
+                              p: 1,
+                              borderRadius: '8px',
+                              background: `linear-gradient(135deg, 
+                                ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                                ${settings?.theme?.primaryColor || '#667eea'} 100%
+                              )`,
+                              color: 'white',
+                              boxShadow: `0 4px 12px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.25)}`,
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}>
+                              <NotificationsIcon sx={{ fontSize: 20 }} />
+                            </Box>
                             Vista Previa de Notificaciones
                           </Typography>
                           
@@ -2017,10 +2909,61 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       </Card>
 
                       {/* Action Buttons */}
-                      <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                      <Card sx={{ 
+                        border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                        borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                        background: `linear-gradient(135deg, 
+                          ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
+                          ${alpha(theme.palette.background.paper, 0.98)} 100%
+                        )`,
+                        backdropFilter: 'blur(10px)',
+                        boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
+                        position: 'relative',
+                        overflow: 'hidden',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: '3px',
+                          background: `linear-gradient(90deg, 
+                            ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                            ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                          )`,
+                          boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
+                        }
+                      }}>
                         <CardContent>
-                          <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <SettingsIcon color="primary" />
+                          <Typography variant="h6" sx={{ 
+                            mb: 3, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1.5,
+                            fontWeight: 700,
+                            background: `linear-gradient(135deg, 
+                              ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                              ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                            )`,
+                            backgroundClip: 'text',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                          }}>
+                            <Box sx={{
+                              p: 1,
+                              borderRadius: '8px',
+                              background: `linear-gradient(135deg, 
+                                ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                                ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                              )`,
+                              color: 'white',
+                              boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
+                              display: 'flex',
+                              alignItems: 'center'
+                            }}>
+                              <SettingsIcon sx={{ fontSize: 20 }} />
+                            </Box>
                             Acciones de Configuración
                           </Typography>
                           
@@ -2088,10 +3031,61 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
               <TabPanel value={activeTab} index={3}>
                 <Stack spacing={3}>
                   {/* Historial de Inicios de Sesión */}
-                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                  <Card sx={{ 
+                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                    background: `linear-gradient(135deg, 
+                      ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
+                      ${alpha(theme.palette.background.paper, 0.98)} 100%
+                    )`,
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      background: `linear-gradient(90deg, 
+                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                      )`,
+                      boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
+                    }
+                  }}>
                     <CardContent>
-                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <HistoryIcon color="primary" />
+                      <Typography variant="h6" sx={{ 
+                        mb: 3, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1.5,
+                        fontWeight: 700,
+                        background: `linear-gradient(135deg, 
+                          ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                          ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                        )`,
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                      }}>
+                        <Box sx={{
+                          p: 1,
+                          borderRadius: '8px',
+                          background: `linear-gradient(135deg, 
+                            ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                            ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                          )`,
+                          color: 'white',
+                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <HistoryIcon sx={{ fontSize: 20 }} />
+                        </Box>
                         Historial de Inicios de Sesión
                       </Typography>
 
@@ -2161,10 +3155,61 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   </Card>
 
                   {/* Gestión de Sesiones Activas */}
-                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                  <Card sx={{ 
+                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                    background: `linear-gradient(135deg, 
+                      ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.03)} 0%, 
+                      ${alpha(theme.palette.background.paper, 0.98)} 100%
+                    )`,
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      background: `linear-gradient(90deg, 
+                        ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                        ${settings?.theme?.primaryColor || '#667eea'} 100%
+                      )`,
+                      boxShadow: `0 0 8px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.3)}`
+                    }
+                  }}>
                     <CardContent>
-                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <DevicesIcon color="primary" />
+                      <Typography variant="h6" sx={{ 
+                        mb: 3, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1.5,
+                        fontWeight: 700,
+                        background: `linear-gradient(135deg, 
+                          ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                          ${settings?.theme?.primaryColor || '#667eea'} 100%
+                        )`,
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                      }}>
+                        <Box sx={{
+                          p: 1,
+                          borderRadius: '8px',
+                          background: `linear-gradient(135deg, 
+                            ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
+                            ${settings?.theme?.primaryColor || '#667eea'} 100%
+                          )`,
+                          color: 'white',
+                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.25)}`,
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <DevicesIcon sx={{ fontSize: 20 }} />
+                        </Box>
                         Sesiones Activas
                       </Typography>
 
@@ -2252,10 +3297,61 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   </Card>
 
                   {/* Notificaciones de Seguridad */}
-                  <Card sx={{ border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                  <Card sx={{ 
+                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
+                    background: `linear-gradient(135deg, 
+                      ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
+                      ${alpha(theme.palette.background.paper, 0.98)} 100%
+                    )`,
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '3px',
+                      background: `linear-gradient(90deg, 
+                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                      )`,
+                      boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
+                    }
+                  }}>
                     <CardContent>
-                      <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <EmailIcon color="primary" />
+                      <Typography variant="h6" sx={{ 
+                        mb: 3, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1.5,
+                        fontWeight: 700,
+                        background: `linear-gradient(135deg, 
+                          ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                          ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                        )`,
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                      }}>
+                        <Box sx={{
+                          p: 1,
+                          borderRadius: '8px',
+                          background: `linear-gradient(135deg, 
+                            ${settings?.theme?.primaryColor || '#667eea'} 0%, 
+                            ${settings?.theme?.secondaryColor || '#764ba2'} 100%
+                          )`,
+                          color: 'white',
+                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <EmailIcon sx={{ fontSize: 20 }} />
+                        </Box>
                         Notificaciones de Seguridad
                       </Typography>
 
