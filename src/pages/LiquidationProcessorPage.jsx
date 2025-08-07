@@ -125,11 +125,11 @@ const StyledContainer = styled(Box)(({ theme }) => ({
 }));
 
 const UploadZone = styled(Box, {
-  shouldForwardProp: (prop) => prop !== 'isDragOver' && prop !== 'hasFile',
-})(({ theme, isDragOver, hasFile }) => ({
+  shouldForwardProp: (prop) => prop !== 'isDragOver' && prop !== 'hasFile' && prop !== 'borderRadius',
+})(({ theme, isDragOver, hasFile, borderRadius }) => ({
   position: 'relative',
   border: `2px dashed ${hasFile ? theme.palette.success.main : isDragOver ? theme.palette.secondary.main : theme.palette.primary.main}`,
-  borderRadius: theme.shape.borderRadius * 3,
+  borderRadius: borderRadius || theme.shape.borderRadius,
   padding: theme.spacing(5),
   textAlign: 'center',
   cursor: 'pointer',
@@ -217,11 +217,13 @@ const ProcessButton = styled(Button)(({ theme }) => ({
   }
 }));
 
-const SpectacularCard = styled(Card)(({ theme }) => ({
+const SpectacularCard = styled(Card, {
+  shouldForwardProp: (prop) => prop !== 'borderRadius',
+})(({ theme, borderRadius }) => ({
   position: 'relative',
   background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.95)}, ${alpha(theme.palette.background.default, 0.98)})`,
   backdropFilter: 'blur(20px)',
-  borderRadius: theme.shape.borderRadius * 3,
+  borderRadius: borderRadius || theme.shape.borderRadius,
   border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
   boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.1)}`,
   transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -376,10 +378,12 @@ const SpectacularButton = styled(Button)(({ theme, variant = 'contained', color 
   }
 }));
 
-const SpectacularPaper = styled(Paper)(({ theme }) => ({
+const SpectacularPaper = styled(Paper, {
+  shouldForwardProp: (prop) => prop !== 'borderRadius',
+})(({ theme, borderRadius }) => ({
   background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.9)}, ${alpha(theme.palette.background.default, 0.95)})`,
   backdropFilter: 'blur(20px)',
-  borderRadius: theme.shape.borderRadius * 2,
+  borderRadius: borderRadius || theme.shape.borderRadius,
   border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
   boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.08)}`,
   overflow: 'hidden',
@@ -461,11 +465,17 @@ const findLocalCode = (row, inventoryData) => {
   const nuid = row.NUID?.toString().trim();
   const serial = row.Serial?.toString().trim();
   
+  console.log('🔍 Buscando código de local para:', { nuc, nuid, serial });
+  
   // Buscar por Serial primero (más específico)
   let match = inventoryData.find(inv => {
     const invSerial = inv.Serial?.toString().trim();
     return serial && invSerial === serial;
   });
+  
+  if (match) {
+    console.log('✅ Encontrado match por Serial:', serial);
+  }
   
   // Si no encuentra por Serial, buscar por NUC
   if (!match && nuc) {
@@ -473,6 +483,9 @@ const findLocalCode = (row, inventoryData) => {
       const invNUC = inv.NUC?.toString().trim();
       return invNUC === nuc;
     });
+    if (match) {
+      console.log('✅ Encontrado match por NUC:', nuc);
+    }
   }
   
   // Si no encuentra por NUC, buscar por NUID
@@ -481,42 +494,67 @@ const findLocalCode = (row, inventoryData) => {
       const invNUID = inv.NUID?.toString().trim();
       return invNUID === nuid;
     });
+    if (match) {
+      console.log('✅ Encontrado match por NUID:', nuid);
+    }
   }
   
   if (match) {
+    console.log('📋 Columnas disponibles en match:', Object.keys(match));
+    
     // Buscar por nombres exactos PRIMERO (incluyendo "Código Local")
     const possibleKeys = [
       'Código Local',        // ✅ Tu columna exacta
-      'Código de local', 
+      'Código de Local',     // ✅ Variante con mayúscula
       'Codigo Local',        // ✅ Variante sin tilde
-      'Codigo de local', 
-      'Código local', 
-      'Codigo local',
+      'Codigo de Local',     // ✅ Variante sin tilde con mayúscula
+      'Código local',        // ✅ Variante minúscula
+      'Codigo local',        // ✅ Variante sin tilde minúscula
       'CÓDIGO LOCAL',        // ✅ Mayúsculas
       'CODIGO LOCAL',        // ✅ Mayúsculas sin tilde
       'CÓDIGO DE LOCAL', 
       'CODIGO DE LOCAL', 
       'CodigoLocal', 
+      'codigoLocal',
       'Codigo_Local',
-      'codigo_local', 
+      'codigo_local',
+      'Local',               // ✅ Solo "Local"
+      'LOCAL',               // ✅ Solo "LOCAL"
       'Codigo', 
       'Código', 
-      'codigo'
+      'codigo',
+      'CODIGO',
+      'Code',
+      'code'
     ];
     
     for (const key of possibleKeys) {
-      if (match[key] !== undefined) {
+      if (match[key] !== undefined && match[key] !== null && match[key] !== '') {
         console.log(`✅ ENCONTRADO código de local en "${key}":`, match[key]);
-        return match[key] || 'No encontrado';
+        return match[key].toString();
       }
     }
     
     // Si no encuentra por nombres exactos, buscar con lógica inteligente
     for (const key of Object.keys(match)) {
       const lowerKey = key.toLowerCase();
-      if (lowerKey.includes('codigo') && lowerKey.includes('local')) {
-        console.log(`✅ ENCONTRADO por búsqueda inteligente en "${key}":`, match[key]);
-        return match[key] || 'No encontrado';
+      // Buscar claves que contengan "codigo" o "local" o "code"
+      if ((lowerKey.includes('codigo') || lowerKey.includes('code')) && 
+          (lowerKey.includes('local') || lowerKey.includes('establecimiento'))) {
+        if (match[key] !== undefined && match[key] !== null && match[key] !== '') {
+          console.log(`✅ ENCONTRADO por búsqueda inteligente en "${key}":`, match[key]);
+          return match[key].toString();
+        }
+      }
+    }
+    
+    // Buscar solo por "local" o "code" como último recurso
+    for (const key of Object.keys(match)) {
+      const lowerKey = key.toLowerCase();
+      if ((lowerKey === 'local' || lowerKey === 'code' || lowerKey === 'codigo') && 
+          match[key] !== undefined && match[key] !== null && match[key] !== '') {
+        console.log(`✅ ENCONTRADO por búsqueda de último recurso en "${key}":`, match[key]);
+        return match[key].toString();
       }
     }
     
@@ -524,6 +562,7 @@ const findLocalCode = (row, inventoryData) => {
     return 'No encontrado';
   }
   
+  console.log('❌ NO ENCONTRADO match para NUC/NUID/Serial');
   return 'No encontrado';
 };
 
@@ -565,7 +604,29 @@ const findInventoryNIT = (row, inventoryData) => {
 
 // Función para procesar archivos con el nuevo formato "Liquidación Final"
 const processFiles = (liquidationData, inventoryData, findCompanyByNIT) => {
-  return liquidationData.map(row => {
+  console.log('🚀 Iniciando procesamiento de archivos');
+  console.log('📊 Datos de liquidación:', liquidationData.length, 'filas');
+  console.log('📋 Datos de inventario:', inventoryData.length, 'filas');
+  
+  // Debug: Mostrar estructura de datos
+  if (liquidationData.length > 0) {
+    console.log('🔍 Estructura liquidación (primera fila):', Object.keys(liquidationData[0]));
+    console.log('🔍 Primera fila liquidación:', liquidationData[0]);
+  }
+  if (inventoryData.length > 0) {
+    console.log('🔍 Estructura inventario (primera fila):', Object.keys(inventoryData[0]));
+    console.log('🔍 Primera fila inventario:', inventoryData[0]);
+  }
+
+  return liquidationData.map((row, index) => {
+    if (index < 3) { // Solo debug primeras 3 filas para no saturar consola
+      console.log(`\n📄 Procesando fila ${index + 1}:`, {
+        NUC: row.NUC,
+        Serial: row.Serial,
+        NUID: row.NUID
+      });
+    }
+    
     // Buscar cada campo por separado usando la misma lógica
     const establishment = findEstablishment(row, inventoryData);
     const localCode = findLocalCode(row, inventoryData);
@@ -573,6 +634,15 @@ const processFiles = (liquidationData, inventoryData, findCompanyByNIT) => {
     
     // Buscar empresa por NIT del inventario
     const companyName = inventoryNIT ? findCompanyByNIT(inventoryNIT) : 'No encontrado';
+
+    if (index < 3) { // Solo debug primeras 3 filas
+      console.log(`📊 Resultado fila ${index + 1}:`, {
+        localCode,
+        establishment,
+        inventoryNIT,
+        companyName
+      });
+    }
     
     return {
       'Periodo': convertPeriodToText(row.Periodo?.toString()),
@@ -917,6 +987,48 @@ const LiquidationProcessorPage = () => {
               
               {/* Botones de Acción */}
               <Box display="flex" gap={2}>
+                {/* Botón Limpiar */}
+                <motion.div
+                  initial={settings.theme?.animations ? { x: 20, opacity: 0 } : {}}
+                  animate={settings.theme?.animations ? { x: 0, opacity: 1 } : { x: 0, opacity: 1 }}
+                  transition={settings.theme?.animations ? { delay: 0.1, duration: 0.5 } : { duration: 0 }}
+                  whileHover={settings.theme?.animations ? { scale: 1.05 } : {}}
+                  whileTap={settings.theme?.animations ? { scale: 0.95 } : {}}
+                >
+                  <Button
+                    variant="outlined"
+                    startIcon={<DeleteSweep />}
+                    onClick={handleClearAll}
+                    disabled={!liquidationFile && !inventoryFile && !processedData.length}
+                    size={settings.theme?.compactMode ? "medium" : "large"}
+                    sx={{
+                      py: settings.theme?.compactMode ? 1 : 1.5,
+                      px: settings.theme?.compactMode ? 2.5 : 3.5,
+                      fontSize: settings.theme?.fontSize ? `${settings.theme.fontSize * 1}px` : '1rem',
+                      fontWeight: 600,
+                      fontFamily: settings.theme?.fontFamily || 'inherit',
+                      borderRadius: `${settings.theme?.borderRadius || 16}px`,
+                      border: '2px solid rgba(255, 255, 255, 0.5)',
+                      color: 'white',
+                      textTransform: 'none',
+                      backdropFilter: 'blur(10px)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': {
+                        background: 'rgba(255, 152, 0, 0.15)', // Naranja suave para indicar limpieza
+                        borderColor: 'rgba(255, 193, 7, 0.8)',
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 6px 20px rgba(255, 152, 0, 0.3)'
+                      },
+                      '&:disabled': {
+                        opacity: 0.6,
+                        cursor: 'not-allowed'
+                      }
+                    }}
+                  >
+                    Limpiar Todo
+                  </Button>
+                </motion.div>
+
                 {/* Botón Guardar */}
                 <motion.div
                   initial={settings.theme?.animations ? { x: 20, opacity: 0 } : {}}
@@ -1007,7 +1119,7 @@ const LiquidationProcessorPage = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              <SpectacularCard sx={{ height: '100%' }}>
+              <SpectacularCard sx={{ height: '100%' }} borderRadius={settings.theme?.borderRadius}>
                 <CardContent>
                   <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Assignment color="primary" />
@@ -1017,6 +1129,7 @@ const LiquidationProcessorPage = () => {
                   <UploadZone
                     hasFile={liquidationFile !== null}
                     isDragOver={dragOverLiquidation}
+                    borderRadius={settings.theme?.borderRadius}
                     onDragOver={(e) => handleDragOver(e, 'liquidation')}
                     onDragLeave={(e) => handleDragLeave(e, 'liquidation')}
                     onDrop={(e) => handleDrop(e, 'liquidation')}
@@ -1064,7 +1177,7 @@ const LiquidationProcessorPage = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
             >
-              <SpectacularCard sx={{ height: '100%' }}>
+              <SpectacularCard sx={{ height: '100%' }} borderRadius={settings.theme?.borderRadius}>
                 <CardContent>
                   <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <TableView color="secondary" />
@@ -1074,6 +1187,7 @@ const LiquidationProcessorPage = () => {
                   <UploadZone
                     hasFile={inventoryFile !== null}
                     isDragOver={dragOverInventory}
+                    borderRadius={settings.theme?.borderRadius}
                     onDragOver={(e) => handleDragOver(e, 'inventory')}
                     onDragLeave={(e) => handleDragLeave(e, 'inventory')}
                     onDrop={(e) => handleDrop(e, 'inventory')}
@@ -1310,27 +1424,18 @@ const LiquidationProcessorPage = () => {
                     >
                       Limpiar Filtros
                     </SpectacularButton>
-
-                    <SpectacularButton
-                      variant="outlined"
-                      startIcon={<RestartAlt />}
-                      color="warning"
-                      onClick={handleClearAll}
-                      sx={{
-                        '&:hover': {
-                          background: 'linear-gradient(135deg, rgba(255, 152, 0, 0.1), rgba(255, 193, 7, 0.05))',
-                          borderColor: theme.palette.warning.main,
-                          transform: 'translateY(-2px)',
-                          boxShadow: `0 8px 20px ${alpha(theme.palette.warning.main, 0.3)}`
-                        }
-                      }}
-                    >
-                      Reiniciar Todo
-                    </SpectacularButton>
                   </Stack>
 
                   {/* Results Table */}
-                  <TableContainer component={SpectacularPaper} sx={{ maxHeight: 600 }}>
+                  <TableContainer 
+                    component={(props) => 
+                      <SpectacularPaper 
+                        {...props} 
+                        borderRadius={settings.theme?.borderRadius}
+                      />
+                    } 
+                    sx={{ maxHeight: 600 }}
+                  >
                     <Table stickyHeader>
                       <TableHead>
                         <TableRow>
