@@ -51,7 +51,10 @@ import {
   Clear,
   PlayArrow,
   Stop,
-  Settings
+  Settings,
+  DeleteSweep,
+  Save,
+  RestartAlt
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { styled } from '@mui/material/styles';
@@ -61,6 +64,9 @@ import useCompanies from '../hooks/useCompanies';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 import { saveAs } from 'file-saver';
+
+// Hooks y Context - AGREGADO useSettings
+import { useSettings } from '../context/SettingsContext';
 
 // Design System v2.1 utilities
 import {
@@ -441,7 +447,8 @@ const findEstablishment = (row, inventoryData) => {
   }
   
   if (match) {
-    return match['Nombre Establecimiento'] || match.Establecimiento || match.Nombre || match['Nombre de Establecimiento'] || match.establecimiento || 'No encontrado';
+    const establishment = match['Nombre Establecimiento'] || match.Establecimiento || match.Nombre || match['Nombre de Establecimiento'] || match.establecimiento || 'No encontrado';
+    return establishment;
   }
   
   return 'No encontrado';
@@ -477,7 +484,44 @@ const findLocalCode = (row, inventoryData) => {
   }
   
   if (match) {
-    return match['Código de local'] || match['Codigo de local'] || match['Código local'] || match['Codigo local'] || match.Codigo || match['Código'] || match.codigo || match['código de local'] || match['codigo de local'] || 'No encontrado';
+    // Buscar por nombres exactos PRIMERO (incluyendo "Código Local")
+    const possibleKeys = [
+      'Código Local',        // ✅ Tu columna exacta
+      'Código de local', 
+      'Codigo Local',        // ✅ Variante sin tilde
+      'Codigo de local', 
+      'Código local', 
+      'Codigo local',
+      'CÓDIGO LOCAL',        // ✅ Mayúsculas
+      'CODIGO LOCAL',        // ✅ Mayúsculas sin tilde
+      'CÓDIGO DE LOCAL', 
+      'CODIGO DE LOCAL', 
+      'CodigoLocal', 
+      'Codigo_Local',
+      'codigo_local', 
+      'Codigo', 
+      'Código', 
+      'codigo'
+    ];
+    
+    for (const key of possibleKeys) {
+      if (match[key] !== undefined) {
+        console.log(`✅ ENCONTRADO código de local en "${key}":`, match[key]);
+        return match[key] || 'No encontrado';
+      }
+    }
+    
+    // Si no encuentra por nombres exactos, buscar con lógica inteligente
+    for (const key of Object.keys(match)) {
+      const lowerKey = key.toLowerCase();
+      if (lowerKey.includes('codigo') && lowerKey.includes('local')) {
+        console.log(`✅ ENCONTRADO por búsqueda inteligente en "${key}":`, match[key]);
+        return match[key] || 'No encontrado';
+      }
+    }
+    
+    console.log('❌ NO ENCONTRADO código de local. Columnas disponibles:', Object.keys(match));
+    return 'No encontrado';
   }
   
   return 'No encontrado';
@@ -552,6 +596,9 @@ const processFiles = (liquidationData, inventoryData, findCompanyByNIT) => {
 const LiquidationProcessorPage = () => {
   const theme = useTheme();
   const gradients = useThemeGradients();
+
+  // Hook para configuración de temas - AGREGADO
+  const { settings } = useSettings();
 
   // Hook para obtener empresas de Firebase
   const { companies, loading: companiesLoading, error: companiesError, findCompanyByNIT } = useCompanies();
@@ -726,6 +773,36 @@ const LiquidationProcessorPage = () => {
     }
   }, [processedData, searchTerm, establishmentFilter, periodFilter]);
 
+  // Función para limpiar todo
+  const handleClearAll = useCallback(() => {
+    setLiquidationFile(null);
+    setInventoryFile(null);
+    setLiquidationData([]);
+    setInventoryData([]);
+    setProcessedData([]);
+    setSearchTerm('');
+    setEstablishmentFilter('all');
+    setPeriodFilter('all');
+    setShowResults(false);
+    setError(null);
+    setProcessing(false);
+  }, []);
+
+  // Función para guardar (placeholder para futura implementación)
+  const handleSave = useCallback(() => {
+    // TODO: Implementar funcionalidad de guardado
+    // Por ahora, solo mostramos un mensaje
+    console.log('Guardando configuración/datos...', {
+      hasLiquidationFile: !!liquidationFile,
+      hasInventoryFile: !!inventoryFile,
+      processedCount: processedData.length,
+      currentFilters: { searchTerm, establishmentFilter, periodFilter }
+    });
+    
+    // Simulamos guardado exitoso
+    // Aquí podrías implementar guardado en localStorage, Firebase, etc.
+  }, [liquidationFile, inventoryFile, processedData, searchTerm, establishmentFilter, periodFilter]);
+
   // Datos filtrados para mostrar
   const filteredResults = useMemo(() => {
     if (!processedData.length) return [];
@@ -769,43 +846,129 @@ const LiquidationProcessorPage = () => {
 
   return (
     <StyledContainer>
+      {/* Header Premium con Gradiente Dinámico - EXACTO a Due Commitments */}
+      <motion.div
+        initial={settings.theme?.animations ? { opacity: 0, y: -20 } : {}}
+        animate={settings.theme?.animations ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+        transition={settings.theme?.animations ? { duration: 0.6, type: "spring" } : { duration: 0 }}
+      >
+        <Box
+          sx={{
+            background: `linear-gradient(135deg, ${settings.theme?.primaryColor || '#667eea'} 0%, ${settings.theme?.secondaryColor || '#764ba2'} 100%)`,
+            borderRadius: `${settings.theme?.borderRadius || 16}px`,
+            p: settings.theme?.compactMode ? 3 : 4,
+            mb: 3,
+            color: 'white',
+            position: 'relative',
+            overflow: 'hidden',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: `${settings.theme?.borderRadius || 16}px`,
+              zIndex: 0,
+            }
+          }}
+        >
+          <Box sx={{ position: 'relative', zIndex: 1 }}>
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box display="flex" alignItems="center" gap={2}>
+                <Box
+                  sx={{
+                    p: 1.5,
+                    bgcolor: 'rgba(255, 255, 255, 0.2)',
+                    borderRadius: `${(settings.theme?.borderRadius || 16) / 2}px`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Analytics sx={{ fontSize: (settings.theme?.fontSize || 16) * 2.3, color: 'white' }} />
+                </Box>
+                <Box>
+                  <Typography 
+                    variant="h4" 
+                    fontWeight="700" 
+                    sx={{ 
+                      color: 'white', 
+                      mb: 0.5,
+                      fontSize: settings.theme?.fontSize ? `${settings.theme.fontSize + 8}px` : '2rem',
+                      fontFamily: settings.theme?.fontFamily || 'inherit'
+                    }}
+                  >
+                    Procesador de Liquidaciones
+                  </Typography>
+                  <Typography 
+                    variant="subtitle1" 
+                    sx={{ 
+                      color: 'rgba(255, 255, 255, 0.9)',
+                      fontSize: settings.theme?.fontSize ? `${settings.theme.fontSize + 2}px` : '1.125rem',
+                      fontFamily: settings.theme?.fontFamily || 'inherit'
+                    }}
+                  >
+                    Herramienta para cruzar datos entre Base de Liquidación e Inventario, generando la "Liquidación Final" con información completa
+                  </Typography>
+                </Box>
+              </Box>
+              
+              {/* Botones de Acción */}
+              <Box display="flex" gap={2}>
+                {/* Botón Guardar */}
+                <motion.div
+                  initial={settings.theme?.animations ? { x: 20, opacity: 0 } : {}}
+                  animate={settings.theme?.animations ? { x: 0, opacity: 1 } : { x: 0, opacity: 1 }}
+                  transition={settings.theme?.animations ? { delay: 0.2, duration: 0.5 } : { duration: 0 }}
+                  whileHover={settings.theme?.animations ? { scale: 1.05 } : {}}
+                  whileTap={settings.theme?.animations ? { scale: 0.95 } : {}}
+                >
+                  <Button
+                    variant="outlined"
+                    startIcon={<Save />}
+                    onClick={handleSave}
+                    disabled={!processedData.length}
+                    size={settings.theme?.compactMode ? "medium" : "large"}
+                    sx={{
+                      py: settings.theme?.compactMode ? 1 : 1.5,
+                      px: settings.theme?.compactMode ? 2.5 : 3.5,
+                      fontSize: settings.theme?.fontSize ? `${settings.theme.fontSize * 1}px` : '1rem',
+                      fontWeight: 600,
+                      fontFamily: settings.theme?.fontFamily || 'inherit',
+                      borderRadius: `${settings.theme?.borderRadius || 16}px`,
+                      border: '2px solid rgba(255, 255, 255, 0.5)',
+                      color: 'white',
+                      textTransform: 'none',
+                      backdropFilter: 'blur(10px)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': {
+                        background: 'rgba(255, 255, 255, 0.15)',
+                        borderColor: 'rgba(255, 255, 255, 0.8)',
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 6px 20px rgba(0, 0, 0, 0.3)'
+                      },
+                      '&:disabled': {
+                        opacity: 0.6,
+                        cursor: 'not-allowed'
+                      }
+                    }}
+                  >
+                    {!processedData.length ? 'Guardar' : 'Guardar Resultados'}
+                  </Button>
+                </motion.div>
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      </motion.div>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: 'easeOut' }}
       >
-        {/* Header */}
-        <Box sx={{ mb: 4 }}>
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-          >
-            <Typography 
-              variant="h3" 
-              sx={{ 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                fontWeight: 700,
-                mb: 1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2
-              }}
-            >
-              <Analytics sx={{ color: theme.palette.primary.main, fontSize: 40 }} />
-              Procesador de Liquidaciones
-            </Typography>
-          </motion.div>
-          
-          <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 800 }}>
-            Herramienta para cruzar datos entre Base de Liquidación e Inventario, 
-            generando la "Liquidación Final" con información completa y organizada por período
-          </Typography>
-        </Box>
-
         {/* Error Alert */}
         <AnimatePresence>
           {error && (
@@ -1147,6 +1310,23 @@ const LiquidationProcessorPage = () => {
                     >
                       Limpiar Filtros
                     </SpectacularButton>
+
+                    <SpectacularButton
+                      variant="outlined"
+                      startIcon={<RestartAlt />}
+                      color="warning"
+                      onClick={handleClearAll}
+                      sx={{
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, rgba(255, 152, 0, 0.1), rgba(255, 193, 7, 0.05))',
+                          borderColor: theme.palette.warning.main,
+                          transform: 'translateY(-2px)',
+                          boxShadow: `0 8px 20px ${alpha(theme.palette.warning.main, 0.3)}`
+                        }
+                      }}
+                    >
+                      Reiniciar Todo
+                    </SpectacularButton>
                   </Stack>
 
                   {/* Results Table */}
@@ -1187,25 +1367,11 @@ const LiquidationProcessorPage = () => {
                             <TableCell>{row.Periodo}</TableCell>
                             <TableCell>{row.NIT}</TableCell>
                             <TableCell>{row.Contrato}</TableCell>
-                            <TableCell>
-                              <SpectacularChip
-                                label={row.Empresa || 'No encontrado'}
-                                color={row.Empresa && row.Empresa !== 'No encontrado' ? 'success' : 'warning'}
-                                variant="outlined"
-                                size="small"
-                              />
-                            </TableCell>
+                            <TableCell>{row.Empresa || 'No encontrado'}</TableCell>
                             <TableCell>{row['Código de local']}</TableCell>
                             <TableCell>{row.NUC}</TableCell>
                             <TableCell>{row.Serial}</TableCell>
-                            <TableCell>
-                              <SpectacularChip
-                                label={row.Establecimiento}
-                                color={row.Establecimiento === 'No encontrado' ? 'warning' : 'success'}
-                                variant="outlined"
-                                size="small"
-                              />
-                            </TableCell>
+                            <TableCell>{row.Establecimiento}</TableCell>
                             <TableCell>{row.Tarifa}</TableCell>
                             <TableCell>{row.Entradas}</TableCell>
                             <TableCell>{row.Salidas}</TableCell>
