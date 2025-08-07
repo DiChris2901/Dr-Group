@@ -15,6 +15,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TablePagination,
   Paper,
   TextField,
   FormControl,
@@ -54,7 +55,11 @@ import {
   Settings,
   DeleteSweep,
   Save,
-  RestartAlt
+  RestartAlt,
+  FirstPage,
+  LastPage,
+  KeyboardArrowLeft,
+  KeyboardArrowRight
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { styled } from '@mui/material/styles';
@@ -404,6 +409,61 @@ const SpectacularPaper = styled(Paper, {
   }
 }));
 
+const SpectacularTablePagination = styled(TablePagination)(({ theme }) => ({
+  background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.95)}, ${alpha(theme.palette.background.default, 0.98)})`,
+  backdropFilter: 'blur(10px)',
+  borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+  '& .MuiTablePagination-toolbar': {
+    padding: theme.spacing(2),
+    minHeight: '60px',
+  },
+  '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+    color: theme.palette.text.primary,
+    fontWeight: 500,
+    fontSize: '0.9rem',
+  },
+  '& .MuiTablePagination-select': {
+    background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)}, ${alpha(theme.palette.primary.light, 0.04)})`,
+    borderRadius: theme.shape.borderRadius,
+    border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+    color: theme.palette.text.primary,
+    fontSize: '0.9rem',
+    fontWeight: 600,
+    padding: theme.spacing(1),
+    minWidth: '60px',
+    '&:focus': {
+      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.12)}, ${alpha(theme.palette.primary.light, 0.06)})`,
+    },
+    '&:hover': {
+      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.15)}, ${alpha(theme.palette.primary.light, 0.08)})`,
+    }
+  },
+  '& .MuiSelect-icon': {
+    color: theme.palette.primary.main,
+  },
+  '& .MuiTablePagination-actions': {
+    marginLeft: theme.spacing(2),
+    '& .MuiIconButton-root': {
+      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)}, ${alpha(theme.palette.primary.light, 0.04)})`,
+      borderRadius: theme.shape.borderRadius,
+      margin: theme.spacing(0, 0.5),
+      width: '40px',
+      height: '40px',
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      '&:hover': {
+        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.15)}, ${alpha(theme.palette.primary.light, 0.08)})`,
+        transform: 'translateY(-2px)',
+        boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.25)}`,
+      },
+      '&:disabled': {
+        background: alpha(theme.palette.action.disabled, 0.1),
+        color: theme.palette.action.disabled,
+        transform: 'none',
+      }
+    }
+  }
+}));
+
 // Función para convertir período a texto legible
 const convertPeriodToText = (period) => {
   if (!period || period.length !== 6) return period;
@@ -688,6 +748,10 @@ const LiquidationProcessorPage = () => {
   const [periodFilter, setPeriodFilter] = useState('all');
   const [showResults, setShowResults] = useState(false);
 
+  // Estados para paginación
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+
   // Estados para drag and drop
   const [dragOverLiquidation, setDragOverLiquidation] = useState(false);
   const [dragOverInventory, setDragOverInventory] = useState(false);
@@ -856,6 +920,7 @@ const LiquidationProcessorPage = () => {
     setShowResults(false);
     setError(null);
     setProcessing(false);
+    setPage(0); // Reset pagination
   }, []);
 
   // Función para guardar (placeholder para futura implementación)
@@ -872,6 +937,27 @@ const LiquidationProcessorPage = () => {
     // Simulamos guardado exitoso
     // Aquí podrías implementar guardado en localStorage, Firebase, etc.
   }, [liquidationFile, inventoryFile, processedData, searchTerm, establishmentFilter, periodFilter]);
+
+  // Handlers de paginación
+  const handleChangePage = useCallback((event, newPage) => {
+    setPage(newPage);
+  }, []);
+
+  const handleChangeRowsPerPage = useCallback((event) => {
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    setRowsPerPage(newRowsPerPage);
+    setPage(0);
+  }, []);
+
+  // Handler para resetear paginación cuando cambien los filtros
+  const resetPagination = useCallback(() => {
+    setPage(0);
+  }, []);
+
+  // Reset paginación cuando cambien los filtros
+  React.useEffect(() => {
+    resetPagination();
+  }, [searchTerm, establishmentFilter, periodFilter, resetPagination]);
 
   // Datos filtrados para mostrar
   const filteredResults = useMemo(() => {
@@ -892,6 +978,13 @@ const LiquidationProcessorPage = () => {
       return matchesSearch && matchesEstablishment && matchesPeriod;
     });
   }, [processedData, searchTerm, establishmentFilter, periodFilter]);
+
+  // Datos paginados para mostrar en la tabla
+  const paginatedResults = useMemo(() => {
+    const startIndex = page * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    return filteredResults.slice(startIndex, endIndex);
+  }, [filteredResults, page, rowsPerPage]);
 
   // Obtener valores únicos para filtros
   const uniqueEstablishments = useMemo(() => {
@@ -1457,9 +1550,9 @@ const LiquidationProcessorPage = () => {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {filteredResults.slice(0, 100).map((row, index) => (
+                        {paginatedResults.map((row, index) => (
                           <TableRow 
-                            key={index}
+                            key={`${page}-${index}`}
                             sx={{
                               '&:nth-of-type(odd)': {
                                 backgroundColor: alpha(theme.palette.primary.main, 0.02)
@@ -1485,15 +1578,130 @@ const LiquidationProcessorPage = () => {
                             <TableCell>{row['Gastos de Administración']}</TableCell>
                           </TableRow>
                         ))}
+                        {paginatedResults.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={14} align="center">
+                              <Box sx={{ py: 4 }}>
+                                <Typography variant="h6" color="text.secondary">
+                                  No se encontraron registros que coincidan con los filtros
+                                </Typography>
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        )}
                       </TableBody>
                     </Table>
+                    
+                    {/* Spectacular Pagination */}
+                    <SpectacularTablePagination
+                      component="div"
+                      count={filteredResults.length}
+                      page={page}
+                      onPageChange={handleChangePage}
+                      rowsPerPage={rowsPerPage}
+                      onRowsPerPageChange={handleChangeRowsPerPage}
+                      rowsPerPageOptions={[10, 25, 50, 100]}
+                      labelRowsPerPage="Registros por página:"
+                      labelDisplayedRows={({ from, to, count }) => 
+                        `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
+                      }
+                      showFirstButton
+                      showLastButton
+                    />
                   </TableContainer>
 
-                  {filteredResults.length > 100 && (
-                    <Box sx={{ mt: 2, textAlign: 'center' }}>
-                      <SpectacularAlert severity="info">
-                        Mostrando los primeros 100 registros de {filteredResults.length}. 
-                        Usa los filtros para refinar los resultados o exporta para ver todos.
+                  {/* Controles de Navegación Adicionales - Más Visibles */}
+                  {filteredResults.length > rowsPerPage && (
+                    <Box sx={{ 
+                      mt: 3, 
+                      mb: 2, 
+                      display: 'flex', 
+                      justifyContent: 'center', 
+                      alignItems: 'center',
+                      gap: 2,
+                      flexWrap: 'wrap'
+                    }}>
+                      {/* Botón Primera Página */}
+                      <SpectacularButton
+                        variant="outlined"
+                        size="small"
+                        startIcon={<FirstPage />}
+                        onClick={() => handleChangePage(null, 0)}
+                        disabled={page === 0}
+                        color="primary"
+                      >
+                        Primera
+                      </SpectacularButton>
+
+                      {/* Botón Página Anterior */}
+                      <SpectacularButton
+                        variant="outlined"
+                        size="small"
+                        startIcon={<KeyboardArrowLeft />}
+                        onClick={() => handleChangePage(null, page - 1)}
+                        disabled={page === 0}
+                        color="primary"
+                      >
+                        Anterior
+                      </SpectacularButton>
+
+                      {/* Indicador de Página Actual */}
+                      <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.primary.light, 0.05)})`,
+                        backdropFilter: 'blur(10px)',
+                        borderRadius: theme.shape.borderRadius * 2,
+                        padding: theme.spacing(1, 2),
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
+                      }}>
+                        <Typography variant="body2" fontWeight={600} color="primary">
+                          Página {page + 1} de {Math.ceil(filteredResults.length / rowsPerPage)}
+                        </Typography>
+                      </Box>
+
+                      {/* Botón Página Siguiente */}
+                      <SpectacularButton
+                        variant="outlined"
+                        size="small"
+                        endIcon={<KeyboardArrowRight />}
+                        onClick={() => handleChangePage(null, page + 1)}
+                        disabled={page >= Math.ceil(filteredResults.length / rowsPerPage) - 1}
+                        color="primary"
+                      >
+                        Siguiente
+                      </SpectacularButton>
+
+                      {/* Botón Última Página */}
+                      <SpectacularButton
+                        variant="outlined"
+                        size="small"
+                        endIcon={<LastPage />}
+                        onClick={() => handleChangePage(null, Math.max(0, Math.ceil(filteredResults.length / rowsPerPage) - 1))}
+                        disabled={page >= Math.ceil(filteredResults.length / rowsPerPage) - 1}
+                        color="primary"
+                      >
+                        Última
+                      </SpectacularButton>
+                    </Box>
+                  )}
+
+                  {/* Info sobre paginación */}
+                  {filteredResults.length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <SpectacularAlert severity="info" sx={{ textAlign: 'center' }}>
+                        <Stack direction="row" spacing={2} justifyContent="center" alignItems="center" flexWrap="wrap">
+                          <Typography variant="body2">
+                            📊 <strong>{filteredResults.length}</strong> registros encontrados
+                          </Typography>
+                          <Typography variant="body2">
+                            📄 Página <strong>{page + 1}</strong> de <strong>{Math.ceil(filteredResults.length / rowsPerPage)}</strong>
+                          </Typography>
+                          <Typography variant="body2">
+                            👁️ Mostrando <strong>{Math.min(rowsPerPage, filteredResults.length - page * rowsPerPage)}</strong> registros
+                          </Typography>
+                        </Stack>
                       </SpectacularAlert>
                     </Box>
                   )}
