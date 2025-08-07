@@ -700,14 +700,26 @@ const processFiles = (liquidationData, inventoryData, findCompanyByNIT) => {
     const localCode = findLocalCode(row, inventoryData);
     const inventoryNIT = findInventoryNIT(row, inventoryData);
     
-    // Buscar empresa por NIT del inventario
-    const companyName = inventoryNIT ? findCompanyByNIT(inventoryNIT) : 'No encontrado';
+    // Buscar empresa por NIT de liquidación PRIMERO, si no existe usar NIT de inventario
+    const liquidationNIT = row.NIT?.toString().trim();
+    let companyName = 'No encontrado';
+    
+    // Prioridad 1: Buscar por NIT de liquidación
+    if (liquidationNIT && liquidationNIT !== '') {
+      companyName = findCompanyByNIT(liquidationNIT);
+    }
+    
+    // Prioridad 2: Si no se encuentra, buscar por NIT de inventario
+    if (companyName === 'No encontrado' && inventoryNIT) {
+      companyName = findCompanyByNIT(inventoryNIT);
+    }
 
     if (index < 3) { // Solo debug primeras 3 filas
       console.log(`📊 Resultado fila ${index + 1}:`, {
+        liquidationNIT,
+        inventoryNIT,
         localCode,
         establishment,
-        inventoryNIT,
         companyName
       });
     }

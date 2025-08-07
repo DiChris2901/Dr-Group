@@ -12,9 +12,9 @@ const useCompanies = () => {
   useEffect(() => {
     if (!currentUser) {
       setLoading(false);
+      setError('Usuario no autenticado');
       return;
     }
-
     setLoading(true);
     setError(null);
 
@@ -23,40 +23,64 @@ const useCompanies = () => {
       orderBy('name', 'asc')
     );
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const companiesData = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          companiesData.push({
-            id: doc.id,
-            ...data,
-            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt)
-          });
-        });
+  const unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      const companiesData = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const company = {
+          id: doc.id,
+          ...data,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt)
+        };
+        companiesData.push(company);
+      });
 
-        setCompanies(companiesData);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('Error fetching companies:', error);
-        setError('Error al cargar empresas: ' + error.message);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
+      setCompanies(companiesData);
+      setLoading(false);
+    },
+    (error) => {
+      console.error('Error cargando empresas:', error);
+      setError('Error al cargar empresas: ' + error.message);
+      setLoading(false);
+    }
+  );    return () => {
+      unsubscribe();
+    };
   }, [currentUser]);
 
-  // Función helper para buscar empresa por NIT
+  // Función helper para normalizar NIT (quitar puntos, guiones y espacios)
+  const normalizeNIT = (nit) => {
+    if (!nit) return '';
+    return nit.toString().replace(/[\.\-\s]/g, '').trim().toUpperCase();
+  };
+
+  // Función helper para buscar empresa por NIT con comparación flexible
   const findCompanyByNIT = (nit) => {
-    if (!nit || !companies.length) return 'No encontrado';
+    if (!nit || !companies.length) {
+      return 'No encontrado';
+    }
     
-    const nitStr = nit.toString().trim();
-    const company = companies.find(comp => 
-      comp.nit?.toString().trim() === nitStr
-    );
+    const normalizedSearchNIT = normalizeNIT(nit);
+    
+    // Busqueda exacta primero
+    let company = companies.find(comp => {
+      const companyNIT = normalizeNIT(comp.nit);
+      return companyNIT === normalizedSearchNIT;
+    });
+    
+    // Si no se encuentra match exacto, buscar sin dígito verificador
+    if (!company) {
+      company = companies.find(comp => {
+        const companyNIT = normalizeNIT(comp.nit);
+        // Remover el último dígito (dígito verificador) para comparar
+        const companyNITWithoutDV = companyNIT.slice(0, -1);
+        const searchNITWithoutDV = normalizedSearchNIT.length > 9 ? normalizedSearchNIT.slice(0, -1) : normalizedSearchNIT;
+        
+        return companyNITWithoutDV === searchNITWithoutDV || companyNIT.startsWith(normalizedSearchNIT);
+      });
+    }
     
     return company ? company.name || 'No encontrado' : 'No encontrado';
   };
