@@ -61,7 +61,13 @@ import {
   KeyboardArrowLeft,
   KeyboardArrowRight,
   Business,
-  CalendarToday
+  CalendarToday,
+  AttachMoney,
+  AccountBalance,
+  TrendingUp,
+  PrecisionManufacturing,
+  ExpandMore,
+  ExpandLess
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { styled } from '@mui/material/styles';
@@ -758,6 +764,9 @@ const LiquidationProcessorPage = () => {
   const [dragOverLiquidation, setDragOverLiquidation] = useState(false);
   const [dragOverInventory, setDragOverInventory] = useState(false);
 
+  // Estado para expansión del análisis por salas
+  const [expandRoomAnalysis, setExpandRoomAnalysis] = useState(false);
+
   // Función para leer archivos
   const readFile = useCallback((file) => {
     return new Promise((resolve, reject) => {
@@ -999,15 +1008,84 @@ const LiquidationProcessorPage = () => {
     return [...new Set(periods)].sort();
   }, [processedData]);
 
-  // Stats para mostrar
+  // Función para convertir valores a números
+  const toNumber = useCallback((value) => {
+    if (!value) return 0;
+    const str = value.toString().replace(/[^\d.-]/g, '');
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : num;
+  }, []);
+
+  // Stats financieros y por salas
+  const financialStats = useMemo(() => {
+    const totalDerechos = processedData.reduce((sum, row) => {
+      return sum + toNumber(row['Derechos de Explotación']);
+    }, 0);
+
+    const totalGastos = processedData.reduce((sum, row) => {
+      return sum + toNumber(row['Gastos de Administración']);
+    }, 0);
+
+    const totalGeneral = totalDerechos + totalGastos;
+
+    return {
+      totalDerechos,
+      totalGastos,
+      totalGeneral
+    };
+  }, [processedData, toNumber]);
+
+  // Stats por salas
+  const roomStats = useMemo(() => {
+    const roomsData = {};
+
+    processedData.forEach(row => {
+      const establishment = row.Establecimiento;
+      if (!establishment || establishment === 'No encontrado') return;
+
+      if (!roomsData[establishment]) {
+        roomsData[establishment] = {
+          name: establishment,
+          machines: new Set(),
+          derechos: 0,
+          gastos: 0,
+          total: 0,
+          empresa: row.Empresa || 'No encontrado'
+        };
+      }
+
+      // Contar máquinas únicas por Serial/NUC
+      if (row.Serial) roomsData[establishment].machines.add(row.Serial);
+      else if (row.NUC) roomsData[establishment].machines.add(row.NUC);
+
+      roomsData[establishment].derechos += toNumber(row['Derechos de Explotación']);
+      roomsData[establishment].gastos += toNumber(row['Gastos de Administración']);
+      roomsData[establishment].total = roomsData[establishment].derechos + roomsData[establishment].gastos;
+    });
+
+    // Convertir Set a número para las máquinas
+    Object.keys(roomsData).forEach(key => {
+      roomsData[key].machinesCount = roomsData[key].machines.size;
+      delete roomsData[key].machines;
+    });
+
+    return Object.values(roomsData).sort((a, b) => b.total - a.total);
+  }, [processedData, toNumber]);
+
+  // Stats para mostrar (expandido con información financiera)
   const stats = useMemo(() => ({
     totalRecords: processedData.length,
     filteredRecords: filteredResults.length,
     establishments: uniqueEstablishments.length,
     periods: uniquePeriods.length,
     companiesFound: processedData.filter(row => row.Empresa && row.Empresa !== 'No encontrado').length,
-    establishmentsNotFound: processedData.filter(row => row.Establecimiento === 'No encontrado').length
-  }), [processedData, filteredResults, uniqueEstablishments, uniquePeriods]);
+    establishmentsNotFound: processedData.filter(row => row.Establecimiento === 'No encontrado').length,
+    // Nuevas estadísticas financieras
+    totalDerechos: financialStats.totalDerechos,
+    totalGastos: financialStats.totalGastos,
+    totalGeneral: financialStats.totalGeneral,
+    totalMachines: roomStats.reduce((sum, room) => sum + room.machinesCount, 0)
+  }), [processedData, filteredResults, uniqueEstablishments, uniquePeriods, financialStats, roomStats]);
 
   return (
     <StyledContainer>
@@ -1367,22 +1445,51 @@ const LiquidationProcessorPage = () => {
               exit={{ opacity: 0, y: -30 }}
               transition={{ duration: 0.6 }}
             >
-              {/* Stats Cards - Estilo DueCommitments */}
-              <Grid container spacing={3} mb={4}>
+              {/* Stats Cards - Expandidas con información financiera */}
+              <Grid container spacing={3} mb={4} justifyContent="center">
                 {[
                   {
-                    title: 'Total Registros',
-                    value: stats.totalRecords,
-                    icon: Assignment,
+                    title: 'Derechos Explotación',
+                    value: stats.totalDerechos.toLocaleString('es-CO', { 
+                      style: 'currency', 
+                      currency: 'COP',
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0
+                    }),
+                    icon: AttachMoney,
+                    iconBg: '#e8f5e8',
+                    iconColor: '#4caf50'
+                  },
+                  {
+                    title: 'Gastos Administración',
+                    value: stats.totalGastos.toLocaleString('es-CO', { 
+                      style: 'currency', 
+                      currency: 'COP',
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0
+                    }),
+                    icon: AccountBalance,
+                    iconBg: '#fff3e0',
+                    iconColor: '#ff9800'
+                  },
+                  {
+                    title: 'Total General',
+                    value: stats.totalGeneral.toLocaleString('es-CO', { 
+                      style: 'currency', 
+                      currency: 'COP',
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0
+                    }),
+                    icon: TrendingUp,
                     iconBg: '#e3f2fd',
                     iconColor: '#2196f3'
                   },
                   {
-                    title: 'Registros Filtrados',
-                    value: stats.filteredRecords,
-                    icon: FilterList,
-                    iconBg: '#e8f5e8',
-                    iconColor: '#4caf50'
+                    title: 'Total Máquinas',
+                    value: stats.totalMachines,
+                    icon: PrecisionManufacturing,
+                    iconBg: '#f3e5f5',
+                    iconColor: '#9c27b0'
                   },
                   {
                     title: 'Establecimientos',
@@ -1390,30 +1497,9 @@ const LiquidationProcessorPage = () => {
                     icon: Business,
                     iconBg: '#fff3e0',
                     iconColor: '#ff9800'
-                  },
-                  {
-                    title: 'Períodos',
-                    value: stats.periods,
-                    icon: CalendarToday,
-                    iconBg: '#f3e5f5',
-                    iconColor: '#9c27b0'
-                  },
-                  {
-                    title: 'Empresas Encontradas',
-                    value: stats.companiesFound,
-                    icon: CheckCircle,
-                    iconBg: '#e8f5e8',
-                    iconColor: '#4caf50'
-                  },
-                  {
-                    title: 'No Encontrados',
-                    value: stats.establishmentsNotFound,
-                    icon: Warning,
-                    iconBg: '#ffebee',
-                    iconColor: '#f44336'
                   }
                 ].map((stat, index) => (
-                  <Grid item xs={12} sm={6} md={4} lg={2} key={index}>
+                  <Grid item xs={12} sm={6} md={4} lg={2.4} key={index}>
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -1451,7 +1537,8 @@ const LiquidationProcessorPage = () => {
                                 fontWeight: 600,
                                 color: '#1a1a1a',
                                 mb: 0.5,
-                                fontSize: '1.75rem'
+                                fontSize: stat.title.includes('$') || stat.title.includes('Total') ? '1.4rem' : '1.75rem',
+                                lineHeight: 1.2
                               }}
                             >
                               {stat.value}
@@ -1487,6 +1574,245 @@ const LiquidationProcessorPage = () => {
                   </Grid>
                 ))}
               </Grid>
+
+              {/* Sección de Análisis por Salas */}
+              {roomStats.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.6 }}
+                >
+                  <SpectacularCard sx={{ mb: 3 }}>
+                    <CardContent sx={{ padding: theme.spacing(3) }}>
+                      <Box 
+                        sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'space-between',
+                          cursor: 'pointer',
+                          mb: expandRoomAnalysis ? 3 : 0
+                        }}
+                        onClick={() => setExpandRoomAnalysis(!expandRoomAnalysis)}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Analytics sx={{ 
+                            fontSize: 28, 
+                            color: theme.palette.primary.main, 
+                            mr: 2 
+                          }} />
+                          <Box>
+                            <Typography 
+                              variant="h5" 
+                              sx={{ 
+                                fontWeight: 700,
+                                color: theme.palette.primary.main,
+                                mb: 0.5
+                              }}
+                            >
+                              Análisis por Salas
+                            </Typography>
+                            <Typography 
+                              variant="body2" 
+                              color="text.secondary"
+                            >
+                              Desglose detallado de ingresos y máquinas por establecimiento
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Chip 
+                            label={`${roomStats.length} salas`}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                            sx={{ mr: 1 }}
+                          />
+                          {expandRoomAnalysis ? 
+                            <ExpandLess sx={{ fontSize: 28, color: theme.palette.primary.main }} /> : 
+                            <ExpandMore sx={{ fontSize: 28, color: theme.palette.primary.main }} />
+                          }
+                        </Box>
+                      </Box>
+
+                      <AnimatePresence>
+                        {expandRoomAnalysis && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.4, ease: "easeInOut" }}
+                            style={{ overflow: 'hidden' }}
+                          >
+                            <Divider sx={{ mb: 3 }} />
+                            
+                            {/* Resumen rápido */}
+                            <Grid container spacing={2} sx={{ mb: 4 }}>
+                              <Grid item xs={12} sm={3}>
+                                <Box sx={{ 
+                                  p: 2, 
+                                  background: 'linear-gradient(135deg, #e8f5e8, #f0f8f0)',
+                                  borderRadius: 2,
+                                  textAlign: 'center'
+                                }}>
+                                  <Typography variant="h6" color="success.main" sx={{ fontWeight: 600 }}>
+                                    {financialStats.totalDerechos.toLocaleString('es-CO', { 
+                                      style: 'currency', 
+                                      currency: 'COP',
+                                      minimumFractionDigits: 0
+                                    })}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    Total Derechos
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                              <Grid item xs={12} sm={3}>
+                                <Box sx={{ 
+                                  p: 2, 
+                                  background: 'linear-gradient(135deg, #fff3e0, #fff8f0)',
+                                  borderRadius: 2,
+                                  textAlign: 'center'
+                                }}>
+                                  <Typography variant="h6" color="warning.main" sx={{ fontWeight: 600 }}>
+                                    {financialStats.totalGastos.toLocaleString('es-CO', { 
+                                      style: 'currency', 
+                                      currency: 'COP',
+                                      minimumFractionDigits: 0
+                                    })}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    Total Gastos
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                              <Grid item xs={12} sm={3}>
+                                <Box sx={{ 
+                                  p: 2, 
+                                  background: 'linear-gradient(135deg, #e3f2fd, #f0f8ff)',
+                                  borderRadius: 2,
+                                  textAlign: 'center'
+                                }}>
+                                  <Typography variant="h6" color="primary.main" sx={{ fontWeight: 600 }}>
+                                    {financialStats.totalGeneral.toLocaleString('es-CO', { 
+                                      style: 'currency', 
+                                      currency: 'COP',
+                                      minimumFractionDigits: 0
+                                    })}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    Total General
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                              <Grid item xs={12} sm={3}>
+                                <Box sx={{ 
+                                  p: 2, 
+                                  background: 'linear-gradient(135deg, #f3e5f5, #f8f0f8)',
+                                  borderRadius: 2,
+                                  textAlign: 'center'
+                                }}>
+                                  <Typography variant="h6" color="secondary.main" sx={{ fontWeight: 600 }}>
+                                    {stats.totalMachines}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    Total Máquinas
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                            </Grid>
+
+                            {/* Tabla detallada por salas */}
+                            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                              Detalle por Establecimiento
+                            </Typography>
+                            
+                            <SpectacularPaper>
+                              <TableContainer>
+                                <Table>
+                                  <TableHead>
+                                    <TableRow>
+                                      <TableCell sx={{ fontWeight: 700 }}>Establecimiento</TableCell>
+                                      <TableCell sx={{ fontWeight: 700 }}>Empresa</TableCell>
+                                      <TableCell align="right" sx={{ fontWeight: 700 }}>Máquinas</TableCell>
+                                      <TableCell align="right" sx={{ fontWeight: 700 }}>Derechos</TableCell>
+                                      <TableCell align="right" sx={{ fontWeight: 700 }}>Gastos</TableCell>
+                                      <TableCell align="right" sx={{ fontWeight: 700 }}>Total</TableCell>
+                                      <TableCell align="right" sx={{ fontWeight: 700 }}>% del Total</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {roomStats.slice(0, 10).map((room, index) => (
+                                      <TableRow key={index}>
+                                        <TableCell>
+                                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                            {room.name}
+                                          </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                          <Chip 
+                                            label={room.empresa}
+                                            size="small"
+                                            variant="outlined"
+                                            color={room.empresa === 'No encontrado' ? 'error' : 'primary'}
+                                          />
+                                        </TableCell>
+                                        <TableCell align="right">
+                                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                            {room.machinesCount}
+                                          </Typography>
+                                        </TableCell>
+                                        <TableCell align="right">
+                                          <Typography variant="body2" color="success.main" sx={{ fontWeight: 500 }}>
+                                            {room.derechos.toLocaleString('es-CO', { 
+                                              style: 'currency', 
+                                              currency: 'COP',
+                                              minimumFractionDigits: 0
+                                            })}
+                                          </Typography>
+                                        </TableCell>
+                                        <TableCell align="right">
+                                          <Typography variant="body2" color="warning.main" sx={{ fontWeight: 500 }}>
+                                            {room.gastos.toLocaleString('es-CO', { 
+                                              style: 'currency', 
+                                              currency: 'COP',
+                                              minimumFractionDigits: 0
+                                            })}
+                                          </Typography>
+                                        </TableCell>
+                                        <TableCell align="right">
+                                          <Typography variant="body2" color="primary.main" sx={{ fontWeight: 600 }}>
+                                            {room.total.toLocaleString('es-CO', { 
+                                              style: 'currency', 
+                                              currency: 'COP',
+                                              minimumFractionDigits: 0
+                                            })}
+                                          </Typography>
+                                        </TableCell>
+                                        <TableCell align="right">
+                                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                            {((room.total / financialStats.totalGeneral) * 100).toFixed(1)}%
+                                          </Typography>
+                                        </TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </TableContainer>
+                              {roomStats.length > 10 && (
+                                <Box sx={{ p: 2, textAlign: 'center' }}>
+                                  <Typography variant="body2" color="text.secondary">
+                                    Mostrando las 10 salas principales de {roomStats.length} total
+                                  </Typography>
+                                </Box>
+                              )}
+                            </SpectacularPaper>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </CardContent>
+                  </SpectacularCard>
+                </motion.div>
+              )}
 
               <SpectacularCard sx={{ mb: 3 }}>
                 <CardContent sx={{ padding: theme.spacing(3) }}>
