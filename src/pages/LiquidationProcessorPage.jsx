@@ -65,6 +65,11 @@ import {
   AttachMoney,
   AccountBalance,
   TrendingUp,
+  TrendingDown,
+  Casino,
+  Factory,
+  Receipt,
+  MonetizationOn,
   PrecisionManufacturing,
   ExpandMore,
   ExpandLess
@@ -87,6 +92,17 @@ import {
   useThemeGradients,
   shimmerEffect
 } from '../utils/designSystem.js';
+
+// Función utilitaria para formatear valores como pesos colombianos
+const formatCOP = (value) => {
+  if (value == null || value === '' || isNaN(value)) return '$0';
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(Number(value));
+};
 
 // Styled components con Design System Spectacular v2.1
 const StyledContainer = styled(Box)(({ theme }) => ({
@@ -724,6 +740,16 @@ const processFiles = (liquidationData, inventoryData, findCompanyByNIT) => {
       });
     }
     
+    const entradas = Number(row.Entradas) || 0;
+    const salidas = Number(row.Salidas) || 0;
+    const jackpot = Number(row.Jackpot) || 0;
+    const derechosExplotacion = Number(row['Derechos de Explotación']) || 0;
+    const gastosAdmin = Number(row['Gastos de Administración']) || 0;
+    
+    // Calcular nuevas columnas
+    const produccion = entradas - salidas - jackpot;
+    const totalImpuestos = derechosExplotacion + gastosAdmin;
+    
     return {
       'Periodo': convertPeriodToText(row.Periodo?.toString()),
       'NIT': row.NIT,
@@ -734,11 +760,13 @@ const processFiles = (liquidationData, inventoryData, findCompanyByNIT) => {
       'Serial': row.Serial,
       'Establecimiento': establishment,
       'Tarifa': row.Tarifa,
-      'Entradas': row.Entradas,
-      'Salidas': row.Salidas,
-      'Jackpot': row.Jackpot,
-      'Derechos de Explotación': row['Derechos de Explotación'],
-      'Gastos de Administración': row['Gastos de Administración']
+      'Entradas': formatCOP(entradas),
+      'Salidas': formatCOP(salidas),
+      'Jackpot': formatCOP(jackpot),
+      'Producción': formatCOP(produccion),
+      'Derechos de Explotación': formatCOP(derechosExplotacion),
+      'Gastos de Administración': formatCOP(gastosAdmin),
+      'Total Impuestos': formatCOP(totalImpuestos)
     };
   });
 };
@@ -1030,6 +1058,22 @@ const LiquidationProcessorPage = () => {
 
   // Stats financieros y por salas
   const financialStats = useMemo(() => {
+    const totalEntradas = processedData.reduce((sum, row) => {
+      return sum + toNumber(row.Entradas);
+    }, 0);
+
+    const totalSalidas = processedData.reduce((sum, row) => {
+      return sum + toNumber(row.Salidas);
+    }, 0);
+
+    const totalJackpot = processedData.reduce((sum, row) => {
+      return sum + toNumber(row.Jackpot);
+    }, 0);
+
+    const totalProduccion = processedData.reduce((sum, row) => {
+      return sum + toNumber(row['Producción']);
+    }, 0);
+
     const totalDerechos = processedData.reduce((sum, row) => {
       return sum + toNumber(row['Derechos de Explotación']);
     }, 0);
@@ -1038,12 +1082,19 @@ const LiquidationProcessorPage = () => {
       return sum + toNumber(row['Gastos de Administración']);
     }, 0);
 
-    const totalGeneral = totalDerechos + totalGastos;
+    const totalImpuestos = processedData.reduce((sum, row) => {
+      return sum + toNumber(row['Total Impuestos']);
+    }, 0);
 
     return {
+      totalEntradas,
+      totalSalidas,
+      totalJackpot,
+      totalProduccion,
       totalDerechos,
       totalGastos,
-      totalGeneral
+      totalImpuestos,
+      totalGeneral: totalDerechos + totalGastos  // Mantener para compatibilidad
     };
   }, [processedData, toNumber]);
 
@@ -1092,9 +1143,14 @@ const LiquidationProcessorPage = () => {
     periods: uniquePeriods.length,
     companiesFound: processedData.filter(row => row.Empresa && row.Empresa !== 'No encontrado').length,
     establishmentsNotFound: processedData.filter(row => row.Establecimiento === 'No encontrado').length,
-    // Nuevas estadísticas financieras
+    // Estadísticas financieras expandidas
+    totalEntradas: financialStats.totalEntradas,
+    totalSalidas: financialStats.totalSalidas,
+    totalJackpot: financialStats.totalJackpot,
+    totalProduccion: financialStats.totalProduccion,
     totalDerechos: financialStats.totalDerechos,
     totalGastos: financialStats.totalGastos,
+    totalImpuestos: financialStats.totalImpuestos,
     totalGeneral: financialStats.totalGeneral,
     totalMachines: roomStats.reduce((sum, room) => sum + room.machinesCount, 0)
   }), [processedData, filteredResults, uniqueEstablishments, uniquePeriods, financialStats, roomStats]);
@@ -1345,7 +1401,8 @@ const LiquidationProcessorPage = () => {
                           Arrastra o selecciona archivo
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          Excel (.xlsx) o CSV con columnas: NIT, Contrato, NUC, NUID, Serial, Tarifa, Periodo, Entradas, Salidas, Jackpot, Derechos de Explotación, Gastos de Administración
+                          Excel (.xlsx) o CSV con columnas: NIT, Contrato, NUC, NUID, Serial, Tarifa, Periodo, Entradas, Salidas, Jackpot, Derechos de Explotación, Gastos de Administración. 
+                          <br/>Las columnas de Producción y Total Impuestos se calcularán automáticamente.
                         </Typography>
                       </Box>
                     )}
@@ -1457,41 +1514,26 @@ const LiquidationProcessorPage = () => {
               exit={{ opacity: 0, y: -30 }}
               transition={{ duration: 0.6 }}
             >
-              {/* Stats Cards - Expandidas con información financiera */}
-              <Grid container spacing={3} mb={4} justifyContent="center">
+              {/* Stats Cards - Solo las 5 esenciales en una fila */}
+              <Grid container spacing={2} mb={4} justifyContent="center">
                 {[
                   {
                     title: 'Derechos Explotación',
-                    value: stats.totalDerechos.toLocaleString('es-CO', { 
-                      style: 'currency', 
-                      currency: 'COP',
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0
-                    }),
+                    value: formatCOP(stats.totalDerechos),
                     icon: AttachMoney,
                     iconBg: '#e8f5e8',
                     iconColor: '#4caf50'
                   },
                   {
                     title: 'Gastos Administración',
-                    value: stats.totalGastos.toLocaleString('es-CO', { 
-                      style: 'currency', 
-                      currency: 'COP',
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0
-                    }),
-                    icon: AccountBalance,
-                    iconBg: '#fff3e0',
-                    iconColor: '#ff9800'
+                    value: formatCOP(stats.totalGastos),
+                    icon: MonetizationOn,
+                    iconBg: '#fff8e1',
+                    iconColor: '#ffa000'
                   },
                   {
                     title: 'Total General',
-                    value: stats.totalGeneral.toLocaleString('es-CO', { 
-                      style: 'currency', 
-                      currency: 'COP',
-                      minimumFractionDigits: 0,
-                      maximumFractionDigits: 0
-                    }),
+                    value: formatCOP(stats.totalGeneral),
                     icon: TrendingUp,
                     iconBg: '#e3f2fd',
                     iconColor: '#2196f3'
@@ -1511,7 +1553,7 @@ const LiquidationProcessorPage = () => {
                     iconColor: '#ff9800'
                   }
                 ].map((stat, index) => (
-                  <Grid item xs={12} sm={6} md={4} lg={2.4} key={index}>
+                  <Grid item xs={12} sm={6} md={2.4} lg={2.4} xl={2.4} key={index}>
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -1523,8 +1565,8 @@ const LiquidationProcessorPage = () => {
                     >
                       <Card
                         sx={{
-                          p: 2.5,
-                          height: 130,
+                          p: 2,
+                          height: 120,
                           background: 'white',
                           borderRadius: 1,
                           border: '1px solid #f0f0f0',
@@ -1931,7 +1973,7 @@ const LiquidationProcessorPage = () => {
                           {[
                             'Periodo', 'NIT', 'Contrato', 'Empresa', 'Código de local',
                             'NUC', 'Serial', 'Establecimiento', 'Tarifa', 'Entradas', 
-                            'Salidas', 'Jackpot', 'Derechos Explotación', 'Gastos Admin'
+                            'Salidas', 'Jackpot', 'Producción', 'Derechos Explotación', 'Gastos Admin', 'Total Impuestos'
                           ].map((header) => (
                             <TableCell 
                               key={header}
@@ -1970,13 +2012,15 @@ const LiquidationProcessorPage = () => {
                             <TableCell>{row.Entradas}</TableCell>
                             <TableCell>{row.Salidas}</TableCell>
                             <TableCell>{row.Jackpot}</TableCell>
+                            <TableCell sx={{ fontWeight: 600, color: theme.palette.success.main }}>{row['Producción']}</TableCell>
                             <TableCell>{row['Derechos de Explotación']}</TableCell>
                             <TableCell>{row['Gastos de Administración']}</TableCell>
+                            <TableCell sx={{ fontWeight: 600, color: theme.palette.info.main }}>{row['Total Impuestos']}</TableCell>
                           </TableRow>
                         ))}
                         {paginatedResults.length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={14} align="center">
+                            <TableCell colSpan={16} align="center">
                               <Box sx={{ py: 4 }}>
                                 <Typography variant="h6" color="text.secondary">
                                   No se encontraron registros que coincidan con los filtros
