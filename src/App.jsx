@@ -37,6 +37,7 @@ import WelcomeDashboardSimple from './components/dashboard/WelcomeDashboardSimpl
 import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
 import AdvancedToolsPage from './pages/AdvancedToolsPage';
 import FinancialKPIsPage from './pages/FinancialKPIsPage';
+import LiquidationProcessorPage from './pages/LiquidationProcessorPage';
 
 // Hook de autenticación
 import { useAuth } from './context/AuthContext';
@@ -177,6 +178,14 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Herramientas Avanzadas" breadcrumbs={['Herramientas']}>
             <AdvancedToolsPage />
+          </MainLayout>
+        }
+      />
+      <Route 
+        path="/liquidation-processor" 
+        element={
+          <MainLayout title="Procesador de Liquidaciones" breadcrumbs={['Herramientas', 'Liquidaciones']}>
+            <LiquidationProcessorPage />
           </MainLayout>
         }
       />

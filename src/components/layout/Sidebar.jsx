@@ -26,7 +26,8 @@ import {
   AttachMoney,
   Notifications,
   ExpandLess,
-  ExpandMore
+  ExpandMore,
+  Analytics
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -151,6 +152,14 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
         { title: 'Por Empresa', icon: Business, path: '/reports/company' },
         { title: 'Por Período', icon: Assignment, path: '/reports/period' },
         { title: 'Por Concepto', icon: Receipt, path: '/reports/concept' }
+      ]
+    },
+    {
+      title: 'Herramientas',
+      icon: Analytics,
+      color: '#4caf50',
+      submenu: [
+        { title: 'Procesador de Liquidaciones', icon: Analytics, path: '/liquidation-processor' }
       ]
     }
   ];

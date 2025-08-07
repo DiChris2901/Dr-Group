@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Archivos de Prueba - Procesador de Liquidaciones</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.2rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .button {
+            background: linear-gradient(135deg, #4caf50 0%, #8bc34a 100%);
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        .info {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .step {
+            margin: 15px 0;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            border-left: 4px solid #4caf50;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        th {
+            background: rgba(255, 255, 255, 0.2);
+            font-weight: 600;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Generador de Archivos de Prueba</h1>
+        <p style="text-align: center; font-size: 1.1rem; margin-bottom: 30px;">
+            Genera archivos Excel de ejemplo para probar el Procesador de Liquidaciones
+        </p>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <button class="button" onclick="generarBaseLiquidacion()">
+                📊 Generar Base de Liquidación
+            </button>
+            <button class="button" onclick="generarInventario()">
+                📋 Generar Inventario
+            </button>
+            <button class="button" onclick="generarAmbos()">
+                📥 Generar Ambos Archivos
+            </button>
+        </div>
+
+        <div class="info">
+            <h3>📋 Instrucciones de Uso:</h3>
+            <div class="step">
+                <strong>Paso 1:</strong> Haz clic en "Generar Ambos Archivos" para descargar los Excel de ejemplo
+            </div>
+            <div class="step">
+                <strong>Paso 2:</strong> Ve al Dashboard de DR Group → Herramientas → Procesador de Liquidaciones
+            </div>
+            <div class="step">
+                <strong>Paso 3:</strong> Sube los archivos generados y procesa los datos
+            </div>
+            <div class="step">
+                <strong>Paso 4:</strong> Revisa los resultados y exporta el archivo final
+            </div>
+        </div>
+
+        <div class="info">
+            <h3>🔍 Datos de Ejemplo Incluidos:</h3>
+            <table>
+                <tr>
+                    <th>Campo</th>
+                    <th>Base de Liquidación</th>
+                    <th>Inventario</th>
+                    <th>Resultado</th>
+                </tr>
+                <tr>
+                    <td>SER-001</td>
+                    <td>✅ Presente</td>
+                    <td>✅ Presente</td>
+                    <td>🎯 Casino Principal Bogotá</td>
+                </tr>
+                <tr>
+                    <td>SER-002</td>
+                    <td>✅ Presente</td>
+                    <td>✅ Presente</td>
+                    <td>🎯 Sala VIP Medellín</td>
+                </tr>
+                <tr>
+                    <td>SER-999</td>
+                    <td>✅ Presente</td>
+                    <td>❌ No existe</td>
+                    <td>🔍 Centro de Apuestas Cali (por NUC)</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="info">
+            <h3>💡 Características del Test:</h3>
+            <ul>
+                <li><strong>Coincidencia por Serial:</strong> 2 registros encontrados directamente</li>
+                <li><strong>Coincidencia por NUC:</strong> 1 registro encontrado como respaldo</li>
+                <li><strong>Conversión de Períodos:</strong> 202507 → "Julio 2025", 202508 → "Agosto 2025"</li>
+                <li><strong>Datos Realistas:</strong> NITs, contratos y montos empresariales</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const baseLiquidacion = [
+            {
+                "NIT": "900123456-1",
+                "Contrato": "CNT-001",
+                "NUC": "NUC-001",
+                "NUID": "NUID-001",
+                "Serial": "SER-001",
+                "Tarifa": 15000,
+                "Periodo": 202507,
+                "Entradas": 1500000,
+                "Salidas": 1200000,
+                "Jackpot": 50000,
+                "Derechos de Explotación": 75000,
+                "Gastos de Administración": 25000
+            },
+            {
+                "NIT": "900123456-1", 
+                "Contrato": "CNT-002",
+                "NUC": "NUC-002",
+                "NUID": "NUID-002",
+                "Serial": "SER-002",
+                "Tarifa": 18000,
+                "Periodo": 202507,
+                "Entradas": 1800000,
+                "Salidas": 1450000,
+                "Jackpot": 60000,
+                "Derechos de Explotación": 85000,
+                "Gastos de Administración": 30000
+            },
+            {
+                "NIT": "900123456-1",
+                "Contrato": "CNT-003",
+                "NUC": "NUC-003", 
+                "NUID": "NUID-003",
+                "Serial": "SER-999",
+                "Tarifa": 12000,
+                "Periodo": 202508,
+                "Entradas": 1200000,
+                "Salidas": 950000,
+                "Jackpot": 40000,
+                "Derechos de Explotación": 65000,
+                "Gastos de Administración": 20000
+            }
+        ];
+
+        const inventario = [
+            {
+                "Código local": "LOC-001",
+                "Nombre Establecimiento": "Casino Principal Bogotá",
+                "NUC": "NUC-001",
+                "NUID": "NUID-001", 
+                "Serial": "SER-001",
+                "Código Marca": "MRC-001",
+                "Marca": "Novomatic",
+                "Código Apuesta": "APU-001",
+                "Tipo Apuesta": "Slot Machine",
+                "Fecha Inicio": "2024-01-01",
+                "Fecha Fin": "2025-12-31"
+            },
+            {
+                "Código local": "LOC-002",
+                "Nombre Establecimiento": "Sala VIP Medellín",
+                "NUC": "NUC-002",
+                "NUID": "NUID-002",
+                "Serial": "SER-002",
+                "Código Marca": "MRC-002", 
+                "Marca": "IGT",
+                "Código Apuesta": "APU-002",
+                "Tipo Apuesta": "Video Poker", 
+                "Fecha Inicio": "2024-02-01",
+                "Fecha Fin": "2025-12-31"
+            },
+            {
+                "Código local": "LOC-003",
+                "Nombre Establecimiento": "Centro de Apuestas Cali",
+                "NUC": "NUC-003",
+                "NUID": "NUID-003",
+                "Serial": "SER-003",
+                "Código Marca": "MRC-003",
+                "Marca": "Aristocrat",
+                "Código Apuesta": "APU-003", 
+                "Tipo Apuesta": "Ruleta Electrónica",
+                "Fecha Inicio": "2024-03-01",
+                "Fecha Fin": "2025-12-31"
+            }
+        ];
+
+        function generarBaseLiquidacion() {
+            const ws = XLSX.utils.json_to_sheet(baseLiquidacion);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Base de Liquidación");
+            XLSX.writeFile(wb, "Base_Liquidacion_Ejemplo.xlsx");
+        }
+
+        function generarInventario() {
+            const ws = XLSX.utils.json_to_sheet(inventario);
+            const wb = XLSX.utils.book_new(); 
+            XLSX.utils.book_append_sheet(wb, ws, "Inventario");
+            XLSX.writeFile(wb, "Inventario_Ejemplo.xlsx");
+        }
+
+        function generarAmbos() {
+            generarBaseLiquidacion();
+            setTimeout(() => {
+                generarInventario();
+            }, 500);
+        }
+    </script>
+</body>
+</html>
