@@ -59,7 +59,9 @@ import {
   FirstPage,
   LastPage,
   KeyboardArrowLeft,
-  KeyboardArrowRight
+  KeyboardArrowRight,
+  Business,
+  CalendarToday
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { styled } from '@mui/material/styles';
@@ -135,7 +137,7 @@ const UploadZone = styled(Box, {
   position: 'relative',
   border: `2px dashed ${hasFile ? theme.palette.success.main : isDragOver ? theme.palette.secondary.main : theme.palette.primary.main}`,
   borderRadius: borderRadius || theme.shape.borderRadius,
-  padding: theme.spacing(5),
+  padding: theme.spacing(3),
   textAlign: 'center',
   cursor: 'pointer',
   overflow: 'hidden',
@@ -182,11 +184,11 @@ const ProcessButton = styled(Button)(({ theme }) => ({
   position: 'relative',
   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
   border: 'none',
-  borderRadius: theme.shape.borderRadius * 4,
+  borderRadius: theme.shape.borderRadius * 3,
   color: 'white',
-  padding: theme.spacing(2, 5),
-  fontSize: '1.2rem',
-  fontWeight: 700,
+  padding: theme.spacing(1.5, 4),
+  fontSize: '1rem',
+  fontWeight: 600,
   textTransform: 'none',
   letterSpacing: '0.5px',
   overflow: 'hidden',
@@ -1213,7 +1215,7 @@ const LiquidationProcessorPage = () => {
               transition={{ duration: 0.6, delay: 0.2 }}
             >
               <SpectacularCard sx={{ height: '100%' }} borderRadius={settings.theme?.borderRadius}>
-                <CardContent>
+                <CardContent sx={{ padding: theme.spacing(2.5) }}>
                   <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Assignment color="primary" />
                     Base de Liquidación
@@ -1238,7 +1240,7 @@ const LiquidationProcessorPage = () => {
                     
                     {liquidationFile ? (
                       <Box>
-                        <CheckCircle sx={{ fontSize: 48, color: theme.palette.success.main, mb: 2 }} />
+                        <CheckCircle sx={{ fontSize: 36, color: theme.palette.success.main, mb: 1.5 }} />
                         <Typography variant="h6" color="success.main">
                           {liquidationFile.name}
                         </Typography>
@@ -1248,7 +1250,7 @@ const LiquidationProcessorPage = () => {
                       </Box>
                     ) : (
                       <Box>
-                        <CloudUpload sx={{ fontSize: 48, color: theme.palette.primary.main, mb: 2 }} />
+                        <CloudUpload sx={{ fontSize: 36, color: theme.palette.primary.main, mb: 1.5 }} />
                         <Typography variant="h6" color="primary">
                           Arrastra o selecciona archivo
                         </Typography>
@@ -1271,7 +1273,7 @@ const LiquidationProcessorPage = () => {
               transition={{ duration: 0.6, delay: 0.3 }}
             >
               <SpectacularCard sx={{ height: '100%' }} borderRadius={settings.theme?.borderRadius}>
-                <CardContent>
+                <CardContent sx={{ padding: theme.spacing(2.5) }}>
                   <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
                     <TableView color="secondary" />
                     Inventario
@@ -1296,7 +1298,7 @@ const LiquidationProcessorPage = () => {
                     
                     {inventoryFile ? (
                       <Box>
-                        <CheckCircle sx={{ fontSize: 48, color: theme.palette.success.main, mb: 2 }} />
+                        <CheckCircle sx={{ fontSize: 36, color: theme.palette.success.main, mb: 1.5 }} />
                         <Typography variant="h6" color="success.main">
                           {inventoryFile.name}
                         </Typography>
@@ -1306,7 +1308,7 @@ const LiquidationProcessorPage = () => {
                       </Box>
                     ) : (
                       <Box>
-                        <CloudUpload sx={{ fontSize: 48, color: theme.palette.secondary.main, mb: 2 }} />
+                        <CloudUpload sx={{ fontSize: 36, color: theme.palette.secondary.main, mb: 1.5 }} />
                         <Typography variant="h6" color="secondary">
                           Arrastra o selecciona archivo
                         </Typography>
@@ -1332,10 +1334,11 @@ const LiquidationProcessorPage = () => {
             whileTap={{ scale: 0.95 }}
           >
             <ProcessButton
-              size="large"
+              size="medium"
               startIcon={processing ? <Stop /> : <PlayArrow />}
               disabled={!liquidationFile || !inventoryFile || processing}
               onClick={handleProcessFiles}
+              sx={{ px: 3, py: 1.2 }}
             >
               {processing ? 'Procesando...' : 'Procesar Archivos'}
             </ProcessButton>
@@ -1364,74 +1367,129 @@ const LiquidationProcessorPage = () => {
               exit={{ opacity: 0, y: -30 }}
               transition={{ duration: 0.6 }}
             >
-              <SpectacularCard sx={{ mb: 3 }}>
-                <CardContent>
-                  {/* Stats */}
-                  <Grid container spacing={2} sx={{ mb: 3 }}>
-                    <Grid item xs={6} sm={2}>
-                      <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h4" color="primary.main" sx={{ fontWeight: 700 }}>
-                          {stats.totalRecords}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Total Registros
-                        </Typography>
-                      </Box>
-                    </Grid>
-                    <Grid item xs={6} sm={2}>
-                      <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h4" color="info.main" sx={{ fontWeight: 700 }}>
-                          {stats.filteredRecords}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Filtrados
-                        </Typography>
-                      </Box>
-                    </Grid>
-                    <Grid item xs={6} sm={2}>
-                      <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h4" color="success.main" sx={{ fontWeight: 700 }}>
-                          {stats.establishments}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Establecimientos
-                        </Typography>
-                      </Box>
-                    </Grid>
-                    <Grid item xs={6} sm={2}>
-                      <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h4" color="secondary.main" sx={{ fontWeight: 700 }}>
-                          {stats.periods}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Períodos
-                        </Typography>
-                      </Box>
-                    </Grid>
-                    <Grid item xs={6} sm={2}>
-                      <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h4" color="info.dark" sx={{ fontWeight: 700 }}>
-                          {stats.companiesFound}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Empresas Encontradas
-                        </Typography>
-                      </Box>
-                    </Grid>
-                    <Grid item xs={6} sm={2}>
-                      <Box sx={{ textAlign: 'center' }}>
-                        <Typography variant="h4" color="warning.main" sx={{ fontWeight: 700 }}>
-                          {stats.establishmentsNotFound}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          No Encontrados
-                        </Typography>
-                      </Box>
-                    </Grid>
+              {/* Stats Cards - Estilo DueCommitments */}
+              <Grid container spacing={3} mb={4}>
+                {[
+                  {
+                    title: 'Total Registros',
+                    value: stats.totalRecords,
+                    icon: Assignment,
+                    iconBg: '#e3f2fd',
+                    iconColor: '#2196f3'
+                  },
+                  {
+                    title: 'Registros Filtrados',
+                    value: stats.filteredRecords,
+                    icon: FilterList,
+                    iconBg: '#e8f5e8',
+                    iconColor: '#4caf50'
+                  },
+                  {
+                    title: 'Establecimientos',
+                    value: stats.establishments,
+                    icon: Business,
+                    iconBg: '#fff3e0',
+                    iconColor: '#ff9800'
+                  },
+                  {
+                    title: 'Períodos',
+                    value: stats.periods,
+                    icon: CalendarToday,
+                    iconBg: '#f3e5f5',
+                    iconColor: '#9c27b0'
+                  },
+                  {
+                    title: 'Empresas Encontradas',
+                    value: stats.companiesFound,
+                    icon: CheckCircle,
+                    iconBg: '#e8f5e8',
+                    iconColor: '#4caf50'
+                  },
+                  {
+                    title: 'No Encontrados',
+                    value: stats.establishmentsNotFound,
+                    icon: Warning,
+                    iconBg: '#ffebee',
+                    iconColor: '#f44336'
+                  }
+                ].map((stat, index) => (
+                  <Grid item xs={12} sm={6} md={4} lg={2} key={index}>
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ 
+                        duration: 0.4, 
+                        delay: index * 0.1,
+                        ease: "easeOut"
+                      }}
+                    >
+                      <Card
+                        sx={{
+                          p: 2.5,
+                          height: 130,
+                          background: 'white',
+                          borderRadius: 1,
+                          border: '1px solid #f0f0f0',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                          transition: 'all 0.3s ease',
+                          '&:hover': {
+                            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                            transform: 'translateY(-2px)',
+                          }
+                        }}
+                      >
+                        <Box sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'flex-start',
+                          height: '100%'
+                        }}>
+                          <Box sx={{ flex: 1 }}>
+                            <Typography 
+                              variant="h3" 
+                              sx={{ 
+                                fontWeight: 600,
+                                color: '#1a1a1a',
+                                mb: 0.5,
+                                fontSize: '1.75rem'
+                              }}
+                            >
+                              {stat.value}
+                            </Typography>
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                color: '#666',
+                                fontWeight: 500,
+                                mb: 1.5,
+                                lineHeight: 1.3
+                              }}
+                            >
+                              {stat.title}
+                            </Typography>
+                          </Box>
+                          <Box
+                            sx={{
+                              width: 44,
+                              height: 44,
+                              borderRadius: 1,
+                              backgroundColor: stat.iconBg,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <stat.icon sx={{ fontSize: 22, color: stat.iconColor }} />
+                          </Box>
+                        </Box>
+                      </Card>
+                    </motion.div>
                   </Grid>
+                ))}
+              </Grid>
 
-                  <Divider sx={{ my: 3 }} />
-
+              <SpectacularCard sx={{ mb: 3 }}>
+                <CardContent sx={{ padding: theme.spacing(3) }}>
                   {/* Filters */}
                   <Grid container spacing={2} sx={{ mb: 3 }}>
                     <Grid item xs={12} sm={6} md={4}>
