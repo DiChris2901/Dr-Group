@@ -6,7 +6,9 @@ import {
     Box,
     Button,
     Paper,
-    Typography
+    Typography,
+    Alert,
+    CircularProgress
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -16,6 +18,7 @@ import CommitmentsFilters from '../components/commitments/CommitmentsFilters';
 import CommitmentsList from '../components/commitments/CommitmentsList';
 import ExtendCommitmentsModal from '../components/commitments/ExtendCommitmentsModal';
 import { useSettings } from '../context/SettingsContext';
+import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { checkCommitmentsForExtension } from '../utils/recurringCommitments';
 import {
@@ -28,6 +31,7 @@ const CommitmentsPage = () => {
   const navigate = useNavigate();
   const gradients = useThemeGradients();
   const { settings } = useSettings();
+  const { currentUser, loading: authLoading } = useAuth();
   const { addNotification } = useNotifications();
   const [searchTerm, setSearchTerm] = useState('');
   const [companyFilter, setCompanyFilter] = useState('all');
@@ -58,15 +62,10 @@ const CommitmentsPage = () => {
   };
 
   const handleAddCommitment = () => {
-    // Navegar a la página de nuevo compromiso
     navigate('/commitments/new');
   };
 
   const handleCheckExtensions = () => {
-    console.log('🔍 Verificando extensiones...');
-    console.log('📊 Datos de compromisos:', commitmentsData);
-    console.log('📋 Total compromisos:', commitmentsData.length);
-    
     if (commitmentsData.length === 0) {
       addNotification({
         type: 'info',
@@ -76,75 +75,39 @@ const CommitmentsPage = () => {
       });
       return;
     }
-
-    // Mostrar algunos compromisos de ejemplo para depuración
-    if (commitmentsData.length > 0) {
-      console.log('🔬 Ejemplo de compromiso:', {
-        concept: commitmentsData[0].concept,
-        isRecurring: commitmentsData[0].isRecurring,
-        recurringGroup: commitmentsData[0].recurringGroup,
-        periodicity: commitmentsData[0].periodicity,
-        dueDate: commitmentsData[0].dueDate
-      });
-    }
-
-    const extensionCheck = checkCommitmentsForExtension(commitmentsData, 3);
-    console.log('🎯 Resultado verificación:', extensionCheck);
-    
-    // Verificar si hay compromisos recurrentes en general (no solo los que necesitan extensión)
-    const recurringCommitments = commitmentsData.filter(c => c.isRecurring && c.recurringGroup);
-    console.log('🔄 Compromisos recurrentes encontrados:', recurringCommitments.length);
-    
-    if (recurringCommitments.length === 0) {
-      addNotification({
-        type: 'info',
-        title: '📋 Sin Compromisos Recurrentes',
-        message: 'No se encontraron compromisos recurrentes para extender. Crea compromisos con periodicidad para usar esta función.',
-        duration: 6000
-      });
-      return;
-    }
-    
-    if (extensionCheck.needsExtension === 0) {
-      // Si hay compromisos recurrentes pero no necesitan extensión, forzar apertura del modal
-      console.log('🔄 Forzando apertura del modal para compromisos recurrentes...');
-      
-      addNotification({
-        type: 'info',
-        title: '� Abriendo Extensión Manual',
-        message: `Se encontraron ${recurringCommitments.length} compromisos recurrentes. Abriendo opciones de extensión...`,
-        duration: 3000
-      });
-      
-      // Forzar la apertura del modal con todos los grupos recurrentes usando fecha pasada
-      const forcedExtensionCheck = checkCommitmentsForExtension(commitmentsData, -12);
-      console.log('🎯 Datos forzados para modal:', forcedExtensionCheck);
-      
-      if (forcedExtensionCheck.needsExtension > 0) {
-        console.log('✅ Abriendo modal con datos forzados');
-        setCommitmentsToExtend(forcedExtensionCheck);
-        setExtendModalOpen(true);
-      } else {
-        console.log('❌ No se pudieron forzar datos para el modal');
-        addNotification({
-          type: 'error',
-          title: 'Error en Extensión',
-          message: 'No se pudieron procesar los compromisos recurrentes para extensión.',
-          duration: 5000
-        });
-      }
-    } else {
-      console.log('✅ Abriendo modal con extensiones necesarias');
-      setCommitmentsToExtend(extensionCheck);
-      setExtendModalOpen(true);
-    }
   };
 
-  const handleExtensionComplete = (results) => {
-    // Refrescar la lista de compromisos después de la extensión
-    // En una aplicación real, esto activaría un refetch de los datos
-    console.log('Extension completed:', results);
-  };
+  // Verificación de autenticación
+  if (authLoading) {
+    return (
+      <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" minHeight="50vh">
+        <CircularProgress size={40} />
+        <Typography variant="h6" sx={{ mt: 2 }}>
+          Verificando autenticación...
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="warning">
+          <Typography variant="h6">⚠️ No autenticado</Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            Necesitas iniciar sesión para ver los compromisos.
+          </Typography>
+          <Button 
+            variant="contained" 
+            sx={{ mt: 2 }}
+            onClick={() => navigate('/login')}
+          >
+            Iniciar Sesión
+          </Button>
+        </Alert>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ position: 'relative', minHeight: '100vh' }}>
@@ -162,18 +125,7 @@ const CommitmentsPage = () => {
             mb: 3,
             color: 'white',
             position: 'relative',
-            overflow: 'hidden',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(255, 255, 255, 0.1)',
-              borderRadius: `${settings.theme?.borderRadius || 16}px`,
-              zIndex: 0,
-            }
+            overflow: 'hidden'
           }}
         >
           <Box sx={{ position: 'relative', zIndex: 1 }}>
@@ -212,159 +164,65 @@ const CommitmentsPage = () => {
                       fontFamily: settings.theme?.fontFamily || 'inherit'
                     }}
                   >
-                    Administra todos tus compromisos financieros empresariales con elegancia y control total
+                    Administra todos tus compromisos financieros empresariales
                   </Typography>
                 </Box>
               </Box>
               
-              {/* Botones de Acción */}
-              <Box display="flex" gap={2}>
-                {/* Botón Verificar Extensiones */}
-                <motion.div
-                  initial={settings.theme?.animations ? { x: 20, opacity: 0 } : {}}
-                  animate={settings.theme?.animations ? { x: 0, opacity: 1 } : { x: 0, opacity: 1 }}
-                  transition={settings.theme?.animations ? { delay: 0.2, duration: 0.5 } : { duration: 0 }}
-                  whileHover={settings.theme?.animations ? { scale: 1.05 } : {}}
-                  whileTap={settings.theme?.animations ? { scale: 0.95 } : {}}
-                >
-                  <Button
-                    variant="outlined"
-                    startIcon={<CalendarToday />}
-                    onClick={handleCheckExtensions}
-                    size={settings.theme?.compactMode ? "medium" : "large"}
-                    sx={{
-                      py: settings.theme?.compactMode ? 1 : 1.5,
-                      px: settings.theme?.compactMode ? 2.5 : 3.5,
-                      fontSize: settings.theme?.fontSize ? `${settings.theme.fontSize * 1}px` : '1rem',
-                      fontWeight: 600,
-                      fontFamily: settings.theme?.fontFamily || 'inherit',
-                      borderRadius: `${settings.theme?.borderRadius || 16}px`,
-                      border: '2px solid rgba(255, 255, 255, 0.5)',
-                      color: 'white',
-                      textTransform: 'none',
-                      backdropFilter: 'blur(10px)',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '&:hover': {
-                        background: 'rgba(255, 255, 255, 0.15)',
-                        borderColor: 'rgba(255, 255, 255, 0.8)',
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 6px 20px rgba(0, 0, 0, 0.3)'
-                      }
-                    }}
-                  >
-                    Extender
-                  </Button>
-                </motion.div>
-
-                {/* Botón Nuevo Compromiso */}
-                <motion.div
-                  initial={settings.theme?.animations ? { x: 30, opacity: 0 } : {}}
-                  animate={settings.theme?.animations ? { x: 0, opacity: 1 } : { x: 0, opacity: 1 }}
-                  transition={settings.theme?.animations ? { delay: 0.3, duration: 0.5 } : { duration: 0 }}
-                  whileHover={settings.theme?.animations ? { scale: 1.05 } : {}}
-                  whileTap={settings.theme?.animations ? { scale: 0.95 } : {}}
-                >
-                  <Button
-                    variant="contained"
-                    startIcon={<Add />}
-                    onClick={handleAddCommitment}
-                    size={settings.theme?.compactMode ? "medium" : "large"}
-                    sx={{
-                      py: settings.theme?.compactMode ? 1 : 1.5,
-                      px: settings.theme?.compactMode ? 3 : 4,
-                      fontSize: settings.theme?.fontSize ? `${settings.theme.fontSize * 1.1}px` : '1.1rem',
-                      fontWeight: 700,
-                      fontFamily: settings.theme?.fontFamily || 'inherit',
-                      borderRadius: `${settings.theme?.borderRadius || 16}px`,
-                      background: 'rgba(255, 255, 255, 0.2)',
-                      backdropFilter: 'blur(10px)',
-                      border: '1px solid rgba(255, 255, 255, 0.3)',
-                      color: 'white',
-                      textTransform: 'none',
-                      boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '&:hover': {
-                        background: 'rgba(255, 255, 255, 0.25)',
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 6px 20px rgba(0, 0, 0, 0.3)'
-                      }
-                    }}
-                  >
-                    Nuevo Compromiso
-                  </Button>
-                </motion.div>
-              </Box>
+              {/* Botón Nuevo Compromiso */}
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={handleAddCommitment}
+                size="large"
+                sx={{
+                  py: 1.5,
+                  px: 4,
+                  fontSize: '1.1rem',
+                  fontWeight: 700,
+                  borderRadius: `${settings.theme?.borderRadius || 16}px`,
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  color: 'white',
+                  textTransform: 'none',
+                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '&:hover': {
+                    background: 'rgba(255, 255, 255, 0.25)',
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.3)'
+                  }
+                }}
+              >
+                Nuevo Compromiso
+              </Button>
             </Box>
           </Box>
         </Box>
       </motion.div>
 
       {/* Filtros */}
-      <motion.div
-        initial={settings.theme?.animations ? { opacity: 0, y: 20 } : {}}
-        animate={settings.theme?.animations ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-        transition={settings.theme?.animations ? { duration: 0.3, delay: 0.2 } : { duration: 0 }}
-      >
-        <CommitmentsFilters
-          searchTerm={searchTerm}
-          companyFilter={companyFilter}
-          statusFilter={statusFilter}
-          yearFilter={yearFilter}
-          onSearchChange={handleSearchChange}
-          onCompanyChange={handleCompanyChange}
-          onStatusChange={handleStatusChange}
-          onYearChange={handleYearChange}
-        />
-      </motion.div>
+      <CommitmentsFilters
+        searchTerm={searchTerm}
+        companyFilter={companyFilter}
+        statusFilter={statusFilter}
+        yearFilter={yearFilter}
+        onSearchChange={handleSearchChange}
+        onCompanyChange={handleCompanyChange}
+        onStatusChange={handleStatusChange}
+        onYearChange={handleYearChange}
+      />
 
       {/* Lista de compromisos */}
-      <motion.div
-        initial={settings.theme?.animations ? { opacity: 0, y: 20 } : {}}
-        animate={settings.theme?.animations ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-        transition={settings.theme?.animations ? { duration: 0.3, delay: 0.3 } : { duration: 0 }}
-      >
-        <CommitmentsList
-          searchTerm={searchTerm}
-          companyFilter={companyFilter}
-          statusFilter={statusFilter}
-          yearFilter={yearFilter}
-          viewMode={settings.dashboard?.layout?.viewMode || 'cards'}
-          onCommitmentsChange={handleCommitmentsDataChange}
-        />
-      </motion.div>
-
-      {/* Modal de Extensión de Compromisos */}
-      {commitmentsToExtend && (
-        <>
-          {console.log('🎭 RENDER: Modal ExtendCommitmentsModal renderizándose:', {
-            open: extendModalOpen,
-            commitmentsToExtend: commitmentsToExtend,
-            groupsCount: commitmentsToExtend.groups?.length
-          })}
-          <ExtendCommitmentsModal
-            open={extendModalOpen}
-            onClose={() => {
-              console.log('🎭 MODAL: Cerrando modal');
-              setExtendModalOpen(false);
-              setCommitmentsToExtend(null);
-            }}
-            commitmentsToExtend={commitmentsToExtend}
-            onExtensionComplete={(result) => {
-              console.log('🎉 Extensión completada:', result);
-              addNotification({
-                type: 'success',
-                title: '✅ Extensión Exitosa',
-                message: `Se han extendido ${result.totalExtended} compromisos recurrentes.`,
-                duration: 5000
-              });
-              setExtendModalOpen(false);
-              setCommitmentsToExtend(null);
-              // Recargar la lista de compromisos
-              window.location.reload();
-            }}
-          />
-        </>
-      )}
+      <CommitmentsList
+        searchTerm={searchTerm}
+        companyFilter={companyFilter}
+        statusFilter={statusFilter}
+        yearFilter={yearFilter}
+        viewMode={settings.dashboard?.layout?.viewMode || 'cards'}
+        onCommitmentsChange={handleCommitmentsDataChange}
+      />
     </Box>
   );
 };
