@@ -59,7 +59,8 @@ import {
   BottomNavigation,
   BottomNavigationAction,
   AppBar,
-  Toolbar
+  Toolbar,
+  Pagination
 } from '@mui/material';
 import {
   Dashboard,
@@ -3128,6 +3129,132 @@ const DesignSystemTestPage = () => {
     </Grid>
   );
 
+  // Componente de paginación personalizado con selector de página adicional
+  const CustomTablePagination = ({ count, rowsPerPage, page, onPageChange, sx = {} }) => {
+    const totalPages = Math.ceil(count / rowsPerPage);
+    const [directPage, setDirectPage] = useState(page + 1);
+
+    const handleDirectPageChange = (event) => {
+      const value = parseInt(event.target.value, 10);
+      if (value >= 1 && value <= totalPages) {
+        setDirectPage(value);
+      }
+    };
+
+    const handleDirectPageSubmit = (event) => {
+      if (event.key === 'Enter' || event.type === 'blur') {
+        const newPage = Math.max(0, Math.min(directPage - 1, totalPages - 1));
+        onPageChange(null, newPage);
+      }
+    };
+
+    React.useEffect(() => {
+      setDirectPage(page + 1);
+    }, [page]);
+
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        px: 2.5, 
+        py: 1.5,
+        borderTop: '1px solid', 
+        borderColor: 'divider',
+        ...sx 
+      }}>
+        {/* Paginación tradicional */}
+        <TablePagination
+          rowsPerPageOptions={[10]}
+          component="div"
+          count={count}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={onPageChange}
+          onRowsPerPageChange={() => {}}
+          sx={{ 
+            border: 'none',
+            '& .MuiTablePagination-toolbar': { px: 0 },
+            '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+              fontSize: '0.8rem'
+            }
+          }}
+        />
+
+        {/* Selector de página adicional */}
+        {totalPages > 1 && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            {/* Paginación con números */}
+            <Pagination
+              count={totalPages}
+              page={page + 1}
+              onChange={(event, value) => onPageChange(event, value - 1)}
+              size="small"
+              color="primary"
+              showFirstButton
+              showLastButton
+              sx={{
+                '& .MuiPagination-ul': {
+                  flexWrap: 'nowrap'
+                },
+                '& .MuiPaginationItem-root': {
+                  fontSize: '0.75rem',
+                  minWidth: '28px',
+                  height: '28px'
+                }
+              }}
+            />
+
+            <Divider orientation="vertical" flexItem />
+
+            {/* Input directo de página */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="caption" sx={{ fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+                Ir a página:
+              </Typography>
+              <TextField
+                size="small"
+                type="number"
+                value={directPage}
+                onChange={handleDirectPageChange}
+                onKeyPress={handleDirectPageSubmit}
+                onBlur={handleDirectPageSubmit}
+                inputProps={{ 
+                  min: 1, 
+                  max: totalPages,
+                  style: { 
+                    textAlign: 'center', 
+                    fontSize: '0.75rem',
+                    padding: '4px 8px',
+                    width: '50px'
+                  }
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    height: '32px',
+                    '& fieldset': {
+                      borderColor: 'divider'
+                    },
+                    '&:hover fieldset': {
+                      borderColor: 'primary.main'
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: 'primary.main',
+                      borderWidth: '1px'
+                    }
+                  }
+                }}
+              />
+              <Typography variant="caption" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
+                de {totalPages}
+              </Typography>
+            </Box>
+          </Box>
+        )}
+      </Box>
+    );
+  };
+
   const renderTablesSection = () => (
     <Grid container spacing={3}>
       <Grid item xs={12}>
@@ -3244,22 +3371,11 @@ const DesignSystemTestPage = () => {
               </TableBody>
             </Table>
           </TableContainer>
-          <TablePagination
-            rowsPerPageOptions={[10]}
-            component="div"
+          <CustomTablePagination
             count={tableData.length}
             rowsPerPage={10}
             page={0}
             onPageChange={() => {}}
-            onRowsPerPageChange={() => {}}
-            sx={{ 
-              px: 2.5, 
-              borderTop: '1px solid', 
-              borderColor: 'divider',
-              '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-                fontSize: '0.8rem'
-              }
-            }}
           />
         </Paper>
       </Grid>
@@ -3434,22 +3550,11 @@ const DesignSystemTestPage = () => {
               </TableBody>
             </Table>
           </TableContainer>
-          <TablePagination
-            rowsPerPageOptions={[10]}
-            component="div"
+          <CustomTablePagination
             count={tableData.length}
             rowsPerPage={10}
             page={page}
             onPageChange={handleChangePage}
-            onRowsPerPageChange={() => {}}
-            sx={{ 
-              px: 2.5, 
-              borderTop: '1px solid', 
-              borderColor: 'divider',
-              '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-                fontSize: '0.8rem'
-              }
-            }}
           />
         </Paper>
       </Grid>
@@ -3580,23 +3685,12 @@ const DesignSystemTestPage = () => {
               </TableBody>
             </Table>
           </TableContainer>
-          <TablePagination
-            rowsPerPageOptions={[10]}
-            component="div"
+          <CustomTablePagination
             count={tableData.length}
             rowsPerPage={10}
             page={0}
             onPageChange={() => {}}
-            onRowsPerPageChange={() => {}}
-            sx={{ 
-              px: 2.5, 
-              borderTop: '1px solid', 
-              borderColor: 'divider',
-              background: 'rgba(102, 126, 234, 0.02)',
-              '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-                fontSize: '0.8rem'
-              }
-            }}
+            sx={{ background: 'rgba(102, 126, 234, 0.02)' }}
           />
         </Paper>
       </Grid>
@@ -3686,18 +3780,13 @@ const DesignSystemTestPage = () => {
               </TableBody>
             </Table>
           </TableContainer>
-          <TablePagination
-            rowsPerPageOptions={[10]}
-            component="div"
+          <CustomTablePagination
             count={tableData.length}
             rowsPerPage={10}
             page={0}
             onPageChange={() => {}}
-            onRowsPerPageChange={() => {}}
             sx={{ 
-              px: 1.5, 
-              borderTop: '1px solid', 
-              borderColor: 'divider',
+              px: 1.5,
               '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
                 fontSize: '0.75rem'
               }
@@ -3793,18 +3882,13 @@ const DesignSystemTestPage = () => {
               </TableBody>
             </Table>
           </TableContainer>
-          <TablePagination
-            rowsPerPageOptions={[10]}
-            component="div"
+          <CustomTablePagination
             count={tableData.length}
             rowsPerPage={10}
             page={0}
             onPageChange={() => {}}
-            onRowsPerPageChange={() => {}}
             sx={{ 
-              px: 1.5, 
-              borderTop: '1px solid', 
-              borderColor: 'divider',
+              px: 1.5,
               '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
                 fontSize: '0.75rem'
               }
