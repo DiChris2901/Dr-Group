@@ -6,6 +6,8 @@ import {
   Grid,
   Card,
   CardContent,
+  CardHeader,
+  CardActions,
   Button,
   IconButton,
   Chip,
@@ -146,7 +148,7 @@ const DesignSystemTestPage = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [bottomNavValue, setBottomNavValue] = useState(0);
 
-  // Gradientes actuales del sistema
+  // Gradientes actuales del sistema (ANTES - Muy vibrantes)
   const gradients = {
     primary: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     secondary: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
@@ -157,12 +159,14 @@ const DesignSystemTestPage = () => {
     dark: 'linear-gradient(135deg, #2c3e50 0%, #3498db 100%)'
   };
 
+  // Gradientes del sistema DR Group
+  const gradientsSystem = gradients;
+
   // Sombras del sistema
   const shadows = {
     soft: '0 4px 20px rgba(0,0,0,0.12)',
     medium: '0 8px 25px rgba(0,0,0,0.15)',
-    strong: '0 12px 40px rgba(0,0,0,0.2)',
-    glassmorphism: '0 8px 32px rgba(31, 38, 135, 0.37)'
+    strong: '0 12px 40px rgba(0,0,0,0.2)'
   };
 
   // Datos de ejemplo para tablas
@@ -317,9 +321,9 @@ const DesignSystemTestPage = () => {
         </Typography>
       </Grid>
       
-      {/* Gradientes Actuales */}
+      {/* Gradientes del Sistema */}
       <Grid item xs={12}>
-        <Typography variant="h6" gutterBottom>Gradientes Actuales</Typography>
+        <Typography variant="h6" gutterBottom>Gradientes del Sistema DR Group</Typography>
         <Grid container spacing={2}>
           {Object.entries(gradients).map(([name, gradient]) => (
             <Grid item xs={12} sm={6} md={4} key={name}>
@@ -342,6 +346,9 @@ const DesignSystemTestPage = () => {
             </Grid>
           ))}
         </Grid>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 2, fontStyle: 'italic' }}>
+          � Gradientes spectacular originales del sistema DR Group con efectos visuales avanzados
+        </Typography>
       </Grid>
 
       {/* Tema MUI */}
@@ -457,27 +464,52 @@ const DesignSystemTestPage = () => {
               { icon: <Close />, name: 'Close' }
             ].map(({ icon, name }) => (
               <Grid item xs={6} sm={4} md={3} key={name}>
-                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                <motion.div 
+                  whileHover={{ scale: 1.01, y: -1 }} 
+                  whileTap={{ scale: 0.99 }}
+                  transition={{ 
+                    duration: 0.2, 
+                    ease: "easeOut"
+                  }}
+                >
                   <Box
                     sx={{
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
-                      p: 2,
+                      p: 1.5,
                       border: '1px solid',
                       borderColor: 'divider',
-                      borderRadius: 2,
+                      borderRadius: 1.5,
                       cursor: 'pointer',
-                      transition: 'all 0.3s ease',
+                      minHeight: 60,
+                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                      bgcolor: 'background.paper',
                       '&:hover': {
                         borderColor: 'primary.main',
-                        bgcolor: 'primary.light',
-                        color: 'primary.contrastText'
+                        bgcolor: 'action.hover',
+                        color: 'primary.main',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
                       }
                     }}
                   >
-                    {icon}
-                    <Typography variant="caption" sx={{ mt: 1, textAlign: 'center' }}>
+                    {React.cloneElement(icon, { 
+                      sx: { 
+                        fontSize: 20,
+                        transition: 'all 0.2s ease',
+                        mb: 0.5
+                      } 
+                    })}
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        textAlign: 'center',
+                        fontWeight: 500,
+                        fontSize: '0.7rem',
+                        transition: 'all 0.2s ease',
+                        lineHeight: 1.2
+                      }}
+                    >
                       {name}
                     </Typography>
                   </Box>
@@ -504,7 +536,11 @@ const DesignSystemTestPage = () => {
               { icon: <Refresh />, name: 'Refresh', color: 'primary.main' }
             ].map(({ icon, name, color }) => (
               <Grid item xs={6} sm={4} md={3} key={name}>
-                <motion.div whileHover={{ scale: 1.1, rotate: 5 }} whileTap={{ scale: 0.95 }}>
+                <motion.div 
+                  whileHover={{ scale: 1.03, y: -2 }} 
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                >
                   <Box
                     sx={{
                       display: 'flex',
@@ -516,17 +552,16 @@ const DesignSystemTestPage = () => {
                       borderRadius: 2,
                       cursor: 'pointer',
                       color: color,
-                      transition: 'all 0.3s ease',
+                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&:hover': {
                         bgcolor: color,
                         color: 'white',
-                        transform: 'translateY(-2px)',
-                        boxShadow: `0 4px 20px ${color}40`
+                        boxShadow: `0 6px 16px ${color}30`
                       }
                     }}
                   >
-                    {React.cloneElement(icon, { sx: { fontSize: 28 } })}
-                    <Typography variant="caption" sx={{ mt: 1, textAlign: 'center', fontWeight: 600 }}>
+                    {React.cloneElement(icon, { sx: { fontSize: 26 } })}
+                    <Typography variant="caption" sx={{ mt: 1, textAlign: 'center', fontWeight: 500 }}>
                       {name}
                     </Typography>
                   </Box>
@@ -554,12 +589,15 @@ const DesignSystemTestPage = () => {
             ].map(({ icon, name, color }) => (
               <Grid item xs={6} sm={4} md={3} key={name}>
                 <motion.div 
-                  whileHover={{ scale: 1.05 }}
+                  whileHover={{ scale: 1.04, y: -3 }}
+                  whileTap={{ scale: 0.96 }}
                   animate={{ 
-                    rotate: name === 'Notifications' ? [0, 10, -10, 0] : 0 
+                    rotate: name === 'Notifications' ? [0, 3, -3, 0] : 0 
                   }}
                   transition={{ 
-                    rotate: { duration: 2, repeat: Infinity, repeatDelay: 3 }
+                    rotate: { duration: 3, repeat: Infinity, repeatDelay: 4, ease: "easeInOut" },
+                    scale: { duration: 0.2, ease: "easeOut" },
+                    y: { duration: 0.3, ease: "easeOut" }
                   }}
                 >
                   <Box
@@ -572,15 +610,16 @@ const DesignSystemTestPage = () => {
                       background: `${color}15`,
                       color: color,
                       cursor: 'pointer',
-                      transition: 'all 0.3s ease',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&:hover': {
-                        background: color,
-                        color: 'white',
-                        boxShadow: '0 8px 25px rgba(0,0,0,0.15)'
+                        background: `${color}25`,
+                        color: color,
+                        boxShadow: `0 8px 20px ${color}40`,
+                        transform: 'translateY(-2px)'
                       }
                     }}
                   >
-                    {React.cloneElement(icon, { sx: { fontSize: 32 } })}
+                    {React.cloneElement(icon, { sx: { fontSize: 30 } })}
                     <Typography variant="caption" sx={{ mt: 1, textAlign: 'center', fontWeight: 500 }}>
                       {name}
                     </Typography>
@@ -609,37 +648,67 @@ const DesignSystemTestPage = () => {
             ].map(({ icon, name, color }, index) => (
               <Grid item xs={6} sm={4} md={3} key={name}>
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  whileHover={{ 
-                    scale: 1.1, 
-                    y: -5,
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.2)"
+                  transition={{ 
+                    delay: index * 0.05,
+                    duration: 0.3,
+                    ease: "easeOut"
                   }}
+                  whileHover={{ 
+                    scale: 1.02, 
+                    y: -2
+                  }}
+                  whileTap={{ scale: 0.98 }}
                 >
                   <Box
                     sx={{
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
-                      p: 3,
-                      borderRadius: 3,
-                      background: `linear-gradient(135deg, ${color}20, ${color}40)`,
+                      p: 2,
+                      borderRadius: 2,
+                      background: `${color}08`,
                       color: color,
                       cursor: 'pointer',
-                      border: `2px solid transparent`,
-                      transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                      border: `1px solid ${color}20`,
+                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                       '&:hover': {
-                        background: `linear-gradient(135deg, ${color}, ${color}DD)`,
-                        color: 'white',
-                        borderColor: color,
-                        transform: 'translateY(-8px)'
+                        background: `${color}15`,
+                        color: color,
+                        borderColor: `${color}40`,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                        transform: 'translateY(-2px)'
                       }
                     }}
                   >
-                    {React.cloneElement(icon, { sx: { fontSize: 36, mb: 1 } })}
-                    <Typography variant="body2" sx={{ textAlign: 'center', fontWeight: 600 }}>
+                    <motion.div
+                      whileHover={{ 
+                        scale: 1.05
+                      }}
+                      transition={{ 
+                        duration: 0.2,
+                        ease: "easeOut"
+                      }}
+                    >
+                      {React.cloneElement(icon, { 
+                        sx: { 
+                          fontSize: 28, 
+                          mb: 1,
+                          transition: 'all 0.25s ease'
+                        } 
+                      })}
+                    </motion.div>
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        textAlign: 'center', 
+                        fontWeight: 500,
+                        fontSize: '0.75rem',
+                        transition: 'all 0.25s ease'
+                      }}
+                    >
                       {name}
                     </Typography>
                   </Box>
@@ -693,25 +762,54 @@ const DesignSystemTestPage = () => {
             <Grid item xs={12} md={6}>
               <Typography variant="subtitle2" gutterBottom>Floating Action Buttons</Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-                  <Fab size="small" color="primary">
-                    <Add />
-                  </Fab>
-                </motion.div>
-                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-                  <Fab color="secondary">
-                    <Edit />
-                  </Fab>
-                </motion.div>
-                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                <motion.div whileHover={{ scale: 1.05, y: -1 }} whileTap={{ scale: 0.95 }}>
                   <Fab 
-                    size="large" 
-                    sx={{ 
-                      background: gradients.success,
-                      '&:hover': { background: gradients.success }
+                    size="small" 
+                    color="primary"
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      '&:hover': {
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                      }
                     }}
                   >
-                    <Save />
+                    <Add sx={{ fontSize: 18 }} />
+                  </Fab>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.05, y: -1 }} whileTap={{ scale: 0.95 }}>
+                  <Fab 
+                    size="small"
+                    color="secondary"
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      '&:hover': {
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                      }
+                    }}
+                  >
+                    <Edit sx={{ fontSize: 18 }} />
+                  </Fab>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.05, y: -1 }} whileTap={{ scale: 0.95 }}>
+                  <Fab 
+                    size="small"
+                    sx={{ 
+                      background: `linear-gradient(135deg, ${theme.palette.success.main}E6, ${theme.palette.success.main}CC)`,
+                      color: 'white',
+                      width: 40,
+                      height: 40,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      '&:hover': { 
+                        background: `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})`,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                      }
+                    }}
+                  >
+                    <Save sx={{ fontSize: 18 }} />
                   </Fab>
                 </motion.div>
               </Box>
@@ -763,182 +861,675 @@ const DesignSystemTestPage = () => {
         </Typography>
       </Grid>
 
-      {/* Header Básico */}
+      {/* Header Básico Profesional */}
       <Grid item xs={12}>
-        <Paper sx={{ overflow: 'hidden' }}>
-          <Box
-            sx={{
-              p: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderBottom: '1px solid',
-              borderColor: 'divider'
-            }}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="h6" color="primary.main" gutterBottom>
+            📊 Header Principal de Dashboard
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <strong>Uso:</strong> Header principal para el dashboard de DR Group. Incluye navegación, 
+            notificaciones, búsqueda y barra de estado empresarial con información en tiempo real 
+            del sistema, empresas conectadas y última actualización.
+          </Typography>
+        </Box>
+        <Paper sx={{ overflow: 'hidden', boxShadow: shadows.soft }}>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Menu />
-              <Typography variant="h6">Header Básico</Typography>
+            <Box
+              sx={{
+                p: 2.5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                bgcolor: 'background.paper',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                borderBottom: '1px solid',
+                borderColor: 'divider'
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <IconButton 
+                    size="medium"
+                    sx={{ 
+                      color: 'text.primary',
+                      '&:hover': { 
+                        bgcolor: 'action.hover',
+                        color: 'primary.main'
+                      }
+                    }}
+                  >
+                    <Menu />
+                  </IconButton>
+                </motion.div>
+                <Box>
+                  <Typography 
+                    variant="h6" 
+                    sx={{ 
+                      fontWeight: 600,
+                      color: 'text.primary',
+                      lineHeight: 1.2
+                    }}
+                  >
+                    DR Group Dashboard
+                  </Typography>
+                  <Typography 
+                    variant="caption" 
+                    sx={{ 
+                      color: 'text.secondary',
+                      fontWeight: 500
+                    }}
+                  >
+                    Sistema de Gestión Empresarial
+                  </Typography>
+                </Box>
+              </Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <IconButton 
+                    size="medium"
+                    sx={{ 
+                      color: 'text.secondary',
+                      '&:hover': { 
+                        bgcolor: 'action.hover',
+                        color: 'primary.main'
+                      }
+                    }}
+                  >
+                    <Search />
+                  </IconButton>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <IconButton 
+                    size="medium"
+                    sx={{ 
+                      color: 'text.secondary',
+                      '&:hover': { 
+                        bgcolor: 'action.hover',
+                        color: 'primary.main'
+                      }
+                    }}
+                  >
+                    <Badge badgeContent={3} color="error">
+                      <Notifications />
+                    </Badge>
+                  </IconButton>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <IconButton 
+                    size="medium"
+                    sx={{ 
+                      color: 'text.secondary',
+                      '&:hover': { 
+                        bgcolor: 'action.hover',
+                        color: 'primary.main'
+                      }
+                    }}
+                  >
+                    <MoreVert />
+                  </IconButton>
+                </motion.div>
+              </Box>
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <IconButton><Search /></IconButton>
-              <IconButton><MoreVert /></IconButton>
+          </motion.div>
+          
+          {/* Barra de Estado Empresarial */}
+          <Box sx={{ 
+            px: 2.5, 
+            py: 1.5, 
+            bgcolor: 'grey.50',
+            borderTop: '1px solid',
+            borderColor: 'divider'
+          }}>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 2
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ 
+                    width: 8, 
+                    height: 8, 
+                    borderRadius: '50%', 
+                    bgcolor: 'success.main' 
+                  }} />
+                  <Typography variant="caption" sx={{ fontWeight: 500, color: 'text.secondary' }}>
+                    Sistema Activo
+                  </Typography>
+                </Box>
+                
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Business sx={{ fontSize: 14, color: 'text.secondary' }} />
+                  <Typography variant="caption" sx={{ fontWeight: 500, color: 'text.secondary' }}>
+                    5 Empresas Conectadas
+                  </Typography>
+                </Box>
+                
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Today sx={{ fontSize: 14, color: 'text.secondary' }} />
+                  <Typography variant="caption" sx={{ fontWeight: 500, color: 'text.secondary' }}>
+                    Agosto 2025
+                  </Typography>
+                </Box>
+              </Box>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  Última actualización:
+                </Typography>
+                <Typography variant="caption" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                  Hace 2 min
+                </Typography>
+              </Box>
             </Box>
-          </Box>
-          <Box sx={{ p: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              Header estándar con iconos de navegación y acciones
-            </Typography>
           </Box>
         </Paper>
       </Grid>
 
       {/* Header con Gradiente */}
       <Grid item xs={12}>
-        <Paper sx={{ overflow: 'hidden' }}>
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="h6" color="primary.main" gutterBottom>
+            🎨 Header Ejecutivo con Gradiente
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <strong>Uso:</strong> Header ejecutivo para páginas de presentación, reportes directivos, 
+            y secciones de alta importancia. Diseño elegante y profesional con gradiente corporativo 
+            que comunica autoridad y confianza empresarial para DR Group.
+          </Typography>
+        </Box>
+        <Paper sx={{ overflow: 'hidden', boxShadow: shadows.soft }}>
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
           >
             <Box
               sx={{
                 background: gradients.primary,
                 color: 'white',
-                p: 2,
+                p: 3,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 position: 'relative',
-                overflow: 'hidden',
-                '&::before': {
+                '&::after': {
                   content: '""',
                   position: 'absolute',
-                  top: 0,
-                  left: '-100%',
-                  width: '100%',
-                  height: '100%',
-                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                  animation: 'shimmer 3s infinite'
-                },
-                '@keyframes shimmer': {
-                  '0%': { left: '-100%' },
-                  '100%': { left: '100%' }
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: '1px',
+                  background: 'rgba(255,255,255,0.2)'
                 }
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, zIndex: 1 }}>
-                <ArrowBack />
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Header con Gradiente Spectacular
-                </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <IconButton 
+                    sx={{ 
+                      color: 'white',
+                      bgcolor: 'rgba(255,255,255,0.1)',
+                      '&:hover': {
+                        bgcolor: 'rgba(255,255,255,0.2)',
+                        transform: 'translateX(-2px)'
+                      },
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <ArrowBack />
+                  </IconButton>
+                </motion.div>
+                <Box>
+                  <Typography variant="h5" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    Reporte Ejecutivo
+                  </Typography>
+                  <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 400 }}>
+                    Dashboard de análisis financiero corporativo
+                  </Typography>
+                </Box>
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, zIndex: 1 }}>
-                <IconButton sx={{ color: 'white' }}><Search /></IconButton>
-                <IconButton sx={{ color: 'white' }}><Notifications /></IconButton>
-                <Avatar sx={{ width: 32, height: 32 }}><Person /></Avatar>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 1.5,
+                  px: 2,
+                  py: 1,
+                  borderRadius: 6,
+                  bgcolor: 'rgba(255,255,255,0.15)',
+                  mr: 1
+                }}>
+                  <Box sx={{ 
+                    width: 6, 
+                    height: 6, 
+                    borderRadius: '50%', 
+                    bgcolor: '#4caf50' 
+                  }} />
+                  <Typography variant="caption" sx={{ 
+                    color: 'white', 
+                    fontWeight: 500,
+                    fontSize: '0.75rem'
+                  }}>
+                    En línea
+                  </Typography>
+                </Box>
+                
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <IconButton sx={{ 
+                    color: 'white',
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
+                  }}>
+                    <Search />
+                  </IconButton>
+                </motion.div>
+                
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <IconButton sx={{ 
+                    color: 'white',
+                    '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
+                  }}>
+                    <Badge 
+                      badgeContent={2} 
+                      sx={{
+                        '& .MuiBadge-badge': {
+                          bgcolor: '#ff5722',
+                          color: 'white',
+                          fontWeight: 600
+                        }
+                      }}
+                    >
+                      <Notifications />
+                    </Badge>
+                  </IconButton>
+                </motion.div>
+                
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Avatar 
+                    sx={{ 
+                      width: 36, 
+                      height: 36,
+                      bgcolor: 'rgba(255,255,255,0.2)',
+                      border: '2px solid rgba(255,255,255,0.3)',
+                      ml: 1,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        bgcolor: 'rgba(255,255,255,0.3)',
+                        transform: 'translateY(-1px)'
+                      }
+                    }}
+                  >
+                    <Person />
+                  </Avatar>
+                </motion.div>
               </Box>
             </Box>
           </motion.div>
-          <Box sx={{ p: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              Header con gradiente, efecto shimmer y avatar de usuario
-            </Typography>
+          
+          <Box sx={{ 
+            p: 2, 
+            bgcolor: 'grey.50',
+            borderTop: '1px solid',
+            borderColor: 'divider'
+          }}>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 2
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Chip
+                  label="Confidencial"
+                  size="small"
+                  sx={{
+                    bgcolor: 'rgba(37, 99, 235, 0.08)',
+                    color: 'primary.main',
+                    fontWeight: 600,
+                    fontSize: '0.7rem',
+                    border: '1px solid',
+                    borderColor: 'rgba(37, 99, 235, 0.2)',
+                    '&:hover': {
+                      bgcolor: 'rgba(37, 99, 235, 0.12)',
+                      borderColor: 'rgba(37, 99, 235, 0.3)'
+                    }
+                  }}
+                />
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  Acceso: Directivos y Gerencia
+                </Typography>
+              </Box>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Generado:
+                </Typography>
+                <Typography variant="caption" sx={{ 
+                  fontWeight: 600, 
+                  color: 'primary.main'
+                }}>
+                  07 Agosto 2025, 14:30
+                </Typography>
+              </Box>
+            </Box>
           </Box>
         </Paper>
       </Grid>
 
-      {/* Header Glassmorphism */}
+      {/* Header de Página */}
       <Grid item xs={12}>
-        <Box
-          sx={{
-            background: gradients.secondary,
-            borderRadius: 2,
-            p: 3,
-            position: 'relative',
-            overflow: 'hidden'
-          }}
-        >
-          <Typography variant="h6" color="white" gutterBottom>
-            Header con Efecto Glassmorphism
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="h6" color="primary.main" gutterBottom>
+            📋 Header de Gestión Empresarial
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <strong>Uso:</strong> Header profesional para módulos operativos como gestión de compromisos, 
+            reportes financieros, configuraciones y herramientas administrativas. Diseño funcional 
+            con jerarquía visual clara, indicadores de contexto y acciones principales destacadas.
+          </Typography>
+        </Box>
+        <Paper sx={{ overflow: 'hidden', boxShadow: shadows.soft }}>
+          <Typography variant="h6" gutterBottom sx={{ p: 3, pb: 2 }}>
+            Header de Gestión Empresarial
           </Typography>
           
-          <Paper
-            sx={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              boxShadow: shadows.glassmorphism,
-              overflow: 'hidden',
-              mt: 2
-            }}
-          >
+          {/* Header Principal Mejorado */}
+          <Box sx={{ px: 3, pb: 2 }}>
             <Box
               sx={{
-                p: 2,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                color: 'white'
+                flexWrap: 'wrap',
+                gap: 2,
+                p: 2,
+                bgcolor: 'grey.50',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 2,
+                position: 'relative'
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Dashboard />
-                <Typography variant="h6" sx={{ fontWeight: 500 }}>
-                  DR Group Dashboard
-                </Typography>
+              {/* Indicador de módulo */}
+              <Box sx={{ 
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '4px',
+                height: '100%',
+                bgcolor: 'primary.main',
+                borderRadius: '0 2px 2px 0'
+              }} />
+              
+              {/* Contenido principal en línea */}
+              <Box sx={{ 
+                flex: 1, 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 3,
+                flexWrap: 'wrap',
+                minWidth: '300px'
+              }}>
+                {/* Título y descripción compactos */}
+                <Box sx={{ flex: 1, minWidth: '200px' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                    <Typography variant="caption" sx={{ 
+                      color: 'text.secondary',
+                      textTransform: 'uppercase',
+                      fontWeight: 600,
+                      letterSpacing: 0.5
+                    }}>
+                      FINANZAS
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">•</Typography>
+                    <Typography variant="caption" sx={{ 
+                      color: 'primary.main',
+                      fontWeight: 600
+                    }}>
+                      COMPROMISOS
+                    </Typography>
+                  </Box>
+                  
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 700, 
+                    mb: 0.5,
+                    color: 'text.primary',
+                    lineHeight: 1.3
+                  }}>
+                    Compromisos Financieros
+                  </Typography>
+                  
+                  <Typography variant="body2" color="text.secondary" sx={{ 
+                    fontSize: '0.85rem',
+                    lineHeight: 1.4
+                  }}>
+                    Gestión integral de obligaciones de pago corporativas
+                  </Typography>
+                </Box>
+                
+                {/* Métricas en línea horizontal */}
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 2.5,
+                  flexWrap: 'wrap',
+                  bgcolor: 'background.paper',
+                  px: 2,
+                  py: 1,
+                  borderRadius: 1,
+                  border: '1px solid',
+                  borderColor: 'divider'
+                }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Box sx={{ 
+                      width: 6, 
+                      height: 6, 
+                      borderRadius: '50%', 
+                      bgcolor: 'success.main'
+                    }} />
+                    <Typography variant="caption" sx={{ 
+                      fontWeight: 600, 
+                      color: 'text.primary',
+                      fontSize: '0.75rem'
+                    }}>
+                      24
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Box sx={{ 
+                      width: 6, 
+                      height: 6, 
+                      borderRadius: '50%', 
+                      bgcolor: 'warning.main'
+                    }} />
+                    <Typography variant="caption" sx={{ 
+                      fontWeight: 600, 
+                      color: 'text.primary',
+                      fontSize: '0.75rem'
+                    }}>
+                      7
+                    </Typography>
+                  </Box>
+                  
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <AttachMoney sx={{ fontSize: 12, color: 'success.main' }} />
+                    <Typography variant="caption" sx={{ 
+                      fontWeight: 600, 
+                      color: 'success.main',
+                      fontSize: '0.75rem'
+                    }}>
+                      $45.2M
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Badge badgeContent={3} color="error">
-                  <Notifications sx={{ color: 'white' }} />
-                </Badge>
-                <Chip 
-                  label="Admin" 
-                  size="small" 
-                  sx={{ 
-                    background: 'rgba(255,255,255,0.2)',
-                    color: 'white',
-                    border: '1px solid rgba(255,255,255,0.3)'
-                  }} 
-                />
+              
+              {/* Acciones compactas */}
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center',
+                gap: 1
+              }}>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button 
+                    variant="outlined" 
+                    startIcon={<FilterList />}
+                    size="small"
+                    sx={{
+                      borderColor: 'divider',
+                      color: 'text.secondary',
+                      fontSize: '0.8rem',
+                      '&:hover': {
+                        borderColor: 'primary.main',
+                        color: 'primary.main',
+                        bgcolor: 'primary.50'
+                      }
+                    }}
+                  >
+                    Filtros
+                  </Button>
+                </motion.div>
+                
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button 
+                    variant="contained" 
+                    startIcon={<Add />}
+                    size="small"
+                    sx={{
+                      bgcolor: 'primary.main',
+                      fontSize: '0.8rem',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      '&:hover': {
+                        bgcolor: 'primary.dark',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                      }
+                    }}
+                  >
+                    Nuevo
+                  </Button>
+                </motion.div>
+                
+                {/* Acciones secundarias inline */}
+                <Box sx={{ display: 'flex', gap: 0.5, ml: 1 }}>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <IconButton 
+                      size="small"
+                      sx={{ 
+                        color: 'text.secondary',
+                        bgcolor: 'background.paper',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        width: 28,
+                        height: 28,
+                        '&:hover': { 
+                          color: 'primary.main',
+                          borderColor: 'primary.main',
+                          bgcolor: 'primary.50'
+                        }
+                      }}
+                    >
+                      <CloudDownload sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </motion.div>
+                  
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <IconButton 
+                      size="small"
+                      sx={{ 
+                        color: 'text.secondary',
+                        bgcolor: 'background.paper',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        width: 28,
+                        height: 28,
+                        '&:hover': { 
+                          color: 'info.main',
+                          borderColor: 'info.main',
+                          bgcolor: 'info.50'
+                        }
+                      }}
+                    >
+                      <Settings sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </motion.div>
+                </Box>
               </Box>
             </Box>
-          </Paper>
-        </Box>
-      </Grid>
-
-      {/* Header de Página */}
-      <Grid item xs={12}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Header de Página Interna</Typography>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
+          </Box>
+          
+          {/* Barra de estado y filtros rápidos */}
+          <Box sx={{ 
+            px: 3, 
+            py: 2, 
+            bgcolor: 'background.paper',
+            borderTop: '1px solid',
+            borderColor: 'divider'
+          }}>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
               justifyContent: 'space-between',
               flexWrap: 'wrap',
-              gap: 2,
-              p: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: 1,
-              mt: 2
-            }}
-          >
-            <Box>
-              <Typography variant="h5" sx={{ fontWeight: 600, mb: 0.5 }}>
-                Compromisos Financieros
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Gestiona los compromisos de pago de todas las empresas
-              </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button variant="outlined" startIcon={<FilterList />}>
-                Filtrar
-              </Button>
-              <Button variant="contained" startIcon={<Add />}>
-                Nuevo Compromiso
-              </Button>
+              gap: 2
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  Vista actual:
+                </Typography>
+                
+                <Chip
+                  label="Todos los compromisos"
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    borderColor: 'primary.main',
+                    color: 'primary.main',
+                    bgcolor: 'primary.50'
+                  }}
+                />
+                
+                <Typography variant="caption" color="text.secondary">
+                  •
+                </Typography>
+                
+                <Typography variant="caption" color="text.secondary">
+                  Última actualización: hace 2 min
+                </Typography>
+              </Box>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Ordenar por:
+                </Typography>
+                <Button
+                  size="small"
+                  endIcon={<Sort sx={{ fontSize: 16 }} />}
+                  sx={{ 
+                    minWidth: 'auto',
+                    color: 'text.secondary',
+                    '&:hover': { 
+                      color: 'primary.main',
+                      bgcolor: 'primary.50'
+                    }
+                  }}
+                >
+                  Fecha venc.
+                </Button>
+              </Box>
             </Box>
           </Box>
         </Paper>
@@ -946,46 +1537,186 @@ const DesignSystemTestPage = () => {
 
       {/* Header con Breadcrumbs */}
       <Grid item xs={12}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Header con Breadcrumbs</Typography>
-          <Box sx={{ mt: 2 }}>
-            {/* Breadcrumbs */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-              <Home fontSize="small" color="action" />
-              <Typography variant="body2" color="text.secondary">Inicio</Typography>
-              <Typography variant="body2" color="text.secondary">/</Typography>
-              <Typography variant="body2" color="text.secondary">Compromisos</Typography>
-              <Typography variant="body2" color="text.secondary">/</Typography>
-              <Typography variant="body2" color="primary">Nuevo</Typography>
-            </Box>
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="h6" color="primary.main" gutterBottom>
+            🧭 Header con Navegación de Migas de Pan
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <strong>Uso:</strong> Header para flujos de trabajo complejos o formularios multi-paso. 
+            Ideal para crear/editar compromisos, procesos de configuración, o cualquier navegación 
+            profunda donde el usuario necesita saber dónde está y poder regresar fácilmente.
+          </Typography>
+        </Box>
+        <Paper sx={{ p: 2 }}>
+          <Typography variant="h6" gutterBottom>Header Navegacional Empresarial</Typography>
+          <Box sx={{ 
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 2,
+            p: 2,
+            bgcolor: 'grey.50',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 2,
+            position: 'relative'
+          }}>
+            {/* Indicador de proceso */}
+            <Box sx={{ 
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '3px',
+              height: '100%',
+              bgcolor: 'info.main',
+              borderRadius: '0 1px 1px 0'
+            }} />
             
-            {/* Header Principal */}
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: 2
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <IconButton>
-                  <ArrowBack />
-                </IconButton>
-                <Box>
-                  <Typography variant="h5" sx={{ fontWeight: 600 }}>
-                    Nuevo Compromiso
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Crear un nuevo compromiso financiero
+            {/* Contenido principal compacto */}
+            <Box sx={{ 
+              flex: 1, 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 2,
+              minWidth: '300px'
+            }}>
+              {/* Navegación y título en línea */}
+              <Box sx={{ flex: 1 }}>
+                {/* Breadcrumbs compactos */}
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 0.5, 
+                  mb: 0.5,
+                  fontSize: '0.75rem'
+                }}>
+                  <Home sx={{ fontSize: 12, color: 'text.secondary' }} />
+                  <Typography variant="caption" color="text.secondary">•</Typography>
+                  <Typography variant="caption" color="text.secondary">Compromisos</Typography>
+                  <Typography variant="caption" color="text.secondary">•</Typography>
+                  <Typography variant="caption" sx={{ 
+                    color: 'info.main',
+                    fontWeight: 600
+                  }}>
+                    Nuevo
                   </Typography>
                 </Box>
+                
+                {/* Título y descripción compactos */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <IconButton 
+                      size="small"
+                      sx={{ 
+                        bgcolor: 'background.paper',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        width: 28,
+                        height: 28,
+                        '&:hover': { 
+                          borderColor: 'info.main',
+                          color: 'info.main'
+                        }
+                      }}
+                    >
+                      <ArrowBack sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </motion.div>
+                  
+                  <Box>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 700, 
+                      mb: 0.25,
+                      fontSize: '1.1rem',
+                      lineHeight: 1.3
+                    }}>
+                      Nuevo Compromiso
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ 
+                      fontSize: '0.75rem',
+                      display: 'block'
+                    }}>
+                      Crear obligación financiera empresarial
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button variant="outlined">Cancelar</Button>
-                <Button variant="contained" color="success">Guardar</Button>
+              
+              {/* Estado del proceso */}
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center',
+                gap: 1,
+                bgcolor: 'background.paper',
+                px: 1.5,
+                py: 0.5,
+                borderRadius: 1,
+                border: '1px solid',
+                borderColor: 'divider'
+              }}>
+                <Box sx={{ 
+                  width: 6, 
+                  height: 6, 
+                  borderRadius: '50%', 
+                  bgcolor: 'info.main'
+                }} />
+                <Typography variant="caption" sx={{ 
+                  fontWeight: 600, 
+                  color: 'text.primary',
+                  fontSize: '0.7rem'
+                }}>
+                  Paso 1 de 3
+                </Typography>
               </Box>
+            </Box>
+            
+            {/* Acciones compactas */}
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              gap: 1
+            }}>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button 
+                  variant="outlined" 
+                  size="small"
+                  sx={{
+                    borderColor: 'divider',
+                    color: 'text.secondary',
+                    fontSize: '0.75rem',
+                    minWidth: 'auto',
+                    px: 2,
+                    '&:hover': {
+                      borderColor: 'error.main',
+                      color: 'error.main',
+                      bgcolor: 'error.50'
+                    }
+                  }}
+                >
+                  Cancelar
+                </Button>
+              </motion.div>
+              
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button 
+                  variant="contained" 
+                  size="small"
+                  sx={{
+                    bgcolor: 'success.main',
+                    fontSize: '0.75rem',
+                    minWidth: 'auto',
+                    px: 2,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                    '&:hover': {
+                      bgcolor: 'success.dark',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                    }
+                  }}
+                >
+                  Guardar
+                </Button>
+              </motion.div>
             </Box>
           </Box>
         </Paper>
@@ -993,95 +1724,143 @@ const DesignSystemTestPage = () => {
 
       {/* Header de Dashboard */}
       <Grid item xs={12}>
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="h6" color="primary.main" gutterBottom>
+            📈 Header de Dashboard Ejecutivo
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <strong>Uso:</strong> Header principal para títulos de páginas importantes del sistema. 
+            Diseño spectacular con gradiente profesional, ideal para páginas ejecutivas, dashboards 
+            principales y secciones de alta dirección. Enfoque en el título, no en métricas.
+          </Typography>
+        </Box>
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, type: "spring" }}
         >
           <Paper 
             sx={{ 
               overflow: 'hidden',
               background: gradients.info,
-              color: 'white'
+              color: 'white',
+              borderRadius: 2,
+              boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
+              position: 'relative',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(255, 255, 255, 0.1)',
+                zIndex: 0,
+              }
             }}
           >
-            <Box sx={{ p: 3 }}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  mb: 2
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Analytics sx={{ fontSize: 32 }} />
+            {/* Header Principal Spectacular - Solo Título */}
+            <Box sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 2
+              }}>
+                {/* Título Principal Spectacular */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5, flex: 1 }}>
+                  <Box sx={{
+                    p: 1.5,
+                    bgcolor: 'rgba(255, 255, 255, 0.2)',
+                    borderRadius: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Analytics sx={{ fontSize: 24, color: 'white' }} />
+                  </Box>
+                  
                   <Box>
-                    <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                    <Typography variant="h4" sx={{ 
+                      fontWeight: 700, 
+                      color: 'white',
+                      mb: 0.5,
+                      fontSize: '1.75rem',
+                      letterSpacing: '-0.01em',
+                      textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                      lineHeight: 1.2
+                    }}>
                       Dashboard Ejecutivo
                     </Typography>
-                    <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                      Vista general de compromisos y métricas financieras
+                    <Typography variant="subtitle1" sx={{ 
+                      color: 'rgba(255, 255, 255, 0.9)',
+                      fontSize: '1rem',
+                      fontWeight: 500,
+                      letterSpacing: '0.005em',
+                      lineHeight: 1.4
+                    }}>
+                      Control financiero empresarial con métricas en tiempo real
                     </Typography>
                   </Box>
                 </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Chip 
-                    label="Tiempo Real" 
-                    size="small"
-                    sx={{ 
-                      background: 'rgba(255,255,255,0.2)',
-                      color: 'white'
-                    }}
-                  />
-                  <IconButton sx={{ color: 'white' }}>
-                    <Settings />
-                  </IconButton>
+                
+                {/* Botones de Acción Spectacular */}
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Button
+                      variant="outlined"
+                      startIcon={<Refresh />}
+                      sx={{
+                        py: 1.5,
+                        px: 3.5,
+                        fontSize: '1rem',
+                        fontWeight: 600,
+                        borderRadius: 2,
+                        border: '2px solid rgba(255, 255, 255, 0.5)',
+                        color: 'white',
+                        textTransform: 'none',
+                        backdropFilter: 'blur(10px)',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          background: 'rgba(255, 255, 255, 0.15)',
+                          borderColor: 'rgba(255, 255, 255, 0.8)',
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 6px 20px rgba(0, 0, 0, 0.3)'
+                        }
+                      }}
+                    >
+                      Actualizar
+                    </Button>
+                  </motion.div>
+                  
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <IconButton
+                      sx={{
+                        color: 'white',
+                        bgcolor: 'rgba(255, 255, 255, 0.15)',
+                        border: '1px solid rgba(255, 255, 255, 0.3)',
+                        backdropFilter: 'blur(10px)',
+                        width: 48,
+                        height: 48,
+                        '&:hover': { 
+                          bgcolor: 'rgba(255, 255, 255, 0.25)',
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 6px 20px rgba(0, 0, 0, 0.3)'
+                        }
+                      }}
+                    >
+                      <Settings />
+                    </IconButton>
+                  </motion.div>
                 </Box>
               </Box>
-              
-              {/* Stats rápidas */}
-              <Grid container spacing={2}>
-                <Grid item xs={6} sm={3}>
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                      24
-                    </Typography>
-                    <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                      Compromisos
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                      $45M
-                    </Typography>
-                    <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                      Total Mes
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" sx={{ fontWeight: 700, color: '#ffeb3b' }}>
-                      7
-                    </Typography>
-                    <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                      Próximos
-                    </Typography>
-                  </Box>
-                </Grid>
-                <Grid item xs={6} sm={3}>
-                  <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h4" sx={{ fontWeight: 700, color: '#f44336' }}>
-                      3
-                    </Typography>
-                    <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                      Vencidos
-                    </Typography>
-                  </Box>
-                </Grid>
-              </Grid>
             </Box>
           </Paper>
         </motion.div>
@@ -1089,79 +1868,258 @@ const DesignSystemTestPage = () => {
 
       {/* Header Móvil */}
       <Grid item xs={12} md={6}>
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="h6" gutterBottom>Header Móvil Compacto</Typography>
-          <Box
-            sx={{
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="h6" color="primary.main" gutterBottom>
+            📱 Header Móvil Compacto
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <strong>Uso:</strong> Header limpio y profesional para móviles. Diseño minimalista 
+            con elementos esenciales organizados horizontalmente. Perfecto para navegación 
+            móvil del sistema DR Group con gradiente spectacular sutil.
+          </Typography>
+        </Box>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        >
+          <Paper 
+            sx={{ 
+              overflow: 'hidden',
               background: gradients.dark,
               color: 'white',
-              borderRadius: 1,
-              overflow: 'hidden'
+              borderRadius: 2,
+              boxShadow: '0 4px 16px rgba(31, 38, 135, 0.2)',
+              position: 'relative',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(255, 255, 255, 0.08)',
+                zIndex: 0,
+              }
             }}
           >
-            <Box
-              sx={{
-                p: 1.5,
+            {/* Header Móvil Spectacular Limpio */}
+            <Box sx={{ p: 2, position: 'relative', zIndex: 1 }}>
+              <Box sx={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between'
-              }}
-            >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <IconButton size="small" sx={{ color: 'white' }}>
-                  <Menu />
-                </IconButton>
-                <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                  DR Group
-                </Typography>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <IconButton size="small" sx={{ color: 'white' }}>
-                  <Badge badgeContent={2} color="error">
-                    <Notifications fontSize="small" />
-                  </Badge>
-                </IconButton>
+                justifyContent: 'space-between',
+                gap: 2
+              }}>
+                {/* Logo y Menú */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                    <IconButton 
+                      size="small" 
+                      sx={{ 
+                        color: 'white',
+                        bgcolor: 'rgba(255, 255, 255, 0.1)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        borderRadius: 1.5,
+                        width: 36,
+                        height: 36,
+                        '&:hover': { 
+                          bgcolor: 'rgba(255, 255, 255, 0.2)'
+                        }
+                      }}
+                    >
+                      <Menu sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </motion.div>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 700, 
+                    fontSize: '1.125rem',
+                    letterSpacing: '0.005em'
+                  }}>
+                    DR Group
+                  </Typography>
+                </Box>
+
+                {/* Notificaciones */}
+                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                  <IconButton 
+                    size="small" 
+                    sx={{ 
+                      color: 'white',
+                      bgcolor: 'rgba(255, 255, 255, 0.1)',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      borderRadius: 1.5,
+                      width: 36,
+                      height: 36,
+                      '&:hover': { 
+                        bgcolor: 'rgba(255, 255, 255, 0.2)'
+                      }
+                    }}
+                  >
+                    <Badge 
+                      badgeContent={2} 
+                      color="error"
+                      sx={{
+                        '& .MuiBadge-badge': {
+                          fontSize: '0.625rem',
+                          minWidth: 16,
+                          height: 16
+                        }
+                      }}
+                    >
+                      <Notifications sx={{ fontSize: 18 }} />
+                    </Badge>
+                  </IconButton>
+                </motion.div>
               </Box>
             </Box>
-          </Box>
-        </Paper>
+          </Paper>
+        </motion.div>
       </Grid>
 
       {/* Header con Tabs */}
       <Grid item xs={12} md={6}>
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="h6" gutterBottom>Header con Tabs</Typography>
-          <Box sx={{ borderRadius: 1, overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
-            <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                Análisis Financiero
-              </Typography>
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="h6" color="primary.main" gutterBottom>
+            📑 Header con Navegación por Pestañas
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <strong>Uso:</strong> Header limpio con pestañas organizadas horizontalmente. 
+            Diseño profesional para secciones con múltiples vistas. Ideal para reportes 
+            financieros, análisis y módulos con funcionalidades agrupadas.
+          </Typography>
+        </Box>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        >
+          <Paper 
+            sx={{ 
+              overflow: 'hidden',
+              borderRadius: 2,
+              boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
+              border: '1px solid',
+              borderColor: 'divider'
+            }}
+          >
+            {/* Header Principal Limpio */}
+            <Box sx={{ 
+              p: 2.5,
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.03) 100%)'
+            }}>
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 2
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Box sx={{
+                    p: 1,
+                    bgcolor: 'primary.main',
+                    borderRadius: 1.5,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Analytics sx={{ fontSize: 18, color: 'white' }} />
+                  </Box>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 700,
+                    fontSize: '1.25rem',
+                    color: 'text.primary',
+                    letterSpacing: '-0.01em'
+                  }}>
+                    Análisis Financiero
+                  </Typography>
+                </Box>
+                
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <IconButton
+                    size="small"
+                    sx={{
+                      color: 'text.secondary',
+                      bgcolor: 'background.paper',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      width: 32,
+                      height: 32,
+                      '&:hover': { 
+                        bgcolor: 'action.hover',
+                        borderColor: 'primary.main',
+                        color: 'primary.main'
+                      }
+                    }}
+                  >
+                    <Settings sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </motion.div>
+              </Box>
             </Box>
-            <Box sx={{ display: 'flex', borderBottom: '1px solid', borderColor: 'divider' }}>
-              {['Resumen', 'Gráficos', 'Reportes'].map((tab, index) => (
-                <Button
+
+            {/* Pestañas Horizontales Limpias */}
+            <Box sx={{ 
+              display: 'flex',
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'background.paper'
+            }}>
+              {['Resumen', 'Gráficos', 'Reportes', 'Configuración'].map((tab, index) => (
+                <motion.div
                   key={tab}
-                  variant={index === 0 ? 'contained' : 'text'}
-                  size="small"
-                  sx={{
-                    borderRadius: 0,
-                    ...(index === 0 && {
-                      background: gradients.primary,
-                      '&:hover': { background: gradients.primary }
-                    })
-                  }}
+                  whileHover={{ y: -1 }}
+                  whileTap={{ y: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  style={{ flex: 1 }}
                 >
-                  {tab}
-                </Button>
+                  <Button
+                    variant={index === 0 ? 'contained' : 'text'}
+                    size="medium"
+                    sx={{
+                      width: '100%',
+                      py: 1.5,
+                      px: 3,
+                      borderRadius: 0,
+                      fontWeight: index === 0 ? 700 : 500,
+                      fontSize: '0.875rem',
+                      letterSpacing: '0.005em',
+                      textTransform: 'none',
+                      ...(index === 0 ? {
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        color: 'white',
+                        boxShadow: 'inset 0 -2px 0 rgba(255,255,255,0.2)',
+                        '&:hover': { 
+                          background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)'
+                        }
+                      } : {
+                        color: 'text.secondary',
+                        '&:hover': {
+                          bgcolor: 'action.hover',
+                          color: 'text.primary'
+                        }
+                      })
+                    }}
+                  >
+                    {tab}
+                  </Button>
+                </motion.div>
               ))}
             </Box>
-            <Box sx={{ p: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                Contenido del tab seleccionado
+
+            {/* Contenido Limpio */}
+            <Box sx={{ p: 2.5, minHeight: 60 }}>
+              <Typography variant="body2" color="text.secondary" sx={{
+                fontStyle: 'italic',
+                textAlign: 'center'
+              }}>
+                Contenido del tab "{['Resumen', 'Gráficos', 'Reportes', 'Configuración'][0]}" seleccionado
               </Typography>
             </Box>
-          </Box>
-        </Paper>
+          </Paper>
+        </motion.div>
       </Grid>
     </Grid>
   );
@@ -1233,30 +2191,251 @@ const DesignSystemTestPage = () => {
       <Grid item xs={12}>
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" gutterBottom>Botones Especiales</Typography>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Fab color="primary" size="small">
-              <Add />
-            </Fab>
-            <Fab color="primary">
-              <Add />
-            </Fab>
-            <Fab color="secondary" size="large">
-              <Edit />
-            </Fab>
-            
-            <IconButton color="primary">
-              <Settings />
-            </IconButton>
-            <IconButton color="secondary">
-              <Favorite />
-            </IconButton>
-            
-            <Button variant="contained" startIcon={<Dashboard />}>
-              Con Icono Inicio
-            </Button>
-            <Button variant="outlined" endIcon={<Star />}>
-              Con Icono Final
-            </Button>
+          
+          {/* Floating Action Buttons */}
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="subtitle2" gutterBottom sx={{ color: 'text.secondary', mb: 2 }}>
+              Floating Action Buttons (FAB):
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 3, alignItems: 'center', flexWrap: 'wrap' }}>
+              <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }}>
+                <Fab 
+                  color="primary" 
+                  size="small"
+                  sx={{
+                    boxShadow: '0 2px 8px rgba(25, 118, 210, 0.3)',
+                    '&:hover': {
+                      boxShadow: '0 4px 12px rgba(25, 118, 210, 0.4)',
+                      transform: 'translateY(-2px)'
+                    },
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                >
+                  <Add sx={{ fontSize: 18 }} />
+                </Fab>
+              </motion.div>
+              
+              <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }}>
+                <Fab 
+                  color="primary"
+                  sx={{
+                    boxShadow: '0 2px 8px rgba(25, 118, 210, 0.3)',
+                    '&:hover': {
+                      boxShadow: '0 4px 12px rgba(25, 118, 210, 0.4)',
+                      transform: 'translateY(-2px)'
+                    },
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                >
+                  <Add sx={{ fontSize: 20 }} />
+                </Fab>
+              </motion.div>
+              
+              <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }}>
+                <Fab 
+                  color="secondary" 
+                  size="large"
+                  sx={{
+                    boxShadow: '0 3px 12px rgba(156, 39, 176, 0.3)',
+                    '&:hover': {
+                      boxShadow: '0 6px 16px rgba(156, 39, 176, 0.4)',
+                      transform: 'translateY(-2px)'
+                    },
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                >
+                  <Edit sx={{ fontSize: 24 }} />
+                </Fab>
+              </motion.div>
+
+              <Box sx={{ 
+                display: 'flex', 
+                flexDirection: 'column', 
+                alignItems: 'center',
+                gap: 0.5,
+                color: 'text.secondary',
+                ml: 2
+              }}>
+                <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                  Tamaños
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Typography variant="caption">S</Typography>
+                  <Typography variant="caption">M</Typography>
+                  <Typography variant="caption">L</Typography>
+                </Box>
+              </Box>
+            </Box>
+          </Box>
+
+          {/* Icon Buttons */}
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="subtitle2" gutterBottom sx={{ color: 'text.secondary', mb: 2 }}>
+              Icon Buttons:
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                <IconButton 
+                  color="primary"
+                  sx={{
+                    bgcolor: 'rgba(25, 118, 210, 0.08)',
+                    '&:hover': {
+                      bgcolor: 'rgba(25, 118, 210, 0.15)',
+                      color: 'primary.dark'
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <Settings />
+                </IconButton>
+              </motion.div>
+              
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                <IconButton 
+                  color="secondary"
+                  sx={{
+                    bgcolor: 'rgba(156, 39, 176, 0.08)',
+                    '&:hover': {
+                      bgcolor: 'rgba(156, 39, 176, 0.15)',
+                      color: 'secondary.dark'
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <Favorite />
+                </IconButton>
+              </motion.div>
+
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                <IconButton 
+                  sx={{
+                    color: 'success.main',
+                    bgcolor: 'rgba(76, 175, 80, 0.08)',
+                    '&:hover': {
+                      bgcolor: 'rgba(76, 175, 80, 0.15)',
+                      color: 'success.dark'
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <Save />
+                </IconButton>
+              </motion.div>
+
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                <IconButton 
+                  sx={{
+                    color: 'error.main',
+                    bgcolor: 'rgba(211, 47, 47, 0.08)',
+                    '&:hover': {
+                      bgcolor: 'rgba(211, 47, 47, 0.15)',
+                      color: 'error.dark'
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <Delete />
+                </IconButton>
+              </motion.div>
+            </Box>
+          </Box>
+
+          {/* Botones con Iconos */}
+          <Box>
+            <Typography variant="subtitle2" gutterBottom sx={{ color: 'text.secondary', mb: 2 }}>
+              Botones con Iconos:
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <motion.div whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.98 }}>
+                <Button 
+                  variant="contained" 
+                  startIcon={<Dashboard />}
+                  sx={{
+                    px: 3,
+                    py: 1.5,
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    textTransform: 'none',
+                    borderRadius: 2,
+                    boxShadow: '0 2px 8px rgba(25, 118, 210, 0.2)',
+                    '&:hover': {
+                      boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)',
+                      transform: 'translateY(-1px)'
+                    },
+                    '& .MuiButton-startIcon': {
+                      marginRight: 1,
+                      '& svg': {
+                        fontSize: '1.1rem'
+                      }
+                    },
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                >
+                  Dashboard
+                </Button>
+              </motion.div>
+              
+              <motion.div whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.98 }}>
+                <Button 
+                  variant="outlined" 
+                  endIcon={<Star />}
+                  sx={{
+                    px: 3,
+                    py: 1.5,
+                    fontWeight: 500,
+                    fontSize: '0.9rem',
+                    textTransform: 'none',
+                    borderRadius: 2,
+                    borderWidth: '1.5px',
+                    '&:hover': {
+                      borderWidth: '1.5px',
+                      backgroundColor: `${theme.palette.primary.main}08`,
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 2px 6px rgba(25, 118, 210, 0.15)'
+                    },
+                    '& .MuiButton-endIcon': {
+                      marginLeft: 1,
+                      '& svg': {
+                        fontSize: '1.1rem'
+                      }
+                    },
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                >
+                  Destacar
+                </Button>
+              </motion.div>
+
+              <motion.div whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.98 }}>
+                <Button 
+                  variant="text" 
+                  startIcon={<Share />}
+                  sx={{
+                    px: 2.5,
+                    py: 1.5,
+                    fontWeight: 500,
+                    fontSize: '0.9rem',
+                    textTransform: 'none',
+                    borderRadius: 2,
+                    color: 'text.primary',
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                      color: 'primary.main',
+                      transform: 'translateY(-1px)'
+                    },
+                    '& .MuiButton-startIcon': {
+                      marginRight: 1,
+                      '& svg': {
+                        fontSize: '1.1rem'
+                      }
+                    },
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                >
+                  Compartir
+                </Button>
+              </motion.div>
+            </Box>
           </Box>
         </Paper>
       </Grid>
@@ -1266,126 +2445,685 @@ const DesignSystemTestPage = () => {
   const renderCardsSection = () => (
     <Grid container spacing={3}>
       <Grid item xs={12}>
-        <Typography variant="h4" gutterBottom>
+        <Typography variant="h4" gutterBottom sx={{ fontWeight: 600, color: 'text.primary' }}>
           🎴 Cards y Contenedores
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Contenedores profesionales para organizar información empresarial de forma clara y accesible
         </Typography>
       </Grid>
 
-      {/* Cards Básicas */}
-      <Grid item xs={12} md={4}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>Card Básica</Typography>
-            <Typography variant="body2">
-              Esta es una card básica con contenido simple.
-            </Typography>
-          </CardContent>
-        </Card>
-      </Grid>
-
-      <Grid item xs={12} md={4}>
-        <Card sx={{ boxShadow: shadows.medium }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>Card con Sombra</Typography>
-            <Typography variant="body2">
-              Card con sombra mejorada para mayor profundidad visual.
-            </Typography>
-          </CardContent>
-        </Card>
-      </Grid>
-
-      <Grid item xs={12} md={4}>
-        <motion.div whileHover={{ scale: 1.02, y: -4 }}>
-          <Card 
-            sx={{ 
-              background: gradients.primary,
-              color: 'white',
-              boxShadow: shadows.strong
-            }}
-          >
-            <CardContent>
-              <Typography variant="h6" gutterBottom>Card con Gradiente</Typography>
-              <Typography variant="body2">
-                Card con gradiente spectacular y animación hover.
-              </Typography>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </Grid>
-
-      {/* Cards Glassmorphism */}
+      {/* Cards de Dashboard Empresarial */}
       <Grid item xs={12}>
-        <Box
-          sx={{
-            background: gradients.secondary,
-            borderRadius: 2,
-            p: 4,
-            position: 'relative',
-            overflow: 'hidden'
-          }}
-        >
-          <Typography variant="h6" color="white" gutterBottom>
-            Contenedor Glassmorphism
-          </Typography>
-          
-          <Grid container spacing={2}>
-            {[1, 2, 3].map((item) => (
-              <Grid item xs={12} md={4} key={item}>
-                <Card
-                  sx={{
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    backdropFilter: 'blur(20px)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    boxShadow: shadows.glassmorphism,
-                    color: 'white'
-                  }}
-                >
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Glassmorphism {item}
-                    </Typography>
-                    <Typography variant="body2">
-                      Efecto de vidrio esmerilado con transparencia.
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-      </Grid>
-
-      {/* Papers */}
-      <Grid item xs={12}>
-        <Typography variant="h6" gutterBottom>Paper Variants</Typography>
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={3}>
-            <Paper sx={{ p: 2 }}>
-              <Typography>Paper Normal</Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Paper elevation={8} sx={{ p: 2 }}>
-              <Typography>Paper Elevado</Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Paper variant="outlined" sx={{ p: 2 }}>
-              <Typography>Paper Outlined</Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Paper 
-              sx={{ 
-                p: 2,
-                background: gradients.info,
-                color: 'white'
-              }}
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 500, mb: 2 }}>
+          Cards de Dashboard Empresarial
+        </Typography>
+        <Grid container spacing={3}>
+          {/* Card de Métricas */}
+          <Grid item xs={12} sm={6} md={4}>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
             >
-              <Typography>Paper con Gradiente</Typography>
-            </Paper>
+              <Card 
+                sx={{ 
+                  height: 180,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    borderColor: 'primary.light'
+                  }
+                }}
+              >
+                <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <AttachMoney sx={{ color: 'success.main', mr: 1, fontSize: 24 }} />
+                    <Typography variant="h6" sx={{ fontWeight: 500, fontSize: '1rem' }}>
+                      Compromisos Activos
+                    </Typography>
+                  </Box>
+                  <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary', mb: 1 }}>
+                    $45.2M
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 'auto' }}>
+                    18 compromisos pendientes
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'success.main', display: 'flex', alignItems: 'center', mt: 2 }}>
+                    <TrendingUp sx={{ fontSize: 14, mr: 0.5 }} />
+                    +12% vs mes anterior
+                  </Typography>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </Grid>
+
+          {/* Card de Empresa */}
+          <Grid item xs={12} sm={6} md={4}>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            >
+              <Card 
+                sx={{ 
+                  height: 180,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    borderColor: 'primary.light'
+                  }
+                }}
+              >
+                <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Business sx={{ color: 'primary.main', mr: 1, fontSize: 24 }} />
+                    <Typography variant="h6" sx={{ fontWeight: 500, fontSize: '1rem' }}>
+                      DR GROUP SAS
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    NIT: 900123456-7
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 'auto' }}>
+                    <Chip 
+                      label="Activa" 
+                      color="success" 
+                      size="small"
+                      sx={{ fontWeight: 500 }}
+                    />
+                    <Chip 
+                      label="5 usuarios" 
+                      variant="outlined" 
+                      size="small"
+                    />
+                  </Box>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </Grid>
+
+          {/* Card de Alerta */}
+          <Grid item xs={12} sm={6} md={4}>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            >
+              <Card 
+                sx={{ 
+                  height: 180,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    borderColor: 'primary.light'
+                  }
+                }}
+              >
+                <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Warning sx={{ color: 'warning.main', mr: 1, fontSize: 24 }} />
+                    <Typography variant="h6" sx={{ fontWeight: 500, fontSize: '1rem' }}>
+                      Próximos Vencimientos
+                    </Typography>
+                  </Box>
+                  <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary', mb: 1 }}>
+                    3
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 'auto' }}>
+                    Compromisos vencen esta semana
+                  </Typography>
+                  <Button 
+                    size="small" 
+                    color="warning" 
+                    sx={{ mt: 2, fontWeight: 500, alignSelf: 'flex-start' }}
+                  >
+                    Ver detalles
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
           </Grid>
         </Grid>
+      </Grid>
+
+      {/* Cards de Información Detallada */}
+      <Grid item xs={12}>
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 500, mb: 2, mt: 4 }}>
+          Cards de Información Detallada
+        </Typography>
+        <Grid container spacing={3}>
+          {/* Card de Compromiso */}
+          <Grid item xs={12} md={6}>
+            <motion.div
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            >
+              <Card 
+                sx={{ 
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    borderColor: 'primary.light'
+                  }
+                }}
+              >
+                <CardHeader
+                  avatar={
+                    <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>
+                      <Assignment sx={{ fontSize: 20 }} />
+                    </Avatar>
+                  }
+                  title={
+                    <Typography variant="h6" sx={{ fontWeight: 500, fontSize: '1rem' }}>
+                      Arriendo Local Principal
+                    </Typography>
+                  }
+                  subheader={
+                    <Typography variant="body2" color="text.secondary">
+                      Vence: 15 de Agosto, 2025
+                    </Typography>
+                  }
+                  action={
+                    <Chip 
+                      label="Pendiente" 
+                      color="warning" 
+                      size="small"
+                      sx={{ fontWeight: 500 }}
+                    />
+                  }
+                  sx={{ pb: 1 }}
+                />
+                <CardContent sx={{ pt: 0, pb: 2 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 600, mb: 2, color: 'text.primary' }}>
+                    $2,500,000
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Business sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                    <Typography variant="body2" color="text.secondary">
+                      DR GROUP SAS
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Today sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                    <Typography variant="body2" color="text.secondary">
+                      Mensual - Día 15
+                    </Typography>
+                  </Box>
+                </CardContent>
+                <CardActions sx={{ px: 3, pb: 2, pt: 0 }}>
+                  <Button size="small" color="primary" sx={{ fontWeight: 500 }}>
+                    Ver detalles
+                  </Button>
+                  <Button size="small" color="success" sx={{ fontWeight: 500 }}>
+                    Marcar pagado
+                  </Button>
+                </CardActions>
+              </Card>
+            </motion.div>
+          </Grid>
+
+          {/* Card de Usuario */}
+          <Grid item xs={12} md={6}>
+            <motion.div
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            >
+              <Card 
+                sx={{ 
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    borderColor: 'primary.light'
+                  }
+                }}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Avatar 
+                      sx={{ 
+                        width: 48, 
+                        height: 48, 
+                        mr: 2,
+                        bgcolor: 'secondary.main'
+                      }}
+                    >
+                      <Person />
+                    </Avatar>
+                    <Box>
+                      <Typography variant="h6" sx={{ fontWeight: 500, fontSize: '1rem' }}>
+                        María González
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Administrador
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={{ mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                      <Email sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">
+                        maria@drgroup.com
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5 }}>
+                      <Business sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">
+                        DR GROUP SAS
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Security sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">
+                        Acceso completo
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Chip 
+                      label="Activo" 
+                      color="success" 
+                      size="small"
+                      sx={{ fontWeight: 500 }}
+                    />
+                    <Chip 
+                      label="Admin" 
+                      color="primary" 
+                      size="small"
+                      sx={{ fontWeight: 500 }}
+                    />
+                  </Box>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </Grid>
+        </Grid>
+      </Grid>
+
+      {/* Contenedores Profesionales - Estilo Único "Paper con Acento" */}
+      <Grid item xs={12}>
+        <Typography variant="h6" gutterBottom sx={{ fontWeight: 500, mb: 2, mt: 4 }}>
+          Contenedores Profesionales - Paper con Acento
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Diseño único consistente con variaciones de color para diferentes contextos empresariales
+        </Typography>
+        <Grid container spacing={3}>
+          {/* Paper Acento Primary - Información General */}
+          <Grid item xs={12} sm={6} md={3}>
+            <motion.div
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            >
+              <Paper 
+                sx={{ 
+                  p: 2.5,
+                  textAlign: 'center',
+                  borderRadius: 1,
+                  borderLeft: 4,
+                  borderLeftColor: 'primary.main',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  transition: 'all 0.25s ease',
+                  height: 140,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  '&:hover': {
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                    transform: 'translateY(-1px)'
+                  }
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
+                  <Settings sx={{ color: 'primary.main', fontSize: 20, mr: 1 }} />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 500, fontSize: '0.95rem' }}>
+                    Configuración
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem', lineHeight: 1.3 }}>
+                  Para configuraciones generales y ajustes del sistema
+                </Typography>
+              </Paper>
+            </motion.div>
+          </Grid>
+
+          {/* Paper Acento Success - Confirmaciones */}
+          <Grid item xs={12} sm={6} md={3}>
+            <motion.div
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            >
+              <Paper 
+                sx={{ 
+                  p: 2.5,
+                  textAlign: 'center',
+                  borderRadius: 1,
+                  borderLeft: 4,
+                  borderLeftColor: 'success.main',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  transition: 'all 0.25s ease',
+                  height: 140,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  '&:hover': {
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                    transform: 'translateY(-1px)'
+                  }
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
+                  <CheckCircle sx={{ color: 'success.main', fontSize: 20, mr: 1 }} />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 500, fontSize: '0.95rem' }}>
+                    Reportes Exitosos
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem', lineHeight: 1.3 }}>
+                  Para confirmaciones, reportes positivos y éxitos
+                </Typography>
+              </Paper>
+            </motion.div>
+          </Grid>
+
+          {/* Paper Acento Warning - Alertas */}
+          <Grid item xs={12} sm={6} md={3}>
+            <motion.div
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            >
+              <Paper 
+                sx={{ 
+                  p: 2.5,
+                  textAlign: 'center',
+                  borderRadius: 1,
+                  borderLeft: 4,
+                  borderLeftColor: 'warning.main',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  transition: 'all 0.25s ease',
+                  height: 140,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  '&:hover': {
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                    transform: 'translateY(-1px)'
+                  }
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
+                  <Warning sx={{ color: 'warning.main', fontSize: 20, mr: 1 }} />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 500, fontSize: '0.95rem' }}>
+                    Compromisos Próximos
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem', lineHeight: 1.3 }}>
+                  Para alertas, avisos y compromisos próximos a vencer
+                </Typography>
+              </Paper>
+            </motion.div>
+          </Grid>
+
+          {/* Paper Acento Error - Críticos */}
+          <Grid item xs={12} sm={6} md={3}>
+            <motion.div
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            >
+              <Paper 
+                sx={{ 
+                  p: 2.5,
+                  textAlign: 'center',
+                  borderRadius: 1,
+                  borderLeft: 4,
+                  borderLeftColor: 'error.main',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  transition: 'all 0.25s ease',
+                  height: 140,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  '&:hover': {
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                    transform: 'translateY(-1px)'
+                  }
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
+                  <Error sx={{ color: 'error.main', fontSize: 20, mr: 1 }} />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 500, fontSize: '0.95rem' }}>
+                    Elementos Críticos
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem', lineHeight: 1.3 }}>
+                  Para errores, elementos críticos y situaciones urgentes
+                </Typography>
+              </Paper>
+            </motion.div>
+          </Grid>
+
+          {/* Paper Acento Info - Información */}
+          <Grid item xs={12} sm={6} md={3}>
+            <motion.div
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            >
+              <Paper 
+                sx={{ 
+                  p: 2.5,
+                  textAlign: 'center',
+                  borderRadius: 1,
+                  borderLeft: 4,
+                  borderLeftColor: 'info.main',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  transition: 'all 0.25s ease',
+                  height: 140,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  '&:hover': {
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                    transform: 'translateY(-1px)'
+                  }
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
+                  <Info sx={{ color: 'info.main', fontSize: 20, mr: 1 }} />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 500, fontSize: '0.95rem' }}>
+                    Datos Informativos
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem', lineHeight: 1.3 }}>
+                  Para información adicional, ayuda y datos de referencia
+                </Typography>
+              </Paper>
+            </motion.div>
+          </Grid>
+
+          {/* Paper Acento Secondary - Complementario */}
+          <Grid item xs={12} sm={6} md={3}>
+            <motion.div
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            >
+              <Paper 
+                sx={{ 
+                  p: 2.5,
+                  textAlign: 'center',
+                  borderRadius: 1,
+                  borderLeft: 4,
+                  borderLeftColor: 'secondary.main',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  transition: 'all 0.25s ease',
+                  height: 140,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  '&:hover': {
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                    transform: 'translateY(-1px)'
+                  }
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 1 }}>
+                  <Business sx={{ color: 'secondary.main', fontSize: 20, mr: 1 }} />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 500, fontSize: '0.95rem' }}>
+                    Información Empresarial
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem', lineHeight: 1.3 }}>
+                  Para datos empresariales, usuarios y gestión organizacional
+                </Typography>
+              </Paper>
+            </motion.div>
+          </Grid>
+
+          {/* Ejemplo de Paper Acento Grande - Layout de Formulario */}
+          <Grid item xs={12} md={6}>
+            <motion.div
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            >
+              <Paper 
+                sx={{ 
+                  p: 2.5,
+                  borderRadius: 1,
+                  borderLeft: 4,
+                  borderLeftColor: 'primary.main',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  transition: 'all 0.25s ease',
+                  height: 140,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  '&:hover': {
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                    transform: 'translateY(-1px)'
+                  }
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                  <Assignment sx={{ color: 'primary.main', fontSize: 22, mr: 1.5 }} />
+                  <Typography variant="h6" sx={{ fontWeight: 500, fontSize: '1.1rem' }}>
+                    Formulario de Compromiso
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, fontSize: '0.85rem', lineHeight: 1.4, flex: 1 }}>
+                  Ejemplo de contenedor para formularios y configuraciones detalladas usando el estilo Paper con Acento.
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Chip label="Consistente" color="success" size="small" sx={{ fontSize: '0.7rem', height: 24 }} />
+                  <Chip label="Profesional" color="primary" size="small" sx={{ fontSize: '0.7rem', height: 24 }} />
+                </Box>
+              </Paper>
+            </motion.div>
+          </Grid>
+
+          {/* Ejemplo de Paper Acento Grande - Dashboard Widget */}
+          <Grid item xs={12} md={6}>
+            <motion.div
+              whileHover={{ y: -2, transition: { duration: 0.2 } }}
+            >
+              <Paper 
+                sx={{ 
+                  p: 2.5,
+                  borderRadius: 1,
+                  borderLeft: 4,
+                  borderLeftColor: 'success.main',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  transition: 'all 0.25s ease',
+                  height: 140,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  '&:hover': {
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                    transform: 'translateY(-1px)'
+                  }
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <TrendingUp sx={{ color: 'success.main', fontSize: 22, mr: 1.5 }} />
+                    <Typography variant="h6" sx={{ fontWeight: 500, fontSize: '1.1rem' }}>
+                      Rendimiento Mensual
+                    </Typography>
+                  </Box>
+                  <Typography variant="h4" sx={{ fontWeight: 600, color: 'success.main', fontSize: '1.8rem' }}>
+                    +24%
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem', lineHeight: 1.4 }}>
+                  Ejemplo de widget de dashboard utilizando el patrón consistente de Paper con Acento para mostrar métricas importantes.
+                </Typography>
+              </Paper>
+            </motion.div>
+          </Grid>
+        </Grid>
+
+        {/* Guía de Uso */}
+        <Box sx={{ mt: 4, p: 3, bgcolor: 'grey.50', borderRadius: 1, border: '1px solid', borderColor: 'grey.200' }}>
+          <Typography variant="h6" sx={{ fontWeight: 500, mb: 2, display: 'flex', alignItems: 'center' }}>
+            <Star sx={{ color: 'primary.main', mr: 1 }} />
+            Guía de Uso - Paper con Acento
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={4}>
+              <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5, color: 'primary.main' }}>
+                Primary (Azul):
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Configuraciones, información general, elementos principales
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5, color: 'success.main' }}>
+                Success (Verde):
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Confirmaciones, reportes positivos, elementos completados
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5, color: 'warning.main' }}>
+                Warning (Naranja):
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Alertas, compromisos próximos, elementos que requieren atención
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5, color: 'error.main' }}>
+                Error (Rojo):
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Errores, elementos críticos, situaciones urgentes
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5, color: 'info.main' }}>
+                Info (Azul claro):
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Información adicional, ayuda, datos de referencia
+              </Typography>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5, color: 'secondary.main' }}>
+                Secondary (Púrpura):
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Información empresarial, usuarios, gestión organizacional
+              </Typography>
+            </Grid>
+          </Grid>
+        </Box>
       </Grid>
     </Grid>
   );
@@ -1393,38 +3131,112 @@ const DesignSystemTestPage = () => {
   const renderTablesSection = () => (
     <Grid container spacing={3}>
       <Grid item xs={12}>
-        <Typography variant="h4" gutterBottom>
+        <Typography variant="h4" gutterBottom sx={{ fontWeight: 600, color: 'text.primary' }}>
           📊 Tablas
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Tablas profesionales para visualización clara de datos empresariales - Cada tabla está diseñada para casos de uso específicos
         </Typography>
       </Grid>
 
-      {/* Tabla Básica */}
+      {/* Tabla Básica Profesional - LECTURA SIMPLE */}
       <Grid item xs={12}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Tabla Básica</Typography>
+        <Paper 
+          sx={{ 
+            p: 0,
+            borderRadius: 1,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            border: '1px solid',
+            borderColor: 'grey.200',
+            overflow: 'hidden'
+          }}
+        >
+          <Box sx={{ p: 3, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'grey.200' }}>
+            <Typography variant="h5" sx={{ fontWeight: 700, fontSize: '1.15rem', color: 'text.primary', mb: 0.5 }}>
+              Tabla Básica Profesional
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.82rem', lineHeight: 1.4, mb: 1 }}>
+              <strong>Caso de uso:</strong> Visualización simple de datos sin interacción compleja
+            </Typography>
+            <Typography variant="body2" color="info.main" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+              ✅ Reportes generales • Listas de consulta • Datos de solo lectura
+            </Typography>
+          </Box>
           <TableContainer>
             <Table>
-              <TableHead>
+              <TableHead sx={{ bgcolor: 'rgba(0, 0, 0, 0.03)' }}>
                 <TableRow>
-                  <TableCell>Empresa</TableCell>
-                  <TableCell>NIT</TableCell>
-                  <TableCell>Compromiso</TableCell>
-                  <TableCell align="right">Monto</TableCell>
-                  <TableCell>Estado</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.8rem', 
+                    py: 2, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.8px',
+                    fontFamily: 'inherit'
+                  }}>Empresa</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.8rem', 
+                    py: 2, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.8px',
+                    fontFamily: 'inherit'
+                  }}>NIT</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.8rem', 
+                    py: 2, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.8px',
+                    fontFamily: 'inherit'
+                  }}>Compromiso</TableCell>
+                  <TableCell align="right" sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.8rem', 
+                    py: 2, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.8px',
+                    fontFamily: 'inherit'
+                  }}>Monto</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.8rem', 
+                    py: 2, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.8px',
+                    fontFamily: 'inherit'
+                  }}>Estado</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {tableData.slice(0, 3).map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.name}</TableCell>
-                    <TableCell>{row.nit}</TableCell>
-                    <TableCell>{row.commitment}</TableCell>
-                    <TableCell align="right">{formatCOP(row.amount)}</TableCell>
-                    <TableCell>
+                {tableData.slice(0, 3).map((row, index) => (
+                  <TableRow 
+                    key={row.id}
+                    sx={{ 
+                      '&:hover': { 
+                        bgcolor: 'action.hover',
+                        transition: 'all 0.2s ease'
+                      },
+                      '&:last-child td': { borderBottom: 0 }
+                    }}
+                  >
+                    <TableCell sx={{ py: 1.8, fontSize: '0.85rem', fontWeight: 500 }}>{row.name}</TableCell>
+                    <TableCell sx={{ py: 1.8, fontSize: '0.8rem', color: 'text.secondary' }}>{row.nit}</TableCell>
+                    <TableCell sx={{ py: 1.8, fontSize: '0.85rem' }}>{row.commitment}</TableCell>
+                    <TableCell align="right" sx={{ py: 1.8, fontWeight: 600, fontSize: '0.85rem' }}>
+                      {formatCOP(row.amount)}
+                    </TableCell>
+                    <TableCell sx={{ py: 1.8 }}>
                       <Chip 
                         label={row.status} 
                         color={getStatusColor(row.status)} 
-                        size="small" 
+                        size="small"
+                        sx={{ fontWeight: 500, fontSize: '0.75rem', height: 24 }}
                       />
                     </TableCell>
                   </TableRow>
@@ -1432,51 +3244,142 @@ const DesignSystemTestPage = () => {
               </TableBody>
             </Table>
           </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={[10]}
+            component="div"
+            count={tableData.length}
+            rowsPerPage={10}
+            page={0}
+            onPageChange={() => {}}
+            onRowsPerPageChange={() => {}}
+            sx={{ 
+              px: 2.5, 
+              borderTop: '1px solid', 
+              borderColor: 'divider',
+              '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                fontSize: '0.8rem'
+              }
+            }}
+          />
         </Paper>
       </Grid>
 
-      {/* Tabla con Selección y Ordenamiento */}
+      {/* Tabla con Selección y Ordenamiento - GESTIÓN AVANZADA */}
       <Grid item xs={12}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Tabla con Selección y Ordenamiento</Typography>
+        <Paper 
+          sx={{ 
+            p: 0,
+            borderRadius: 1,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            border: '1px solid',
+            borderColor: 'grey.200',
+            overflow: 'hidden'
+          }}
+        >
+          <Box sx={{ p: 3, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'grey.200' }}>
+            <Typography variant="h5" sx={{ fontWeight: 700, fontSize: '1.15rem', color: 'text.primary', mb: 0.5 }}>
+              Tabla de Gestión Avanzada
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.82rem', lineHeight: 1.4, mb: 1 }}>
+              <strong>Caso de uso:</strong> Administración completa con selección múltiple y ordenamiento
+            </Typography>
+            <Typography variant="body2" color="warning.main" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+              ⚡ Gestión de compromisos • Acciones masivas • Administración de usuarios
+            </Typography>
+          </Box>
           <TableContainer>
             <Table>
-              <TableHead>
+              <TableHead sx={{ bgcolor: 'rgba(0, 0, 0, 0.03)' }}>
                 <TableRow>
-                  <TableCell padding="checkbox">
+                  <TableCell padding="checkbox" sx={{ py: 1.8 }}>
                     <Checkbox
                       indeterminate={selected.length > 0 && selected.length < tableData.length}
                       checked={tableData.length > 0 && selected.length === tableData.length}
                       onChange={handleSelectAllClick}
+                      size="small"
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ py: 1.8 }}>
                     <TableSortLabel
                       active={orderBy === 'name'}
                       direction={orderBy === 'name' ? order : 'asc'}
                       onClick={() => handleRequestSort('name')}
+                      sx={{ 
+                        fontWeight: 800, 
+                        fontSize: '0.8rem', 
+                        color: 'text.primary', 
+                        textTransform: 'uppercase', 
+                        letterSpacing: '0.8px',
+                        fontFamily: 'inherit',
+                        '& .MuiTableSortLabel-icon': {
+                          fontSize: '0.9rem'
+                        }
+                      }}
                     >
                       Empresa
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell>NIT</TableCell>
-                  <TableCell>Compromiso</TableCell>
-                  <TableCell align="right">
+                  <TableCell sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.8rem', 
+                    py: 1.8, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.8px',
+                    fontFamily: 'inherit'
+                  }}>NIT</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.8rem', 
+                    py: 1.8, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.8px',
+                    fontFamily: 'inherit'
+                  }}>Compromiso</TableCell>
+                  <TableCell align="right" sx={{ py: 1.8 }}>
                     <TableSortLabel
                       active={orderBy === 'amount'}
                       direction={orderBy === 'amount' ? order : 'asc'}
                       onClick={() => handleRequestSort('amount')}
+                      sx={{ 
+                        fontWeight: 800, 
+                        fontSize: '0.8rem', 
+                        color: 'text.primary', 
+                        textTransform: 'uppercase', 
+                        letterSpacing: '0.8px',
+                        fontFamily: 'inherit',
+                        '& .MuiTableSortLabel-icon': {
+                          fontSize: '0.9rem'
+                        }
+                      }}
                     >
                       Monto
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell>Estado</TableCell>
-                  <TableCell>Prioridad</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.8rem', 
+                    py: 1.8, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.8px',
+                    fontFamily: 'inherit'
+                  }}>Estado</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.8rem', 
+                    py: 1.8, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.8px',
+                    fontFamily: 'inherit'
+                  }}>Prioridad</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {tableData
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .slice(page * 10, page * 10 + 10)
                   .map((row) => {
                     const isItemSelected = selected.indexOf(row.id) !== -1;
                     return (
@@ -1485,28 +3388,44 @@ const DesignSystemTestPage = () => {
                         hover
                         onClick={() => handleClick(row.id)}
                         selected={isItemSelected}
-                        sx={{ cursor: 'pointer' }}
+                        sx={{ 
+                          cursor: 'pointer',
+                          '&:hover': { 
+                            bgcolor: 'action.hover',
+                            transition: 'all 0.2s ease'
+                          },
+                          '&.Mui-selected': {
+                            bgcolor: 'primary.light',
+                            '&:hover': {
+                              bgcolor: 'primary.light'
+                            }
+                          }
+                        }}
                       >
-                        <TableCell padding="checkbox">
-                          <Checkbox checked={isItemSelected} />
+                        <TableCell padding="checkbox" sx={{ py: 1.5 }}>
+                          <Checkbox checked={isItemSelected} size="small" />
                         </TableCell>
-                        <TableCell>{row.name}</TableCell>
-                        <TableCell>{row.nit}</TableCell>
-                        <TableCell>{row.commitment}</TableCell>
-                        <TableCell align="right">{formatCOP(row.amount)}</TableCell>
-                        <TableCell>
+                        <TableCell sx={{ py: 1.5, fontSize: '0.85rem', fontWeight: 500 }}>{row.name}</TableCell>
+                        <TableCell sx={{ py: 1.5, fontSize: '0.8rem', color: 'text.secondary' }}>{row.nit}</TableCell>
+                        <TableCell sx={{ py: 1.5, fontSize: '0.85rem' }}>{row.commitment}</TableCell>
+                        <TableCell align="right" sx={{ py: 1.5, fontWeight: 600, fontSize: '0.85rem' }}>
+                          {formatCOP(row.amount)}
+                        </TableCell>
+                        <TableCell sx={{ py: 1.5 }}>
                           <Chip 
                             label={row.status} 
                             color={getStatusColor(row.status)} 
-                            size="small" 
+                            size="small"
+                            sx={{ fontWeight: 500, fontSize: '0.75rem', height: 24 }}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ py: 1.5 }}>
                           <Chip 
                             label={row.priority} 
                             color={getPriorityColor(row.priority)} 
                             size="small" 
                             variant="outlined"
+                            sx={{ fontWeight: 500, fontSize: '0.75rem', height: 24 }}
                           />
                         </TableCell>
                       </TableRow>
@@ -1516,76 +3435,142 @@ const DesignSystemTestPage = () => {
             </Table>
           </TableContainer>
           <TablePagination
-            rowsPerPageOptions={[5, 10, 25]}
+            rowsPerPageOptions={[10]}
             component="div"
             count={tableData.length}
-            rowsPerPage={rowsPerPage}
+            rowsPerPage={10}
             page={page}
             onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
+            onRowsPerPageChange={() => {}}
+            sx={{ 
+              px: 2.5, 
+              borderTop: '1px solid', 
+              borderColor: 'divider',
+              '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                fontSize: '0.8rem'
+              }
+            }}
           />
         </Paper>
       </Grid>
 
-      {/* Tabla con Gradiente */}
+      {/* Tabla Premium Ejecutiva - DASHBOARD PRINCIPAL */}
       <Grid item xs={12}>
-        <Paper sx={{ overflow: 'hidden' }}>
+        <Paper 
+          sx={{ 
+            overflow: 'hidden',
+            borderRadius: 1,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+            border: '1px solid',
+            borderColor: 'grey.200'
+          }}
+        >
           <Box
             sx={{
-              background: gradients.primary,
+              background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%)',
               color: 'white',
-              p: 2
+              p: 2.5
             }}
           >
-            <Typography variant="h6">Tabla con Header con Gradiente</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 600, fontSize: '1.2rem', mb: 0.5 }}>
+              Tabla Ejecutiva Premium
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.92, fontSize: '0.82rem', lineHeight: 1.4, mb: 1 }}>
+              <strong>Caso de uso:</strong> Dashboard principal y vistas ejecutivas de alto nivel
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9, fontSize: '0.8rem', fontWeight: 500 }}>
+              🎯 Resúmenes ejecutivos • KPIs principales • Vistas de director
+            </Typography>
           </Box>
           <TableContainer>
             <Table>
               <TableHead 
                 sx={{ 
-                  background: 'rgba(102, 126, 234, 0.1)',
+                  background: 'rgba(102, 126, 234, 0.08)',
                 }}
               >
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 600 }}>Empresa</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Compromiso</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600 }}>Monto</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Fecha Vencimiento</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Estado</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.8rem', 
+                    py: 1.8, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.8px',
+                    fontFamily: 'inherit'
+                  }}>Empresa</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.8rem', 
+                    py: 1.8, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.8px',
+                    fontFamily: 'inherit'
+                  }}>Compromiso</TableCell>
+                  <TableCell align="right" sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.8rem', 
+                    py: 1.8, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.8px',
+                    fontFamily: 'inherit'
+                  }}>Monto</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.8rem', 
+                    py: 1.8, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.8px',
+                    fontFamily: 'inherit'
+                  }}>Fecha Vencimiento</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.8rem', 
+                    py: 1.8, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.8px',
+                    fontFamily: 'inherit'
+                  }}>Estado</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {tableData.slice(0, 3).map((row, index) => (
                   <motion.tr 
                     key={row.id}
-                    initial={{ opacity: 0, x: -20 }}
+                    initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
+                    transition={{ delay: index * 0.1, duration: 0.3 }}
                     component={TableRow}
                     sx={{ 
                       '&:hover': { 
-                        backgroundColor: 'rgba(102, 126, 234, 0.05)',
-                        transform: 'translateX(4px)',
-                        transition: 'all 0.3s ease'
-                      }
+                        backgroundColor: 'rgba(102, 126, 234, 0.04)',
+                        transition: 'all 0.2s ease'
+                      },
+                      '&:last-child td': { borderBottom: 0 }
                     }}
                   >
-                    <TableCell>{row.name}</TableCell>
-                    <TableCell>{row.commitment}</TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600 }}>
+                    <TableCell sx={{ py: 1.5, fontSize: '0.85rem', fontWeight: 500 }}>{row.name}</TableCell>
+                    <TableCell sx={{ py: 1.5, fontSize: '0.85rem' }}>{row.commitment}</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600, py: 1.5, fontSize: '0.85rem' }}>
                       {formatCOP(row.amount)}
                     </TableCell>
-                    <TableCell>{row.dueDate}</TableCell>
-                    <TableCell>
+                    <TableCell sx={{ py: 1.5, fontSize: '0.8rem', color: 'text.secondary' }}>{row.dueDate}</TableCell>
+                    <TableCell sx={{ py: 1.5 }}>
                       <Chip 
                         label={row.status} 
                         color={getStatusColor(row.status)} 
                         size="small"
                         sx={{
                           fontWeight: 500,
+                          fontSize: '0.75rem',
+                          height: 24,
+                          transition: 'all 0.2s ease',
                           '&:hover': {
-                            transform: 'scale(1.05)',
-                            transition: 'transform 0.2s ease'
+                            transform: 'scale(1.02)'
                           }
                         }}
                       />
@@ -1595,97 +3580,105 @@ const DesignSystemTestPage = () => {
               </TableBody>
             </Table>
           </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={[10]}
+            component="div"
+            count={tableData.length}
+            rowsPerPage={10}
+            page={0}
+            onPageChange={() => {}}
+            onRowsPerPageChange={() => {}}
+            sx={{ 
+              px: 2.5, 
+              borderTop: '1px solid', 
+              borderColor: 'divider',
+              background: 'rgba(102, 126, 234, 0.02)',
+              '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                fontSize: '0.8rem'
+              }
+            }}
+          />
         </Paper>
       </Grid>
 
-      {/* Tabla Glassmorphism */}
-      <Grid item xs={12}>
-        <Box
-          sx={{
-            background: gradients.secondary,
-            borderRadius: 2,
-            p: 3,
-            position: 'relative',
+      {/* Tablas para Espacios Reducidos */}
+      <Grid item xs={12} md={6}>
+        <Paper 
+          sx={{ 
+            p: 0,
+            borderRadius: 1,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            border: '1px solid',
+            borderColor: 'grey.200',
             overflow: 'hidden'
           }}
         >
-          <Typography variant="h6" color="white" gutterBottom>
-            Tabla con Efecto Glassmorphism
-          </Typography>
-          
-          <Paper
-            sx={{
-              background: 'rgba(255, 255, 255, 0.1)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              boxShadow: shadows.glassmorphism,
-              overflow: 'hidden'
-            }}
-          >
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Empresa</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Compromiso</TableCell>
-                    <TableCell align="right" sx={{ color: 'white', fontWeight: 600 }}>Monto</TableCell>
-                    <TableCell sx={{ color: 'white', fontWeight: 600 }}>Estado</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {tableData.slice(0, 3).map((row) => (
-                    <TableRow 
-                      key={row.id}
-                      sx={{ 
-                        '&:hover': { 
-                          background: 'rgba(255, 255, 255, 0.1)'
-                        }
-                      }}
-                    >
-                      <TableCell sx={{ color: 'white' }}>{row.name}</TableCell>
-                      <TableCell sx={{ color: 'white' }}>{row.commitment}</TableCell>
-                      <TableCell align="right" sx={{ color: 'white', fontWeight: 600 }}>
-                        {formatCOP(row.amount)}
-                      </TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={row.status} 
-                          color={getStatusColor(row.status)} 
-                          size="small" 
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        </Box>
-      </Grid>
-
-      {/* Tabla Compacta */}
-      <Grid item xs={12} md={6}>
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="h6" gutterBottom>Tabla Compacta</Typography>
+          <Box sx={{ p: 2.5, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'grey.200' }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.05rem', color: 'text.primary', mb: 0.3 }}>
+              Tabla Compacta
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.78rem', lineHeight: 1.3, mb: 1 }}>
+              <strong>Caso de uso:</strong> Paneles laterales y espacios reducidos
+            </Typography>
+            <Typography variant="body2" color="success.main" sx={{ fontSize: '0.76rem', fontWeight: 500 }}>
+              📱 Sidebars • Widgets • Resúmenes compactos
+            </Typography>
+          </Box>
           <TableContainer>
             <Table size="small">
-              <TableHead>
+              <TableHead sx={{ bgcolor: 'rgba(0, 0, 0, 0.03)' }}>
                 <TableRow>
-                  <TableCell>Empresa</TableCell>
-                  <TableCell align="right">Monto</TableCell>
-                  <TableCell>Estado</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.75rem', 
+                    py: 1.5, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.7px',
+                    fontFamily: 'inherit'
+                  }}>Empresa</TableCell>
+                  <TableCell align="right" sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.75rem', 
+                    py: 1.5, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.7px',
+                    fontFamily: 'inherit'
+                  }}>Monto</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.75rem', 
+                    py: 1.5, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.7px',
+                    fontFamily: 'inherit'
+                  }}>Estado</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {tableData.slice(0, 4).map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.name}</TableCell>
-                    <TableCell align="right">{formatCOP(row.amount)}</TableCell>
-                    <TableCell>
+                  <TableRow 
+                    key={row.id}
+                    sx={{
+                      '&:hover': { 
+                        bgcolor: 'action.hover',
+                        transition: 'all 0.2s ease'
+                      },
+                      '&:last-child td': { borderBottom: 0 }
+                    }}
+                  >
+                    <TableCell sx={{ py: 1, fontSize: '0.8rem', fontWeight: 500 }}>{row.name}</TableCell>
+                    <TableCell align="right" sx={{ py: 1, fontWeight: 600, fontSize: '0.8rem' }}>
+                      {formatCOP(row.amount)}
+                    </TableCell>
+                    <TableCell sx={{ py: 1 }}>
                       <Chip 
                         label={row.status} 
                         color={getStatusColor(row.status)} 
-                        size="small" 
+                        size="small"
+                        sx={{ fontWeight: 500, fontSize: '0.7rem', height: 20 }}
                       />
                     </TableCell>
                   </TableRow>
@@ -1693,20 +3686,80 @@ const DesignSystemTestPage = () => {
               </TableBody>
             </Table>
           </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={[10]}
+            component="div"
+            count={tableData.length}
+            rowsPerPage={10}
+            page={0}
+            onPageChange={() => {}}
+            onRowsPerPageChange={() => {}}
+            sx={{ 
+              px: 1.5, 
+              borderTop: '1px solid', 
+              borderColor: 'divider',
+              '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                fontSize: '0.75rem'
+              }
+            }}
+          />
         </Paper>
       </Grid>
 
-      {/* Tabla Striped */}
+      {/* Tabla de Análisis con Alternancia */}
       <Grid item xs={12} md={6}>
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="h6" gutterBottom>Tabla Striped</Typography>
+        <Paper 
+          sx={{ 
+            p: 0,
+            borderRadius: 1,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            border: '1px solid',
+            borderColor: 'grey.200',
+            overflow: 'hidden'
+          }}
+        >
+          <Box sx={{ p: 2.5, bgcolor: 'grey.50', borderBottom: '1px solid', borderColor: 'grey.200' }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.05rem', color: 'text.primary', mb: 0.3 }}>
+              Tabla de Análisis
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.78rem', lineHeight: 1.3, mb: 1 }}>
+              <strong>Caso de uso:</strong> Comparaciones y análisis de datos con filas alternas
+            </Typography>
+            <Typography variant="body2" color="secondary.main" sx={{ fontSize: '0.76rem', fontWeight: 500 }}>
+              📊 Reportes comparativos • Análisis financieros • Auditorías
+            </Typography>
+          </Box>
           <TableContainer>
             <Table>
-              <TableHead>
+              <TableHead sx={{ bgcolor: 'rgba(0, 0, 0, 0.03)' }}>
                 <TableRow>
-                  <TableCell>Empresa</TableCell>
-                  <TableCell align="right">Monto</TableCell>
-                  <TableCell>Prioridad</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.75rem', 
+                    py: 1.5, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.7px',
+                    fontFamily: 'inherit'
+                  }}>Empresa</TableCell>
+                  <TableCell align="right" sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.75rem', 
+                    py: 1.5, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.7px',
+                    fontFamily: 'inherit'
+                  }}>Monto</TableCell>
+                  <TableCell sx={{ 
+                    fontWeight: 800, 
+                    fontSize: '0.75rem', 
+                    py: 1.5, 
+                    color: 'text.primary', 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '0.7px',
+                    fontFamily: 'inherit'
+                  }}>Prioridad</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -1714,20 +3767,25 @@ const DesignSystemTestPage = () => {
                   <TableRow 
                     key={row.id}
                     sx={{ 
-                      backgroundColor: index % 2 === 0 ? 'transparent' : 'action.hover',
+                      backgroundColor: index % 2 === 0 ? 'transparent' : 'rgba(0, 0, 0, 0.02)',
                       '&:hover': { 
-                        backgroundColor: 'action.selected' 
-                      }
+                        backgroundColor: 'action.hover',
+                        transition: 'all 0.2s ease'
+                      },
+                      '&:last-child td': { borderBottom: 0 }
                     }}
                   >
-                    <TableCell>{row.name}</TableCell>
-                    <TableCell align="right">{formatCOP(row.amount)}</TableCell>
-                    <TableCell>
+                    <TableCell sx={{ py: 1.2, fontSize: '0.8rem', fontWeight: 500 }}>{row.name}</TableCell>
+                    <TableCell align="right" sx={{ py: 1.2, fontWeight: 600, fontSize: '0.8rem' }}>
+                      {formatCOP(row.amount)}
+                    </TableCell>
+                    <TableCell sx={{ py: 1.2 }}>
                       <Chip 
                         label={row.priority} 
                         color={getPriorityColor(row.priority)} 
                         size="small" 
                         variant="outlined"
+                        sx={{ fontWeight: 500, fontSize: '0.7rem', height: 22 }}
                       />
                     </TableCell>
                   </TableRow>
@@ -1735,6 +3793,23 @@ const DesignSystemTestPage = () => {
               </TableBody>
             </Table>
           </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={[10]}
+            component="div"
+            count={tableData.length}
+            rowsPerPage={10}
+            page={0}
+            onPageChange={() => {}}
+            onRowsPerPageChange={() => {}}
+            sx={{ 
+              px: 1.5, 
+              borderTop: '1px solid', 
+              borderColor: 'divider',
+              '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                fontSize: '0.75rem'
+              }
+            }}
+          />
         </Paper>
       </Grid>
     </Grid>
@@ -2566,17 +4641,7 @@ const DesignSystemTestPage = () => {
                       borderRadius: 1,
                       background: gradients.secondary,
                       position: 'relative',
-                      overflow: 'hidden',
-                      '&::before': {
-                        content: '""',
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '60%',
-                        height: '100%',
-                        background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)',
-                        animation: 'shimmer 2s infinite'
-                      }
+                      overflow: 'hidden'
                     }}
                   />
                 </Box>
@@ -2607,21 +4672,7 @@ const DesignSystemTestPage = () => {
                 color: 'white',
                 borderRadius: 2,
                 position: 'relative',
-                overflow: 'hidden',
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  top: 0,
-                  left: '-100%',
-                  width: '100%',
-                  height: '100%',
-                  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
-                  animation: 'shimmer 2s infinite'
-                },
-                '@keyframes shimmer': {
-                  '0%': { left: '-100%' },
-                  '100%': { left: '100%' }
-                }
+                overflow: 'hidden'
               }}
             >
               <CircularProgress sx={{ color: 'white', mr: 2 }} size={20} />
@@ -2687,7 +4738,7 @@ const DesignSystemTestPage = () => {
 
       <Grid item xs={12} md={4}>
         <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Shimmer Effect</Typography>
+          <Typography variant="h6" gutterBottom>Efectos Gradient</Typography>
           <Box
             sx={{
               background: gradients.primary,
@@ -2696,24 +4747,10 @@ const DesignSystemTestPage = () => {
               textAlign: 'center',
               color: 'white',
               position: 'relative',
-              overflow: 'hidden',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: '-100%',
-                width: '100%',
-                height: '100%',
-                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
-                animation: 'shimmer 3s infinite'
-              },
-              '@keyframes shimmer': {
-                '0%': { left: '-100%' },
-                '100%': { left: '100%' }
-              }
+              overflow: 'hidden'
             }}
           >
-            <Typography>Efecto Shimmer</Typography>
+            <Typography>Gradiente Spectacular</Typography>
           </Box>
         </Paper>
       </Grid>
