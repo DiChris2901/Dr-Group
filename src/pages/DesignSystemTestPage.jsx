@@ -60,7 +60,9 @@ import {
   BottomNavigationAction,
   AppBar,
   Toolbar,
-  Pagination
+  Pagination,
+  FormGroup,
+  FormControlLabel
 } from '@mui/material';
 import {
   Dashboard,
@@ -69,6 +71,7 @@ import {
   Person,
   Business,
   Analytics,
+  Palette,
   Security,
   Favorite,
   Star,
@@ -148,6 +151,10 @@ const DesignSystemTestPage = () => {
   const [tabValue, setTabValue] = useState(0);
   const [activeStep, setActiveStep] = useState(0);
   const [bottomNavValue, setBottomNavValue] = useState(0);
+  // Estados nuevos para prototipos de navegación
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [topbarScrolled, setTopbarScrolled] = useState(false);
+  const [configDrawerOpen, setConfigDrawerOpen] = useState(false);
 
   // Gradientes actuales del sistema (ANTES - Muy vibrantes)
   const gradients = {
@@ -322,33 +329,51 @@ const DesignSystemTestPage = () => {
         </Typography>
       </Grid>
       
-      {/* Gradientes del Sistema */}
+      {/* Gradientes Finales (Full & Soft) */}
       <Grid item xs={12}>
-        <Typography variant="h6" gutterBottom>Gradientes del Sistema DR Group</Typography>
+        <Typography variant="h6" gutterBottom>Gradientes Finales (Full & Soft)</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Versión depurada; estos reemplazan por completo los anteriores.
+        </Typography>
         <Grid container spacing={2}>
-          {Object.entries(gradients).map(([name, gradient]) => (
-            <Grid item xs={12} sm={6} md={4} key={name}>
-              <Box
-                sx={{
-                  height: 120,
-                  background: gradient,
-                  borderRadius: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'white',
-                  fontWeight: 600,
-                  textTransform: 'capitalize',
-                  boxShadow: shadows.soft
-                }}
-              >
-                {name}
-              </Box>
-            </Grid>
-          ))}
+          {/* Primary */}
+          <Grid item xs={12} sm={6} md={4}>
+            <Box sx={{ height: 100, mb: 1, borderRadius: 2, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:15, fontWeight:600, boxShadow: shadows.soft, background: theme.custom.gradientsV2.primary.full }}>primary full</Box>
+            <Box sx={{ height: 70, borderRadius: 2, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:12, fontWeight:500, background: theme.custom.gradientsV2.primary.soft }}>primary soft</Box>
+          </Grid>
+          {/* Secondary */}
+          <Grid item xs={12} sm={6} md={4}>
+            <Box sx={{ height: 100, mb: 1, borderRadius: 2, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:15, fontWeight:600, boxShadow: shadows.soft, background: theme.custom.gradientsV2.secondary.full }}>secondary full</Box>
+            <Box sx={{ height: 70, borderRadius: 2, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:12, fontWeight:500, background: theme.custom.gradientsV2.secondary.soft }}>secondary soft</Box>
+          </Grid>
+          {/* Success */}
+            <Grid item xs={12} sm={6} md={4}>
+            <Box sx={{ height: 100, mb: 1, borderRadius: 2, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:15, fontWeight:600, boxShadow: shadows.soft, background: theme.custom.gradientsV2.success.full }}>success full</Box>
+            <Box sx={{ height: 70, borderRadius: 2, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:12, fontWeight:500, background: theme.custom.gradientsV2.success.soft }}>success soft</Box>
+          </Grid>
+          {/* Warning */}
+          <Grid item xs={12} sm={6} md={4}>
+            <Box sx={{ height: 100, mb: 1, borderRadius: 2, display:'flex', alignItems:'center', justifyContent:'center', color:'#402d00', fontSize:15, fontWeight:600, boxShadow: shadows.soft, background: theme.custom.gradientsV2.warning.full }}>warning full</Box>
+            <Box sx={{ height: 70, borderRadius: 2, display:'flex', alignItems:'center', justifyContent:'center', color:'#402d00', fontSize:12, fontWeight:500, background: theme.custom.gradientsV2.warning.soft }}>warning soft</Box>
+          </Grid>
+          {/* Error */}
+          <Grid item xs={12} sm={6} md={4}>
+            <Box sx={{ height: 100, mb: 1, borderRadius: 2, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:15, fontWeight:600, boxShadow: shadows.soft, background: theme.custom.gradientsV2.error.full }}>error full</Box>
+            <Box sx={{ height: 70, borderRadius: 2, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:12, fontWeight:500, background: theme.custom.gradientsV2.error.soft }}>error soft</Box>
+          </Grid>
+          {/* Info */}
+          <Grid item xs={12} sm={6} md={4}>
+            <Box sx={{ height: 100, mb: 1, borderRadius: 2, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:15, fontWeight:600, boxShadow: shadows.soft, background: theme.custom.gradientsV2.info.full }}>info full</Box>
+            <Box sx={{ height: 70, borderRadius: 2, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:12, fontWeight:500, background: theme.custom.gradientsV2.info.soft }}>info soft</Box>
+          </Grid>
+          {/* Dark */}
+          <Grid item xs={12} sm={6} md={4}>
+            <Box sx={{ height: 100, mb: 1, borderRadius: 2, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:15, fontWeight:600, boxShadow: shadows.soft, background: theme.custom.gradientsV2.dark.full }}>dark full</Box>
+            <Box sx={{ height: 70, borderRadius: 2, display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:12, fontWeight:500, background: theme.custom.gradientsV2.dark.soft }}>dark soft</Box>
+          </Grid>
         </Grid>
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 2, fontStyle: 'italic' }}>
-          � Gradientes spectacular originales del sistema DR Group con efectos visuales avanzados
+        <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display:'block' }}>
+          full: para bloques protagonistas (hero, headers) • soft: para fondos amplios / tarjetas destacadas.
         </Typography>
       </Grid>
 
@@ -387,57 +412,63 @@ const DesignSystemTestPage = () => {
   const renderTypographySection = () => (
     <Grid container spacing={3}>
       <Grid item xs={12}>
-        <Typography variant="h4" gutterBottom>
-          📝 Tipografía
-        </Typography>
+        <Typography variant="h4" gutterBottom>📝 Tipografía</Typography>
       </Grid>
-      
-      <Grid item xs={12} md={6}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h1" gutterBottom>Heading 1</Typography>
-          <Typography variant="h2" gutterBottom>Heading 2</Typography>
-          <Typography variant="h3" gutterBottom>Heading 3</Typography>
-          <Typography variant="h4" gutterBottom>Heading 4</Typography>
-          <Typography variant="h5" gutterBottom>Heading 5</Typography>
-          <Typography variant="h6" gutterBottom>Heading 6</Typography>
-        </Paper>
-      </Grid>
-
-      <Grid item xs={12} md={6}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="body1" gutterBottom>
-            Body 1: Este es el texto principal del contenido. Debería ser legible y cómodo para leer en párrafos largos.
-          </Typography>
-          <Typography variant="body2" gutterBottom>
-            Body 2: Texto secundario, más pequeño que el principal pero aún legible para contenido de apoyo.
-          </Typography>
-          <Typography variant="subtitle1" gutterBottom>
-            Subtitle 1: Para subtítulos importantes
-          </Typography>
-          <Typography variant="subtitle2" gutterBottom>
-            Subtitle 2: Para subtítulos menores
-          </Typography>
-          <Typography variant="caption" display="block" gutterBottom>
-            Caption: Para texto de apoyo muy pequeño
-          </Typography>
-          <Typography variant="overline" display="block">
-            OVERLINE: PARA ETIQUETAS Y CATEGORÍAS
-          </Typography>
-        </Paper>
-      </Grid>
-
       <Grid item xs={12}>
         <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Pesos de Fuente</Typography>
-          <Typography sx={{ fontWeight: 300 }} gutterBottom>Light (300)</Typography>
-          <Typography sx={{ fontWeight: 400 }} gutterBottom>Regular (400)</Typography>
-          <Typography sx={{ fontWeight: 500 }} gutterBottom>Medium (500)</Typography>
-          <Typography sx={{ fontWeight: 600 }} gutterBottom>Semi-bold (600)</Typography>
-          <Typography sx={{ fontWeight: 700 }} gutterBottom>Bold (700)</Typography>
-          <Typography sx={{ fontWeight: 800 }} gutterBottom>Extra-bold (800)</Typography>
-          <Typography sx={{ fontWeight: 900 }} gutterBottom>Black (900)</Typography>
+          <Typography variant="h6" gutterBottom>Escala Tipográfica 3.0 (Vista Previa)</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Jerarquía final propuesta antes de tokenizar en el theme.
+          </Typography>
+          {[ 
+            { key: 'display2xl', label: 'Display 2XL', sample: 'Visión Financiera Consolidada', size: '3.5rem', lh: 1.1, weight: 800, ls: '-0.5px', note: 'Solo portada / hero' },
+            { key: 'displayXl', label: 'Display XL', sample: 'Resumen Ejecutivo Mensual', size: '3rem', lh: 1.12, weight: 800, ls: '-0.5px', note: 'Encabezados de secciones principales' },
+            { key: 'h1', label: 'H1', sample: 'Panel de Indicadores', size: '2.5rem', lh: 1.18, weight: 700, ls: '-0.5px', note: 'Título página interna' },
+            { key: 'h2', label: 'H2', sample: 'Compromisos Activos', size: '2rem', lh: 1.2, weight: 700, ls: '-0.25px', note: 'Subsección principal' },
+            { key: 'h3', label: 'H3', sample: 'Detalle de Pagos', size: '1.75rem', lh: 1.25, weight: 600, ls: '-0.25px', note: 'Bloques dentro de secciones' },
+            { key: 'h4', label: 'H4', sample: 'Alertas Recientes', size: '1.5rem', lh: 1.28, weight: 600, ls: '-0.25px', note: 'Encabezado widget' },
+            { key: 'h5', label: 'H5', sample: 'Total Vencido', size: '1.25rem', lh: 1.32, weight: 600, ls: '-0.15px', note: 'Titular compacto' },
+            { key: 'h6', label: 'H6', sample: 'Meta de Cobranza', size: '1.125rem', lh: 1.35, weight: 600, ls: '-0.15px', note: 'Etiqueta subsección menor' },
+            { key: 'bodyLg', label: 'Body L', sample: 'Texto descriptivo destacado para paneles explicativos o resúmenes ejecutivos.', size: '1.125rem', lh: 1.55, weight: 400, ls: '0', note: 'Parrafos destacados' },
+            { key: 'body', label: 'Body', sample: 'Texto base para la mayoría de contenidos y listados con buena legibilidad.', size: '1rem', lh: 1.55, weight: 400, ls: '0', note: 'Texto estándar' },
+            { key: 'bodySm', label: 'Body S', sample: 'Texto secundario o densidad alta en tablas.', size: '0.875rem', lh: 1.5, weight: 400, ls: '0', note: 'Secundario / tablas' },
+            { key: 'label', label: 'Label', sample: 'Etiqueta de campo / filtro', size: '0.8125rem', lh: 1.35, weight: 500, ls: '0.5px', note: 'Form labels' },
+            { key: 'overline', label: 'Overline', sample: 'CATEGORÍA / AGRUPADOR', size: '0.6875rem', lh: 1.3, weight: 600, ls: '0.12em', note: 'Agrupadores superiores' },
+            { key: 'caption', label: 'Caption', sample: 'Texto auxiliar y notas contextuales.', size: '0.75rem', lh: 1.4, weight: 400, ls: '0', note: 'Notas / ayuda' },
+            { key: 'code', label: 'Code', sample: 'payment.status === "late"', size: '0.8125rem', lh: 1.45, weight: 500, ls: '0', mono: true, note: 'Snippets técnicos' },
+            { key: 'numeric', label: 'Numeric', sample: '1,254,890.55', size: '1.25rem', lh: 1.2, weight: 600, ls: '0', note: 'KPIs / métricas' }
+          ].map(row => (
+            <Box key={row.key} sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: { sm: 'flex-end' },
+              gap: 1.5,
+              py: 1.2,
+              borderBottom: '1px solid',
+              borderColor: 'divider'
+            }}>
+              <Box sx={{
+                flex: 1,
+                fontSize: row.size,
+                lineHeight: row.lh,
+                fontWeight: row.weight,
+                letterSpacing: row.ls,
+                fontFamily: row.mono ? 'ui-monospace, SFMono-Regular, Menlo, monospace' : undefined
+              }}>
+                {row.sample}
+              </Box>
+              <Box sx={{ minWidth: 210, fontSize: '0.70rem', color: 'text.secondary', display: 'flex', flexDirection: 'column', gap: 0.4 }}>
+                <Box><strong>{row.label}</strong> <span style={{ opacity: 0.7 }}>({row.key})</span></Box>
+                <Box>Size: {row.size} • LH: {row.lh} • W: {row.weight}</Box>
+                <Box>LS: {row.ls} {row.mono ? '• Mono' : ''} {row.note && <span style={{ opacity: 0.65 }}>• {row.note}</span>}</Box>
+              </Box>
+            </Box>
+          ))}
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display:'block' }}>Esta escala introduce display tiers y roles semánticos (label, code, numeric). Próximo paso: tokens + variants MUI.</Typography>
         </Paper>
       </Grid>
+
+
     </Grid>
   );
 
@@ -521,6 +552,8 @@ const DesignSystemTestPage = () => {
         </Paper>
       </Grid>
 
+
+
       {/* Iconos de Acción */}
       <Grid item xs={12}>
         <Paper sx={{ p: 3 }}>
@@ -572,6 +605,8 @@ const DesignSystemTestPage = () => {
           </Grid>
         </Paper>
       </Grid>
+
+
 
       {/* Iconos de Estado */}
       <Grid item xs={12}>
@@ -631,6 +666,8 @@ const DesignSystemTestPage = () => {
           </Grid>
         </Paper>
       </Grid>
+
+
 
       {/* Iconos Empresariales */}
       <Grid item xs={12}>
@@ -4201,6 +4238,203 @@ const DesignSystemTestPage = () => {
           🧭 Navegación
         </Typography>
       </Grid>
+
+      {/* Prototipo Sidebar */}
+      <Grid item xs={12} md={6}>
+        <Paper sx={{ p: 3, height: '100%' }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Typography variant="h6">Sidebar (Prototipo)</Typography>
+            <Box display="flex" gap={1}>
+              <Button size="small" variant="outlined" onClick={() => setSidebarCollapsed(false)} disabled={!sidebarCollapsed}>Expandido</Button>
+              <Button size="small" variant="outlined" onClick={() => setSidebarCollapsed(true)} disabled={sidebarCollapsed}>Colapsado</Button>
+            </Box>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box
+              sx={{
+                width: sidebarCollapsed ? 72 : 240,
+                transition: 'width 0.3s',
+                bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.100',
+                borderRadius: 2,
+                p: 1.5,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 1,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+              }}
+            >
+              {[
+                { icon: <Dashboard fontSize="small" />, label: 'Dashboard' },
+                { icon: <Business fontSize="small" />, label: 'Empresas' },
+                { icon: <AttachMoney fontSize="small" />, label: 'Pagos' },
+                { icon: <Analytics fontSize="small" />, label: 'Reportes' },
+                { icon: <Settings fontSize="small" />, label: 'Config' }
+              ].map((item, idx) => (
+                <Box
+                  key={item.label}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: sidebarCollapsed ? 0 : 1.5,
+                    px: 1.2,
+                    py: 1,
+                    borderRadius: 1,
+                    cursor: 'pointer',
+                    bgcolor: idx === 0 ? theme.palette.primary.main + '15' : 'transparent',
+                    color: idx === 0 ? 'primary.main' : 'text.secondary',
+                    fontSize: 14,
+                    transition: 'background 0.25s, color 0.25s',
+                    '&:hover': { bgcolor: theme.palette.primary.main + '22', color: 'primary.main' }
+                  }}
+                >
+                  {item.icon}
+                  {!sidebarCollapsed && <span style={{ fontWeight: idx === 0 ? 600 : 500 }}>{item.label}</span>}
+                </Box>
+              ))}
+              <Box mt={2} pt={1} sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
+                <Tooltip title={sidebarCollapsed ? 'Usuario' : ''} placement="right">
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: sidebarCollapsed ? 0 : 1.5, px: 1.2, py: 1, borderRadius: 1, cursor: 'pointer', '&:hover': { bgcolor: theme.palette.primary.main + '22' } }}>
+                    <Person fontSize="small" />
+                    {!sidebarCollapsed && <span style={{ fontSize: 13 }}>Usuario</span>}
+                  </Box>
+                </Tooltip>
+              </Box>
+            </Box>
+            <Box flex={1} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', typography: 'body2', color: 'text.secondary' }}>
+              Vista de contenido (ejemplo)
+            </Box>
+          </Box>
+          <Divider sx={{ my: 2 }} />
+          <Grid container spacing={2}>
+            <Grid item xs={6}>
+              <Typography variant="caption" color="text.secondary">Ancho Expandido</Typography>
+              <Typography variant="body2">240px</Typography>
+            </Grid>
+            <Grid item xs={6}>
+              <Typography variant="caption" color="text.secondary">Ancho Colapsado</Typography>
+              <Typography variant="body2">72px</Typography>
+            </Grid>
+          </Grid>
+        </Paper>
+      </Grid>
+
+      {/* Prototipo Topbar */}
+      <Grid item xs={12} md={6}>
+        <Paper sx={{ p: 3, height: '100%' }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Typography variant="h6">Topbar (Prototipo)</Typography>
+            <Button size="small" variant="outlined" onClick={() => setTopbarScrolled(s => !s)}>
+              {topbarScrolled ? 'Estado Normal' : 'Simular Scroll'}
+            </Button>
+          </Box>
+          <Box
+            sx={{
+              borderRadius: 2,
+              overflow: 'hidden',
+              border: '1px solid',
+              borderColor: 'divider'
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                px: 2,
+                height: 56,
+                bgcolor: topbarScrolled ? (theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50') : 'background.paper',
+                boxShadow: topbarScrolled ? '0 2px 6px rgba(0,0,0,0.12)' : '0 1px 3px rgba(0,0,0,0.05)',
+                transition: 'all 0.3s'
+              }}
+            >
+              <Typography sx={{ fontWeight: 600 }}>Sección Actual</Typography>
+              <Box display="flex" gap={1} alignItems="center">
+                <IconButton size="small"><Search fontSize="small" /></IconButton>
+                <IconButton size="small"><Notifications fontSize="small" /></IconButton>
+                <IconButton size="small"><Settings fontSize="small" /></IconButton>
+                <Avatar sx={{ width: 32, height: 32 }}>DR</Avatar>
+              </Box>
+            </Box>
+            <Box sx={{ p: 3, typography: 'body2', color: 'text.secondary' }}>
+              Contenido debajo del Topbar (simulación)
+            </Box>
+          </Box>
+          <Divider sx={{ my: 2 }} />
+          <Grid container spacing={2}>
+            <Grid item xs={4}><Typography variant="caption" color="text.secondary">Altura</Typography><Typography variant="body2">56px</Typography></Grid>
+            <Grid item xs={4}><Typography variant="caption" color="text.secondary">Padding Horizontal</Typography><Typography variant="body2">16-24px</Typography></Grid>
+            <Grid item xs={4}><Typography variant="caption" color="text.secondary">Scroll Effect</Typography><Typography variant="body2">Sombra + Fondo sutil</Typography></Grid>
+          </Grid>
+        </Paper>
+      </Grid>
+
+      {/* Prototipo Drawer de Configuración */}
+      <Grid item xs={12}>
+        <Paper sx={{ p: 3 }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Typography variant="h6">Drawer de Configuración (Prototipo)</Typography>
+            <Button variant="contained" onClick={() => setConfigDrawerOpen(true)}>Abrir Drawer</Button>
+          </Box>
+          <Typography variant="body2" color="text.secondary" mb={1}>
+            Panel lateral para ajustes rápidos (tema, layout, notificaciones…).
+          </Typography>
+          <List dense>
+            <ListItem><ListItemIcon><Palette fontSize="small" /></ListItemIcon><ListItemText primary="Tema" secondary="Colores, modo claro/oscuro" /></ListItem>
+            <ListItem><ListItemIcon><Dashboard fontSize="small" /></ListItemIcon><ListItemText primary="Layout" secondary="Columnas, densidad" /></ListItem>
+            <ListItem><ListItemIcon><Notifications fontSize="small" /></ListItemIcon><ListItemText primary="Alertas" secondary="Configuración de avisos" /></ListItem>
+          </List>
+          <Typography variant="caption" color="text.secondary">Ancho Desktop sugerido: 380px • Mobile: 100%</Typography>
+        </Paper>
+      </Grid>
+
+      <Drawer
+        anchor="right"
+        open={configDrawerOpen}
+        onClose={() => setConfigDrawerOpen(false)}
+        PaperProps={{
+          sx: {
+            width: { xs: '100%', sm: 380 },
+            p: 2,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2
+          }
+        }}
+      >
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="h6">Configuración</Typography>
+          <IconButton onClick={() => setConfigDrawerOpen(false)}><Close /></IconButton>
+        </Box>
+        <Divider />
+        <Box>
+          <Typography variant="subtitle2" gutterBottom>Tema</Typography>
+          <Box display="flex" gap={1}>
+            <Chip label="Claro" size="small" clickable />
+            <Chip label="Oscuro" size="small" clickable />
+            <Chip label="Auto" size="small" clickable />
+          </Box>
+        </Box>
+        <Box>
+          <Typography variant="subtitle2" gutterBottom>Layout</Typography>
+          <Box display="flex" gap={1}>
+            <Chip label="Compacto" size="small" clickable />
+            <Chip label="Normal" size="small" color="primary" clickable />
+            <Chip label="Espacioso" size="small" clickable />
+          </Box>
+        </Box>
+        <Box>
+          <Typography variant="subtitle2" gutterBottom>Notificaciones</Typography>
+          <FormGroup>
+            <FormControlLabel control={<Switch defaultChecked size="small" />} label="Activadas" />
+            <FormControlLabel control={<Switch size="small" />} label="Montos Elevados" />
+            <FormControlLabel control={<Switch size="small" />} label="Próximos Vencimientos" />
+          </FormGroup>
+        </Box>
+        <Box mt="auto" display="flex" gap={1}>
+          <Button variant="outlined" fullWidth onClick={() => setConfigDrawerOpen(false)}>Cancelar</Button>
+          <Button variant="contained" fullWidth onClick={() => setConfigDrawerOpen(false)}>Aplicar</Button>
+        </Box>
+      </Drawer>
 
       {/* Tabs */}
       <Grid item xs={12}>
