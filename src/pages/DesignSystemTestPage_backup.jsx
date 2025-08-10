@@ -63,11 +63,16 @@ import {
   Pagination,
   FormGroup,
   FormControlLabel,
-  InputAdornment,
-  Radio,
+  FormLabel,
   RadioGroup,
-  Autocomplete,
-  FormHelperText
+  Radio,
+  InputAdornment,
+  Snackbar,
+  DialogContentText,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Backdrop
 } from '@mui/material';
 import {
   Dashboard,
@@ -99,26 +104,29 @@ import {
   Save,
   Cancel,
   Email,
+  AttachMoney,
+  CalendarMonth,
+  Domain,
+  ErrorOutline,
+  CloudUpload,
+  CloudDownload,
+  Lock,
+  Visibility,
+  VisibilityOff,
+  School,
   Phone,
   LocationOn,
   Work,
-  School,
   ShoppingCart,
-  AttachMoney,
   TrendingUp,
   People,
   Assignment,
   Today,
   EventNote,
-  CloudDownload,
-  CloudUpload,
   Print,
   Share,
   Launch,
   Refresh,
-  Visibility,
-  VisibilityOff,
-  Lock,
   LockOpen,
   ThumbUp,
   ThumbDown,
@@ -126,18 +134,23 @@ import {
   Bookmark,
   FavoriteBorder,
   Chat,
+  ContentCopy,
+  ExpandMore,
+  FullscreenExit,
+  Fullscreen,
+  HelpOutline,
+  ContactMail,
+  QuestionAnswer,
   Comment,
+  Reply,
+  Send,
+  Inbox,
+  Drafts,
   Flag,
   Archive,
   Report,
   Block,
-  MoreHoriz,
-  CalendarToday,
-  Description,
-  Repeat,
-  NotificationImportant,
-  Assessment,
-  AccountBalance
+  MoreHoriz
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -153,28 +166,53 @@ const DesignSystemTestPage = () => {
   const [orderBy, setOrderBy] = useState('name');
   const [order, setOrder] = useState('asc');
   const [selected, setSelected] = useState([]);
-  // Estados para formularios
+  const [openDialog, setOpenDialog] = useState(false);
+  const [openDrawer, setOpenDrawer] = useState(false);
+  const [openFormModal, setOpenFormModal] = useState(false);
+  const [openSuccessModal, setOpenSuccessModal] = useState(false);
+  const [openErrorModal, setOpenErrorModal] = useState(false);
+  const [openConfirmModal, setOpenConfirmModal] = useState(false);
+  const [openFullScreenModal, setOpenFullScreenModal] = useState(false);
+  const [openLoadingModal, setOpenLoadingModal] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    phone: '',
-    company: '',
-    amount: '',
-    dueDate: '',
-    priority: 'media',
-    description: '',
-    isRecurring: false,
-    hasReminder: true,
-    autoApproval: false,
-    submitted: false,
-    type: 'fijo',
-    urgency: 'normal',
     department: '',
-    message: '',
-    notifications: true,
-    marketing: false
+    description: '',
+    company: '',
+    amount: ''
+  });
+  const [tabValue, setTabValue] = useState(0);
+  const [activeStep, setActiveStep] = useState(0);
+  const [bottomNavValue, setBottomNavValue] = useState(0);
+  // Estados nuevos para prototipos de navegación
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [topbarScrolled, setTopbarScrolled] = useState(false);
+  const [configDrawerOpen, setConfigDrawerOpen] = useState(false);
+  
+  // Estados para formularios avanzados
+  const [formErrors, setFormErrors] = useState({
+    email: ''
+  });
+  const [radioValue, setRadioValue] = useState('active');
+  const [checkboxValues, setCheckboxValues] = useState({
+    email: true,
+    sms: false,
+    dashboard: true
   });
   const [showPassword, setShowPassword] = useState(false);
+
+  // Función de validación simple para email
+  React.useEffect(() => {
+    if (formData.email && formData.email.length > 0) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        setFormErrors({...formErrors, email: 'Formato de email inválido'});
+      } else {
+        setFormErrors({...formErrors, email: ''});
+      }
+    }
+  }, [formData.email]);
 
   // Gradientes actuales del sistema (ANTES - Muy vibrantes)
   const gradients = {
@@ -3956,999 +3994,1597 @@ const DesignSystemTestPage = () => {
     </Grid>
   );
 
-  const renderFormsSection = () => {
-    return (
-      <Grid container spacing={4}>
-        <Grid item xs={12}>
-          <Typography variant="h3" gutterBottom sx={{ 
-            fontWeight: 800,
-            background: gradients.primary,
-            backgroundClip: 'text',
-            WebkitBackgroundClip: 'text',
-            color: 'transparent',
-            mb: 2,
-            textAlign: 'center'
-          }}>
-            📋 Sistema de Formularios Profesionales
-          </Typography>
-          <Typography variant="h6" color="text.secondary" gutterBottom sx={{ 
-            mb: 4, 
-            textAlign: 'center',
-            fontWeight: 400
-          }}>
-            Formularios empresariales con validación avanzada, efectos visuales y componentes interactivos
-          </Typography>
-        </Grid>
-
-        {/* Formulario Principal - Compromiso Financiero */}
-        <Grid item xs={12} lg={8}>
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <Paper sx={{ 
-              p: 4, 
-              borderRadius: 4, 
-              boxShadow: shadows.spectacular,
-              background: 'linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%)',
-              border: '1px solid',
-              borderColor: 'divider',
-              position: 'relative',
-              overflow: 'hidden',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '4px',
-                background: gradients.primary,
-                animation: 'shimmer 3s infinite'
-              }
-            }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <Box sx={{ 
-                  p: 1.5, 
-                  borderRadius: 2, 
-                  background: gradients.primary,
-                  mr: 2,
-                  color: 'white'
-                }}>
-                  <Assignment fontSize="medium" />
-                </Box>
-                <Box>
-                  <Typography variant="h5" gutterBottom sx={{ 
-                    fontWeight: 700, 
-                    color: 'text.primary',
-                    mb: 0.5
-                  }}>
-                    Nuevo Compromiso Financiero
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Formulario completo con validación en tiempo real y efectos visuales
-                  </Typography>
-                </Box>
-              </Box>
-              
-              <Grid container spacing={3}>
-                {/* Fila 1: Información Principal */}
-                <Grid item xs={12} md={6}>
-                  <motion.div whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}>
-                    <TextField
-                      fullWidth
-                      label="Nombre del Compromiso *"
-                      placeholder="Ej: Arriendo Oficina Principal"
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      variant="outlined"
-                      error={formData.name === '' && formData.submitted}
-                      helperText={formData.name === '' && formData.submitted ? "Este campo es requerido" : ""}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 3,
-                          transition: 'all 0.3s ease',
-                          '&:hover': {
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                            transform: 'translateY(-2px)'
-                          },
-                          '&.Mui-focused': {
-                            boxShadow: '0 8px 25px rgba(103, 126, 234, 0.15)'
-                          }
-                        },
-                        '& .MuiInputLabel-root': {
-                          fontWeight: 500
-                        }
-                      }}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Box sx={{ color: 'primary.main', display: 'flex' }}>
-                              <Assignment />
-                            </Box>
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  </motion.div>
-                </Grid>
-                
-                <Grid item xs={12} md={6}>
-                  <motion.div whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}>
-                    <FormControl fullWidth error={formData.company === '' && formData.submitted}>
-                      <InputLabel sx={{ fontWeight: 500 }}>Empresa *</InputLabel>
-                      <Select
-                        value={formData.company}
-                        onChange={(e) => setFormData({...formData, company: e.target.value})}
-                        label="Empresa *"
-                        startAdornment={
-                          <InputAdornment position="start" sx={{ ml: 1 }}>
-                            <Business color="primary" />
-                          </InputAdornment>
-                        }
-                        sx={{
-                          borderRadius: 3,
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderRadius: 3
-                          },
-                          '&:hover': {
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                          },
-                          '&.Mui-focused': {
-                            boxShadow: '0 8px 25px rgba(103, 126, 234, 0.15)'
-                          }
-                        }}
-                      >
-                        <MenuItem value="dr-group">DR Group</MenuItem>
-                        <MenuItem value="dr-construcciones">DR Construcciones</MenuItem>
-                        <MenuItem value="dr-inversiones">DR Inversiones</MenuItem>
-                        <MenuItem value="dr-logistica">DR Logística</MenuItem>
-                      </Select>
-                      {formData.company === '' && formData.submitted && (
-                        <FormHelperText>Seleccione una empresa</FormHelperText>
-                      )}
-                    </FormControl>
-                  </motion.div>
-                </Grid>
-
-                {/* Fila 2: Montos y Fechas */}
-                <Grid item xs={12} md={4}>
-                  <motion.div whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}>
-                    <TextField
-                      fullWidth
-                      label="Monto *"
-                      placeholder="0"
-                      value={formData.amount}
-                      onChange={(e) => setFormData({...formData, amount: e.target.value})}
-                      variant="outlined"
-                      type="number"
-                      error={formData.amount === '' && formData.submitted}
-                      helperText={formData.amount === '' && formData.submitted ? "Ingrese el monto" : ""}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 3,
-                          transition: 'all 0.3s ease',
-                          '&:hover': {
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                            transform: 'translateY(-2px)'
-                          },
-                          '&.Mui-focused': {
-                            boxShadow: '0 8px 25px rgba(245, 87, 108, 0.15)'
-                          }
-                        }
-                      }}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Box sx={{ color: 'secondary.main', display: 'flex' }}>
-                              <AttachMoney />
-                            </Box>
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  </motion.div>
-                </Grid>
-
-                <Grid item xs={12} md={4}>
-                  <motion.div whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}>
-                    <TextField
-                      fullWidth
-                      label="Fecha de Vencimiento *"
-                      type="date"
-                      value={formData.dueDate}
-                      onChange={(e) => setFormData({...formData, dueDate: e.target.value})}
-                      variant="outlined"
-                      error={formData.dueDate === '' && formData.submitted}
-                      helperText={formData.dueDate === '' && formData.submitted ? "Seleccione fecha" : ""}
-                      InputLabelProps={{
-                        shrink: true,
-                        sx: { fontWeight: 500 }
-                      }}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 3,
-                          transition: 'all 0.3s ease',
-                          '&:hover': {
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                            transform: 'translateY(-2px)'
-                          },
-                          '&.Mui-focused': {
-                            boxShadow: '0 8px 25px rgba(103, 126, 234, 0.15)'
-                          }
-                        }
-                      }}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <CalendarToday color="primary" />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  </motion.div>
-                </Grid>
-
-                <Grid item xs={12} md={4}>
-                  <motion.div whileHover={{ scale: 1.02 }} transition={{ type: "spring", stiffness: 300 }}>
-                    <FormControl fullWidth>
-                      <InputLabel sx={{ fontWeight: 500 }}>Prioridad</InputLabel>
-                      <Select
-                        value={formData.priority}
-                        onChange={(e) => setFormData({...formData, priority: e.target.value})}
-                        label="Prioridad"
-                        startAdornment={
-                          <InputAdornment position="start" sx={{ ml: 1 }}>
-                            <Flag color="warning" />
-                          </InputAdornment>
-                        }
-                        sx={{
-                          borderRadius: 3,
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderRadius: 3
-                          },
-                          '&:hover': {
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                          },
-                          '&.Mui-focused': {
-                            boxShadow: '0 8px 25px rgba(255, 152, 0, 0.15)'
-                          }
-                        }}
-                      >
-                        <MenuItem value="alta">
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'error.main', mr: 1 }} />
-                            Alta
-                          </Box>
-                        </MenuItem>
-                        <MenuItem value="media">
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'warning.main', mr: 1 }} />
-                            Media
-                          </Box>
-                        </MenuItem>
-                        <MenuItem value="baja">
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'success.main', mr: 1 }} />
-                            Baja
-                          </Box>
-                        </MenuItem>
-                      </Select>
-                    </FormControl>
-                  </motion.div>
-                </Grid>
-
-                {/* Fila 3: Descripción */}
-                <Grid item xs={12}>
-                  <motion.div whileHover={{ scale: 1.01 }} transition={{ type: "spring", stiffness: 300 }}>
-                    <TextField
-                      fullWidth
-                      label="Descripción"
-                      placeholder="Describe los detalles del compromiso..."
-                      value={formData.description}
-                      onChange={(e) => setFormData({...formData, description: e.target.value})}
-                      variant="outlined"
-                      multiline
-                      rows={3}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 3,
-                          transition: 'all 0.3s ease',
-                          '&:hover': {
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-                            transform: 'translateY(-2px)'
-                          },
-                          '&.Mui-focused': {
-                            boxShadow: '0 8px 25px rgba(103, 126, 234, 0.15)'
-                          }
-                        },
-                        '& .MuiInputLabel-root': {
-                          fontWeight: 500
-                        }
-                      }}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1 }}>
-                            <Description color="primary" />
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-                  </motion.div>
-                </Grid>
-
-                {/* Fila 4: Configuración Avanzada */}
-                <Grid item xs={12}>
-                  <Divider sx={{ mb: 2 }}>
-                    <Chip 
-                      label="Configuración Avanzada" 
-                      sx={{ 
-                        background: gradients.primary,
-                        color: 'white',
-                        fontWeight: 600
-                      }} 
-                    />
-                  </Divider>
-                  
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} md={4}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={formData.isRecurring}
-                            onChange={(e) => setFormData({...formData, isRecurring: e.target.checked})}
-                            sx={{
-                              '& .MuiSwitch-switchBase.Mui-checked': {
-                                color: 'primary.main',
-                              },
-                              '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                                backgroundColor: 'primary.main',
-                              }
-                            }}
-                          />
-                        }
-                        label={
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Repeat sx={{ mr: 1, fontSize: 18 }} />
-                            <Typography variant="body2" fontWeight={500}>Compromiso Recurrente</Typography>
-                          </Box>
-                        }
-                      />
-                    </Grid>
-                    
-                    <Grid item xs={12} md={4}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={formData.hasReminder}
-                            onChange={(e) => setFormData({...formData, hasReminder: e.target.checked})}
-                            sx={{
-                              '& .MuiSwitch-switchBase.Mui-checked': {
-                                color: 'warning.main',
-                              },
-                              '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                                backgroundColor: 'warning.main',
-                              }
-                            }}
-                          />
-                        }
-                        label={
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <NotificationImportant sx={{ mr: 1, fontSize: 18 }} />
-                            <Typography variant="body2" fontWeight={500}>Recordatorio Activo</Typography>
-                          </Box>
-                        }
-                      />
-                    </Grid>
-                    
-                    <Grid item xs={12} md={4}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={formData.autoApproval}
-                            onChange={(e) => setFormData({...formData, autoApproval: e.target.checked})}
-                            sx={{
-                              '& .MuiSwitch-switchBase.Mui-checked': {
-                                color: 'success.main',
-                              },
-                              '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                                backgroundColor: 'success.main',
-                              }
-                            }}
-                          />
-                        }
-                        label={
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <CheckCircle sx={{ mr: 1, fontSize: 18 }} />
-                            <Typography variant="body2" fontWeight={500}>Aprobación Automática</Typography>
-                          </Box>
-                        }
-                      />
-                    </Grid>
-                  </Grid>
-                </Grid>
-
-                {/* Botones de Acción */}
-                <Grid item xs={12}>
-                  <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 2 }}>
-                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                      <Button
-                        variant="outlined"
-                        size="large"
-                        startIcon={<Cancel />}
-                        onClick={() => setFormData({
-                          name: '',
-                          company: '',
-                          amount: '',
-                          dueDate: '',
-                          priority: 'media',
-                          description: '',
-                          isRecurring: false,
-                          hasReminder: true,
-                          autoApproval: false,
-                          submitted: false
-                        })}
-                        sx={{
-                          borderRadius: 3,
-                          px: 3,
-                          py: 1.5,
-                          fontWeight: 600,
-                          borderWidth: 2,
-                          '&:hover': {
-                            borderWidth: 2,
-                            transform: 'translateY(-2px)',
-                            boxShadow: '0 8px 25px rgba(0,0,0,0.15)'
-                          }
-                        }}
-                      >
-                        Limpiar
-                      </Button>
-                    </motion.div>
-                    
-                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                      <Button
-                        variant="contained"
-                        size="large"
-                        startIcon={<Save />}
-                        onClick={() => setFormData({...formData, submitted: true})}
-                        sx={{
-                          borderRadius: 3,
-                          px: 4,
-                          py: 1.5,
-                          fontWeight: 700,
-                          background: gradients.primary,
-                          boxShadow: shadows.soft,
-                          '&:hover': {
-                            background: gradients.primary,
-                            transform: 'translateY(-2px)',
-                            boxShadow: '0 8px 25px rgba(103, 126, 234, 0.3)'
-                          }
-                        }}
-                      >
-                        Guardar Compromiso
-                      </Button>
-                    </motion.div>
-                  </Box>
-                </Grid>
-              </Grid>
-            </Paper>
-          </motion.div>
-        </Grid>
-
-        {/* Panel de Estado del Formulario */}
-        <Grid item xs={12} lg={4}>
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <Paper sx={{ 
-              p: 3, 
-              borderRadius: 4, 
-              boxShadow: shadows.soft,
-              background: 'linear-gradient(135deg, #ffffff 0%, #f0f2ff 100%)',
-              border: '1px solid',
-              borderColor: 'divider',
-              height: 'fit-content',
-              position: 'sticky',
-              top: 20
-            }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <Box sx={{ 
-                  p: 1, 
-                  borderRadius: 2, 
-                  background: gradients.secondary,
-                  mr: 2,
-                  color: 'white'
-                }}>
-                  <Assessment />
-                </Box>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Estado del Formulario
-                </Typography>
-              </Box>
-
-              <Box sx={{ mb: 3 }}>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Progreso de Completado
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                  <LinearProgress 
-                    variant="determinate" 
-                    value={Object.values(formData).filter(v => v !== '' && v !== false).length / Object.keys(formData).length * 100}
-                    sx={{ 
-                      flexGrow: 1, 
-                      height: 8, 
-                      borderRadius: 4,
-                      mr: 2,
-                      '& .MuiLinearProgress-bar': {
-                        borderRadius: 4,
-                        background: gradients.primary
-                      }
-                    }} 
-                  />
-                  <Typography variant="body2" fontWeight={600}>
-                    {Math.round(Object.values(formData).filter(v => v !== '' && v !== false).length / Object.keys(formData).length * 100)}%
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Divider sx={{ mb: 3 }} />
-
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="body2" fontWeight={600} gutterBottom>
-                  Validación de Campos
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <CheckCircle 
-                    sx={{ 
-                      mr: 1, 
-                      fontSize: 18, 
-                      color: formData.name ? 'success.main' : 'text.disabled' 
-                    }} 
-                  />
-                  <Typography variant="body2" color={formData.name ? 'success.main' : 'text.secondary'}>
-                    Nombre del compromiso
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <CheckCircle 
-                    sx={{ 
-                      mr: 1, 
-                      fontSize: 18, 
-                      color: formData.company ? 'success.main' : 'text.disabled' 
-                    }} 
-                  />
-                  <Typography variant="body2" color={formData.company ? 'success.main' : 'text.secondary'}>
-                    Empresa seleccionada
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <CheckCircle 
-                    sx={{ 
-                      mr: 1, 
-                      fontSize: 18, 
-                      color: formData.amount ? 'success.main' : 'text.disabled' 
-                    }} 
-                  />
-                  <Typography variant="body2" color={formData.amount ? 'success.main' : 'text.secondary'}>
-                    Monto especificado
-                  </Typography>
-                </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <CheckCircle 
-                    sx={{ 
-                      mr: 1, 
-                      fontSize: 18, 
-                      color: formData.dueDate ? 'success.main' : 'text.disabled' 
-                    }} 
-                  />
-                  <Typography variant="body2" color={formData.dueDate ? 'success.main' : 'text.secondary'}>
-                    Fecha de vencimiento
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Divider sx={{ mb: 3 }} />
-
-              <Box>
-                <Typography variant="body2" fontWeight={600} gutterBottom>
-                  Configuración Activa
-                </Typography>
-                {formData.isRecurring && (
-                  <Chip 
-                    label="Compromiso Recurrente" 
-                    size="small" 
-                    color="primary" 
-                    sx={{ mb: 1, mr: 1, fontWeight: 500 }} 
-                  />
-                )}
-                {formData.hasReminder && (
-                  <Chip 
-                    label="Con Recordatorios" 
-                    size="small" 
-                    color="warning" 
-                    sx={{ mb: 1, mr: 1, fontWeight: 500 }} 
-                  />
-                )}
-                {formData.autoApproval && (
-                  <Chip 
-                    label="Aprobación Automática" 
-                    size="small" 
-                    color="success" 
-                    sx={{ mb: 1, mr: 1, fontWeight: 500 }} 
-                  />
-                )}
-                {!formData.isRecurring && !formData.hasReminder && !formData.autoApproval && (
-                  <Typography variant="body2" color="text.secondary">
-                    Sin configuraciones especiales
-                  </Typography>
-                )}
-              </Box>
-            </Paper>
-          </motion.div>
-        </Grid>
-
-        {/* Ejemplos de Componentes de Formulario */}
-        <Grid item xs={12}>
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-          >
-            <Paper sx={{ 
-              p: 4, 
-              borderRadius: 4, 
-              boxShadow: shadows.soft,
-              background: 'linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)',
-              border: '1px solid',
-              borderColor: 'divider'
-            }}>
-              <Typography variant="h5" gutterBottom sx={{ 
-                fontWeight: 700, 
-                color: 'text.primary',
-                mb: 3
-              }}>
-                🎨 Galería de Componentes de Formulario
-              </Typography>
-              
-              <Grid container spacing={4}>
-                {/* Controles de Input Avanzados */}
-                <Grid item xs={12} md={6}>
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: 'primary.main' }}>
-                    Controles de Entrada
-                  </Typography>
-                  
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <TextField
-                      fullWidth
-                      label="Campo con Validación"
-                      placeholder="Ingresa texto válido..."
-                      error={formData.name === '' && formData.submitted}
-                      helperText="Este campo incluye validación automática"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 3,
-                          '&:hover': {
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
-                          }
-                        }
-                      }}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Search color="primary" />
-                          </InputAdornment>
-                        ),
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <Tooltip title="Campo requerido">
-                              <Info color="info" />
-                            </Tooltip>
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-
-                    <TextField
-                      fullWidth
-                      label="Contraseña"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Ingresa tu contraseña..."
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 3,
-                          '&:hover': {
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
-                          }
-                        }
-                      }}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <Lock color="secondary" />
-                          </InputAdornment>
-                        ),
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <IconButton
-                              onClick={() => setShowPassword(!showPassword)}
-                              edge="end"
-                            >
-                              {showPassword ? <VisibilityOff /> : <Visibility />}
-                            </IconButton>
-                          </InputAdornment>
-                        ),
-                      }}
-                    />
-
-                    <Autocomplete
-                      options={['DR Group', 'DR Construcciones', 'DR Inversiones', 'DR Logística']}
-                      renderInput={(params) => (
-                        <TextField 
-                          {...params} 
-                          label="Autocompletado" 
-                          placeholder="Buscar empresa..."
-                          sx={{
-                            '& .MuiOutlinedInput-root': {
-                              borderRadius: 3,
-                              '&:hover': {
-                                boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
-                              }
-                            }
-                          }}
-                        />
-                      )}
-                      renderOption={(props, option) => (
-                        <Box component="li" {...props}>
-                          <Business sx={{ mr: 2 }} />
-                          {option}
-                        </Box>
-                      )}
-                    />
-                  </Box>
-                </Grid>
-
-                {/* Controles de Selección */}
-                <Grid item xs={12} md={6}>
-                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: 'secondary.main' }}>
-                    Controles de Selección
-                  </Typography>
-                  
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <FormControl fullWidth>
-                      <InputLabel>Tipo de Compromiso</InputLabel>
-                      <Select
-                        value={formData.type || 'fijo'}
-                        onChange={(e) => setFormData({...formData, type: e.target.value})}
-                        label="Tipo de Compromiso"
-                        sx={{
-                          borderRadius: 3,
-                          '&:hover': {
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
-                          }
-                        }}
-                      >
-                        <MenuItem value="fijo">
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <AccountBalance sx={{ mr: 1 }} />
-                            Compromiso Fijo
-                          </Box>
-                        </MenuItem>
-                        <MenuItem value="variable">
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <TrendingUp sx={{ mr: 1 }} />
-                            Compromiso Variable
-                          </Box>
-                        </MenuItem>
-                        <MenuItem value="ocasional">
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <EventNote sx={{ mr: 1 }} />
-                            Compromiso Ocasional
-                          </Box>
-                        </MenuItem>
-                      </Select>
-                    </FormControl>
-
-                    <Box>
-                      <Typography variant="body2" gutterBottom fontWeight={500}>
-                        Días de la Semana
-                      </Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map((day, index) => (
-                          <Chip
-                            key={day}
-                            label={day}
-                            clickable
-                            variant={index < 5 ? 'filled' : 'outlined'}
-                            color={index < 5 ? 'primary' : 'default'}
-                            sx={{
-                              fontWeight: 600,
-                              '&:hover': {
-                                transform: 'scale(1.1)'
-                              }
-                            }}
-                          />
-                        ))}
-                      </Box>
-                    </Box>
-
-                    <Box>
-                      <Typography variant="body2" gutterBottom fontWeight={500}>
-                        Opciones de Configuración
-                      </Typography>
-                      <FormGroup>
-                        <FormControlLabel 
-                          control={<Checkbox defaultChecked color="primary" />} 
-                          label="Notificaciones por email" 
-                        />
-                        <FormControlLabel 
-                          control={<Checkbox color="secondary" />} 
-                          label="Recordatorios automáticos" 
-                        />
-                        <FormControlLabel 
-                          control={<Checkbox color="success" />} 
-                          label="Aprobación requerida" 
-                        />
-                      </FormGroup>
-                    </Box>
-
-                    <Box>
-                      <Typography variant="body2" gutterBottom fontWeight={500}>
-                        Nivel de Urgencia
-                      </Typography>
-                      <RadioGroup
-                        value={formData.urgency || 'normal'}
-                        onChange={(e) => setFormData({...formData, urgency: e.target.value})}
-                      >
-                        <FormControlLabel 
-                          value="baja" 
-                          control={<Radio color="success" />} 
-                          label={
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <CheckCircle sx={{ mr: 1, fontSize: 18, color: 'success.main' }} />
-                              Baja Prioridad
-                            </Box>
-                          } 
-                        />
-                        <FormControlLabel 
-                          value="normal" 
-                          control={<Radio color="primary" />} 
-                          label={
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <Info sx={{ mr: 1, fontSize: 18, color: 'primary.main' }} />
-                              Prioridad Normal
-                            </Box>
-                          } 
-                        />
-                        <FormControlLabel 
-                          value="alta" 
-                          control={<Radio color="error" />} 
-                          label={
-                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                              <Warning sx={{ mr: 1, fontSize: 18, color: 'error.main' }} />
-                              Alta Prioridad
-                            </Box>
-                          } 
-                        />
-                      </RadioGroup>
-                    </Box>
-                  </Box>
-                </Grid>
-              </Grid>
-            </Paper>
-          </motion.div>
-        </Grid>
-      </Grid>
-    );
-  };
-
-  const renderModalsSection = () => (
+  const renderFormsSection = () => (
     <Grid container spacing={3}>
       <Grid item xs={12}>
-        <Typography variant="h4" gutterBottom>
-          🎭 Modales y Diálogos
+        <Typography variant="h4" gutterBottom>📋 Formularios</Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Componentes de formulario profesionales con validación, estados y feedback visual empresarial
         </Typography>
       </Grid>
 
-      {/* Botones para abrir modales */}
-      <Grid item xs={12}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Controles de Modales</Typography>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <Button variant="contained" onClick={() => setOpenDialog(true)}>
-              Abrir Diálogo
-            </Button>
-            <Button variant="outlined" onClick={() => setOpenDrawer(true)}>
-              Abrir Drawer
-            </Button>
+      {/* Campos de Texto Profesionales */}
+      <Grid item xs={12} lg={6}>
+        <Paper sx={{ p: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+            Campos de Entrada
+          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+            
+            {/* Campo Estándar Profesional */}
+            <TextField
+              label="Nombre de la Empresa"
+              variant="outlined"
+              fullWidth
+              placeholder="Ingrese el nombre completo"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  '&:hover fieldset': {
+                    borderColor: 'primary.main'
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderWidth: '2px'
+                  }
+                }
+              }}
+            />
+            
+            {/* Campo con Icono */}
+            <TextField
+              label="NIT de la Empresa"
+              variant="outlined"
+              fullWidth
+              placeholder="900.XXX.XXX-X"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Business color="primary" />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                }
+              }}
+            />
+            
+            {/* Campo con Validación */}
+            <TextField
+              label="Correo Corporativo"
+              variant="outlined"
+              type="email"
+              fullWidth
+              error={!!formErrors.email}
+              helperText={formErrors.email || "ejemplo: admin@empresa.com"}
+              value={formData.email || ''}
+              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              placeholder="admin@empresa.com"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Email color={formErrors.email ? 'error' : 'primary'} />
+                  </InputAdornment>
+                ),
+                endAdornment: formData.email && !formErrors.email && (
+                  <InputAdornment position="end">
+                    <CheckCircle color="success" fontSize="small" />
+                  </InputAdornment>
+                )
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                }
+              }}
+            />
+            
+            {/* Campo Monetario */}
+            <TextField
+              label="Monto del Compromiso"
+              variant="outlined"
+              type="number"
+              fullWidth
+              placeholder="0"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <AttachMoney color="success" />
+                  </InputAdornment>
+                ),
+                endAdornment: <InputAdornment position="end">COP</InputAdornment>
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                }
+              }}
+            />
+            
+            {/* Campo Multilinea */}
+            <TextField
+              label="Observaciones"
+              variant="outlined"
+              multiline
+              rows={3}
+              fullWidth
+              placeholder="Detalles adicionales del compromiso..."
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                }
+              }}
+            />
+            
+            {/* Campo Disabled */}
+            <TextField
+              label="ID del Sistema"
+              variant="outlined"
+              disabled
+              fullWidth
+              value="DR-2025-001"
+              helperText="Generado automáticamente"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                }
+              }}
+            />
           </Box>
         </Paper>
       </Grid>
 
-      {/* Ejemplos de diferentes tipos de modales */}
+      {/* Controles Avanzados */}
+      <Grid item xs={12} lg={6}>
+        <Paper sx={{ p: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+            Controles de Selección
+          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            
+            {/* Select Profesional */}
+            <FormControl fullWidth>
+              <InputLabel>Tipo de Empresa</InputLabel>
+              <Select
+                value={selectValue}
+                label="Tipo de Empresa"
+                onChange={(e) => setSelectValue(e.target.value)}
+                startAdornment={
+                  <InputAdornment position="start">
+                    <Domain color="primary" />
+                  </InputAdornment>
+                }
+                sx={{
+                  borderRadius: 2,
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderRadius: 2
+                  }
+                }}
+              >
+                <MenuItem value="sa">Sociedad Anónima (S.A.)</MenuItem>
+                <MenuItem value="sas">Sociedad por Acciones Simplificada (S.A.S.)</MenuItem>
+                <MenuItem value="ltda">Sociedad Limitada (Ltda.)</MenuItem>
+                <MenuItem value="ei">Empresa Individual</MenuItem>
+              </Select>
+            </FormControl>
+
+            {/* Fecha con DatePicker Simulado */}
+            <TextField
+              label="Fecha de Vencimiento"
+              type="date"
+              fullWidth
+              InputLabelProps={{
+                shrink: true,
+              }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <CalendarMonth color="warning" />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                }
+              }}
+            />
+
+            {/* Grupo de Radio Buttons */}
+            <FormControl component="fieldset">
+              <FormLabel component="legend" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                Estado del Compromiso
+              </FormLabel>
+              <RadioGroup
+                value={radioValue}
+                onChange={(e) => setRadioValue(e.target.value)}
+                sx={{ mt: 1 }}
+              >
+                <FormControlLabel 
+                  value="active" 
+                  control={<Radio />} 
+                  label="Activo" 
+                />
+                <FormControlLabel 
+                  value="pending" 
+                  control={<Radio />} 
+                  label="Pendiente de Pago" 
+                />
+                <FormControlLabel 
+                  value="overdue" 
+                  control={<Radio />} 
+                  label="Vencido" 
+                />
+                <FormControlLabel 
+                  value="paid" 
+                  control={<Radio />} 
+                  label="Pagado" 
+                />
+              </RadioGroup>
+            </FormControl>
+
+            {/* Checkbox Groups */}
+            <FormControl component="fieldset">
+              <FormLabel component="legend" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                Notificaciones
+              </FormLabel>
+              <FormGroup sx={{ mt: 1 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox 
+                      checked={checkboxValues.email}
+                      onChange={(e) => setCheckboxValues({...checkboxValues, email: e.target.checked})}
+                    />
+                  }
+                  label="Notificar por Email"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox 
+                      checked={checkboxValues.sms}
+                      onChange={(e) => setCheckboxValues({...checkboxValues, sms: e.target.checked})}
+                    />
+                  }
+                  label="Notificar por SMS"
+                />
+                <FormControlLabel
+                  control={
+                    <Checkbox 
+                      checked={checkboxValues.dashboard}
+                      onChange={(e) => setCheckboxValues({...checkboxValues, dashboard: e.target.checked})}
+                    />
+                  }
+                  label="Alerta en Dashboard"
+                />
+              </FormGroup>
+            </FormControl>
+
+            {/* Switch Profesional */}
+            <Box>
+              <FormControlLabel
+                control={
+                  <Switch 
+                    checked={switchValue}
+                    onChange={(e) => setSwitchValue(e.target.checked)}
+                    color="primary"
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      Compromiso Recurrente
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Se repetirá automáticamente cada mes
+                    </Typography>
+                  </Box>
+                }
+              />
+            </Box>
+
+            {/* Slider con Valor */}
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                Prioridad: {sliderValue === 1 ? 'Baja' : sliderValue === 2 ? 'Media' : 'Alta'}
+              </Typography>
+              <Slider
+                value={sliderValue}
+                onChange={(e, newValue) => setSliderValue(newValue)}
+                step={1}
+                marks
+                min={1}
+                max={3}
+                valueLabelDisplay="auto"
+                valueLabelFormat={(value) => 
+                  value === 1 ? 'Baja' : value === 2 ? 'Media' : 'Alta'
+                }
+                sx={{
+                  '& .MuiSlider-markLabel': {
+                    fontSize: '0.75rem'
+                  }
+                }}
+              />
+            </Box>
+          </Box>
+        </Paper>
+      </Grid>
+
+      {/* Formulario Completo de Ejemplo */}
       <Grid item xs={12}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Tipos de Modales</Typography>
+        <Paper sx={{ p: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+            📝 Formulario Empresarial Completo
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Ejemplo de formulario real para gestión de compromisos financieros
+          </Typography>
+          
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Empresa"
+                variant="outlined"
+                fullWidth
+                required
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Business color="primary" />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                  }
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Concepto"
+                variant="outlined"
+                fullWidth
+                required
+                placeholder="Ej: Cuota mensual oficina"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                  }
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={4}>
+              <TextField
+                label="Monto"
+                variant="outlined"
+                type="number"
+                fullWidth
+                required
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <AttachMoney color="success" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: <InputAdornment position="end">COP</InputAdornment>
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                  }
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={4}>
+              <TextField
+                label="Fecha de Vencimiento"
+                type="date"
+                fullWidth
+                required
+                InputLabelProps={{
+                  shrink: true,
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                  }
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth required>
+                <InputLabel>Periodicidad</InputLabel>
+                <Select
+                  value=""
+                  label="Periodicidad"
+                  sx={{
+                    borderRadius: 2,
+                  }}
+                >
+                  <MenuItem value="unique">Único</MenuItem>
+                  <MenuItem value="monthly">Mensual</MenuItem>
+                  <MenuItem value="quarterly">Trimestral</MenuItem>
+                  <MenuItem value="annual">Anual</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                label="Observaciones"
+                variant="outlined"
+                multiline
+                rows={3}
+                fullWidth
+                placeholder="Información adicional sobre el compromiso..."
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                  }
+                }}
+              />
+            </Grid>
+            
+            {/* Acciones del formulario */}
+            <Grid item xs={12}>
+              <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 2 }}>
+                <Button 
+                  variant="outlined" 
+                  sx={{ 
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    px: 3
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  variant="contained" 
+                  sx={{ 
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    px: 3,
+                    boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)'
+                  }}
+                >
+                  Guardar Compromiso
+                </Button>
+              </Box>
+            </Grid>
+          </Grid>
+        </Paper>
+      </Grid>
+
+      {/* Estados de Formulario */}
+      <Grid item xs={12} md={6}>
+        <Paper sx={{ p: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+            Estados de Validación
+          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            
+            {/* Campo con éxito */}
+            <TextField
+              label="Campo Válido"
+              variant="outlined"
+              fullWidth
+              value="Datos correctos"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <CheckCircle color="success" />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  '& fieldset': {
+                    borderColor: 'success.main',
+                  }
+                }
+              }}
+            />
+            
+            {/* Campo con advertencia */}
+            <TextField
+              label="Campo con Advertencia"
+              variant="outlined"
+              fullWidth
+              value="Formato no recomendado"
+              helperText="⚠️ Se recomienda usar el formato estándar"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <Warning color="warning" />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  '& fieldset': {
+                    borderColor: 'warning.main',
+                  }
+                },
+                '& .MuiFormHelperText-root': {
+                  color: 'warning.main'
+                }
+              }}
+            />
+            
+            {/* Campo con error */}
+            <TextField
+              label="Campo con Error"
+              variant="outlined"
+              error
+              fullWidth
+              value="Datos inválidos"
+              helperText="❌ Este campo contiene errores"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <ErrorOutline color="error" />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                }
+              }}
+            />
+            
+            {/* Campo cargando */}
+            <TextField
+              label="Campo Validando"
+              variant="outlined"
+              fullWidth
+              value="Verificando información..."
+              disabled
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <CircularProgress size={20} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                }
+              }}
+            />
+          </Box>
+        </Paper>
+      </Grid>
+
+      {/* Componentes Avanzados */}
+      <Grid item xs={12} md={6}>
+        <Paper sx={{ p: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+            Componentes Especializados
+          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            
+            {/* Campo de Búsqueda */}
+            <TextField
+              label="Buscar Empresa"
+              variant="outlined"
+              fullWidth
+              placeholder="Escriba para buscar..."
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search color="primary" />
+                  </InputAdornment>
+                ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton size="small">
+                      <FilterList />
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                }
+              }}
+            />
+
+            {/* Campo de Upload Simulado */}
+            <Box sx={{ 
+              border: '2px dashed',
+              borderColor: 'divider',
+              borderRadius: 2,
+              p: 3,
+              textAlign: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                borderColor: 'primary.main',
+                bgcolor: 'action.hover'
+              }
+            }}>
+              <CloudUpload sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                Subir Comprobante
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Arrastra archivos aquí o haz clic para seleccionar
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Formatos: PDF, JPG, PNG (Max: 5MB)
+              </Typography>
+            </Box>
+
+            {/* Campo de Contraseña */}
+            <TextField
+              label="Contraseña"
+              type={showPassword ? 'text' : 'password'}
+              variant="outlined"
+              fullWidth
+              value="secretpassword123"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Lock color="primary" />
+                  </InputAdornment>
+                ),
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                }
+              }}
+            />
+          </Box>
+        </Paper>
+      </Grid>
+    </Grid>
+  );
+
+  const renderModalsSection = () => (
+    <>
+      <Grid container spacing={3}>
+      <Grid item xs={12}>
+        <Typography variant="h4" gutterBottom sx={{ 
+          fontWeight: 700,
+          background: gradients.primary,
+          backgroundClip: 'text',
+          WebkitBackgroundClip: 'text',
+          color: 'transparent',
+          mb: 3
+        }}>
+          🎭 Modales y Diálogos Profesionales
+        </Typography>
+        <Typography variant="body1" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
+          Sistema completo de ventanas modales, diálogos y overlays para una experiencia empresarial premium
+        </Typography>
+      </Grid>
+
+      {/* Controles de Modales */}
+      <Grid item xs={12}>
+        <Paper sx={{ 
+          p: 3, 
+          borderRadius: 2, 
+          boxShadow: shadows.soft,
+          background: 'linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%)'
+        }}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: 'primary.main' }}>
+            Controles de Modales
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Diferentes tipos de modales para distintas necesidades empresariales
+          </Typography>
+          
           <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <Card>
+            <Grid item xs={12} sm={6} md={3}>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button 
+                  variant="contained" 
+                  fullWidth
+                  onClick={() => setOpenConfirmModal(true)}
+                  startIcon={<Warning />}
+                  sx={{
+                    background: gradients.warning,
+                    color: 'white',
+                    py: 1.5,
+                    borderRadius: 2,
+                    '&:hover': {
+                      background: gradients.warningDark || gradients.warning,
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 20px rgba(255, 193, 7, 0.3)'
+                    }
+                  }}
+                >
+                  Confirmación
+                </Button>
+              </motion.div>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button 
+                  variant="contained" 
+                  fullWidth
+                  onClick={() => setOpenFormModal(true)}
+                  startIcon={<Edit />}
+                  sx={{
+                    background: gradients.primary,
+                    py: 1.5,
+                    borderRadius: 2,
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 20px rgba(25, 118, 210, 0.3)'
+                    }
+                  }}
+                >
+                  Formulario
+                </Button>
+              </motion.div>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button 
+                  variant="contained" 
+                  fullWidth
+                  onClick={() => setOpenDrawer(true)}
+                  startIcon={<Settings />}
+                  sx={{
+                    background: gradients.secondary,
+                    py: 1.5,
+                    borderRadius: 2,
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 20px rgba(156, 39, 176, 0.3)'
+                    }
+                  }}
+                >
+                  Drawer
+                </Button>
+              </motion.div>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button 
+                  variant="contained" 
+                  fullWidth
+                  onClick={() => setOpenFullScreenModal(true)}
+                  startIcon={<Fullscreen />}
+                  sx={{
+                    background: gradients.dark,
+                    py: 1.5,
+                    borderRadius: 2,
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 20px rgba(66, 66, 66, 0.3)'
+                    }
+                  }}
+                >
+                  Pantalla Completa
+                </Button>
+              </motion.div>
+            </Grid>
+          </Grid>
+
+          <Divider sx={{ my: 3 }} />
+
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={4}>
+              <Button 
+                variant="outlined" 
+                fullWidth
+                onClick={() => setOpenSuccessModal(true)}
+                startIcon={<CheckCircle />}
+                color="success"
+                sx={{ py: 1, borderRadius: 2 }}
+              >
+                Éxito
+              </Button>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={4}>
+              <Button 
+                variant="outlined" 
+                fullWidth
+                onClick={() => setOpenErrorModal(true)}
+                startIcon={<Error />}
+                color="error"
+                sx={{ py: 1, borderRadius: 2 }}
+              >
+                Error
+              </Button>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={4}>
+              <Button 
+                variant="outlined" 
+                fullWidth
+                onClick={() => setOpenLoadingModal(true)}
+                startIcon={<HelpOutline />}
+                sx={{ py: 1, borderRadius: 2 }}
+              >
+                Cargando
+              </Button>
+            </Grid>
+          </Grid>
+        </Paper>
+      </Grid>
+
+      {/* Ejemplos Visuales */}
+      <Grid item xs={12}>
+        <Paper sx={{ p: 3, borderRadius: 2, boxShadow: shadows.soft }}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, color: 'primary.main' }}>
+            Tipos de Modales Implementados
+          </Typography>
+          
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6} lg={3}>
+              <Card sx={{ 
+                height: '100%',
+                borderRadius: 2,
+                border: '2px solid',
+                borderColor: 'warning.main',
+                background: 'linear-gradient(135deg, #fff3e0 0%, #ffffff 100%)'
+              }}>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom color="primary">
-                    Modal de Confirmación
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Warning color="warning" />
+                    <Typography variant="h6" color="warning.main" sx={{ fontWeight: 600 }}>
+                      Confirmación
+                    </Typography>
+                  </Box>
                   <Typography variant="body2" paragraph>
-                    Ideal para acciones destructivas o importantes que requieren confirmación del usuario.
+                    Para acciones críticas que requieren confirmación explícita del usuario.
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Uso: Eliminar, transferir, cambios críticos
-                  </Typography>
+                  <Chip 
+                    label="Destructivo" 
+                    size="small" 
+                    color="warning" 
+                    variant="outlined"
+                  />
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} md={4}>
-              <Card>
+
+            <Grid item xs={12} md={6} lg={3}>
+              <Card sx={{ 
+                height: '100%',
+                borderRadius: 2,
+                border: '2px solid',
+                borderColor: 'primary.main',
+                background: 'linear-gradient(135deg, #e3f2fd 0%, #ffffff 100%)'
+              }}>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom color="secondary">
-                    Drawer Lateral
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Edit color="primary" />
+                    <Typography variant="h6" color="primary.main" sx={{ fontWeight: 600 }}>
+                      Formulario
+                    </Typography>
+                  </Box>
                   <Typography variant="body2" paragraph>
-                    Perfecto para configuraciones, filtros o información adicional sin perder contexto.
+                    Modal optimizado para captura de datos con validación en tiempo real.
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Uso: Configuraciones, filtros, menús
-                  </Typography>
+                  <Chip 
+                    label="Interactivo" 
+                    size="small" 
+                    color="primary" 
+                    variant="outlined"
+                  />
                 </CardContent>
               </Card>
             </Grid>
-            <Grid item xs={12} md={4}>
-              <Card>
+
+            <Grid item xs={12} md={6} lg={3}>
+              <Card sx={{ 
+                height: '100%',
+                borderRadius: 2,
+                border: '2px solid',
+                borderColor: 'secondary.main',
+                background: 'linear-gradient(135deg, #f3e5f5 0%, #ffffff 100%)'
+              }}>
                 <CardContent>
-                  <Typography variant="h6" gutterBottom color="success.main">
-                    Modal de Formulario
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Settings color="secondary" />
+                    <Typography variant="h6" color="secondary.main" sx={{ fontWeight: 600 }}>
+                      Drawer Lateral
+                    </Typography>
+                  </Box>
                   <Typography variant="body2" paragraph>
-                    Para crear o editar contenido sin navegar a una página completa.
+                    Panel deslizante para configuraciones y navegación secundaria.
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Uso: Crear, editar, formularios rápidos
+                  <Chip 
+                    label="Contextual" 
+                    size="small" 
+                    color="secondary" 
+                    variant="outlined"
+                  />
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} md={6} lg={3}>
+              <Card sx={{ 
+                height: '100%',
+                borderRadius: 2,
+                border: '2px solid',
+                borderColor: 'grey.800',
+                background: 'linear-gradient(135deg, #fafafa 0%, #ffffff 100%)'
+              }}>
+                <CardContent>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <Fullscreen sx={{ color: 'grey.800' }} />
+                    <Typography variant="h6" sx={{ fontWeight: 600, color: 'grey.800' }}>
+                      Pantalla Completa
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" paragraph>
+                    Modal inmersivo que ocupa toda la pantalla para contenido complejo.
                   </Typography>
+                  <Chip 
+                    label="Inmersivo" 
+                    size="small" 
+                    sx={{ borderColor: 'grey.800', color: 'grey.800' }}
+                    variant="outlined"
+                  />
                 </CardContent>
               </Card>
             </Grid>
           </Grid>
         </Paper>
       </Grid>
+    </Grid>
 
-      {/* Diálogo de confirmación */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
+    {/* MODALES - Fuera del Grid container */}
+    <>
+      {/* Modal de Confirmación */}
+      <Dialog 
+        open={openConfirmModal} 
+        onClose={() => setOpenConfirmModal(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: '0 24px 48px rgba(0,0,0,0.15)',
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          py: 2.5
+        }}>
+          <Warning sx={{ fontSize: 28 }} />
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Confirmar Eliminación
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 400 }}>
+              Esta acción no se puede deshacer
+            </Typography>
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 3 }}>
+          <Typography gutterBottom sx={{ fontSize: '1.1rem', fontWeight: 500 }}>
+            ¿Estás seguro de que deseas eliminar este compromiso financiero?
+          </Typography>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            Esta acción eliminará permanentemente el registro y toda la información asociada.
+          </Typography>
+          
+          <Box sx={{ 
+            mt: 3, 
+            p: 3, 
+            bgcolor: 'error.light', 
+            borderRadius: 2,
+            border: '1px solid',
+            borderColor: 'error.main'
+          }}>
+            <Typography variant="body2" color="error.contrastText" sx={{ fontWeight: 500 }}>
+              📋 <strong>Compromiso:</strong> Arriendo Local Comercial<br/>
+              💰 <strong>Monto:</strong> $2.500.000 COP<br/>
+              📅 <strong>Vencimiento:</strong> 15 de Agosto, 2025<br/>
+              🏢 <strong>Empresa:</strong> DR GROUP SAS
+            </Typography>
+          </Box>
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 3, gap: 2 }}>
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Button 
+              onClick={() => setOpenConfirmModal(false)} 
+              variant="outlined"
+              startIcon={<Cancel />}
+              sx={{ 
+                px: 3,
+                py: 1,
+                borderRadius: 2,
+                minWidth: 120
+              }}
+            >
+              Cancelar
+            </Button>
+          </motion.div>
+          
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Button 
+              onClick={() => {
+                setOpenConfirmModal(false);
+                setOpenSuccessModal(true);
+              }}
+              variant="contained" 
+              color="error"
+              startIcon={<Delete />}
+              sx={{
+                px: 3,
+                py: 1,
+                borderRadius: 2,
+                minWidth: 120,
+                background: 'linear-gradient(45deg, #f44336 30%, #e53935 90%)',
+                '&:hover': {
+                  background: 'linear-gradient(45deg, #e53935 30%, #d32f2f 90%)',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 6px 20px rgba(244, 67, 54, 0.3)'
+                }
+              }}
+            >
+              Eliminar
+            </Button>
+          </motion.div>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal de Formulario */}
+      <Dialog 
+        open={openFormModal} 
+        onClose={() => setOpenFormModal(false)} 
+        maxWidth="md" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: '0 24px 48px rgba(0,0,0,0.15)',
+          }
+        }}
+      >
         <DialogTitle sx={{ 
           background: gradients.primary,
           color: 'white',
           display: 'flex',
           alignItems: 'center',
-          gap: 1
+          gap: 2,
+          py: 3
         }}>
-          <Warning />
-          Confirmar Acción
+          <Edit sx={{ fontSize: 28 }} />
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Crear Nuevo Compromiso
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 400 }}>
+              Complete los campos requeridos
+            </Typography>
+          </Box>
         </DialogTitle>
-        <DialogContent sx={{ mt: 2 }}>
-          <Typography gutterBottom>
-            ¿Estás seguro de que deseas eliminar este compromiso financiero?
+        
+        <DialogContent sx={{ p: 3 }}>
+          <Grid container spacing={3} sx={{ mt: 0.5 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Nombre del Compromiso"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                variant="outlined"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    '&:hover fieldset': {
+                      borderColor: 'primary.main'
+                    }
+                  }
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Assignment color="primary" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Monto"
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                variant="outlined"
+                type="number"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2
+                  }
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <AttachMoney color="success" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Empresa</InputLabel>
+                <Select
+                  value={formData.department}
+                  onChange={(e) => setFormData({...formData, department: e.target.value})}
+                  label="Empresa"
+                  sx={{
+                    borderRadius: 2
+                  }}
+                >
+                  <MenuItem value="dr-group">DR GROUP SAS</MenuItem>
+                  <MenuItem value="subsidiary-1">Subsidiaria Alpha</MenuItem>
+                  <MenuItem value="subsidiary-2">Subsidiaria Beta</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Fecha de Vencimiento"
+                type="date"
+                InputLabelProps={{
+                  shrink: true,
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2
+                  }
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <CalendarMonth color="info" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Descripción"
+                multiline
+                rows={3}
+                value={formData.description}
+                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                variant="outlined"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2
+                  }
+                }}
+                placeholder="Describe los detalles del compromiso financiero..."
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 3, gap: 2 }}>
+          <Button 
+            onClick={() => setOpenFormModal(false)} 
+            variant="outlined"
+            startIcon={<Cancel />}
+            sx={{ px: 3, py: 1, borderRadius: 2 }}
+          >
+            Cancelar
+          </Button>
+          
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Button 
+              onClick={() => {
+                setOpenFormModal(false);
+                setOpenLoadingModal(true);
+                setTimeout(() => {
+                  setOpenLoadingModal(false);
+                  setOpenSuccessModal(true);
+                }, 2000);
+              }}
+              variant="contained"
+              startIcon={<Save />}
+              sx={{
+                px: 4,
+                py: 1,
+                borderRadius: 2,
+                background: gradients.primary,
+                '&:hover': {
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 6px 20px rgba(25, 118, 210, 0.3)'
+                }
+              }}
+            >
+              Guardar
+            </Button>
+          </motion.div>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal de Éxito */}
+      <Dialog 
+        open={openSuccessModal} 
+        onClose={() => setOpenSuccessModal(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: '0 24px 48px rgba(0,0,0,0.15)',
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          background: 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          py: 3
+        }}>
+          <CheckCircle sx={{ fontSize: 32 }} />
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              ¡Operación Exitosa!
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 400 }}>
+              El compromiso ha sido procesado correctamente
+            </Typography>
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 4, textAlign: 'center' }}>
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            <CheckCircle sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
+          </motion.div>
+          
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+            Compromiso Guardado
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Esta acción no se puede deshacer y se eliminará permanentemente el registro.
+          <Typography variant="body2" color="text.secondary" paragraph>
+            El nuevo compromiso financiero ha sido añadido exitosamente al sistema.
           </Typography>
           
-          <Box sx={{ mt: 2, p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
-            <Typography variant="body2" color="error.contrastText">
-              <strong>Compromiso:</strong> Arriendo Local - DR GROUP SAS<br/>
-              <strong>Monto:</strong> $2.500.000 COP<br/>
-              <strong>Vencimiento:</strong> 15 de Agosto, 2025
+          <Box sx={{ 
+            mt: 3, 
+            p: 2, 
+            bgcolor: 'success.light', 
+            borderRadius: 2,
+            border: '1px solid',
+            borderColor: 'success.main'
+          }}>
+            <Typography variant="body2" color="success.contrastText">
+              ✅ Compromiso creado<br/>
+              📧 Notificaciones enviadas<br/>
+              📊 Dashboard actualizado
             </Typography>
           </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 2, gap: 1 }}>
+        
+        <DialogActions sx={{ p: 3, justifyContent: 'center' }}>
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button 
+              onClick={() => setOpenSuccessModal(false)}
+              variant="contained"
+              color="success"
+              startIcon={<CheckCircle />}
+              sx={{
+                px: 4,
+                py: 1.5,
+                borderRadius: 2,
+                background: 'linear-gradient(45deg, #4caf50 30%, #388e3c 90%)',
+                '&:hover': {
+                  background: 'linear-gradient(45deg, #388e3c 30%, #2e7d32 90%)',
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 6px 20px rgba(76, 175, 80, 0.3)'
+                }
+              }}
+            >
+              Continuar
+            </Button>
+          </motion.div>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal de Error */}
+      <Dialog 
+        open={openErrorModal} 
+        onClose={() => setOpenErrorModal(false)} 
+        maxWidth="sm" 
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: '0 24px 48px rgba(0,0,0,0.15)',
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          background: 'linear-gradient(135deg, #f44336 0%, #d32f2f 100%)',
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          py: 3
+        }}>
+          <Error sx={{ fontSize: 32 }} />
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Error en la Operación
+            </Typography>
+            <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 400 }}>
+              Se ha producido un problema
+            </Typography>
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 4 }}>
+          <Typography variant="body1" gutterBottom sx={{ fontWeight: 500 }}>
+            No se pudo completar la operación solicitada
+          </Typography>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            Ha ocurrido un error inesperado. Por favor, revisa los datos e intenta nuevamente.
+          </Typography>
+          
+          <Box sx={{ 
+            mt: 3, 
+            p: 2, 
+            bgcolor: 'error.light', 
+            borderRadius: 2,
+            border: '1px solid',
+            borderColor: 'error.main'
+          }}>
+            <Typography variant="body2" color="error.contrastText">
+              <strong>Código de Error:</strong> COMP_001<br/>
+              <strong>Descripción:</strong> Error de validación de datos<br/>
+              <strong>Contacto:</strong> soporte@drgroup.com
+            </Typography>
+          </Box>
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 3, gap: 2 }}>
+          <Button 
+            onClick={() => setOpenErrorModal(false)} 
+            variant="outlined"
+            color="error"
+            startIcon={<Cancel />}
+            sx={{ px: 3, py: 1, borderRadius: 2 }}
+          >
+            Cerrar
+          </Button>
+          
+          <Button 
+            onClick={() => setOpenErrorModal(false)}
+            variant="contained"
+            color="error"
+            startIcon={<Refresh />}
+            sx={{
+              px: 3,
+              py: 1,
+              borderRadius: 2,
+              background: 'linear-gradient(45deg, #f44336 30%, #d32f2f 90%)',
+              '&:hover': {
+                background: 'linear-gradient(45deg, #d32f2f 30%, #c62828 90%)'
+              }
+            }}
+          >
+            Reintentar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal de Carga */}
+      <Dialog 
+        open={openLoadingModal} 
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: '0 24px 48px rgba(0,0,0,0.15)',
+            minWidth: 300
+          }
+        }}
+      >
+        <DialogContent sx={{ p: 4, textAlign: 'center' }}>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+          >
+            <CircularProgress size={48} sx={{ color: 'primary.main', mb: 2 }} />
+          </motion.div>
+          
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+            Procesando...
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Guardando compromiso financiero
+          </Typography>
+          
+          <LinearProgress 
+            sx={{ 
+              mt: 2, 
+              borderRadius: 1,
+              height: 6,
+              backgroundColor: 'grey.200',
+              '& .MuiLinearProgress-bar': {
+                background: gradients.primary
+              }
+            }} 
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Pantalla Completa */}
+      <Dialog 
+        open={openFullScreenModal} 
+        onClose={() => setOpenFullScreenModal(false)} 
+        fullScreen
+        PaperProps={{
+          sx: {
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          }
+        }}
+      >
+        <AppBar sx={{ 
+          position: 'relative', 
+          background: 'rgba(0,0,0,0.2)', 
+          backdropFilter: 'blur(10px)',
+          boxShadow: 'none'
+        }}>
+          <Toolbar>
+            <IconButton
+              edge="start"
+              color="inherit"
+              onClick={() => setOpenFullScreenModal(false)}
+            >
+              <FullscreenExit />
+            </IconButton>
+            <Typography sx={{ ml: 2, flex: 1, fontWeight: 600 }} variant="h6">
+              Análisis Financiero Completo
+            </Typography>
+            <Button color="inherit" startIcon={<Save />}>
+              Guardar
+            </Button>
+          </Toolbar>
+        </AppBar>
+        
+        <Container maxWidth="xl" sx={{ py: 4, color: 'white' }}>
+          <Grid container spacing={4}>
+            <Grid item xs={12} md={8}>
+              <Paper sx={{ 
+                p: 3, 
+                borderRadius: 3, 
+                background: 'rgba(255,255,255,0.1)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255,255,255,0.2)'
+              }}>
+                <Typography variant="h5" gutterBottom sx={{ color: 'white', fontWeight: 600 }}>
+                  Dashboard Ejecutivo
+                </Typography>
+                
+                <Grid container spacing={3} sx={{ mt: 1 }}>
+                  {[
+                    { title: 'Compromisos Totales', value: '$45M', color: '#4caf50' },
+                    { title: 'Pagos Pendientes', value: '$12M', color: '#ff9800' },
+                    { title: 'Vencidos', value: '$2.1M', color: '#f44336' },
+                    { title: 'Liquidez', value: '87%', color: '#2196f3' }
+                  ].map((item, index) => (
+                    <Grid item xs={6} md={3} key={index}>
+                      <Box sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        background: 'rgba(255,255,255,0.1)',
+                        textAlign: 'center',
+                        border: `1px solid ${item.color}30`
+                      }}>
+                        <Typography variant="h4" sx={{ 
+                          color: item.color, 
+                          fontWeight: 700,
+                          mb: 1
+                        }}>
+                          {item.value}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                          {item.title}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
+                
+                <Box sx={{ mt: 4, height: 300, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                    📊 Gráfico de Compromisos por Mes
+                  </Typography>
+                </Box>
+              </Paper>
+            </Grid>
+            
+            <Grid item xs={12} md={4}>
+              <Paper sx={{ 
+                p: 3, 
+                borderRadius: 3, 
+                background: 'rgba(255,255,255,0.1)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255,255,255,0.2)'
+              }}>
+                <Typography variant="h6" gutterBottom sx={{ color: 'white', fontWeight: 600 }}>
+                  Alertas Importantes
+                </Typography>
+                
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+                  {[
+                    { icon: <Warning sx={{ color: '#ff9800' }} />, text: '3 compromisos vencen esta semana' },
+                    { icon: <Error sx={{ color: '#f44336' }} />, text: '2 pagos están vencidos' },
+                    { icon: <Info sx={{ color: '#2196f3' }} />, text: 'Actualización del sistema disponible' },
+                  ].map((alert, index) => (
+                    <Box key={index} sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 2,
+                      p: 2,
+                      borderRadius: 2,
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)'
+                    }}>
+                      {alert.icon}
+                      <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+                        {alert.text}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Paper>
+            </Grid>
+          </Grid>
+        </Container>
+      </Dialog>
           <Button 
             onClick={() => setOpenDialog(false)} 
             variant="outlined"
@@ -4975,89 +5611,339 @@ const DesignSystemTestPage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Drawer lateral */}
+      {/* Drawer lateral profesional */}
       <Drawer
         anchor="right"
         open={openDrawer}
         onClose={() => setOpenDrawer(false)}
         PaperProps={{
           sx: {
-            width: 400,
-            background: gradients.secondary,
+            width: 450,
+            background: 'linear-gradient(135deg, #9c27b0 0%, #673ab7 100%)',
             color: 'white'
           }
         }}
       >
-        <Box sx={{ p: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Configuraciones
-            </Typography>
-            <IconButton onClick={() => setOpenDrawer(false)} sx={{ color: 'white' }}>
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          {/* Header */}
+          <Box sx={{ 
+            p: 3, 
+            background: 'rgba(0,0,0,0.2)', 
+            backdropFilter: 'blur(10px)',
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            borderBottom: '1px solid rgba(255,255,255,0.2)'
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Settings sx={{ fontSize: 28 }} />
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Centro de Configuración
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.8, fontSize: '0.85rem' }}>
+                  Personaliza tu experiencia DR Group
+                </Typography>
+              </Box>
+            </Box>
+            <IconButton 
+              onClick={() => setOpenDrawer(false)} 
+              sx={{ 
+                color: 'white',
+                '&:hover': { 
+                  bgcolor: 'rgba(255,255,255,0.1)',
+                  transform: 'rotate(90deg)'
+                },
+                transition: 'all 0.3s ease'
+              }}
+            >
               <Close />
             </IconButton>
           </Box>
           
-          <List>
-            <ListItem>
-              <ListItemIcon sx={{ color: 'white' }}>
-                <Settings />
-              </ListItemIcon>
-              <ListItemText 
-                primary="Preferencias Generales" 
-                secondary="Configurar opciones del sistema"
-                secondaryTypographyProps={{ sx: { color: 'rgba(255,255,255,0.7)' } }}
-              />
-            </ListItem>
-            <ListItem>
-              <ListItemIcon sx={{ color: 'white' }}>
-                <Notifications />
-              </ListItemIcon>
-              <ListItemText 
-                primary="Notificaciones" 
-                secondary="Gestionar alertas y avisos"
-                secondaryTypographyProps={{ sx: { color: 'rgba(255,255,255,0.7)' } }}
-              />
-            </ListItem>
-            <ListItem>
-              <ListItemIcon sx={{ color: 'white' }}>
-                <Security />
-              </ListItemIcon>
-              <ListItemText 
-                primary="Seguridad" 
-                secondary="Control de acceso y permisos"
-                secondaryTypographyProps={{ sx: { color: 'rgba(255,255,255,0.7)' } }}
-              />
-            </ListItem>
-          </List>
+          {/* Content */}
+          <Box sx={{ flex: 1, overflowY: 'auto' }}>
+            {/* Configuraciones Principales */}
+            <Box sx={{ p: 3 }}>
+              <Typography variant="subtitle1" gutterBottom sx={{ 
+                fontWeight: 600, 
+                opacity: 0.9,
+                mb: 2,
+                fontSize: '0.9rem',
+                textTransform: 'uppercase',
+                letterSpacing: 1
+              }}>
+                ⚙️ CONFIGURACIONES PRINCIPALES
+              </Typography>
+              
+              <List sx={{ py: 0 }}>
+                {[
+                  {
+                    icon: <Business />,
+                    primary: 'Gestión de Empresas',
+                    secondary: 'Configurar empresas y subsidiarias',
+                    action: 'business'
+                  },
+                  {
+                    icon: <People />,
+                    primary: 'Usuarios y Permisos',
+                    secondary: 'Administrar accesos del equipo',
+                    action: 'users'
+                  },
+                  {
+                    icon: <Notifications />,
+                    primary: 'Notificaciones',
+                    secondary: 'Personalizar alertas y recordatorios',
+                    action: 'notifications'
+                  },
+                  {
+                    icon: <Security />,
+                    primary: 'Seguridad',
+                    secondary: 'Controles de acceso y auditoría',
+                    action: 'security'
+                  }
+                ].map((item, index) => (
+                  <ListItem 
+                    key={index}
+                    sx={{ 
+                      borderRadius: 2,
+                      mb: 1,
+                      '&:hover': { 
+                        bgcolor: 'rgba(255,255,255,0.1)',
+                        transform: 'translateX(4px)'
+                      },
+                      transition: 'all 0.2s ease',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <ListItemIcon sx={{ color: 'white', minWidth: 48 }}>
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary={item.primary}
+                      secondary={item.secondary}
+                      primaryTypographyProps={{ 
+                        sx: { fontWeight: 500, fontSize: '0.95rem' }
+                      }}
+                      secondaryTypographyProps={{ 
+                        sx: { color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem' }
+                      }}
+                    />
+                    <IconButton sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                      <Launch sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
 
-          <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.2)' }} />
+            <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)', mx: 3 }} />
 
-          <Box sx={{ mt: 3 }}>
-            <Typography variant="subtitle2" gutterBottom sx={{ opacity: 0.8 }}>
-              Acciones Rápidas
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {/* Preferencias del Sistema */}
+            <Box sx={{ p: 3 }}>
+              <Typography variant="subtitle1" gutterBottom sx={{ 
+                fontWeight: 600, 
+                opacity: 0.9,
+                mb: 2,
+                fontSize: '0.9rem',
+                textTransform: 'uppercase',
+                letterSpacing: 1
+              }}>
+                🎨 PREFERENCIAS DEL SISTEMA
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <Box>
+                  <FormControlLabel
+                    control={
+                      <Switch 
+                        defaultChecked 
+                        sx={{
+                          '& .MuiSwitch-switchBase.Mui-checked': {
+                            color: 'white'
+                          },
+                          '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                            backgroundColor: 'rgba(255,255,255,0.5)'
+                          }
+                        }}
+                      />
+                    }
+                    label="Modo Oscuro"
+                    sx={{ color: 'white' }}
+                  />
+                  <Typography variant="caption" sx={{ 
+                    display: 'block', 
+                    color: 'rgba(255,255,255,0.7)',
+                    mt: 0.5
+                  }}>
+                    Activar tema oscuro para mejor experiencia nocturna
+                  </Typography>
+                </Box>
+                
+                <Box>
+                  <FormControlLabel
+                    control={
+                      <Switch 
+                        defaultChecked 
+                        sx={{
+                          '& .MuiSwitch-switchBase.Mui-checked': {
+                            color: 'white'
+                          },
+                          '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                            backgroundColor: 'rgba(255,255,255,0.5)'
+                          }
+                        }}
+                      />
+                    }
+                    label="Animaciones"
+                    sx={{ color: 'white' }}
+                  />
+                  <Typography variant="caption" sx={{ 
+                    display: 'block', 
+                    color: 'rgba(255,255,255,0.7)',
+                    mt: 0.5
+                  }}>
+                    Habilitar efectos visuales y transiciones
+                  </Typography>
+                </Box>
+                
+                <Box>
+                  <FormControlLabel
+                    control={
+                      <Switch 
+                        sx={{
+                          '& .MuiSwitch-switchBase.Mui-checked': {
+                            color: 'white'
+                          },
+                          '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                            backgroundColor: 'rgba(255,255,255,0.5)'
+                          }
+                        }}
+                      />
+                    }
+                    label="Sonidos de Notificación"
+                    sx={{ color: 'white' }}
+                  />
+                  <Typography variant="caption" sx={{ 
+                    display: 'block', 
+                    color: 'rgba(255,255,255,0.7)',
+                    mt: 0.5
+                  }}>
+                    Reproducir sonidos para alertas importantes
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+
+            <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)', mx: 3 }} />
+
+            {/* Acciones Rápidas */}
+            <Box sx={{ p: 3 }}>
+              <Typography variant="subtitle1" gutterBottom sx={{ 
+                fontWeight: 600, 
+                opacity: 0.9,
+                mb: 2,
+                fontSize: '0.9rem',
+                textTransform: 'uppercase',
+                letterSpacing: 1
+              }}>
+                ⚡ ACCIONES RÁPIDAS
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Button 
+                  variant="outlined" 
+                  fullWidth 
+                  startIcon={<CloudDownload />}
+                  sx={{ 
+                    borderColor: 'rgba(255,255,255,0.3)',
+                    color: 'white',
+                    py: 1.5,
+                    borderRadius: 2,
+                    '&:hover': {
+                      borderColor: 'white',
+                      background: 'rgba(255,255,255,0.1)',
+                      transform: 'translateY(-1px)'
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Exportar Configuración
+                </Button>
+                
+                <Button 
+                  variant="outlined" 
+                  fullWidth 
+                  startIcon={<CloudUpload />}
+                  sx={{ 
+                    borderColor: 'rgba(255,255,255,0.3)',
+                    color: 'white',
+                    py: 1.5,
+                    borderRadius: 2,
+                    '&:hover': {
+                      borderColor: 'white',
+                      background: 'rgba(255,255,255,0.1)',
+                      transform: 'translateY(-1px)'
+                    }
+                  }}
+                >
+                  Importar Configuración
+                </Button>
+                
+                <Button 
+                  variant="outlined" 
+                  fullWidth 
+                  startIcon={<Refresh />}
+                  sx={{ 
+                    borderColor: 'rgba(255,255,255,0.3)',
+                    color: 'white',
+                    py: 1.5,
+                    borderRadius: 2,
+                    '&:hover': {
+                      borderColor: 'white',
+                      background: 'rgba(255,255,255,0.1)',
+                      transform: 'translateY(-1px)'
+                    }
+                  }}
+                >
+                  Restablecer a Valores por Defecto
+                </Button>
+              </Box>
+            </Box>
+          </Box>
+          
+          {/* Footer */}
+          <Box sx={{ 
+            p: 3, 
+            borderTop: '1px solid rgba(255,255,255,0.2)',
+            background: 'rgba(0,0,0,0.2)'
+          }}>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <Button 
-                variant="outlined" 
-                fullWidth 
-                sx={{ 
-                  borderColor: 'rgba(255,255,255,0.3)',
+                variant="contained" 
+                fullWidth
+                startIcon={<Save />}
+                sx={{
+                  py: 1.5,
+                  borderRadius: 2,
+                  background: 'linear-gradient(45deg, #ffffff20 30%, #ffffff30 90%)',
+                  backdropFilter: 'blur(10px)',
                   color: 'white',
                   '&:hover': {
-                    borderColor: 'white',
-                    background: 'rgba(255,255,255,0.1)'
+                    background: 'linear-gradient(45deg, #ffffff30 30%, #ffffff40 90%)',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 6px 20px rgba(255,255,255,0.2)'
                   }
                 }}
-                startIcon={<Save />}
+                onClick={() => setOpenDrawer(false)}
               >
                 Guardar Configuración
               </Button>
-            </Box>
+            </motion.div>
           </Box>
         </Box>
       </Drawer>
-    </Grid>
+    </>
   );
 
   const renderNavigationSection = () => (
