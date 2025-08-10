@@ -39,6 +39,9 @@ import AdvancedToolsPage from './pages/AdvancedToolsPage';
 import FinancialKPIsPage from './pages/FinancialKPIsPage';
 import LiquidationProcessorPage from './pages/LiquidationProcessorPage';
 
+// Design System Test Page
+import DesignSystemTestPage from './pages/DesignSystemTestPage';
+
 // Hook de autenticación
 import { useAuth } from './context/AuthContext';
 
@@ -211,6 +214,14 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Mi Perfil" breadcrumbs={['Perfil']}>
             <ProfilePage />
+          </MainLayout>
+        }
+      />
+      <Route 
+        path="/design-system-test" 
+        element={
+          <MainLayout title="Design System 3.0" breadcrumbs={['Desarrollo', 'Design System']}>
+            <DesignSystemTestPage />
           </MainLayout>
         }
       />

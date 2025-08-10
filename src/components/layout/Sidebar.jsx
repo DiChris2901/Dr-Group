@@ -27,7 +27,8 @@ import {
   Notifications,
   ExpandLess,
   ExpandMore,
-  Analytics
+  Analytics,
+  Palette
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -159,7 +160,8 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       icon: Analytics,
       color: '#4caf50',
       submenu: [
-        { title: 'Procesador de Liquidaciones', icon: Analytics, path: '/liquidation-processor' }
+        { title: 'Procesador de Liquidaciones', icon: Analytics, path: '/liquidation-processor' },
+        { title: 'Design System 3.0', icon: Palette, path: '/design-system-test' }
       ]
     }
   ];

@@ -154,6 +154,41 @@ export const gradients = {
 };
 
 // ========================================
+// 🎨 GRADIENTES V2 (Full & Soft) - Solo para sandbox (DesignSystemTestPage)
+// No usar aún en componentes productivos hasta validación final.
+// ========================================
+export const gradientsV2 = {
+  primary: {
+    full: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    soft: 'linear-gradient(135deg, #8899f233 0%, #8d6fb844 100%)'
+  },
+  secondary: {
+    full: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    soft: 'linear-gradient(135deg, #f3b8fd33 0%, #f7797f44 100%)'
+  },
+  success: {
+    full: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    soft: 'linear-gradient(135deg, #6fb9fe33 0%, #33f2fe44 100%)'
+  },
+  warning: {
+    full: 'linear-gradient(135deg, #ffb347 0%, #ffcc33 100%)',
+    soft: 'linear-gradient(135deg, #ffc56f33 0%, #ffe06644 100%)'
+  },
+  error: {
+    full: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%)',
+    soft: 'linear-gradient(135deg, #ff858533 0%, #f2743f44 100%)'
+  },
+  info: {
+    full: 'linear-gradient(135deg, #74b9ff 0%, #0984e3 100%)',
+    soft: 'linear-gradient(135deg, #95c8ff33 0%, #3d9ae644 100%)'
+  },
+  dark: {
+    full: 'linear-gradient(135deg, #2c3e50 0%, #3498db 100%)',
+    soft: 'linear-gradient(135deg, #2c3e5033 0%, #3498db44 100%)'
+  }
+};
+
+// ========================================
 // 📐 SPACING Y DIMENSIONES
 // ========================================
 
@@ -314,6 +349,10 @@ export const createDRGroupTheme = (mode = 'light') => {
         disabled: isLight ? 'rgba(0, 0, 0, 0.26)' : 'rgba(255, 255, 255, 0.3)',
         disabledBackground: isLight ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.12)'
       }
+    },
+    // Campos custom para sandbox del Design System
+    custom: {
+      gradientsV2
     },
     
     typography: {
@@ -511,5 +550,6 @@ export default {
   shadows,
   typography,
   transitions,
+  gradientsV2,
   themeUtils
 };

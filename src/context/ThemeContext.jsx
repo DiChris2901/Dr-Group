@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+import { gradientsV2 } from '../theme/premiumTheme';
 import { useSettings } from './SettingsContext';
 
 const ThemeContext = createContext();
@@ -73,6 +74,10 @@ const getTheme = (settings = {}) => {
         light: '#60a5fa',
         dark: '#2563eb',
       },
+    },
+    // Campos custom para sandbox DS
+    custom: {
+      gradientsV2
     },
     typography: {
       fontFamily: `"${fontFamily}", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif`,
