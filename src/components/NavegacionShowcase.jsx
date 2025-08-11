@@ -1127,18 +1127,18 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
           {/* HEADER DE PESTAÑAS */}
           <Box sx={{ 
             p: 2,
-            bgcolor: 'primary.50',
             borderBottom: '1px solid',
-            borderColor: 'primary.100',
+            borderColor: 'divider',
             display: 'flex',
             alignItems: 'center',
-            gap: 2
+            gap: 2,
+            bgcolor: 'background.paper'
           }}>
             <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32 }}>
               <Assignment />
             </Avatar>
             <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
                 Panel de Compromisos
               </Typography>
               <Typography variant="caption" color="text.secondary">
@@ -1147,12 +1147,7 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
             </Box>
           </Box>
 
-          <Paper sx={{ 
-            p: 1, 
-            border: '1px solid',
-            borderColor: 'divider',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
-          }}>
+          <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
               {['General', 'Reportes', 'Configuración'].map((tab, index) => (
                 <motion.div key={tab} whileTap={{ scale: 0.95 }}>
@@ -1162,21 +1157,17 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
                     sx={{
                       textTransform: 'none',
                       fontWeight: tabValue === index ? 600 : 500,
-                      border: '1px solid transparent',
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&:hover': {
                         ...(tabValue !== index && {
-                          border: '1px solid rgba(102, 126, 234, 0.2)',
-                          boxShadow: '0 2px 8px rgba(102, 126, 234, 0.1)'
+                          bgcolor: 'rgba(102, 126, 234, 0.08)'
                         })
                       },
                       ...(tabValue === index && {
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        border: '1px solid rgba(102, 126, 234, 0.3)',
-                        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)',
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
                         '&:hover': {
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                          boxShadow: '0 6px 20px rgba(102, 126, 234, 0.3)'
+                          bgcolor: 'primary.dark'
                         }
                       })
                     }}
@@ -1186,7 +1177,7 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
                 </motion.div>
               ))}
             </Box>
-          </Paper>
+          </Box>
           
           <Box sx={{ p: 3 }}>
             {tabValue === 0 && (

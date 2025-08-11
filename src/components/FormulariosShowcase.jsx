@@ -592,7 +592,7 @@ const FormulariosShowcase = ({ gradients, shadows }) => {
       <Grid item xs={12} lg={6}>
         <Box sx={{ mb: 2 }}>
           <Typography variant="h6" color="success.main" gutterBottom>
-            �️ DR Group 2FA Premium
+             ️ DR Group 2FA Premium
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             <strong>Inspirado en tu 2FA:</strong> Verificación de doble factor con efectos 
