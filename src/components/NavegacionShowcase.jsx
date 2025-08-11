@@ -72,7 +72,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 const NavegacionShowcase = ({ onOpenDrawer }) => {
   const [activeCategory, setActiveCategory] = useState('sidebars');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [sidebarType, setSidebarType] = useState('');
   const [tabValue, setTabValue] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -1104,50 +1103,6 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
         </Paper>
       </Grid>
 
-      {/* Drawer Administrativo */}
-      <Grid item xs={12} lg={6}>
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="h6" color="warning.main" gutterBottom>
-            🔧 Configuración Administrativa
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            <strong>Recomendación:</strong> Para configuraciones complejas, considerar página dedicada.
-          </Typography>
-        </Box>
-        
-        <Paper sx={{ 
-          p: 3, 
-          boxShadow: '0 2px 8px rgba(0,0,0,0.08)', 
-          border: '1px solid',
-          borderColor: 'divider'
-        }}>
-          <Stack spacing={2}>
-            <Button 
-              variant="contained" 
-              color="warning"
-              onClick={() => setDrawerOpen(true)}
-              startIcon={<Security />}
-              fullWidth
-            >
-              Config. Sistema (Drawer)
-            </Button>
-            
-            <Button 
-              variant="outlined" 
-              color="warning"
-              startIcon={<Settings />}
-              fullWidth
-            >
-              Config. Sistema (Página)
-            </Button>
-          </Stack>
-          
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            <strong>Mi recomendación:</strong> Drawer para ajustes simples, 
-            página completa para configuraciones administrativas extensas.
-          </Typography>
-        </Paper>
-      </Grid>
     </Grid>
   );
 
@@ -1192,51 +1147,46 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
             </Box>
           </Box>
 
-          <Tabs 
-            value={tabValue} 
-            onChange={(e, newValue) => setTabValue(newValue)}
-            sx={{ 
-              borderBottom: '1px solid',
-              borderColor: 'divider',
-              px: 2
-            }}
-          >
-            <Tab 
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Assignment fontSize="small" />
-                  Activos
-                  <Badge badgeContent={12} color="primary" sx={{ '& .MuiBadge-badge': { fontSize: '0.6rem' } }} />
-                </Box>
-              }
-            />
-            <Tab 
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Warning fontSize="small" />
-                  Vencidos
-                  <Badge badgeContent={3} color="error" sx={{ '& .MuiBadge-badge': { fontSize: '0.6rem' } }} />
-                </Box>
-              }
-            />
-            <Tab 
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CheckCircle fontSize="small" />
-                  Pagados
-                  <Badge badgeContent={45} color="success" sx={{ '& .MuiBadge-badge': { fontSize: '0.6rem' } }} />
-                </Box>
-              }
-            />
-            <Tab 
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Analytics fontSize="small" />
-                  Reportes
-                </Box>
-              }
-            />
-          </Tabs>
+          <Paper sx={{ 
+            p: 1, 
+            border: '1px solid',
+            borderColor: 'divider',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+          }}>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              {['General', 'Reportes', 'Configuración'].map((tab, index) => (
+                <motion.div key={tab} whileTap={{ scale: 0.95 }}>
+                  <Button
+                    variant={tabValue === index ? 'contained' : 'text'}
+                    onClick={() => setTabValue(index)}
+                    sx={{
+                      textTransform: 'none',
+                      fontWeight: tabValue === index ? 600 : 500,
+                      border: '1px solid transparent',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': {
+                        ...(tabValue !== index && {
+                          border: '1px solid rgba(102, 126, 234, 0.2)',
+                          boxShadow: '0 2px 8px rgba(102, 126, 234, 0.1)'
+                        })
+                      },
+                      ...(tabValue === index && {
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        border: '1px solid rgba(102, 126, 234, 0.3)',
+                        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          boxShadow: '0 6px 20px rgba(102, 126, 234, 0.3)'
+                        }
+                      })
+                    }}
+                  >
+                    {tab}
+                  </Button>
+                </motion.div>
+              ))}
+            </Box>
+          </Paper>
           
           <Box sx={{ p: 3 }}>
             {tabValue === 0 && (
@@ -1298,9 +1248,25 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
             variant="scrollable"
             value={0}
             sx={{ 
-              borderRight: 1, 
+              borderRight: '1px solid', 
               borderColor: 'divider',
-              minWidth: 200
+              minWidth: 200,
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontWeight: 500,
+                alignItems: 'flex-start',
+                textAlign: 'left',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                  bgcolor: 'rgba(102, 126, 234, 0.08)',
+                  color: 'primary.main'
+                },
+                '&.Mui-selected': {
+                  fontWeight: 600,
+                  color: 'primary.main',
+                  bgcolor: 'rgba(102, 126, 234, 0.12)'
+                }
+              }
             }}
           >
             <Tab label="General" />
@@ -1345,7 +1311,19 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
               borderBottom: '1px solid',
               borderColor: 'divider',
               px: 2,
-              pt: 1
+              pt: 1,
+              '& .MuiTab-root': {
+                textTransform: 'none',
+                fontWeight: 500,
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                  bgcolor: 'rgba(102, 126, 234, 0.08)'
+                },
+                '&.Mui-selected': {
+                  fontWeight: 600,
+                  color: 'primary.main'
+                }
+              }
             }}
           >
             <Tab 
@@ -1375,9 +1353,33 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
               Información del Sistema
             </Typography>
             <Stack spacing={2}>
-              <Chip label="Sistema Activo" color="success" size="small" />
-              <Chip label="2 Alertas Pendientes" color="warning" size="small" />
-              <Chip label="Favoritos Deshabilitados" color="default" size="small" />
+              <Chip 
+                label="Sistema Activo" 
+                color="success" 
+                size="small"
+                sx={{ 
+                  fontWeight: 500,
+                  boxShadow: '0 2px 8px rgba(76, 175, 80, 0.2)'
+                }} 
+              />
+              <Chip 
+                label="2 Alertas Pendientes" 
+                color="warning" 
+                size="small"
+                sx={{ 
+                  fontWeight: 500,
+                  boxShadow: '0 2px 8px rgba(255, 152, 0, 0.2)'
+                }} 
+              />
+              <Chip 
+                label="Favoritos Deshabilitados" 
+                color="default" 
+                size="small"
+                sx={{ 
+                  fontWeight: 500,
+                  opacity: 0.6
+                }} 
+              />
             </Stack>
           </Box>
         </Paper>
@@ -1974,160 +1976,7 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
     );
   };
 
-  const renderConfigDrawer = () => (
-    <Drawer
-      anchor="right"
-      open={drawerOpen}
-      onClose={() => setDrawerOpen(false)}
-      PaperProps={{
-        sx: {
-          width: 360,
-          bgcolor: 'background.paper'
-        }
-      }}
-    >
-      {/* HEADER DEL DRAWER */}
-      <Box sx={{ 
-        p: 3,
-        bgcolor: 'primary.50',
-        borderBottom: '1px solid',
-        borderColor: 'primary.100',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between'
-      }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Avatar sx={{ bgcolor: 'primary.main' }}>
-            <Settings />
-          </Avatar>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Configuración de Usuario
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Personaliza tu experiencia
-            </Typography>
-          </Box>
-        </Box>
-        <IconButton onClick={() => setDrawerOpen(false)}>
-          <Close />
-        </IconButton>
-      </Box>
-
-      <Box sx={{ p: 3, overflow: 'auto' }}>
-        <Stack spacing={4}>
-          {/* Apariencia */}
-          <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-              🎨 Apariencia
-            </Typography>
-            <Stack spacing={2}>
-              <FormControlLabel
-                control={<Switch defaultChecked />}
-                label="Tema Oscuro"
-              />
-              <FormControlLabel
-                control={<Switch />}
-                label="Modo Compacto"
-              />
-              <FormControlLabel
-                control={<Switch defaultChecked />}
-                label="Animaciones"
-              />
-            </Stack>
-          </Box>
-
-          <Divider />
-
-          {/* Notificaciones */}
-          <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-              🔔 Notificaciones
-            </Typography>
-            <Stack spacing={2}>
-              <FormControlLabel
-                control={<Switch defaultChecked />}
-                label="Notificaciones Push"
-              />
-              <FormControlLabel
-                control={<Switch defaultChecked />}
-                label="Alertas de Vencimiento"
-              />
-              <FormControlLabel
-                control={<Switch />}
-                label="Resúmenes Semanales"
-              />
-            </Stack>
-          </Box>
-
-          <Divider />
-
-          {/* Idioma y Región */}
-          <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-              🌍 Idioma y Región
-            </Typography>
-            <Stack spacing={2}>
-              <TextField
-                select
-                fullWidth
-                size="small"
-                label="Idioma"
-                defaultValue="es"
-              >
-                <MenuItem value="es">Español</MenuItem>
-                <MenuItem value="en">English</MenuItem>
-              </TextField>
-              
-              <TextField
-                select
-                fullWidth
-                size="small"
-                label="Zona Horaria"
-                defaultValue="america/bogota"
-              >
-                <MenuItem value="america/bogota">Bogotá (UTC-5)</MenuItem>
-                <MenuItem value="america/new_york">New York (UTC-5)</MenuItem>
-              </TextField>
-            </Stack>
-          </Box>
-
-          <Divider />
-
-          {/* Seguridad */}
-          <Box>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-              🔒 Seguridad
-            </Typography>
-            <Stack spacing={2}>
-              <FormControlLabel
-                control={<Switch defaultChecked />}
-                label="Autenticación de Dos Factores"
-              />
-              <FormControlLabel
-                control={<Switch />}
-                label="Cerrar Sesión Automático"
-              />
-              <Button variant="outlined" size="small">
-                Cambiar Contraseña
-              </Button>
-            </Stack>
-          </Box>
-        </Stack>
-
-        <Box sx={{ mt: 4, pt: 3, borderTop: '1px solid', borderColor: 'divider' }}>
-          <Stack direction="row" spacing={2}>
-            <Button variant="outlined" fullWidth>
-              Restablecer
-            </Button>
-            <Button variant="contained" fullWidth>
-              Guardar Cambios
-            </Button>
-          </Stack>
-        </Box>
-      </Box>
-    </Drawer>
-  );
+  const renderConfigDrawer = () => null;
 
   return (
     <Box>
@@ -2181,9 +2030,6 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
 
       {/* SIDEBAR DINÁMICO */}
       {renderSidebar()}
-
-      {/* DRAWER DE CONFIGURACIÓN */}
-      {renderConfigDrawer()}
     </Box>
   );
 };

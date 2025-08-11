@@ -525,23 +525,27 @@ const ModalesShowcase = () => {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: 2,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.12)'
+            borderRadius: 1,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+            border: '1px solid',
+            borderColor: 'divider'
           }
         }}
       >
         {/* HEADER DEL MODAL */}
         <DialogTitle sx={{ 
           p: 3,
-          bgcolor: `${config.color}.50`,
-          border: '1px solid',
-          borderColor: `${config.color}.100`,
+          background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+          borderBottom: '1px solid rgba(102, 126, 234, 0.15)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between'
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Avatar sx={{ bgcolor: `${config.color}.main` }}>
+            <Avatar sx={{ 
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              boxShadow: '0 2px 8px rgba(102, 126, 234, 0.25)'
+            }}>
               {config.icon}
             </Avatar>
             <Box>
@@ -812,6 +816,13 @@ const ModalesShowcase = () => {
             onClick={() => setOpenModal(false)} 
             variant="outlined"
             startIcon={<Cancel />}
+            sx={{
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': {
+                borderColor: 'primary.main',
+                bgcolor: 'rgba(102, 126, 234, 0.08)'
+              }
+            }}
           >
             {modalType === 'informativo' || modalType === 'ayuda' ? 'Cerrar' : 'Cancelar'}
           </Button>
@@ -821,6 +832,14 @@ const ModalesShowcase = () => {
               variant="contained" 
               color={config.color}
               startIcon={modalType === 'eliminacion' ? <Delete /> : <Save />}
+              sx={{
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                fontWeight: 600,
+                '&:hover': {
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.25)'
+                }
+              }}
             >
               {modalType === 'eliminacion' && 'Eliminar'}
               {modalType === 'pago' && 'Procesar Pago'}

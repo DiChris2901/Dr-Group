@@ -139,7 +139,8 @@ import {
   Assessment,
   AccountBalance,
   Brightness4,
-  Receipt
+  Receipt,
+  ExitToApp
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -4789,23 +4790,24 @@ const DesignSystemTestPage = () => {
           {/* Header Spectacular con Design System unificado */}
           <Box sx={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            backdropFilter: 'blur(30px)',
             color: 'white',
             p: 4,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.15)',
             position: 'relative',
             overflow: 'hidden',
+            boxShadow: '0 8px 24px rgba(102, 126, 234, 0.25), 0 4px 12px rgba(118, 75, 162, 0.15)',
             '&::before': {
               content: '""',
               position: 'absolute',
               bottom: 0,
-              left: '15%',
-              right: '15%',
-              height: '1px',
-              background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent)'
+              left: '10%',
+              right: '10%',
+              height: '2px',
+              background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent)',
+              borderRadius: '1px'
             },
             '&::after': {
               content: '""',
@@ -4844,17 +4846,21 @@ const DesignSystemTestPage = () => {
               </motion.div>
               <Box>
                 <Typography variant="h6" sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '1.125rem',
+                  fontWeight: 800, 
+                  fontSize: '1.2rem',
                   letterSpacing: '0.5px',
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+                  textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+                  background: 'linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(248,250,252,0.9) 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent'
                 }}>
                   Panel de Control
                 </Typography>
                 <Typography variant="body2" sx={{ 
                   opacity: 0.9, 
                   fontSize: '0.875rem',
-                  fontWeight: 500
+                  fontWeight: 600,
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
                 }}>
                   DR Group Dashboard 3.0
                 </Typography>
@@ -4865,19 +4871,19 @@ const DesignSystemTestPage = () => {
               whileTap={{ scale: 0.95 }}
               transition={{ duration: 0.2 }}
             >
-              <IconButton 
+                <IconButton 
                 onClick={() => setOpenDrawer(false)} 
                 sx={{ 
                   color: 'white',
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  backdropFilter: 'blur(10px)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
                   '&:hover': { 
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                    transform: 'scale(1.1)',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                    transform: 'scale(1.1) rotate(90deg)',
+                    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.3)'
                   },
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
                 }}
               >
                 <Close />
@@ -4903,16 +4909,19 @@ const DesignSystemTestPage = () => {
                       minWidth: 'auto',
                       px: 2,
                       py: 1,
-                      borderRadius: 2,
+                      borderRadius: 1,
                       fontSize: '0.75rem',
                       fontWeight: 600,
                       textTransform: 'none',
                       ...(drawerSection === section.id && {
                         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                        boxShadow: '0 6px 16px rgba(102, 126, 234, 0.35), 0 2px 8px rgba(118, 75, 162, 0.2)',
                         color: 'white',
+                        transform: 'translateY(-1px)',
                         '&:hover': {
                           background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+                          boxShadow: '0 8px 20px rgba(102, 126, 234, 0.4), 0 4px 12px rgba(118, 75, 162, 0.25)',
+                          transform: 'translateY(-2px)'
                         }
                       }),
                       ...(!drawerSection === section.id && {
@@ -4948,11 +4957,10 @@ const DesignSystemTestPage = () => {
                     {/* User Card */}
                     <Paper sx={{
                       p: 3,
-                      borderRadius: 3,
-                      background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%)',
-                      backdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(102, 126, 234, 0.15)',
-                      boxShadow: '0 4px 20px rgba(102, 126, 234, 0.08)'
+                      borderRadius: 2,
+                      background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.08) 50%, rgba(255, 255, 255, 0.95) 100%)',
+                      border: '1px solid rgba(102, 126, 234, 0.2)',
+                      boxShadow: '0 8px 32px rgba(102, 126, 234, 0.12), 0 4px 16px rgba(118, 75, 162, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8)'
                     }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 3 }}>
                         <Avatar sx={{ 
@@ -4977,9 +4985,10 @@ const DesignSystemTestPage = () => {
                             sx={{
                               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                               color: 'white',
-                              fontWeight: 600,
+                              fontWeight: 700,
                               fontSize: '0.7rem',
-                              boxShadow: '0 2px 8px rgba(102, 126, 234, 0.2)'
+                              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.25), 0 2px 6px rgba(118, 75, 162, 0.15)',
+                              textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
                             }}
                           />
                         </Box>
@@ -5015,7 +5024,7 @@ const DesignSystemTestPage = () => {
                             <Paper sx={{
                               p: 2,
                               textAlign: 'center',
-                              borderRadius: 2,
+                              borderRadius: 1,
                               background: `linear-gradient(135deg, rgba(${
                                 stat.color === 'primary' ? '25, 118, 210' :
                                 stat.color === 'success' ? '76, 175, 80' : '255, 152, 0'
@@ -5088,11 +5097,10 @@ const DesignSystemTestPage = () => {
                     ].map((section, sectionIndex) => (
                       <Paper key={sectionIndex} sx={{
                         p: 3,
-                        borderRadius: 3,
-                        background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%)',
-                        backdropFilter: 'blur(20px)',
-                        border: '1px solid rgba(102, 126, 234, 0.15)',
-                        boxShadow: '0 4px 20px rgba(102, 126, 234, 0.08)'
+                        borderRadius: 2,
+                        background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.06) 50%, rgba(255, 255, 255, 0.98) 100%)',
+                        border: '1px solid rgba(102, 126, 234, 0.18)',
+                        boxShadow: '0 6px 24px rgba(102, 126, 234, 0.1), 0 3px 12px rgba(118, 75, 162, 0.05)'
                       }}>
                         <Typography variant="subtitle1" sx={{ 
                           fontWeight: 700,
@@ -5133,13 +5141,21 @@ const DesignSystemTestPage = () => {
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     <Paper sx={{
                       p: 3,
-                      borderRadius: 3,
-                      background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%)',
-                      backdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(102, 126, 234, 0.15)',
-                      boxShadow: '0 4px 20px rgba(102, 126, 234, 0.08)'
+                      borderRadius: 2,
+                      background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.06) 50%, rgba(255, 255, 255, 0.98) 100%)',
+                      border: '1px solid rgba(102, 126, 234, 0.18)',
+                      boxShadow: '0 8px 28px rgba(102, 126, 234, 0.12), 0 4px 14px rgba(118, 75, 162, 0.08)'
                     }}>
-                      <Typography variant="h6" sx={{ fontWeight: 700, mb: 3, color: '#667eea' }}>
+                      <Typography variant="h6" sx={{ 
+                        fontWeight: 700, 
+                        mb: 3, 
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1
+                      }}>
                         📊 Resumen Financiero
                       </Typography>
                       
@@ -5153,7 +5169,7 @@ const DesignSystemTestPage = () => {
                           <Grid item xs={6} key={index}>
                             <Box sx={{ 
                               p: 2,
-                              borderRadius: 2,
+                              borderRadius: 1,
                               background: `linear-gradient(135deg, rgba(${
                                 metric.color === 'primary' ? '102, 126, 234' :
                                 metric.color === 'success' ? '76, 175, 80' :
@@ -5196,13 +5212,18 @@ const DesignSystemTestPage = () => {
                     {/* Quick Actions */}
                     <Paper sx={{
                       p: 3,
-                      borderRadius: 3,
-                      background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%)',
-                      backdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(102, 126, 234, 0.15)',
-                      boxShadow: '0 4px 20px rgba(102, 126, 234, 0.08)'
+                      borderRadius: 2,
+                      background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.06) 50%, rgba(255, 255, 255, 0.98) 100%)',
+                      border: '1px solid rgba(102, 126, 234, 0.18)',
+                      boxShadow: '0 8px 28px rgba(102, 126, 234, 0.12), 0 4px 14px rgba(118, 75, 162, 0.08)'
                     }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, color: 'text.primary' }}>
+                      <Typography variant="subtitle1" sx={{ 
+                        fontWeight: 700, 
+                        mb: 2, 
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent'
+                      }}>
                         🚀 Acciones Rápidas
                       </Typography>
                       
@@ -5222,7 +5243,7 @@ const DesignSystemTestPage = () => {
                                 justifyContent: 'flex-start',
                                 py: 1.5,
                                 px: 2,
-                                borderRadius: 2,
+                                borderRadius: 1,
                                 color: 'text.secondary',
                                 fontWeight: 500,
                                 '&:hover': {
@@ -5248,9 +5269,18 @@ const DesignSystemTestPage = () => {
           {/* Footer Actions */}
           <Box sx={{
             p: 3,
-            borderTop: '1px solid rgba(102, 126, 234, 0.15)',
-            background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.03) 100%)',
-            backdropFilter: 'blur(20px)'
+            borderTop: '1px solid rgba(102, 126, 234, 0.2)',
+            background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.06) 0%, rgba(118, 75, 162, 0.04) 50%, rgba(255, 255, 255, 0.98) 100%)',
+            position: 'relative',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: '15%',
+              right: '15%',
+              height: '1px',
+              background: 'linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.4), transparent)'
+            }
           }}>
             <Box sx={{ display: 'flex', gap: 2 }}>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ flex: 1 }}>
@@ -5259,43 +5289,46 @@ const DesignSystemTestPage = () => {
                   variant="outlined"
                   startIcon={<Settings />}
                   sx={{
-                    py: 1.5,
-                    borderRadius: 2,
                     borderColor: 'rgba(102, 126, 234, 0.3)',
                     color: '#667eea',
                     fontWeight: 600,
+                    py: 1.5,
+                    borderRadius: 1,
+                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.9) 100%)',
+                    boxShadow: '0 2px 8px rgba(102, 126, 234, 0.08)',
                     '&:hover': {
                       borderColor: '#667eea',
-                      backgroundColor: 'rgba(102, 126, 234, 0.08)',
-                      transform: 'translateY(-1px)',
-                      boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)'
+                      background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%)',
+                      boxShadow: '0 4px 12px rgba(102, 126, 234, 0.15)',
+                      transform: 'translateY(-1px)'
                     },
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                   }}
                 >
-                  Configurar
+                  Configuración
                 </Button>
               </motion.div>
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ flex: 1 }}>
                 <Button
                   fullWidth
                   variant="contained"
-                  startIcon={<Today />}
+                  startIcon={<ExitToApp />}
                   sx={{
-                    py: 1.5,
-                    borderRadius: 2,
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    boxShadow: '0 4px 16px rgba(102, 126, 234, 0.3)',
-                    fontWeight: 600,
+                    fontWeight: 700,
+                    py: 1.5,
+                    borderRadius: 1,
+                    boxShadow: '0 6px 16px rgba(102, 126, 234, 0.3), 0 2px 8px rgba(118, 75, 162, 0.2)',
+                    textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
                     '&:hover': {
                       background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
-                      transform: 'translateY(-2px)',
-                      boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)'
+                      boxShadow: '0 8px 20px rgba(102, 126, 234, 0.4), 0 4px 12px rgba(118, 75, 162, 0.25)',
+                      transform: 'translateY(-2px)'
                     },
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                   }}
                 >
-                  Dashboard
+                  Cerrar Sesión
                 </Button>
               </motion.div>
             </Box>
