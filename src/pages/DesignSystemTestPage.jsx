@@ -137,11 +137,15 @@ import {
   Repeat,
   NotificationImportant,
   Assessment,
-  AccountBalance
+  AccountBalance,
+  Brightness4,
+  Receipt
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
 import FormulariosShowcase from '../components/FormulariosShowcase';
+import ModalesShowcase from '../components/ModalesShowcase';
+import NavegacionShowcase from '../components/NavegacionShowcase';
 
 const DesignSystemTestPage = () => {
   const theme = useTheme();
@@ -176,6 +180,8 @@ const DesignSystemTestPage = () => {
     marketing: false
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [openDrawer, setOpenDrawer] = useState(false);
+  const [drawerSection, setDrawerSection] = useState('profile');
 
   // Gradientes actuales del sistema (ANTES - Muy vibrantes)
   const gradients = {
@@ -3971,521 +3977,11 @@ const DesignSystemTestPage = () => {
   };
 
   const renderModalsSection = () => (
-    <Grid container spacing={3}>
-      <Grid item xs={12}>
-        <Typography variant="h4" gutterBottom>
-          🎭 Modales y Diálogos
-        </Typography>
-      </Grid>
-
-      {/* Botones para abrir modales */}
-      <Grid item xs={12}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Controles de Modales</Typography>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <Button variant="contained" onClick={() => setOpenDialog(true)}>
-              Abrir Diálogo
-            </Button>
-            <Button variant="outlined" onClick={() => setOpenDrawer(true)}>
-              Abrir Drawer
-            </Button>
-          </Box>
-        </Paper>
-      </Grid>
-
-      {/* Ejemplos de diferentes tipos de modales */}
-      <Grid item xs={12}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Tipos de Modales</Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={4}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom color="primary">
-                    Modal de Confirmación
-                  </Typography>
-                  <Typography variant="body2" paragraph>
-                    Ideal para acciones destructivas o importantes que requieren confirmación del usuario.
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Uso: Eliminar, transferir, cambios críticos
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom color="secondary">
-                    Drawer Lateral
-                  </Typography>
-                  <Typography variant="body2" paragraph>
-                    Perfecto para configuraciones, filtros o información adicional sin perder contexto.
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Uso: Configuraciones, filtros, menús
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom color="success.main">
-                    Modal de Formulario
-                  </Typography>
-                  <Typography variant="body2" paragraph>
-                    Para crear o editar contenido sin navegar a una página completa.
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Uso: Crear, editar, formularios rápidos
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
-        </Paper>
-      </Grid>
-
-      {/* Diálogo de confirmación */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ 
-          background: gradients.primary,
-          color: 'white',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1
-        }}>
-          <Warning />
-          Confirmar Acción
-        </DialogTitle>
-        <DialogContent sx={{ mt: 2 }}>
-          <Typography gutterBottom>
-            ¿Estás seguro de que deseas eliminar este compromiso financiero?
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Esta acción no se puede deshacer y se eliminará permanentemente el registro.
-          </Typography>
-          
-          <Box sx={{ mt: 2, p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
-            <Typography variant="body2" color="error.contrastText">
-              <strong>Compromiso:</strong> Arriendo Local - DR GROUP SAS<br/>
-              <strong>Monto:</strong> $2.500.000 COP<br/>
-              <strong>Vencimiento:</strong> 15 de Agosto, 2025
-            </Typography>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ p: 2, gap: 1 }}>
-          <Button 
-            onClick={() => setOpenDialog(false)} 
-            variant="outlined"
-            startIcon={<Cancel />}
-          >
-            Cancelar
-          </Button>
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Button 
-              onClick={() => setOpenDialog(false)}
-              variant="contained" 
-              color="error"
-              startIcon={<Delete />}
-              sx={{
-                background: 'linear-gradient(45deg, #f44336 30%, #e53935 90%)',
-                '&:hover': {
-                  background: 'linear-gradient(45deg, #e53935 30%, #d32f2f 90%)'
-                }
-              }}
-            >
-              Eliminar
-            </Button>
-          </motion.div>
-        </DialogActions>
-      </Dialog>
-
-      {/* Drawer lateral */}
-      <Drawer
-        anchor="right"
-        open={openDrawer}
-        onClose={() => setOpenDrawer(false)}
-        PaperProps={{
-          sx: {
-            width: 400,
-            background: gradients.secondary,
-            color: 'white'
-          }
-        }}
-      >
-        <Box sx={{ p: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Configuraciones
-            </Typography>
-            <IconButton onClick={() => setOpenDrawer(false)} sx={{ color: 'white' }}>
-              <Close />
-            </IconButton>
-          </Box>
-          
-          <List>
-            <ListItem>
-              <ListItemIcon sx={{ color: 'white' }}>
-                <Settings />
-              </ListItemIcon>
-              <ListItemText 
-                primary="Preferencias Generales" 
-                secondary="Configurar opciones del sistema"
-                secondaryTypographyProps={{ sx: { color: 'rgba(255,255,255,0.7)' } }}
-              />
-            </ListItem>
-            <ListItem>
-              <ListItemIcon sx={{ color: 'white' }}>
-                <Notifications />
-              </ListItemIcon>
-              <ListItemText 
-                primary="Notificaciones" 
-                secondary="Gestionar alertas y avisos"
-                secondaryTypographyProps={{ sx: { color: 'rgba(255,255,255,0.7)' } }}
-              />
-            </ListItem>
-            <ListItem>
-              <ListItemIcon sx={{ color: 'white' }}>
-                <Security />
-              </ListItemIcon>
-              <ListItemText 
-                primary="Seguridad" 
-                secondary="Control de acceso y permisos"
-                secondaryTypographyProps={{ sx: { color: 'rgba(255,255,255,0.7)' } }}
-              />
-            </ListItem>
-          </List>
-
-          <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.2)' }} />
-
-          <Box sx={{ mt: 3 }}>
-            <Typography variant="subtitle2" gutterBottom sx={{ opacity: 0.8 }}>
-              Acciones Rápidas
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Button 
-                variant="outlined" 
-                fullWidth 
-                sx={{ 
-                  borderColor: 'rgba(255,255,255,0.3)',
-                  color: 'white',
-                  '&:hover': {
-                    borderColor: 'white',
-                    background: 'rgba(255,255,255,0.1)'
-                  }
-                }}
-                startIcon={<Save />}
-              >
-                Guardar Configuración
-              </Button>
-            </Box>
-          </Box>
-        </Box>
-      </Drawer>
-    </Grid>
+    <ModalesShowcase />
   );
 
   const renderNavigationSection = () => (
-    <Grid container spacing={3}>
-      <Grid item xs={12}>
-        <Typography variant="h4" gutterBottom>
-          🧭 Navegación
-        </Typography>
-      </Grid>
-
-      {/* Prototipo Sidebar */}
-      <Grid item xs={12} md={6}>
-        <Paper sx={{ p: 3, height: '100%' }}>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h6">Sidebar (Prototipo)</Typography>
-            <Box display="flex" gap={1}>
-              <Button size="small" variant="outlined" onClick={() => setSidebarCollapsed(false)} disabled={!sidebarCollapsed}>Expandido</Button>
-              <Button size="small" variant="outlined" onClick={() => setSidebarCollapsed(true)} disabled={sidebarCollapsed}>Colapsado</Button>
-            </Box>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Box
-              sx={{
-                width: sidebarCollapsed ? 72 : 240,
-                transition: 'width 0.3s',
-                bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.100',
-                borderRadius: 2,
-                p: 1.5,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 1,
-                boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
-              }}
-            >
-              {[
-                { icon: <Dashboard fontSize="small" />, label: 'Dashboard' },
-                { icon: <Business fontSize="small" />, label: 'Empresas' },
-                { icon: <AttachMoney fontSize="small" />, label: 'Pagos' },
-                { icon: <Analytics fontSize="small" />, label: 'Reportes' },
-                { icon: <Settings fontSize="small" />, label: 'Config' }
-              ].map((item, idx) => (
-                <Box
-                  key={item.label}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: sidebarCollapsed ? 0 : 1.5,
-                    px: 1.2,
-                    py: 1,
-                    borderRadius: 1,
-                    cursor: 'pointer',
-                    bgcolor: idx === 0 ? theme.palette.primary.main + '15' : 'transparent',
-                    color: idx === 0 ? 'primary.main' : 'text.secondary',
-                    fontSize: 14,
-                    transition: 'background 0.25s, color 0.25s',
-                    '&:hover': { bgcolor: theme.palette.primary.main + '22', color: 'primary.main' }
-                  }}
-                >
-                  {item.icon}
-                  {!sidebarCollapsed && <span style={{ fontWeight: idx === 0 ? 600 : 500 }}>{item.label}</span>}
-                </Box>
-              ))}
-              <Box mt={2} pt={1} sx={{ borderTop: '1px solid', borderColor: 'divider' }}>
-                <Tooltip title={sidebarCollapsed ? 'Usuario' : ''} placement="right">
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: sidebarCollapsed ? 0 : 1.5, px: 1.2, py: 1, borderRadius: 1, cursor: 'pointer', '&:hover': { bgcolor: theme.palette.primary.main + '22' } }}>
-                    <Person fontSize="small" />
-                    {!sidebarCollapsed && <span style={{ fontSize: 13 }}>Usuario</span>}
-                  </Box>
-                </Tooltip>
-              </Box>
-            </Box>
-            <Box flex={1} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', typography: 'body2', color: 'text.secondary' }}>
-              Vista de contenido (ejemplo)
-            </Box>
-          </Box>
-          <Divider sx={{ my: 2 }} />
-          <Grid container spacing={2}>
-            <Grid item xs={6}>
-              <Typography variant="caption" color="text.secondary">Ancho Expandido</Typography>
-              <Typography variant="body2">240px</Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="caption" color="text.secondary">Ancho Colapsado</Typography>
-              <Typography variant="body2">72px</Typography>
-            </Grid>
-          </Grid>
-        </Paper>
-      </Grid>
-
-      {/* Prototipo Topbar */}
-      <Grid item xs={12} md={6}>
-        <Paper sx={{ p: 3, height: '100%' }}>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h6">Topbar (Prototipo)</Typography>
-            <Button size="small" variant="outlined" onClick={() => setTopbarScrolled(s => !s)}>
-              {topbarScrolled ? 'Estado Normal' : 'Simular Scroll'}
-            </Button>
-          </Box>
-          <Box
-            sx={{
-              borderRadius: 2,
-              overflow: 'hidden',
-              border: '1px solid',
-              borderColor: 'divider'
-            }}
-          >
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                px: 2,
-                height: 56,
-                bgcolor: topbarScrolled ? (theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50') : 'background.paper',
-                boxShadow: topbarScrolled ? '0 2px 6px rgba(0,0,0,0.12)' : '0 1px 3px rgba(0,0,0,0.05)',
-                transition: 'all 0.3s'
-              }}
-            >
-              <Typography sx={{ fontWeight: 600 }}>Sección Actual</Typography>
-              <Box display="flex" gap={1} alignItems="center">
-                <IconButton size="small"><Search fontSize="small" /></IconButton>
-                <IconButton size="small"><Notifications fontSize="small" /></IconButton>
-                <IconButton size="small"><Settings fontSize="small" /></IconButton>
-                <Avatar sx={{ width: 32, height: 32 }}>DR</Avatar>
-              </Box>
-            </Box>
-            <Box sx={{ p: 3, typography: 'body2', color: 'text.secondary' }}>
-              Contenido debajo del Topbar (simulación)
-            </Box>
-          </Box>
-          <Divider sx={{ my: 2 }} />
-          <Grid container spacing={2}>
-            <Grid item xs={4}><Typography variant="caption" color="text.secondary">Altura</Typography><Typography variant="body2">56px</Typography></Grid>
-            <Grid item xs={4}><Typography variant="caption" color="text.secondary">Padding Horizontal</Typography><Typography variant="body2">16-24px</Typography></Grid>
-            <Grid item xs={4}><Typography variant="caption" color="text.secondary">Scroll Effect</Typography><Typography variant="body2">Sombra + Fondo sutil</Typography></Grid>
-          </Grid>
-        </Paper>
-      </Grid>
-
-      {/* Prototipo Drawer de Configuración */}
-      <Grid item xs={12}>
-        <Paper sx={{ p: 3 }}>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h6">Drawer de Configuración (Prototipo)</Typography>
-            <Button variant="contained" onClick={() => setConfigDrawerOpen(true)}>Abrir Drawer</Button>
-          </Box>
-          <Typography variant="body2" color="text.secondary" mb={1}>
-            Panel lateral para ajustes rápidos (tema, layout, notificaciones…).
-          </Typography>
-          <List dense>
-            <ListItem><ListItemIcon><Palette fontSize="small" /></ListItemIcon><ListItemText primary="Tema" secondary="Colores, modo claro/oscuro" /></ListItem>
-            <ListItem><ListItemIcon><Dashboard fontSize="small" /></ListItemIcon><ListItemText primary="Layout" secondary="Columnas, densidad" /></ListItem>
-            <ListItem><ListItemIcon><Notifications fontSize="small" /></ListItemIcon><ListItemText primary="Alertas" secondary="Configuración de avisos" /></ListItem>
-          </List>
-          <Typography variant="caption" color="text.secondary">Ancho Desktop sugerido: 380px • Mobile: 100%</Typography>
-        </Paper>
-      </Grid>
-
-      <Drawer
-        anchor="right"
-        open={configDrawerOpen}
-        onClose={() => setConfigDrawerOpen(false)}
-        PaperProps={{
-          sx: {
-            width: { xs: '100%', sm: 380 },
-            p: 2,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2
-          }
-        }}
-      >
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">Configuración</Typography>
-          <IconButton onClick={() => setConfigDrawerOpen(false)}><Close /></IconButton>
-        </Box>
-        <Divider />
-        <Box>
-          <Typography variant="subtitle2" gutterBottom>Tema</Typography>
-          <Box display="flex" gap={1}>
-            <Chip label="Claro" size="small" clickable />
-            <Chip label="Oscuro" size="small" clickable />
-            <Chip label="Auto" size="small" clickable />
-          </Box>
-        </Box>
-        <Box>
-          <Typography variant="subtitle2" gutterBottom>Layout</Typography>
-          <Box display="flex" gap={1}>
-            <Chip label="Compacto" size="small" clickable />
-            <Chip label="Normal" size="small" color="primary" clickable />
-            <Chip label="Espacioso" size="small" clickable />
-          </Box>
-        </Box>
-        <Box>
-          <Typography variant="subtitle2" gutterBottom>Notificaciones</Typography>
-          <FormGroup>
-            <FormControlLabel control={<Switch defaultChecked size="small" />} label="Activadas" />
-            <FormControlLabel control={<Switch size="small" />} label="Montos Elevados" />
-            <FormControlLabel control={<Switch size="small" />} label="Próximos Vencimientos" />
-          </FormGroup>
-        </Box>
-        <Box mt="auto" display="flex" gap={1}>
-          <Button variant="outlined" fullWidth onClick={() => setConfigDrawerOpen(false)}>Cancelar</Button>
-          <Button variant="contained" fullWidth onClick={() => setConfigDrawerOpen(false)}>Aplicar</Button>
-        </Box>
-      </Drawer>
-
-      {/* Tabs */}
-      <Grid item xs={12}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Tabs de Navegación</Typography>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-            <Tabs 
-              value={tabValue} 
-              onChange={(e, newValue) => setTabValue(newValue)}
-              variant="fullWidth"
-            >
-              <Tab label="Resumen" icon={<Dashboard />} />
-              <Tab label="Compromisos" icon={<Business />} />
-              <Tab label="Pagos" icon={<AttachMoney />} />
-              <Tab label="Reportes" icon={<Analytics />} />
-            </Tabs>
-          </Box>
-          <Box sx={{ p: 2, minHeight: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Typography variant="h6" color="text.secondary">
-              Contenido del Tab: {['Resumen', 'Compromisos', 'Pagos', 'Reportes'][tabValue]}
-            </Typography>
-          </Box>
-        </Paper>
-      </Grid>
-
-      {/* Stepper */}
-      <Grid item xs={12}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Stepper - Proceso de Creación</Typography>
-          <Stepper activeStep={activeStep} alternativeLabel sx={{ mt: 2, mb: 3 }}>
-            {['Información Básica', 'Detalles Financieros', 'Confirmación'].map((label, index) => (
-              <Step key={label}>
-                <StepLabel
-                  StepIconProps={{
-                    sx: {
-                      '&.Mui-active': {
-                        color: theme.palette.primary.main
-                      },
-                      '&.Mui-completed': {
-                        color: theme.palette.success.main
-                      }
-                    }
-                  }}
-                >
-                  {label}
-                </StepLabel>
-              </Step>
-            ))}
-          </Stepper>
-          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
-            <Button 
-              disabled={activeStep === 0}
-              onClick={() => setActiveStep(prev => prev - 1)}
-              variant="outlined"
-            >
-              Anterior
-            </Button>
-            <Button 
-              disabled={activeStep === 2}
-              onClick={() => setActiveStep(prev => prev + 1)}
-              variant="contained"
-            >
-              {activeStep === 2 ? 'Finalizar' : 'Siguiente'}
-            </Button>
-          </Box>
-        </Paper>
-      </Grid>
-
-      {/* Bottom Navigation */}
-      <Grid item xs={12}>
-        <Paper sx={{ p: 2 }}>
-          <Typography variant="h6" gutterBottom>Bottom Navigation (Móvil)</Typography>
-          <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
-            <BottomNavigation
-              value={bottomNavValue}
-              onChange={(event, newValue) => setBottomNavValue(newValue)}
-              sx={{ 
-                background: gradients.dark,
-                '& .MuiBottomNavigationAction-root': {
-                  color: 'rgba(255,255,255,0.6)',
-                  '&.Mui-selected': {
-                    color: 'white'
-                  }
-                }
-              }}
-            >
-              <BottomNavigationAction label="Dashboard" icon={<Dashboard />} />
-              <BottomNavigationAction label="Compromisos" icon={<Business />} />
-              <BottomNavigationAction label="Pagos" icon={<AttachMoney />} />
-              <BottomNavigationAction label="Perfil" icon={<Person />} />
-            </BottomNavigation>
-          </Box>
-        </Paper>
-      </Grid>
-    </Grid>
+    <NavegacionShowcase onOpenDrawer={() => setOpenDrawer(true)} />
   );
 
   const renderDataDisplaySection = () => (
@@ -5229,6 +4725,583 @@ const DesignSystemTestPage = () => {
           </motion.div>
         </AnimatePresence>
       </Container>
+
+      {/* 🎨 DR Group Spectacular Drawer - Design System 3.0 */}
+      <Drawer
+        anchor="right"
+        open={openDrawer}
+        onClose={() => setOpenDrawer(false)}
+        PaperProps={{
+          sx: {
+            width: { xs: '100%', sm: 420 },
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.95) 100%)',
+            backdropFilter: 'blur(40px)',
+            borderLeft: '1px solid rgba(102, 126, 234, 0.15)',
+            boxShadow: `
+              -8px 0 32px rgba(0, 0, 0, 0.12),
+              -4px 0 16px rgba(102, 126, 234, 0.08),
+              inset 1px 0 0 rgba(255, 255, 255, 0.2)
+            `,
+            position: 'relative',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '4px',
+              height: '100%',
+              background: 'linear-gradient(180deg, #667eea 0%, #764ba2 100%)',
+              zIndex: 2
+            },
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: `
+                radial-gradient(circle at 85% 15%, rgba(102, 126, 234, 0.04) 0%, transparent 40%),
+                radial-gradient(circle at 15% 85%, rgba(118, 75, 162, 0.03) 0%, transparent 40%)
+              `,
+              animation: 'spectacularGlow 15s ease-in-out infinite',
+              pointerEvents: 'none',
+              '@keyframes spectacularGlow': {
+                '0%, 100%': { 
+                  transform: 'rotate(0deg) scale(1)',
+                  opacity: 0.6 
+                },
+                '33%': { 
+                  transform: 'rotate(1deg) scale(1.02)',
+                  opacity: 0.8 
+                },
+                '66%': { 
+                  transform: 'rotate(-0.5deg) scale(0.98)',
+                  opacity: 0.7 
+                }
+              }
+            }
+          }
+        }}
+      >
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 3 }}>
+          
+          {/* Header Spectacular con Design System unificado */}
+          <Box sx={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            backdropFilter: 'blur(30px)',
+            color: 'white',
+            p: 4,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+            position: 'relative',
+            overflow: 'hidden',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              bottom: 0,
+              left: '15%',
+              right: '15%',
+              height: '1px',
+              background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent)'
+            },
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: '-100%',
+              width: '100%',
+              height: '100%',
+              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+              animation: 'shimmer 3s infinite',
+              pointerEvents: 'none',
+              '@keyframes shimmer': {
+                '0%': { transform: 'translateX(-100%)' },
+                '100%': { transform: 'translateX(100%)' }
+              }
+            }
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <motion.div
+                initial={{ scale: 0, rotate: -180 }}
+                animate={{ scale: 1, rotate: 0 }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
+              >
+                <Avatar sx={{ 
+                  width: 48, 
+                  height: 48,
+                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.9) 100%)',
+                  color: '#667eea',
+                  fontSize: '1.25rem',
+                  fontWeight: 800,
+                  border: '2px solid rgba(102, 126, 234, 0.3)',
+                  boxShadow: '0 4px 16px rgba(102, 126, 234, 0.2)'
+                }}>
+                  DR
+                </Avatar>
+              </motion.div>
+              <Box>
+                <Typography variant="h6" sx={{ 
+                  fontWeight: 700, 
+                  fontSize: '1.125rem',
+                  letterSpacing: '0.5px',
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.1)'
+                }}>
+                  Panel de Control
+                </Typography>
+                <Typography variant="body2" sx={{ 
+                  opacity: 0.9, 
+                  fontSize: '0.875rem',
+                  fontWeight: 500
+                }}>
+                  DR Group Dashboard 3.0
+                </Typography>
+              </Box>
+            </Box>
+            <motion.div 
+              whileHover={{ scale: 1.1, rotate: 90 }} 
+              whileTap={{ scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+            >
+              <IconButton 
+                onClick={() => setOpenDrawer(false)} 
+                sx={{ 
+                  color: 'white',
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  backdropFilter: 'blur(10px)',
+                  '&:hover': { 
+                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                    transform: 'scale(1.1)',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                  },
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >
+                <Close />
+              </IconButton>
+            </motion.div>
+          </Box>
+
+          {/* Navigation Sections */}
+          <Box sx={{ p: 3, pb: 1 }}>
+            <Box sx={{ display: 'flex', gap: 1, mb: 3 }}>
+              {[
+                { id: 'profile', label: 'Perfil', icon: <Person /> },
+                { id: 'settings', label: 'Config', icon: <Settings /> },
+                { id: 'analytics', label: 'Analytics', icon: <Analytics /> }
+              ].map((section) => (
+                <motion.div key={section.id} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    variant={drawerSection === section.id ? 'contained' : 'text'}
+                    size="small"
+                    startIcon={section.icon}
+                    onClick={() => setDrawerSection(section.id)}
+                    sx={{
+                      minWidth: 'auto',
+                      px: 2,
+                      py: 1,
+                      borderRadius: 2,
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      ...(drawerSection === section.id && {
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                        color: 'white',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+                        }
+                      }),
+                      ...(!drawerSection === section.id && {
+                        color: 'text.secondary',
+                        '&:hover': {
+                          backgroundColor: 'rgba(102, 126, 234, 0.08)',
+                          color: '#667eea'
+                        }
+                      }),
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
+                  >
+                    {section.label}
+                  </Button>
+                </motion.div>
+              ))}
+            </Box>
+          </Box>
+
+          {/* Content Sections */}
+          <Box sx={{ flex: 1, px: 3, pb: 3, overflowY: 'auto' }}>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={drawerSection}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {/* Profile Section */}
+                {drawerSection === 'profile' && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {/* User Card */}
+                    <Paper sx={{
+                      p: 3,
+                      borderRadius: 3,
+                      background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%)',
+                      backdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(102, 126, 234, 0.15)',
+                      boxShadow: '0 4px 20px rgba(102, 126, 234, 0.08)'
+                    }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, mb: 3 }}>
+                        <Avatar sx={{ 
+                          width: 64, 
+                          height: 64,
+                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          fontSize: '1.5rem',
+                          fontWeight: 800
+                        }}>
+                          DR
+                        </Avatar>
+                        <Box>
+                          <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                            Diego Rodriguez
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                            Administrador Principal
+                          </Typography>
+                          <Chip 
+                            label="Premium User" 
+                            size="small" 
+                            sx={{
+                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                              color: 'white',
+                              fontWeight: 600,
+                              fontSize: '0.7rem',
+                              boxShadow: '0 2px 8px rgba(102, 126, 234, 0.2)'
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                      
+                      <Divider sx={{ my: 2, opacity: 0.5 }} />
+                      
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Business sx={{ color: 'text.secondary', fontSize: '1.25rem' }} />
+                          <Typography variant="body2" color="text.secondary">
+                            DR Group SAS
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <AttachMoney sx={{ color: 'text.secondary', fontSize: '1.25rem' }} />
+                          <Typography variant="body2" color="text.secondary">
+                            Acceso Total Financiero
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Paper>
+
+                    {/* Quick Stats */}
+                    <Grid container spacing={2}>
+                      {[
+                        { label: 'Compromisos', value: '23', color: 'primary', icon: <Assignment /> },
+                        { label: 'Completados', value: '18', color: 'success', icon: <CheckCircle /> },
+                        { label: 'Pendientes', value: '5', color: 'warning', icon: <Warning /> }
+                      ].map((stat, index) => (
+                        <Grid item xs={4} key={index}>
+                          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                            <Paper sx={{
+                              p: 2,
+                              textAlign: 'center',
+                              borderRadius: 2,
+                              background: `linear-gradient(135deg, rgba(${
+                                stat.color === 'primary' ? '25, 118, 210' :
+                                stat.color === 'success' ? '76, 175, 80' : '255, 152, 0'
+                              }, 0.1) 0%, rgba(255, 255, 255, 0.8) 100%)`,
+                              border: `1px solid rgba(${
+                                stat.color === 'primary' ? '25, 118, 210' :
+                                stat.color === 'success' ? '76, 175, 80' : '255, 152, 0'
+                              }, 0.2)`,
+                              cursor: 'pointer',
+                              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                            }}>
+                              <Box sx={{ 
+                                color: `${stat.color}.main`,
+                                mb: 1,
+                                display: 'flex',
+                                justifyContent: 'center'
+                              }}>
+                                {stat.icon}
+                              </Box>
+                              <Typography variant="h6" sx={{ 
+                                fontWeight: 700,
+                                color: `${stat.color}.main`,
+                                fontSize: '1.125rem'
+                              }}>
+                                {stat.value}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" sx={{
+                                fontSize: '0.65rem',
+                                fontWeight: 500,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px'
+                              }}>
+                                {stat.label}
+                              </Typography>
+                            </Paper>
+                          </motion.div>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
+                )}
+
+                {/* Settings Section */}
+                {drawerSection === 'settings' && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {[
+                      {
+                        title: 'Tema y Apariencia',
+                        items: [
+                          { label: 'Modo Oscuro', component: <Switch defaultChecked size="small" /> },
+                          { label: 'Efectos Spectacular', component: <Switch defaultChecked size="small" /> },
+                          { label: 'Animaciones', component: <Switch defaultChecked size="small" /> }
+                        ]
+                      },
+                      {
+                        title: 'Notificaciones',
+                        items: [
+                          { label: 'Alertas Compromisos', component: <Switch defaultChecked size="small" /> },
+                          { label: 'Email Semanal', component: <Switch size="small" /> },
+                          { label: 'Sonidos', component: <Switch defaultChecked size="small" /> }
+                        ]
+                      },
+                      {
+                        title: 'Privacidad',
+                        items: [
+                          { label: '2FA Activado', component: <Switch defaultChecked size="small" /> },
+                          { label: 'Sesión Segura', component: <Switch defaultChecked size="small" /> }
+                        ]
+                      }
+                    ].map((section, sectionIndex) => (
+                      <Paper key={sectionIndex} sx={{
+                        p: 3,
+                        borderRadius: 3,
+                        background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%)',
+                        backdropFilter: 'blur(20px)',
+                        border: '1px solid rgba(102, 126, 234, 0.15)',
+                        boxShadow: '0 4px 20px rgba(102, 126, 234, 0.08)'
+                      }}>
+                        <Typography variant="subtitle1" sx={{ 
+                          fontWeight: 700,
+                          color: 'text.primary',
+                          mb: 2,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1
+                        }}>
+                          {sectionIndex === 0 && <Brightness4 sx={{ fontSize: '1.125rem' }} />}
+                          {sectionIndex === 1 && <Notifications sx={{ fontSize: '1.125rem' }} />}
+                          {sectionIndex === 2 && <Security sx={{ fontSize: '1.125rem' }} />}
+                          {section.title}
+                        </Typography>
+                        
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          {section.items.map((item, itemIndex) => (
+                            <Box key={itemIndex} sx={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center',
+                              py: 1
+                            }}>
+                              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                {item.label}
+                              </Typography>
+                              {item.component}
+                            </Box>
+                          ))}
+                        </Box>
+                      </Paper>
+                    ))}
+                  </Box>
+                )}
+
+                {/* Analytics Section */}
+                {drawerSection === 'analytics' && (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <Paper sx={{
+                      p: 3,
+                      borderRadius: 3,
+                      background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%)',
+                      backdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(102, 126, 234, 0.15)',
+                      boxShadow: '0 4px 20px rgba(102, 126, 234, 0.08)'
+                    }}>
+                      <Typography variant="h6" sx={{ fontWeight: 700, mb: 3, color: '#667eea' }}>
+                        📊 Resumen Financiero
+                      </Typography>
+                      
+                      <Grid container spacing={2}>
+                        {[
+                          { label: 'Total Compromisos', value: '$45.8M', trend: '+12%', color: 'primary' },
+                          { label: 'Pagos Este Mes', value: '$32.1M', trend: '+8%', color: 'success' },
+                          { label: 'Pendientes', value: '$13.7M', trend: '-5%', color: 'warning' },
+                          { label: 'Vencidos', value: '$2.4M', trend: '+2%', color: 'error' }
+                        ].map((metric, index) => (
+                          <Grid item xs={6} key={index}>
+                            <Box sx={{ 
+                              p: 2,
+                              borderRadius: 2,
+                              background: `linear-gradient(135deg, rgba(${
+                                metric.color === 'primary' ? '102, 126, 234' :
+                                metric.color === 'success' ? '76, 175, 80' :
+                                metric.color === 'warning' ? '255, 152, 0' : '244, 67, 54'
+                              }, 0.08) 0%, rgba(255, 255, 255, 0.6) 100%)`,
+                              border: `1px solid rgba(${
+                                metric.color === 'primary' ? '102, 126, 234' :
+                                metric.color === 'success' ? '76, 175, 80' :
+                                metric.color === 'warning' ? '255, 152, 0' : '244, 67, 54'
+                              }, 0.15)`
+                            }}>
+                              <Typography variant="caption" color="text.secondary" sx={{ 
+                                fontSize: '0.7rem',
+                                fontWeight: 600,
+                                textTransform: 'uppercase'
+                              }}>
+                                {metric.label}
+                              </Typography>
+                              <Typography variant="h6" sx={{ 
+                                fontWeight: 800,
+                                color: `${metric.color}.main`,
+                                fontSize: '1rem',
+                                mb: 0.5
+                              }}>
+                                {metric.value}
+                              </Typography>
+                              <Typography variant="caption" sx={{
+                                color: metric.trend.startsWith('+') ? 'success.main' : 'error.main',
+                                fontWeight: 600,
+                                fontSize: '0.7rem'
+                              }}>
+                                {metric.trend}
+                              </Typography>
+                            </Box>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </Paper>
+
+                    {/* Quick Actions */}
+                    <Paper sx={{
+                      p: 3,
+                      borderRadius: 3,
+                      background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.05) 100%)',
+                      backdropFilter: 'blur(20px)',
+                      border: '1px solid rgba(102, 126, 234, 0.15)',
+                      boxShadow: '0 4px 20px rgba(102, 126, 234, 0.08)'
+                    }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 2, color: 'text.primary' }}>
+                        🚀 Acciones Rápidas
+                      </Typography>
+                      
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        {[
+                          { label: 'Nuevo Compromiso', icon: <Assignment />, color: 'primary' },
+                          { label: 'Generar Reporte', icon: <Receipt />, color: 'secondary' },
+                          { label: 'Ver Analytics', icon: <Analytics />, color: 'info' },
+                          { label: 'Exportar Datos', icon: <CloudUpload />, color: 'success' }
+                        ].map((action, index) => (
+                          <motion.div key={index} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                            <Button
+                              fullWidth
+                              variant="text"
+                              startIcon={action.icon}
+                              sx={{
+                                justifyContent: 'flex-start',
+                                py: 1.5,
+                                px: 2,
+                                borderRadius: 2,
+                                color: 'text.secondary',
+                                fontWeight: 500,
+                                '&:hover': {
+                                  backgroundColor: `${action.color}.50`,
+                                  color: `${action.color}.main`,
+                                  transform: 'translateX(4px)'
+                                },
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                              }}
+                            >
+                              {action.label}
+                            </Button>
+                          </motion.div>
+                        ))}
+                      </Box>
+                    </Paper>
+                  </Box>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </Box>
+
+          {/* Footer Actions */}
+          <Box sx={{
+            p: 3,
+            borderTop: '1px solid rgba(102, 126, 234, 0.15)',
+            background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.03) 100%)',
+            backdropFilter: 'blur(20px)'
+          }}>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ flex: 1 }}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  startIcon={<Settings />}
+                  sx={{
+                    py: 1.5,
+                    borderRadius: 2,
+                    borderColor: 'rgba(102, 126, 234, 0.3)',
+                    color: '#667eea',
+                    fontWeight: 600,
+                    '&:hover': {
+                      borderColor: '#667eea',
+                      backgroundColor: 'rgba(102, 126, 234, 0.08)',
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 12px rgba(102, 126, 234, 0.2)'
+                    },
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                >
+                  Configurar
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ flex: 1 }}>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  startIcon={<Today />}
+                  sx={{
+                    py: 1.5,
+                    borderRadius: 2,
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    boxShadow: '0 4px 16px rgba(102, 126, 234, 0.3)',
+                    fontWeight: 600,
+                    '&:hover': {
+                      background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)'
+                    },
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                >
+                  Dashboard
+                </Button>
+              </motion.div>
+            </Box>
+          </Box>
+        </Box>
+      </Drawer>
     </Box>
   );
 };

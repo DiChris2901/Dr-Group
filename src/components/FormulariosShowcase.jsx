@@ -48,6 +48,9 @@ import {
   AccountBalance,
   CreditCard,
   Payment,
+  ArrowForward,
+  Google,
+  Microsoft,
   Home
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
@@ -92,229 +95,889 @@ const FormulariosShowcase = ({ gradients, shadows }) => {
   // MODELO 1: FORMULARIO DE LOGIN PROFESIONAL
   const renderLoginForms = () => (
     <Grid container spacing={3}>
-      {/* Login Básico Empresarial */}
+      {/* Login DR Group - Inspirado en el login actual */}
       <Grid item xs={12} lg={6}>
         <Box sx={{ mb: 2 }}>
           <Typography variant="h6" color="primary.main" gutterBottom>
-            🔑 Login Empresarial Estándar
+            🎯 DR Group Login Actual
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            <strong>Uso:</strong> Modelo base para autenticación. Diseño sobrio, profesional, 
-            con validación en tiempo real y estados de carga. Usado en login principal, 
-            modales de re-autenticación y portales administrativos.
+            <strong>Inspirado en tu login:</strong> Efectos spectaculares, glassmorphism, gradientes 
+            y animaciones. Design System 3.0 aplicado con identidad corporativa DR Group 
+            manteniendo el estilo profesional empresarial.
           </Typography>
         </Box>
         
         <Paper sx={{ 
-          p: 3, 
-          boxShadow: '0 2px 8px rgba(0,0,0,0.08)', 
-          border: '1px solid',
-          borderColor: 'divider'
+          p: 0,
+          border: `1px solid rgba(25, 118, 210, 0.15)`,
+          borderRadius: 3,
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.98) 100%)',
+          backdropFilter: 'blur(40px)',
+          boxShadow: `
+            0 8px 32px rgba(0, 0, 0, 0.12),
+            0 4px 16px rgba(25, 118, 210, 0.08),
+            inset 0 1px 0 rgba(255,255,255,0.1)
+          `,
+          position: 'relative',
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px',
+            background: 'linear-gradient(90deg, #1976d2 0%, #1565c0 100%)',
+            zIndex: 2
+          },
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: `
+              radial-gradient(circle at 15% 15%, rgba(25, 118, 210, 0.04) 0%, transparent 40%),
+              radial-gradient(circle at 85% 85%, rgba(21, 101, 192, 0.03) 0%, transparent 40%)
+            `,
+            animation: 'floatGlow 12s ease-in-out infinite',
+            pointerEvents: 'none',
+            '@keyframes floatGlow': {
+              '0%, 100%': { 
+                transform: 'translateY(0) scale(1)',
+                opacity: 0.6 
+              },
+              '33%': { 
+                transform: 'translateY(-2px) scale(1.02)',
+                opacity: 0.8 
+              },
+              '66%': { 
+                transform: 'translateY(1px) scale(0.98)',
+                opacity: 0.7 
+              }
+            }
+          },
+          '&:hover': {
+            transform: 'translateY(-4px)',
+            boxShadow: `
+              0 16px 48px rgba(0, 0, 0, 0.15),
+              0 8px 24px rgba(25, 118, 210, 0.12),
+              inset 0 1px 0 rgba(255,255,255,0.2)
+            `
+          },
+          transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
         }}>
-          {/* HEADER DE AUTENTICACIÓN */}
-          <Box sx={{ 
-            mb: 3,
-            p: 2,
-            bgcolor: 'primary.50',
-            borderRadius: 1,
-            border: '1px solid',
-            borderColor: 'primary.100',
+          
+          {/* Header DR Group con efectos spectacular */}
+          <Box sx={{
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.98) 100%)',
+            backdropFilter: 'blur(20px)',
+            borderRadius: '12px 12px 0 0',
+            p: 4,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between'
+            gap: 3,
+            position: 'relative',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              bottom: 0,
+              left: '10%',
+              right: '10%',
+              height: '1px',
+              background: 'linear-gradient(90deg, transparent, rgba(0,0,0,0.1), transparent)'
+            },
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(45deg, transparent 30%, rgba(25, 118, 210, 0.02) 50%, transparent 70%)',
+              animation: 'shimmer 6s infinite',
+              pointerEvents: 'none',
+              '@keyframes shimmer': {
+                '0%': { transform: 'translateX(-100%)' },
+                '100%': { transform: 'translateX(100%)' }
+              }
+            }
           }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ 
-                width: 40, 
-                height: 40, 
-                bgcolor: 'primary.main' 
-              }}>
-                <Login />
-              </Avatar>
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
-                  Acceso al Sistema
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  DR Group Dashboard • Autenticación segura
-                </Typography>
-              </Box>
+            
+            {/* Avatar Icon DR Group */}
+            <Box sx={{
+              background: 'linear-gradient(135deg, #1976d2, #1565c0)',
+              borderRadius: 2,
+              p: 2,
+              display: 'flex',
+              alignItems: 'center',
+              boxShadow: `
+                0 6px 20px rgba(25, 118, 210, 0.35),
+                0 3px 10px rgba(25, 118, 210, 0.25),
+                inset 0 1px 0 rgba(255,255,255,0.3)
+              `,
+              position: 'relative',
+              overflow: 'hidden',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%)',
+                animation: 'shimmer 4s infinite'
+              },
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                top: -2,
+                left: -2,
+                right: -2,
+                bottom: -2,
+                background: 'linear-gradient(45deg, #1976d2, #1565c0)',
+                borderRadius: '10px',
+                zIndex: -1,
+                opacity: 0.3,
+                filter: 'blur(4px)'
+              },
+              '&:hover': {
+                transform: 'scale(1.05)',
+                boxShadow: `
+                  0 8px 25px rgba(25, 118, 210, 0.45),
+                  0 4px 12px rgba(25, 118, 210, 0.30),
+                  inset 0 1px 0 rgba(255,255,255,0.4)
+                `
+              },
+              transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+            }}>
+              <Business sx={{ 
+                fontSize: 32, 
+                color: 'white',
+                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+              }} />
             </Box>
+
+            {/* Títulos DR Group con gradiente */}
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="h4" component="h1" sx={{ 
+                fontWeight: 700, 
+                mb: 0.5,
+                fontSize: '1.8rem',
+                background: 'linear-gradient(135deg, #1976d2, #1565c0)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
+              }}>
+                DR Group
+              </Typography>
+              <Typography variant="body1" sx={{ 
+                color: 'text.secondary',
+                fontWeight: 500,
+                fontSize: '0.95rem'
+              }}>
+                Dashboard Empresarial • Acceso Seguro
+              </Typography>
+            </Box>
+
+            {/* Badge Premium */}
             <Chip 
-              label="Seguro" 
-              color="success" 
-              size="small"
-              icon={<Security />}
+              label="Enterprise" 
+              sx={{
+                background: 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
+                color: 'white',
+                fontWeight: 600,
+                fontSize: '0.75rem',
+                height: 28,
+                boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)',
+                '&:hover': {
+                  transform: 'scale(1.05)',
+                  boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)'
+                },
+                transition: 'all 0.3s ease'
+              }}
+              icon={<Security sx={{ fontSize: '1rem' }} />}
             />
           </Box>
 
-          <Stack spacing={2.5}>
-            <TextField
-              fullWidth
-              label="Correo Electrónico"
-              placeholder="usuario@drgroup.com"
-              value={loginData.email}
-              onChange={(e) => setLoginData({...loginData, email: e.target.value})}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Email color="action" />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  '&:hover fieldset': {
-                    borderColor: 'primary.light',
-                  }
-                }
-              }}
-            />
-
-            <TextField
-              fullWidth
-              label="Contraseña"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="••••••••"
-              value={loginData.password}
-              onChange={(e) => setLoginData({...loginData, password: e.target.value})}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Lock color="action" />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-
-            <FormControlLabel
-              control={
-                <Switch 
-                  checked={loginData.remember}
-                  onChange={(e) => setLoginData({...loginData, remember: e.target.checked})}
-                  size="small"
+          {/* Formulario Principal DR Group */}
+          <Box sx={{ p: 4 }}>
+            <Stack spacing={3}>
+              
+              {/* Campo Email con efectos spectacular */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ 
+                  mb: 1.5, 
+                  color: 'text.secondary',
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  Correo Electrónico Corporativo
+                </Typography>
+                <TextField
+                  fullWidth
+                  placeholder="usuario@drgroup.com"
+                  value={loginData.email}
+                  onChange={(e) => setLoginData({...loginData, email: e.target.value})}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Email sx={{ color: 'primary.main' }} />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      backgroundColor: 'rgba(248, 250, 252, 0.8)',
+                      border: '1px solid rgba(0,0,0,0.08)',
+                      backdropFilter: 'blur(10px)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': {
+                        backgroundColor: 'rgba(248, 250, 252, 0.95)',
+                        borderColor: 'primary.light',
+                        boxShadow: '0 2px 8px rgba(25, 118, 210, 0.1)',
+                        transform: 'translateY(-1px)'
+                      },
+                      '&.Mui-focused': {
+                        backgroundColor: 'white',
+                        borderColor: 'primary.main',
+                        boxShadow: '0 0 0 3px rgba(25, 118, 210, 0.1)',
+                        transform: 'translateY(-2px)'
+                      },
+                      '& fieldset': {
+                        border: 'none'
+                      }
+                    }
+                  }}
                 />
-              }
-              label={<Typography variant="body2">Mantener sesión activa</Typography>}
-            />
+              </Box>
 
-            <Button
-              fullWidth
-              variant="contained"
-              size="large"
-              startIcon={<Login />}
-              sx={{
-                py: 1.5,
-                fontWeight: 500,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                '&:hover': {
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+              {/* Campo Password con efectos spectacular */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ 
+                  mb: 1.5, 
+                  color: 'text.secondary',
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  Contraseña Segura
+                </Typography>
+                <TextField
+                  fullWidth
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••••••"
+                  value={loginData.password}
+                  onChange={(e) => setLoginData({...loginData, password: e.target.value})}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Lock sx={{ color: 'primary.main' }} />
+                      </InputAdornment>
+                    ),
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton 
+                          onClick={() => setShowPassword(!showPassword)} 
+                          edge="end"
+                          sx={{
+                            color: 'text.secondary',
+                            '&:hover': {
+                              color: 'primary.main',
+                              backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                              transform: 'scale(1.1)'
+                            },
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      backgroundColor: 'rgba(248, 250, 252, 0.8)',
+                      border: '1px solid rgba(0,0,0,0.08)',
+                      backdropFilter: 'blur(10px)',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': {
+                        backgroundColor: 'rgba(248, 250, 252, 0.95)',
+                        borderColor: 'primary.light',
+                        boxShadow: '0 2px 8px rgba(25, 118, 210, 0.1)',
+                        transform: 'translateY(-1px)'
+                      },
+                      '&.Mui-focused': {
+                        backgroundColor: 'white',
+                        borderColor: 'primary.main',
+                        boxShadow: '0 0 0 3px rgba(25, 118, 210, 0.1)',
+                        transform: 'translateY(-2px)'
+                      },
+                      '& fieldset': {
+                        border: 'none'
+                      }
+                    }
+                  }}
+                />
+              </Box>
+
+              {/* Opciones adicionales */}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <FormControlLabel
+                  control={
+                    <Switch 
+                      checked={loginData.remember}
+                      onChange={(e) => setLoginData({...loginData, remember: e.target.checked})}
+                      sx={{
+                        '& .MuiSwitch-switchBase.Mui-checked': {
+                          color: 'primary.main',
+                          '& + .MuiSwitch-track': {
+                            backgroundColor: 'primary.main',
+                            opacity: 0.6
+                          }
+                        }
+                      }}
+                    />
+                  }
+                  label={
+                    <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.secondary' }}>
+                      Mantener sesión activa
+                    </Typography>
+                  }
+                />
+                <Button 
+                  variant="text" 
+                  size="small" 
+                  sx={{ 
+                    color: 'primary.main', 
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    fontSize: '0.875rem',
+                    '&:hover': {
+                      backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                      textDecoration: 'underline',
+                      transform: 'translateY(-1px)'
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  ¿Olvidaste tu contraseña?
+                </Button>
+              </Box>
+
+              {/* Botón Principal DR Group */}
+              <Button
+                fullWidth
+                variant="contained"
+                size="large"
+                endIcon={<ArrowForward />}
+                sx={{
+                  mt: 2,
+                  py: 2,
+                  borderRadius: 2,
+                  background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+                  boxShadow: '0 6px 20px rgba(25, 118, 210, 0.35)',
+                  textTransform: 'none',
+                  fontSize: '1.1rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.5px',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #1565c0 0%, #0d47a1 100%)',
+                    boxShadow: '0 8px 25px rgba(25, 118, 210, 0.45)',
+                    transform: 'translateY(-3px)'
+                  },
+                  '&:active': {
+                    transform: 'translateY(-1px)'
+                  },
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: '-100%',
+                    width: '100%',
+                    height: '100%',
+                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+                    transition: 'left 0.6s'
+                  },
+                  '&:hover::before': {
+                    left: '100%'
+                  },
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >
+                Acceder al Dashboard
+              </Button>
+
+              <Divider sx={{ 
+                my: 2,
+                '&::before, &::after': {
+                  borderColor: 'rgba(0,0,0,0.08)'
                 }
-              }}
-            >
-              Iniciar Sesión
-            </Button>
+              }}>
+                <Typography variant="caption" sx={{ 
+                  color: 'text.secondary',
+                  fontWeight: 500,
+                  px: 2
+                }}>
+                  o continúa con
+                </Typography>
+              </Divider>
 
-            <Divider>
-              <Chip label="¿Necesitas ayuda?" size="small" />
-            </Divider>
-
-            <Button variant="text" size="small" sx={{ textTransform: 'none' }}>
-              Recuperar contraseña
-            </Button>
-          </Stack>
+              <Stack direction="row" spacing={2}>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  startIcon={<Google />}
+                  sx={{
+                    py: 1.5,
+                    borderRadius: 2,
+                    borderColor: 'rgba(0,0,0,0.12)',
+                    color: 'text.secondary',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    backgroundColor: 'white',
+                    '&:hover': {
+                      backgroundColor: 'rgba(66, 133, 244, 0.04)',
+                      borderColor: '#4285f4',
+                      color: '#4285f4',
+                      boxShadow: '0 2px 8px rgba(66, 133, 244, 0.2)',
+                      transform: 'translateY(-1px)'
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Google
+                </Button>
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  startIcon={<Microsoft />}
+                  sx={{
+                    py: 1.5,
+                    borderRadius: 2,
+                    borderColor: 'rgba(0,0,0,0.12)',
+                    color: 'text.secondary',
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    backgroundColor: 'white',
+                    '&:hover': {
+                      backgroundColor: 'rgba(0, 120, 212, 0.04)',
+                      borderColor: '#0078d4',
+                      color: '#0078d4',
+                      boxShadow: '0 2px 8px rgba(0, 120, 212, 0.2)',
+                      transform: 'translateY(-1px)'
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Microsoft
+                </Button>
+              </Stack>
+              
+            </Stack>
+          </Box>
         </Paper>
       </Grid>
 
-      {/* Login con 2FA */}
+      {/* Login con 2FA - DR Group Spectacular */}
       <Grid item xs={12} lg={6}>
         <Box sx={{ mb: 2 }}>
-          <Typography variant="h6" color="primary.main" gutterBottom>
-            🔐 Login con Doble Autenticación
+          <Typography variant="h6" color="success.main" gutterBottom>
+            �️ DR Group 2FA Premium
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            <strong>Uso:</strong> Para usuarios administradores y operaciones críticas. 
-            Incluye verificación en dos pasos, códigos QR y tokens de seguridad.
+            <strong>Inspirado en tu 2FA:</strong> Verificación de doble factor con efectos 
+            spectacular. Códigos OTP, autenticación empresarial y Design System 3.0 
+            aplicado con máxima seguridad visual.
           </Typography>
         </Box>
         
         <Paper sx={{ 
-          p: 3, 
-          boxShadow: '0 2px 8px rgba(0,0,0,0.08)', 
-          border: '1px solid',
-          borderColor: 'divider'
+          p: 0,
+          border: `1px solid rgba(76, 175, 80, 0.15)`,
+          borderRadius: 3,
+          background: 'linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(248,252,248,0.98) 100%)',
+          backdropFilter: 'blur(40px)',
+          boxShadow: `
+            0 8px 32px rgba(0, 0, 0, 0.12),
+            0 4px 16px rgba(76, 175, 80, 0.08),
+            inset 0 1px 0 rgba(255,255,255,0.1)
+          `,
+          position: 'relative',
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px',
+            background: 'linear-gradient(90deg, #4caf50 0%, #388e3c 100%)',
+            zIndex: 2
+          },
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: `
+              radial-gradient(circle at 15% 15%, rgba(76, 175, 80, 0.04) 0%, transparent 40%),
+              radial-gradient(circle at 85% 85%, rgba(56, 142, 60, 0.03) 0%, transparent 40%)
+            `,
+            animation: 'floatGlow 12s ease-in-out infinite',
+            pointerEvents: 'none',
+            '@keyframes floatGlow': {
+              '0%, 100%': { 
+                transform: 'translateY(0) scale(1)',
+                opacity: 0.6 
+              },
+              '33%': { 
+                transform: 'translateY(-2px) scale(1.02)',
+                opacity: 0.8 
+              },
+              '66%': { 
+                transform: 'translateY(1px) scale(0.98)',
+                opacity: 0.7 
+              }
+            }
+          },
+          '&:hover': {
+            transform: 'translateY(-4px)',
+            boxShadow: `
+              0 16px 48px rgba(0, 0, 0, 0.15),
+              0 8px 24px rgba(76, 175, 80, 0.12),
+              inset 0 1px 0 rgba(255,255,255,0.2)
+            `
+          },
+          transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
         }}>
-          {/* HEADER DE 2FA CON ESTADO */}
-          <Box sx={{ 
-            mb: 3,
-            p: 2,
-            bgcolor: 'success.50',
-            borderRadius: 1,
-            border: '1px solid',
-            borderColor: 'success.100',
+          
+          {/* Header 2FA con efectos spectacular */}
+          <Box sx={{
+            background: 'linear-gradient(135deg, rgba(232, 245, 233, 0.95) 0%, rgba(237, 247, 237, 0.98) 100%)',
+            backdropFilter: 'blur(20px)',
+            borderRadius: '12px 12px 0 0',
+            p: 4,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between'
+            gap: 3,
+            position: 'relative',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              bottom: 0,
+              left: '10%',
+              right: '10%',
+              height: '1px',
+              background: 'linear-gradient(90deg, transparent, rgba(76, 175, 80, 0.2), transparent)'
+            },
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'linear-gradient(45deg, transparent 30%, rgba(76, 175, 80, 0.02) 50%, transparent 70%)',
+              animation: 'shimmer 6s infinite',
+              pointerEvents: 'none',
+              '@keyframes shimmer': {
+                '0%': { transform: 'translateX(-100%)' },
+                '100%': { transform: 'translateX(100%)' }
+              }
+            }
           }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ bgcolor: 'success.main' }}>
-                <Security />
-              </Avatar>
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Verificación Adicional
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  usuario@drgroup.com • Paso 2 de 2
-                </Typography>
-              </Box>
+            
+            {/* Avatar 2FA con efectos */}
+            <Box sx={{
+              background: 'linear-gradient(135deg, #4caf50, #388e3c)',
+              borderRadius: 2,
+              p: 2,
+              display: 'flex',
+              alignItems: 'center',
+              boxShadow: `
+                0 6px 20px rgba(76, 175, 80, 0.35),
+                0 3px 10px rgba(76, 175, 80, 0.25),
+                inset 0 1px 0 rgba(255,255,255,0.3)
+              `,
+              position: 'relative',
+              overflow: 'hidden',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%)',
+                animation: 'shimmer 4s infinite'
+              },
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                top: -2,
+                left: -2,
+                right: -2,
+                bottom: -2,
+                background: 'linear-gradient(45deg, #4caf50, #388e3c)',
+                borderRadius: '10px',
+                zIndex: -1,
+                opacity: 0.3,
+                filter: 'blur(4px)'
+              },
+              '&:hover': {
+                transform: 'scale(1.05)',
+                boxShadow: `
+                  0 8px 25px rgba(76, 175, 80, 0.45),
+                  0 4px 12px rgba(76, 175, 80, 0.30),
+                  inset 0 1px 0 rgba(255,255,255,0.4)
+                `
+              },
+              transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+            }}>
+              <Security sx={{ 
+                fontSize: 32, 
+                color: 'white',
+                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+              }} />
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Chip label="2FA Activo" color="success" size="small" />
-              <IconButton size="small" sx={{ color: 'success.main' }}>
+
+            {/* Títulos 2FA con gradiente */}
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="h4" component="h1" sx={{ 
+                fontWeight: 700, 
+                mb: 0.5,
+                fontSize: '1.6rem',
+                background: 'linear-gradient(135deg, #4caf50, #388e3c)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
+              }}>
+                Verificación Adicional
+              </Typography>
+              <Typography variant="body1" sx={{ 
+                color: 'text.secondary',
+                fontWeight: 500,
+                fontSize: '0.9rem'
+              }}>
+                usuario@drgroup.com • Paso 2 de 2
+              </Typography>
+            </Box>
+
+            {/* Badge 2FA Premium */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Chip 
+                label="2FA Activo" 
+                sx={{
+                  background: 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
+                  color: 'white',
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  height: 28,
+                  boxShadow: '0 2px 8px rgba(76, 175, 80, 0.3)',
+                  '&:hover': {
+                    transform: 'scale(1.05)',
+                    boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)'
+                  },
+                  transition: 'all 0.3s ease'
+                }}
+              />
+              <IconButton 
+                size="small" 
+                sx={{ 
+                  color: 'success.main',
+                  backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                    transform: 'scale(1.1)'
+                  },
+                  transition: 'all 0.2s ease'
+                }}
+              >
                 <Security fontSize="small" />
               </IconButton>
             </Box>
           </Box>
 
-          <Alert severity="info" sx={{ mb: 3, borderRadius: 1 }}>
-            Hemos enviado un código de 6 dígitos a tu dispositivo móvil
-          </Alert>
-
-          <Stack spacing={2.5}>
-            <TextField
-              fullWidth
-              label="Código de Verificación"
-              placeholder="123456"
-              inputProps={{ maxLength: 6, style: { textAlign: 'center', letterSpacing: '0.5em', fontSize: '1.2rem' } }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  fontFamily: 'monospace'
+          {/* Formulario 2FA Principal */}
+          <Box sx={{ p: 4 }}>
+            
+            {/* Alert mejorado */}
+            <Alert 
+              severity="info" 
+              sx={{ 
+                mb: 3, 
+                borderRadius: 2,
+                border: '1px solid rgba(2, 136, 209, 0.15)',
+                background: 'linear-gradient(135deg, rgba(2, 136, 209, 0.05) 0%, rgba(2, 136, 209, 0.02) 100%)',
+                backdropFilter: 'blur(10px)',
+                boxShadow: '0 2px 12px rgba(2, 136, 209, 0.1)',
+                '& .MuiAlert-icon': {
+                  color: '#0288d1',
+                  fontSize: '1.3rem'
+                },
+                '& .MuiAlert-message': {
+                  fontWeight: 500,
+                  fontSize: '0.9rem'
                 }
               }}
-            />
-
-            <Button
-              fullWidth
-              variant="contained"
-              size="large"
-              startIcon={<Security />}
-              sx={{
-                py: 1.5,
-                fontWeight: 500,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-              }}
             >
-              Verificar y Continuar
-            </Button>
-          </Stack>
+              Hemos enviado un código de 6 dígitos a tu dispositivo móvil registrado
+            </Alert>
+
+            <Stack spacing={3}>
+              
+              {/* Campo Código OTP con efectos spectacular */}
+              <Box>
+                <Typography variant="subtitle2" sx={{ 
+                  mb: 1.5, 
+                  color: 'text.secondary',
+                  fontWeight: 600,
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  Código de Verificación
+                </Typography>
+                
+                {/* Campo de código con estilo especial */}
+                <Box sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  gap: 1,
+                  mb: 2
+                }}>
+                  {[0,1,2,3,4,5].map((index) => (
+                    <Box
+                      key={index}
+                      sx={{
+                        width: 48,
+                        height: 56,
+                        border: '2px solid',
+                        borderColor: 'rgba(76, 175, 80, 0.2)',
+                        borderRadius: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(255,255,255,0.9) 100%)',
+                        backdropFilter: 'blur(10px)',
+                        fontFamily: '"Roboto Mono", monospace',
+                        fontSize: '1.5rem',
+                        fontWeight: 700,
+                        color: 'success.main',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          borderColor: 'success.main',
+                          backgroundColor: 'rgba(76, 175, 80, 0.05)',
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 4px 12px rgba(76, 175, 80, 0.15)'
+                        },
+                        '&:focus-within': {
+                          borderColor: 'success.main',
+                          backgroundColor: 'white',
+                          boxShadow: '0 0 0 3px rgba(76, 175, 80, 0.1)',
+                          transform: 'translateY(-3px)'
+                        }
+                      }}
+                    >
+                      {index === 0 ? '0' : ''}
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+
+              {/* Botón Principal 2FA */}
+              <Button
+                fullWidth
+                variant="contained"
+                size="large"
+                endIcon={<Security />}
+                sx={{
+                  py: 2,
+                  borderRadius: 2,
+                  background: 'linear-gradient(135deg, #4caf50 0%, #388e3c 100%)',
+                  boxShadow: '0 6px 20px rgba(76, 175, 80, 0.35)',
+                  textTransform: 'none',
+                  fontSize: '1.1rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.5px',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #388e3c 0%, #2e7d32 100%)',
+                    boxShadow: '0 8px 25px rgba(76, 175, 80, 0.45)',
+                    transform: 'translateY(-3px)'
+                  },
+                  '&:active': {
+                    transform: 'translateY(-1px)'
+                  },
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: 0,
+                    left: '-100%',
+                    width: '100%',
+                    height: '100%',
+                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+                    transition: 'left 0.6s'
+                  },
+                  '&:hover::before': {
+                    left: '100%'
+                  },
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >
+                Verificar y Continuar
+              </Button>
+
+              {/* Footer con opciones */}
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                pt: 1
+              }}>
+                <Button 
+                  variant="text" 
+                  size="small" 
+                  sx={{ 
+                    color: 'text.secondary', 
+                    fontWeight: 500,
+                    textTransform: 'none',
+                    '&:hover': {
+                      color: 'success.main',
+                      backgroundColor: 'rgba(76, 175, 80, 0.08)',
+                      transform: 'translateY(-1px)'
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Reenviar código
+                </Button>
+                <Typography variant="caption" sx={{ 
+                  color: 'text.secondary',
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5
+                }}>
+                  ⏱️ Código válido por 5 min
+                </Typography>
+              </Box>
+            </Stack>
+          </Box>
         </Paper>
       </Grid>
     </Grid>
