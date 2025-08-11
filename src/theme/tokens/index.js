@@ -38,6 +38,21 @@ import {
   tableSemanticTokens,
   tablesUtils 
 } from './tables.js';
+import { 
+  formPaperTokens,
+  formSectionTokens,
+  formLayoutTokens,
+  formFieldTokens,
+  formFeedbackTokens,
+  formActionTokens,
+  formMaskTokens,
+  formUtils,
+  formatCOP,
+  formatPhone,
+  formatNIT,
+  formatDate,
+  formatMonth
+} from './forms.js';
 
 // ========================================
 // 🚀 TOKENS PRINCIPALES - SISTEMA COMPLETO
@@ -101,6 +116,16 @@ export const designTokens = {
   pagination: paginationTokens,
   tableSemantics: tableSemanticTokens,
 
+  // 🧾 Formularios - Sistema DS 3.0 COMPLETO (NUEVO)
+  forms: {
+    paper: formPaperTokens,
+    section: formSectionTokens,
+    layout: formLayoutTokens,
+    field: formFieldTokens,
+    feedback: formFeedbackTokens,
+    action: formActionTokens,
+    mask: formMaskTokens
+  }
 };
 
 // ========================================
@@ -117,6 +142,8 @@ export const tokenUtils = {
   cards: cardsUtils,
   tables: tablesUtils,
   
+  // 🧾 Formularios - Utilidades DS 3.0 (NUEVO)
+  forms: formUtils
 };
 
 // ========================================
@@ -188,7 +215,23 @@ export {
   paginationTokens,
   tableSemanticTokens,
   tablesUtils,
+
+  // 🧾 Formularios DS 3.0 (NUEVO)
+  formPaperTokens,
+  formSectionTokens,
+  formLayoutTokens,
+  formFieldTokens,
+  formFeedbackTokens,
+  formActionTokens,
+  formMaskTokens,
+  formUtils,
   
+  // Utilidades de formato
+  formatCOP,
+  formatPhone,
+  formatNIT,
+  formatDate,
+  formatMonth
 };
 
 // Export por defecto

@@ -144,7 +144,7 @@ import {
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
-import FormulariosShowcase from '../components/FormulariosShowcase';
+import FormulariosUnificadosSimple from '../components/FormulariosUnificadosSimple';
 import ModalesShowcase from '../components/ModalesShowcase';
 import NavegacionShowcase from '../components/NavegacionShowcase';
 
@@ -3966,14 +3966,7 @@ const DesignSystemTestPage = () => {
 
   const renderFormsSection = () => {
     return (
-      <FormulariosShowcase 
-        gradients={gradients}
-        shadows={shadows}
-        formData={formData}
-        setFormData={setFormData}
-        showPassword={showPassword}
-        setShowPassword={setShowPassword}
-      />
+      <FormulariosUnificadosSimple />
     );
   };
 
