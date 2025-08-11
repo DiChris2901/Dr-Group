@@ -1,40 +1,38 @@
-import React, { useState, useEffect } from 'react';
 import {
-  Drawer,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Box,
-  Typography,
-  Avatar,
-  Chip,
-  Collapse,
-  Tooltip,
-  Divider,
-  useTheme
-} from '@mui/material';
-import {
-  Dashboard,
-  AccountBalance,
-  Receipt,
-  Business,
-  Assessment,
-  People,
-  Assignment,
-  AttachMoney,
-  Notifications,
-  ExpandLess,
-  ExpandMore,
-  Analytics,
-  Palette
+    AccountBalance,
+    Analytics,
+    Assessment,
+    Assignment,
+    AttachMoney,
+    Business,
+    Dashboard,
+    ExpandLess,
+    ExpandMore,
+    Notifications,
+    Palette,
+    People,
+    Receipt
 } from '@mui/icons-material';
-import { motion } from 'framer-motion';
-import { useNavigate, useLocation } from 'react-router-dom';
+import {
+    Box,
+    Chip,
+    Collapse,
+    Divider,
+    Drawer,
+    List,
+    ListItem,
+    ListItemButton,
+    ListItemIcon,
+    ListItemText,
+    Tooltip,
+    Typography
+} from '@mui/material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
-import { useSettings } from '../../context/SettingsContext';
+import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useSettings } from '../../context/SettingsContext';
 import ProfileAvatar from '../common/ProfileAvatar';
 
 const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {

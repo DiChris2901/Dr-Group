@@ -1,41 +1,40 @@
-import React, { useState } from 'react';
+import { Box } from '@mui/material';
 import CssBaseline from '@mui/material/CssBaseline';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Box, Alert, Typography } from '@mui/material';
+import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 
 // Context Providers
 import { AuthProvider } from './context/AuthContext';
-import { CustomThemeProvider, useTheme } from './context/ThemeContext';
-import SettingsProvider from './context/SettingsContext';
 import { NotificationsProvider } from './context/NotificationsContext';
+import SettingsProvider from './context/SettingsContext';
+import { CustomThemeProvider } from './context/ThemeContext';
 import ToastProvider from './context/ToastContext';
 
 // Components
 import LoginForm from './components/auth/LoginForm';
-import MainLayout from './components/layout/MainLayout';
 import BackgroundProvider from './components/layout/BackgroundProvider';
+import MainLayout from './components/layout/MainLayout';
 
 // Pages
+import WelcomeDashboardSimple from './components/dashboard/WelcomeDashboardSimple';
+import AdminSetupPage from './pages/AdminSetupPage';
 import CommitmentsPage from './pages/CommitmentsPage';
+import CompaniesPage from './pages/CompaniesPage';
+import DataPage from './pages/DataPage';
 import DueCommitmentsPage from './pages/DueCommitmentsPage';
 import NewCommitmentPage from './pages/NewCommitmentPage';
-import PaymentsPage from './pages/PaymentsPage';
 import NewPaymentPage from './pages/NewPaymentPage';
+import PaymentsPage from './pages/PaymentsPage';
 import ProfilePage from './pages/ProfilePage';
-import DataPage from './pages/DataPage';
-import CompaniesPage from './pages/CompaniesPage';
-import UserManagementPage from './pages/UserManagementPage';
-import AdminSetupPage from './pages/AdminSetupPage';
 import ReceiptsPage from './pages/ReceiptsPage';
-import ReportsSummaryPage from './pages/reports/ReportsSummaryPage';
 import ReportsCompanyPage from './pages/reports/ReportsCompanyPage';
-import ReportsPeriodPage from './pages/reports/ReportsPeriodPage';
 import ReportsConceptPage from './pages/reports/ReportsConceptPage';
-import WelcomeDashboardSimple from './components/dashboard/WelcomeDashboardSimple';
+import ReportsPeriodPage from './pages/reports/ReportsPeriodPage';
+import ReportsSummaryPage from './pages/reports/ReportsSummaryPage';
+import UserManagementPage from './pages/UserManagementPage';
 
 // Nuevos módulos profesionales
-import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
 import AdvancedToolsPage from './pages/AdvancedToolsPage';
+import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
 import FinancialKPIsPage from './pages/FinancialKPIsPage';
 import LiquidationProcessorPage from './pages/LiquidationProcessorPage';
 
