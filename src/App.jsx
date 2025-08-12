@@ -40,6 +40,7 @@ import LiquidationProcessorPage from './pages/LiquidationProcessorPage';
 
 // Design System Test Page
 import DesignSystemTestPage from './pages/DesignSystemTestPage';
+import DesignSystemTemplatePage from './pages/DesignSystemTemplatePage';
 
 // Hook de autenticación
 import { useAuth } from './context/AuthContext';
@@ -221,6 +222,14 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Design System 3.0" breadcrumbs={['Desarrollo', 'Design System']}>
             <DesignSystemTestPage />
+          </MainLayout>
+        }
+      />
+      <Route 
+        path="/design-system-template" 
+        element={
+          <MainLayout title="DS Template" breadcrumbs={['Desarrollo', 'DS Template']}>
+            <DesignSystemTemplatePage />
           </MainLayout>
         }
       />
