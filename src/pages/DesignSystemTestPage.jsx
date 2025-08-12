@@ -146,7 +146,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
 import FormulariosUnificadosSimple from '../components/FormulariosUnificadosSimple';
 import ModalesUnifiedPage from './DesignSystemTest/ModalsUnifiedPage';
-import NavegacionShowcase from '../components/NavegacionShowcase';
 
 const DesignSystemTestPage = () => {
   const theme = useTheme();
@@ -342,7 +341,6 @@ const DesignSystemTestPage = () => {
     { id: 'tables', label: 'Tablas', icon: <Analytics /> },
     { id: 'forms', label: 'Formularios', icon: <Edit /> },
     { id: 'modals', label: 'Modales y Diálogos', icon: <Info /> },
-    { id: 'navigation', label: 'Navegación', icon: <Menu /> },
     { id: 'data-display', label: 'Data Display', icon: <People /> },
     { id: 'loading', label: 'Estados de Carga', icon: <TrendingUp /> },
     { id: 'animations', label: 'Animaciones', icon: <Star /> },
@@ -3974,10 +3972,6 @@ const DesignSystemTestPage = () => {
     <ModalesUnifiedPage />
   );
 
-  const renderNavigationSection = () => (
-    <NavegacionShowcase onOpenDrawer={() => setOpenDrawer(true)} />
-  );
-
   const renderDataDisplaySection = () => (
     <Grid container spacing={3}>
       <Grid item xs={12}>
@@ -4643,7 +4637,6 @@ const DesignSystemTestPage = () => {
       case 'tables': return renderTablesSection();
       case 'forms': return renderFormsSection();
       case 'modals': return renderModalsSection();
-      case 'navigation': return renderNavigationSection();
       case 'data-display': return renderDataDisplaySection();
       case 'loading': return renderLoadingSection();
       case 'animations': return renderAnimationsSection();
