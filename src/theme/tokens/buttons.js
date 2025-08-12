@@ -520,6 +520,46 @@ export const buttonUtils = {
     return {
       sx: {
         ...styles,
+        transition: animationConfig.transition,
+        // Aplicar animaciones como CSS hover states
+        '&:hover': {
+          ...styles['&:hover'],
+          transform: animationConfig.whileHover?.scale ? `scale(${animationConfig.whileHover.scale})` : 'translateY(-1px)',
+          ...(animationConfig.whileHover?.y && { transform: `translateY(${animationConfig.whileHover.y}px) scale(${animationConfig.whileHover.scale || 1})` })
+        },
+        '&:active': {
+          transform: animationConfig.whileTap?.scale ? `scale(${animationConfig.whileTap.scale})` : 'scale(0.98)',
+        }
+      }
+    };
+  },
+
+  /**
+   * Crear props específicos para motion.* components
+   */
+  createMotionButtonProps: ({
+    variant = 'contained',
+    color = 'primary',
+    size = 'medium',
+    animation = 'standard',
+    gradient = null
+  }) => {
+    let styles = {};
+    
+    if (gradient) {
+      styles = buttonUtils.getGradient(gradient);
+    } else {
+      styles = {
+        ...buttonUtils.getVariant(variant, color),
+        ...buttonUtils.getSize(size)
+      };
+    }
+    
+    const animationConfig = buttonUtils.getAnimation(animation);
+    
+    return {
+      sx: {
+        ...styles,
         transition: animationConfig.transition
       },
       whileHover: animationConfig.whileHover,

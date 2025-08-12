@@ -78,6 +78,15 @@ import {
   animationTokens,
   animationUtils
 } from './animations.js';
+import {
+  alertTokens,
+  chipTokens,
+  badgeTokens,
+  tooltipTokens,
+  progressTokens,
+  feedbackUtils,
+  feedbackThemeComponents
+} from './feedback.js';
 
 // ========================================
 // 🚀 TOKENS PRINCIPALES - SISTEMA COMPLETO
@@ -179,7 +188,16 @@ export const designTokens = {
   loading: loadingTokens,
 
   // 🎬 Animations - Sistema DS 3.0 COMPLETO (NUEVO)
-  animations: animationTokens
+  animations: animationTokens,
+
+  // 📢 Feedback - Sistema DS 3.0 COMPLETO (NUEVO)
+  feedback: {
+    alert: alertTokens,
+    chip: chipTokens,
+    badge: badgeTokens,
+    tooltip: tooltipTokens,
+    progress: progressTokens
+  }
 };
 
 // ========================================
@@ -209,7 +227,44 @@ export const tokenUtils = {
   loading: loadingUtils,
 
   // 🎬 Animations - Utilidades DS 3.0 (NUEVO)
-  animations: animationUtils
+  animations: animationUtils,
+
+  // 📢 Feedback - Utilidades DS 3.0 (NUEVO)
+  feedback: feedbackUtils,
+
+  // 🌙 Surface Helper - Utilidad para temas (NUEVO)
+  surfaces: {
+    /**
+     * Obtiene el background de paper según el tema actual
+     * @param {Object} theme - Tema de MUI
+     * @returns {string} Color de background
+     */
+    getPaperBackground: (theme) => {
+      const isDark = theme?.palette?.mode === 'dark';
+      return isDark ? surfaceTokens.dark.background.paper : surfaceTokens.light.background.paper;
+    },
+    
+    /**
+     * Obtiene el background default según el tema actual
+     * @param {Object} theme - Tema de MUI
+     * @returns {string} Color de background
+     */
+    getDefaultBackground: (theme) => {
+      const isDark = theme?.palette?.mode === 'dark';
+      return isDark ? surfaceTokens.dark.background.default : surfaceTokens.light.background.default;
+    },
+    
+    /**
+     * Obtiene una superficie específica según el tema actual
+     * @param {Object} theme - Tema de MUI
+     * @param {number} level - Nivel de superficie (1-5)
+     * @returns {string} Color de superficie
+     */
+    getSurface: (theme, level = 1) => {
+      const isDark = theme?.palette?.mode === 'dark';
+      return isDark ? surfaceTokens.dark.surface[level] : surfaceTokens.light.surface[level];
+    }
+  }
 };
 
 // ========================================
@@ -318,6 +373,19 @@ export {
   // ⚡ Loading States - DS 3.0 (NUEVO)
   loadingTokens,
   loadingUtils,
+
+  // 🎬 Animations - DS 3.0 (NUEVO)
+  animationTokens,
+  animationUtils,
+  
+  // 📢 Feedback - DS 3.0 (NUEVO)
+  alertTokens,
+  chipTokens,
+  badgeTokens,
+  tooltipTokens,
+  progressTokens,
+  feedbackUtils,
+  feedbackThemeComponents,
   
   // Utilidades de formato
   formatCOP,

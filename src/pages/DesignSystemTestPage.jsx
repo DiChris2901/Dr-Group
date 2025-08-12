@@ -148,7 +148,18 @@ import {
   AccountBalanceWallet,
   AutoAwesome,
   Rocket,
-  Accessibility
+  Accessibility,
+  // Iconos adicionales para Feedback
+  CheckCircle as CheckCircleIcon,
+  Info as InfoIcon,
+  Warning as WarningIcon,
+  Error as ErrorIcon,
+  Notifications as NotificationsIcon,
+  Person as PersonIcon,
+  Settings as SettingsIcon,
+  AccessTime as AccessTimeIcon,
+  Autorenew as AutorenewIcon,
+  Email as EmailIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -5515,88 +5526,364 @@ const DesignSystemTestPage = () => {
   );
 
   const renderFeedbackSection = () => (
-    <Grid container spacing={3}>
+    <Grid container spacing={4}>
       <Grid item xs={12}>
-        <Typography variant="h4" gutterBottom>
-          📢 Feedback
+        <Typography variant="h4" gutterBottom sx={{ 
+          background: tokenUtils.gradients.getGradient('primary'),
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          fontWeight: 700,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2
+        }}>
+          📢 Sistema de Feedback Empresarial
         </Typography>
       </Grid>
 
-      {/* Alerts */}
+      {/* Alertas Empresariales */}
       <Grid item xs={12}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Alertas</Typography>
+        <Paper sx={{ 
+          p: 3, 
+          background: tokenUtils.surfaces.getPaperBackground(theme),
+          backdropFilter: 'blur(20px)',
+          borderRadius: 3
+        }}>
+          <Typography variant="h5" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
+            🚨 Alertas Empresariales
+          </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Alert severity="success">This is a success alert — check it out!</Alert>
-            <Alert severity="info">This is an info alert — check it out!</Alert>
-            <Alert severity="warning">This is a warning alert — check it out!</Alert>
-            <Alert severity="error">This is an error alert — check it out!</Alert>
+            <motion.div {...tokenUtils.animations.createEntranceProps('fadeInUp', 0)}>
+              <Alert 
+                {...tokenUtils.feedback.createAlertProps('success', true)}
+                icon={<CheckCircleIcon />}
+              >
+                ✅ Compromiso financiero liquidado exitosamente - $2,500,000 COP
+              </Alert>
+            </motion.div>
+            <motion.div {...tokenUtils.animations.createEntranceProps('fadeInUp', 0.1)}>
+              <Alert 
+                {...tokenUtils.feedback.createAlertProps('info', true)}
+                icon={<InfoIcon />}
+              >
+                ℹ️ Nueva actualización disponible para el Dashboard DR Group v3.0
+              </Alert>
+            </motion.div>
+            <motion.div {...tokenUtils.animations.createEntranceProps('fadeInUp', 0.2)}>
+              <Alert 
+                {...tokenUtils.feedback.createAlertProps('warning', true)}
+                icon={<WarningIcon />}
+              >
+                ⚠️ 3 compromisos próximos a vencer en los próximos 7 días
+              </Alert>
+            </motion.div>
+            <motion.div 
+              {...tokenUtils.animations.createEntranceProps('fadeInUp', 0.3)}
+              {...tokenUtils.animations.createBusinessAnimation('alertPulse')}
+            >
+              <Alert 
+                {...tokenUtils.feedback.createAlertProps('error', true)}
+                icon={<ErrorIcon />}
+              >
+                🚫 Error de conexión con la base de datos - Verificar configuración
+              </Alert>
+            </motion.div>
           </Box>
         </Paper>
       </Grid>
 
-      {/* Progress */}
+      {/* Progress Indicators Empresariales */}
       <Grid item xs={12} md={6}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Indicadores de Progreso</Typography>
+        <Paper sx={{ 
+          p: 3,
+          background: tokenUtils.surfaces.getPaperBackground(theme),
+          backdropFilter: 'blur(20px)',
+          borderRadius: 3,
+          ...tokenUtils.animations.createHoverProps('primary')
+        }}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
+            📊 Indicadores de Progreso
+          </Typography>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <Box>
-              <Typography variant="body2" gutterBottom>Linear Progress</Typography>
-              <LinearProgress variant="determinate" value={65} />
+              <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
+                Compromisos Liquidados (75%)
+              </Typography>
+              <LinearProgress 
+                variant="determinate" 
+                value={75} 
+                {...tokenUtils.feedback.createProgressProps('linear', 'success', 'medium')}
+              />
             </Box>
             <Box>
-              <Typography variant="body2" gutterBottom>Circular Progress</Typography>
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                <CircularProgress size={30} />
-                <CircularProgress variant="determinate" value={75} />
+              <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
+                Pagos Pendientes (45%)
+              </Typography>
+              <LinearProgress 
+                variant="determinate" 
+                value={45} 
+                {...tokenUtils.feedback.createProgressProps('linear', 'warning', 'medium')}
+              />
+            </Box>
+            <Box>
+              <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
+                Reportes Generados (92%)
+              </Typography>
+              <LinearProgress 
+                variant="determinate" 
+                value={92} 
+                {...tokenUtils.feedback.createProgressProps('linear', 'info', 'medium')}
+              />
+            </Box>
+            <Box>
+              <Typography variant="body2" gutterBottom sx={{ fontWeight: 500, mb: 2 }}>
+                Indicadores Circulares
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+                <Box sx={{ textAlign: 'center' }}>
+                  <CircularProgress 
+                    variant="determinate" 
+                    value={80}
+                    {...tokenUtils.feedback.createProgressProps('circular', 'primary', 'medium')}
+                  />
+                  <Typography variant="caption" display="block" sx={{ mt: 1, fontWeight: 500 }}>
+                    Finanzas
+                  </Typography>
+                </Box>
+                <Box sx={{ textAlign: 'center' }}>
+                  <CircularProgress 
+                    variant="determinate" 
+                    value={65}
+                    {...tokenUtils.feedback.createProgressProps('circular', 'success', 'medium')}
+                  />
+                  <Typography variant="caption" display="block" sx={{ mt: 1, fontWeight: 500 }}>
+                    Cumplimiento
+                  </Typography>
+                </Box>
+                <Box sx={{ textAlign: 'center' }}>
+                  <CircularProgress 
+                    size={30}
+                    {...tokenUtils.feedback.createProgressProps('circular', 'secondary', 'small')}
+                  />
+                  <Typography variant="caption" display="block" sx={{ mt: 1, fontWeight: 500 }}>
+                    Procesando
+                  </Typography>
+                </Box>
               </Box>
             </Box>
           </Box>
         </Paper>
       </Grid>
 
-      {/* Chips y Badges */}
+      {/* Chips y Badges Empresariales */}
       <Grid item xs={12} md={6}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Chips y Badges</Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              <Chip label="Primary" color="primary" />
-              <Chip label="Secondary" color="secondary" />
-              <Chip label="Success" color="success" />
-              <Chip label="Error" color="error" />
-              <Chip label="Warning" color="warning" />
-              <Chip label="Info" color="info" />
+        <Paper sx={{ 
+          p: 3,
+          background: tokenUtils.surfaces.getPaperBackground(theme),
+          backdropFilter: 'blur(20px)',
+          borderRadius: 3,
+          ...tokenUtils.animations.createHoverProps('secondary')
+        }}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
+            💊 Chips y Badges Empresariales
+          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {/* Chips Filled */}
+            <Box>
+              <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
+                Estados de Compromisos
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                <Chip 
+                  label="Pagado" 
+                  {...tokenUtils.feedback.createChipProps('filled', 'success', 'medium')}
+                  icon={<CheckCircleIcon />}
+                />
+                <Chip 
+                  label="Pendiente" 
+                  {...tokenUtils.feedback.createChipProps('filled', 'warning', 'medium')}
+                  icon={<AccessTimeIcon />}
+                />
+                <Chip 
+                  label="Vencido" 
+                  {...tokenUtils.feedback.createChipProps('filled', 'error', 'medium')}
+                  icon={<ErrorIcon />}
+                />
+                <Chip 
+                  label="En Proceso" 
+                  {...tokenUtils.feedback.createChipProps('filled', 'info', 'medium')}
+                  icon={<AutorenewIcon />}
+                />
+              </Box>
             </Box>
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <Badge badgeContent={4} color="primary">
-                <Notifications />
-              </Badge>
-              <Badge badgeContent={99} color="secondary">
-                <Person />
-              </Badge>
-              <Badge variant="dot" color="error">
-                <Settings />
-              </Badge>
+
+            {/* Chips Outlined */}
+            <Box>
+              <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
+                Categorías Empresariales
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                <Chip 
+                  label="DR Construcción" 
+                  {...tokenUtils.feedback.createChipProps('outlined', 'primary', 'small')}
+                />
+                <Chip 
+                  label="DR Inversiones" 
+                  {...tokenUtils.feedback.createChipProps('outlined', 'secondary', 'small')}
+                />
+                <Chip 
+                  label="DR Inmobiliaria" 
+                  {...tokenUtils.feedback.createChipProps('outlined', 'info', 'small')}
+                />
+              </Box>
+            </Box>
+
+            {/* Badges */}
+            <Box>
+              <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
+                Notificaciones y Badges
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+                <Badge 
+                  {...tokenUtils.feedback.createBadgeProps('standard', 'primary', 4)}
+                >
+                  <NotificationsIcon />
+                </Badge>
+                <Badge 
+                  {...tokenUtils.feedback.createBadgeProps('standard', 'error', 12)}
+                >
+                  <WarningIcon />
+                </Badge>
+                <Badge 
+                  {...tokenUtils.feedback.createBadgeProps('dot', 'success')}
+                >
+                  <PersonIcon />
+                </Badge>
+                <Badge 
+                  {...tokenUtils.feedback.createBadgeProps('standard', 'secondary', '99+')}
+                >
+                  <EmailIcon />
+                </Badge>
+              </Box>
             </Box>
           </Box>
         </Paper>
       </Grid>
 
-      {/* Tooltips */}
+      {/* Tooltips Empresariales */}
       <Grid item xs={12}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Tooltips</Typography>
+        <Paper sx={{ 
+          p: 3,
+          background: tokenUtils.surfaces.getPaperBackground(theme),
+          backdropFilter: 'blur(20px)',
+          borderRadius: 3
+        }}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
+            💬 Tooltips Empresariales
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Tooltip 
+              title="Información básica sobre compromisos financieros de DR Group"
+              {...tokenUtils.feedback.createTooltipProps('default', 'top')}
+            >
+              <Button 
+                variant="outlined"
+                {...tokenUtils.buttons.createButtonProps('outlined', 'primary', 'medium')}
+              >
+                Tooltip Básico
+              </Button>
+            </Tooltip>
+            
+            <Tooltip 
+              title="Panel de control avanzado para gestión de pagos y reportes ejecutivos"
+              {...tokenUtils.feedback.createTooltipProps('light', 'right')}
+            >
+              <Button 
+                variant="contained"
+                {...tokenUtils.buttons.createButtonProps('contained', 'secondary', 'medium')}
+              >
+                Tooltip Light
+              </Button>
+            </Tooltip>
+            
+            <Tooltip 
+              title="Dashboard premium con análisis financiero y métricas empresariales"
+              {...tokenUtils.feedback.createTooltipProps('gradient', 'bottom')}
+            >
+              <Button 
+                variant="gradient"
+                sx={{
+                  background: tokenUtils.gradients.getGradient('primary'),
+                  color: 'white',
+                  fontWeight: 600,
+                  px: 3,
+                  py: 1.5,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  ...tokenUtils.animations.createHoverProps('primary')
+                }}
+              >
+                Tooltip Gradient
+              </Button>
+            </Tooltip>
+            
+            <Tooltip 
+              title="Configuración del sistema y gestión de usuarios autorizados"
+              {...tokenUtils.feedback.createTooltipProps('default', 'left')}
+            >
+              <IconButton 
+                {...tokenUtils.buttons.createButtonProps('icon', 'info', 'medium')}
+              >
+                <SettingsIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Paper>
+      </Grid>
+
+      {/* Snackbars Preview */}
+      <Grid item xs={12}>
+        <Paper sx={{ 
+          p: 3,
+          background: tokenUtils.surfaces.getPaperBackground(theme),
+          backdropFilter: 'blur(20px)',
+          borderRadius: 3
+        }}>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 3 }}>
+            🔔 Snackbars Empresariales (Preview)
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Los snackbars utilizan el sistema tokenizado de overlays.js ya implementado
+          </Typography>
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <Tooltip title="Tooltip básico">
-              <Button variant="outlined">Hover me</Button>
-            </Tooltip>
-            <Tooltip title="Tooltip con arrow" arrow>
-              <Button variant="outlined">With Arrow</Button>
-            </Tooltip>
-            <Tooltip title="Tooltip a la derecha" placement="right">
-              <Button variant="outlined">Right Placement</Button>
-            </Tooltip>
+            <Button 
+              variant="outlined" 
+              size="small"
+              {...tokenUtils.buttons.createButtonProps('outlined', 'success', 'small')}
+            >
+              Éxito: Pago Procesado
+            </Button>
+            <Button 
+              variant="outlined" 
+              size="small"
+              {...tokenUtils.buttons.createButtonProps('outlined', 'info', 'small')}
+            >
+              Info: Reporte Generado
+            </Button>
+            <Button 
+              variant="outlined" 
+              size="small"
+              {...tokenUtils.buttons.createButtonProps('outlined', 'warning', 'small')}
+            >
+              Advertencia: Vencimiento
+            </Button>
+            <Button 
+              variant="outlined" 
+              size="small"
+              {...tokenUtils.buttons.createButtonProps('outlined', 'error', 'small')}
+            >
+              Error: Conexión Fallida
+            </Button>
           </Box>
         </Paper>
       </Grid>
