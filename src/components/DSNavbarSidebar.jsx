@@ -404,12 +404,15 @@ export const DSNavbarSidebar = ({
   // 🎯 Determinar si debe mostrarse como drawer en móvil
   const shouldUseDrawer = variant === 'temporary' || isMobile;
   
-  // 📱 Ajustar modo compacto en móvil
+  // 📱 Ajustar modo compacto en móvil y desactivar hover expand para drawers
   useEffect(() => {
     if (isMobile) {
       setIsCompact(false);
     }
-  }, [isMobile]);
+    if (shouldUseDrawer && isCompact) {
+      setIsHoverExpanded(false); // Mantener compacto en drawers
+    }
+  }, [isMobile, shouldUseDrawer, isCompact]);
 
   // 🎯 Items de navegación con estado activo calculado
   const navigationWithStates = useMemo(() => {
@@ -435,18 +438,18 @@ export const DSNavbarSidebar = ({
     }));
   }, []);
 
-  // 🎯 Hover expand functionality
+  // 🎯 Hover expand functionality (solo para sidebar permanente)
   const handleMouseEnter = useCallback(() => {
-    if (isCompact) {
+    if (isCompact && !shouldUseDrawer) {
       setIsHoverExpanded(true);
     }
-  }, [isCompact]);
+  }, [isCompact, shouldUseDrawer]);
 
   const handleMouseLeave = useCallback(() => {
-    if (isCompact) {
+    if (isCompact && !shouldUseDrawer) {
       setIsHoverExpanded(false);
     }
-  }, [isCompact]);
+  }, [isCompact, shouldUseDrawer]);
 
   // 🎯 Selección de item
   const handleItemClick = useCallback((item) => {
@@ -658,7 +661,7 @@ export const DSNavbarSidebar = ({
         variant="temporary"
         sx={{
           '& .MuiDrawer-paper': {
-            width: '280px',
+            width: (isCompact && !isHoverExpanded) ? '80px' : '280px',
             boxShadow: designTokens.shadows?.elevation4 || '0 8px 32px rgba(0,0,0,0.12)',
             borderRadius: '0 12px 12px 0'
           }
