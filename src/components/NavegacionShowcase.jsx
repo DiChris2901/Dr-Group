@@ -1,5 +1,6 @@
 // NavegacionShowcase.jsx - Design System 3.0 - MODELOS DE NAVEGACIÓN PROFESIONAL
 import React, { useState } from 'react';
+import DSNavbarSidebar from './DSNavbarSidebar';
 import {
   Grid,
   Typography,
@@ -32,7 +33,9 @@ import {
   Switch,
   FormControlLabel,
   TextField,
-  InputAdornment
+  InputAdornment,
+  Tooltip,
+  useTheme
 } from '@mui/material';
 import {
   Dashboard,
@@ -49,6 +52,7 @@ import {
   More,
   Home,
   ChevronRight,
+  ChevronLeft,
   ExpandLess,
   ExpandMore,
   Close,
@@ -70,14 +74,30 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 const NavegacionShowcase = ({ onOpenDrawer }) => {
+  const theme = useTheme();
   const [activeCategory, setActiveCategory] = useState('sidebars');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarType, setSidebarType] = useState('');
+  const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [isCompact, setIsCompact] = useState(false);
   const [tabValue, setTabValue] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState({});
   const [avatarMenuAnchor, setAvatarMenuAnchor] = useState(null);
   const avatarMenuOpen = Boolean(avatarMenuAnchor);
+
+  // 🎨 Sistema de colores semánticos DS 3.0
+  const getSemanticColor = (itemId) => {
+    const colorMap = {
+      dashboard: theme.palette.primary.main,      // Azul corporativo
+      compromisos: theme.palette.error.main,     // Rojo profesional
+      empresas: theme.palette.info.main,         // Azul info
+      pagos: theme.palette.success.main,         // Verde éxito
+      reportes: theme.palette.warning.main,      // Naranja warning
+      usuarios: theme.palette.secondary.main,    // Morado secundario
+    };
+    return colorMap[itemId] || theme.palette.grey[600];
+  };
 
   const handleAvatarMenuClick = (event) => {
     setAvatarMenuAnchor(event.currentTarget);
@@ -158,14 +178,27 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
 
   const renderSidebarsSection = () => (
     <Grid container spacing={3}>
-      {/* Sidebar Principal */}
-      <Grid item xs={12} lg={4}>
+      {/* 🚀 NEW: Sidebar DS 3.0 Refactorizado */}
+      <Grid item xs={12}>
+        <Box sx={{ mb: 3, p: 3, bgcolor: 'primary.main', borderRadius: 2, color: 'white' }}>
+          <Typography variant="h5" gutterBottom sx={{ fontWeight: 700 }}>
+            🚀 Sidebar DS 3.0 - Build-First Refactor
+          </Typography>
+          <Typography variant="body1" sx={{ opacity: 0.9 }}>
+            Nueva implementación usando <strong>designTokens</strong>, <strong>tokenUtils</strong>, <strong>buttonUtils</strong>, y <strong>cardsUtils</strong>. 
+            Con estados activos, parent-active, modo compacto/rail, navegación por teclado y accesibilidad completa.
+          </Typography>
+        </Box>
+      </Grid>
+
+      {/* DS 3.0 Sidebar Expandido */}
+      <Grid item xs={12} lg={6}>
         <Box sx={{ mb: 2 }}>
           <Typography variant="h6" color="primary.main" gutterBottom>
-            📋 Sidebar Principal
+            🎨 Sidebar DS 3.0 - Expandido (288px)
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            <strong>Uso:</strong> Navegación principal con módulos, submenús y badges de notificación.
+            <strong>Tokens DS 3.0:</strong> Paper con Acento, gradientes ejecutivos, colores semánticos, tipografía jerárquica, sombras elevation.
           </Typography>
         </Box>
         
@@ -179,31 +212,44 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
           <Button 
             variant="contained" 
             onClick={() => {
-              setSidebarType('principal');
+              setSidebarType('ds30-expandido');
               setSidebarOpen(true);
             }}
             startIcon={<MenuIcon />}
             sx={{ mb: 2 }}
             fullWidth
           >
-            Abrir Sidebar
+            Sidebar DS 3.0 Expandido
           </Button>
           
-          <Typography variant="body2" color="text.secondary">
-            Sidebar con navegación jerárquica, badges de notificaciones 
-            y estados activos.
-          </Typography>
+          <Stack spacing={1}>
+            <Typography variant="body2" color="text.secondary">
+              • <strong>Estados activos</strong>: Paper con Acento de 4px
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              • <strong>Parent-active</strong>: Resalta padres de items activos
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              • <strong>Badges inteligentes</strong>: Ocultar si 0, compactar 99+
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              • <strong>Grupos colapsables</strong>: Con animaciones suaves
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              • <strong>Navegación por teclado</strong>: ↑↓ moverse, → abrir, ← cerrar
+            </Typography>
+          </Stack>
         </Paper>
       </Grid>
 
-      {/* Sidebar Compacto */}
-      <Grid item xs={12} lg={4}>
+      {/* DS 3.0 Sidebar Compacto/Rail */}
+      <Grid item xs={12} lg={6}>
         <Box sx={{ mb: 2 }}>
           <Typography variant="h6" color="secondary.main" gutterBottom>
-            📌 Sidebar Compacto
+            🎯 Sidebar DS 3.0 - Compacto/Rail (76px)
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            <strong>Uso:</strong> Para maximizar espacio de contenido, solo íconos con tooltips.
+            <strong>Modo Rail:</strong> Solo iconos con tooltips, toggle dinámico, focus visible, accesibilidad completa.
           </Typography>
         </Box>
         
@@ -218,14 +264,128 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
             variant="outlined" 
             color="secondary"
             onClick={() => {
-              setSidebarType('compacto');
+              setSidebarType('ds30-compacto');
               setSidebarOpen(true);
             }}
             startIcon={<MenuIcon />}
             sx={{ mb: 2 }}
             fullWidth
           >
-            Sidebar Compacto
+            Sidebar DS 3.0 Compacto
+          </Button>
+          
+          <Stack spacing={1}>
+            <Typography variant="body2" color="text.secondary">
+              • <strong>Tooltips informativos</strong>: Con delay y posicionamiento
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              • <strong>Estados hover/focus</strong>: Micro-interacciones DS 3.0
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              • <strong>Toggle funcional</strong>: 288px ↔ 76px dinámico
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              • <strong>Drawer móvil</strong>: Responsive con focus trap
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              • <strong>Performance</strong>: React.memo + useMemo
+            </Typography>
+          </Stack>
+        </Paper>
+      </Grid>
+
+      {/* Separador visual */}
+      <Grid item xs={12}>
+        <Box sx={{ my: 2, borderTop: '2px dashed', borderColor: 'divider', opacity: 0.5 }} />
+        <Typography variant="h6" color="text.secondary" sx={{ textAlign: 'center', fontStyle: 'italic' }}>
+          📚 Implementaciones Legacy (Referencia)
+        </Typography>
+      </Grid>
+
+      {/* Sidebar Principal (Legacy) */}
+      <Grid item xs={12} lg={4}>
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="h6" color="grey.600" gutterBottom>
+            📋 Sidebar Principal (Legacy)
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <strong>Uso:</strong> Navegación principal con módulos, submenús y badges de notificación.
+          </Typography>
+        </Box>
+        
+        <Paper sx={{ 
+          p: 3, 
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)', 
+          border: '1px solid',
+          borderColor: 'divider',
+          height: 'fit-content',
+          opacity: 0.7
+        }}>
+          <Button 
+            variant="contained" 
+            onClick={() => {
+              setSidebarType('principal');
+              setSidebarOpen(true);
+            }}
+            startIcon={<MenuIcon />}
+            sx={{ 
+              mb: 2,
+              bgcolor: 'grey.600',
+              color: 'white',
+              '&:hover': {
+                bgcolor: 'grey.700'
+              }
+            }}
+            fullWidth
+          >
+            Abrir Sidebar (Legacy)
+          </Button>
+          
+          <Typography variant="body2" color="text.secondary">
+            Sidebar con navegación jerárquica, badges de notificaciones 
+            y estados activos.
+          </Typography>
+        </Paper>
+      </Grid>
+
+      {/* Sidebar Compacto (Legacy) */}
+      <Grid item xs={12} lg={4}>
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="h6" color="grey.600" gutterBottom>
+            📌 Sidebar Compacto (Legacy)
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            <strong>Uso:</strong> Para maximizar espacio de contenido, solo íconos con tooltips.
+          </Typography>
+        </Box>
+        
+        <Paper sx={{ 
+          p: 3, 
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)', 
+          border: '1px solid',
+          borderColor: 'divider',
+          height: 'fit-content',
+          opacity: 0.7
+        }}>
+          <Button 
+            variant="outlined" 
+            onClick={() => {
+              setSidebarType('compacto');
+              setSidebarOpen(true);
+            }}
+            startIcon={<MenuIcon />}
+            sx={{ 
+              mb: 2,
+              borderColor: 'grey.400',
+              color: 'grey.600',
+              '&:hover': {
+                borderColor: 'grey.600',
+                bgcolor: 'grey.50'
+              }
+            }}
+            fullWidth
+          >
+            Sidebar Compacto (Legacy)
           </Button>
           
           <Typography variant="body2" color="text.secondary">
@@ -302,8 +462,8 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
           borderColor: 'rgba(102, 126, 234, 0.2)',
           borderRadius: 1,
           overflow: 'hidden',
-          background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%)',
-          backdropFilter: 'blur(20px)'
+          background: 'linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(248,250,252,1) 100%)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
         }}>
           {/* HEADER DEL TOPBAR */}
           <Box sx={{ 
@@ -388,8 +548,8 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
 
           {/* TOPBAR PREMIUM SIMULADO */}
           <AppBar position="static" elevation={0} sx={{ 
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%)',
-            backdropFilter: 'blur(20px)',
+            background: 'linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(248,250,252,1) 100%)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
             borderBottom: '1px solid rgba(102, 126, 234, 0.1)',
             position: 'relative',
             overflow: 'hidden',
@@ -527,8 +687,8 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
                     width: 280,
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 1,
-                      background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%)',
-                      backdropFilter: 'blur(10px)',
+                      background: 'linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(248,250,252,1) 100%)',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
                       border: '1px solid rgba(102, 126, 234, 0.2)',
                       fontWeight: 500,
                       '&:hover': {
@@ -668,8 +828,8 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
                     px: 2,
                     py: 1.2,
                     borderRadius: 1,
-                    background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%)',
-                    backdropFilter: 'blur(20px)',
+                    background: 'linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(248,250,252,1) 100%)',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
                     border: '1px solid rgba(102, 126, 234, 0.2)',
                     cursor: 'pointer',
                     position: 'relative',
@@ -762,10 +922,9 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
                       mt: 1,
                       minWidth: 280,
                       borderRadius: 2,
-                      background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.95) 100%)',
-                      backdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(102, 126, 234, 0.1)',
+                      background: 'linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(248,250,252,1) 100%)',
                       boxShadow: '0 8px 32px rgba(102, 126, 234, 0.15)',
+                      border: '1px solid rgba(102, 126, 234, 0.1)',
                       '& .MuiMenuItem-root': {
                         borderRadius: 1,
                         mx: 1,
@@ -1389,12 +1548,51 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
   };
 
   const renderSidebar = () => {
+    // 🚀 Manejo de Sidebar DS 3.0 con tokens
+    if (sidebarType === 'ds30-expandido') {
+      return (
+        <DSNavbarSidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          variant="temporary"
+          activeItemId="compromisos"
+          onItemSelect={(item) => {
+            console.log('DS 3.0 - Item seleccionado:', item);
+            // Aquí iría la navegación real
+          }}
+        />
+      );
+    }
+
+    if (sidebarType === 'ds30-compacto') {
+      return (
+        <DSNavbarSidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          variant="temporary"
+          activeItemId="dashboard"
+          isCompactMode={true}
+          onItemSelect={(item) => {
+            console.log('DS 3.0 Compacto - Item seleccionado:', item);
+            // Aquí iría la navegación real
+          }}
+        />
+      );
+    }
+
+    // 📚 Legacy sidebar implementations
     const getSidebarWidth = () => {
-      switch(sidebarType) {
-        case 'compacto': return 80;
-        case 'contextual': return 320;
-        default: return 280;
+      if (sidebarType === 'compacto' || isCompact) {
+        return isCompact ? 76 : 288;  // Modo rail DS 3.0
       }
+      switch(sidebarType) {
+        case 'contextual': return 320;
+        default: return 288;  // Modo expandido estándar DS 3.0
+      }
+    };
+
+    const handleToggleCompact = () => {
+      setIsCompact(!isCompact);
     };
 
     return (
@@ -1413,36 +1611,26 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
           }
         }}
       >
-        {/* HEADER DEL SIDEBAR */}
+        {/* HEADER DEL SIDEBAR - DS 3.0 Sin Glassmorphism */}
         <Box sx={{ 
-          p: 3,
+          p: sidebarType === 'compacto' && isCompact ? 2 : 3,
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           borderBottom: '1px solid',
-          borderColor: 'rgba(255,255,255,0.1)',
+          borderColor: 'rgba(255,255,255,0.2)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          boxShadow: '0 4px 20px rgba(102, 126, 234, 0.15)',
-          position: 'relative',
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '1px',
-            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)'
-          }
+          boxShadow: '0 2px 8px rgba(102, 126, 234, 0.12)',
+          position: 'relative'
         }}>
-          {sidebarType !== 'compacto' && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {(sidebarType !== 'compacto' || !isCompact) && (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <Avatar sx={{ 
-                bgcolor: 'rgba(255,255,255,0.2)', 
-                width: 36, 
-                height: 36,
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255,255,255,0.3)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                bgcolor: 'rgba(255,255,255,0.15)', 
+                width: 40, 
+                height: 40,
+                border: '1px solid rgba(255,255,255,0.2)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
               }}>
                 <Dashboard sx={{ color: 'white' }} />
               </Avatar>
@@ -1450,13 +1638,13 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
                 <Typography variant="subtitle1" sx={{ 
                   fontWeight: 700, 
                   color: 'white',
-                  textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                  textShadow: '0 1px 2px rgba(0,0,0,0.1)'
                 }}>
                   DR Group
                 </Typography>
                 <Typography variant="caption" sx={{ 
-                  color: 'rgba(255,255,255,0.85)',
-                  fontSize: '0.7rem',
+                  color: 'rgba(255,255,255,0.9)',
+                  fontSize: '0.75rem',
                   fontWeight: 500
                 }}>
                   Sistema Financiero
@@ -1465,93 +1653,105 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
             </Box>
           )}
           
-          {sidebarType === 'compacto' && (
+          {/* Avatar compacto o toggle */}
+          {sidebarType === 'compacto' && isCompact && (
             <Avatar sx={{ 
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.1) 100%)', 
+              bgcolor: 'rgba(255,255,255,0.15)', 
               width: 44, 
-              height: 44,
-              backdropFilter: 'blur(10px)',
-              border: '2px solid rgba(255,255,255,0.4)',
-              boxShadow: '0 6px 20px rgba(0,0,0,0.2)'
+              border: '1px solid rgba(255,255,255,0.2)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
             }}>
-              <Dashboard sx={{ color: 'white', fontSize: 28 }} />
+              <Dashboard sx={{ color: 'white', fontSize: 24 }} />
             </Avatar>
           )}
-          
-          <IconButton 
-            onClick={() => setSidebarOpen(false)} 
-            size="small"
-            sx={{ 
-              color: 'rgba(255,255,255,0.8)',
-              bgcolor: 'rgba(255,255,255,0.1)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              '&:hover': { 
-                bgcolor: 'rgba(255,255,255,0.2)',
-                transform: 'scale(1.05)'
-              },
-              transition: 'all 0.3s ease'
-            }}
-          >
-            <Close />
-          </IconButton>
         </Box>
 
-        {/* CONTENIDO DEL SIDEBAR */}
+        {/* CONTENIDO DEL SIDEBAR - DS 3.0 Sin Glassmorphism */}
         <Box sx={{ 
           flexGrow: 1, 
           overflow: 'auto',
           background: 'linear-gradient(180deg, rgba(248,250,252,1) 0%, rgba(241,245,249,1) 100%)',
-          position: 'relative',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '20px',
-            background: 'linear-gradient(180deg, rgba(102, 126, 234, 0.05) 0%, transparent 100%)',
-            pointerEvents: 'none'
-          }
+          pointerEvents: 'none'
         }}>
           {sidebarType === 'principal' && (
-            <List sx={{ px: 2, py: 2 }}>
+            <List sx={{ px: isCompact ? 1 : 2, py: 2 }}>
               {menuItems.map((item, index) => (
                 <Box key={item.id}>
-                  <ListItemButton
-                    onClick={() => item.children.length > 0 && handleExpandToggle(item.id)}
-                    sx={{
-                      borderRadius: 2,
-                      mb: 1,
-                      px: 2,
-                      py: 1.5,
-                      background: index === 0 
-                        ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)'
-                        : 'transparent',
-                      border: index === 0 
-                        ? '1px solid rgba(102, 126, 234, 0.2)' 
-                        : '1px solid transparent',
-                      boxShadow: index === 0 
-                        ? '0 4px 12px rgba(102, 126, 234, 0.15)' 
-                        : 'none',
-                      '&:hover': {
+                  {isCompact ? (
+                    // Modo Rail (76px) - Solo iconos con tooltips
+                    <Tooltip title={item.label} placement="right" arrow>
+                      <ListItemButton
+                        onClick={() => item.children.length > 0 && handleExpandToggle(item.id)}
+                        sx={{
+                          borderRadius: 2,
+                          mb: 1,
+                          px: 1,
+                          py: 1.5,
+                          minHeight: 48,
+                          display: 'flex',
+                          justifyContent: 'center',
+                          background: index === 0 
+                            ? `linear-gradient(135deg, ${getSemanticColor(item.id, theme).light} 0%, ${getSemanticColor(item.id, theme).main} 100%)`
+                            : 'transparent',
+                          color: index === 0 
+                            ? getSemanticColor(item.id, theme).main 
+                            : theme.palette.text.secondary,
+                          '&:hover': {
+                            background: `linear-gradient(135deg, ${getSemanticColor(item.id, theme).light} 0%, ${getSemanticColor(item.id, theme).main}20 100%)`,
+                            color: getSemanticColor(item.id, theme).main,
+                            transform: 'scale(1.05)',
+                            boxShadow: `0 4px 12px ${getSemanticColor(item.id, theme).main}40`
+                          },
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                        }}
+                      >
+                        <ListItemIcon sx={{ 
+                          color: 'inherit', 
+                          minWidth: 'auto',
+                          justifyContent: 'center' 
+                        }}>
+                          <item.icon sx={{ fontSize: 24 }} />
+                        </ListItemIcon>
+                      </ListItemButton>
+                    </Tooltip>
+                  ) : (
+                    // Modo Normal (288px) - Con texto
+                    <ListItemButton
+                      onClick={() => item.children.length > 0 && handleExpandToggle(item.id)}
+                      sx={{
+                        borderRadius: 2,
+                        mb: 1,
+                        px: 2,
+                        py: 1.5,
                         background: index === 0 
-                          ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%)'
-                          : 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)',
-                        border: '1px solid rgba(102, 126, 234, 0.2)',
-                        transform: 'translateX(2px)',
-                        boxShadow: '0 6px 20px rgba(102, 126, 234, 0.12)'
-                      },
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      position: 'relative',
-                      '&::before': index === 0 ? {
-                        content: '""',
-                        position: 'absolute',
-                        left: 0,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        width: '4px',
-                        height: '24px',
+                          ? `linear-gradient(135deg, ${getSemanticColor(item.id, theme).light} 0%, ${getSemanticColor(item.id, theme).main}20 100%)`
+                          : 'transparent',
+                        border: index === 0 
+                          ? `1px solid ${getSemanticColor(item.id, theme).main}40` 
+                          : '1px solid transparent',
+                        boxShadow: index === 0 
+                          ? `0 4px 12px ${getSemanticColor(item.id, theme).main}30` 
+                          : 'none',
+                        color: index === 0 
+                          ? getSemanticColor(item.id, theme).main 
+                          : theme.palette.text.primary,
+                        '&:hover': {
+                          background: `linear-gradient(135deg, ${getSemanticColor(item.id, theme).light} 0%, ${getSemanticColor(item.id, theme).main}30 100%)`,
+                          border: `1px solid ${getSemanticColor(item.id, theme).main}60`,
+                          transform: 'translateX(2px)',
+                          color: getSemanticColor(item.id, theme).main,
+                          boxShadow: `0 6px 20px ${getSemanticColor(item.id, theme).main}20`
+                        },
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        position: 'relative',
+                        '&::before': index === 0 ? {
+                          content: '""',
+                          position: 'absolute',
+                          left: 0,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          width: '4px',
+                          height: '24px',
                         background: 'linear-gradient(180deg, #667eea 0%, #764ba2 100%)',
                         borderRadius: '0 2px 2px 0'
                       } : {}
@@ -1607,8 +1807,9 @@ const NavegacionShowcase = ({ onOpenDrawer }) => {
                       </Box>
                     )}
                   </ListItemButton>
+                  )}
                   
-                  {item.children.length > 0 && (
+                  {!isCompact && item.children.length > 0 && (
                     <Collapse in={expandedItems[item.id]} timeout="auto" unmountOnExit>
                       <List component="div" disablePadding sx={{ pl: 2, pr: 1 }}>
                         {item.children.map((child) => (

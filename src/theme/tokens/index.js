@@ -6,6 +6,7 @@
 import { colorTokens, surfaceTokens } from './colors.js';
 import { gradientTokens, gradientTokensLegacy, gradientUtils } from './gradients.js';
 import { shadowTokens, coloredShadowTokens, shadowUtils } from './shadows.js';
+import { spacingTokens, componentSpacingTokens, borderRadiusTokens, layoutSpacingTokens, spacingUtils } from './spacing.js';
 import { typographyScaleTokens, fontWeightTokens, fontFamilyTokens, muiTypographyVariants, typographyUtils } from './typography.js';
 import { iconSizeTokens, iconCategoryTokens, iconStyleTokens, iconAnimationTokens, fabTokens, iconUtils } from './icons.js';
 import { headerTypeTokens, headerComponentTokens, headerAnimationTokens, headerLayoutTokens, headerUtils } from './headers.js';
@@ -80,6 +81,12 @@ export const designTokens = {
   // Sombras - Sistema de sombras establecido
   shadows: shadowTokens,
   coloredShadows: coloredShadowTokens,
+
+  // Espaciado y Layout - Sistema de spacing establecido
+  spacing: spacingTokens,
+  componentSpacing: componentSpacingTokens,
+  borderRadius: borderRadiusTokens,
+  layoutSpacing: layoutSpacingTokens,
 
   // Tipografía - Escala 3.0 establecida
   typography: typographyScaleTokens,
@@ -187,6 +194,13 @@ export {
   shadowTokens,
   coloredShadowTokens,
   shadowUtils,
+
+  // Espaciado y Layout
+  spacingTokens,
+  componentSpacingTokens,
+  borderRadiusTokens,
+  layoutSpacingTokens,
+  spacingUtils,
 
   // Tipografía
   typographyScaleTokens,

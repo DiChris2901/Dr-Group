@@ -287,7 +287,7 @@ const FormulariosUnificadosSimple = () => {
                               required
                               value={authData.email}
                               onChange={(e) => setAuthData({...authData, email: e.target.value})}
-                              error={authData.email && !authData.email.includes('@')}
+                              error={authData.email && !authData.email.includes('@') ? true : false}
                               helperText={
                                 authData.email && !authData.email.includes('@') 
                                   ? "Ingresa un email válido" 
@@ -640,7 +640,7 @@ const FormulariosUnificadosSimple = () => {
                           value={authData.email}
                           onChange={(e) => setAuthData({...authData, email: e.target.value})}
                           placeholder="admin@drgroup.com"
-                          error={authData.email && !authData.email.includes('@')}
+                          error={authData.email && !authData.email.includes('@') ? true : false}
                         />
 
                         <TextField
