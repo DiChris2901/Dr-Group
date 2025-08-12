@@ -3972,137 +3972,351 @@ const DesignSystemTestPage = () => {
     <ModalesUnifiedPage />
   );
 
-  const renderDataDisplaySection = () => (
-    <Grid container spacing={3}>
-      <Grid item xs={12}>
-        <Typography variant="h4" gutterBottom>
-          📊 Data Display
-        </Typography>
-      </Grid>
+  const renderDataDisplaySection = () => {
+    // 🎨 Design System 3.0 Tokens Implementation
+    const avatarSizes = {
+      xs: { width: 24, height: 24, fontSize: '0.75rem' },
+      sm: { width: 32, height: 32, fontSize: '0.875rem' },
+      md: { width: 40, height: 40, fontSize: '1rem' },
+      lg: { width: 56, height: 56, fontSize: '1.25rem' },
+      xl: { width: 72, height: 72, fontSize: '1.5rem' }
+    };
 
-      {/* Avatares */}
-      <Grid item xs={12}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Avatares</Typography>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2" gutterBottom>Tamaños y Variaciones</Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                <Avatar sx={{ width: 24, height: 24 }}>S</Avatar>
-                <Avatar>M</Avatar>
-                <Avatar sx={{ width: 56, height: 56 }}>L</Avatar>
-                <Avatar sx={{ width: 72, height: 72 }}>XL</Avatar>
-              </Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Avatar><Person /></Avatar>
-                <Avatar sx={{ bgcolor: 'primary.main' }}>DR</Avatar>
-                <Avatar sx={{ bgcolor: 'secondary.main' }}>AB</Avatar>
-                <Avatar sx={{ bgcolor: 'success.main' }}><Business /></Avatar>
-              </Box>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2" gutterBottom>Avatar Group</Typography>
-              <AvatarGroup max={4} sx={{ mb: 2 }}>
-                <Avatar sx={{ bgcolor: 'primary.main' }}>DR</Avatar>
-                <Avatar sx={{ bgcolor: 'secondary.main' }}>AB</Avatar>
-                <Avatar sx={{ bgcolor: 'success.main' }}>CD</Avatar>
-                <Avatar sx={{ bgcolor: 'warning.main' }}>EF</Avatar>
-                <Avatar sx={{ bgcolor: 'error.main' }}>GH</Avatar>
-              </AvatarGroup>
-              <Typography variant="caption" color="text.secondary">
-                Ideal para mostrar equipos o múltiples usuarios
-              </Typography>
-            </Grid>
+    const avatarVariants = [
+      { bgcolor: theme.palette.primary.main, label: 'DR' },
+      { bgcolor: theme.palette.secondary.main, label: 'AB' },
+      { bgcolor: theme.palette.success.main, label: 'CD' },
+      { bgcolor: theme.palette.warning.main, label: 'EF' },
+      { bgcolor: theme.palette.error.main, label: 'GH' }
+    ];
+
+    const enterpriseListData = [
+      {
+        id: 1,
+        avatar: { icon: Business, color: theme.palette.primary.main },
+        primary: "DR GROUP SAS",
+        secondary: "NIT: 900.123.456-7",
+        status: { label: "Activo", color: "success", variant: "filled" },
+        metrics: { value: "15 Compromisos", trend: "+2" }
+      },
+      {
+        id: 2,
+        avatar: { icon: AttachMoney, color: theme.palette.warning.main },
+        primary: "$2.500.000 COP",
+        secondary: "Arriendo Local - Vence 15/08/2025",
+        status: { label: "Pendiente", color: "warning", variant: "outlined" },
+        metrics: { value: "3 días", trend: "crítico" }
+      },
+      {
+        id: 3,
+        avatar: { icon: CheckCircle, color: theme.palette.success.main },
+        primary: "Pago Procesado",
+        secondary: "Transferencia bancaria - 05/08/2025",
+        status: { label: "Completado", color: "success", variant: "filled" },
+        metrics: { value: "Confirmado", trend: "ok" }
+      }
+    ];
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <Grid container spacing={3}>
+          <Grid item xs={12}>
+            <Typography 
+              variant="h4" 
+              gutterBottom
+              sx={{
+                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                backgroundClip: 'text',
+                textFillColor: 'transparent',
+                fontWeight: 700,
+                mb: 1
+              }}
+            >
+              📊 Data Display - Design System 3.0
+            </Typography>
+            <Typography variant="body1" color="text.secondary" paragraph>
+              Componentes de visualización de datos siguiendo los tokens del Design System 3.0
+            </Typography>
           </Grid>
-        </Paper>
-      </Grid>
 
-      {/* Listas */}
-      <Grid item xs={12} md={6}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Listas</Typography>
-          <List>
-            <ListItem>
-              <ListItemAvatar>
-                <Avatar sx={{ bgcolor: 'primary.main' }}>
-                  <Business />
-                </Avatar>
-              </ListItemAvatar>
-              <ListItemText 
-                primary="DR GROUP SAS" 
-                secondary="NIT: 900.123.456-7"
-              />
-              <Chip label="Activo" color="success" size="small" />
-            </ListItem>
-            <Divider variant="inset" component="li" />
-            <ListItem>
-              <ListItemAvatar>
-                <Avatar sx={{ bgcolor: 'secondary.main' }}>
-                  <AttachMoney />
-                </Avatar>
-              </ListItemAvatar>
-              <ListItemText 
-                primary="$2.500.000 COP" 
-                secondary="Arriendo Local - Vence 15/08/2025"
-              />
-              <Chip label="Pendiente" color="warning" size="small" />
-            </ListItem>
-            <Divider variant="inset" component="li" />
-            <ListItem>
-              <ListItemAvatar>
-                <Avatar sx={{ bgcolor: 'success.main' }}>
-                  <CheckCircle />
-                </Avatar>
-              </ListItemAvatar>
-              <ListItemText 
-                primary="Pago Procesado" 
-                secondary="Transferencia bancaria - 05/08/2025"
-              />
-              <Chip label="Completado" color="success" size="small" />
-            </ListItem>
-          </List>
-        </Paper>
-      </Grid>
+          {/* 🎯 Avatares Enterprise */}
+          <Grid item xs={12}>
+            <Paper 
+              elevation={0}
+              sx={{ 
+                p: 3,
+                background: `linear-gradient(135deg, ${theme.palette.background.paper}, ${theme.palette.background.default})`,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 3,
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  boxShadow: theme.shadows[4],
+                  transform: 'translateY(-2px)'
+                }
+              }}
+            >
+              <Typography 
+                variant="h6" 
+                gutterBottom
+                sx={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  color: theme.palette.primary.main,
+                  fontWeight: 600
+                }}
+              >
+                👤 Avatares Empresariales
+              </Typography>
+              
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
+                    Tamaños Estandarizados (DS 3.0)
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                    {Object.entries(avatarSizes).map(([size, styles]) => (
+                      <motion.div
+                        key={size}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <Avatar 
+                          sx={{ 
+                            ...styles,
+                            bgcolor: theme.palette.primary.main,
+                            boxShadow: theme.shadows[2],
+                            transition: 'all 0.3s ease'
+                          }}
+                        >
+                          {size.toUpperCase()}
+                        </Avatar>
+                      </motion.div>
+                    ))}
+                  </Box>
 
-      {/* Dividers */}
-      <Grid item xs={12} md={6}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Dividers</Typography>
-          <Typography variant="body2" paragraph>
-            Divider horizontal básico
-          </Typography>
-          <Divider />
-          <Typography variant="body2" sx={{ mt: 2, mb: 1 }}>
-            Divider con texto
-          </Typography>
-          <Divider textAlign="center">
-            <Chip label="SECCIÓN" size="small" />
-          </Divider>
-          <Typography variant="body2" sx={{ mt: 2, mb: 1 }}>
-            Divider con gradiente
-          </Typography>
-          <Box
-            sx={{
-              height: 2,
-              background: gradients.primary,
-              borderRadius: 1,
-              mb: 2
-            }}
-          />
-          <Typography variant="body2">
-            Divider vertical (en flex)
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
-            <Typography variant="body2">Item 1</Typography>
-            <Divider orientation="vertical" flexItem />
-            <Typography variant="body2">Item 2</Typography>
-            <Divider orientation="vertical" flexItem />
-            <Typography variant="body2">Item 3</Typography>
-          </Box>
-        </Paper>
-      </Grid>
-    </Grid>
-  );
+                  <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
+                    Variaciones con Iconos
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar sx={{ bgcolor: theme.palette.primary.main, boxShadow: theme.shadows[2] }}>
+                      <Person />
+                    </Avatar>
+                    <Avatar sx={{ bgcolor: theme.palette.secondary.main, boxShadow: theme.shadows[2] }}>
+                      <Business />
+                    </Avatar>
+                    <Avatar sx={{ bgcolor: theme.palette.success.main, boxShadow: theme.shadows[2] }}>
+                      <AttachMoney />
+                    </Avatar>
+                    <Avatar sx={{ bgcolor: theme.palette.warning.main, boxShadow: theme.shadows[2] }}>
+                      <Analytics />
+                    </Avatar>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
+                    Avatar Group Empresarial
+                  </Typography>
+                  <AvatarGroup 
+                    max={4} 
+                    sx={{ 
+                      mb: 2,
+                      '& .MuiAvatar-root': {
+                        border: `2px solid ${theme.palette.background.paper}`,
+                        boxShadow: theme.shadows[2]
+                      }
+                    }}
+                  >
+                    {avatarVariants.map((variant, index) => (
+                      <Avatar key={index} sx={{ bgcolor: variant.bgcolor }}>
+                        {variant.label}
+                      </Avatar>
+                    ))}
+                  </AvatarGroup>
+                  <Typography variant="caption" color="text.secondary">
+                    💡 Ideal para mostrar equipos, múltiples usuarios o stakeholders del compromiso
+                  </Typography>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Grid>
+
+          {/* 📋 Listas Enterprise */}
+          <Grid item xs={12} md={6}>
+            <Paper 
+              elevation={0}
+              sx={{ 
+                p: 3,
+                background: `linear-gradient(135deg, ${theme.palette.background.paper}, ${theme.palette.background.default})`,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 3,
+                overflow: 'hidden'
+              }}
+            >
+              <Typography 
+                variant="h6" 
+                gutterBottom
+                sx={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  color: theme.palette.primary.main,
+                  fontWeight: 600,
+                  mb: 2
+                }}
+              >
+                📋 Listas de Datos Empresariales
+              </Typography>
+              
+              <List disablePadding>
+                {enterpriseListData.map((item, index) => (
+                  <React.Fragment key={item.id}>
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <ListItem
+                        sx={{
+                          borderRadius: 2,
+                          mb: 1,
+                          transition: 'all 0.3s ease',
+                          '&:hover': {
+                            bgcolor: `${theme.palette.primary.main}08`,
+                            transform: 'translateX(4px)'
+                          }
+                        }}
+                      >
+                        <ListItemAvatar>
+                          <Avatar 
+                            sx={{ 
+                              bgcolor: item.avatar.color,
+                              boxShadow: theme.shadows[2]
+                            }}
+                          >
+                            <item.avatar.icon />
+                          </Avatar>
+                        </ListItemAvatar>
+                        <ListItemText 
+                          primary={
+                            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                              {item.primary}
+                            </Typography>
+                          }
+                          secondary={
+                            <Typography variant="body2" color="text.secondary">
+                              {item.secondary}
+                            </Typography>
+                          }
+                        />
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+                          <Chip 
+                            label={item.status.label} 
+                            color={item.status.color}
+                            variant={item.status.variant}
+                            size="small"
+                            sx={{ fontWeight: 600 }}
+                          />
+                          <Typography variant="caption" color="text.secondary">
+                            {item.metrics.value}
+                          </Typography>
+                        </Box>
+                      </ListItem>
+                    </motion.div>
+                    {index < enterpriseListData.length - 1 && (
+                      <Divider 
+                        variant="inset" 
+                        component="li"
+                        sx={{ 
+                          ml: 7,
+                          background: `linear-gradient(90deg, ${theme.palette.divider}, transparent)`
+                        }}
+                      />
+                    )}
+                  </React.Fragment>
+                ))}
+              </List>
+            </Paper>
+          </Grid>
+
+          {/* ➗ Dividers Avanzados */}
+          <Grid item xs={12} md={6}>
+            <Paper 
+              elevation={0}
+              sx={{ 
+                p: 3,
+                background: `linear-gradient(135deg, ${theme.palette.background.paper}, ${theme.palette.background.default})`,
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 3
+              }}
+            >
+              <Typography 
+                variant="h6" 
+                gutterBottom
+                sx={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  color: theme.palette.primary.main,
+                  fontWeight: 600
+                }}
+              >
+                ➗ Separadores Empresariales
+              </Typography>
+              
+              <Typography variant="body2" paragraph color="text.secondary">
+                Separador horizontal básico
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+              
+              <Typography variant="body2" sx={{ mb: 1 }} color="text.secondary">
+                Separador con contenido
+              </Typography>
+              <Divider textAlign="center" sx={{ mb: 2 }}>
+                <Chip 
+                  label="COMPROMISOS FINANCIEROS" 
+                  size="small"
+                  sx={{ 
+                    bgcolor: theme.palette.primary.main,
+                    color: 'white',
+                    fontWeight: 600
+                  }}
+                />
+              </Divider>
+              
+              <Typography variant="body2" sx={{ mb: 1 }} color="text.secondary">
+                Separador con gradiente empresarial
+              </Typography>
+              <Box
+                sx={{
+                  height: 2,
+                  background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                  borderRadius: 1,
+                  mb: 2
+                }}
+              />
+              
+              <Typography variant="body2" sx={{ mb: 1 }} color="text.secondary">
+                Separadores verticales en layout flex
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>Dashboard</Typography>
+                <Divider orientation="vertical" flexItem />
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>Compromisos</Typography>
+                <Divider orientation="vertical" flexItem />
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>Reportes</Typography>
+              </Box>
+            </Paper>
+          </Grid>
+        </Grid>
+      </motion.div>
+    );
+  };
 
   const renderLoadingSection = () => (
     <Grid container spacing={3}>

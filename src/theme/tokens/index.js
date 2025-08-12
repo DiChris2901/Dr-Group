@@ -64,6 +64,12 @@ import {
   overlayUtils,
   overlayThemeComponents
 } from './overlays.js';
+import {
+  avatarTokens,
+  listTokens,
+  dividerTokens,
+  dataDisplayUtils
+} from './dataDisplay.js';
 
 // ========================================
 // 🚀 TOKENS PRINCIPALES - SISTEMA COMPLETO
@@ -173,7 +179,10 @@ export const tokenUtils = {
   forms: formUtils,
   
   // 🎭 Overlays - Utilidades DS 3.0 (NUEVO)
-  overlays: overlayUtils
+  overlays: overlayUtils,
+  
+  // 📊 Data Display - Utilidades DS 3.0 (NUEVO)
+  dataDisplay: dataDisplayUtils
 };
 
 // ========================================
@@ -272,6 +281,12 @@ export {
   overlayAnimationTokens,
   overlayUtils,
   overlayThemeComponents,
+  
+  // Data Display - DS 3.0
+  avatarTokens,
+  listTokens,
+  dividerTokens,
+  dataDisplayUtils,
   
   // Utilidades de formato
   formatCOP,

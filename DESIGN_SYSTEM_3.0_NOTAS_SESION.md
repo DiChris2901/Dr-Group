@@ -5,10 +5,10 @@
 ---
 
 ## 📋 **DOCUMENTO ACTUALIZADO**
-- **Fecha:** 11 de Agosto, 2025
-- **Versión:** DS 3.0 con Overlays Tokenizados  
+- **Fecha:** 12 de Agosto, 2025
+- **Versión:** DS 3.0 con Data Display Tokenizado  
 - **Status:** ✅ **READY FOR PRODUCTION**
-- **Última Actualización:** Sistema de Overlays (Modales/Diálogos/Drawers/Snackbars/Banners) 100% Tokenizado
+- **Última Actualización:** Sistema de Visualización de Datos (Avatares/Listas/Divisores) + Overlays 100% Tokenizado
 
 ---
 
@@ -28,7 +28,9 @@ src/theme/tokens/
 ├── cards.js          # Cards y contenedores Paper Acento
 ├── tables.js         # 5 tipos de tablas profesionales
 ├── forms.js          # 🧾 Sistema de formularios COMPLETO
-└── overlays.js       # 🎭 Sistema de overlays COMPLETO (NUEVO)
+├── overlays.js       # 🎭 Sistema de overlays COMPLETO (NUEVO)
+├── dataDisplay.js    # 📊 Sistema de visualización de datos (NUEVO)
+└── utils.js          # 🛠️ Utilidades auxiliares
 ```
 
 ### 🎯 **designTokens Object - Estructura Central**
@@ -106,6 +108,20 @@ export const designTokens = {
     snackbar: snackbarTokens,             // 4 severidades + comportamiento + posición
     banner: bannerTokens,                 // 5 tipos persistentes + Paper Acento
     animation: overlayAnimationTokens     // Framer Motion configs modal/drawer/snackbar
+  },
+
+  // 📊 Sistema de visualización de datos (NUEVO)
+  dataDisplay: {
+    avatar: avatarTokens,                 // Avatares empresariales 6 tamaños + variantes
+    list: listTokens,                     // Listas con micro-interacciones + estados
+    divider: dividerTokens                // Separadores avanzados + gradientes empresariales
+  },
+
+  // 🛠️ Utilidades auxiliares (NUEVO)
+  utils: {
+    accessibility: accessibilityUtils,     // Helpers ARIA y focus management
+    responsive: responsiveUtils,           // Breakpoints y media queries
+    animation: animationUtils              // Helpers Framer Motion
   }
 };
 ```
@@ -122,7 +138,9 @@ export const tokenUtils = {
   cards: cardsUtils,          // createMotionCard(), getSemanticContext()
   tables: tablesUtils,        // createBasicTable(), formatCOP()
   forms: formUtils,           // 🧾 createFieldProps(), createSectionHeader(), formatCOP/NIT/Phone (NUEVO)
-  overlays: overlayUtils      // 🎭 createDialogProps(), createDrawerProps(), createSnackbarProps() (NUEVO)
+  overlays: overlayUtils,     // 🎭 createDialogProps(), createDrawerProps(), createSnackbarProps() (NUEVO)
+  dataDisplay: dataDisplayUtils, // 📊 createAvatarProps(), createListProps(), createDividerProps() (NUEVO)
+  utils: accessibilityUtils   // 🛠️ getAriaProps(), createFocusManager(), validateA11Y() (NUEVO)
 };
 ```
 
@@ -611,7 +629,7 @@ const theme = createTheme({
 | **Botones** | 8 categorías tokens (variants, sizes, gradients, fabs, icons, animations, states) | buttonUtils | ✅ | 100% |
 | **Cards & Contenedores** | dashboardCards + detailedCards + paperAccents + cardAnimations + cardSemantics + cardLayouts | cardsUtils | ✅ | 100% |
 | **Tablas** | tableBase + tableVariants + compactTables + tableAnimations + pagination + tableSemantics | tablesUtils | ✅ | 100% |
-| **TOTAL SISTEMA** | **47 grupos tokens** | **8 utilidades** | **✅ 100%** | **COMPLETO** |
+| **TOTAL SISTEMA** | **50 grupos tokens** | **9 utilidades** | **✅ 100%** | **COMPLETO** |
 
 ---
 
@@ -721,8 +739,8 @@ const gradientButtonProps = buttonUtils.createButtonProps({
 
 ---
 
-**🕒 Última actualización:** Agosto 11, 2025 - **SISTEMA DE TOKENS COMPLETO**  
-**⚡ Progreso total:** **100% TOKENIZADO** - 47 grupos + 7 utilidades  
+**🕒 Última actualización:** Agosto 12, 2025 - **SISTEMA DE TOKENS + DATA DISPLAY COMPLETO**  
+**⚡ Progreso total:** **100% TOKENIZADO** - 50 grupos + 9 utilidades  
 **🎯 URL de testing:** http://localhost:5173/design-system-test  
 **📋 Status:** **READY FOR PRODUCTION** ✅
 
@@ -786,8 +804,8 @@ const gradientButtonProps = buttonUtils.createButtonProps({
 | **Tablas** | ✅ | **100%** | **5 categorías + Paginación 3.0** |
 | **🧾 Formularios** | ✅ | **100%** | **Sistema DS 3.0 COMPLETO** |
 | **🎭 Modales & Diálogos** | ✅ | **100%** | **Sistema Overlays DS 3.0 COMPLETO** |
+| **📊 Visualización Datos** | ✅ | **100%** | **Avatares, Listas, Divisores DS 3.0 COMPLETO** |
 | Navegación | 🟡 | 60% | En desarrollo |
-| Data Display | 🟡 | 40% | Pendiente |
 | Estados de Carga | 🟡 | 30% | Pendiente |
 | Animaciones | ✅ | 100% | Framer Motion integrado |
 | Feedback | 🟡 | 20% | Pendiente |
@@ -1353,5 +1371,6 @@ export const overlayAnimationTokens = {
 
 - ~~Formularios: tokens para inputs/selects/switches/estados~~ ✅ **COMPLETADO**
 - ~~Modales y Diálogos: tokens para diálogos, sheets y drawers~~ ✅ **COMPLETADO**
-- Navegación: AppBar/Nav, Tabs, Breadcrumbs
+- ~~Visualización de Datos: tokens para avatares, listas, divisores~~ ✅ **COMPLETADO**
+- Navegación: AppBar/Nav, Tabs, Breadcrumbs, Steppers
 - Feedback/Estados de carga: Alerts, Snackbars, Progress, Skeleton
