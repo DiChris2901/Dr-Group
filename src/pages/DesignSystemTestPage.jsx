@@ -138,12 +138,17 @@ import {
   NotificationImportant,
   Assessment,
   AccountBalance,
+  Payment,
+  Schedule,
+  Sync,
+  Cloud,
   Brightness4,
   Receipt,
   ExitToApp
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
+import { cardsUtils } from '../theme/tokens';
 import FormulariosUnificadosSimple from '../components/FormulariosUnificadosSimple';
 import ModalesUnifiedPage from './DesignSystemTest/ModalsUnifiedPage';
 
@@ -4319,149 +4324,358 @@ const DesignSystemTestPage = () => {
   };
 
   const renderLoadingSection = () => (
-    <Grid container spacing={3}>
+    <Grid container spacing={6}>
       <Grid item xs={12}>
-        <Typography variant="h4" gutterBottom>
+        <Typography variant="h4" gutterBottom sx={{ mb: 3 }}>
           ⚡ Estados de Carga
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 6, maxWidth: '80%' }}>
+          Estados de carga empresariales con tokens DS 3.0 y micro-interacciones premium
         </Typography>
       </Grid>
 
-      {/* Skeletons */}
+      {/* Skeletons - Mejor espaciado */}
       <Grid item xs={12}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Skeletons - Placeholders</Typography>
-          <Typography variant="body2" color="text.secondary" paragraph>
-            Mostrando estados de carga con skeletons animados
-          </Typography>
+        <Paper {...cardsUtils.createPaperAccent('info', 'large')} sx={{ mb: 6 }}>
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h6" sx={{ color: 'info.main', fontWeight: 600, mb: 1 }}>
+              📊 Skeletons - Placeholders Empresariales
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Placeholders animados con gradientes spectacular y contexto empresarial
+            </Typography>
+          </Box>
+          
           <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2" gutterBottom>Card Skeleton</Typography>
-              <Card sx={{ mb: 2 }}>
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <Skeleton 
-                      variant="circular" 
-                      width={40} 
-                      height={40} 
-                      sx={{ mr: 2 }}
-                      animation="wave"
-                    />
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Skeleton 
-                        variant="text" 
-                        sx={{ fontSize: '1.2rem', width: '60%', mb: 0.5 }} 
-                        animation="wave"
-                      />
-                      <Skeleton 
-                        variant="text" 
-                        sx={{ fontSize: '0.9rem', width: '80%' }} 
-                        animation="wave"
-                      />
-                    </Box>
-                  </Box>
-                  <Skeleton 
-                    variant="rectangular" 
-                    height={100} 
-                    sx={{ mb: 1, borderRadius: 1 }} 
-                    animation="wave"
-                  />
-                  <Skeleton variant="text" sx={{ width: '90%' }} animation="wave" />
-                  <Skeleton variant="text" sx={{ width: '70%' }} animation="wave" />
-                </CardContent>
-              </Card>
+            <Grid item xs={12} lg={6}>
+              <Typography variant="subtitle1" gutterBottom sx={{ color: 'primary.main', fontWeight: 600, mb: 3 }}>
+                💼 Card Empresarial Skeleton
+              </Typography>
               
-              {/* Skeleton con gradiente */}
-              <Card>
-                <CardContent>
-                  <Typography variant="caption" color="text.secondary" gutterBottom>
-                    Skeleton con efectos personalizados
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <Box
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: '50%',
-                        background: gradients.primary,
-                        opacity: 0.3,
-                        mr: 2
-                      }}
-                    />
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Box
-                        sx={{
-                          height: 20,
-                          background: gradients.secondary,
-                          opacity: 0.3,
-                          borderRadius: 1,
-                          mb: 1,
-                          width: '60%'
+              {/* Card Skeleton Premium con gradientes DS 3.0 */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+              >
+                <Card sx={{ 
+                  mb: 3, 
+                  background: `linear-gradient(135deg, ${theme.palette.background.paper}, ${theme.palette.background.default})`,
+                  border: `1px solid ${theme.palette.divider}`,
+                  borderRadius: 2,
+                  '&:hover': { 
+                    boxShadow: theme.shadows[4], 
+                    transform: 'translateY(-2px)',
+                    transition: 'all 0.3s ease-in-out'
+                  }
+                }}>
+                  <CardContent sx={{ p: 3 }}>
+                    {/* Header con avatar y datos empresariales */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                      <Skeleton 
+                        variant="circular" 
+                        width={48} 
+                        height={48} 
+                        sx={{ 
+                          mr: 2,
+                          background: `linear-gradient(90deg, ${theme.palette.primary.light}, ${theme.palette.primary.main})`,
+                          opacity: 0.3
                         }}
+                        animation="wave"
                       />
-                      <Box
-                        sx={{
-                          height: 16,
-                          background: gradients.info,
-                          opacity: 0.3,
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Skeleton 
+                          variant="text" 
+                          sx={{ 
+                            fontSize: '1.25rem', 
+                            width: '70%', 
+                            mb: 1,
+                            background: `linear-gradient(90deg, ${theme.palette.text.primary}, ${theme.palette.text.secondary})`,
+                            opacity: 0.2
+                          }} 
+                          animation="wave"
+                        />
+                        <Skeleton 
+                          variant="text" 
+                          sx={{ 
+                            fontSize: '0.875rem', 
+                            width: '90%',
+                            background: `linear-gradient(90deg, ${theme.palette.text.secondary}, ${theme.palette.text.disabled})`,
+                            opacity: 0.2
+                          }} 
+                          animation="wave"
+                        />
+                      </Box>
+                      <Skeleton
+                        variant="rectangular"
+                        width={80}
+                        height={32}
+                        sx={{ 
                           borderRadius: 1,
-                          width: '80%'
+                          background: `linear-gradient(90deg, ${theme.palette.success.light}, ${theme.palette.success.main})`,
+                          opacity: 0.3
                         }}
+                        animation="wave"
                       />
                     </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2" gutterBottom>Table Skeleton</Typography>
-              <Box sx={{ mb: 2 }}>
-                {[1, 2, 3, 4].map((item) => (
-                  <Box key={item} sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 2 }}>
-                    <Skeleton 
-                      variant="circular" 
-                      width={32} 
-                      height={32} 
-                      animation="wave"
-                    />
-                    <Skeleton 
-                      variant="text" 
-                      sx={{ flexGrow: 1 }} 
-                      animation="wave"
-                    />
+                    
+                    {/* Contenido principal */}
                     <Skeleton 
                       variant="rectangular" 
-                      width={60} 
-                      height={24} 
-                      sx={{ borderRadius: 1 }}
+                      height={120} 
+                      sx={{ 
+                        mb: 3, 
+                        borderRadius: 2,
+                        background: `linear-gradient(135deg, ${theme.palette.primary.light}20, ${theme.palette.secondary.light}20)`,
+                        opacity: 0.4
+                      }} 
                       animation="wave"
                     />
-                  </Box>
-                ))}
-              </Box>
+                    
+                    {/* Métricas empresariales */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {[1, 2, 3].map((item) => (
+                        <Skeleton 
+                          key={item}
+                          variant="text" 
+                          sx={{ 
+                            width: `${60 + item * 10}%`,
+                            background: `linear-gradient(90deg, ${theme.palette.info.light}, ${theme.palette.info.main})`,
+                            opacity: 0.25,
+                            height: 20
+                          }} 
+                          animation="wave"
+                        />
+                      ))}
+                    </Box>
+                  </CardContent>
+                </Card>
+              </motion.div>
               
-              <Typography variant="subtitle2" gutterBottom>List Skeleton</Typography>
-              <Box>
-                {[1, 2, 3].map((item) => (
-                  <Box 
-                    key={item} 
-                    sx={{ 
+              {/* Skeleton Lista Empresarial */}
+              <Typography variant="subtitle1" gutterBottom sx={{ color: 'secondary.main', fontWeight: 600, mb: 2 }}>
+                📋 Lista de Compromisos Skeleton
+              </Typography>
+              <Box sx={{ 
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 2,
+                overflow: 'hidden',
+                mb: 2
+              }}>
+                {[1, 2, 3, 4].map((item) => (
+                  <motion.div
+                    key={item}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4, delay: item * 0.1 }}
+                  >
+                    <Box sx={{ 
                       display: 'flex', 
                       alignItems: 'center', 
-                      p: 1, 
-                      mb: 1,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      borderRadius: 1
-                    }}
-                  >
-                    <Skeleton variant="circular" width={24} height={24} sx={{ mr: 2 }} />
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Skeleton variant="text" sx={{ width: '70%', mb: 0.5 }} />
-                      <Skeleton variant="text" sx={{ width: '40%', fontSize: '0.8rem' }} />
+                      p: 2.5, 
+                      gap: 2,
+                      borderBottom: item !== 4 ? `1px solid ${theme.palette.divider}` : 'none',
+                      minHeight: 80,
+                      '&:hover': {
+                        backgroundColor: theme.palette.action.hover,
+                        transform: 'translateX(4px)',
+                        transition: 'all 0.2s ease-in-out'
+                      }
+                    }}>
+                      <Skeleton 
+                        variant="circular" 
+                        width={40} 
+                        height={40} 
+                        sx={{
+                          background: `linear-gradient(135deg, ${theme.palette.primary.light}, ${theme.palette.primary.main})`,
+                          opacity: 0.3
+                        }}
+                        animation="wave"
+                      />
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Skeleton 
+                          variant="text" 
+                          sx={{ 
+                            width: '80%', 
+                            fontSize: '1rem',
+                            mb: 1,
+                            background: `linear-gradient(90deg, ${theme.palette.text.primary}, ${theme.palette.text.secondary})`,
+                            opacity: 0.2
+                          }} 
+                          animation="wave"
+                        />
+                        <Skeleton 
+                          variant="text" 
+                          sx={{ 
+                            width: '60%', 
+                            fontSize: '0.875rem',
+                            background: `linear-gradient(90deg, ${theme.palette.text.secondary}, ${theme.palette.text.disabled})`,
+                            opacity: 0.2
+                          }} 
+                          animation="wave"
+                        />
+                      </Box>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+                        <Skeleton 
+                          variant="rectangular" 
+                          width={80} 
+                          height={24} 
+                          sx={{ 
+                            borderRadius: 1,
+                            background: item % 2 === 0 
+                              ? `linear-gradient(90deg, ${theme.palette.success.light}, ${theme.palette.success.main})`
+                              : `linear-gradient(90deg, ${theme.palette.warning.light}, ${theme.palette.warning.main})`,
+                            opacity: 0.3
+                          }}
+                          animation="wave"
+                        />
+                        <Skeleton 
+                          variant="text" 
+                          sx={{ 
+                            width: '60px', 
+                            fontSize: '0.75rem',
+                            background: `linear-gradient(90deg, ${theme.palette.text.disabled}, transparent)`,
+                            opacity: 0.2
+                          }} 
+                          animation="wave"
+                        />
+                      </Box>
                     </Box>
-                    <Skeleton variant="rounded" width={50} height={20} />
+                  </motion.div>
+                ))}
+              </Box>
+            </Grid>
+            
+            <Grid item xs={12} lg={6}>
+              <Typography variant="subtitle1" gutterBottom sx={{ color: 'success.main', fontWeight: 600, mb: 2 }}>
+                📊 Dashboard Metrics Skeleton
+              </Typography>
+              
+              {/* Cards de métricas skeleton */}
+              <Grid container spacing={2} sx={{ mb: 4 }}>
+                {[
+                  { color: 'primary', label: 'Compromisos' },
+                  { color: 'success', label: 'Pagado' },
+                  { color: 'warning', label: 'Pendiente' }
+                ].map((metric, index) => (
+                  <Grid item xs={4} key={metric.color}>
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.5, delay: index * 0.1 }}
+                    >
+                      <Paper sx={{
+                        p: 2.5,
+                        textAlign: 'center',
+                        border: `2px solid ${theme.palette[metric.color].main}`,
+                        borderRadius: 2,
+                        height: 120,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        '&:hover': {
+                          transform: 'scale(1.05)',
+                          boxShadow: `0 4px 20px ${theme.palette[metric.color].main}30`,
+                          transition: 'all 0.3s ease-in-out'
+                        }
+                      }}>
+                        <Skeleton
+                          variant="text"
+                          sx={{
+                            fontSize: '2rem',
+                            width: '80%',
+                            mx: 'auto',
+                            mb: 1,
+                            background: `linear-gradient(90deg, ${theme.palette[metric.color].light}, ${theme.palette[metric.color].main})`,
+                            opacity: 0.4
+                          }}
+                          animation="wave"
+                        />
+                        <Skeleton
+                          variant="text"
+                          sx={{
+                            fontSize: '0.75rem',
+                            width: '100%',
+                            background: `linear-gradient(90deg, ${theme.palette.text.secondary}, ${theme.palette.text.disabled})`,
+                            opacity: 0.3
+                          }}
+                          animation="wave"
+                        />
+                      </Paper>
+                    </motion.div>
+                  </Grid>
+                ))}
+              </Grid>
+
+              <Typography variant="subtitle1" gutterBottom sx={{ color: 'warning.main', fontWeight: 600, mb: 2 }}>
+                📈 Tabla Ejecutiva Skeleton
+              </Typography>
+              
+              {/* Tabla skeleton con header gradiente */}
+              <Box sx={{ 
+                border: `1px solid ${theme.palette.divider}`,
+                borderRadius: 2,
+                overflow: 'hidden'
+              }}>
+                {/* Header tabla con gradiente DS 3.0 */}
+                <Box sx={{
+                  p: 2,
+                  background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%)',
+                  color: 'white'
+                }}>
+                  <Box sx={{ display: 'flex', gap: 3 }}>
+                    {['Empresa', 'Monto', 'Estado'].map((header, index) => (
+                      <Skeleton
+                        key={header}
+                        variant="text"
+                        sx={{
+                          flex: index === 0 ? 2 : 1,
+                          fontSize: '0.875rem',
+                          backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                          height: 20
+                        }}
+                        animation="wave"
+                      />
+                    ))}
                   </Box>
+                </Box>
+                
+                {/* Rows skeleton */}
+                {[1, 2, 3].map((item) => (
+                  <motion.div
+                    key={item}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.4, delay: item * 0.1 }}
+                  >
+                    <Box sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      p: 2,
+                      gap: 3,
+                      minHeight: 70,
+                      borderBottom: item !== 3 ? `1px solid ${theme.palette.divider}` : 'none',
+                      '&:hover': {
+                        backgroundColor: 'rgba(102, 126, 234, 0.04)',
+                        transition: 'all 0.2s ease-in-out'
+                      }
+                    }}>
+                      <Box sx={{ flex: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Skeleton variant="circular" width={24} height={24} animation="wave" />
+                        <Skeleton variant="text" sx={{ width: '70%' }} animation="wave" />
+                      </Box>
+                      <Skeleton variant="text" sx={{ flex: 1 }} animation="wave" />
+                      <Box sx={{ flex: 1 }}>
+                        <Skeleton 
+                          variant="rectangular" 
+                          width={60} 
+                          height={20} 
+                          sx={{ borderRadius: 1 }}
+                          animation="wave" 
+                        />
+                      </Box>
+                    </Box>
+                  </motion.div>
                 ))}
               </Box>
             </Grid>
@@ -4469,158 +4683,378 @@ const DesignSystemTestPage = () => {
         </Paper>
       </Grid>
 
-      {/* Progress Indicators */}
-      <Grid item xs={12}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Progress Indicators</Typography>
-          <Typography variant="body2" color="text.secondary" paragraph>
-            Indicadores de progreso con variaciones de estilo y color
+      {/* Progress Indicators con Tokens DS 3.0 */}
+      <Grid item xs={12} sx={{ mb: 4 }}>
+        <Paper {...cardsUtils.createPaperAccent('primary', 'large')} sx={{ mb: 4 }}>
+          <Typography variant="h6" sx={{ color: 'primary.main', fontWeight: 600, mb: 2 }}>
+            🎯 Progress Indicators Empresariales
           </Typography>
-          <Grid container spacing={4} alignItems="center">
-            <Grid item xs={12} md={4}>
-              <Typography variant="subtitle2" gutterBottom>Circular Progress</Typography>
-              <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'center', mb: 2 }}>
-                <CircularProgress size={40} />
-                <CircularProgress size={40} color="secondary" />
-                <CircularProgress size={40} color="success" />
-                <CircularProgress size={40} color="warning" />
-                <CircularProgress size={40} color="error" />
+          <Typography variant="body2" color="text.secondary" paragraph sx={{ mb: 4 }}>
+            Indicadores de progreso con gradientes spectacular y contextos empresariales
+          </Typography>
+          
+          <Grid container spacing={4}>
+            <Grid item xs={12} lg={4}>
+              <Typography variant="subtitle1" gutterBottom sx={{ color: 'primary.main', fontWeight: 600, mb: 3 }}>
+                ⭕ Circular Progress Premium
+              </Typography>
+              
+              {/* Circular básicos con colores DS 3.0 */}
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontWeight: 500 }}>
+                  Contextos Empresariales
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', mb: 4 }}>
+                  {[
+                    { color: 'primary', context: 'Compromisos' },
+                    { color: 'secondary', context: 'Empresas' },
+                    { color: 'success', context: 'Pagado' },
+                    { color: 'warning', context: 'Pendiente' },
+                    { color: 'error', context: 'Vencido' }
+                  ].map((item, index) => (
+                    <motion.div
+                      key={item.color}
+                      initial={{ opacity: 0, scale: 0.5 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.5, delay: index * 0.1 }}
+                      whileHover={{ scale: 1.1 }}
+                    >
+                      <Box sx={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center',
+                        p: 1.5,
+                        borderRadius: 2,
+                        minWidth: 80,
+                        '&:hover': {
+                          backgroundColor: `${theme.palette[item.color].main}08`,
+                          transition: 'all 0.3s ease-in-out'
+                        }
+                      }}>
+                        <CircularProgress 
+                          size={44} 
+                          color={item.color}
+                          thickness={4}
+                          sx={{
+                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
+                            mb: 1
+                          }}
+                        />
+                        <Typography variant="caption" color="text.secondary" sx={{ 
+                          fontSize: '0.7rem', 
+                          textAlign: 'center',
+                          fontWeight: 500
+                        }}>
+                          {item.context}
+                        </Typography>
+                      </Box>
+                    </motion.div>
+                  ))}
+                </Box>
               </Box>
               
-              {/* Progress con valores determinados */}
-              <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-                Con valores específicos
+              {/* Progress determinados con métricas empresariales */}
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontWeight: 500 }}>
+                📊 Progress con Métricas Empresariales
               </Typography>
-              <Box sx={{ display: 'flex', gap: 3, alignItems: 'center', mb: 2 }}>
-                <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-                  <CircularProgress variant="determinate" value={25} size={50} />
-                  <Box
-                    sx={{
-                      top: 0,
-                      left: 0,
-                      bottom: 0,
-                      right: 0,
-                      position: 'absolute',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'center' }}>
+                {[
+                  { value: 25, color: 'warning', label: 'Pendientes', context: '3 de 12' },
+                  { value: 75, color: 'success', label: 'Completados', context: '9 de 12' },
+                  { value: 100, color: 'info', label: 'Total', context: '12 compromisos' }
+                ].map((progress, index) => (
+                  <motion.div
+                    key={progress.label}
+                    initial={{ opacity: 0, rotate: -90 }}
+                    animate={{ opacity: 1, rotate: 0 }}
+                    transition={{ duration: 0.6, delay: index * 0.2 }}
                   >
-                    <Typography variant="caption" component="div" color="text.secondary">
-                      25%
-                    </Typography>
-                  </Box>
-                </Box>
-                <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-                  <CircularProgress variant="determinate" value={75} size={50} color="success" />
-                  <Box
-                    sx={{
-                      top: 0,
-                      left: 0,
-                      bottom: 0,
-                      right: 0,
-                      position: 'absolute',
-                      display: 'flex',
+                    <Box sx={{ 
+                      position: 'relative', 
+                      display: 'inline-flex',
+                      flexDirection: 'column',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Typography variant="caption" component="div" color="text.secondary">
-                      75%
-                    </Typography>
-                  </Box>
-                </Box>
-                <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-                  <CircularProgress variant="determinate" value={100} size={50} color="warning" />
-                  <Box
-                    sx={{
-                      top: 0,
-                      left: 0,
-                      bottom: 0,
-                      right: 0,
-                      position: 'absolute',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Typography variant="caption" component="div" color="text.secondary">
-                      100%
-                    </Typography>
-                  </Box>
-                </Box>
+                      p: 2,
+                      borderRadius: 2,
+                      border: `2px solid ${theme.palette[progress.color].main}20`,
+                      minWidth: 120,
+                      '&:hover': {
+                        backgroundColor: `${theme.palette[progress.color].main}05`,
+                        borderColor: `${theme.palette[progress.color].main}40`,
+                        transform: 'translateY(-2px)',
+                        boxShadow: `0 4px 20px ${theme.palette[progress.color].main}30`,
+                        transition: 'all 0.3s ease-in-out'
+                      }
+                    }}>
+                      <Box sx={{ position: 'relative', display: 'inline-flex', mb: 1.5 }}>
+                        <CircularProgress 
+                          variant="determinate" 
+                          value={progress.value} 
+                          size={56} 
+                          color={progress.color}
+                          thickness={5}
+                          sx={{
+                            filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.15))',
+                            '& .MuiCircularProgress-circle': {
+                              strokeLinecap: 'round',
+                            }
+                          }}
+                        />
+                        <Box sx={{
+                          top: 0, left: 0, bottom: 0, right: 0,
+                          position: 'absolute',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexDirection: 'column'
+                        }}>
+                          <Typography 
+                            variant="caption" 
+                            component="div" 
+                            sx={{ 
+                              color: `${progress.color}.main`, 
+                              fontWeight: 700,
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            {progress.value}%
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Typography variant="caption" sx={{ 
+                          color: `${progress.color}.main`, 
+                          fontWeight: 600,
+                          display: 'block',
+                          mb: 0.5
+                        }}>
+                          {progress.label}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                          {progress.context}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </motion.div>
+                ))}
               </Box>
             </Grid>
             
-            <Grid item xs={12} md={4}>
-              <Typography variant="subtitle2" gutterBottom>Linear Progress</Typography>
-              <Box sx={{ mb: 2 }}>
-                <LinearProgress sx={{ mb: 1, height: 8, borderRadius: 1 }} />
-                <LinearProgress color="secondary" sx={{ mb: 1, height: 8, borderRadius: 1 }} />
-                <LinearProgress color="success" sx={{ mb: 1, height: 8, borderRadius: 1 }} />
-                <LinearProgress color="warning" sx={{ mb: 1, height: 8, borderRadius: 1 }} />
-                <LinearProgress color="error" sx={{ mb: 1, height: 8, borderRadius: 1 }} />
+            <Grid item xs={12} lg={4}>
+              <Typography variant="subtitle1" gutterBottom sx={{ color: 'secondary.main', fontWeight: 600, mb: 3 }}>
+                📊 Linear Progress Empresarial
+              </Typography>
+              
+              {/* Linear progress básico con altura y colores DS 3.0 */}
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontWeight: 500 }}>
+                  Estados de Procesamiento
+                </Typography>
+                {[
+                  { color: 'primary', label: 'Procesando compromisos...', height: 8 },
+                  { color: 'secondary', label: 'Sincronizando empresas...', height: 8 },
+                  { color: 'success', label: 'Validando pagos...', height: 8 },
+                  { color: 'warning', label: 'Generando reportes...', height: 8 },
+                  { color: 'error', label: 'Verificando vencidos...', height: 8 }
+                ].map((progress, index) => (
+                  <motion.div
+                    key={progress.color}
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{ opacity: 1, width: '100%' }}
+                    transition={{ duration: 0.8, delay: index * 0.1 }}
+                  >
+                    <Box sx={{ mb: 2.5 }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ 
+                        display: 'block', 
+                        mb: 1, 
+                        fontSize: '0.75rem',
+                        fontWeight: 500
+                      }}>
+                        {progress.label}
+                      </Typography>
+                      <LinearProgress 
+                        color={progress.color}
+                        sx={{ 
+                          height: progress.height, 
+                          borderRadius: 1,
+                          backgroundColor: `${theme.palette[progress.color].main}15`,
+                          '& .MuiLinearProgress-bar': {
+                            borderRadius: 1,
+                            boxShadow: `0 1px 3px ${theme.palette[progress.color].main}40`
+                          }
+                        }} 
+                      />
+                    </Box>
+                  </motion.div>
+                ))}
               </Box>
               
-              <Typography variant="caption" color="text.secondary" gutterBottom display="block">
-                Con buffer y valores
+              {/* Linear progress con valores determinados */}
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontWeight: 500 }}>
+                📈 Progress con Métricas Específicas
               </Typography>
               <Box>
-                <LinearProgress variant="determinate" value={30} sx={{ mb: 1, height: 6 }} />
-                <LinearProgress variant="buffer" value={60} valueBuffer={80} sx={{ mb: 1, height: 6 }} />
-                <LinearProgress variant="determinate" value={90} color="success" sx={{ height: 6 }} />
+                {[
+                  { value: 35, label: 'Compromisos del mes', color: 'primary', total: '7 de 20' },
+                  { value: 68, buffer: 85, label: 'Pagos procesados', color: 'success', total: '15 de 22' },
+                  { value: 92, label: 'Reportes generados', color: 'info', total: '23 de 25' }
+                ].map((progress, index) => (
+                  <motion.div
+                    key={progress.label}
+                    initial={{ opacity: 0, scaleX: 0 }}
+                    animate={{ opacity: 1, scaleX: 1 }}
+                    transition={{ duration: 0.8, delay: index * 0.2 }}
+                  >
+                    <Box sx={{ mb: 3 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Typography variant="caption" sx={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                          {progress.label}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                          {progress.total}
+                        </Typography>
+                      </Box>
+                      <LinearProgress 
+                        variant={progress.buffer ? "buffer" : "determinate"} 
+                        value={progress.value} 
+                        valueBuffer={progress.buffer}
+                        color={progress.color}
+                        sx={{ 
+                          height: 10, 
+                          borderRadius: 1,
+                          backgroundColor: `${theme.palette[progress.color].main}10`,
+                          '& .MuiLinearProgress-bar': {
+                            borderRadius: 1,
+                          },
+                          '& .MuiLinearProgress-bar1Buffer': {
+                            backgroundColor: `${theme.palette[progress.color].main}`,
+                          },
+                          '& .MuiLinearProgress-bar2Buffer': {
+                            backgroundColor: `${theme.palette[progress.color].main}60`,
+                          }
+                        }} 
+                      />
+                    </Box>
+                  </motion.div>
+                ))}
               </Box>
             </Grid>
             
-            <Grid item xs={12} md={4}>
-              <Typography variant="subtitle2" gutterBottom>Progress con Gradient</Typography>
-              <Box sx={{ mb: 2 }}>
-                {/* Progress personalizado con gradiente */}
-                <Box sx={{ position: 'relative', mb: 2 }}>
-                  <Box
-                    sx={{
-                      width: 80,
-                      height: 80,
+            <Grid item xs={12} lg={4}>
+              <Typography variant="subtitle1" gutterBottom sx={{ color: 'info.main', fontWeight: 600, mb: 3 }}>
+                ✨ Progress Spectacular Avanzado
+              </Typography>
+              
+              <Box sx={{ mb: 4 }}>
+                {/* Progress circular con gradiente spectacular */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.8 }}
+                  whileHover={{ scale: 1.05 }}
+                >
+                  <Box sx={{ 
+                    position: 'relative', 
+                    mb: 4,
+                    display: 'flex',
+                    justifyContent: 'center'
+                  }}>
+                    <Box sx={{
+                      width: 100,
+                      height: 100,
                       borderRadius: '50%',
-                      background: `conic-gradient(${gradients.primary} 70%, rgba(255,255,255,0.1) 70%)`,
+                      background: `conic-gradient(${gradients.primary} 75%, ${theme.palette.divider} 75%)`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      position: 'relative'
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: 60,
-                        height: 60,
+                      position: 'relative',
+                      filter: 'drop-shadow(0 4px 12px rgba(102, 126, 234, 0.3))',
+                      '&:hover': {
+                        filter: 'drop-shadow(0 6px 20px rgba(102, 126, 234, 0.4))',
+                        transition: 'all 0.3s ease-in-out'
+                      }
+                    }}>
+                      <Box sx={{
+                        width: 75,
+                        height: 75,
                         borderRadius: '50%',
                         backgroundColor: 'background.paper',
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                    >
-                      <Typography variant="h6">70%</Typography>
+                        justifyContent: 'center',
+                        flexDirection: 'column',
+                        boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.05)'
+                      }}>
+                        <Typography variant="h5" sx={{ fontWeight: 700, color: 'primary.main' }}>75%</Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>Completado</Typography>
+                      </Box>
                     </Box>
                   </Box>
+                </motion.div>
+                
+                {/* Progress bars con gradientes */}
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontWeight: 500 }}>
+                  🎨 Progress Bars Spectacular
+                </Typography>
+                <Box sx={{ mb: 3 }}>
+                  {[
+                    { gradient: gradients.primary, label: 'Compromisos Activos', width: '80%' },
+                    { gradient: gradients.secondary, label: 'Reportes Generados', width: '65%' },
+                    { gradient: gradients.success, label: 'Pagos Completados', width: '90%' }
+                  ].map((bar, index) => (
+                    <motion.div
+                      key={bar.label}
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: '100%' }}
+                      transition={{ duration: 1, delay: index * 0.2 }}
+                    >
+                      <Box sx={{ mb: 2.5 }}>
+                        <Typography variant="caption" sx={{ 
+                          display: 'block', 
+                          mb: 1, 
+                          fontSize: '0.75rem',
+                          fontWeight: 600 
+                        }}>
+                          {bar.label}
+                        </Typography>
+                        <Box sx={{
+                          height: 12,
+                          borderRadius: 2,
+                          backgroundColor: theme.palette.divider,
+                          overflow: 'hidden',
+                          position: 'relative'
+                        }}>
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: bar.width }}
+                            transition={{ duration: 1.5, delay: index * 0.3, ease: "easeOut" }}
+                            style={{
+                              height: '100%',
+                              background: bar.gradient,
+                              borderRadius: '6px',
+                              boxShadow: `inset 0 1px 2px rgba(255,255,255,0.3), 0 1px 3px rgba(0,0,0,0.1)`,
+                              position: 'relative'
+                            }}
+                          >
+                            <Box sx={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              height: '50%',
+                              background: 'linear-gradient(to bottom, rgba(255,255,255,0.3), transparent)',
+                              borderRadius: '6px 6px 0 0'
+                            }} />
+                          </motion.div>
+                        </Box>
+                      </Box>
+                    </motion.div>
+                  ))}
                 </Box>
                 
-                {/* Barra con gradiente */}
-                <Box sx={{ mb: 1 }}>
-                  <Box
-                    sx={{
-                      height: 10,
-                      borderRadius: 1,
-                      background: gradients.secondary,
-                      position: 'relative',
-                      overflow: 'hidden'
-                    }}
-                  />
-                </Box>
-                
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="caption" color="text.secondary">
-                    Progress Spectacular
+                <Box sx={{ textAlign: 'center', mt: 3 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', fontWeight: 500 }}>
+                    🎨 Progress Spectacular DS 3.0
                   </Typography>
                 </Box>
               </Box>
@@ -4629,47 +5063,291 @@ const DesignSystemTestPage = () => {
         </Paper>
       </Grid>
 
-      {/* Loading States */}
-      <Grid item xs={12} md={6}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Estados de Carga Personalizados</Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                p: 3,
-                background: gradients.primary,
-                color: 'white',
-                borderRadius: 2,
-                position: 'relative',
-                overflow: 'hidden'
-              }}
-            >
-              <CircularProgress sx={{ color: 'white', mr: 2 }} size={20} />
-              <Typography>Cargando compromisos...</Typography>
-            </Box>
-            
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                p: 2,
-                border: '2px dashed',
-                borderColor: 'primary.main',
-                borderRadius: 2,
-                bgcolor: 'primary.light',
-                color: 'primary.main'
-              }}
-            >
-              <Typography variant="body2">
-                🔄 Sincronizando datos con el servidor...
+      {/* Estados Empresariales con Contexto DR Group */}
+      <Grid item xs={12}>
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={6}>
+            <Paper {...cardsUtils.createPaperAccent('success', 'large')} sx={{ mb: 4 }}>
+              <Typography variant="h6" gutterBottom sx={{ color: 'success.main', fontWeight: 600, mb: 2 }}>
+                💼 Estados de Carga Empresariales
               </Typography>
-            </Box>
-          </Box>
-        </Paper>
+              <Typography variant="body2" color="text.secondary" paragraph sx={{ mb: 4 }}>
+                Estados específicos para procesos empresariales DR Group
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {[
+                  {
+                    gradient: gradients.primary,
+                    icon: <Assignment />,
+                    message: 'Cargando compromisos financieros...',
+                    context: 'Sincronizando 15 compromisos activos',
+                    color: 'primary'
+                  },
+                  {
+                    gradient: gradients.success,
+                    icon: <Payment />,
+                    message: 'Procesando pagos pendientes...',
+                    context: 'Validando 8 transacciones',
+                    color: 'success'
+                  },
+                  {
+                    gradient: gradients.info,
+                    icon: <Assessment />,
+                    message: 'Generando reportes ejecutivos...',
+                    context: 'Compilando datos del período',
+                    color: 'info'
+                  },
+                  {
+                    gradient: gradients.warning,
+                    icon: <Schedule />,
+                    message: 'Verificando vencimientos...',
+                    context: 'Revisando alertas automáticas',
+                    color: 'warning'
+                  }
+                ].map((loader, index) => (
+                  <motion.div
+                    key={loader.message}
+                    initial={{ opacity: 0, x: -50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.6, delay: index * 0.3 }}
+                    whileHover={{ scale: 1.01, x: 2 }}
+                  >
+                    <Box sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      p: 3,
+                      background: loader.gradient,
+                      color: 'white',
+                      borderRadius: 2,
+                      position: 'relative',
+                      overflow: 'hidden',
+                      boxShadow: `0 4px 20px ${theme.palette[loader.color].main}30`,
+                      '&:hover': {
+                        boxShadow: `0 6px 25px ${theme.palette[loader.color].main}40`,
+                        transition: 'all 0.3s ease-in-out'
+                      },
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: '50%',
+                        background: 'linear-gradient(to bottom, rgba(255,255,255,0.15), transparent)',
+                        pointerEvents: 'none'
+                      }
+                    }}>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        width: 48,
+                        height: 48,
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(255,255,255,0.2)',
+                        mr: 2,
+                        backdropFilter: 'blur(10px)'
+                      }}>
+                        {React.cloneElement(loader.icon, { 
+                          sx: { color: 'white', fontSize: '1.5rem' } 
+                        })}
+                      </Box>
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Typography variant="body1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                          {loader.message}
+                        </Typography>
+                        <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.75rem' }}>
+                          {loader.context}
+                        </Typography>
+                      </Box>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                      >
+                        <CircularProgress 
+                          sx={{ color: 'rgba(255,255,255,0.8)' }} 
+                          size={24}
+                          thickness={3}
+                        />
+                      </motion.div>
+                    </Box>
+                  </motion.div>
+                ))}
+              </Box>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <Paper {...cardsUtils.createPaperAccent('warning', 'large')}>
+              <Typography variant="h6" gutterBottom sx={{ color: 'warning.main', fontWeight: 600 }}>
+                🔄 Estados de Sincronización
+              </Typography>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                Estados de sincronización y validación en tiempo real
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {/* Estado de sincronización con servidor */}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    p: 3,
+                    border: '2px dashed',
+                    borderColor: 'primary.main',
+                    borderRadius: 2,
+                    bgcolor: `${theme.palette.primary.main}08`,
+                    color: 'primary.main',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}>
+                    <motion.div
+                      animate={{ 
+                        rotate: [0, 360],
+                        scale: [1, 1.1, 1]
+                      }}
+                      transition={{ 
+                        duration: 3,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                      style={{ marginRight: '12px' }}
+                    >
+                      <Sync sx={{ fontSize: '1.5rem' }} />
+                    </motion.div>
+                    <Box>
+                      <Typography variant="body1" sx={{ fontWeight: 600, mb: 0.5 }}>
+                        🔄 Sincronizando con Firebase...
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Actualizando datos en tiempo real
+                      </Typography>
+                    </Box>
+                  </Box>
+                </motion.div>
+                
+                {/* Estados de validación */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                  {[
+                    { label: 'Validando permisos de usuario', progress: 100, color: 'success', icon: <CheckCircle /> },
+                    { label: 'Verificando integridad de datos', progress: 75, color: 'info', icon: <Security /> },
+                    { label: 'Cargando configuraciones empresariales', progress: 50, color: 'warning', icon: <Settings /> },
+                    { label: 'Conectando con servicios externos', progress: 25, color: 'error', icon: <Cloud /> }
+                  ].map((item, index) => (
+                    <motion.div
+                      key={item.label}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: index * 0.15 }}
+                    >
+                      <Box sx={{
+                        p: 2.5,
+                        borderRadius: 1.5,
+                        backgroundColor: `${theme.palette[item.color].main}05`,
+                        border: `1px solid ${theme.palette[item.color].main}20`
+                      }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+                          <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            width: 36,
+                            height: 36,
+                            borderRadius: '50%',
+                            backgroundColor: `${theme.palette[item.color].main}15`,
+                            mr: 2
+                          }}>
+                            {React.cloneElement(item.icon, { 
+                              sx: { color: `${item.color}.main`, fontSize: '1.2rem' } 
+                            })}
+                          </Box>
+                          <Box sx={{ flexGrow: 1 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
+                              {item.label}
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                              <LinearProgress
+                                variant="determinate"
+                                value={item.progress}
+                                color={item.color}
+                                sx={{
+                                  flexGrow: 1,
+                                  height: 6,
+                                  borderRadius: 1,
+                                  backgroundColor: `${theme.palette[item.color].main}15`
+                                }}
+                              />
+                              <Typography variant="caption" color="text.secondary" sx={{ minWidth: '35px', textAlign: 'right' }}>
+                                {item.progress}%
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </Box>
+                      </Box>
+                    </motion.div>
+                  ))}
+                </Box>
+                
+                {/* Estado global del sistema */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.8, delay: 0.5 }}
+                >
+                  <Box sx={{
+                    p: 3.5,
+                    borderRadius: 2,
+                    background: gradients.secondary,
+                    color: 'white',
+                    textAlign: 'center',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    minHeight: 100,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    gap: 1.5
+                  }}>
+                    <motion.div
+                      animate={{
+                        background: [
+                          'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
+                          'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)'
+                        ],
+                        x: ['-100%', '100%']
+                      }}
+                      transition={{
+                        duration: 2,
+                        repeat: Infinity,
+                        ease: "easeInOut"
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        pointerEvents: 'none'
+                      }}
+                    />
+                    <Typography variant="h6" sx={{ fontWeight: 600, position: 'relative', zIndex: 1 }}>
+                      ✨ Sistema DR Group Dashboard
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.9, position: 'relative', zIndex: 1 }}>
+                      Inicializando módulos empresariales...
+                    </Typography>
+                  </Box>
+                </motion.div>
+              </Box>
+            </Paper>
+          </Grid>
+        </Grid>
       </Grid>
     </Grid>
   );
