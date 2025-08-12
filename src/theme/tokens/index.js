@@ -70,6 +70,14 @@ import {
   dividerTokens,
   dataDisplayUtils
 } from './dataDisplay.js';
+import {
+  loadingTokens,
+  loadingUtils
+} from './loading.js';
+import {
+  animationTokens,
+  animationUtils
+} from './animations.js';
 
 // ========================================
 // 🚀 TOKENS PRINCIPALES - SISTEMA COMPLETO
@@ -158,7 +166,20 @@ export const designTokens = {
     snackbar: snackbarTokens,
     banner: bannerTokens,
     animation: overlayAnimationTokens
-  }
+  },
+
+  // 📊 Data Display - Sistema DS 3.0 COMPLETO (NUEVO)
+  dataDisplay: {
+    avatar: avatarTokens,
+    list: listTokens,
+    divider: dividerTokens
+  },
+
+  // ⚡ Loading States - Sistema DS 3.0 COMPLETO (NUEVO)
+  loading: loadingTokens,
+
+  // 🎬 Animations - Sistema DS 3.0 COMPLETO (NUEVO)
+  animations: animationTokens
 };
 
 // ========================================
@@ -182,7 +203,13 @@ export const tokenUtils = {
   overlays: overlayUtils,
   
   // 📊 Data Display - Utilidades DS 3.0 (NUEVO)
-  dataDisplay: dataDisplayUtils
+  dataDisplay: dataDisplayUtils,
+
+  // ⚡ Loading States - Utilidades DS 3.0 (NUEVO)
+  loading: loadingUtils,
+
+  // 🎬 Animations - Utilidades DS 3.0 (NUEVO)
+  animations: animationUtils
 };
 
 // ========================================
@@ -287,6 +314,10 @@ export {
   listTokens,
   dividerTokens,
   dataDisplayUtils,
+  
+  // ⚡ Loading States - DS 3.0 (NUEVO)
+  loadingTokens,
+  loadingUtils,
   
   // Utilidades de formato
   formatCOP,

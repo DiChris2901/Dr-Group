@@ -144,11 +144,15 @@ import {
   Cloud,
   Brightness4,
   Receipt,
-  ExitToApp
+  ExitToApp,
+  AccountBalanceWallet,
+  AutoAwesome,
+  Rocket,
+  Accessibility
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
-import { cardsUtils } from '../theme/tokens';
+import { cardsUtils, designTokens, tokenUtils } from '../theme/tokens';
 import FormulariosUnificadosSimple from '../components/FormulariosUnificadosSimple';
 import ModalesUnifiedPage from './DesignSystemTest/ModalsUnifiedPage';
 
@@ -5355,75 +5359,156 @@ const DesignSystemTestPage = () => {
   const renderAnimationsSection = () => (
     <Grid container spacing={3}>
       <Grid item xs={12}>
-        <Typography variant="h4" gutterBottom>
-          ✨ Animaciones
+        <Typography variant="h4" gutterBottom sx={{ 
+          color: 'text.primary',
+          fontWeight: 600,
+          mb: 3
+        }}>
+          🎬 Animaciones
         </Typography>
       </Grid>
 
-      <Grid item xs={12} md={4}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Hover Effects</Typography>
-          <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-            <Card sx={{ p: 2, cursor: 'pointer', textAlign: 'center' }}>
-              <Typography>Hover para Escalar</Typography>
-            </Card>
-          </motion.div>
-        </Paper>
-      </Grid>
-
-      <Grid item xs={12} md={4}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Rotación</Typography>
-          <motion.div 
-            animate={{ rotate: [0, 10, -10, 0] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          >
-            <Card sx={{ p: 2, textAlign: 'center' }}>
-              <Settings />
-              <Typography>Rotación Continua</Typography>
-            </Card>
-          </motion.div>
-        </Paper>
-      </Grid>
-
-      <Grid item xs={12} md={4}>
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Efectos Gradient</Typography>
-          <Box
-            sx={{
-              background: gradients.primary,
-              borderRadius: 2,
-              p: 2,
-              textAlign: 'center',
-              color: 'white',
-              position: 'relative',
-              overflow: 'hidden'
-            }}
-          >
-            <Typography>Gradiente Spectacular</Typography>
-          </Box>
-        </Paper>
-      </Grid>
-
-      {/* Transiciones de entrada */}
+      {/* Entrance Animations - Simplificado */}
       <Grid item xs={12}>
         <Paper sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom>Animaciones de Entrada</Typography>
+          <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', mb: 2 }}>
+            Efectos de Entrada
+          </Typography>
           <Grid container spacing={2}>
-            {[1, 2, 3, 4].map((item, index) => (
-              <Grid item xs={12} sm={6} md={3} key={item}>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
+            {[
+              { name: 'Fade In', type: 'fade' },
+              { name: 'Slide Up', type: 'fadeUp' },
+              { name: 'Scale', type: 'fadeScale' }
+            ].map((animation, index) => (
+              <Grid item xs={12} sm={4} key={animation.type}>
+                <motion.div 
+                  {...tokenUtils.animations.createEntranceProps(animation.type, index * 0.1)}
                 >
-                  <Card sx={{ p: 2, textAlign: 'center' }}>
-                    <Typography>Item {item}</Typography>
+                  <Card sx={{ 
+                    p: 2, 
+                    textAlign: 'center',
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    '&:hover': {
+                      borderColor: 'primary.main',
+                      transform: 'translateY(-2px)',
+                      transition: 'all 0.2s ease'
+                    }
+                  }}>
+                    <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
+                      {animation.name}
+                    </Typography>
                   </Card>
                 </motion.div>
               </Grid>
             ))}
           </Grid>
+        </Paper>
+      </Grid>
+
+      {/* Hover Effects - Simplificado */}
+      <Grid item xs={12}>
+        <Paper sx={{ p: 3 }}>
+          <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', mb: 2 }}>
+            Efectos de Hover
+          </Typography>
+          <Grid container spacing={2}>
+            {[
+              { name: 'Lift Subtle', type: 'liftSubtle' },
+              { name: 'Lift Standard', type: 'liftStandard' },
+              { name: 'Rotate', type: 'rotateSubtle' }
+            ].map((hover) => (
+              <Grid item xs={12} sm={4} key={hover.type}>
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  {...tokenUtils.animations.createHoverProps(hover.type)}
+                >
+                  <Card sx={{ 
+                    p: 2, 
+                    textAlign: 'center',
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    cursor: 'pointer'
+                  }}>
+                    <Typography variant="subtitle2" sx={{ color: 'text.primary' }}>
+                      {hover.name}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      Hover me!
+                    </Typography>
+                  </Card>
+                </motion.div>
+              </Grid>
+            ))}
+          </Grid>
+        </Paper>
+      </Grid>
+
+      {/* Business Animations - Solo uno como ejemplo */}
+      <Grid item xs={12} md={6}>
+        <Paper sx={{ p: 3 }}>
+          <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', mb: 2 }}>
+            Animación Empresarial
+          </Typography>
+          <motion.div {...tokenUtils.animations.createBusinessAnimation('commitmentCard')}>
+            <Card sx={{ 
+              p: 3, 
+              background: 'linear-gradient(135deg, #667eea20 0%, #764ba220 100%)',
+              border: '1px solid',
+              borderColor: 'primary.main'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <AccountBalanceWallet sx={{ color: 'primary.main' }} />
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                    Compromiso Financiero
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    Con animación empresarial
+                  </Typography>
+                </Box>
+              </Box>
+            </Card>
+          </motion.div>
+        </Paper>
+      </Grid>
+
+      {/* Gradient Animation - Simple */}
+      <Grid item xs={12} md={6}>
+        <Paper sx={{ p: 3 }}>
+          <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', mb: 2 }}>
+            Efecto Gradiente
+          </Typography>
+          <motion.div 
+            animate={{
+              background: [
+                'linear-gradient(45deg, #667eea 0%, #764ba2 100%)',
+                'linear-gradient(45deg, #f093fb 0%, #f5576c 100%)',
+                'linear-gradient(45deg, #667eea 0%, #764ba2 100%)'
+              ]
+            }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              ease: 'linear'
+            }}
+          >
+            <Card sx={{ 
+              p: 3, 
+              color: 'white',
+              textAlign: 'center'
+            }}>
+              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                Gradiente Animado
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                Transición suave de colores
+              </Typography>
+            </Card>
+          </motion.div>
         </Paper>
       </Grid>
     </Grid>

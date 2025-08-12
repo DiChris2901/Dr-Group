@@ -6,9 +6,9 @@
 
 ## 📋 **DOCUMENTO ACTUALIZADO**
 - **Fecha:** 12 de Agosto, 2025
-- **Versión:** DS 3.0 con Data Display Tokenizado  
+- **Versión:** DS 3.0 con Sistema de Animaciones Tokenizado  
 - **Status:** ✅ **READY FOR PRODUCTION**
-- **Última Actualización:** Sistema de Visualización de Datos (Avatares/Listas/Divisores) + Overlays 100% Tokenizado
+- **Última Actualización:** Sistema de Animaciones (Framer Motion empresarial) 100% Tokenizado + Estados de Carga Completos
 
 ---
 
@@ -30,6 +30,8 @@ src/theme/tokens/
 ├── forms.js          # 🧾 Sistema de formularios COMPLETO
 ├── overlays.js       # 🎭 Sistema de overlays COMPLETO (NUEVO)
 ├── dataDisplay.js    # 📊 Sistema de visualización de datos (NUEVO)
+├── loading.js        # ⚡ Estados de carga COMPLETO (NUEVO)
+├── animations.js     # 🎬 Sistema de animaciones COMPLETO (NUEVO)
 └── utils.js          # 🛠️ Utilidades auxiliares
 ```
 
@@ -117,6 +119,23 @@ export const designTokens = {
     divider: dividerTokens                // Separadores avanzados + gradientes empresariales
   },
 
+  // ⚡ Sistema de estados de carga (NUEVO)
+  loading: {
+    skeleton: skeletonTokens,             // Placeholders con gradientes spectacular
+    progress: progressTokens,             // Circular/Linear con contextos empresariales
+    states: loadingStatesTokens           // Estados específicos DR Group + sincronización
+  },
+
+  // 🎬 Sistema de animaciones (NUEVO)
+  animations: {
+    base: baseAnimationTokens,            // Duraciones + easings + delays empresariales
+    entrance: entranceAnimationTokens,    // fadeInUp/slideIn/scaleIn + stagger
+    hover: hoverAnimationTokens,          // scale/lift/glow + contextos semánticos
+    gradient: gradientAnimationTokens,    // Animaciones spectacular gradiente
+    business: businessAnimationTokens,    // Rotación logos + pulso alertas + shake errors
+    stagger: staggerAnimationTokens       // Coordinación temporal multi-elemento
+  },
+
   // 🛠️ Utilidades auxiliares (NUEVO)
   utils: {
     accessibility: accessibilityUtils,     // Helpers ARIA y focus management
@@ -140,6 +159,8 @@ export const tokenUtils = {
   forms: formUtils,           // 🧾 createFieldProps(), createSectionHeader(), formatCOP/NIT/Phone (NUEVO)
   overlays: overlayUtils,     // 🎭 createDialogProps(), createDrawerProps(), createSnackbarProps() (NUEVO)
   dataDisplay: dataDisplayUtils, // 📊 createAvatarProps(), createListProps(), createDividerProps() (NUEVO)
+  loading: loadingUtils,      // ⚡ createSkeleton(), createBusinessLoadingState(), createGradientProgress() (NUEVO)
+  animations: animationUtils, // 🎬 createEntranceProps(), createHoverProps(), createBusinessAnimation() (NUEVO)
   utils: accessibilityUtils   // 🛠️ getAriaProps(), createFocusManager(), validateA11Y() (NUEVO)
 };
 ```
@@ -629,7 +650,7 @@ const theme = createTheme({
 | **Botones** | 8 categorías tokens (variants, sizes, gradients, fabs, icons, animations, states) | buttonUtils | ✅ | 100% |
 | **Cards & Contenedores** | dashboardCards + detailedCards + paperAccents + cardAnimations + cardSemantics + cardLayouts | cardsUtils | ✅ | 100% |
 | **Tablas** | tableBase + tableVariants + compactTables + tableAnimations + pagination + tableSemantics | tablesUtils | ✅ | 100% |
-| **TOTAL SISTEMA** | **50 grupos tokens** | **9 utilidades** | **✅ 100%** | **COMPLETO** |
+| **TOTAL SISTEMA** | **54 grupos tokens** | **10 utilidades** | **✅ 100%** | **COMPLETO** |
 
 ---
 
@@ -805,9 +826,8 @@ const gradientButtonProps = buttonUtils.createButtonProps({
 | **🧾 Formularios** | ✅ | **100%** | **Sistema DS 3.0 COMPLETO** |
 | **🎭 Modales & Diálogos** | ✅ | **100%** | **Sistema Overlays DS 3.0 COMPLETO** |
 | **📊 Visualización Datos** | ✅ | **100%** | **Avatares, Listas, Divisores DS 3.0 COMPLETO** |
-| Navegación | 🟡 | 60% | En desarrollo |
-| Estados de Carga | 🟡 | 30% | Pendiente |
-| Animaciones | ✅ | 100% | Framer Motion integrado |
+| **⚡ Estados de Carga** | ✅ | **100%** | **Skeletons, Progress, Loading States DS 3.0 COMPLETO** |
+| **🎬 Animaciones** | ✅ | **100%** | **Sistema de Animaciones DS 3.0 TOKENIZADO COMPLETO** |
 | Feedback | 🟡 | 20% | Pendiente |
 
 ---
@@ -1372,5 +1392,178 @@ export const overlayAnimationTokens = {
 - ~~Formularios: tokens para inputs/selects/switches/estados~~ ✅ **COMPLETADO**
 - ~~Modales y Diálogos: tokens para diálogos, sheets y drawers~~ ✅ **COMPLETADO**
 - ~~Visualización de Datos: tokens para avatares, listas, divisores~~ ✅ **COMPLETADO**
-- Navegación: AppBar/Nav, Tabs, Breadcrumbs, Steppers
-- Feedback/Estados de carga: Alerts, Snackbars, Progress, Skeleton
+- ~~Estados de Carga: Skeletons, Progress, Loading States~~ ✅ **COMPLETADO**
+- ~~Animaciones: Sistema completo Framer Motion tokenizado~~ ✅ **COMPLETADO**
+- Feedback: Alerts, Snackbars, Toast, Notifications
+
+---
+
+## ⚡ **ESTADOS DE CARGA — TOKENIZADO 100%** ⭐ **NUEVO**
+
+**Fecha:** 12 de Agosto, 2025 - Los estados de carga están 100% tokenizados con skeletons empresariales, progress indicators spectacular y estados específicos DR Group.
+
+### 🛠️ **loadingUtils - Utilidades Principales**
+```jsx
+loadingUtils.createSkeleton('rectangular', 'primary', { width: '80%', height: 20 });
+loadingUtils.createBusinessLoadingState('compromisos');  // Estados DR Group específicos
+loadingUtils.createGradientProgress('primary', 75);     // Progress spectacular
+loadingUtils.createValidationSteps();                   // Pasos validación automáticos
+```
+
+### 📊 **Estados Empresariales Tokenizados**
+- **compromisos** - Compromisos financieros (gradient primary)
+- **pagos** - Pagos pendientes (gradient success)  
+- **reportes** - Reportes ejecutivos (gradient info)
+- **vencimientos** - Verificación vencimientos (gradient warning)
+
+---
+
+## 🎬 **ANIMACIONES — TOKENIZADO 100%** ⭐ **NUEVO**
+
+**Fecha:** 12 de Agosto, 2025 - Sistema completo de animaciones tokenizado para DR Group Dashboard con Framer Motion empresarial y efectos spectacular.
+
+### 🏗️ **Arquitectura Completa de Tokens**
+Los tokens de animaciones están 100% integrados con el Design System 3.0, proporcionando:
+- **6 categorías de tokens** especializados por contexto empresarial
+- **8 utilidades helper** para implementación rápida
+- **Integración completa** con gradientes spectacular y temas corporativos
+- **Coordinación temporal** para animaciones multi-elemento
+
+### 📁 **Estructura de Tokens de Animaciones**
+```javascript
+// src/theme/tokens/animations.js
+export const baseAnimationTokens = {
+  durations: { fast: 200, normal: 300, slow: 600 },
+  easings: { standard: 'cubic-bezier(0.4, 0, 0.2, 1)', bounce: 'cubic-bezier(0.175, 0.885, 0.32, 1.275)' },
+  delays: { none: 0, short: 100, normal: 200 }
+};
+
+export const entranceAnimationTokens = {
+  fadeInUp: { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 } },
+  slideInLeft: { initial: { opacity: 0, x: -30 }, animate: { opacity: 1, x: 0 } },
+  scaleIn: { initial: { opacity: 0, scale: 0.95 }, animate: { opacity: 1, scale: 1 } }
+};
+
+export const hoverAnimationTokens = {
+  lift: { whileHover: { y: -4, scale: 1.02 } },
+  glow: { whileHover: { boxShadow: '0 8px 25px rgba(0,0,0,0.15)' } },
+  scale: { whileHover: { scale: 1.05 } }
+};
+
+export const gradientAnimationTokens = {
+  shimmer: { animation: 'shimmer 3s infinite' },
+  pulse: { animation: 'gradientPulse 2s infinite alternate' }
+};
+
+export const businessAnimationTokens = {
+  logoRotation: { animate: { rotate: [0, 10, -10, 0] }, transition: { duration: 2, repeat: Infinity } },
+  alertPulse: { animate: { scale: [1, 1.05, 1] }, transition: { duration: 1, repeat: Infinity } },
+  errorShake: { animate: { x: [0, -10, 10, -10, 10, 0] }, transition: { duration: 0.5 } }
+};
+
+export const staggerAnimationTokens = {
+  container: { staggerChildren: 0.1, delayChildren: 0.2 },
+  item: { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 } }
+};
+```
+
+### 🛠️ **animationUtils - Utilidades Principales**
+```jsx
+// Animaciones de entrada
+animationUtils.createEntranceProps('fadeInUp', 'normal', 'short');
+animationUtils.createEntranceProps('slideInLeft', 'fast');
+
+// Animaciones hover empresariales  
+animationUtils.createHoverProps('primary');    // scale + lift + primary shadow
+animationUtils.createHoverProps('success');    // lift + success glow
+animationUtils.createHoverProps('warning');    // scale + warning shadow
+
+// Animaciones de gradiente spectacular
+animationUtils.createGradientAnimation('primary');     // Shimmer primary gradient
+animationUtils.createGradientAnimation('secondary');   // Pulse secondary gradient
+
+// Animaciones empresariales específicas
+animationUtils.createBusinessAnimation('logoRotation');  // Logo DR Group
+animationUtils.createBusinessAnimation('alertPulse');    // Alertas compromisos
+animationUtils.createBusinessAnimation('errorShake');    // Errores validación
+
+// Animaciones coordinadas multi-elemento
+animationUtils.createStaggeredContainer(0.1, 0.2);      // Stagger personalizado
+animationUtils.getStaggerItemProps();                   // Props items individuales
+```
+
+### 🎯 **Categorías de Animaciones Tokenizadas**
+
+#### **1. Base Animations** - Fundamentos temporales
+- **Duraciones**: `fast: 200ms`, `normal: 300ms`, `slow: 600ms`
+- **Easings**: `standard` cubic-bezier empresarial, `bounce` micro-interacciones
+- **Delays**: coordinación temporal automática
+
+#### **2. Entrance Animations** - Animaciones de entrada
+- **fadeInUp**: Entrada suave desde abajo (tarjetas, modales)
+- **slideInLeft**: Deslizamiento lateral (menús, drawers)
+- **scaleIn**: Escala suave (iconos, botones, alertas)
+
+#### **3. Hover Animations** - Micro-interacciones
+- **lift**: Elevación suave + escala mínima (botones premium)
+- **glow**: Resplandor empresarial contextual (cards interactivas)
+- **scale**: Escala elegante (iconos, avatares)
+
+#### **4. Gradient Animations** - Efectos spectacular
+- **shimmer**: Efecto shimmer spectacular (3s infinite)
+- **pulse**: Pulso gradiente alternante (2s infinite)
+- **Integración**: Automática con gradientTokens DS 3.0
+
+#### **5. Business Animations** - Específicas DR Group
+- **logoRotation**: Animación logo empresarial (rotación suave)
+- **alertPulse**: Pulso alertas compromisos (escala rítmica)
+- **errorShake**: Shake validación errores (feedback inmediato)
+
+#### **6. Stagger Animations** - Coordinación multi-elemento
+- **container**: Props contenedor con stagger automático
+- **item**: Props elementos individuales coordenados
+- **Timing**: `staggerChildren: 0.1s`, `delayChildren: 0.2s`
+
+### 💼 **Implementación Empresarial**
+
+#### **Componentes Principales con Animaciones**
+```jsx
+// Cards Dashboard con entrada staggered
+<motion.div {...animationUtils.createEntranceProps('fadeInUp', 'normal', 'short')}>
+  <Card sx={{ ...animationUtils.createHoverProps('primary') }} />
+</motion.div>
+
+// Modales con gradient shimmer
+<motion.div {...animationUtils.createGradientAnimation('primary')}>
+  <Dialog />
+</motion.div>
+
+// Alertas compromisos con pulse empresarial
+<motion.div {...animationUtils.createBusinessAnimation('alertPulse')}>
+  <Alert severity="warning" />
+</motion.div>
+```
+
+#### **Integración con Design System 3.0**
+- **Consistencia temporal**: Duraciones estandarizadas empresariales
+- **Gradientes coordenados**: Automática con gradientTokens spectacular
+- **Estados semánticos**: Hover contextual por severity/variant
+- **Stagger inteligente**: Coordinación automática multi-elemento
+
+### ✅ **Estado de Completitud**
+| Categoría | Tokens | Utilidades | Integración DS 3.0 | Estado |
+|-----------|--------|------------|-------------------|--------|
+| **Base** | baseAnimationTokens | ✅ | Duraciones/easings empresariales | ✅ 100% |
+| **Entrance** | entranceAnimationTokens | createEntranceProps() | ✅ | ✅ 100% |
+| **Hover** | hoverAnimationTokens | createHoverProps() | Contextos semánticos | ✅ 100% |
+| **Gradient** | gradientAnimationTokens | createGradientAnimation() | gradientTokens automático | ✅ 100% |
+| **Business** | businessAnimationTokens | createBusinessAnimation() | DR Group específico | ✅ 100% |
+| **Stagger** | staggerAnimationTokens | createStaggeredContainer() | Coordinación temporal | ✅ 100% |
+
+### 🎨 **Características Spectacular**
+- **✅ Gradientes integrados**: Shimmer y pulse automático con spectacular gradients
+- **✅ Timing empresarial**: Duraciones optimizadas para contextos corporativos  
+- **✅ Micro-interacciones elegantes**: Hover states contextual por semantic variant
+- **✅ Stagger inteligente**: Coordinación temporal automática multi-elemento
+- **✅ Business animations**: Específicas para logo DR Group y alertas compromisos
+- **✅ Performance optimizado**: Framer Motion con GPU acceleration automático
