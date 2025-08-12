@@ -53,6 +53,16 @@ import {
   formatDate,
   formatMonth
 } from './forms.js';
+import {
+  modalTokens,
+  dialogHeaderTokens,
+  drawerTokens,
+  snackbarTokens,
+  bannerTokens,
+  overlayAnimationTokens,
+  overlayUtils,
+  overlayThemeComponents
+} from './overlays.js';
 
 // ========================================
 // 🚀 TOKENS PRINCIPALES - SISTEMA COMPLETO
@@ -125,6 +135,16 @@ export const designTokens = {
     feedback: formFeedbackTokens,
     action: formActionTokens,
     mask: formMaskTokens
+  },
+
+  // 🎭 Overlays - Sistema DS 3.0 COMPLETO (NUEVO)
+  overlays: {
+    modal: modalTokens,
+    dialogHeader: dialogHeaderTokens,
+    drawer: drawerTokens,
+    snackbar: snackbarTokens,
+    banner: bannerTokens,
+    animation: overlayAnimationTokens
   }
 };
 
@@ -143,7 +163,10 @@ export const tokenUtils = {
   tables: tablesUtils,
   
   // 🧾 Formularios - Utilidades DS 3.0 (NUEVO)
-  forms: formUtils
+  forms: formUtils,
+  
+  // 🎭 Overlays - Utilidades DS 3.0 (NUEVO)
+  overlays: overlayUtils
 };
 
 // ========================================
@@ -225,6 +248,16 @@ export {
   formActionTokens,
   formMaskTokens,
   formUtils,
+  
+  // 🎭 Overlays DS 3.0 (NUEVO)
+  modalTokens,
+  dialogHeaderTokens,
+  drawerTokens,
+  snackbarTokens,
+  bannerTokens,
+  overlayAnimationTokens,
+  overlayUtils,
+  overlayThemeComponents,
   
   // Utilidades de formato
   formatCOP,

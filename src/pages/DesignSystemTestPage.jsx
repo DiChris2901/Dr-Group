@@ -145,7 +145,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
 import FormulariosUnificadosSimple from '../components/FormulariosUnificadosSimple';
-import ModalesShowcase from '../components/ModalesShowcase';
+import ModalesUnifiedPage from './DesignSystemTest/ModalsUnifiedPage';
 import NavegacionShowcase from '../components/NavegacionShowcase';
 
 const DesignSystemTestPage = () => {
@@ -3971,7 +3971,7 @@ const DesignSystemTestPage = () => {
   };
 
   const renderModalsSection = () => (
-    <ModalesShowcase />
+    <ModalesUnifiedPage />
   );
 
   const renderNavigationSection = () => (

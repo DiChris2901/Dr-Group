@@ -6,9 +6,9 @@
 
 ## 📋 **DOCUMENTO ACTUALIZADO**
 - **Fecha:** 11 de Agosto, 2025
-- **Versión:** DS 3.0 con Formularios Tokenizados  
+- **Versión:** DS 3.0 con Overlays Tokenizados  
 - **Status:** ✅ **READY FOR PRODUCTION**
-- **Última Actualización:** Sistema de Formularios 100% Tokenizado
+- **Última Actualización:** Sistema de Overlays (Modales/Diálogos/Drawers/Snackbars/Banners) 100% Tokenizado
 
 ---
 
@@ -27,7 +27,8 @@ src/theme/tokens/
 ├── buttons.js        # Sistema completo de botones
 ├── cards.js          # Cards y contenedores Paper Acento
 ├── tables.js         # 5 tipos de tablas profesionales
-└── forms.js          # 🧾 Sistema de formularios COMPLETO (NUEVO)
+├── forms.js          # 🧾 Sistema de formularios COMPLETO
+└── overlays.js       # 🎭 Sistema de overlays COMPLETO (NUEVO)
 ```
 
 ### 🎯 **designTokens Object - Estructura Central**
@@ -95,6 +96,16 @@ export const designTokens = {
     feedback: formFeedbackTokens,         // success/warning/error/info
     action: formActionTokens,             // Botones primary/secondary/destructive
     mask: formMaskTokens                  // Formatos COP/NIT/Phone/Date/Month
+  },
+
+  // 🎭 Sistema de overlays (NUEVO)
+  overlays: {
+    modal: modalTokens,                   // Tamaños + sombras + backdrop + z-index
+    dialogHeader: dialogHeaderTokens,     // 5 variantes semánticas + gradientes DS
+    drawer: drawerTokens,                 // 4 tamaños + transiciones + sticky layout
+    snackbar: snackbarTokens,             // 4 severidades + comportamiento + posición
+    banner: bannerTokens,                 // 5 tipos persistentes + Paper Acento
+    animation: overlayAnimationTokens     // Framer Motion configs modal/drawer/snackbar
   }
 };
 ```
@@ -110,7 +121,8 @@ export const tokenUtils = {
   buttons: buttonUtils,        // createButtonProps(), getVariant()
   cards: cardsUtils,          // createMotionCard(), getSemanticContext()
   tables: tablesUtils,        // createBasicTable(), formatCOP()
-  forms: formUtils            // 🧾 createFieldProps(), createSectionHeader(), formatCOP/NIT/Phone (NUEVO)
+  forms: formUtils,           // 🧾 createFieldProps(), createSectionHeader(), formatCOP/NIT/Phone (NUEVO)
+  overlays: overlayUtils      // 🎭 createDialogProps(), createDrawerProps(), createSnackbarProps() (NUEVO)
 };
 ```
 
@@ -773,7 +785,7 @@ const gradientButtonProps = buttonUtils.createButtonProps({
 | Cards & Contenedores | ✅ | 100% | Paper con Acento unificado |
 | **Tablas** | ✅ | **100%** | **5 categorías + Paginación 3.0** |
 | **🧾 Formularios** | ✅ | **100%** | **Sistema DS 3.0 COMPLETO** |
-| Modales & Diálogos | 🟡 | 0% | Pendiente |
+| **🎭 Modales & Diálogos** | ✅ | **100%** | **Sistema Overlays DS 3.0 COMPLETO** |
 | Navegación | 🟡 | 60% | En desarrollo |
 | Data Display | 🟡 | 40% | Pendiente |
 | Estados de Carga | 🟡 | 30% | Pendiente |
@@ -1036,9 +1048,310 @@ const legacySx = {
 
 ---
 
-## 🚀 **Próximos Pasos**
+## 🎭 **MODALES, DIÁLOGOS, DRAWERS Y NOTIFICACIONES — TOKENIZADO 100%** ⭐ **NUEVO**
+
+**Fecha de Tokenización:** 11 de Agosto, 2025  
+Los overlays ahora están 100% tokenizados con el sistema DS 3.0, incluyendo gestión completa de accesibilidad y focus management.
+
+### 📦 **Tokens Implementados**
+
+#### **🎯 modalTokens** - Tamaños y Comportamiento
+```javascript
+export const modalTokens = {
+  sizes: {
+    sm: { maxWidth: '400px', minHeight: '200px', padding: { xs: '16px', sm: '20px', md: '24px' } },
+    md: { maxWidth: '600px', minHeight: '300px', padding: { xs: '20px', sm: '24px', md: '32px' } },
+    lg: { maxWidth: '800px', minHeight: '400px', padding: { xs: '24px', sm: '32px', md: '40px' } },
+    xl: { maxWidth: '1200px', minHeight: '500px', padding: { xs: '32px', sm: '40px', md: '48px' } }
+  },
+  shadows: {
+    level1: '0 4px 12px rgba(0, 0, 0, 0.08)',    // Hover suave
+    level2: '0 8px 32px rgba(0, 0, 0, 0.12)',    // Modal estándar  
+    level3: '0 16px 64px rgba(0, 0, 0, 0.16)',   // Modal crítico
+    level4: '0 24px 96px rgba(0, 0, 0, 0.20)'    // Modal xl
+  },
+  backdrop: {
+    backgroundColor: alpha('#000', 0.5),
+    backdropFilter: 'blur(4px)',
+    zIndex: 1300
+  }
+};
+```
+
+#### **🗣️ dialogHeaderTokens** - Variantes Semánticas
+```javascript
+export const dialogHeaderTokens = {
+  variants: {
+    confirmation: {
+      gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      accentColor: 'primary.main',
+      typography: 'h4',  // 24px
+      iconSize: 'medium' // 24px
+    },
+    destructive: {
+      gradient: 'linear-gradient(135deg, #ff6b6b 0%, #d63031 100%)',
+      accentColor: 'error.main',
+      typography: 'h4',  // Emphasis crítico
+      border: '4px solid',
+      borderColor: 'error.main'
+    },
+    transaction: {
+      gradient: 'linear-gradient(135deg, #00b894 0%, #00a085 100%)',
+      accentColor: 'success.main',
+      typography: 'h4'   // Importante
+    },
+    informative: {
+      gradient: 'linear-gradient(135deg, #74b9ff 0%, #0984e3 100%)',
+      accentColor: 'info.main',
+      typography: 'h5'   // Menos énfasis
+    },
+    warning: {
+      gradient: 'linear-gradient(135deg, #fdcb6e 0%, #e17055 100%)',
+      accentColor: 'warning.main',
+      typography: 'h5'
+    }
+  }
+};
+```
+
+#### **📂 drawerTokens** - Paneles Responsivos
+```javascript
+export const drawerTokens = {
+  widths: {
+    navigation: { xs: '280px', sm: '300px', md: '320px' },
+    form: { xs: '100vw', sm: '400px', md: '480px', lg: '500px' },
+    details: { xs: '100vw', sm: '500px', md: '600px', lg: '700px' },
+    fullscreen: { xs: '100vw', sm: '100vw', md: '800px', lg: '900px' }
+  },
+  layout: {
+    header: { minHeight: '64px', borderBottom: '1px solid', borderBottomColor: 'divider' },
+    body: { flex: 1, padding: '24px', overflowY: 'auto' },
+    footer: { padding: '16px 24px', borderTop: '1px solid', borderTopColor: 'divider', position: 'sticky', bottom: 0 }
+  }
+};
+```
+
+#### **🔔 snackbarTokens** - Sistema de Notificaciones
+```javascript
+export const snackbarTokens = {
+  variants: {
+    success: { backgroundColor: 'success.main', color: 'success.contrastText' },
+    warning: { backgroundColor: 'warning.main', color: 'warning.contrastText' },
+    error: { backgroundColor: 'error.main', color: 'error.contrastText' },
+    info: { backgroundColor: 'info.main', color: 'info.contrastText' }
+  },
+  behavior: {
+    autoHideDuration: { short: 3000, medium: 4000, long: 6000 },
+    maxVisible: 3,
+    stackSpacing: 70
+  },
+  positions: {
+    bottomRight: { vertical: 'bottom', horizontal: 'right' },
+    bottomLeft: { vertical: 'bottom', horizontal: 'left' },
+    topCenter: { vertical: 'top', horizontal: 'center' }
+  }
+};
+```
+
+#### **📢 bannerTokens** - Notificaciones Persistentes
+```javascript
+export const bannerTokens = {
+  types: {
+    info: { backgroundColor: 'info.50', borderColor: 'info.main', textColor: 'info.dark' },
+    warning: { backgroundColor: 'warning.50', borderColor: 'warning.main', textColor: 'warning.dark' },
+    error: { backgroundColor: 'error.50', borderColor: 'error.main', textColor: 'error.dark' },
+    success: { backgroundColor: 'success.50', borderColor: 'success.main', textColor: 'success.dark' },
+    cta: { backgroundColor: 'primary.50', borderColor: 'primary.main', textColor: 'primary.dark' }
+  },
+  layout: {
+    padding: '16px 20px',
+    borderRadius: '8px',
+    borderLeft: '4px solid',  // Paper con Acento DS 3.0
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  }
+};
+```
+
+### �️ **Utilidades overlayUtils**
+
+#### **createDialogProps(variant, size)**
+```jsx
+// Crea props consistentes para Dialog/Modal
+const dialogProps = overlayUtils.createDialogProps('destructive', 'md');
+<Dialog {...dialogProps} open={open} onClose={handleClose}>
+```
+
+#### **createDrawerProps(anchor, size)**
+```jsx  
+// Crea props consistentes para Drawer
+const drawerProps = overlayUtils.createDrawerProps('right', 'form');
+<Drawer {...drawerProps} open={open} onClose={handleClose}>
+  <Box {...overlayUtils.createDrawerHeaderProps()}>Header Sticky</Box>
+  <Box {...overlayUtils.createDrawerBodyProps()}>Content Scrolleable</Box>
+  <Box {...overlayUtils.createDrawerFooterProps()}>Footer Sticky</Box>
+</Drawer>
+```
+
+#### **createSnackbarProps(severity, position)**
+```jsx
+// Crea props consistentes para Snackbar/Alert
+const { snackbarProps, alertProps } = overlayUtils.createSnackbarProps('success', 'bottomRight');
+<Snackbar {...snackbarProps}>
+  <Alert {...alertProps}>Mensaje exitoso</Alert>
+</Snackbar>
+```
+
+#### **createBannerProps(type)**
+```jsx
+// Crea props consistentes para Banner persistente
+<Paper {...overlayUtils.createBannerProps('info')}>
+  <InfoOutlined className="banner-icon" />
+  <Box>Mensaje informativo</Box>
+  <IconButton className="banner-close" onClick={handleClose}>
+    <Close />
+  </IconButton>
+</Paper>
+```
+
+### 🔒 **Sistema de Accesibilidad Integrado**
+
+#### **getAriaDialogProps(titleId, descId, destructive?)**
+```jsx
+// Helper automático para ARIA
+const ariaProps = overlayUtils.getAriaDialogProps('dialog-title', 'dialog-desc', true);
+<Dialog {...ariaProps}>  // role="alertdialog" para destructivos
+```
+
+#### **Focus Management Completo**
+- ✅ **Focus trap**: Focus contenido dentro del modal
+- ✅ **Return focus**: Retorno automático al trigger al cerrar
+- ✅ **ESC key**: Cierre con Escape habilitado
+- ✅ **Tab navigation**: Navegación por teclado completa
+- ✅ **Screen reader**: Compatibilidad NVDA/JAWS/VoiceOver
+
+### 📊 **Casos de Uso Implementados**
+
+#### **🎯 Confirmaciones**
+| Tipo | Variant | Uso Recomendado | Accesibilidad |
+|------|---------|-----------------|---------------|
+| Simple | `confirmation` | Guardar/Actualizar | `role="dialog"` |
+| Destructiva | `destructive` | Eliminar/Cancelar | `role="alertdialog"` |  
+| Transacción | `transaction` | Pagos/Transferencias | `role="dialog"` |
+| Informativa | `informative` | Éxito/Info/Detalles | `role="dialog"` |
+| Advertencia | `warning` | Validaciones/Alertas | `role="dialog"` |
+
+#### **📝 Formularios en Modal**  
+```jsx
+// Login modal con validación
+<Dialog {...overlayUtils.createDialogProps('confirmation', 'sm')}>
+  <DialogTitle {...overlayUtils.createDialogHeaderProps('confirmation')}>
+    Iniciar Sesión
+  </DialogTitle>
+  <DialogContent>
+    <TextField {...formUtils.createFieldProps({ type: 'email', size: 'large' })} />
+    <TextField {...formUtils.createFieldProps({ type: 'password', size: 'large' })} />
+  </DialogContent>
+  <DialogActions>
+    <Button {...formUtils.createButtonProps('secondary', 'medium')}>Cancelar</Button>
+    <Button {...formUtils.createButtonProps('primary', 'medium')}>Ingresar</Button>
+  </DialogActions>
+</Dialog>
+```
+
+#### **📂 Drawers Empresariales**
+```jsx
+// Navigation drawer
+<Drawer {...overlayUtils.createDrawerProps('left', 'navigation')}>
+
+// Form drawer  
+<Drawer {...overlayUtils.createDrawerProps('right', 'form')}>
+
+// Details drawer
+<Drawer {...overlayUtils.createDrawerProps('right', 'details')}>
+```
+
+### 📋 **Tabla de Accesibilidad**
+
+| Elemento | Roles ARIA | Focus | Keyboard | Screen Reader |
+|----------|------------|-------|----------|---------------|
+| **Modal Simple** | `dialog` | ✅ Trap | ✅ ESC/Tab | ✅ Completo |
+| **Modal Destructivo** | `alertdialog` | ✅ Trap | ✅ ESC/Enter | ✅ Completo |
+| **Drawer** | `none` | ✅ Trap | ✅ ESC/Tab | ✅ Completo |
+| **Snackbar** | `alert` | ❌ No | ✅ Visible | ✅ Announce |
+| **Banner** | `region` | ❌ No | ✅ Focusable | ✅ Completo |
+
+### 🎬 **Animaciones Framer Motion**
+```javascript
+// Configuraciones automáticas incluidas
+export const overlayAnimationTokens = {
+  modal: {
+    initial: { opacity: 0, scale: 0.95, y: 20 },
+    animate: { opacity: 1, scale: 1, y: 0 },
+    exit: { opacity: 0, scale: 0.95, y: -10 },
+    transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] }
+  },
+  drawer: {
+    right: { initial: { x: '100%' }, animate: { x: 0 }, exit: { x: '100%' } },
+    left: { initial: { x: '-100%' }, animate: { x: 0 }, exit: { x: '-100%' } }
+  },
+  snackbar: {
+    initial: { opacity: 0, x: 300, scale: 0.9 },
+    animate: { opacity: 1, x: 0, scale: 1 },
+    exit: { opacity: 0, x: 300, scale: 0.9 }
+  }
+};
+```
+
+### 🔄 **ANTES → DESPUÉS: Refactoring Completo**
+
+#### **ANTES: Modal Manual**
+```jsx
+<Dialog 
+  maxWidth="sm" 
+  fullWidth
+  sx={{ '& .MuiDialog-paper': { borderRadius: 2, boxShadow: '0 8px 32px rgba(0,0,0,0.12)' } }}
+>
+  <DialogTitle sx={{ pb: 1 }}>
+    <Typography variant="h5" sx={{ fontWeight: 600 }}>Confirmar</Typography>
+  </DialogTitle>
+```
+
+#### **DESPUÉS: Tokens DS 3.0**
+```jsx
+<Dialog {...overlayUtils.createDialogProps('confirmation', 'md')}>
+  <DialogTitle {...overlayUtils.createDialogHeaderProps('confirmation')}>
+    <Typography variant="h4" sx={{ fontWeight: 600, color: 'inherit' }}>Confirmar</Typography>
+  </DialogTitle>
+```
+
+#### **ANTES: Drawer Manual**
+```jsx
+<Drawer 
+  anchor="right"
+  sx={{ '& .MuiDrawer-paper': { width: 400, boxShadow: '0 8px 32px rgba(0,0,0,0.12)' } }}
+>
+  <Box sx={{ p: 3, borderBottom: '1px solid', borderColor: 'divider' }}>Header</Box>
+  <Box sx={{ flex: 1, p: 3 }}>Content</Box>
+  <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>Footer</Box>
+</Drawer>
+```
+
+#### **DESPUÉS: Tokens DS 3.0**
+```jsx
+<Drawer {...overlayUtils.createDrawerProps('right', 'form')}>
+  <Box {...overlayUtils.createDrawerHeaderProps()}>Header Sticky</Box>
+  <Box {...overlayUtils.createDrawerBodyProps()}>Content Scrolleable</Box>
+  <Box {...overlayUtils.createDrawerFooterProps()}>Footer Sticky</Box>
+</Drawer>
+```
+
+---
+
+## �🚀 **Próximos Pasos**
 
 - ~~Formularios: tokens para inputs/selects/switches/estados~~ ✅ **COMPLETADO**
-- Modales y Diálogos: tokens para diálogos, sheets y drawers
+- ~~Modales y Diálogos: tokens para diálogos, sheets y drawers~~ ✅ **COMPLETADO**
 - Navegación: AppBar/Nav, Tabs, Breadcrumbs
 - Feedback/Estados de carga: Alerts, Snackbars, Progress, Skeleton
