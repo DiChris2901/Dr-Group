@@ -289,14 +289,15 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
 
   // Configuración de paginación por modo de vista
   const getPaginationConfig = () => {
+    // Máximo 9 registros por página sin importar el modo de vista
     switch (effectiveViewMode) {
       case 'table': 
-        return { itemsPerPage: 20, label: 'filas por página' };
+        return { itemsPerPage: 9, label: 'filas por página' };
       case 'list': 
-        return { itemsPerPage: 15, label: 'elementos por página' };
+        return { itemsPerPage: 9, label: 'elementos por página' };
       case 'cards': 
       default: 
-        return { itemsPerPage: 12, label: 'tarjetas por página' };
+        return { itemsPerPage: 9, label: 'tarjetas por página' };
     }
   };
 
