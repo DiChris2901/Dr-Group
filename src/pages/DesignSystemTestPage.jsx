@@ -163,7 +163,8 @@ import {
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
-import { cardsUtils, designTokens, tokenUtils } from '../theme/tokens';
+import { cardsUtils, unifiedTokens, tokenUtils } from '../theme/tokens';
+import { useTokens, useTableTokens } from '../hooks/useTokens';
 import FormulariosUnificadosSimple from '../components/FormulariosUnificadosSimple';
 import ModalesUnifiedPage from './DesignSystemTest/ModalsUnifiedPage';
 

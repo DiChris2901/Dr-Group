@@ -405,23 +405,14 @@ const TableHeaderDS3 = () => {
         gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 0.8fr',
         gap: 2,
         p: 3,
-        backgroundColor: alpha => alpha.palette.mode === 'dark' 
-          ? 'rgba(30, 41, 59, 0.95)' 
-          : 'rgba(255, 255, 255, 0.95)',
-        borderRadius: '1px 1px 0 0',
-        border: theme => theme.palette.mode === 'dark'
-          ? '1px solid rgba(148, 163, 184, 0.2)'
-          : '1px solid rgba(0, 0, 0, 0.08)',
-        borderBottom: theme => theme.palette.mode === 'dark'
-          ? '2px solid rgba(148, 163, 184, 0.3)'
-          : '2px solid rgba(0, 0, 0, 0.12)',
-        backdropFilter: 'blur(20px)',
+        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        borderRadius: '12px 12px 0 0',
+        border: '1px solid rgba(0, 0, 0, 0.08)',
+        borderBottom: '2px solid rgba(0, 0, 0, 0.12)',
+        backdropFilter: 'blur(10px)',
         position: 'sticky',
         top: 0,
-        zIndex: 10,
-        boxShadow: theme => theme.palette.mode === 'dark'
-          ? '0 4px 20px rgba(0, 0, 0, 0.4)'
-          : '0 4px 20px rgba(0, 0, 0, 0.1)'
+        zIndex: 10
       }}>
         {[
           { label: 'ESTADO', icon: '📊' },
@@ -447,26 +438,16 @@ const TableHeaderDS3 = () => {
               <Typography
                 variant="overline"
                 sx={{
-                  fontWeight: 600,
+                  fontWeight: 800,
                   fontSize: '0.8rem',
                   color: 'text.primary',
-                  letterSpacing: '0.8px',
+                  letterSpacing: '1.2px',
                   lineHeight: 1,
                   textTransform: 'uppercase',
-                  opacity: 0.9,
-                  textShadow: theme => theme.palette.mode === 'dark'
-                    ? '0 1px 2px rgba(0, 0, 0, 0.3)'
-                    : 'none',
-                  filter: theme => theme.palette.mode === 'dark'
-                    ? 'brightness(1.1)'
-                    : 'none'
+                  opacity: 0.85
                 }}
               >
-                <span style={{ 
-                  marginRight: 6, 
-                  opacity: 0.9,
-                  filter: 'brightness(1.1)'
-                }}>{column.icon}</span>
+                <span style={{ marginRight: 6, opacity: 0.7 }}>{column.icon}</span>
                 {column.label}
               </Typography>
             </Box>
@@ -625,31 +606,31 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   const getCardSizeStyles = () => {
     const base = {
       small: { 
-        minHeight: 160, 
+        minHeight: 180, 
         padding: 1.5, 
-        fontSize: '0.85rem',
-        titleSize: '0.95rem',
-        subtitleSize: '0.75rem',
-        captionSize: '0.65rem',
-        amountSize: '1rem'
-      },
-      medium: { 
-        minHeight: 190, 
-        padding: 2, 
         fontSize: '0.9rem',
         titleSize: '1rem',
         subtitleSize: '0.8rem',
         captionSize: '0.7rem',
-        amountSize: '1.15rem'
+        amountSize: '1.1rem'
       },
-      large: { 
-        minHeight: 240, 
-        padding: 3, 
+      medium: { 
+        minHeight: 220, 
+        padding: 2, 
         fontSize: '0.95rem',
         titleSize: '1.1rem',
         subtitleSize: '0.85rem',
         captionSize: '0.75rem',
-        amountSize: '1.3rem'
+        amountSize: '1.25rem'
+      },
+      large: { 
+        minHeight: 280, 
+        padding: 3, 
+        fontSize: '1rem',
+        titleSize: '1.2rem',
+        subtitleSize: '0.9rem',
+        captionSize: '0.8rem',
+        amountSize: '1.4rem'
       }
     };
     return base[cardSize] || base.medium;
@@ -1226,51 +1207,13 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     <Box>
       {/* Contenido principal según modo de vista */}
       {viewMode === 'list' ? (
-        // Vista Lista Spectacular - Design System Premium v3.0
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
-        >
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: spacing.grid,
-            position: 'relative',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: '-20px',
-              left: '-20px',
-              right: '-20px',
-              bottom: '-20px',
-              background: `radial-gradient(ellipse at top center, 
-                ${alpha(theme.palette.primary.main, 0.04)} 0%, 
-                transparent 50%), 
-                radial-gradient(ellipse at bottom center, 
-                ${alpha(theme.palette.secondary.main, 0.04)} 0%, 
-                transparent 50%)`,
-              pointerEvents: 'none',
-              zIndex: 0,
-              borderRadius: 3
-            },
-            '&::after': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: `linear-gradient(135deg, 
-                transparent 0%, 
-                ${alpha(theme.palette.background.paper, 0.02)} 25%, 
-                transparent 50%, 
-                ${alpha(theme.palette.primary.main, 0.01)} 75%, 
-                transparent 100%)`,
-              pointerEvents: 'none',
-              zIndex: 0
-            }
-          }}>
+        // Vista Lista Spectacular - Design System Premium v2.2
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: spacing.grid,
+          position: 'relative'
+        }}>
           {commitments.map((commitment, index) => {
             const statusInfo = getStatusInfo(commitment);
             const dueDate = commitment.dueDate;
@@ -1285,37 +1228,13 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                   position: 'relative',
                   overflow: 'hidden',
                   background: theme.palette.mode === 'dark'
-                    ? `linear-gradient(145deg, 
-                        ${alpha(theme.palette.background.paper, 0.98)} 0%, 
-                        ${alpha(theme.palette.background.paper, 0.95)} 100%)`
-                    : `linear-gradient(145deg, 
-                        ${alpha('#ffffff', 0.98)} 0%, 
-                        ${alpha('#ffffff', 0.95)} 100%)`,
-                  backdropFilter: 'blur(10px)',
+                    ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
+                    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+                  backdropFilter: 'blur(20px)',
                   border: `1px solid ${alpha(statusInfo.color, 0.15)}`,
                   borderRadius: 1,
-                  boxShadow: `
-                    0 2px 8px ${alpha(theme.palette.grey[900], 0.08)},
-                    0 1px 4px ${alpha(theme.palette.grey[500], 0.05)}`,
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
                   '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: -2,
-                    left: -2,
-                    right: -2,
-                    bottom: -2,
-                    background: `linear-gradient(45deg, 
-                      transparent 0%, 
-                      ${alpha(theme.palette.primary.main, 0.1)} 25%, 
-                      ${alpha(theme.palette.secondary.main, 0.1)} 75%, 
-                      transparent 100%)`,
-                    borderRadius: 'inherit',
-                    zIndex: -1,
-                    opacity: 0,
-                    transition: 'opacity 0.5s ease'
-                  },
-                  '&::after': {
                     content: '""',
                     position: 'absolute',
                     top: 0,
@@ -1327,12 +1246,9 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                     zIndex: 1
                   },
                   '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: `
-                      0 8px 16px ${alpha(theme.palette.grey[900], 0.12)}, 
-                      0 4px 8px ${alpha(statusInfo.color, 0.15)}`,
-                    borderColor: alpha(statusInfo.color, 0.3),
-                    '&::after': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: `0 8px 24px ${alpha(theme.palette.grey[500], 0.12)}`,
+                    '&::before': {
                       left: '100%'
                     }
                   }
@@ -1342,12 +1258,12 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                   display: 'flex', 
                   alignItems: 'center', 
                   justifyContent: 'space-between',
-                  p: 1.5,
+                  p: spacing.padding,
                   position: 'relative',
                   zIndex: 2
                 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                    <Box sx={{ mr: 1.5 }}>
+                    <Box sx={{ mr: spacing.card }}>
                       {showTooltips ? (
                         <Tooltip title={`Estado: ${statusInfo.label}`} arrow>
                           <Chip 
@@ -1374,14 +1290,14 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         variant="h6" 
                         sx={{ 
                           fontWeight: 600,
-                          mb: 0.25, 
+                          mb: 0.5, 
                           fontSize: cardStyles.titleSize,
-                          color: theme.palette.text.primary,
-                          lineHeight: 1.2,
-                          transition: 'color 0.3s ease',
-                          '&:hover': {
-                            color: theme.palette.primary.main
-                          }
+                          background: `linear-gradient(135deg, ${theme.palette.text.primary}, ${alpha(theme.palette.primary.main, 0.8)})`,
+                          backgroundClip: 'text',
+                          WebkitBackgroundClip: 'text',
+                          color: 'transparent',
+                          textShadow: theme.palette.mode === 'dark' ? '0 0 20px rgba(255,255,255,0.1)' : 'none',
+                          lineHeight: 1.3
                         }}
                       >
                         {commitment.description}
@@ -1389,30 +1305,16 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       <Box sx={{ 
                         display: 'flex', 
                         alignItems: 'center',
-                        gap: 0.75,
+                        gap: 1,
                         p: 1,
                         borderRadius: 1,
-                        background: `linear-gradient(135deg, 
-                          ${alpha(theme.palette.info.main, 0.06)} 0%, 
-                          ${alpha(theme.palette.background.paper, 0.8)} 100%)`,
-                        border: `1px solid ${alpha(theme.palette.info.main, 0.12)}`,
-                        transition: 'all 0.3s ease',
-                        '&:hover': {
-                          background: `linear-gradient(135deg, 
-                            ${alpha(theme.palette.info.main, 0.08)} 0%, 
-                            ${alpha(theme.palette.background.paper, 0.9)} 100%)`,
-                          borderColor: alpha(theme.palette.info.main, 0.2)
-                        }
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.05)}, ${alpha(theme.palette.info.light, 0.02)})`,
+                        border: `1px solid ${alpha(theme.palette.info.main, 0.1)}`
                       }}>
                         <Business sx={{ 
-                          fontSize: 14, 
+                          fontSize: 16, 
                           color: theme.palette.info.main,
-                          filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.1))',
-                          transition: 'all 0.3s ease',
-                          '&:hover': {
-                            transform: 'scale(1.05)',
-                            filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.15))'
-                          }
+                          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
                         }} />
                         <Typography 
                           variant="body2" 
@@ -1420,7 +1322,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           sx={{ 
                             fontSize: cardStyles.subtitleSize,
                             fontWeight: 500,
-                            lineHeight: 1.3
+                            lineHeight: 1.4
                           }}
                         >
                           {commitment.companyName}
@@ -1428,12 +1330,12 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         <Box sx={{ 
                           display: 'flex', 
                           alignItems: 'center',
-                          ml: 1.5,
-                          pl: 1.5,
-                          borderLeft: `1px solid ${alpha(theme.palette.divider, 0.2)}`
+                          ml: 2,
+                          pl: 2,
+                          borderLeft: `1px solid ${alpha(theme.palette.divider, 0.3)}`
                         }}>
                           <CalendarToday sx={{ 
-                            fontSize: 14, 
+                            fontSize: 16, 
                             mr: 0.5,
                             color: theme.palette.warning.main,
                             filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
@@ -1454,28 +1356,24 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                     
                     <Box sx={{ 
                       textAlign: 'right', 
-                      mr: 1,
-                      p: 1.25,
+                      mr: spacing.card,
+                      p: 2,
                       borderRadius: 1,
-                      background: `${alpha(theme.palette.background.paper, 0.6)}`,
-                      border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                      transition: 'all 0.3s ease',
-                      backdropFilter: 'blur(8px)',
-                      '&:hover': {
-                        background: `${alpha(theme.palette.background.paper, 0.8)}`,
-                        borderColor: alpha(theme.palette.primary.main, 0.2),
-                        transform: 'translateY(-1px)'
-                      }
+                      background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.05)}, ${alpha(theme.palette.success.light, 0.02)})`,
+                      border: `1px solid ${alpha(theme.palette.success.main, 0.1)}`
                     }}>
                       <Typography 
                         variant="h6" 
                         sx={{ 
-                          fontWeight: 800,
+                          fontWeight: 700,
                           fontSize: cardStyles.amountSize,
-                          color: theme.palette.primary.main,
-                          mb: 0.25,
-                          lineHeight: 1.1,
-                          fontFamily: 'system-ui, -apple-system, sans-serif'
+                          background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                          backgroundClip: 'text',
+                          WebkitBackgroundClip: 'text',
+                          color: 'transparent',
+                          textShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                          mb: 0.5,
+                          lineHeight: 1.2
                         }}
                       >
                         <CountingNumber end={commitment.amount} />
@@ -1484,9 +1382,10 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         variant="caption" 
                         color={commitment.paid ? 'success.main' : (isOverdue ? 'error.main' : isDueSoon ? 'warning.main' : 'text.secondary')}
                         sx={{ 
-                          fontSize: '0.65rem',
+                          fontSize: cardStyles.captionSize,
                           fontWeight: 600,
-                          lineHeight: 1.1
+                          textShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                          lineHeight: 1.3
                         }}
                       >
                         {commitment.paid 
@@ -1591,30 +1490,18 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
             return animationsEnabled ? (
               <motion.div
                 key={commitment.id}
-                initial={{ 
-                  opacity: 0, 
-                  y: 20, 
-                  scale: 0.95
-                }}
-                animate={{ 
-                  opacity: 1, 
-                  y: 0, 
-                  scale: 1
-                }}
+                initial={{ opacity: 0, x: -30, scale: 0.95 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
                 transition={{ 
-                  duration: 0.4, 
+                  duration: 0.6, 
                   delay: index * 0.08,
-                  ease: [0.4, 0, 0.2, 1]
+                  type: "spring",
+                  stiffness: 100,
+                  damping: 12
                 }}
                 whileHover={{ 
-                  y: -6,
-                  transition: { 
-                    duration: 0.3, 
-                    ease: [0.4, 0, 0.2, 1]
-                  }
-                }}
-                style={{
-                  position: 'relative'
+                  scale: 1.01,
+                  transition: { duration: 0.3, type: "spring", stiffness: 400 }
                 }}
               >
                 {cardContent}
@@ -1625,21 +1512,13 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
               </Box>
             );
           })}
-          </Box>
-        </motion.div>
+        </Box>
       ) : viewMode === 'table' ? (
         // Vista Tabla Profesional DS 3.0 - ACTUALIZADA CON TOKENS MEJORADOS
-        <Box
-          component={motion.div}
+        <motion.div
           initial={animationsEnabled ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
-          sx={{
-            border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-            borderRadius: 1,
-            overflow: 'hidden',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
-          }}
         >
           {/* Header mejorado DS 3.0 */}
           <TableHeaderDS3 />
@@ -1650,7 +1529,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
             flexDirection: 'column',
             gap: 1,
             backgroundColor: 'background.paper',
-            borderRadius: '0 0 1px 1px',
+            borderRadius: '0 0 12px 12px',
+            border: '1px solid rgba(0, 0, 0, 0.08)',
             borderTop: 'none'
           }}>
             {commitments.map((commitment, index) => {
@@ -1694,7 +1574,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       <Typography 
                         variant="body2" 
                         sx={{ 
-                          fontWeight: 500,
+                          fontWeight: 600,
                           mb: 0.5,
                           color: 'text.primary',
                           fontSize: '0.9rem'
@@ -1870,7 +1750,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
               );
             })}
           </Box>
-        </Box>
+        </motion.div>
       ) : (
         // Vista Cards Spectacular - Design System Premium v2.2
         <Grid container spacing={spacing.grid}>
@@ -2115,10 +1995,10 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           }}
                         >
                           <Business sx={{ 
-                            fontSize: 14, 
-                            mr: 1, 
+                            fontSize: 18, 
+                            mr: 1.5, 
                             color: theme.palette.info.main,
-                            filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.1))'
+                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
                           }} />
                           <Typography 
                             variant="body2" 
@@ -2128,7 +2008,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                               fontSize: cardStyles.subtitleSize,
                               fontWeight: 500,
                               flex: 1,
-                              lineHeight: 1.3
+                              lineHeight: 1.4
                             }}
                           >
                             {commitment.companyName || commitment.company || 'Sin empresa'}
@@ -2166,10 +2046,10 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           }}
                         >
                           <CalendarToday sx={{ 
-                            fontSize: 14, 
-                            mr: 1, 
+                            fontSize: 18, 
+                            mr: 1.5, 
                             color: theme.palette.warning.main,
-                            filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.1))'
+                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
                           }} />
                           <Typography 
                             variant="body2" 
@@ -2188,11 +2068,15 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           variant="h5" 
                           sx={{ 
                             fontSize: cardStyles.amountSize,
-                            fontWeight: 800,
-                            color: theme.palette.primary.main,
+                            fontWeight: 700,
+                            background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                            backgroundClip: 'text',
+                            WebkitBackgroundClip: 'text',
+                            color: 'transparent',
+                            textShadow: '0 4px 8px rgba(0,0,0,0.1)',
                             mb: 1,
-                            lineHeight: 1.2,
-                            fontFamily: 'system-ui, -apple-system, sans-serif'
+                            transition: 'all 0.3s ease',
+                            lineHeight: 1.2
                           }}
                         >
                           {formatCurrency(commitment.amount)}
@@ -2400,7 +2284,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         noWrap 
                         sx={{ 
                           fontSize: cardStyles.titleSize,
-                          fontWeight: 500,
+                          fontWeight: 600,
                           background: `linear-gradient(135deg, ${theme.palette.text.primary}, ${alpha(theme.palette.primary.main, 0.8)})`,
                           backgroundClip: 'text',
                           WebkitBackgroundClip: 'text',
@@ -2426,10 +2310,10 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         }}
                       >
                         <Business sx={{ 
-                          fontSize: 14, 
-                          mr: 1, 
+                          fontSize: 18, 
+                          mr: 1.5, 
                           color: theme.palette.info.main,
-                          filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.1))'
+                          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
                         }} />
                         <Typography 
                           variant="body2" 
@@ -2439,7 +2323,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                             fontSize: cardStyles.subtitleSize,
                             fontWeight: 500,
                             flex: 1,
-                            lineHeight: 1.3
+                            lineHeight: 1.4
                           }}
                         >
                           {commitment.companyName || commitment.company || 'Sin empresa'}
@@ -2477,10 +2361,10 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         }}
                       >
                         <CalendarToday sx={{ 
-                          fontSize: 14, 
-                          mr: 1, 
+                          fontSize: 18, 
+                          mr: 1.5, 
                           color: theme.palette.warning.main,
-                          filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.1))'
+                          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
                         }} />
                         <Typography 
                           variant="body2" 
@@ -2499,11 +2383,15 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         variant="h5" 
                         sx={{ 
                           fontSize: cardStyles.amountSize,
-                          fontWeight: 800,
-                          color: theme.palette.primary.main,
+                          fontWeight: 700,
+                          background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                          backgroundClip: 'text',
+                          WebkitBackgroundClip: 'text',
+                          color: 'transparent',
+                          textShadow: '0 4px 8px rgba(0,0,0,0.1)',
                           mb: 1,
-                          lineHeight: 1.2,
-                          fontFamily: 'system-ui, -apple-system, sans-serif'
+                          transition: 'all 0.3s ease',
+                          lineHeight: 1.2
                         }}
                       >
                         {formatCurrency(commitment.amount)}
@@ -2665,7 +2553,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         sx={{
                           width: 56,
                           height: 56,
-                          borderRadius: 1,
+                          borderRadius: 2.5,
                           background: 'rgba(255, 255, 255, 0.2)',
                           display: 'flex',
                           alignItems: 'center',
@@ -2702,7 +2590,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                             }}
                           />
                         ) : (
-                          <Business sx={{ fontSize: 22, color: 'white', zIndex: 1 }} />
+                          <Business sx={{ fontSize: 28, color: 'white', zIndex: 1 }} />
                         )}
                       </Box>
                     </motion.div>
@@ -2779,7 +2667,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                 sx={{
                                   px: 1.5,
                                   py: 0.5,
-                                  borderRadius: 1,
+                                  borderRadius: 1.5,
                                   background: colors.bg,
                                   border: `1px solid ${colors.border}`,
                                   backdropFilter: 'blur(10px)'
@@ -2905,7 +2793,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                             sx={{
                               width: 56,
                               height: 56,
-                              borderRadius: 1,
+                              borderRadius: 2.5,
                               background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                               display: 'flex',
                               alignItems: 'center',
@@ -2913,7 +2801,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                               boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
                             }}
                           >
-                            <CalendarToday sx={{ color: 'white', fontSize: 22 }} />
+                            <CalendarToday sx={{ color: 'white', fontSize: 28 }} />
                           </Box>
                         </motion.div>
                         
@@ -3104,7 +2992,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                 overflow: 'hidden'
                               }}>
                                 <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                                  <Business sx={{ color: 'secondary.main', fontSize: 16 }} />
+                                  <Business sx={{ color: 'secondary.main', fontSize: 20 }} />
                                   <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'secondary.main' }}>
                                     Empresa
                                   </Typography>
@@ -3125,7 +3013,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                       }}
                                     />
                                   ) : (
-                                    <Business sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                    <Business sx={{ fontSize: 20, color: 'text.secondary' }} />
                                   )}
                                   <Typography variant="body1" sx={{ 
                                     fontWeight: 500,
@@ -3620,7 +3508,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
               ? 'rgba(30, 30, 30, 0.98)'
               : 'rgba(255, 255, 255, 0.98)',
             border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-            borderRadius: 1,
+            borderRadius: 2,
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
             position: 'relative',
             overflow: 'hidden'
@@ -3736,7 +3624,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       disabled={currentPage === 1}
                       size="small"
                       sx={{
-                        borderRadius: 1,
+                        borderRadius: 1.5,
                         border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
                         bgcolor: currentPage === 1 ? 'action.disabled' : 'background.paper',
                         color: currentPage === 1 ? 'text.disabled' : 'primary.main',
@@ -3757,7 +3645,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       disabled={currentPage === 1}
                       size="small"
                       sx={{
-                        borderRadius: 1,
+                        borderRadius: 1.5,
                         border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
                         bgcolor: currentPage === 1 ? 'action.disabled' : 'background.paper',
                         color: currentPage === 1 ? 'text.disabled' : 'primary.main',
@@ -3785,7 +3673,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         '& .MuiPaginationItem-root': {
                           fontWeight: 600,
                           fontSize: '0.875rem',
-                          borderRadius: 1,
+                          borderRadius: 1.5,
                           border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
                           transition: 'all 0.2s ease',
                           '&:hover': {
@@ -3815,7 +3703,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       disabled={currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage)}
                       size="small"
                       sx={{
-                        borderRadius: 1,
+                        borderRadius: 1.5,
                         border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
                         bgcolor: currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage) ? 'action.disabled' : 'background.paper',
                         color: currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage) ? 'text.disabled' : 'primary.main',
@@ -3836,7 +3724,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       disabled={currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage)}
                       size="small"
                       sx={{
-                        borderRadius: 1,
+                        borderRadius: 1.5,
                         border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
                         bgcolor: currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage) ? 'action.disabled' : 'background.paper',
                         color: currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage) ? 'text.disabled' : 'primary.main',

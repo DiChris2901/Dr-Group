@@ -396,15 +396,31 @@ export {
 };
 
 // ========================================
-// 🚀 TOKENS MEJORADOS - ESTRUCTURA UNIFICADA
+// 🚀 TOKENS MEJORADOS - ESTRUCTURA UNIFICADA V2
 // ========================================
 
-// 🔧 Tokens unificados para resolver problemas de rutas inconsistentes
+// 🔧 Tokens unificados con soporte para temas dinámicos
 export const unifiedTokens = {
-  // 🎨 COLORES - Estructura plana y consistente
+  // 🎨 COLORES - Con soporte para tema dinámico
   colors: {
-    // Superficies unificadas (resuelve error: designTokens.colors.surface.primary)
+    // Superficies con detección de tema
     surface: {
+      // Métodos seguros que detectan el tema actual
+      getSurface: (theme, level = 'primary') => {
+        const isDark = theme?.palette?.mode === 'dark';
+        const surfaces = isDark ? surfaceTokens.dark : surfaceTokens.light;
+        
+        switch (level) {
+          case 'primary': return surfaces.background.paper;
+          case 'secondary': return surfaces.surface[2];
+          case 'tertiary': return surfaces.surface[3];
+          case 'elevated': return surfaces.background.paper;
+          case 'paper': return surfaces.background.paper;
+          default: return surfaces.background.paper;
+        }
+      },
+      
+      // Fallbacks estáticos para desarrollo
       primary: surfaceTokens.light.background.paper,
       secondary: surfaceTokens.light.surface[2],
       tertiary: surfaceTokens.light.surface[3],
@@ -412,19 +428,35 @@ export const unifiedTokens = {
       paper: surfaceTokens.light.background.paper
     },
     
-    // Textos unificados (resuelve error: designTokens.colors.text.primary)  
+    // Textos con detección de tema  
     text: {
+      // Método seguro que detecta el tema
+      getText: (theme, level = 'primary') => {
+        const isDark = theme?.palette?.mode === 'dark';
+        const texts = isDark ? surfaceTokens.dark.text : surfaceTokens.light.text;
+        return texts[level] || texts.primary;
+      },
+      
+      // Fallbacks estáticos
       primary: surfaceTokens.light.text.primary,
       secondary: surfaceTokens.light.text.secondary,
       disabled: surfaceTokens.light.text.disabled,
       inverse: '#ffffff'
     },
     
-    // Bordes centralizados (resuelve error: designTokens.colors.border.light)
+    // Bordes centralizados
     border: {
       light: 'rgba(0, 0, 0, 0.12)',
       medium: 'rgba(0, 0, 0, 0.24)', 
-      strong: 'rgba(0, 0, 0, 0.38)'
+      strong: 'rgba(0, 0, 0, 0.38)',
+      
+      // Método con detección de tema
+      getBorder: (theme, level = 'light') => {
+        const isDark = theme?.palette?.mode === 'dark';
+        const opacity = level === 'light' ? 0.12 : level === 'medium' ? 0.24 : 0.38;
+        const color = isDark ? '255, 255, 255' : '0, 0, 0';
+        return `rgba(${color}, ${opacity})`;
+      }
     },
     
     // Semánticos

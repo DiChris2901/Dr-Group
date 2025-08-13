@@ -28,10 +28,6 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
-import {
-  shimmerEffect,
-  useThemeGradients
-} from '../../utils/designSystem.js';
 
 const CommitmentsFilters = ({ 
   onSearchChange, 
@@ -45,7 +41,6 @@ const CommitmentsFilters = ({
 }) => {
   const { currentUser } = useAuth();
   const theme = useTheme();
-  const gradients = useThemeGradients();
   const [companies, setCompanies] = useState([]);
   const [availableYears, setAvailableYears] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -141,18 +136,15 @@ const CommitmentsFilters = ({
       <Paper
         elevation={0}
         sx={{
-          background: gradients.paper,
-          backdropFilter: 'blur(20px)',
-          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
           borderRadius: 1,
           p: 3,
           mb: 4,
-          position: 'relative',
-          overflow: 'hidden',
-          ...shimmerEffect
+          position: 'relative'
         }}
       >
-        <Box sx={{ position: 'relative', zIndex: 2 }}>
+        <Box>
           {/* Header Premium */}
           <Box display="flex" alignItems="center" justifyContent="between" mb={3}>
             <Box display="flex" alignItems="center">
@@ -227,7 +219,7 @@ const CommitmentsFilters = ({
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 1,
-                      background: alpha(theme.palette.background.paper, 0.8),
+                      backgroundColor: theme.palette.background.default,
                       transition: 'all 0.3s ease',
                       '&:hover': {
                         transform: 'translateY(-1px)',
@@ -275,7 +267,7 @@ const CommitmentsFilters = ({
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 1,
-                      background: alpha(theme.palette.background.paper, 0.8),
+                      backgroundColor: theme.palette.background.default,
                       transition: 'all 0.3s ease',
                       '&:hover': {
                         transform: 'translateY(-1px)',
@@ -335,7 +327,7 @@ const CommitmentsFilters = ({
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 1,
-                      background: alpha(theme.palette.background.paper, 0.8),
+                      backgroundColor: theme.palette.background.default,
                       transition: 'all 0.3s ease',
                       '&:hover': {
                         transform: 'translateY(-1px)',
@@ -391,7 +383,7 @@ const CommitmentsFilters = ({
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 1,
-                      background: alpha(theme.palette.background.paper, 0.8),
+                      backgroundColor: theme.palette.background.default,
                       transition: 'all 0.3s ease',
                       '&:hover': {
                         transform: 'translateY(-1px)',

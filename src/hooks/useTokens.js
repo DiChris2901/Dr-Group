@@ -10,7 +10,7 @@ import { unifiedTokens, enhancedTokenUtils } from '../theme/tokens/index.js';
 /**
  * 🛡️ Hook para acceso seguro a tokens del Design System 3.0
  * 
- * Previene errores comunes:
+ * Previene errores comunes y detecta tema automáticamente:
  * - ❌ designTokens.typography.weights.semiBold (undefined)
  * - ❌ designTokens.colors.surface.primary (undefined) 
  * - ❌ designTokens.radii.sm (undefined)
@@ -18,6 +18,7 @@ import { unifiedTokens, enhancedTokenUtils } from '../theme/tokens/index.js';
  * ✅ Uso recomendado:
  * const tokens = useTokens();
  * tokens.get('colors.surface.primary', '#ffffff');
+ * tokens.getSurface('secondary'); // Detecta tema automáticamente
  */
 export const useTokens = () => {
   const theme = useTheme();
@@ -38,6 +39,19 @@ export const useTokens = () => {
     // ✅ Verificar existencia
     exists: (path) => {
       return enhancedTokenUtils.tokenExists(path);
+    },
+    
+    // 🎨 MÉTODOS SEGUROS CON DETECCIÓN DE TEMA
+    getSurface: (level = 'primary') => {
+      return unifiedTokens.colors.surface.getSurface(theme, level);
+    },
+    
+    getText: (level = 'primary') => {
+      return unifiedTokens.colors.text.getText(theme, level);
+    },
+    
+    getBorder: (level = 'light') => {
+      return unifiedTokens.colors.border.getBorder(theme, level);
     },
     
     // 🏷️ Helpers específicos comunes (probados en CommitmentsList)
@@ -92,41 +106,42 @@ export const useTokens = () => {
 /**
  * 🎯 Hook específico para componentes de tabla
  * Uso directo en CommitmentsList, PaymentsList, etc.
+ * VERSIÓN MEJORADA con detección de tema
  */
 export const useTableTokens = () => {
   const tokens = useTokens();
   
   return {
-    // Estilos de celda (valores probados)
+    // Estilos de celda (valores probados) - TEMA DINÁMICO
     cellStyle: {
-      padding: tokens.table.padding,           // '6px 8px'
-      fontSize: tokens.table.fontSize,         // '0.75rem'
-      fontWeight: tokens.table.fontWeight,     // 500
-      color: tokens.table.textPrimary,
-      borderBottom: `1px solid ${tokens.table.cellBorder}`
+      padding: tokens.spacing.table,           // '6px 8px'
+      fontSize: tokens.typography.sizes.xs,    // '0.75rem'
+      fontWeight: tokens.typography.weights.medium, // 500
+      color: tokens.getText('primary'),        // Detecta tema automáticamente
+      borderBottom: `1px solid ${tokens.getBorder('light')}` // Detecta tema automáticamente
     },
     
-    // Header de tabla
+    // Header de tabla - TEMA DINÁMICO
     headerStyle: {
-      backgroundColor: tokens.table.headerBg,
+      backgroundColor: tokens.getSurface('secondary'), // Detecta tema automáticamente
       fontWeight: tokens.typography.weights.semiBold, // 600
       fontSize: tokens.typography.sizes.sm,           // '0.875rem'
-      color: tokens.table.textPrimary,
-      padding: tokens.table.padding,
-      borderRadius: tokens.table.borderRadius
+      color: tokens.getText('secondary'),              // Detecta tema automáticamente
+      padding: tokens.spacing.table,
+      borderRadius: tokens.radius.subtle
     },
     
-    // Contenedor de tabla
+    // Contenedor de tabla - TEMA DINÁMICO
     containerStyle: {
-      borderRadius: tokens.table.borderRadius,
+      borderRadius: tokens.radius.subtle,
       boxShadow: tokens.shadows.subtle,
       overflow: 'hidden',
-      backgroundColor: tokens.colors.surface.primary
+      backgroundColor: tokens.getSurface('primary')   // Detecta tema automáticamente
     },
     
-    // Fila hover
+    // Fila hover - TEMA DINÁMICO
     rowHoverStyle: {
-      backgroundColor: tokens.colors.surface.tertiary,
+      backgroundColor: tokens.getSurface('tertiary'),  // Detecta tema automáticamente
       cursor: 'pointer'
     }
   };

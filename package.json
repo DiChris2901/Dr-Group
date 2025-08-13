@@ -14,7 +14,10 @@
     "build:arm64": "pnpm build",
     "functions:install": "cd functions && npm install",
     "functions:serve": "cd functions && npm run serve",
-    "functions:deploy": "cd functions && npm run deploy"
+    "functions:deploy": "cd functions && npm run deploy",
+    "validate-tokens": "node src/utils/tokenValidator.js",
+    "pre-commit": "npm run validate-tokens",
+    "lint:tokens": "node src/utils/tokenValidator.js --fix"
   },
   "dependencies": {
     "@emotion/react": "^11.11.1",
