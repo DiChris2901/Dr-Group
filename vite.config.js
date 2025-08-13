@@ -54,6 +54,11 @@ export default defineConfig({
       '@theme': '/src/theme'
     }
   },
+  define: {
+    // ✅ Fix para Firebase en Vite
+    global: 'globalThis',
+    'process.env': {}
+  },
   optimizeDeps: {
     // Pre-bundling dependencies para mejor rendimiento
     include: [
@@ -68,10 +73,11 @@ export default defineConfig({
       'firebase/auth',
       'firebase/firestore',
       'firebase/storage',
+      'firebase/functions',
       'framer-motion',
       'date-fns'
     ],
-    exclude: ['@firebase/app-types']
+    exclude: ['@firebase/app-types', '@firebase/util', '@firebase/component']
   },
   esbuild: {
     // Optimizaciones de esbuild

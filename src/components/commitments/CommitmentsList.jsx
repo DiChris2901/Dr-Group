@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -68,6 +68,17 @@ import { useNotifications } from '../../context/NotificationsContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useThemeGradients, shimmerEffect } from '../../utils/designSystem';
 import { unifiedTokens, enhancedTokenUtils } from '../../theme/tokens';
+
+// 🚀 OPTIMIZACIÓN FASE 1: Performance hooks y cache
+import useDebounce from '../../hooks/useDebounce';
+import { firestoreCache } from '../../utils/FirestoreCache';
+import { performanceLogger } from '../../utils/PerformanceLogger';
+
+// 🚀 OPTIMIZACIÓN FASE 2: Virtual scrolling y lazy loading
+import VirtualScrollList from '../common/VirtualScrollList';
+import { queryOptimizer } from '../../utils/FirestoreQueryOptimizer';
+import useServiceWorker from '../../hooks/useServiceWorker';
+import useLazyData from '../../hooks/useLazyData';
 import { useTableTokens } from '../../hooks/useTokens';
 import useCommitmentAlerts from '../../hooks/useCommitmentAlerts';
 import CommitmentEditForm from './CommitmentEditForm';
@@ -231,7 +242,6 @@ const StatusChipDS3 = ({ status, showTooltip = false }) => {
           borderRadius: '14px',
           backgroundColor: 'transparent !important',
           color: colors.main,
-          border: `1.5px solid ${colors.main}`,
           border: `1px solid ${alpha(colors.main, 0.25)}`,
           boxShadow: 'none',
           transition: 'all 0.2s ease',
@@ -521,6 +531,20 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   const theme = useTheme();
   const gradients = useThemeGradients();
   
+  // 🚀 OPTIMIZACIÓN FASE 1: Debounce para filtros críticos
+  const debouncedSearchTerm = useDebounce(searchTerm, 500, 'search'); // 500ms para búsqueda
+  const debouncedCompanyFilter = useDebounce(companyFilter, 300, 'company'); // 300ms para filtros
+  const debouncedStatusFilter = useDebounce(statusFilter, 300, 'status');
+  const debouncedYearFilter = useDebounce(yearFilter, 300, 'year');
+  
+  // 🚀 OPTIMIZACIÓN FASE 2: Service Worker para cache persistente
+  const { isRegistered: swRegistered, clearCache: clearSWCache } = useServiceWorker();
+  
+  // 🎯 Virtual scrolling configuration
+  const [virtualScrollEnabled, setVirtualScrollEnabled] = useState(false);
+  const itemHeight = viewMode === 'cards' ? 160 : 80; // Altura por elemento
+  const containerHeight = 600; // Altura del contenedor
+  
   // 🎯 Hook mejorado para tokens de tabla - Sistema DS 3.0 Unificado
   const tableTokens = useTableTokens();
   
@@ -698,83 +722,103 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     );
   };
 
-  // Reset página cuando cambian los filtros
+  // Reset página cuando cambian los filtros (OPTIMIZADO con debounce)
   useEffect(() => {
     setCurrentPage(1);
     setLastVisibleDoc(null);
     setFirstVisibleDoc(null);
+    
+    // 🚀 OPTIMIZACIÓN: Invalidar cache por patrón cuando cambian filtros
+    firestoreCache.invalidatePattern(`commitments_${debouncedCompanyFilter || 'all'}_*`);
     setPaginationCache(new Map());
-  }, [companyFilter, statusFilter, searchTerm, yearFilter]);
+  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter]);
 
-  // Función para obtener el total de documentos con filtros aplicados
-  const getTotalCount = async () => {
+  // 🚀 OPTIMIZACIÓN: Función para obtener el total con cache inteligente
+  const getTotalCount = useCallback(async () => {
     try {
+      // 🎯 Cache key basado en filtros debouncados
+      const cacheKey = `count_${debouncedCompanyFilter || 'all'}_${debouncedYearFilter || 'all'}`;
+      
+      // ✅ Intentar obtener del cache primero (TTL: 2 minutos para conteo)
+      const cachedCount = firestoreCache.get(cacheKey);
+      if (cachedCount !== null) {
+        performanceLogger.logCacheHit('firestore', cacheKey);
+        return cachedCount;
+      }
+
       let q = query(collection(db, 'commitments'));
 
-      // Aplicar filtros en la consulta
-      if (companyFilter && companyFilter !== 'all') {
-        q = query(q, where('companyId', '==', companyFilter));
+      // Aplicar filtros con variables debouncadas
+      if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
+        q = query(q, where('companyId', '==', debouncedCompanyFilter));
       }
       
-      if (yearFilter && yearFilter !== 'all') {
-        const startDate = new Date(parseInt(yearFilter), 0, 1);
-        const endDate = new Date(parseInt(yearFilter), 11, 31);
+      if (debouncedYearFilter && debouncedYearFilter !== 'all') {
+        const startDate = new Date(parseInt(debouncedYearFilter), 0, 1);
+        const endDate = new Date(parseInt(debouncedYearFilter), 11, 31);
         q = query(q, where('dueDate', '>=', startDate), where('dueDate', '<=', endDate));
       }
 
       const countSnapshot = await getCountFromServer(q);
-      return countSnapshot.data().count;
+      const count = countSnapshot.data().count;
+      
+      // 💾 Guardar en cache (TTL: 2 minutos)
+      firestoreCache.set(cacheKey, count, 2 * 60 * 1000);
+      performanceLogger.logFirebaseRead('getCountFromServer', 1);
+      
+      return count;
     } catch (error) {
       console.error('Error getting count:', error);
       return 0;
     }
-  };
+  }, [debouncedCompanyFilter, debouncedYearFilter]);
 
-  // Función para cargar página específica
-  const loadCommitmentsPage = async (pageNumber, pageSize = paginationConfig.itemsPerPage) => {
+  // 🚀 OPTIMIZACIÓN FASE 2: Función para cargar página con query optimizer
+  const loadCommitmentsPage = useCallback(async (pageNumber, pageSize = paginationConfig.itemsPerPage) => {
     try {
       setLoading(true);
       setError(null);
 
-      // Verificar cache first
-      const cacheKey = `${pageNumber}_${companyFilter}_${statusFilter}_${searchTerm}_${yearFilter}`;
-      if (paginationCache.has(cacheKey)) {
-        const cachedData = paginationCache.get(cacheKey);
-        setCommitments(cachedData.commitments);
-        setLastVisibleDoc(cachedData.lastVisible);
-        setFirstVisibleDoc(cachedData.firstVisible);
+      // 🎯 Cache key con filtros debouncados
+      const cacheKey = `page_${pageNumber}_${debouncedCompanyFilter || 'all'}_${debouncedStatusFilter || 'all'}_${debouncedSearchTerm || ''}_${debouncedYearFilter || 'all'}`;
+      
+      // ✅ Verificar cache de Firestore primero (TTL: 1 minuto para páginas)
+      const cachedPageData = firestoreCache.get(cacheKey);
+      if (cachedPageData) {
+        performanceLogger.logCacheHit('firestore-page', cacheKey);
+        setCommitments(cachedPageData.commitments);
+        setLastVisibleDoc(cachedPageData.lastVisible);
+        setFirstVisibleDoc(cachedPageData.firstVisible);
         setLoading(false);
         return;
       }
 
-      let q = query(
-        collection(db, 'commitments'),
-        orderBy('dueDate', 'asc'),
-        limit(pageSize)
+      // 🔥 Fallback al cache local (pagination cache)
+      if (paginationCache.has(cacheKey)) {
+        const localCachedData = paginationCache.get(cacheKey);
+        performanceLogger.logCacheHit('local-pagination', cacheKey);
+        setCommitments(localCachedData.commitments);
+        setLastVisibleDoc(localCachedData.lastVisible);
+        setFirstVisibleDoc(localCachedData.firstVisible);
+        setLoading(false);
+        return;
+      }
+
+      // 🚀 FASE 2: Usar Query Optimizer para consultas optimizadas
+      const optimizedQuery = await queryOptimizer.buildOptimizedCommitmentsQuery(
+        {
+          companyId: debouncedCompanyFilter !== 'all' ? debouncedCompanyFilter : null,
+          year: debouncedYearFilter !== 'all' ? debouncedYearFilter : null,
+          status: debouncedStatusFilter !== 'all' ? debouncedStatusFilter : null,
+          searchTerm: debouncedSearchTerm
+        },
+        {
+          pageSize,
+          lastDoc: pageNumber > 1 ? lastVisibleDoc : null
+        }
       );
 
-      // Aplicar filtros Firebase donde sea posible
-      if (companyFilter && companyFilter !== 'all') {
-        q = query(
-          collection(db, 'commitments'),
-          where('companyId', '==', companyFilter),
-          orderBy('dueDate', 'asc'),
-          limit(pageSize)
-        );
-      }
-
-      if (yearFilter && yearFilter !== 'all') {
-        const startDate = new Date(parseInt(yearFilter), 0, 1);
-        const endDate = new Date(parseInt(yearFilter), 11, 31);
-        q = query(q, where('dueDate', '>=', startDate), where('dueDate', '<=', endDate));
-      }
-
-      // Para páginas posteriores, usar cursor
-      if (pageNumber > 1 && lastVisibleDoc) {
-        q = query(q, startAfter(lastVisibleDoc));
-      }
-
-      const snapshot = await getDocs(q);
+      const snapshot = await getDocs(optimizedQuery);
       
       if (snapshot.empty) {
         setCommitments([]);
@@ -793,30 +837,30 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         });
       });
 
-      // Aplicar filtros locales restantes
+      // Aplicar filtros locales restantes con variables debouncadas
       let filteredCommitments = commitmentsData;
 
-      // Filtro por término de búsqueda (local)
-      if (searchTerm) {
+      // Filtro por término de búsqueda (local) - DEBOUNCADO
+      if (debouncedSearchTerm) {
         filteredCommitments = filteredCommitments.filter(
           commitment =>
-            (commitment.concept && commitment.concept.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (commitment.description && commitment.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (commitment.companyName && commitment.companyName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (commitment.company && commitment.company.toLowerCase().includes(searchTerm.toLowerCase())) ||
-            (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(searchTerm.toLowerCase()))
+            (commitment.concept && commitment.concept.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.description && commitment.description.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.companyName && commitment.companyName.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.company && commitment.company.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
         );
       }
 
-      // Filtro por estado (local)
-      if (statusFilter && statusFilter !== 'all') {
+      // Filtro por estado (local) - DEBOUNCADO
+      if (debouncedStatusFilter && debouncedStatusFilter !== 'all') {
         const today = new Date();
         const threeDaysFromNow = addDays(today, 3);
 
         filteredCommitments = filteredCommitments.filter(commitment => {
           const dueDate = commitment.dueDate;
           
-          switch (statusFilter) {
+          switch (debouncedStatusFilter) {
             case 'overdue':
               return isBefore(dueDate, today) && !commitment.paid;
             case 'due-soon':
@@ -834,14 +878,21 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
       const firstVisible = snapshot.docs[0];
       const lastVisible = snapshot.docs[snapshot.docs.length - 1];
 
-      // Cache de resultados
-      const newCache = new Map(paginationCache);
-      newCache.set(cacheKey, {
+      // 🚀 OPTIMIZACIÓN: Doble cache (local + Firestore)
+      const pageData = {
         commitments: filteredCommitments,
         firstVisible,
         lastVisible
-      });
+      };
+
+      // Cache local (inmediato)
+      const newCache = new Map(paginationCache);
+      newCache.set(cacheKey, pageData);
       setPaginationCache(newCache);
+
+      // Cache Firestore (TTL: 1 minuto)
+      firestoreCache.set(cacheKey, pageData, 60 * 1000);
+      performanceLogger.logFirebaseRead('getDocs', filteredCommitments.length);
 
       setCommitments(filteredCommitments);
       setFirstVisibleDoc(firstVisible);
@@ -853,18 +904,25 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         onCommitmentsChange(filteredCommitments);
       }
 
+      // 🚀 FASE 2: Prefetch inteligente en background
+      queryOptimizer.intelligentPrefetch({
+        companyId: debouncedCompanyFilter !== 'all' ? debouncedCompanyFilter : null,
+        year: debouncedYearFilter !== 'all' ? debouncedYearFilter : null,
+        status: debouncedStatusFilter !== 'all' ? debouncedStatusFilter : null
+      });
+
     } catch (error) {
       console.error('Error loading commitments page:', error);
       setError('Error al cargar los compromisos');
       setLoading(false);
     }
-  };
+  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, currentPage, paginationConfig.itemsPerPage, lastVisibleDoc, paginationCache, onCommitmentsChange]);
 
-  // Cargar datos iniciales y al cambiar filtros
+  // 🚀 OPTIMIZACIÓN: Cargar datos con filtros debouncados
   useEffect(() => {
     if (!currentUser) return;
     
-    // Obtener total y cargar primera página
+    // Obtener total y cargar primera página con filtros debouncados
     const initialize = async () => {
       const total = await getTotalCount();
       setTotalCommitments(total);
@@ -872,7 +930,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     };
     
     initialize();
-  }, [currentUser, companyFilter, statusFilter, searchTerm, yearFilter, currentPage, paginationConfig.itemsPerPage]);
+  }, [currentUser, loadCommitmentsPage, getTotalCount, currentPage]);
 
   const getStatusInfo = (commitment) => {
     const today = new Date();

@@ -8,10 +8,7 @@
     "dev-local": "vite --host 0.0.0.0 --port 5173",
     "build": "vite build",
     "preview": "vite preview",
-    "setup-arm64": "setup-arm64.bat",
-    "install:arm64": "pnpm install",
-    "dev:arm64": "pnpm dev",
-    "build:arm64": "pnpm build",
+    "clean": "npm run clean || (rmdir /s /q dist 2>nul & rmdir /s /q node_modules\\.cache 2>nul)",
     "functions:install": "cd functions && npm install",
     "functions:serve": "cd functions && npm run serve",
     "functions:deploy": "cd functions && npm run deploy",
@@ -37,8 +34,6 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@rollup/rollup-win32-arm64-msvc": "^4.46.2",
-    "@rollup/rollup-win32-x64-msvc": "^4.46.2",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
