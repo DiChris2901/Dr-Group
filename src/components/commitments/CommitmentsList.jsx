@@ -23,7 +23,9 @@ import {
   Tooltip,
   Fade,
   useTheme,
-  alpha
+  alpha,
+  Pagination,
+  Stack
 } from '@mui/material';
 import {
   Edit,
@@ -46,12 +48,16 @@ import {
   Person,
   Info,
   Notes,
-  History
+  History,
+  FirstPage,
+  LastPage,
+  NavigateBefore,
+  NavigateNext
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO, isAfter, isBefore, addDays, differenceInDays, differenceInHours } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { collection, query, orderBy, onSnapshot, where, doc, getDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, where, doc, getDoc, deleteDoc, limit, startAfter, getDocs, getCountFromServer } from 'firebase/firestore';
 import { ref, deleteObject } from 'firebase/storage';
 import { db, storage } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
@@ -195,6 +201,13 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   const [companyData, setCompanyData] = useState(null);
   const [loadingCompany, setLoadingCompany] = useState(false);
 
+  // Estados de paginación spectacular
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCommitments, setTotalCommitments] = useState(0);
+  const [lastVisibleDoc, setLastVisibleDoc] = useState(null);
+  const [firstVisibleDoc, setFirstVisibleDoc] = useState(null);
+  const [paginationCache, setPaginationCache] = useState(new Map());
+
   // Hook para generar alertas automáticas de compromisos vencidos/próximos a vencer
   const { overdueCount, dueSoonCount } = useCommitmentAlerts(commitments);
 
@@ -274,6 +287,21 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   const cardStyles = getCardSizeStyles();
   const responsiveColumns = getColumnsConfig();
 
+  // Configuración de paginación por modo de vista
+  const getPaginationConfig = () => {
+    switch (effectiveViewMode) {
+      case 'table': 
+        return { itemsPerPage: 20, label: 'filas por página' };
+      case 'list': 
+        return { itemsPerPage: 15, label: 'elementos por página' };
+      case 'cards': 
+      default: 
+        return { itemsPerPage: 12, label: 'tarjetas por página' };
+    }
+  };
+
+  const paginationConfig = getPaginationConfig();
+
   // Función helper para verificar si un compromiso tiene pago válido
   const hasValidPayment = (commitment) => {
     return commitment.paid && (
@@ -285,103 +313,181 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     );
   };
 
+  // Reset página cuando cambian los filtros
+  useEffect(() => {
+    setCurrentPage(1);
+    setLastVisibleDoc(null);
+    setFirstVisibleDoc(null);
+    setPaginationCache(new Map());
+  }, [companyFilter, statusFilter, searchTerm, yearFilter]);
+
+  // Función para obtener el total de documentos con filtros aplicados
+  const getTotalCount = async () => {
+    try {
+      let q = query(collection(db, 'commitments'));
+
+      // Aplicar filtros en la consulta
+      if (companyFilter && companyFilter !== 'all') {
+        q = query(q, where('companyId', '==', companyFilter));
+      }
+      
+      if (yearFilter && yearFilter !== 'all') {
+        const startDate = new Date(parseInt(yearFilter), 0, 1);
+        const endDate = new Date(parseInt(yearFilter), 11, 31);
+        q = query(q, where('dueDate', '>=', startDate), where('dueDate', '<=', endDate));
+      }
+
+      const countSnapshot = await getCountFromServer(q);
+      return countSnapshot.data().count;
+    } catch (error) {
+      console.error('Error getting count:', error);
+      return 0;
+    }
+  };
+
+  // Función para cargar página específica
+  const loadCommitmentsPage = async (pageNumber, pageSize = paginationConfig.itemsPerPage) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Verificar cache first
+      const cacheKey = `${pageNumber}_${companyFilter}_${statusFilter}_${searchTerm}_${yearFilter}`;
+      if (paginationCache.has(cacheKey)) {
+        const cachedData = paginationCache.get(cacheKey);
+        setCommitments(cachedData.commitments);
+        setLastVisibleDoc(cachedData.lastVisible);
+        setFirstVisibleDoc(cachedData.firstVisible);
+        setLoading(false);
+        return;
+      }
+
+      let q = query(
+        collection(db, 'commitments'),
+        orderBy('dueDate', 'asc'),
+        limit(pageSize)
+      );
+
+      // Aplicar filtros Firebase donde sea posible
+      if (companyFilter && companyFilter !== 'all') {
+        q = query(
+          collection(db, 'commitments'),
+          where('companyId', '==', companyFilter),
+          orderBy('dueDate', 'asc'),
+          limit(pageSize)
+        );
+      }
+
+      if (yearFilter && yearFilter !== 'all') {
+        const startDate = new Date(parseInt(yearFilter), 0, 1);
+        const endDate = new Date(parseInt(yearFilter), 11, 31);
+        q = query(q, where('dueDate', '>=', startDate), where('dueDate', '<=', endDate));
+      }
+
+      // Para páginas posteriores, usar cursor
+      if (pageNumber > 1 && lastVisibleDoc) {
+        q = query(q, startAfter(lastVisibleDoc));
+      }
+
+      const snapshot = await getDocs(q);
+      
+      if (snapshot.empty) {
+        setCommitments([]);
+        setLoading(false);
+        return;
+      }
+
+      const commitmentsData = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        commitmentsData.push({
+          id: doc.id,
+          ...data,
+          dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : new Date(data.dueDate),
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt)
+        });
+      });
+
+      // Aplicar filtros locales restantes
+      let filteredCommitments = commitmentsData;
+
+      // Filtro por término de búsqueda (local)
+      if (searchTerm) {
+        filteredCommitments = filteredCommitments.filter(
+          commitment =>
+            (commitment.concept && commitment.concept.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (commitment.description && commitment.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (commitment.companyName && commitment.companyName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (commitment.company && commitment.company.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+      }
+
+      // Filtro por estado (local)
+      if (statusFilter && statusFilter !== 'all') {
+        const today = new Date();
+        const threeDaysFromNow = addDays(today, 3);
+
+        filteredCommitments = filteredCommitments.filter(commitment => {
+          const dueDate = commitment.dueDate;
+          
+          switch (statusFilter) {
+            case 'overdue':
+              return isBefore(dueDate, today) && !commitment.paid;
+            case 'due-soon':
+              return isAfter(dueDate, today) && isBefore(dueDate, threeDaysFromNow) && !commitment.paid;
+            case 'pending':
+              return !commitment.paid && isAfter(dueDate, threeDaysFromNow);
+            case 'paid':
+              return commitment.paid;
+            default:
+              return true;
+          }
+        });
+      }
+
+      const firstVisible = snapshot.docs[0];
+      const lastVisible = snapshot.docs[snapshot.docs.length - 1];
+
+      // Cache de resultados
+      const newCache = new Map(paginationCache);
+      newCache.set(cacheKey, {
+        commitments: filteredCommitments,
+        firstVisible,
+        lastVisible
+      });
+      setPaginationCache(newCache);
+
+      setCommitments(filteredCommitments);
+      setFirstVisibleDoc(firstVisible);
+      setLastVisibleDoc(lastVisible);
+      setLoading(false);
+
+      // Notificar al componente padre
+      if (onCommitmentsChange) {
+        onCommitmentsChange(filteredCommitments);
+      }
+
+    } catch (error) {
+      console.error('Error loading commitments page:', error);
+      setError('Error al cargar los compromisos');
+      setLoading(false);
+    }
+  };
+
+  // Cargar datos iniciales y al cambiar filtros
   useEffect(() => {
     if (!currentUser) return;
-
-    setLoading(true);
-    setError(null);
-
-    // Crear la consulta base - sin filtros en Firebase
-    const q = query(
-      collection(db, 'commitments'),
-      orderBy('dueDate', 'asc')
-    );
-
-    // Escuchar cambios en tiempo real
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const commitmentsData = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          commitmentsData.push({
-            id: doc.id,
-            ...data,
-            dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : new Date(data.dueDate),
-            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt)
-          });
-        });
-
-        // Aplicar filtros locales
-        let filteredCommitments = commitmentsData;
-
-        // Filtro por empresa
-        if (companyFilter && companyFilter !== 'all') {
-          filteredCommitments = filteredCommitments.filter(commitment => 
-            commitment.companyId === companyFilter
-          );
-        }
-
-        // Filtro por término de búsqueda
-        if (searchTerm) {
-          filteredCommitments = filteredCommitments.filter(
-            commitment =>
-              (commitment.concept && commitment.concept.toLowerCase().includes(searchTerm.toLowerCase())) ||
-              (commitment.description && commitment.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-              (commitment.companyName && commitment.companyName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-              (commitment.company && commitment.company.toLowerCase().includes(searchTerm.toLowerCase())) ||
-              (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(searchTerm.toLowerCase()))
-          );
-        }
-
-        // Filtro por estado
-        if (statusFilter && statusFilter !== 'all') {
-          const today = new Date();
-          const threeDaysFromNow = addDays(today, 3);
-
-          filteredCommitments = filteredCommitments.filter(commitment => {
-            const dueDate = commitment.dueDate;
-            
-            switch (statusFilter) {
-              case 'overdue':
-                return isBefore(dueDate, today) && !commitment.paid;
-              case 'due-soon':
-                return isAfter(dueDate, today) && isBefore(dueDate, threeDaysFromNow) && !commitment.paid;
-              case 'pending':
-                return !commitment.paid && isAfter(dueDate, threeDaysFromNow);
-              case 'paid':
-                return commitment.paid;
-              default:
-                return true;
-            }
-          });
-        }
-
-        // Filtro por año
-        if (yearFilter && yearFilter !== 'all') {
-          filteredCommitments = filteredCommitments.filter(commitment => {
-            const commitmentYear = commitment.dueDate.getFullYear().toString();
-            return commitmentYear === yearFilter;
-          });
-        }
-
-        setCommitments(filteredCommitments);
-        setLoading(false);
-        
-        // Notificar al componente padre sobre los datos de compromisos
-        if (onCommitmentsChange) {
-          onCommitmentsChange(filteredCommitments);
-        }
-      },
-      (error) => {
-        console.error('Error fetching commitments:', error);
-        setError('Error al cargar los compromisos');
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [currentUser, companyFilter, statusFilter, searchTerm, yearFilter]);
+    
+    // Obtener total y cargar primera página
+    const initialize = async () => {
+      const total = await getTotalCount();
+      setTotalCommitments(total);
+      await loadCommitmentsPage(currentPage);
+    };
+    
+    initialize();
+  }, [currentUser, companyFilter, statusFilter, searchTerm, yearFilter, currentPage, paginationConfig.itemsPerPage]);
 
   const getStatusInfo = (commitment) => {
     const today = new Date();
@@ -536,6 +642,39 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
 
     // El componente CommitmentEditForm manejará el cierre
     // Los datos se actualizarán automáticamente por el listener en tiempo real
+  };
+
+  // Funciones de manejo de paginación spectacular
+  const handlePageChange = async (newPage) => {
+    if (newPage !== currentPage && newPage >= 1) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handleNextPage = () => {
+    const totalPages = Math.ceil(totalCommitments / paginationConfig.itemsPerPage);
+    if (currentPage < totalPages) {
+      handlePageChange(currentPage + 1);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      handlePageChange(currentPage - 1);
+    }
+  };
+
+  const handleFirstPage = () => {
+    if (currentPage > 1) {
+      handlePageChange(1);
+    }
+  };
+
+  const handleLastPage = () => {
+    const totalPages = Math.ceil(totalCommitments / paginationConfig.itemsPerPage);
+    if (currentPage < totalPages) {
+      handlePageChange(totalPages);
+    }
   };
 
   // Manejar eliminación de compromiso
@@ -3160,6 +3299,206 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         onClose={handleCloseReceiptViewer}
         commitment={selectedCommitment}
       />
+
+      {/* Paginación Spectacular - Design System Premium v3.0 */}
+      {!loading && commitments.length > 0 && (
+        <motion.div
+          initial={animationsEnabled ? { opacity: 0, y: 30 } : { opacity: 1, y: 0 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, type: "spring", stiffness: 100 }}
+          style={{ marginTop: spacing.grid * 2 }}
+        >
+          <Card sx={{
+            background: theme.palette.mode === 'dark'
+              ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
+              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+            backdropFilter: 'blur(20px)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+            borderRadius: 3,
+            boxShadow: `0 8px 32px ${alpha(theme.palette.grey[500], 0.15)}`,
+            position: 'relative',
+            overflow: 'hidden',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 3,
+              background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              zIndex: 1
+            }
+          }}>
+            <Box sx={{ p: spacing.padding }}>
+              <Stack 
+                direction="row" 
+                justifyContent="space-between" 
+                alignItems="center"
+                flexWrap="wrap"
+                gap={2}
+              >
+                {/* Info de paginación */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 600,
+                      fontSize: cardStyles.fontSize,
+                      background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${alpha(theme.palette.primary.dark, 0.8)})`,
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      color: 'transparent'
+                    }}
+                  >
+                    {totalCommitments} compromisos en total
+                  </Typography>
+                  <Divider orientation="vertical" flexItem />
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 500,
+                      fontSize: cardStyles.fontSize,
+                      color: theme.palette.text.secondary
+                    }}
+                  >
+                    Página {currentPage} de {Math.ceil(totalCommitments / paginationConfig.itemsPerPage)}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 400,
+                      fontSize: `calc(${cardStyles.fontSize} * 0.9)`,
+                      color: theme.palette.text.disabled
+                    }}
+                  >
+                    ({paginationConfig.itemsPerPage} {paginationConfig.label})
+                  </Typography>
+                </Box>
+
+                {/* Controles de paginación spectacular */}
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <IconButton
+                    onClick={handleFirstPage}
+                    disabled={currentPage === 1}
+                    size="small"
+                    sx={{
+                      borderRadius: 2,
+                      background: currentPage === 1 
+                        ? alpha(theme.palette.action.disabled, 0.05)
+                        : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.primary.light, 0.05)})`,
+                      border: `1px solid ${alpha(theme.palette.primary.main, currentPage === 1 ? 0.05 : 0.2)}`,
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': currentPage !== 1 ? {
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.15)}, ${alpha(theme.palette.primary.light, 0.08)})`,
+                        transform: 'translateY(-1px)',
+                        boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`
+                      } : {}
+                    }}
+                  >
+                    <FirstPage fontSize="small" />
+                  </IconButton>
+
+                  <IconButton
+                    onClick={handlePrevPage}
+                    disabled={currentPage === 1}
+                    size="small"
+                    sx={{
+                      borderRadius: 2,
+                      background: currentPage === 1 
+                        ? alpha(theme.palette.action.disabled, 0.05)
+                        : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.primary.light, 0.05)})`,
+                      border: `1px solid ${alpha(theme.palette.primary.main, currentPage === 1 ? 0.05 : 0.2)}`,
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': currentPage !== 1 ? {
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.15)}, ${alpha(theme.palette.primary.light, 0.08)})`,
+                        transform: 'translateY(-1px)',
+                        boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`
+                      } : {}
+                    }}
+                  >
+                    <NavigateBefore fontSize="small" />
+                  </IconButton>
+
+                  <Pagination
+                    count={Math.ceil(totalCommitments / paginationConfig.itemsPerPage)}
+                    page={currentPage}
+                    onChange={(event, page) => handlePageChange(page)}
+                    color="primary"
+                    size="small"
+                    siblingCount={1}
+                    boundaryCount={1}
+                    sx={{
+                      '& .MuiPaginationItem-root': {
+                        fontWeight: 600,
+                        fontSize: cardStyles.fontSize,
+                        borderRadius: 2,
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.primary.light, 0.05)})`,
+                          transform: 'translateY(-1px)',
+                          boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`
+                        }
+                      },
+                      '& .MuiPaginationItem-page.Mui-selected': {
+                        background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                        color: 'white',
+                        boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.3)}`,
+                        transform: 'translateY(-1px)',
+                        '&:hover': {
+                          background: `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`,
+                          boxShadow: `0 8px 20px ${alpha(theme.palette.primary.main, 0.4)}`
+                        }
+                      }
+                    }}
+                  />
+
+                  <IconButton
+                    onClick={handleNextPage}
+                    disabled={currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage)}
+                    size="small"
+                    sx={{
+                      borderRadius: 2,
+                      background: currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage)
+                        ? alpha(theme.palette.action.disabled, 0.05)
+                        : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.primary.light, 0.05)})`,
+                      border: `1px solid ${alpha(theme.palette.primary.main, currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage) ? 0.05 : 0.2)}`,
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': currentPage !== Math.ceil(totalCommitments / paginationConfig.itemsPerPage) ? {
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.15)}, ${alpha(theme.palette.primary.light, 0.08)})`,
+                        transform: 'translateY(-1px)',
+                        boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`
+                      } : {}
+                    }}
+                  >
+                    <NavigateNext fontSize="small" />
+                  </IconButton>
+
+                  <IconButton
+                    onClick={handleLastPage}
+                    disabled={currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage)}
+                    size="small"
+                    sx={{
+                      borderRadius: 2,
+                      background: currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage)
+                        ? alpha(theme.palette.action.disabled, 0.05)
+                        : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.primary.light, 0.05)})`,
+                      border: `1px solid ${alpha(theme.palette.primary.main, currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage) ? 0.05 : 0.2)}`,
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': currentPage !== Math.ceil(totalCommitments / paginationConfig.itemsPerPage) ? {
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.15)}, ${alpha(theme.palette.primary.light, 0.08)})`,
+                        transform: 'translateY(-1px)',
+                        boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`
+                      } : {}
+                    }}
+                  >
+                    <LastPage fontSize="small" />
+                  </IconButton>
+                </Stack>
+              </Stack>
+            </Box>
+          </Card>
+        </motion.div>
+      )}
     </Box>
   );
 };
