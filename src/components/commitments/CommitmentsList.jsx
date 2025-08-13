@@ -25,7 +25,8 @@ import {
   useTheme,
   alpha,
   Pagination,
-  Stack
+  Stack,
+  Avatar
 } from '@mui/material';
 import {
   Edit,
@@ -114,18 +115,294 @@ const getCommitmentStatus = (commitment) => {
   }
 };
 
-// Helper function para obtener el color del estado
+// Helper function para obtener el color del estado con DS 3.0
 const getStatusColor = (status) => {
-  switch (status.color) {
-    case 'success': return { bg: 'rgba(76, 175, 80, 0.3)', border: 'rgba(76, 175, 80, 0.5)' };
-    case 'error': return { bg: 'rgba(244, 67, 54, 0.3)', border: 'rgba(244, 67, 54, 0.5)' };
-    case 'warning': return { bg: 'rgba(255, 152, 0, 0.3)', border: 'rgba(255, 152, 0, 0.5)' };
-    case 'info': return { bg: 'rgba(33, 150, 243, 0.3)', border: 'rgba(33, 150, 243, 0.5)' };
-    default: return { bg: 'rgba(158, 158, 158, 0.3)', border: 'rgba(158, 158, 158, 0.5)' };
+  // Mejoramos los colores basándose en el chipColor para mejor consistencia
+  const theme = useTheme();
+  
+  switch (status.chipColor) {
+    case 'success':
+      return {
+        main: theme.palette.success.main,
+        light: theme.palette.success.light,
+        dark: theme.palette.success.dark
+      };
+    case 'error':
+      return {
+        main: theme.palette.error.main,
+        light: theme.palette.error.light, 
+        dark: theme.palette.error.dark
+      };
+    case 'warning':
+      return {
+        main: theme.palette.warning.main,
+        light: theme.palette.warning.light,
+        dark: theme.palette.warning.dark
+      };
+    case 'info':
+      return {
+        main: theme.palette.info.main,
+        light: theme.palette.info.light,
+        dark: theme.palette.info.dark
+      };
+    default:
+      return {
+        main: theme.palette.grey[600],
+        light: theme.palette.grey[400],
+        dark: theme.palette.grey[800]
+      };
   }
 };
 
-// Componente para animación de conteo de montos
+// Componente de Chip DS 3.0 mejorado
+const StatusChipDS3 = ({ status, showTooltip = false }) => {
+  // status ya viene procesado como statusInfo
+  const colors = getStatusColor(status);
+  
+  const ChipComponent = (
+    <motion.div
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+    >
+      <Chip 
+        icon={status.icon}
+        label={status.label}
+        size="small"
+        sx={{ 
+          fontWeight: 600,
+          fontSize: '0.75rem',
+          height: 28,
+          minWidth: 80,
+          borderRadius: '14px',
+          backgroundColor: alpha(colors.main, 0.12),
+          color: colors.main,
+          border: `1px solid ${alpha(colors.main, 0.25)}`,
+          boxShadow: 'none',
+          transition: 'all 0.2s ease',
+          '& .MuiChip-icon': {
+            color: colors.main,
+            fontSize: 16,
+            marginLeft: '4px'
+          },
+          '& .MuiChip-label': {
+            paddingLeft: '6px',
+            paddingRight: '12px',
+            letterSpacing: '0.3px',
+            fontWeight: 600
+          },
+          '&:hover': {
+            backgroundColor: alpha(colors.main, 0.18),
+            borderColor: alpha(colors.main, 0.35),
+            boxShadow: `0 2px 4px ${alpha(colors.main, 0.15)}`,
+            transform: 'scale(1.02)'
+          }
+        }}
+      />
+    </motion.div>
+  );
+
+  return showTooltip ? (
+    <Tooltip 
+      title={`Estado: ${status.label}`} 
+      arrow
+      placement="top"
+      TransitionComponent={Fade}
+      TransitionProps={{ timeout: 300 }}
+    >
+      {ChipComponent}
+    </Tooltip>
+  ) : ChipComponent;
+};
+
+// Componente para fechas mejoradas DS 3.0
+const DateDisplayDS3 = ({ date, showDaysRemaining = false, variant = 'standard' }) => {
+  if (!date) return <Typography color="text.secondary">Fecha no disponible</Typography>;
+  
+  const safeDate = safeToDate(date);
+  if (!safeDate) return <Typography color="text.secondary">Fecha inválida</Typography>;
+  
+  const today = new Date();
+  const daysRemaining = differenceInDays(safeDate, today);
+  
+  const formatOptions = {
+    standard: {
+      dateFormat: "dd/MM/yyyy",
+      fontSize: "0.875rem",
+      color: "text.primary"
+    },
+    compact: {
+      dateFormat: "dd MMM",
+      fontSize: "0.8rem", 
+      color: "text.secondary"
+    },
+    detailed: {
+      dateFormat: "EEEE, dd 'de' MMMM 'de' yyyy",
+      fontSize: "1rem",
+      color: "text.primary"
+    }
+  };
+  
+  const option = formatOptions[variant] || formatOptions.standard;
+  
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+      <Typography 
+        variant="body2"
+        sx={{ 
+          fontSize: option.fontSize,
+          fontWeight: variant === 'detailed' ? 500 : 400,
+          color: option.color,
+          lineHeight: 1.3
+        }}
+      >
+        {format(safeDate, option.dateFormat, { locale: es })}
+      </Typography>
+      {showDaysRemaining && (
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            color: daysRemaining < 0 ? 'error.main' : 
+                   daysRemaining <= 7 ? 'warning.main' : 
+                   'success.main',
+            fontWeight: 500,
+            fontSize: '0.7rem',
+            mt: 0.2
+          }}
+        >
+          {daysRemaining < 0 ? `${Math.abs(daysRemaining)} días vencido` :
+           daysRemaining === 0 ? 'Vence hoy' :
+           `${daysRemaining} días restantes`}
+        </Typography>
+      )}
+    </Box>
+  );
+};
+
+// Componente mejorado para mostrar montos DS 3.0
+const AmountDisplayDS3 = ({ amount, variant = 'standard', showAnimation = false }) => {
+  if (!amount && amount !== 0) return <Typography color="text.secondary">Monto no disponible</Typography>;
+  
+  const formatAmount = (value) => {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value);
+  };
+
+  const styles = {
+    standard: {
+      fontSize: '0.875rem',
+      fontWeight: 600,
+      color: 'text.primary'
+    },
+    large: {
+      fontSize: '1.125rem',
+      fontWeight: 700,
+      color: 'text.primary'
+    },
+    compact: {
+      fontSize: '0.8rem',
+      fontWeight: 500,
+      color: 'text.secondary'
+    }
+  };
+
+  const currentStyle = styles[variant] || styles.standard;
+
+  return (
+    <motion.div
+      initial={showAnimation ? { opacity: 0, scale: 0.8 } : { opacity: 1, scale: 1 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+    >
+      <Typography
+        variant="body2"
+        sx={{
+          ...currentStyle,
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          letterSpacing: variant === 'large' ? '-0.02em' : 0,
+          lineHeight: 1.2
+        }}
+      >
+        {showAnimation ? (
+          <CountingNumber end={amount} />
+        ) : (
+          formatAmount(amount)
+        )}
+      </Typography>
+    </motion.div>
+  );
+};
+
+// Header de tabla DS 3.0 mejorado
+const TableHeaderDS3 = () => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+    >
+      <Box sx={{
+        display: 'grid',
+        gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 0.8fr',
+        gap: 2,
+        p: 3,
+        backgroundColor: 'rgba(255, 255, 255, 0.8)',
+        borderRadius: '12px 12px 0 0',
+        border: '1px solid rgba(0, 0, 0, 0.08)',
+        borderBottom: '2px solid rgba(0, 0, 0, 0.12)',
+        backdropFilter: 'blur(10px)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 10
+      }}>
+        {[
+          { label: 'ESTADO', icon: '📊' },
+          { label: 'DESCRIPCION', icon: '📝' },
+          { label: 'EMPRESA', icon: '🏢' },
+          { label: 'MONTO', icon: '💰' },
+          { label: 'VENCIMIENTO', icon: '📅' },
+          { label: 'ACCIONES', icon: '⚙️' }
+        ].map((column, index) => (
+          <motion.div
+            key={column.label}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3, delay: index * 0.1 }}
+          >
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: 1,
+              justifyContent: column.label === 'MONTO' ? 'center' : 
+                            column.label === 'ACCIONES' ? 'center' : 'flex-start'
+            }}>
+              <Typography
+                variant="overline"
+                sx={{
+                  fontWeight: 800,
+                  fontSize: '0.8rem',
+                  color: 'text.primary',
+                  letterSpacing: '1.2px',
+                  lineHeight: 1,
+                  textTransform: 'uppercase',
+                  opacity: 0.85
+                }}
+              >
+                <span style={{ marginRight: 6, opacity: 0.7 }}>{column.icon}</span>
+                {column.label}
+              </Typography>
+            </Box>
+          </motion.div>
+        ))}
+      </Box>
+    </motion.div>
+  );
+};
+
 const CountingNumber = ({ end, duration = 1000, prefix = '$' }) => {
   const [count, setCount] = useState(0);
 
@@ -517,7 +794,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     if (isBefore(dueDate, today)) {
       const urgency = Math.min(Math.abs(daysDifference), 30) / 30; // Más urgente = más rojo
       return {
-        label: `Vencido (${Math.abs(daysDifference)} día${Math.abs(daysDifference) !== 1 ? 's' : ''})`,
+        label: 'Vencido',
         color: theme.palette.error.main,
         chipColor: 'error',
         icon: <Warning />,
@@ -530,7 +807,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
 
     if (isBefore(dueDate, threeDaysFromNow)) {
       return {
-        label: `Próximo (${daysDifference} día${daysDifference !== 1 ? 's' : ''})`,
+        label: 'Próximo',
         color: theme.palette.warning.main,
         chipColor: 'warning',
         icon: <Schedule />,
@@ -542,7 +819,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     }
 
     return {
-      label: `Pendiente (${daysDifference} días)`,
+      label: 'Pendiente',
       color: theme.palette.info.main,
       chipColor: 'info',
       icon: <CalendarToday />,
@@ -1152,333 +1429,236 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
         >
-          <Card sx={{ 
-            ...tableTokens.containerStyle
+          {/* Header mejorado DS 3.0 */}
+          <TableHeaderDS3 />
+          
+          {/* Cards en formato grid */}
+          <Box sx={{ 
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+            backgroundColor: 'background.paper',
+            borderRadius: '0 0 12px 12px',
+            border: '1px solid rgba(0, 0, 0, 0.08)',
+            borderTop: 'none'
           }}>
-            <Box sx={{ overflowX: 'auto' }}>
-              <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
-                {/* Encabezado Profesional DS 3.0 - TOKENS UNIFICADOS */}
-                <Box component="thead">
-                  <Box
-                    component="tr"
-                    sx={{
-                      ...tableTokens.headerStyle
-                    }}
-                  >
-                    <Box component="th" sx={{ 
-                      ...tableTokens.headerStyle,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.75px',
-                      borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
-                    }}>
-                      Estado
-                    </Box>
-                    <Box component="th" sx={{ 
-                      padding: "6px 8px",
-                      textAlign: 'left',
-                      fontWeight: unifiedTokens.typography.weights.semiBold,
-                      fontSize: '0.875rem',
-                      color: unifiedTokens.colors.text.secondary,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.75px',
-                      borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
-                    }}>
-                      Descripción
-                    </Box>
-                    <Box component="th" sx={{ 
-                      ...tableTokens.headerStyle,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.75px',
-                      borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
-                    }}>
-                      Empresa
-                    </Box>
-                    <Box component="th" sx={{ 
-                      ...tableTokens.headerStyle,
-                      textAlign: 'right',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.75px',
-                      borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
-                    }}>
-                      Monto
-                    </Box>
-                    <Box component="th" sx={{ 
-                      ...tableTokens.headerStyle,
-                      textAlign: 'center',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.75px',
-                      borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
-                    }}>
-                      Vencimiento
-                    </Box>
-                    <Box component="th" sx={{ 
-                      padding: "6px 8px",
-                      textAlign: 'center',
-                      fontWeight: unifiedTokens.typography.weights.semiBold,
-                      fontSize: '0.875rem',
-                      color: unifiedTokens.colors.text.secondary,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.75px',
-                      borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
-                    }}>
-                      Acciones
-                    </Box>
-                  </Box>
-                </Box>
-                
-                {/* Contenido Profesional DS 3.0 */}
-                <Box component="tbody">
-                  {commitments.map((commitment, index) => {
-                    const statusInfo = getStatusInfo(commitment);
-                    const dueDate = commitment.dueDate;
-                    const today = new Date();
-                    const daysUntilDue = differenceInDays(dueDate, today);
-                    const isOverdue = daysUntilDue < 0;
-                    const isDueSoon = daysUntilDue <= 7 && daysUntilDue >= 0;
-                    
-                    return (
-                      <motion.tr
-                        key={commitment.id}
-                        component={Box}
-                        initial={animationsEnabled ? { opacity: 0, y: 10 } : { opacity: 1, y: 0 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.04 }}
-                        sx={{
-                          backgroundColor: index % 2 === 0 
-                            ? 'transparent'
-                            : unifiedTokens.colors.surface.secondary,
-                          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-                          '&:hover': {
-                            backgroundColor: unifiedTokens.colors.surface.tertiary
-                          }
+            {commitments.map((commitment, index) => {
+              const statusInfo = getStatusInfo(commitment);
+              const dueDate = commitment.dueDate;
+              const today = new Date();
+              const daysUntilDue = differenceInDays(dueDate, today);
+              const isOverdue = daysUntilDue < 0;
+              const isDueSoon = daysUntilDue <= 7 && daysUntilDue >= 0;
+              
+              return (
+                <motion.div
+                  key={commitment.id}
+                  initial={animationsEnabled ? { opacity: 0, x: -20 } : { opacity: 1, x: 0 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.05 }}
+                  whileHover={{ 
+                    backgroundColor: 'rgba(0, 0, 0, 0.02)',
+                    transition: { duration: 0.2 }
+                  }}
+                >
+                  <Box sx={{
+                    display: 'grid',
+                    gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 0.8fr',
+                    gap: 2,
+                    p: 2.5,
+                    borderBottom: index === commitments.length - 1 ? 'none' : '1px solid rgba(0, 0, 0, 0.04)',
+                    '&:hover': {
+                      backgroundColor: 'rgba(0, 0, 0, 0.03)'
+                    },
+                    alignItems: 'center'
+                  }}>
+                    {/* Estado con StatusChipDS3 */}
+                    <StatusChipDS3 
+                      status={statusInfo}
+                      showTooltip={showTooltips}
+                    />
+
+                    {/* Descripción */}
+                    <Box>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          fontWeight: 600,
+                          mb: 0.5,
+                          color: 'text.primary',
+                          fontSize: '0.9rem'
                         }}
                       >
-                        <Box component="td" sx={{ 
-                          ...tableTokens.cellStyle
-                        }}>
-                          {showTooltips ? (
-                            <Tooltip title={`Estado: ${statusInfo.label}`} arrow>
-                              <Chip 
-                                icon={statusInfo.icon}
-                                label={statusInfo.label}
-                                size="small"
-                                sx={{ 
-                                  fontWeight: unifiedTokens.typography.weights.medium,
-                                  fontSize: '0.75rem',
-                                  backgroundColor: alpha(statusInfo.color, 0.1),
-                                  color: statusInfo.color,
-                                  border: `1px solid ${alpha(statusInfo.color, 0.2)}`,
-                                  '& .MuiChip-icon': {
-                                    color: statusInfo.color
-                                  }
-                                }}
-                              />
-                            </Tooltip>
-                          ) : (
-                            <Chip 
-                              icon={statusInfo.icon}
-                              label={statusInfo.label}
+                        {commitment.concept || commitment.description || 'Sin concepto'}
+                      </Typography>
+                      {commitment.beneficiary && (
+                        <Typography 
+                          variant="caption" 
+                          sx={{
+                            display: 'block',
+                            color: 'text.secondary',
+                            fontSize: '0.75rem'
+                          }}
+                        >
+                          Para: {commitment.beneficiary}
+                        </Typography>
+                      )}
+                    </Box>
+
+                    {/* Empresa */}
+                    <Box sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 1
+                    }}>
+                      <Avatar
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          bgcolor: 'primary.main',
+                          fontSize: '0.75rem',
+                          fontWeight: 600
+                        }}
+                      >
+                        {(commitment.companyName || commitment.company || 'SC').charAt(0)}
+                      </Avatar>
+                      <Typography 
+                        variant="body2"
+                        sx={{ 
+                          fontWeight: 500,
+                          color: 'text.primary'
+                        }}
+                      >
+                        {commitment.companyName || commitment.company || 'Sin empresa'}
+                      </Typography>
+                    </Box>
+
+                    {/* Monto con AmountDisplayDS3 */}
+                    <Box sx={{ textAlign: 'center' }}>
+                      <AmountDisplayDS3 
+                        amount={commitment.amount}
+                        animate={animationsEnabled}
+                      />
+                    </Box>
+
+                    {/* Fecha con DateDisplayDS3 */}
+                    <Box sx={{ textAlign: 'center' }}>
+                      <DateDisplayDS3
+                        date={commitment.dueDate}
+                        variant="standard"
+                        showDaysRemaining
+                        isOverdue={isOverdue}
+                        isDueSoon={isDueSoon}
+                      />
+                    </Box>
+
+                    {/* Acciones */}
+                    <Box sx={{ 
+                      display: 'flex', 
+                      gap: 0.5,
+                      justifyContent: 'center'
+                    }}>
+                      {showTooltips ? (
+                        <>
+                          <Tooltip title="Ver detalles" arrow>
+                            <IconButton
                               size="small"
+                              onClick={() => handleViewDetails(commitment)}
                               sx={{ 
-                                fontWeight: unifiedTokens.typography.weights.medium,
-                                fontSize: unifiedTokens.typography.sizes.xs,
-                                backgroundColor: alpha(statusInfo.color, 0.1),
-                                color: statusInfo.color,
-                                border: `1px solid ${alpha(statusInfo.color, 0.2)}`,
-                                '& .MuiChip-icon': {
-                                  color: statusInfo.color
-                                }
+                                color: 'primary.main',
+                                '&:hover': { backgroundColor: 'rgba(25, 118, 210, 0.1)' }
                               }}
-                            />
-                          )}
-                        </Box>
-                        <Box component="td" sx={{ 
-                          ...tableTokens.cellStyle
-                        }}>
-                          <Typography 
-                            variant="body2" 
+                            >
+                              <Visibility fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Validar pago" arrow>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleViewReceipt(commitment)}
+                              sx={{ 
+                                color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary',
+                                '&:hover': { backgroundColor: 'rgba(76, 175, 80, 0.1)' }
+                              }}
+                            >
+                              <ReceiptIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Editar" arrow>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleEdit(commitment)}
+                              sx={{ 
+                                color: 'warning.main',
+                                '&:hover': { backgroundColor: 'rgba(237, 108, 2, 0.1)' }
+                              }}
+                            >
+                              <Edit fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Eliminar" arrow>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDelete(commitment.id)}
+                              sx={{ 
+                                color: 'error.main',
+                                '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.1)' }
+                              }}
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </>
+                      ) : (
+                        <>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleViewDetails(commitment)}
                             sx={{ 
-                              fontWeight: unifiedTokens.typography.weights.semiBold,
-                              mb: 0.5,
-                              fontSize: unifiedTokens.typography.sizes.md,
-                              color: unifiedTokens.colors.text.primary
+                              color: 'primary.main',
+                              '&:hover': { backgroundColor: 'rgba(25, 118, 210, 0.1)' }
                             }}
                           >
-                            {commitment.concept || commitment.description || 'Sin concepto'}
-                          </Typography>
-                          {commitment.beneficiary && (
-                            <Typography 
-                              variant="caption" 
-                              sx={{
-                                display: 'block',
-                                fontSize: unifiedTokens.typography.sizes.xs,
-                                color: unifiedTokens.colors.text.secondary
-                              }}
-                            >
-                              Para: {commitment.beneficiary}
-                            </Typography>
-                          )}
-                        </Box>
-                        <Box component="td" sx={{ 
-                          ...tableTokens.cellStyle
-                        }}>
-                          <Box sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: unifiedTokens.spacing.xs
-                          }}>
-                            <Business sx={{ 
-                              fontSize: unifiedTokens.typography.sizes.md, 
-                              color: unifiedTokens.colors.text.secondary
-                            }} />
-                            <Typography 
-                              variant="body2" 
-                              sx={{ 
-                                fontWeight: unifiedTokens.typography.weights.medium,
-                                fontSize: unifiedTokens.typography.sizes.md,
-                                color: unifiedTokens.colors.text.primary
-                              }}
-                            >
-                              {commitment.companyName || commitment.company || 'Sin empresa'}
-                            </Typography>
-                          </Box>
-                        </Box>
-                        <Box component="td" sx={{ 
-                          ...tableTokens.cellStyle,
-                          textAlign: 'right'
-                        }}>
-                          <Typography 
-                            variant="h6" 
+                            <Visibility fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleViewReceipt(commitment)}
                             sx={{ 
-                              fontWeight: unifiedTokens.typography.weights.bold,
-                              fontSize: unifiedTokens.typography.sizes.lg,
-                              color: theme.palette.primary.main
+                              color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary',
+                              '&:hover': { backgroundColor: 'rgba(76, 175, 80, 0.1)' }
                             }}
                           >
-                            <CountingNumber end={commitment.amount} />
-                          </Typography>
-                        </Box>
-                        <Box component="td" sx={{ 
-                          ...tableTokens.cellStyle,
-                          textAlign: 'center'
-                        }}>
-                          <Box>
-                            <Typography 
-                              variant="body2" 
-                              sx={{ 
-                                fontWeight: unifiedTokens.typography.weights.semiBold,
-                                mb: 0.5,
-                                fontSize: unifiedTokens.typography.sizes.md
-                              }}
-                            >
-                              {format(dueDate, 'dd/MM/yyyy', { locale: es })}
-                            </Typography>
-                            <Typography
-                              variant="caption"
-                              color={commitment.paid ? 'success.main' : (isOverdue ? 'error.main' : isDueSoon ? 'warning.main' : 'success.main')}
-                              sx={{
-                                fontWeight: unifiedTokens.typography.weights.medium,
-                                fontSize: unifiedTokens.typography.sizes.xs
-                              }}
-                            >
-                              {commitment.paid 
-                                ? '' 
-                                : (daysUntilDue >= 0 
-                                  ? `${daysUntilDue} días restantes` 
-                                  : `${Math.abs(daysUntilDue)} días vencido`)
-                              }
-                            </Typography>
-                          </Box>
-                        </Box>
-                        <Box component="td" sx={{ 
-                          ...tableTokens.cellStyle, 
-                          textAlign: 'center' 
-                        }}>
-                          <Box sx={{ 
-                            display: 'flex', 
-                            gap: 0.5, 
-                            justifyContent: 'center'
-                          }}>
-                            {showTooltips ? (
-                              <>
-                                <Tooltip title="Ver detalles" arrow>
-                                  <IconButton 
-                                    size="small" 
-                                    onClick={() => handleViewCommitment(commitment)}
-                                    sx={{ color: 'primary.main' }}
-                                  >
-                                    <Visibility />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Validar pago" arrow>
-                                  <IconButton 
-                                    size="small" 
-                                    onClick={() => handleViewReceipt(commitment)}
-                                    sx={{ color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary' }}
-                                  >
-                                    <ReceiptIcon />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Editar compromiso" arrow>
-                                  <IconButton 
-                                    size="small" 
-                                    onClick={() => handleEditFromCard(commitment)}
-                                    sx={{ color: 'info.main' }}
-                                  >
-                                    <Edit />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Eliminar compromiso" arrow>
-                                  <IconButton 
-                                    size="small" 
-                                    onClick={() => handleDeleteCommitment(commitment)}
-                                    sx={{ color: 'error.main' }}
-                                  >
-                                    <Delete />
-                                  </IconButton>
-                                </Tooltip>
-                              </>
-                            ) : (
-                              <>
-                                <IconButton 
-                                  size="small" 
-                                  onClick={() => handleViewCommitment(commitment)}
-                                  sx={{ color: 'primary.main' }}
-                                >
-                                  <Visibility />
-                                </IconButton>
-                                <IconButton 
-                                  size="small" 
-                                  onClick={() => handleViewReceipt(commitment)}
-                                  sx={{ color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary' }}
-                                >
-                                  <ReceiptIcon />
-                                </IconButton>
-                                <IconButton 
-                                  size="small" 
-                                  onClick={() => handleEditFromCard(commitment)}
-                                  sx={{ color: 'info.main' }}
-                                >
-                                  <Edit />
-                                </IconButton>
-                                <IconButton 
-                                  size="small" 
-                                  onClick={() => handleDeleteCommitment(commitment)}
-                                  sx={{ color: 'error.main' }}
-                                >
-                                  <Delete />
-                                </IconButton>
-                              </>
-                            )}
-                          </Box>
-                        </Box>
-                      </motion.tr>
-                    );
-                  })}
-                </Box>
-              </Box>
-            </Box>
-          </Card>
+                            <ReceiptIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEdit(commitment)}
+                            sx={{ 
+                              color: 'warning.main',
+                              '&:hover': { backgroundColor: 'rgba(237, 108, 2, 0.1)' }
+                            }}
+                          >
+                            <Edit fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDelete(commitment.id)}
+                            sx={{ 
+                              color: 'error.main',
+                              '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.1)' }
+                            }}
+                          >
+                            <Delete fontSize="small" />
+                          </IconButton>
+                        </>
+                      )}
+                    </Box>
+                  </Box>
+                </motion.div>
+              );
+            })}
+          </Box>
         </motion.div>
       ) : (
         // Vista Cards Spectacular - Design System Premium v2.2
