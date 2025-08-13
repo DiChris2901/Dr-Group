@@ -144,7 +144,7 @@ const CommitmentsFilters = ({
           background: gradients.paper,
           backdropFilter: 'blur(20px)',
           border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-          borderRadius: 4,
+          borderRadius: 1,
           p: 3,
           mb: 4,
           position: 'relative',
@@ -195,7 +195,7 @@ const CommitmentsFilters = ({
                   startIcon={<Clear />}
                   onClick={handleClearFilters}
                   sx={{
-                    borderRadius: 4,
+                    borderRadius: 1,
                     textTransform: 'none',
                     fontWeight: 600,
                     '&:hover': {
@@ -226,7 +226,7 @@ const CommitmentsFilters = ({
                   placeholder="Descripción, empresa, tipo..."
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 4,
+                      borderRadius: 1,
                       background: alpha(theme.palette.background.paper, 0.8),
                       transition: 'all 0.3s ease',
                       '&:hover': {
@@ -274,7 +274,7 @@ const CommitmentsFilters = ({
                   fullWidth
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 4,
+                      borderRadius: 1,
                       background: alpha(theme.palette.background.paper, 0.8),
                       transition: 'all 0.3s ease',
                       '&:hover': {
@@ -334,7 +334,7 @@ const CommitmentsFilters = ({
                   fullWidth
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 4,
+                      borderRadius: 1,
                       background: alpha(theme.palette.background.paper, 0.8),
                       transition: 'all 0.3s ease',
                       '&:hover': {
@@ -390,7 +390,7 @@ const CommitmentsFilters = ({
                   fullWidth
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 4,
+                      borderRadius: 1,
                       background: alpha(theme.palette.background.paper, 0.8),
                       transition: 'all 0.3s ease',
                       '&:hover': {
