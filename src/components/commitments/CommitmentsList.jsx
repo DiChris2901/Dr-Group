@@ -64,7 +64,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useThemeGradients, shimmerEffect } from '../../utils/designSystem';
-import { designTokens, tokenUtils } from '../../theme/tokens';
+import { unifiedTokens, enhancedTokenUtils } from '../../theme/tokens';
+import { useTableTokens } from '../../hooks/useTokens';
 import useCommitmentAlerts from '../../hooks/useCommitmentAlerts';
 import CommitmentEditForm from './CommitmentEditForm';
 import PaymentReceiptViewer from './PaymentReceiptViewer';
@@ -168,6 +169,9 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   const { settings } = useSettings();
   const theme = useTheme();
   const gradients = useThemeGradients();
+  
+  // 🎯 Hook mejorado para tokens de tabla - Sistema DS 3.0 Unificado
+  const tableTokens = useTableTokens();
   
   // Hook para detectar el tamaño de pantalla y densidad
   const [screenInfo, setScreenInfo] = useState({
@@ -1142,36 +1146,27 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
           })}
         </Box>
       ) : viewMode === 'table' ? (
-        // Vista Tabla Profesional DS 3.0
+        // Vista Tabla Profesional DS 3.0 - ACTUALIZADA CON TOKENS MEJORADOS
         <motion.div
           initial={animationsEnabled ? { opacity: 0, y: 20 } : { opacity: 1, y: 0 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
         >
           <Card sx={{ 
-            overflow: 'hidden',
-            background: designTokens.surfaces.light.surface[1],
-            border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-            borderRadius: 1,
-            boxShadow: designTokens.shadows.soft
+            ...tableTokens.containerStyle
           }}>
             <Box sx={{ overflowX: 'auto' }}>
               <Box component="table" sx={{ width: '100%', borderCollapse: 'collapse' }}>
-                {/* Encabezado Profesional DS 3.0 */}
+                {/* Encabezado Profesional DS 3.0 - TOKENS UNIFICADOS */}
                 <Box component="thead">
                   <Box
                     component="tr"
                     sx={{
-                      backgroundColor: designTokens.surfaces.light.surface[2],
-                      borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
+                      ...tableTokens.headerStyle
                     }}
                   >
                     <Box component="th" sx={{ 
-                      padding: "6px 8px",
-                      textAlign: 'left',
-                      fontWeight: designTokens.fontWeights.semiBold,
-                      fontSize: '0.875rem',
-                      color: designTokens.surfaces.light.text.secondary,
+                      ...tableTokens.headerStyle,
                       textTransform: 'uppercase',
                       letterSpacing: '0.75px',
                       borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
@@ -1181,9 +1176,9 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                     <Box component="th" sx={{ 
                       padding: "6px 8px",
                       textAlign: 'left',
-                      fontWeight: designTokens.fontWeights.semiBold,
+                      fontWeight: unifiedTokens.typography.weights.semiBold,
                       fontSize: '0.875rem',
-                      color: designTokens.surfaces.light.text.secondary,
+                      color: unifiedTokens.colors.text.secondary,
                       textTransform: 'uppercase',
                       letterSpacing: '0.75px',
                       borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
@@ -1191,11 +1186,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       Descripción
                     </Box>
                     <Box component="th" sx={{ 
-                      padding: "6px 8px",
-                      textAlign: 'left',
-                      fontWeight: designTokens.fontWeights.semiBold,
-                      fontSize: '0.875rem',
-                      color: designTokens.surfaces.light.text.secondary,
+                      ...tableTokens.headerStyle,
                       textTransform: 'uppercase',
                       letterSpacing: '0.75px',
                       borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
@@ -1203,11 +1194,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       Empresa
                     </Box>
                     <Box component="th" sx={{ 
-                      padding: "6px 8px",
+                      ...tableTokens.headerStyle,
                       textAlign: 'right',
-                      fontWeight: designTokens.fontWeights.semiBold,
-                      fontSize: '0.875rem',
-                      color: designTokens.surfaces.light.text.secondary,
                       textTransform: 'uppercase',
                       letterSpacing: '0.75px',
                       borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
@@ -1215,11 +1203,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       Monto
                     </Box>
                     <Box component="th" sx={{ 
-                      padding: "6px 8px",
+                      ...tableTokens.headerStyle,
                       textAlign: 'center',
-                      fontWeight: designTokens.fontWeights.semiBold,
-                      fontSize: '0.875rem',
-                      color: designTokens.surfaces.light.text.secondary,
                       textTransform: 'uppercase',
                       letterSpacing: '0.75px',
                       borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
@@ -1229,9 +1214,9 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                     <Box component="th" sx={{ 
                       padding: "6px 8px",
                       textAlign: 'center',
-                      fontWeight: designTokens.fontWeights.semiBold,
+                      fontWeight: unifiedTokens.typography.weights.semiBold,
                       fontSize: '0.875rem',
-                      color: designTokens.surfaces.light.text.secondary,
+                      color: unifiedTokens.colors.text.secondary,
                       textTransform: 'uppercase',
                       letterSpacing: '0.75px',
                       borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`
@@ -1261,15 +1246,15 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         sx={{
                           backgroundColor: index % 2 === 0 
                             ? 'transparent'
-                            : designTokens.surfaces.light.surface[2],
+                            : unifiedTokens.colors.surface.secondary,
                           borderBottom: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                           '&:hover': {
-                            backgroundColor: designTokens.surfaces.light.surface[3]
+                            backgroundColor: unifiedTokens.colors.surface.tertiary
                           }
                         }}
                       >
                         <Box component="td" sx={{ 
-                          padding: "6px 8px"
+                          ...tableTokens.cellStyle
                         }}>
                           {showTooltips ? (
                             <Tooltip title={`Estado: ${statusInfo.label}`} arrow>
@@ -1278,7 +1263,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                 label={statusInfo.label}
                                 size="small"
                                 sx={{ 
-                                  fontWeight: designTokens.fontWeights.medium,
+                                  fontWeight: unifiedTokens.typography.weights.medium,
                                   fontSize: '0.75rem',
                                   backgroundColor: alpha(statusInfo.color, 0.1),
                                   color: statusInfo.color,
@@ -1295,8 +1280,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                               label={statusInfo.label}
                               size="small"
                               sx={{ 
-                                fontWeight: designTokens.fontWeights.medium,
-                                fontSize: '0.75rem',
+                                fontWeight: unifiedTokens.typography.weights.medium,
+                                fontSize: unifiedTokens.typography.sizes.xs,
                                 backgroundColor: alpha(statusInfo.color, 0.1),
                                 color: statusInfo.color,
                                 border: `1px solid ${alpha(statusInfo.color, 0.2)}`,
@@ -1308,15 +1293,15 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           )}
                         </Box>
                         <Box component="td" sx={{ 
-                          padding: "6px 8px"
+                          ...tableTokens.cellStyle
                         }}>
                           <Typography 
                             variant="body2" 
                             sx={{ 
-                              fontWeight: designTokens.fontWeights.semiBold,
+                              fontWeight: unifiedTokens.typography.weights.semiBold,
                               mb: 0.5,
-                              fontSize: '1rem',
-                              color: designTokens.surfaces.light.text.primary
+                              fontSize: unifiedTokens.typography.sizes.md,
+                              color: unifiedTokens.colors.text.primary
                             }}
                           >
                             {commitment.concept || commitment.description || 'Sin concepto'}
@@ -1326,8 +1311,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                               variant="caption" 
                               sx={{
                                 display: 'block',
-                                fontSize: '0.75rem',
-                                color: designTokens.surfaces.light.text.secondary
+                                fontSize: unifiedTokens.typography.sizes.xs,
+                                color: unifiedTokens.colors.text.secondary
                               }}
                             >
                               Para: {commitment.beneficiary}
@@ -1335,23 +1320,23 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           )}
                         </Box>
                         <Box component="td" sx={{ 
-                          padding: "6px 8px"
+                          ...tableTokens.cellStyle
                         }}>
                           <Box sx={{ 
                             display: 'flex', 
                             alignItems: 'center', 
-                            gap: designTokens.spacing.xs
+                            gap: unifiedTokens.spacing.xs
                           }}>
                             <Business sx={{ 
-                              fontSize: '1rem', 
-                              color: designTokens.surfaces.light.text.secondary
+                              fontSize: unifiedTokens.typography.sizes.md, 
+                              color: unifiedTokens.colors.text.secondary
                             }} />
                             <Typography 
                               variant="body2" 
                               sx={{ 
-                                fontWeight: designTokens.fontWeights.medium,
-                                fontSize: '1rem',
-                                color: designTokens.surfaces.light.text.primary
+                                fontWeight: unifiedTokens.typography.weights.medium,
+                                fontSize: unifiedTokens.typography.sizes.md,
+                                color: unifiedTokens.colors.text.primary
                               }}
                             >
                               {commitment.companyName || commitment.company || 'Sin empresa'}
@@ -1359,31 +1344,31 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           </Box>
                         </Box>
                         <Box component="td" sx={{ 
-                          padding: "6px 8px",
+                          ...tableTokens.cellStyle,
                           textAlign: 'right'
                         }}>
                           <Typography 
                             variant="h6" 
                             sx={{ 
-                              fontWeight: designTokens.fontWeights.bold,
-                              fontSize: '1.125rem',
-                              color: designTokens.colors.primary.main
+                              fontWeight: unifiedTokens.typography.weights.bold,
+                              fontSize: unifiedTokens.typography.sizes.lg,
+                              color: theme.palette.primary.main
                             }}
                           >
                             <CountingNumber end={commitment.amount} />
                           </Typography>
                         </Box>
                         <Box component="td" sx={{ 
-                          padding: "6px 8px",
+                          ...tableTokens.cellStyle,
                           textAlign: 'center'
                         }}>
                           <Box>
                             <Typography 
                               variant="body2" 
                               sx={{ 
-                                fontWeight: designTokens.fontWeights.semiBold,
+                                fontWeight: unifiedTokens.typography.weights.semiBold,
                                 mb: 0.5,
-                                fontSize: '1rem'
+                                fontSize: unifiedTokens.typography.sizes.md
                               }}
                             >
                               {format(dueDate, 'dd/MM/yyyy', { locale: es })}
@@ -1392,8 +1377,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                               variant="caption"
                               color={commitment.paid ? 'success.main' : (isOverdue ? 'error.main' : isDueSoon ? 'warning.main' : 'success.main')}
                               sx={{
-                                fontWeight: designTokens.fontWeights.medium,
-                                fontSize: '0.75rem'
+                                fontWeight: unifiedTokens.typography.weights.medium,
+                                fontSize: unifiedTokens.typography.sizes.xs
                               }}
                             >
                               {commitment.paid 
@@ -1405,7 +1390,10 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                             </Typography>
                           </Box>
                         </Box>
-                        <Box component="td" sx={{ padding: "6px 8px", textAlign: 'center' }}>
+                        <Box component="td" sx={{ 
+                          ...tableTokens.cellStyle, 
+                          textAlign: 'center' 
+                        }}>
                           <Box sx={{ 
                             display: 'flex', 
                             gap: 0.5, 

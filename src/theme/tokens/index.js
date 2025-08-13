@@ -395,8 +395,188 @@ export {
   formatMonth
 };
 
+// ========================================
+// 🚀 TOKENS MEJORADOS - ESTRUCTURA UNIFICADA
+// ========================================
+
+// 🔧 Tokens unificados para resolver problemas de rutas inconsistentes
+export const unifiedTokens = {
+  // 🎨 COLORES - Estructura plana y consistente
+  colors: {
+    // Superficies unificadas (resuelve error: designTokens.colors.surface.primary)
+    surface: {
+      primary: surfaceTokens.light.background.paper,
+      secondary: surfaceTokens.light.surface[2],
+      tertiary: surfaceTokens.light.surface[3],
+      elevated: surfaceTokens.light.background.paper,
+      paper: surfaceTokens.light.background.paper
+    },
+    
+    // Textos unificados (resuelve error: designTokens.colors.text.primary)  
+    text: {
+      primary: surfaceTokens.light.text.primary,
+      secondary: surfaceTokens.light.text.secondary,
+      disabled: surfaceTokens.light.text.disabled,
+      inverse: '#ffffff'
+    },
+    
+    // Bordes centralizados (resuelve error: designTokens.colors.border.light)
+    border: {
+      light: 'rgba(0, 0, 0, 0.12)',
+      medium: 'rgba(0, 0, 0, 0.24)', 
+      strong: 'rgba(0, 0, 0, 0.38)'
+    },
+    
+    // Semánticos
+    primary: colorTokens.primary,
+    secondary: colorTokens.secondary,
+    success: colorTokens.success,
+    warning: colorTokens.warning,
+    error: colorTokens.error,
+    info: colorTokens.info
+  },
+
+  // 📝 TIPOGRAFÍA - Unificada (resuelve: designTokens.typography.weights.semiBold)
+  typography: {
+    weights: fontWeightTokens,
+    sizes: {
+      xs: '0.75rem',    // 12px
+      sm: '0.875rem',   // 14px  
+      md: '1rem',       // 16px - base
+      lg: '1.125rem',   // 18px
+      xl: '1.25rem',    // 20px
+      '2xl': '1.5rem'   // 24px
+    },
+    lineHeights: {
+      tight: 1.2,
+      normal: 1.5, 
+      relaxed: 1.6
+    }
+  },
+
+  // 📏 ESPACIADO - Valores probados empresariales
+  spacing: {
+    none: 0,
+    xs: spacingTokens.xs,      // 4px
+    sm: spacingTokens.sm,      // 8px
+    md: spacingTokens.md,      // 16px
+    lg: spacingTokens.lg,      // 24px
+    xl: spacingTokens.xl,      // 32px
+    '2xl': spacingTokens['2xl'], // 48px
+    
+    // Espaciados específicos probados
+    table: '6px 8px',          // Para celdas de tabla (compacto)
+    card: '16px',              // Para contenido de cards
+    modal: '24px'              // Para modales
+  },
+
+  // 🔲 RADIUS - Valores empresariales (resuelve: designTokens.radii vs borderRadius)
+  radius: {
+    none: borderRadiusTokens.none,
+    subtle: 1,      // Corporativo (casi cuadrado) - PROBADO
+    small: 3,       // Moderno sutil - PROBADO  
+    medium: borderRadiusTokens.sm,     // 6px
+    large: borderRadiusTokens.lg,      // 12px
+    full: borderRadiusTokens.full      // Circular
+  },
+
+  // 🌑 SOMBRAS - Niveles empresariales (resuelve: designTokens.shadows.sm)
+  shadows: {
+    none: shadowTokens.none,
+    subtle: shadowTokens.soft,
+    card: shadowTokens.medium,
+    elevated: shadowTokens.strong,
+    modal: shadowTokens.modal
+  }
+};
+
+// ========================================
+// 🛡️ UTILIDADES DE VALIDACIÓN
+// ========================================
+
+export const enhancedTokenUtils = {
+  // Obtener token con fallback seguro
+  getToken: (path, fallback = null) => {
+    try {
+      const keys = path.split('.');
+      let value = unifiedTokens;
+      
+      for (const key of keys) {
+        if (value && typeof value === 'object' && key in value) {
+          value = value[key];
+        } else {
+          console.warn(`⚠️ Token no encontrado: unifiedTokens.${path}, usando fallback`);
+          return fallback;
+        }
+      }
+      
+      return value;
+    } catch (error) {
+      console.error(`❌ Error accediendo token: unifiedTokens.${path}`, error);
+      return fallback;
+    }
+  },
+  
+  // Verificar si existe el token
+  tokenExists: (path) => {
+    try {
+      const keys = path.split('.');
+      let value = unifiedTokens;
+      
+      for (const key of keys) {
+        if (value && typeof value === 'object' && key in value) {
+          value = value[key];
+        } else {
+          return false;
+        }
+      }
+      
+      return value !== undefined && value !== null;
+    } catch {
+      return false;
+    }
+  },
+  
+  // Validar tokens críticos
+  validateCriticalTokens: () => {
+    const criticalPaths = [
+      'colors.surface.primary',
+      'colors.text.primary', 
+      'colors.text.secondary',
+      'colors.border.light',
+      'typography.weights.semiBold',
+      'typography.weights.medium',
+      'typography.sizes.sm',
+      'typography.sizes.xs',
+      'spacing.md',
+      'spacing.table',
+      'radius.subtle',
+      'shadows.subtle'
+    ];
+    
+    const results = {
+      valid: [],
+      invalid: []
+    };
+    
+    criticalPaths.forEach(path => {
+      if (enhancedTokenUtils.tokenExists(path)) {
+        results.valid.push(path);
+        console.log(`✅ Token válido: unifiedTokens.${path}`);
+      } else {
+        results.invalid.push(path);
+        console.error(`❌ Token faltante: unifiedTokens.${path}`);
+      }
+    });
+    
+    return results;
+  }
+};
+
 // Export por defecto
 export default {
   designTokens,
-  tokenUtils
+  unifiedTokens,
+  tokenUtils,
+  enhancedTokenUtils
 };
