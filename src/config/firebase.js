@@ -1,9 +1,9 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
-import { getFunctions } from 'firebase/functions';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
+import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
 // Firebase configuration usando variables de entorno
 const firebaseConfig = {
@@ -15,19 +15,61 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
+// Validar configuración antes de inicializar
+if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+  console.error('🚨 Firebase configuration is missing required fields');
+  throw new Error('Firebase configuration is incomplete');
+}
+
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let app;
+try {
+  app = initializeApp(firebaseConfig);
+  console.log('✅ Firebase app initialized successfully');
+} catch (error) {
+  console.error('🚨 Error initializing Firebase:', error);
+  throw error;
+}
 
 // Initialize Firebase Authentication and get a reference to the service
-export const auth = getAuth(app);
+let auth;
+try {
+  auth = getAuth(app);
+  console.log('✅ Firebase Auth initialized successfully');
+} catch (error) {
+  console.error('🚨 Error initializing Firebase Auth:', error);
+  throw error;
+}
 
 // Initialize Cloud Firestore and get a reference to the service
-export const db = getFirestore(app);
+let db;
+try {
+  db = getFirestore(app);
+  console.log('✅ Firestore initialized successfully');
+} catch (error) {
+  console.error('🚨 Error initializing Firestore:', error);
+  throw error;
+}
 
 // Initialize Cloud Storage and get a reference to the service
-export const storage = getStorage(app);
+let storage;
+try {
+  storage = getStorage(app);
+  console.log('✅ Firebase Storage initialized successfully');
+} catch (error) {
+  console.error('🚨 Error initializing Firebase Storage:', error);
+  throw error;
+}
 
 // Initialize Cloud Functions and get a reference to the service
-export const functions = getFunctions(app);
+let functions;
+try {
+  functions = getFunctions(app);
+  console.log('✅ Firebase Functions initialized successfully');
+} catch (error) {
+  console.error('🚨 Error initializing Firebase Functions:', error);
+  throw error;
+}
 
+export { auth, db, storage, functions };
 export default app;

@@ -55,9 +55,11 @@ export default defineConfig({
     }
   },
   define: {
-    // ✅ Fix para Firebase en Vite
+    // ✅ Fix para Firebase en Vite - Configuración mejorada
     global: 'globalThis',
-    'process.env': {}
+    'process.env': {},
+    __VUE_PROD_DEVTOOLS__: false,
+    __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false
   },
   optimizeDeps: {
     // Pre-bundling dependencies para mejor rendimiento
@@ -77,7 +79,8 @@ export default defineConfig({
       'framer-motion',
       'date-fns'
     ],
-    exclude: ['@firebase/app-types', '@firebase/util', '@firebase/component']
+    exclude: ['@firebase/app-types', '@firebase/util', '@firebase/component'],
+    force: true // Forzar re-optimización
   },
   esbuild: {
     // Optimizaciones de esbuild

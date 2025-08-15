@@ -21,7 +21,6 @@ import {
   CheckCircle,
   Info
 } from '@mui/icons-material';
-import { motion } from 'framer-motion';
 import { useStorageStats } from '../../hooks/useStorageStats';
 import { useSettings } from '../../context/SettingsContext';
 
@@ -134,18 +133,14 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
       onClose={onClose}
       PaperProps={{
         sx: {
-          width: 440,
+          width: 420,
           maxHeight: 580,
-          bgcolor: 'transparent',
+          bgcolor: theme.palette.background.paper,
           borderRadius: `${borderRadius}px`,
-          boxShadow: `0 8px 32px ${alpha(primaryColor, 0.25)}`,
+          boxShadow: theme.shadows[8],
           border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
           overflow: 'visible',
           mt: 1,
-          background: theme.palette.mode === 'dark'
-            ? 'rgba(30, 30, 30, 0.95)'
-            : 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(20px)',
           '&::before': {
             content: '""',
             display: 'block',
@@ -154,9 +149,7 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
             right: 14,
             width: 10,
             height: 10,
-            bgcolor: theme.palette.mode === 'dark' 
-              ? 'rgba(30, 30, 30, 0.95)' 
-              : 'rgba(255, 255, 255, 0.95)',
+            bgcolor: theme.palette.background.paper,
             transform: 'translateY(-50%) rotate(45deg)',
             zIndex: 0,
             border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
@@ -170,10 +163,12 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
     >
       <Box sx={{ p: 0 }}>
         {/* Header spectacular con gradiente dinámico */}
-        <motion.div
-          initial={animationsEnabled ? { opacity: 0, y: -10 } : {}}
-          animate={animationsEnabled ? { opacity: 1, y: 0 } : {}}
-          transition={animationsEnabled ? { type: 'spring', stiffness: 300, damping: 30 } : {}}
+        <Box
+          sx={{
+            transition: animationsEnabled ? theme.transitions.create(['opacity'], {
+              duration: theme.transitions.duration.short
+            }) : 'none'
+          }}
         >
           <Box sx={{ 
             display: 'flex', 
@@ -183,23 +178,9 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
             borderRadius: `${borderRadius}px ${borderRadius}px 0 0`,
             background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
             color: 'white',
-            position: 'relative',
-            overflow: 'hidden',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: animationsEnabled ? 
-                'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)' : 
-                'none',
-              transform: 'translateX(-100%)',
-              animation: animationsEnabled ? 'shimmer 3s infinite' : 'none'
-            }
+            position: 'relative'
           }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <Storage sx={{ 
                 color: 'white', 
                 mr: 1, 
@@ -216,7 +197,7 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
             </Box>
             
             {/* Indicador de estado mejorado */}
-            <Box sx={{ textAlign: 'right', position: 'relative', zIndex: 1 }}>
+            <Box sx={{ textAlign: 'right' }}>
               <Chip
                 icon={<storageStatus.icon sx={{ fontSize: 16, color: 'white' }} />}
                 label={storageStatus.message}
@@ -239,17 +220,19 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
               </Typography>
             </Box>
           </Box>
-        </motion.div>
+        </Box>
 
         {/* Contenido del menú */}
         <Box sx={{ p: 2 }}>
           <Divider sx={{ mb: 2 }} />
 
           {/* Progreso de uso */}
-          <motion.div
-            initial={animationsEnabled ? { opacity: 0, y: 10 } : {}}
-            animate={animationsEnabled ? { opacity: 1, y: 0 } : {}}
-            transition={animationsEnabled ? { delay: 0.1 } : {}}
+          <Box
+            sx={{
+              transition: animationsEnabled ? theme.transitions.create(['opacity'], {
+                duration: theme.transitions.duration.short
+              }) : 'none'
+            }}
           >
           <Box sx={{ mb: 2.5 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -282,13 +265,15 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
               </Typography>
             </Box>
           </Box>
-        </motion.div>
+        </Box>
 
         {/* Distribución de archivos */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+        <Box
+          sx={{
+            transition: animationsEnabled ? theme.transitions.create(['opacity'], {
+              duration: theme.transitions.duration.short
+            }) : 'none'
+          }}
         >
           <Typography variant="body2" fontWeight="600" color="text.primary" sx={{ mb: 1.5 }}>
             Distribución de Archivos
@@ -296,10 +281,12 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
           <Grid container spacing={1.5}>
             {fileTypes.map((type, index) => (
               <Grid item xs={4} key={type.id}>
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 + (index * 0.05) }}
+                <Box
+                  sx={{
+                    transition: animationsEnabled ? theme.transitions.create(['transform'], {
+                      duration: theme.transitions.duration.short
+                    }) : 'none'
+                  }}
                 >
                   <Box
                     sx={{
@@ -351,17 +338,19 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
                       {type.description}
                     </Typography>
                   </Box>
-                </motion.div>
+                </Box>
               </Grid>
             ))}
           </Grid>
-        </motion.div>
+        </Box>
 
         {/* Resumen de capacidad */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+        <Box
+          sx={{
+            transition: animationsEnabled ? theme.transitions.create(['opacity'], {
+              duration: theme.transitions.duration.short
+            }) : 'none'
+          }}
         >
           <Box sx={{ 
             mt: 2.5,
@@ -386,7 +375,7 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
               Límite: {storageStats.total || 5} GB • Renovación automática mensual
             </Typography>
           </Box>
-        </motion.div>
+        </Box>
 
         {/* Loading indicator */}
         {storageStats.loading && (

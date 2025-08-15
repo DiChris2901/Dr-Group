@@ -25,7 +25,6 @@ import {
   Error as ErrorIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { motion } from 'framer-motion';
 import { useFirestore } from '../../hooks/useFirestore';
 import { fCurrency } from '../../utils/formatNumber';
 import { useSettings } from '../../context/SettingsContext';
@@ -162,18 +161,14 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
       onClose={onClose}
       PaperProps={{
         sx: {
-          width: 380,
+          width: 420,
           maxHeight: 480,
-          bgcolor: 'transparent',
+          bgcolor: theme.palette.background.paper,
           borderRadius: `${borderRadius}px`,
-          boxShadow: `0 8px 32px ${alpha(primaryColor, 0.25)}`,
+          boxShadow: theme.shadows[8],
           border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
           overflow: 'visible',
           mt: 1,
-          background: theme.palette.mode === 'dark'
-            ? 'rgba(30, 30, 30, 0.95)'
-            : 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(20px)',
           '&::before': {
             content: '""',
             display: 'block',
@@ -182,9 +177,7 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
             right: 14,
             width: 10,
             height: 10,
-            bgcolor: theme.palette.mode === 'dark' 
-              ? 'rgba(30, 30, 30, 0.95)' 
-              : 'rgba(255, 255, 255, 0.95)',
+            bgcolor: theme.palette.background.paper,
             transform: 'translateY(-50%) rotate(45deg)',
             zIndex: 0,
             border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
@@ -196,10 +189,12 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
       transformOrigin={{ horizontal: 'right', vertical: 'top' }}
       anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
     >
-      <motion.div
-        initial={animationsEnabled ? { opacity: 0, y: -10 } : {}}
-        animate={animationsEnabled ? { opacity: 1, y: 0 } : {}}
-        transition={animationsEnabled ? { type: 'spring', stiffness: 300, damping: 30 } : {}}
+      <Box 
+        sx={{
+          transition: animationsEnabled ? theme.transitions.create(['opacity'], {
+            duration: theme.transitions.duration.short
+          }) : 'none'
+        }}
       >
         <Box sx={{ p: 1.5 }}>
           {/* Header del calendario con gradiente spectacular */}
@@ -214,30 +209,16 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
             borderRadius: `${borderRadius}px ${borderRadius}px 0 0`,
             background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
             color: 'white',
-            position: 'relative',
-            overflow: 'hidden',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: animationsEnabled ? 
-                'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)' : 
-                'none',
-              transform: 'translateX(-100%)',
-              animation: animationsEnabled ? 'shimmer 3s infinite' : 'none'
-            }
+            position: 'relative'
           }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, position: 'relative', zIndex: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <EventIcon sx={{ color: 'white', fontSize: 22 }} />
               <Typography variant="h6" sx={{ fontWeight: 700, color: 'white' }}>
                 Calendario
               </Typography>
             </Box>
             
-            <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <IconButton 
                 size="small"
                 onClick={goToToday}
@@ -354,10 +335,10 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
               const getPriorityColor = () => {
                 if (!hasCommitmentsOnDate) return 'transparent';
                 switch (priority) {
-                  case 'error': return '#ff4757';
-                  case 'warning': return '#ffa502';
-                  case 'info': return '#3742fa';
-                  default: return '#2ed573';
+                  case 'error': return theme.palette.error.main;
+                  case 'warning': return theme.palette.warning.main;
+                  case 'info': return theme.palette.info.main;
+                  default: return theme.palette.success.main;
                 }
               };
 
@@ -461,9 +442,9 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
                                  commitment.priority === 'high' ? 'warning' : 
                                  commitment.status === 'completed' ? 'success' : 'info';
                   
-                  const priorityColor = priority === 'error' ? '#ff4336' :
-                                      priority === 'warning' ? '#ff9800' :
-                                      priority === 'success' ? '#4caf50' : '#2196f3';
+                  const priorityColor = priority === 'error' ? theme.palette.error.main :
+                                      priority === 'warning' ? theme.palette.warning.main :
+                                      priority === 'success' ? theme.palette.success.main : theme.palette.info.main;
 
                   const getStatusIcon = () => {
                     if (commitment.status === 'completed') return <CheckCircleIcon sx={{ fontSize: 14, color: priorityColor }} />;
@@ -535,7 +516,7 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
           </Box>
         )}
       </Box>
-      </motion.div>
+      </Box>
     </Menu>
   );
 };

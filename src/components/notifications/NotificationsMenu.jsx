@@ -199,18 +199,14 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
       anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
       PaperProps={{
         sx: {
-          width: 440,
+          width: 420,
           maxHeight: 620,
-          bgcolor: 'transparent',
+          bgcolor: theme.palette.background.paper,
           borderRadius: `${borderRadius}px`,
-          boxShadow: `0 8px 32px ${alpha(primaryColor, 0.25)}`,
+          boxShadow: theme.shadows[8],
           border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
           overflow: 'visible',
           mt: 1,
-          background: theme.palette.mode === 'dark'
-            ? 'rgba(30, 30, 30, 0.95)'
-            : 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(20px)',
           '&::before': {
             content: '""',
             display: 'block',
@@ -219,9 +215,7 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
             right: 14,
             width: 10,
             height: 10,
-            bgcolor: theme.palette.mode === 'dark' 
-              ? 'rgba(30, 30, 30, 0.95)' 
-              : 'rgba(255, 255, 255, 0.95)',
+            bgcolor: theme.palette.background.paper,
             transform: 'translateY(-50%) rotate(45deg)',
             zIndex: 0,
             border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
@@ -238,28 +232,12 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
           borderRadius: `${borderRadius}px ${borderRadius}px 0 0`,
           background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
           color: 'white',
-          position: 'relative',
-          overflow: 'hidden',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: animationsEnabled ? 
-              'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)' : 
-              'none',
-            transform: 'translateX(-100%)',
-            animation: animationsEnabled ? 'shimmer 4s infinite' : 'none'
-          }
+          position: 'relative'
         }}>
           <Box sx={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
-            alignItems: 'center',
-            position: 'relative',
-            zIndex: 1
+            alignItems: 'center'
           }}>
             <Typography variant="h6" sx={{ fontWeight: 700, color: 'white' }}>
               Centro de Notificaciones
@@ -298,11 +276,11 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                 transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
                 '&.Mui-selected': {
                   color: 'white',
-                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                  backgroundColor: alpha(theme.palette.common.white, 0.15),
+                  boxShadow: theme.shadows[2]
                 },
                 '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  backgroundColor: alpha(theme.palette.common.white, 0.08),
                   transform: animationsEnabled ? 'translateY(-1px)' : 'none'
                 }
               },
@@ -310,7 +288,7 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                 backgroundColor: 'white',
                 height: 3,
                 borderRadius: 2,
-                boxShadow: '0 2px 8px rgba(255,255,255,0.3)'
+                boxShadow: theme.shadows[1]
               }
             }}
           >

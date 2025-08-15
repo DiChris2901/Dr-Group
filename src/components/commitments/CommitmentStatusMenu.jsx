@@ -18,7 +18,6 @@ import {
   Timeline,
   AttachMoney
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useFirestore } from '../../hooks/useFirestore';
 import { fCurrency } from '../../utils/formatNumber';
 import { useSettings } from '../../context/SettingsContext';
@@ -173,16 +172,12 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
         sx: {
           width: 420,
           maxHeight: 550,
-          bgcolor: 'transparent',
+          bgcolor: theme.palette.background.paper,
           borderRadius: `${borderRadius}px`,
-          boxShadow: `0 8px 32px ${alpha(primaryColor, 0.25)}`,
+          boxShadow: theme.shadows[8],
           border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
           overflow: 'visible',
           mt: 1,
-          background: theme.palette.mode === 'dark'
-            ? 'rgba(30, 30, 30, 0.95)'
-            : 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(20px)',
           '&::before': {
             content: '""',
             display: 'block',
@@ -191,9 +186,7 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
             right: 14,
             width: 10,
             height: 10,
-            bgcolor: theme.palette.mode === 'dark' 
-              ? 'rgba(30, 30, 30, 0.95)' 
-              : 'rgba(255, 255, 255, 0.95)',
+            bgcolor: theme.palette.background.paper,
             transform: 'translateY(-50%) rotate(45deg)',
             zIndex: 0,
             border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
@@ -207,10 +200,12 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
     >
       <Box sx={{ p: 0 }}>
         {/* Header spectacular con gradiente dinámico */}
-        <motion.div
-          initial={animationsEnabled ? { opacity: 0, y: -10 } : {}}
-          animate={animationsEnabled ? { opacity: 1, y: 0 } : {}}
-          transition={animationsEnabled ? { type: 'spring', stiffness: 300, damping: 30 } : {}}
+        <Box
+          sx={{
+            transition: animationsEnabled ? theme.transitions.create(['opacity'], {
+              duration: theme.transitions.duration.short
+            }) : 'none'
+          }}
         >
           <Box sx={{ 
             display: 'flex', 
@@ -220,23 +215,9 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
             borderRadius: `${borderRadius}px ${borderRadius}px 0 0`,
             background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
             color: 'white',
-            position: 'relative',
-            overflow: 'hidden',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: animationsEnabled ? 
-                'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)' : 
-                'none',
-              transform: 'translateX(-100%)',
-              animation: animationsEnabled ? 'shimmer 3s infinite' : 'none'
-            }
+            position: 'relative'
           }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', position: 'relative', zIndex: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <Assessment sx={{ 
                 color: 'white', 
                 mr: 1, 
@@ -253,7 +234,7 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
             </Box>
             
             {/* Indicador de progreso circular mejorado */}
-            <Box sx={{ position: 'relative', width: 45, height: 45, zIndex: 1 }}>
+            <Box sx={{ position: 'relative', width: 45, height: 45 }}>
               <Box sx={{
                 position: 'absolute',
                 width: '100%',
@@ -288,7 +269,7 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
               </Box>
             </Box>
           </Box>
-        </motion.div>
+        </Box>
 
         {/* Contenido del menú */}
         <Box sx={{ p: 2 }}>
@@ -298,13 +279,17 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
           <Grid container spacing={2} sx={{ mb: 2 }}>
           {statusCards.map((card, index) => (
             <Grid item xs={6} key={card.id}>
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + (index * 0.05) }}
-                whileHover={{ y: -1 }}
-                onHoverStart={() => setHoveredCard(card.id)}
-                onHoverEnd={() => setHoveredCard(null)}
+              <Box
+                onMouseEnter={() => setHoveredCard(card.id)}
+                onMouseLeave={() => setHoveredCard(null)}
+                sx={{
+                  transition: animationsEnabled ? theme.transitions.create(['transform'], {
+                    duration: theme.transitions.duration.short
+                  }) : 'none',
+                  '&:hover': {
+                    transform: animationsEnabled ? 'translateY(-2px)' : 'none'
+                  }
+                }}
               >
                 <Box
                   sx={{
@@ -374,16 +359,18 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
                     }} />
                   )}
                 </Box>
-              </motion.div>
+              </Box>
             </Grid>
           ))}
         </Grid>
 
         {/* Resumen financiero */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+        <Box
+          sx={{
+            transition: animationsEnabled ? theme.transitions.create(['opacity'], {
+              duration: theme.transitions.duration.short
+            }) : 'none'
+          }}
         >
           <Box sx={{ 
             p: 2, 
@@ -428,7 +415,7 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
               />
             </Box>
           </Box>
-        </motion.div>
+        </Box>
         </Box>
       </Box>
     </Menu>

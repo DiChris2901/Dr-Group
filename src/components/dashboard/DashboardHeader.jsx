@@ -20,7 +20,8 @@ import {
     Menu,
     MenuItem,
     Tooltip,
-    Typography
+    Typography,
+    alpha
 } from '@mui/material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 import { useState } from 'react';
@@ -92,6 +93,49 @@ const DashboardHeader = ({ onOpenSettings }) => {
   
   // 📐 Configuraciones de Layout
   const compactMode = settings?.sidebar?.compactMode || false;
+
+  // 🎨 Estilo unificado para items del menú de usuario
+  const menuItemStyle = {
+    borderRadius: 1.5,
+    mb: 0.5,
+    mx: 0.5,
+    px: 2,
+    py: 1.5,
+    backgroundColor: 'transparent',
+    transition: theme.transitions.create(['background-color', 'transform'], {
+      duration: theme.transitions.duration.short,
+    }),
+    '&:hover': {
+      backgroundColor: alpha(theme.palette.primary.main, 0.08),
+      transform: 'translateX(4px)',
+      '& .MuiListItemIcon-root': {
+        color: theme.palette.primary.main
+      },
+      '& .MuiListItemText-primary': {
+        color: theme.palette.primary.main,
+        fontWeight: 600
+      }
+    }
+  };
+
+  // 🎨 Estilo unificado para botones de la topbar
+  const topbarButtonStyle = {
+    width: 44,
+    height: 44,
+    backgroundColor: alpha(theme.palette.primary.main, 0.08),
+    border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+    borderRadius: 2,
+    color: theme.palette.primary.main,
+    '&:hover': {
+      backgroundColor: alpha(theme.palette.primary.main, 0.12),
+      borderColor: alpha(theme.palette.primary.main, 0.2),
+      transform: 'translateY(-1px)',
+      boxShadow: theme.shadows[2]
+    },
+    transition: theme.transitions.create(['background-color', 'border-color', 'transform', 'box-shadow'], {
+      duration: theme.transitions.duration.short,
+    }),
+  };
 
   const handleProfileMenuOpen = (event) => {
     setProfileMenuAnchor(event.currentTarget);
@@ -210,36 +254,14 @@ const DashboardHeader = ({ onOpenSettings }) => {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'flex-end',
-        gap: 1
+        gap: 1.5 // Mejor espaciado entre botones
       }}>
         {/* Botón de notificaciones - Condicional según configuración */}
         {notificationsEnabled && (
-          <Tooltip title="Notificaciones y Alertas">
+          <Tooltip title="Notificaciones y Alertas" arrow>
             <IconButton
             onClick={handleNotificationsOpen}
-            sx={{
-              width: 48,
-              height: 48,
-              background: isDarkMode 
-                ? `linear-gradient(135deg, ${primaryColor}20, ${secondaryColor}10)`
-                : `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}08)`,
-              border: `1px solid ${isDarkMode ? `${primaryColor}30` : `${primaryColor}20`}`,
-              borderRadius: `${borderRadius * 1.5}px`,
-              backdropFilter: 'blur(10px)',
-              color: primaryColor,
-              '&:hover': {
-                background: isDarkMode 
-                  ? `linear-gradient(135deg, ${primaryColor}30, ${secondaryColor}15)`
-                  : `linear-gradient(135deg, ${primaryColor}25, ${secondaryColor}12)`,
-                transform: animationsEnabled ? 'translateY(-1px)' : 'none',
-                boxShadow: isDarkMode 
-                  ? '0 8px 16px rgba(0, 0, 0, 0.3)'
-                  : '0 8px 16px rgba(0, 0, 0, 0.1)',
-              },
-              transition: animationsEnabled ? theme.transitions.create(['background', 'transform', 'box-shadow'], {
-                duration: theme.transitions.duration.short,
-              }) : 'none',
-            }}
+            sx={topbarButtonStyle}
           >
             <Badge 
               badgeContent={unreadCount + alertsCount} 
@@ -251,11 +273,8 @@ const DashboardHeader = ({ onOpenSettings }) => {
                   fontSize: '0.75rem',
                   minWidth: 20,
                   height: 20,
-                  background: 'linear-gradient(135deg, #ef4444, #dc2626)',
-                  border: `2px solid ${isDarkMode ? '#1e293b' : '#ffffff'}`,
-                  boxShadow: isDarkMode 
-                    ? '0 4px 8px rgba(0, 0, 0, 0.3)'
-                    : '0 4px 8px rgba(0, 0, 0, 0.1)',
+                  backgroundColor: theme.palette.error.main,
+                  border: `2px solid ${theme.palette.background.paper}`,
                 },
               }}
             >
@@ -266,128 +285,47 @@ const DashboardHeader = ({ onOpenSettings }) => {
         )}
 
         {/* Botón de calendario */}
-        <Tooltip title="Calendario de Compromisos">
+        <Tooltip title="Calendario de Compromisos" arrow>
           <IconButton
             onClick={handleCalendarOpen}
-            sx={{
-              width: 48,
-              height: 48,
-              background: isDarkMode 
-                ? `linear-gradient(135deg, ${primaryColor}20, ${secondaryColor}10)`
-                : `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}08)`,
-              border: `1px solid ${isDarkMode ? `${primaryColor}30` : `${primaryColor}20`}`,
-              borderRadius: `${borderRadius * 1.5}px`,
-              backdropFilter: 'blur(10px)',
-              color: primaryColor,
-              '&:hover': {
-                background: isDarkMode 
-                  ? `linear-gradient(135deg, ${primaryColor}30, ${secondaryColor}15)`
-                  : `linear-gradient(135deg, ${primaryColor}25, ${secondaryColor}12)`,
-                transform: animationsEnabled ? 'translateY(-1px)' : 'none',
-                boxShadow: isDarkMode 
-                  ? '0 8px 16px rgba(0, 0, 0, 0.3)'
-                  : '0 8px 16px rgba(0, 0, 0, 0.1)',
-              },
-              transition: animationsEnabled ? theme.transitions.create(['background', 'transform', 'box-shadow'], {
-                duration: theme.transitions.duration.short,
-              }) : 'none',
-            }}
+            sx={topbarButtonStyle}
           >
             <CalendarIcon sx={{ fontSize: 22 }} />
           </IconButton>
         </Tooltip>
 
         {/* Botón de estado de compromisos */}
-        <Tooltip title="Estado de Compromisos">
+        <Tooltip title="Estado de Compromisos" arrow>
           <IconButton
             onClick={handleCommitmentStatusOpen}
-            sx={{
-              width: 48,
-              height: 48,
-              background: isDarkMode 
-                ? `linear-gradient(135deg, ${primaryColor}20, ${secondaryColor}10)`
-                : `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}08)`,
-              border: `1px solid ${isDarkMode ? `${primaryColor}30` : `${primaryColor}20`}`,
-              borderRadius: `${borderRadius * 1.5}px`,
-              backdropFilter: 'blur(10px)',
-              color: primaryColor,
-              '&:hover': {
-                background: isDarkMode 
-                  ? `linear-gradient(135deg, ${primaryColor}30, ${secondaryColor}15)`
-                  : `linear-gradient(135deg, ${primaryColor}25, ${secondaryColor}12)`,
-                transform: animationsEnabled ? 'translateY(-1px)' : 'none',
-                boxShadow: isDarkMode 
-                  ? '0 8px 16px rgba(0, 0, 0, 0.3)'
-                  : '0 8px 16px rgba(0, 0, 0, 0.1)',
-              },
-              transition: animationsEnabled ? theme.transitions.create(['background', 'transform', 'box-shadow'], {
-                duration: theme.transitions.duration.short,
-              }) : 'none',
-            }}
+            sx={topbarButtonStyle}
           >
-            <CommitmentStatusIcon sx={{ fontSize: 22 }} />
+            <CommitmentStatusIcon sx={{ fontSize: 20 }} />
           </IconButton>
         </Tooltip>
 
         {/* Botón de almacenamiento */}
-        <Tooltip title="Almacenamiento">
+        <Tooltip title="Almacenamiento" arrow>
           <IconButton
             onClick={handleStorageOpen}
-            sx={{
-              width: 48,
-              height: 48,
-              background: isDarkMode 
-                ? `linear-gradient(135deg, ${primaryColor}20, ${secondaryColor}10)`
-                : `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}08)`,
-              border: `1px solid ${isDarkMode ? `${primaryColor}30` : `${primaryColor}20`}`,
-              borderRadius: `${borderRadius * 1.5}px`,
-              backdropFilter: 'blur(10px)',
-              color: primaryColor,
-              '&:hover': {
-                background: isDarkMode 
-                  ? `linear-gradient(135deg, ${primaryColor}30, ${secondaryColor}15)`
-                  : `linear-gradient(135deg, ${primaryColor}25, ${secondaryColor}12)`,
-                transform: animationsEnabled ? 'translateY(-1px)' : 'none',
-                boxShadow: isDarkMode 
-                  ? '0 8px 16px rgba(0, 0, 0, 0.3)'
-                  : '0 8px 16px rgba(0, 0, 0, 0.1)',
-              },
-              transition: animationsEnabled ? theme.transitions.create(['background', 'transform', 'box-shadow'], {
-                duration: theme.transitions.duration.short,
-              }) : 'none',
-            }}
+            sx={topbarButtonStyle}
           >
             <StorageIcon sx={{ fontSize: 22 }} />
           </IconButton>
         </Tooltip>
 
         {/* Botón de cambio de tema */}
-        <Tooltip title={getThemeTooltip()}>
+        <Tooltip title={getThemeTooltip()} arrow>
           <IconButton
             onClick={handleThemeChange}
             sx={{
-              width: 48,
-              height: 48,
-              background: isDarkMode 
-                ? `linear-gradient(135deg, ${primaryColor}20, ${secondaryColor}10)`
-                : `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}08)`,
-              border: `1px solid ${isDarkMode ? `${primaryColor}30` : `${primaryColor}20`}`,
-              borderRadius: `${borderRadius * 1.5}px`,
-              backdropFilter: 'blur(10px)',
-              color: isDarkMode ? '#fbbf24' : secondaryColor, // Dorado en dark, secondary en light
+              ...topbarButtonStyle,
+              color: theme.palette.secondary.main,
               '&:hover': {
-                background: isDarkMode 
-                  ? `linear-gradient(135deg, ${primaryColor}30, #fbbf2420)`
-                  : `linear-gradient(135deg, ${primaryColor}25, ${secondaryColor}15)`,
-                transform: animationsEnabled ? 'translateY(-1px)' : 'none',
-                boxShadow: isDarkMode 
-                  ? '0 8px 16px rgba(0, 0, 0, 0.3)'
-                  : '0 8px 16px rgba(0, 0, 0, 0.1)',
-                color: isDarkMode ? '#fcd34d' : primaryColor,
-              },
-              transition: animationsEnabled ? theme.transitions.create(['background', 'transform', 'box-shadow', 'color'], {
-                duration: theme.transitions.duration.short,
-              }) : 'none',
+                ...topbarButtonStyle['&:hover'],
+                borderColor: alpha(theme.palette.secondary.main, 0.2),
+                color: theme.palette.secondary.dark,
+              }
             }}
           >
             {getThemeIcon()}
@@ -395,33 +333,26 @@ const DashboardHeader = ({ onOpenSettings }) => {
         </Tooltip>
 
         {/* Avatar y menú de perfil */}
-        <Tooltip title="Perfil de usuario">
+        <Tooltip title="Perfil de usuario" arrow>
           <IconButton 
             onClick={handleProfileMenuOpen} 
             sx={{ 
               p: 0, 
-              ml: 1,
-              width: 48,
-              height: 48,
-              background: isDarkMode 
-                ? `linear-gradient(135deg, ${primaryColor}25, ${secondaryColor}15)`
-                : `linear-gradient(135deg, ${primaryColor}20, ${secondaryColor}10)`,
-              border: `2px solid ${primaryColor}`,
-              borderRadius: `${borderRadius * 1.75}px`,
-              backdropFilter: 'blur(10px)',
+              ml: 0.5,
+              width: 44,
+              height: 44,
+              backgroundColor: alpha(theme.palette.primary.main, 0.08),
+              border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+              borderRadius: 2.5,
               '&:hover': {
-                background: isDarkMode 
-                  ? `linear-gradient(135deg, ${primaryColor}35, ${secondaryColor}20)`
-                  : `linear-gradient(135deg, ${primaryColor}30, ${secondaryColor}15)`,
-                transform: animationsEnabled ? 'translateY(-1px) scale(1.02)' : 'none',
-                boxShadow: isDarkMode 
-                  ? `0 8px 16px rgba(0, 0, 0, 0.3), 0 0 20px ${primaryColor}40`
-                  : `0 8px 16px rgba(0, 0, 0, 0.1), 0 0 20px ${primaryColor}30`,
-                borderColor: secondaryColor,
+                backgroundColor: alpha(theme.palette.primary.main, 0.12),
+                borderColor: alpha(theme.palette.primary.main, 0.3),
+                transform: 'translateY(-1px)',
+                boxShadow: theme.shadows[2]
               },
-              transition: animationsEnabled ? theme.transitions.create(['background', 'transform', 'box-shadow', 'border-color'], {
+              transition: theme.transitions.create(['background-color', 'border-color', 'transform', 'box-shadow'], {
                 duration: theme.transitions.duration.short,
-              }) : 'none',
+              }),
             }}
           >
             <ProfileAvatar
@@ -429,7 +360,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
               name={userProfile?.name}
               email={userProfile?.email}
               size={36}
-              border={false} // Removemos el borde del avatar ya que el botón tiene uno
+              border={false}
             />
           </IconButton>
         </Tooltip>
@@ -444,66 +375,30 @@ const DashboardHeader = ({ onOpenSettings }) => {
         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
         PaperProps={{
           sx: {
-            mt: 1,
-            minWidth: 280,
-            maxWidth: 320,
-            borderRadius: `${borderRadius * 1.5}px`,
-            background: isDarkMode
-              ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95))'
-              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95))',
-            backdropFilter: 'blur(20px) saturate(180%)',
-            boxShadow: isDarkMode 
-              ? `0 20px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px ${primaryColor}30`
-              : `0 20px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px ${primaryColor}20`,
-            border: `1px solid ${isDarkMode ? `${primaryColor}40` : `${primaryColor}25`}`,
-            overflow: 'visible',
-            '&::before': {
-              content: '""',
-              display: 'block',
-              position: 'absolute',
-              top: 0,
-              right: 14,
-              width: 12,
-              height: 12,
-              background: isDarkMode
-                ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95))'
-                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95))',
-              transform: 'translateY(-50%) rotate(45deg)',
-              zIndex: 0,
-              border: `1px solid ${isDarkMode ? `${primaryColor}40` : `${primaryColor}25`}`,
-              borderBottom: 'none',
-              borderRight: 'none'
-            }
+            mt: 1.5,
+            minWidth: 300,
+            maxWidth: 340,
+            borderRadius: 2,
+            backgroundColor: theme.palette.background.paper,
+            boxShadow: theme.shadows[4],
+            border: `1px solid ${theme.palette.divider}`,
+            overflow: 'hidden'
           },
         }}
       >
-        {/* Información del usuario - Header Spectacular */}
+        {/* Header del usuario - DS 3.0 con Gradiente Spectacular */}
         <Box sx={{ 
           px: 0, 
           py: 0,
           background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
-          borderRadius: `${borderRadius * 1.5}px ${borderRadius * 1.5}px 0 0`,
-          position: 'relative',
-          overflow: 'hidden',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: animationsEnabled ? 
-              'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)' : 
-              'none',
-            transform: 'translateX(-100%)',
-            animation: animationsEnabled ? 'shimmer 4s infinite' : 'none'
-          }
+          borderRadius: '8px 8px 0 0',
+          position: 'relative'
         }}>
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
             gap: 2, 
-            p: 2.5,
+            p: 3,
             position: 'relative',
             zIndex: 1
           }}>
@@ -512,16 +407,11 @@ const DashboardHeader = ({ onOpenSettings }) => {
                 photoURL={userProfile?.photoURL}
                 name={userProfile?.name}
                 email={userProfile?.email}
-                size={56}
+                size={52}
                 border={true}
                 sx={{
-                  border: '3px solid rgba(255, 255, 255, 0.3)',
-                  boxShadow: '0 8px 20px rgba(0, 0, 0, 0.2)',
-                  '&:hover': {
-                    transform: animationsEnabled ? 'scale(1.05)' : 'none',
-                    boxShadow: '0 12px 25px rgba(0, 0, 0, 0.3)'
-                  },
-                  transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
+                  border: '3px solid white',
+                  boxShadow: theme.shadows[2]
                 }}
               />
               {/* Indicador de estado online */}
@@ -533,10 +423,9 @@ const DashboardHeader = ({ onOpenSettings }) => {
                   width: 16,
                   height: 16,
                   borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #10b981, #059669)',
+                  backgroundColor: theme.palette.success.main,
                   border: '2px solid white',
-                  boxShadow: '0 2px 8px rgba(16, 185, 129, 0.4)',
-                  animation: animationsEnabled ? 'pulse 2s infinite' : 'none'
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
                 }}
               />
             </Box>
@@ -545,10 +434,9 @@ const DashboardHeader = ({ onOpenSettings }) => {
               <Typography 
                 variant="h6" 
                 sx={{ 
-                  fontWeight: 700, 
-                  fontSize: '1.1rem',
-                  mb: 0.5,
-                  textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                  fontWeight: 600, 
+                  fontSize: '1rem',
+                  mb: 0.5
                 }}
               >
                 {userProfile.name}
@@ -557,20 +445,18 @@ const DashboardHeader = ({ onOpenSettings }) => {
                 variant="body2" 
                 sx={{ 
                   opacity: 0.9,
-                  fontSize: '0.85rem',
-                  textShadow: '0 1px 2px rgba(0,0,0,0.3)'
+                  fontSize: '0.875rem',
+                  mb: 1
                 }}
               >
                 {userProfile.email}
               </Typography>
               <Box
                 sx={{
-                  mt: 1,
                   px: 1.5,
                   py: 0.5,
-                  borderRadius: `${borderRadius / 2}px`,
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  backdropFilter: 'blur(10px)',
+                  borderRadius: 1,
+                  backgroundColor: 'rgba(255, 255, 255, 0.25)',
                   display: 'inline-flex',
                   alignItems: 'center'
                 }}
@@ -578,10 +464,11 @@ const DashboardHeader = ({ onOpenSettings }) => {
                 <Typography 
                   variant="caption" 
                   sx={{ 
-                    fontWeight: 600,
+                    fontWeight: 500,
                     fontSize: '0.75rem',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
+                    letterSpacing: '0.5px',
+                    color: 'white'
                   }}
                 >
                   {userProfile.role || 'Admin'}
@@ -591,41 +478,17 @@ const DashboardHeader = ({ onOpenSettings }) => {
           </Box>
         </Box>
         
-        <Divider sx={{ 
-          borderColor: isDarkMode ? `${primaryColor}30` : `${primaryColor}20`,
-          my: 0 
-        }} />
+        <Divider sx={{ my: 0 }} />
 
-        {/* Opciones del menú - Design System Spectacular */}
+        {/* Opciones del menú - DS 3.0 Sobrio */}
         <Box sx={{ p: 1 }}>
           <MenuItem 
             onClick={handleNavigateToProfile}
-            sx={{
-              borderRadius: `${borderRadius}px`,
-              mb: 0.5,
-              px: 2,
-              py: 1.5,
-              background: 'transparent',
-              transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
-              '&:hover': {
-                background: `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}08)`,
-                transform: animationsEnabled ? 'translateX(4px)' : 'none',
-                boxShadow: `0 4px 12px ${isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.08)'}`,
-                '& .MuiListItemIcon-root': {
-                  color: primaryColor,
-                  transform: animationsEnabled ? 'scale(1.1)' : 'none'
-                },
-                '& .MuiListItemText-primary': {
-                  color: primaryColor,
-                  fontWeight: 600
-                }
-              }
-            }}
+            sx={menuItemStyle}
           >
             <ListItemIcon sx={{ 
               minWidth: 40,
-              color: theme.palette.text.secondary,
-              transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
+              color: theme.palette.text.secondary
             }}>
               <PersonIcon fontSize="small" />
             </ListItemIcon>
@@ -633,40 +496,18 @@ const DashboardHeader = ({ onOpenSettings }) => {
               primary="Mi Perfil" 
               primaryTypographyProps={{
                 fontWeight: 500,
-                fontSize: '0.95rem',
-                transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
+                fontSize: '0.9rem'
               }}
             />
           </MenuItem>
 
           <MenuItem 
             onClick={handleOpenSettings}
-            sx={{
-              borderRadius: `${borderRadius}px`,
-              mb: 0.5,
-              px: 2,
-              py: 1.5,
-              background: 'transparent',
-              transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
-              '&:hover': {
-                background: `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}08)`,
-                transform: animationsEnabled ? 'translateX(4px)' : 'none',
-                boxShadow: `0 4px 12px ${isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.08)'}`,
-                '& .MuiListItemIcon-root': {
-                  color: primaryColor,
-                  transform: animationsEnabled ? 'scale(1.1) rotate(45deg)' : 'none'
-                },
-                '& .MuiListItemText-primary': {
-                  color: primaryColor,
-                  fontWeight: 600
-                }
-              }
-            }}
+            sx={menuItemStyle}
           >
             <ListItemIcon sx={{ 
               minWidth: 40,
-              color: theme.palette.text.secondary,
-              transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
+              color: theme.palette.text.secondary
             }}>
               <SettingsIcon fontSize="small" />
             </ListItemIcon>
@@ -674,8 +515,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
               primary="Configuración" 
               primaryTypographyProps={{
                 fontWeight: 500,
-                fontSize: '0.95rem',
-                transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
+                fontSize: '0.9rem'
               }}
             />
           </MenuItem>
@@ -690,18 +530,12 @@ const DashboardHeader = ({ onOpenSettings }) => {
           <MenuItem 
             onClick={handleLogout}
             sx={{
-              borderRadius: `${borderRadius}px`,
-              px: 2,
-              py: 1.5,
-              background: 'transparent',
-              transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+              ...menuItemStyle,
               '&:hover': {
-                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.08))',
-                transform: animationsEnabled ? 'translateX(4px)' : 'none',
-                boxShadow: `0 4px 12px rgba(239, 68, 68, 0.2)`,
+                backgroundColor: alpha(theme.palette.error.main, 0.08),
+                transform: 'translateX(4px)',
                 '& .MuiListItemIcon-root': {
-                  color: theme.palette.error.main,
-                  transform: animationsEnabled ? 'scale(1.1)' : 'none'
+                  color: theme.palette.error.main
                 },
                 '& .MuiListItemText-primary': {
                   color: theme.palette.error.main,
@@ -712,8 +546,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
           >
             <ListItemIcon sx={{ 
               minWidth: 40,
-              color: theme.palette.text.secondary,
-              transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
+              color: theme.palette.text.secondary
             }}>
               <LogoutIcon fontSize="small" />
             </ListItemIcon>
@@ -721,8 +554,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
               primary="Cerrar Sesión" 
               primaryTypographyProps={{
                 fontWeight: 500,
-                fontSize: '0.95rem',
-                transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
+                fontSize: '0.9rem'
               }}
             />
           </MenuItem>
