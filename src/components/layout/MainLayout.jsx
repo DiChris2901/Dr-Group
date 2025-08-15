@@ -110,7 +110,7 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
           }),
         }}
       >
-        {/* TopBar flotante moderna y elegante */}
+        {/* TopBar empresarial DS 3.0 - Diseño sobrio y elegante */}
         <Box
           component="header"
           sx={{
@@ -119,16 +119,11 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
             left: !isMobile && sidebarPosition === 'left' ? `${currentSidebarWidth + 16}px` : '16px',
             right: !isMobile && sidebarPosition === 'right' ? `${currentSidebarWidth + 16}px` : '16px',
             zIndex: 1100,
-            height: 64, // Altura igual al banner del sidebar
-            background: isDarkMode 
-              ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95))'
-              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95))',
-            backdropFilter: 'blur(20px) saturate(180%)',
-            borderRadius: '16px',
-            border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'}`,
-            boxShadow: isDarkMode 
-              ? '0 8px 16px -4px rgba(0, 0, 0, 0.2), 0 4px 8px -2px rgba(0, 0, 0, 0.1)'
-              : '0 8px 16px -4px rgba(0, 0, 0, 0.1), 0 4px 8px -2px rgba(0, 0, 0, 0.06)',
+            height: 64,
+            backgroundColor: theme.palette.background.paper,
+            borderRadius: 2,
+            border: `1px solid ${theme.palette.divider}`,
+            boxShadow: theme.shadows[1],
             transition: theme.transitions.create(['left', 'right'], {
               easing: theme.transitions.easing.easeInOut,
               duration: theme.transitions.duration.leavingScreen,
@@ -184,8 +179,8 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
                     sx={{
                       width: 4,
                       height: 22,
-                      background: `linear-gradient(135deg, ${primaryColor}, ${theme.palette.secondary.main})`,
-                      borderRadius: '2px',
+                      backgroundColor: theme.palette.primary.main,
+                      borderRadius: 1,
                       mr: 1.5,
                       flexShrink: 0,
                     }}
@@ -194,15 +189,12 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
                     variant="h6"
                     sx={{
                       fontWeight: 600,
-                      color: isDarkMode ? '#ffffff' : '#1e293b',
+                      color: theme.palette.text.primary,
                       fontSize: '1.1rem',
                       whiteSpace: 'nowrap',
                       overflow: 'visible',
                       maxWidth: 'none',
                       letterSpacing: '-0.01em',
-                      textShadow: isDarkMode 
-                        ? '0 1px 3px rgba(0,0,0,0.3)' 
-                        : '0 1px 2px rgba(255,255,255,0.9)',
                     }}
                   >
                     {title}
@@ -237,11 +229,11 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
                         textDecoration: 'none',
                         px: 1,
                         py: 0.25,
-                        borderRadius: '6px',
+                        borderRadius: 1,
                         minWidth: 0,
                         '&:hover': {
-                          color: primaryColor,
-                          backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                          color: theme.palette.primary.main,
+                          backgroundColor: theme.palette.action.hover,
                         },
                         transition: theme.transitions.create(['color', 'background-color']),
                       }}
