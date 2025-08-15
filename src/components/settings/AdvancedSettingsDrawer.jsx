@@ -134,7 +134,6 @@ import {
   ScatterPlot as ChartScatterIcon,
   Speed as SpeedIcon,
   Schedule as ScheduleIcon,
-  RestartAlt as RestartIcon,
   TextFields as TextFieldsIcon,
   FormatSize as FormatSizeIcon,
   Security as SecurityIcon,
@@ -409,14 +408,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
       density: 'normal',
       viewMode: 'grid'
     },
-    widgets: {
-      totalCommitments: true,
-      monthlyOverview: true,
-      upcomingPayments: true,
-      companyBreakdown: true,
-      recentActivity: true,
-      analytics: true
-    },
     charts: {
       defaultType: 'bar',
       animations: 'smooth',
@@ -649,7 +640,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         }
                       }}
                     >
-                      <RestartIcon />
+                      <SettingsIcon />
                     </IconButton>
                   </Tooltip>
                   <IconButton
@@ -1671,177 +1662,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       </Grid>
                     </CardContent>
                   </Card>
-
-                  {/* Widgets Configuration */}
-                  <Card sx={{ 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
-                    background: `linear-gradient(135deg, 
-                      ${alpha('#4facfe', 0.03)} 0%, 
-                      ${alpha(theme.palette.background.paper, 0.98)} 100%
-                    )`,
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
-                    position: 'relative',
-                    overflow: 'hidden',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: '3px',
-                      background: `linear-gradient(90deg, 
-                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                      )`,
-                      boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
-                    }
-                  }}>
-                    <CardContent>
-                      <Typography variant="h6" sx={{ 
-                        mb: 3, 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 1.5,
-                        fontWeight: 600,
-                        color: theme.palette.text.primary
-                      }}>
-                        <Box sx={{
-                          p: 1,
-                          borderRadius: 2,
-                          background: settings?.theme?.primaryColor || '#667eea',
-                          color: 'white',
-                          display: 'flex',
-                          alignItems: 'center'
-                        }}>
-                          <DashboardIcon sx={{ fontSize: 20 }} />
-                        </Box>
-                        Widgets del Dashboard
-                      </Typography>
-                      
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        Personaliza qué widgets aparecen en tu panel de control. Puedes habilitar o deshabilitar cada elemento según tus preferencias.
-                      </Typography>
-
-                      <Stack spacing={1}>
-                        {Object.entries(dashboardSettings.widgets).map(([key, enabled]) => (
-                          <Tooltip 
-                            key={key}
-                            title={getWidgetDescription(key)} 
-                            placement="left" 
-                            arrow
-                          >
-                            <FormControlLabel
-                              control={
-                                <Switch
-                                  checked={enabled}
-                                  onChange={(e) => updateDashboardSetting(`widgets.${key}`, e.target.checked)}
-                                />
-                              }
-                              label={
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  {getWidgetLabel(key)}
-                                  <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                                </Box>
-                              }
-                            />
-                          </Tooltip>
-                        ))}
-                      </Stack>
-                    </CardContent>
-                  </Card>
-
-                  {/* Reset Dashboard Settings */}
-                  <Card sx={{ 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
-                    background: `linear-gradient(135deg, 
-                      ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
-                      ${alpha(theme.palette.background.paper, 0.98)} 100%
-                    )`,
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
-                    position: 'relative',
-                    overflow: 'hidden',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: '3px',
-                      background: `linear-gradient(90deg, 
-                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                      )`,
-                      boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
-                    }
-                  }}>
-                    <CardContent>
-                      <Typography variant="h6" sx={{ 
-                        mb: 3, 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 1.5,
-                        fontWeight: 600,
-                        color: theme.palette.text.primary
-                      }}>
-                        <Box sx={{
-                          p: 1,
-                          borderRadius: 2,
-                          background: '#ff6b6b',
-                          color: 'white',
-                          display: 'flex',
-                          alignItems: 'center'
-                        }}>
-                          <RestartIcon sx={{ fontSize: 20 }} />
-                        </Box>
-                        Restaurar Configuración
-                      </Typography>
-                      
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          Restaura todas las configuraciones del dashboard a sus valores predeterminados. 
-                          Esto incluye layout, gráficas, widgets y notificaciones.
-                        </Typography>
-                        
-                        <Box sx={{ display: 'flex', gap: 2 }}>
-                          <Button
-                            variant="outlined"
-                            startIcon={<RestartIcon />}
-                            onClick={() => {
-                              updateSettings('dashboard', defaultDashboard);
-                              setSaveMessage('Configuración del dashboard restaurada a valores por defecto');
-                              setShowSaveSuccess(true);
-                              setTimeout(() => {
-                                setShowSaveSuccess(false);
-                              }, 3000);
-                            }}
-                            sx={{
-                              borderRadius: 2,
-                              borderColor: '#ff6b6b',
-                              color: '#ff6b6b',
-                              background: 'transparent',
-                              transition: 'all 0.2s ease',
-                              '&:hover': {
-                                borderColor: '#ff5252',
-                                backgroundColor: alpha('#ff6b6b', 0.08),
-                                color: '#ff5252'
-                              },
-                              py: 1.5,
-                              px: 3,
-                              fontWeight: 500
-                            }}
-                          >
-                            Restaurar Dashboard
-                          </Button>
-                          
-
-                        </Box>
-                      </Box>
-                    </CardContent>
-                  </Card>
                 </Stack>
               </TabPanel>
 
@@ -2522,7 +2342,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                               <Button
                                 variant="outlined"
                                 color="warning"
-                                startIcon={<RestartIcon />}
+                                startIcon={<SettingsIcon />}
                                 onClick={() => {
                                   // Restaurar configuraciones por defecto de notificaciones
                                   const defaultNotifications = {
@@ -2973,46 +2793,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
 }
 
 // Helper functions
-function getWidgetLabel(key) {
-  const labels = {
-    totalCommitments: 'Estadísticas Generales',
-    monthlyOverview: 'Resumen Mensual',
-    upcomingPayments: 'Próximos Pagos',
-    companyBreakdown: 'Desglose por Empresa',
-    recentActivity: 'Actividad Reciente',
-    analytics: 'Gráficas y Análisis',
-    stats: 'Estadísticas',
-    recentCommitments: 'Compromisos Recientes',
-    monthlyChart: 'Gráfica Mensual',
-    companiesOverview: 'Resumen de Empresas',
-    quickActions: 'Acciones Rápidas',
-    paymentsSummary: 'Resumen de Pagos',
-    alertsWidget: 'Alertas y Notificaciones',
-    financialOverview: 'Panorama Financiero'
-  };
-  return labels[key] || key;
-}
-
-function getWidgetDescription(key) {
-  const descriptions = {
-    totalCommitments: 'Muestra métricas clave como total de compromisos, montos y estado general',
-    monthlyOverview: 'Presenta un resumen de los compromisos y pagos del mes actual',
-    upcomingPayments: 'Lista los próximos pagos programados y fechas de vencimiento',
-    companyBreakdown: 'Desglosa los compromisos financieros organizados por empresa',
-    recentActivity: 'Muestra las últimas actividades y transacciones registradas',
-    analytics: 'Presenta gráficas interactivas y análisis de tendencias financieras',
-    stats: 'Estadísticas resumidas del estado actual de compromisos',
-    recentCommitments: 'Listado de los compromisos añadidos recientemente',
-    monthlyChart: 'Gráfica visual del progreso mensual de pagos',
-    companiesOverview: 'Vista general del estado financiero por empresa',
-    quickActions: 'Accesos rápidos a funciones frecuentemente utilizadas',
-    paymentsSummary: 'Resumen consolidado de todos los pagos realizados',
-    alertsWidget: 'Centro de notificaciones y alertas importantes',
-    financialOverview: 'Panorama completo del estado financiero general'
-  };
-  return descriptions[key] || 'Widget personalizable del dashboard';
-}
-
 function getNotificationLabel(key) {
   const labels = {
     upcomingPayments: 'Próximos Pagos',
