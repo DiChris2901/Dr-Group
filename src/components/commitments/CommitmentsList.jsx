@@ -3079,22 +3079,36 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                       width: 40,
                                       height: 40,
                                       borderRadius: 2,
-                                      background: 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%)',
+                                      background: `linear-gradient(135deg, ${theme.palette.info.main}, ${theme.palette.info.dark})`,
                                       display: 'flex',
                                       alignItems: 'center',
                                       justifyContent: 'center',
-                                      backdropFilter: 'blur(10px)'
+                                      backdropFilter: 'blur(10px)',
+                                      boxShadow: `0 4px 16px ${alpha(theme.palette.info.main, 0.3)}`,
+                                      position: 'relative',
+                                      '&::before': {
+                                        content: '""',
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), transparent)',
+                                        borderRadius: 2,
+                                        zIndex: 1
+                                      }
                                     }}
                                   >
-                                    <Person sx={{ color: 'text.primary', fontSize: 20 }} />
+                                    <Person sx={{ color: 'white', fontSize: 20, zIndex: 2, position: 'relative' }} />
                                   </Box>
                                   <Typography variant="subtitle2" sx={{ 
-                                    fontWeight: 600, 
-                                    color: 'text.secondary',
+                                    fontWeight: 700, 
+                                    color: theme.palette.info.main,
                                     textTransform: 'uppercase',
-                                    letterSpacing: '0.5px'
+                                    letterSpacing: '0.8px',
+                                    fontSize: '0.85rem'
                                   }}>
-                                    Beneficiario Principal
+                                    👤 Beneficiario Principal
                                   </Typography>
                                 </Box>
                                 <Typography variant="body1" sx={{ 
@@ -3131,22 +3145,36 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                       width: 40,
                                       height: 40,
                                       borderRadius: 2,
-                                      background: 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%)',
+                                      background: `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})`,
                                       display: 'flex',
                                       alignItems: 'center',
                                       justifyContent: 'center',
-                                      backdropFilter: 'blur(10px)'
+                                      backdropFilter: 'blur(10px)',
+                                      boxShadow: `0 4px 16px ${alpha(theme.palette.success.main, 0.3)}`,
+                                      position: 'relative',
+                                      '&::before': {
+                                        content: '""',
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), transparent)',
+                                        borderRadius: 2,
+                                        zIndex: 1
+                                      }
                                     }}
                                   >
-                                    <Payment sx={{ color: 'text.primary', fontSize: 20 }} />
+                                    <Payment sx={{ color: 'white', fontSize: 20, zIndex: 2, position: 'relative' }} />
                                   </Box>
                                   <Typography variant="subtitle2" sx={{ 
-                                    fontWeight: 600, 
-                                    color: 'text.secondary',
+                                    fontWeight: 700, 
+                                    color: theme.palette.success.main,
                                     textTransform: 'uppercase',
-                                    letterSpacing: '0.5px'
+                                    letterSpacing: '0.8px',
+                                    fontSize: '0.85rem'
                                   }}>
-                                    Método de Pago
+                                    💳 Método de Pago
                                   </Typography>
                                 </Box>
                                 <Typography variant="body1" sx={{ 
@@ -3191,22 +3219,36 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                       width: 40,
                                       height: 40,
                                       borderRadius: 2,
-                                      background: 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%)',
+                                      background: `linear-gradient(135deg, ${theme.palette.warning.main}, ${theme.palette.warning.dark})`,
                                       display: 'flex',
                                       alignItems: 'center',
                                       justifyContent: 'center',
-                                      backdropFilter: 'blur(10px)'
+                                      backdropFilter: 'blur(10px)',
+                                      boxShadow: `0 4px 16px ${alpha(theme.palette.warning.main, 0.3)}`,
+                                      position: 'relative',
+                                      '&::before': {
+                                        content: '""',
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), transparent)',
+                                        borderRadius: 2,
+                                        zIndex: 1
+                                      }
                                     }}
                                   >
-                                    <Schedule sx={{ color: 'text.primary', fontSize: 20 }} />
+                                    <Schedule sx={{ color: 'white', fontSize: 20, zIndex: 2, position: 'relative' }} />
                                   </Box>
                                   <Typography variant="subtitle2" sx={{ 
-                                    fontWeight: 600, 
-                                    color: 'text.secondary',
+                                    fontWeight: 700, 
+                                    color: theme.palette.warning.main,
                                     textTransform: 'uppercase',
-                                    letterSpacing: '0.5px'
+                                    letterSpacing: '0.8px',
+                                    fontSize: '0.85rem'
                                   }}>
-                                    Periodicidad
+                                    ⏰ Periodicidad
                                   </Typography>
                                 </Box>
                                 <Typography variant="body1" sx={{ 
@@ -3252,11 +3294,24 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                       width: 40,
                                       height: 40,
                                       borderRadius: 2,
-                                      background: 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%)',
+                                      background: `linear-gradient(135deg, ${theme.palette.secondary.main}, ${theme.palette.secondary.dark})`,
                                       display: 'flex',
                                       alignItems: 'center',
                                       justifyContent: 'center',
-                                      backdropFilter: 'blur(10px)'
+                                      backdropFilter: 'blur(10px)',
+                                      boxShadow: `0 4px 16px ${alpha(theme.palette.secondary.main, 0.3)}`,
+                                      position: 'relative',
+                                      '&::before': {
+                                        content: '""',
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), transparent)',
+                                        borderRadius: 2,
+                                        zIndex: 1
+                                      }
                                     }}
                                   >
                                     {companyData?.logoURL ? (
@@ -3269,20 +3324,23 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                           height: 20,
                                           borderRadius: 1,
                                           objectFit: 'contain',
-                                          backgroundColor: 'rgba(255, 255, 255, 0.9)'
+                                          backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                          zIndex: 2,
+                                          position: 'relative'
                                         }}
                                       />
                                     ) : (
-                                      <Business sx={{ color: 'text.primary', fontSize: 20 }} />
+                                      <Business sx={{ color: 'white', fontSize: 20, zIndex: 2, position: 'relative' }} />
                                     )}
                                   </Box>
                                   <Typography variant="subtitle2" sx={{ 
-                                    fontWeight: 600, 
-                                    color: 'text.secondary',
+                                    fontWeight: 700, 
+                                    color: theme.palette.secondary.main,
                                     textTransform: 'uppercase',
-                                    letterSpacing: '0.5px'
+                                    letterSpacing: '0.8px',
+                                    fontSize: '0.85rem'
                                   }}>
-                                    Empresa
+                                    🏢 Empresa
                                   </Typography>
                                 </Box>
                                 <Typography variant="body1" sx={{ 
@@ -3318,22 +3376,36 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                       width: 40,
                                       height: 40,
                                       borderRadius: 2,
-                                      background: 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%)',
+                                      background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
                                       display: 'flex',
                                       alignItems: 'center',
                                       justifyContent: 'center',
-                                      backdropFilter: 'blur(10px)'
+                                      backdropFilter: 'blur(10px)',
+                                      boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.3)}`,
+                                      position: 'relative',
+                                      '&::before': {
+                                        content: '""',
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), transparent)',
+                                        borderRadius: 2,
+                                        zIndex: 1
+                                      }
                                     }}
                                   >
-                                    <Notes sx={{ color: 'text.primary', fontSize: 20 }} />
+                                    <Notes sx={{ color: 'white', fontSize: 20, zIndex: 2, position: 'relative' }} />
                                   </Box>
                                   <Typography variant="subtitle2" sx={{ 
-                                    fontWeight: 600, 
-                                    color: 'text.secondary',
+                                    fontWeight: 700, 
+                                    color: theme.palette.primary.main,
                                     textTransform: 'uppercase',
-                                    letterSpacing: '0.5px'
+                                    letterSpacing: '0.8px',
+                                    fontSize: '0.85rem'
                                   }}>
-                                    Observaciones
+                                    📝 Observaciones
                                   </Typography>
                                 </Box>
                                 <Typography variant="body1" sx={{ 
@@ -3371,22 +3443,36 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                       width: 40,
                                       height: 40,
                                       borderRadius: 2,
-                                      background: 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%)',
+                                      background: `linear-gradient(135deg, ${theme.palette.grey[600]}, ${theme.palette.grey[700]})`,
                                       display: 'flex',
                                       alignItems: 'center',
                                       justifyContent: 'center',
-                                      backdropFilter: 'blur(10px)'
+                                      backdropFilter: 'blur(10px)',
+                                      boxShadow: `0 4px 16px ${alpha(theme.palette.grey[500], 0.3)}`,
+                                      position: 'relative',
+                                      '&::before': {
+                                        content: '""',
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), transparent)',
+                                        borderRadius: 2,
+                                        zIndex: 1
+                                      }
                                     }}
                                   >
-                                    <AccessTime sx={{ color: 'text.primary', fontSize: 20 }} />
+                                    <AccessTime sx={{ color: 'white', fontSize: 20, zIndex: 2, position: 'relative' }} />
                                   </Box>
                                   <Typography variant="subtitle2" sx={{ 
-                                    fontWeight: 600, 
-                                    color: 'text.secondary',
+                                    fontWeight: 700, 
+                                    color: theme.palette.grey[600],
                                     textTransform: 'uppercase',
-                                    letterSpacing: '0.5px'
+                                    letterSpacing: '0.8px',
+                                    fontSize: '0.85rem'
                                   }}>
-                                    Fecha de Creación
+                                    🕒 Fecha de Creación
                                   </Typography>
                                 </Box>
                                 <Typography variant="body1" sx={{ 
@@ -3425,22 +3511,36 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                         width: 40,
                                         height: 40,
                                         borderRadius: 2,
-                                        background: 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%)',
+                                        background: `linear-gradient(135deg, ${theme.palette.error.main}, ${alpha(theme.palette.error.main, 0.8)})`,
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        backdropFilter: 'blur(10px)'
+                                        backdropFilter: 'blur(10px)',
+                                        boxShadow: `0 4px 16px ${alpha(theme.palette.error.main, 0.3)}`,
+                                        position: 'relative',
+                                        '&::before': {
+                                          content: '""',
+                                          position: 'absolute',
+                                          top: 0,
+                                          left: 0,
+                                          right: 0,
+                                          bottom: 0,
+                                          background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), transparent)',
+                                          borderRadius: 2,
+                                          zIndex: 1
+                                        }
                                       }}
                                     >
-                                      <Edit sx={{ color: 'text.primary', fontSize: 20 }} />
+                                      <Edit sx={{ color: 'white', fontSize: 20, zIndex: 2, position: 'relative' }} />
                                     </Box>
                                     <Typography variant="subtitle2" sx={{ 
-                                      fontWeight: 600, 
-                                      color: 'text.secondary',
+                                      fontWeight: 700, 
+                                      color: theme.palette.error.main,
                                       textTransform: 'uppercase',
-                                      letterSpacing: '0.5px'
+                                      letterSpacing: '0.8px',
+                                      fontSize: '0.85rem'
                                     }}>
-                                      Última Modificación
+                                      ✏️ Última Modificación
                                     </Typography>
                                   </Box>
                                   <Typography variant="body1" sx={{ 
