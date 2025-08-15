@@ -674,7 +674,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                 ${alpha(theme.palette.background.default, 0.95)} 50%,
                 ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.02)} 100%
               )`,
-              backdropFilter: 'blur(10px)',
               position: 'relative',
               '&::before': {
                 content: '""',
@@ -805,28 +804,10 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   {/* Color Presets */}
                   <Card sx={{ 
                     border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
-                    background: `linear-gradient(135deg, 
-                      ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
-                      ${alpha(theme.palette.background.paper, 0.98)} 100%
-                    )`,
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
-                    position: 'relative',
-                    overflow: 'hidden',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: '3px',
-                      background: `linear-gradient(90deg, 
-                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                      )`,
-                      boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
-                    }
+                    borderRadius: 4,
+                    background: theme.palette.background.paper,
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                    position: 'relative'
                   }}>
                     <CardContent>
                       <Typography variant="h6" sx={{ 
@@ -834,25 +815,14 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         display: 'flex', 
                         alignItems: 'center', 
                         gap: 1.5,
-                        fontWeight: 700,
-                        background: `linear-gradient(135deg, 
-                          ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                          ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                        )`,
-                        backgroundClip: 'text',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                        fontWeight: 600,
+                        color: theme.palette.text.primary
                       }}>
                         <Box sx={{
                           p: 1,
-                          borderRadius: '8px',
-                          background: `linear-gradient(135deg, 
-                            ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                            ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                          )`,
+                          borderRadius: 2,
+                          background: settings?.theme?.primaryColor || '#667eea',
                           color: 'white',
-                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
                           display: 'flex',
                           alignItems: 'center'
                         }}>
@@ -883,7 +853,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                     ${alpha(colors.main, 0.05)} 0%, 
                                     ${alpha(theme.palette.background.paper, 0.95)} 100%
                                   )`,
-                                  backdropFilter: 'blur(10px)',
                                   transition: settings?.theme?.animations ? 
                                     'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' : 
                                     'all 0.2s ease',
@@ -978,28 +947,10 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   {/* Mode Selection */}
                   <Card sx={{ 
                     border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
-                    background: `linear-gradient(135deg, 
-                      ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.03)} 0%, 
-                      ${alpha(theme.palette.background.paper, 0.98)} 100%
-                    )`,
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
-                    position: 'relative',
-                    overflow: 'hidden',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: '3px',
-                      background: `linear-gradient(90deg, 
-                        ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
-                        ${settings?.theme?.primaryColor || '#667eea'} 100%
-                      )`,
-                      boxShadow: `0 0 8px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.3)}`
-                    }
+                    borderRadius: 4,
+                    background: theme.palette.background.paper,
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                    position: 'relative'
                   }}>
                     <CardContent>
                       <Typography variant="h6" sx={{ 
@@ -1007,25 +958,14 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         display: 'flex', 
                         alignItems: 'center', 
                         gap: 1.5,
-                        fontWeight: 700,
-                        background: `linear-gradient(135deg, 
-                          ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
-                          ${settings?.theme?.primaryColor || '#667eea'} 100%
-                        )`,
-                        backgroundClip: 'text',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                        fontWeight: 600,
+                        color: theme.palette.text.primary
                       }}>
                         <Box sx={{
                           p: 1,
-                          borderRadius: '8px',
-                          background: `linear-gradient(135deg, 
-                            ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
-                            ${settings?.theme?.primaryColor || '#667eea'} 100%
-                          )`,
+                          borderRadius: 2,
+                          background: settings?.theme?.primaryColor || '#667eea',
                           color: 'white',
-                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.25)}`,
                           display: 'flex',
                           alignItems: 'center'
                         }}>
@@ -1036,108 +976,60 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       <Box sx={{ display: 'flex', gap: 2 }}>
                         <Button
                           variant={settings?.theme?.mode === 'light' ? 'contained' : 'outlined'}
-                          startIcon={<LightModeIcon />}
                           onClick={() => updateSettings('theme', { 
                             ...settings.theme, 
                             mode: 'light' 
                           })}
                           sx={{ 
                             flex: 1, 
-                            py: 2, 
-                            borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
-                            position: 'relative',
-                            overflow: 'hidden',
-                            transition: settings?.theme?.animations ? 
-                              'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' : 
-                              'all 0.2s ease',
+                            py: 1.5, 
+                            borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
+                            fontWeight: 500,
+                            textTransform: 'none',
                             ...(settings?.theme?.mode === 'light' ? {
-                              background: `linear-gradient(135deg, 
-                                #ffd700 0%, 
-                                #ffa500 50%, 
-                                #ff8c00 100%
-                              )`,
-                              boxShadow: `0 6px 20px ${alpha('#ffa500', 0.3)}`,
+                              backgroundColor: '#ffa500',
                               color: 'white',
-                              '&::before': settings?.theme?.animations ? {
-                                content: '""',
-                                position: 'absolute',
-                                top: '-50%',
-                                left: '-50%',
-                                width: '200%',
-                                height: '200%',
-                                background: `linear-gradient(45deg, 
-                                  transparent 30%, 
-                                  ${alpha('#ffffff', 0.2)} 50%, 
-                                  transparent 70%
-                                )`,
-                                animation: 'shimmer 3s infinite',
-                                transform: 'translateX(-100%)'
-                              } : {}
+                              '&:hover': {
+                                backgroundColor: '#ff8c00'
+                              }
                             } : {
-                              borderColor: alpha(theme.palette.divider, 0.12),
+                              borderColor: alpha(theme.palette.divider, 0.3),
+                              color: theme.palette.text.secondary,
                               '&:hover': {
                                 borderColor: '#ffa500',
                                 backgroundColor: alpha('#ffa500', 0.08)
                               }
-                            }),
-                            '&:hover': settings?.theme?.mode === 'light' ? {
-                              transform: settings?.theme?.animations ? 'translateY(-2px) scale(1.02)' : 'none',
-                              boxShadow: `0 8px 25px ${alpha('#ffa500', 0.4)}`
-                            } : {}
+                            })
                           }}
                         >
                           ☀️ Claro
                         </Button>
                         <Button
                           variant={settings?.theme?.mode === 'dark' ? 'contained' : 'outlined'}
-                          startIcon={<DarkModeIcon />}
                           onClick={() => updateSettings('theme', { 
                             ...settings.theme, 
                             mode: 'dark' 
                           })}
                           sx={{ 
                             flex: 1, 
-                            py: 2,
-                            borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
-                            position: 'relative',
-                            overflow: 'hidden',
-                            transition: settings?.theme?.animations ? 
-                              'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' : 
-                              'all 0.2s ease',
+                            py: 1.5,
+                            borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
+                            fontWeight: 500,
+                            textTransform: 'none',
                             ...(settings?.theme?.mode === 'dark' ? {
-                              background: `linear-gradient(135deg, 
-                                #2c3e50 0%, 
-                                #3498db 50%, 
-                                #9b59b6 100%
-                              )`,
-                              boxShadow: `0 6px 20px ${alpha('#3498db', 0.3)}`,
+                              backgroundColor: '#3498db',
                               color: 'white',
-                              '&::before': settings?.theme?.animations ? {
-                                content: '""',
-                                position: 'absolute',
-                                top: '-50%',
-                                left: '-50%',
-                                width: '200%',
-                                height: '200%',
-                                background: `linear-gradient(45deg, 
-                                  transparent 30%, 
-                                  ${alpha('#ffffff', 0.1)} 50%, 
-                                  transparent 70%
-                                )`,
-                                animation: 'shimmer 3s infinite',
-                                transform: 'translateX(-100%)'
-                              } : {}
+                              '&:hover': {
+                                backgroundColor: '#2980b9'
+                              }
                             } : {
-                              borderColor: alpha(theme.palette.divider, 0.12),
+                              borderColor: alpha(theme.palette.divider, 0.3),
+                              color: theme.palette.text.secondary,
                               '&:hover': {
                                 borderColor: '#3498db',
                                 backgroundColor: alpha('#3498db', 0.08)
                               }
-                            }),
-                            '&:hover': settings?.theme?.mode === 'dark' ? {
-                              transform: settings?.theme?.animations ? 'translateY(-2px) scale(1.02)' : 'none',
-                              boxShadow: `0 8px 25px ${alpha('#3498db', 0.4)}`
-                            } : {}
+                            })
                           }}
                         >
                           🌙 Oscuro
@@ -1149,28 +1041,10 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   {/* Advanced Options */}
                   <Card sx={{ 
                     border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
-                    background: `linear-gradient(135deg, 
-                      ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
-                      ${alpha(theme.palette.background.paper, 0.98)} 100%
-                    )`,
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
-                    position: 'relative',
-                    overflow: 'hidden',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: '3px',
-                      background: `linear-gradient(90deg, 
-                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                      )`,
-                      boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
-                    }
+                    borderRadius: 4,
+                    background: theme.palette.background.paper,
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                    position: 'relative'
                   }}>
                     <CardContent>
                       <Typography variant="h6" sx={{ 
@@ -1178,25 +1052,14 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         display: 'flex', 
                         alignItems: 'center', 
                         gap: 1.5,
-                        fontWeight: 700,
-                        background: `linear-gradient(135deg, 
-                          ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                          ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                        )`,
-                        backgroundClip: 'text',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                        fontWeight: 600,
+                        color: theme.palette.text.primary
                       }}>
                         <Box sx={{
                           p: 1,
-                          borderRadius: '8px',
-                          background: `linear-gradient(135deg, 
-                            ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                            ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                          )`,
+                          borderRadius: 2,
+                          background: settings?.theme?.primaryColor || '#667eea',
                           color: 'white',
-                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
                           display: 'flex',
                           alignItems: 'center'
                         }}>
@@ -1266,28 +1129,10 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   {/* Typography Settings */}
                   <Card sx={{ 
                     border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
-                    background: `linear-gradient(135deg, 
-                      ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.03)} 0%, 
-                      ${alpha(theme.palette.background.paper, 0.98)} 100%
-                    )`,
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
-                    position: 'relative',
-                    overflow: 'hidden',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: '3px',
-                      background: `linear-gradient(90deg, 
-                        ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
-                        ${settings?.theme?.primaryColor || '#667eea'} 100%
-                      )`,
-                      boxShadow: `0 0 8px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.3)}`
-                    }
+                    borderRadius: 4,
+                    background: theme.palette.background.paper,
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                    position: 'relative'
                   }}>
                     <CardContent>
                       <Typography variant="h6" sx={{ 
@@ -1295,25 +1140,14 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         display: 'flex', 
                         alignItems: 'center', 
                         gap: 1.5,
-                        fontWeight: 700,
-                        background: `linear-gradient(135deg, 
-                          ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
-                          ${settings?.theme?.primaryColor || '#667eea'} 100%
-                        )`,
-                        backgroundClip: 'text',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                        fontWeight: 600,
+                        color: theme.palette.text.primary
                       }}>
                         <Box sx={{
                           p: 1,
-                          borderRadius: '8px',
-                          background: `linear-gradient(135deg, 
-                            ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
-                            ${settings?.theme?.primaryColor || '#667eea'} 100%
-                          )`,
+                          borderRadius: 2,
+                          background: settings?.theme?.primaryColor || '#667eea',
                           color: 'white',
-                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.25)}`,
                           display: 'flex',
                           alignItems: 'center'
                         }}>
@@ -1611,7 +1445,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             sx={{
                               borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
                               background: alpha(theme.palette.background.paper, 0.8),
-                              backdropFilter: 'blur(10px)',
                               border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
                               '& .MuiToggleButton-root': {
                                 border: 'none',
@@ -1670,7 +1503,6 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.03)} 0%, 
                       ${alpha(theme.palette.background.paper, 0.98)} 100%
                     )`,
-                    backdropFilter: 'blur(10px)',
                     boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
                     position: 'relative',
                     overflow: 'hidden',
