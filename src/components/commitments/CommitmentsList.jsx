@@ -3054,53 +3054,46 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           Información Adicional
                         </Typography>
                         
-                        <Grid container spacing={3}>
+                        <Grid container spacing={{ xs: 2, sm: 3 }}>
                           {/* Primera fila: Beneficiario y Método de Pago */}
-                          <Grid item xs={12} md={6}>
+                          <Grid item xs={12} sm={6}>
                             <motion.div
                               initial={{ opacity: 0, x: -20 }}
                               animate={{ opacity: 1, x: 0 }}
                               transition={{ delay: 0.4, duration: 0.3 }}
                             >
                               <Box sx={{
-                                p: 3,
-                                background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)}, ${alpha(theme.palette.info.main, 0.05)})`,
-                                borderRadius: 3,
-                                border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                                p: { xs: 2.5, sm: 3 },
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.08)}, ${alpha(theme.palette.info.main, 0.04)})`,
+                                borderRadius: { xs: 2, sm: 3 },
+                                border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`,
                                 position: 'relative',
                                 overflow: 'hidden',
-                                backdropFilter: 'blur(10px)',
-                                boxShadow: '0 8px 25px rgba(0,0,0,0.12)',
-                                '&::before': {
-                                  content: '""',
-                                  position: 'absolute',
-                                  top: 0,
-                                  left: 0,
-                                  right: 0,
-                                  bottom: 0,
-                                  background: 'radial-gradient(circle at 50% 0%, rgba(255,255,255,0.1), transparent 70%)',
-                                  zIndex: 0
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                '&:hover': {
+                                  transform: 'translateY(-2px)',
+                                  boxShadow: `0 8px 25px ${alpha(theme.palette.info.main, 0.15)}`
                                 }
                               }}>
-                                <Box display="flex" alignItems="center" gap={2} mb={1.5} sx={{ position: 'relative', zIndex: 1 }}>
+                                <Box display="flex" alignItems="center" gap={{ xs: 1.5, sm: 2 }} mb={{ xs: 1, sm: 1.5 }}>
                                   <Box
                                     sx={{
-                                      width: 40,
-                                      height: 40,
+                                      width: { xs: 36, sm: 40 },
+                                      height: { xs: 36, sm: 40 },
                                       borderRadius: 2,
                                       background: `linear-gradient(135deg, ${theme.palette.info.main}, ${theme.palette.info.dark})`,
                                       display: 'flex',
                                       alignItems: 'center',
                                       justifyContent: 'center',
-                                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                                      boxShadow: `0 4px 12px ${alpha(theme.palette.info.main, 0.3)}`
                                     }}
                                   >
-                                    <Person sx={{ color: 'white', fontSize: 20 }} />
+                                    <Person sx={{ color: 'white', fontSize: { xs: 18, sm: 20 } }} />
                                   </Box>
                                   <Typography variant="subtitle1" sx={{ 
                                     fontWeight: 700, 
                                     color: theme.palette.info.main,
-                                    fontSize: '1rem'
+                                    fontSize: { xs: '0.9rem', sm: '1rem' }
                                   }}>
                                     Beneficiario
                                   </Typography>
@@ -3110,9 +3103,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                   color: 'text.primary',
                                   fontStyle: selectedCommitment.beneficiary ? 'normal' : 'italic',
                                   opacity: selectedCommitment.beneficiary ? 1 : 0.7,
-                                  fontSize: '0.95rem',
-                                  position: 'relative',
-                                  zIndex: 1
+                                  fontSize: { xs: '0.9rem', sm: '0.95rem' },
+                                  lineHeight: 1.4
                                 }}>
                                   {selectedCommitment.beneficiary || 'No especificado'}
                                 </Typography>
