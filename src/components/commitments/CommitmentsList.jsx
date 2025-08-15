@@ -2599,11 +2599,12 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         PaperProps={{
           sx: {
             borderRadius: 4,
-            background: darkColors.cardBackground,
-            boxShadow: `0 8px 32px ${darkColors.shadowColor}`,
-            border: `1px solid ${darkColors.cardBorder}`,
+            background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.95)}, ${alpha(theme.palette.background.paper, 0.8)})`,
+            boxShadow: '0 12px 50px rgba(0,0,0,0.25)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
             overflow: 'hidden',
             position: 'relative',
+            backdropFilter: 'blur(20px)',
             // Shimmer effect premium
             '&::before': {
               content: '""',
@@ -2612,15 +2613,13 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
               left: '-100%',
               width: '100%',
               height: '100%',
-              background: theme => theme.palette.mode === 'dark'
-                ? 'transparent'
-                : 'transparent',
+              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
               animation: 'shimmer 3s infinite',
               zIndex: 1
             },
-            '& @keyframes shimmer': {
-              '0%': { transform: 'translateX(-100%)' },
-              '100%': { transform: 'translateX(100%)' }
+            '@keyframes shimmer': {
+              '0%': { left: '-100%' },
+              '100%': { left: '100%' }
             }
           }
         }}
@@ -2650,7 +2649,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
             >
               <Box
                 sx={{
-                  background: theme.palette.background.paper,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                   color: 'white',
                   p: 3,
                   borderRadius: '16px 16px 0 0',
@@ -2698,12 +2697,12 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         sx={{
                           width: 56,
                           height: 56,
-                          borderRadius: 1,
+                          borderRadius: 2.5,
                           background: 'rgba(255, 255, 255, 0.2)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          
+                          backdropFilter: 'blur(10px)',
                           border: '1px solid rgba(255, 255, 255, 0.3)',
                           position: 'relative',
                           overflow: 'hidden',
@@ -2714,9 +2713,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                             left: '-100%',
                             width: '100%',
                             height: '100%',
-                            background: theme => theme.palette.mode === 'dark'
-                              ? 'transparent'
-                              : 'transparent',
+                            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
                             animation: 'shimmer 2s infinite'
                           }
                         }}
@@ -2729,19 +2726,15 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                             sx={{
                               width: 40,
                               height: 40,
-                              borderRadius: 1,
+                              borderRadius: 2,
                               objectFit: 'contain',
-                              backgroundColor: theme => theme.palette.mode === 'dark'
-                                ? alpha(theme.palette.background.paper, 0.4)
-                                : alpha('#ffffff', 0.4),
-                              border: theme => theme.palette.mode === 'dark'
-                                ? '1px solid rgba(255, 255, 255, 0.1)'
-                                : '1px solid rgba(0, 0, 0, 0.1)',
+                              backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                              border: '1px solid rgba(255, 255, 255, 0.3)',
                               zIndex: 1
                             }}
                           />
                         ) : (
-                          <Business sx={{ fontSize: 22, color: 'white', zIndex: 1 }} />
+                          <Business sx={{ fontSize: 28, color: 'white', zIndex: 1 }} />
                         )}
                       </Box>
                     </motion.div>
@@ -2763,7 +2756,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                               fontWeight: 800, 
                               fontSize: '1.4rem',
                               textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                              color: darkColors.textPrimary
+                              color: 'rgba(255, 255, 255, 0.95)'
                             }}
                           >
                             ${selectedCommitment?.amount?.toLocaleString() || '0'}
@@ -2818,16 +2811,16 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                 sx={{
                                   px: 1.5,
                                   py: 0.5,
-                                  borderRadius: 1,
+                                  borderRadius: 1.5,
                                   background: colors.bg,
                                   border: `1px solid ${colors.border}`,
-                                  
+                                  backdropFilter: 'blur(10px)'
                                 }}
                               >
                                 <Typography variant="caption" sx={{ 
                                   fontWeight: 600,
                                   fontSize: '0.75rem',
-                                  color: darkColors.textPrimary
+                                  color: 'rgba(255, 255, 255, 0.95)'
                                 }}>
                                   {status.emoji} {status.text}
                                 </Typography>
@@ -2860,7 +2853,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                             bgcolor: 'rgba(255, 255, 255, 0.2)',
                             color: 'white',
                             fontWeight: 600,
-                            
+                            backdropFilter: 'blur(10px)',
                             border: '1px solid rgba(255, 255, 255, 0.3)',
                             '& .MuiChip-icon': {
                               color: 'white'
@@ -2879,7 +2872,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           onClick={handleCloseViewDialog}
                           sx={{
                             background: 'rgba(255, 255, 255, 0.2)',
-                            
+                            backdropFilter: 'blur(10px)',
                             border: '1px solid rgba(255, 255, 255, 0.3)',
                             color: 'white',
                             '&:hover': {
@@ -2924,13 +2917,23 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                     <Card
                       sx={{
                         p: 3,
-                        background: theme.palette.background.paper,
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.95)}, ${alpha(theme.palette.background.paper, 0.8)})`,
                         border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                        borderRadius: 1,
-                        
-                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                        borderRadius: 3,
+                        backdropFilter: 'blur(20px)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
                         position: 'relative',
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.05)}, ${alpha(theme.palette.secondary.main, 0.03)})`,
+                          zIndex: 0
+                        }
                       }}
                     >
                       <Box display="flex" alignItems="center" gap={2.5}>
@@ -2944,33 +2947,54 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                             sx={{
                               width: 56,
                               height: 56,
-                              borderRadius: 1,
-                              background: theme.palette.background.paper,
+                              borderRadius: 2,
+                              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                              boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
+                              position: 'relative',
+                              overflow: 'hidden',
+                              '&::before': {
+                                content: '""',
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                background: 'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), transparent)',
+                                zIndex: 1
+                              }
                             }}
                           >
-                            <CalendarToday sx={{ color: 'white', fontSize: 22 }} />
+                            <CalendarToday sx={{ color: 'white', fontSize: 24, zIndex: 2, position: 'relative' }} />
                           </Box>
                         </motion.div>
                         
-                        <Box flex={1}>
-                          <Typography variant="body2" color={darkColors.textSecondary} sx={{ mb: 0.5, fontWeight: 500 }}>
+                        <Box flex={1} sx={{ position: 'relative', zIndex: 1 }}>
+                          <Typography variant="body2" sx={{ 
+                            mb: 0.5, 
+                            fontWeight: 600,
+                            color: theme.palette.primary.main,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            fontSize: '0.75rem'
+                          }}>
                             Fecha de Vencimiento
                           </Typography>
                           <Typography variant="h6" sx={{ 
-                            fontWeight: 600, 
+                            fontWeight: 700, 
                             color: 'text.primary',
                             textTransform: 'capitalize',
-                            mb: 0.2
+                            mb: 0.2,
+                            fontSize: '1.1rem'
                           }}>
                             {format(selectedCommitment.dueDate, 'EEEE', { locale: es })}
                           </Typography>
                           <Typography variant="body1" sx={{ 
-                            fontWeight: 500,
-                            color: 'text.secondary'
+                            fontWeight: 600,
+                            color: theme.palette.primary.main,
+                            fontSize: '0.95rem'
                           }}>
                             {format(selectedCommitment.dueDate, 'dd \'de\' MMMM \'de\' yyyy', { locale: es })}
                           </Typography>
@@ -2989,27 +3013,44 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                   >
                     <Card
                       sx={{
-                        p: 3,
-                        background: gradients.paper,
-                        border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+                        p: 4,
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.95)}, ${alpha(theme.palette.background.paper, 0.8)})`,
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
                         borderRadius: 4,
-                        
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+                        backdropFilter: 'blur(20px)',
+                        boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
                         position: 'relative',
                         overflow: 'hidden',
-                        ...shimmerEffect
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: '-100%',
+                          width: '100%',
+                          height: '100%',
+                          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
+                          animation: 'shimmer 3s infinite',
+                          zIndex: 1
+                        },
+                        '@keyframes shimmer': {
+                          '0%': { left: '-100%' },
+                          '100%': { left: '100%' }
+                        }
                       }}
                     >
                       <Box sx={{ position: 'relative', zIndex: 2 }}>
                         <Typography variant="h6" sx={{ 
                           fontWeight: 700, 
                           mb: 3, 
-                          color: 'primary.main',
+                          color: theme.palette.primary.main,
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 1
+                          gap: 1.5,
+                          fontSize: '1.2rem',
+                          position: 'relative',
+                          zIndex: 2
                         }}>
-                          <Info sx={{ fontSize: 24 }} />
+                          <Info sx={{ fontSize: 28 }} />
                           Información Adicional
                         </Typography>
                         
@@ -3022,24 +3063,56 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                               transition={{ delay: 0.4, duration: 0.3 }}
                             >
                               <Box sx={{
-                                p: 2.5,
-                                background: theme.palette.background.paper,
-                                borderRadius: 1,
-                                border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`,
+                                p: 3,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)}, ${alpha(theme.palette.info.main, 0.05)})`,
+                                borderRadius: 3,
+                                border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
                                 position: 'relative',
-                                overflow: 'hidden'
+                                overflow: 'hidden',
+                                backdropFilter: 'blur(10px)',
+                                boxShadow: '0 8px 25px rgba(0,0,0,0.12)',
+                                '&::before': {
+                                  content: '""',
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  background: 'radial-gradient(circle at 50% 0%, rgba(255,255,255,0.1), transparent 70%)',
+                                  zIndex: 0
+                                }
                               }}>
-                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                                  <Person sx={{ color: 'info.main', fontSize: 20 }} />
-                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'info.main' }}>
+                                <Box display="flex" alignItems="center" gap={2} mb={1.5} sx={{ position: 'relative', zIndex: 1 }}>
+                                  <Box
+                                    sx={{
+                                      width: 40,
+                                      height: 40,
+                                      borderRadius: 2,
+                                      background: `linear-gradient(135deg, ${theme.palette.info.main}, ${theme.palette.info.dark})`,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                                    }}
+                                  >
+                                    <Person sx={{ color: 'white', fontSize: 20 }} />
+                                  </Box>
+                                  <Typography variant="subtitle1" sx={{ 
+                                    fontWeight: 700, 
+                                    color: theme.palette.info.main,
+                                    fontSize: '1rem'
+                                  }}>
                                     Beneficiario
                                   </Typography>
                                 </Box>
                                 <Typography variant="body1" sx={{ 
-                                  fontWeight: 500,
+                                  fontWeight: 600,
                                   color: 'text.primary',
                                   fontStyle: selectedCommitment.beneficiary ? 'normal' : 'italic',
-                                  opacity: selectedCommitment.beneficiary ? 1 : 0.7
+                                  opacity: selectedCommitment.beneficiary ? 1 : 0.7,
+                                  fontSize: '0.95rem',
+                                  position: 'relative',
+                                  zIndex: 1
                                 }}>
                                   {selectedCommitment.beneficiary || 'No especificado'}
                                 </Typography>
@@ -3054,22 +3127,54 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                               transition={{ delay: 0.45, duration: 0.3 }}
                             >
                               <Box sx={{
-                                p: 2.5,
-                                background: theme.palette.background.paper,
-                                borderRadius: 1,
-                                border: `1px solid ${alpha(theme.palette.success.main, 0.15)}`,
+                                p: 3,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)}, ${alpha(theme.palette.success.main, 0.05)})`,
+                                borderRadius: 3,
+                                border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
                                 position: 'relative',
-                                overflow: 'hidden'
+                                overflow: 'hidden',
+                                backdropFilter: 'blur(10px)',
+                                boxShadow: '0 8px 25px rgba(0,0,0,0.12)',
+                                '&::before': {
+                                  content: '""',
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  background: 'radial-gradient(circle at 50% 0%, rgba(255,255,255,0.1), transparent 70%)',
+                                  zIndex: 0
+                                }
                               }}>
-                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                                  <Payment sx={{ color: 'success.main', fontSize: 20 }} />
-                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'success.main' }}>
+                                <Box display="flex" alignItems="center" gap={2} mb={1.5} sx={{ position: 'relative', zIndex: 1 }}>
+                                  <Box
+                                    sx={{
+                                      width: 40,
+                                      height: 40,
+                                      borderRadius: 2,
+                                      background: `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})`,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                                    }}
+                                  >
+                                    <Payment sx={{ color: 'white', fontSize: 20 }} />
+                                  </Box>
+                                  <Typography variant="subtitle1" sx={{ 
+                                    fontWeight: 700, 
+                                    color: theme.palette.success.main,
+                                    fontSize: '1rem'
+                                  }}>
                                     Método de Pago
                                   </Typography>
                                 </Box>
                                 <Typography variant="body1" sx={{ 
-                                  fontWeight: 500,
-                                  color: 'text.primary'
+                                  fontWeight: 600,
+                                  color: 'text.primary',
+                                  fontSize: '0.95rem',
+                                  position: 'relative',
+                                  zIndex: 1
                                 }}>
                                   {(() => {
                                     switch(selectedCommitment.paymentMethod) {
@@ -3094,22 +3199,54 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                               transition={{ delay: 0.5, duration: 0.3 }}
                             >
                               <Box sx={{
-                                p: 2.5,
-                                background: theme.palette.background.paper,
-                                borderRadius: 1,
-                                border: `1px solid ${alpha(theme.palette.warning.main, 0.15)}`,
+                                p: 3,
+                                background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)}, ${alpha(theme.palette.warning.main, 0.05)})`,
+                                borderRadius: 3,
+                                border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
                                 position: 'relative',
-                                overflow: 'hidden'
+                                overflow: 'hidden',
+                                backdropFilter: 'blur(10px)',
+                                boxShadow: '0 8px 25px rgba(0,0,0,0.12)',
+                                '&::before': {
+                                  content: '""',
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                  background: 'radial-gradient(circle at 50% 0%, rgba(255,255,255,0.1), transparent 70%)',
+                                  zIndex: 0
+                                }
                               }}>
-                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                                  <Schedule sx={{ color: 'warning.main', fontSize: 20 }} />
-                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'warning.main' }}>
+                                <Box display="flex" alignItems="center" gap={2} mb={1.5} sx={{ position: 'relative', zIndex: 1 }}>
+                                  <Box
+                                    sx={{
+                                      width: 40,
+                                      height: 40,
+                                      borderRadius: 2,
+                                      background: `linear-gradient(135deg, ${theme.palette.warning.main}, ${theme.palette.warning.dark})`,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                                    }}
+                                  >
+                                    <Schedule sx={{ color: 'white', fontSize: 20 }} />
+                                  </Box>
+                                  <Typography variant="subtitle1" sx={{ 
+                                    fontWeight: 700, 
+                                    color: theme.palette.warning.main,
+                                    fontSize: '1rem'
+                                  }}>
                                     Periodicidad
                                   </Typography>
                                 </Box>
                                 <Typography variant="body1" sx={{ 
-                                  fontWeight: 500,
-                                  color: 'text.primary'
+                                  fontWeight: 600,
+                                  color: 'text.primary',
+                                  fontSize: '0.95rem',
+                                  position: 'relative',
+                                  zIndex: 1
                                 }}>
                                   {(() => {
                                     switch(selectedCommitment.periodicity) {
