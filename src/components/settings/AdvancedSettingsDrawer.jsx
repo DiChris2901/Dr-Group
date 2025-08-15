@@ -523,55 +523,9 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
               sx={{
                 p: 3,
                 borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                background: `linear-gradient(135deg, 
-                  ${alpha(settings?.theme?.primaryColor || '#667eea', 0.15)} 0%, 
-                  ${alpha(theme.palette.background.paper, 0.98)} 20%,
-                  ${alpha(theme.palette.background.paper, 0.98)} 80%,
-                  ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.15)} 100%
-                ), linear-gradient(45deg, 
-                  ${alpha('#ffffff', 0.02)} 0%,
-                  ${alpha('#ffffff', 0.08)} 50%,
-                  ${alpha('#ffffff', 0.02)} 100%
-                )`,
-                backdropFilter: 'blur(30px) saturate(200%)',
-                WebkitBackdropFilter: 'blur(30px) saturate(200%)', // Safari support
-                boxShadow: `0 8px 32px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.12)}, 
-                           inset 0 1px 0 ${alpha('#ffffff', theme.palette.mode === 'dark' ? 0.08 : 0.15)}`,
-                position: 'relative',
-                overflow: 'hidden',
-                '&::before': settings?.theme?.animations ? {
-                  content: '""',
-                  position: 'absolute',
-                  top: 0,
-                  left: '-100%',
-                  width: '200%',
-                  height: '100%',
-                  background: `linear-gradient(90deg, 
-                    transparent 0%, 
-                    ${alpha('#ffffff', theme.palette.mode === 'dark' ? 0.06 : 0.12)} 30%,
-                    ${alpha('#ffffff', theme.palette.mode === 'dark' ? 0.1 : 0.2)} 50%, 
-                    ${alpha('#ffffff', theme.palette.mode === 'dark' ? 0.06 : 0.12)} 70%,
-                    transparent 100%
-                  )`,
-                  animation: 'shimmer 6s ease-in-out infinite',
-                  pointerEvents: 'none'
-                } : {},
-                '&::after': {
-                  content: '""',
-                  position: 'absolute',
-                  bottom: 0,
-                  left: '15%',
-                  right: '15%',
-                  height: '2px',
-                  background: `linear-gradient(90deg, 
-                    transparent 0%, 
-                    ${settings?.theme?.primaryColor || '#667eea'} 25%,
-                    ${settings?.theme?.secondaryColor || '#764ba2'} 75%,
-                    transparent 100%
-                  )`,
-                  boxShadow: `0 0 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.4)}`,
-                  borderRadius: '1px'
-                }
+                background: theme.palette.background.paper,
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+                position: 'relative'
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -637,39 +591,14 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   >
                     <SettingsIcon sx={{ 
                       color: 'white', 
-                      fontSize: (settings?.theme?.fontSize || 14) + 12,
-                      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
-                      animation: settings?.theme?.animations ? 'icon-pulse 2s infinite' : 'none'
+                      fontSize: 24
                     }} />
                   </Box>
                   <Box>
                     <Typography variant="h5" sx={{ 
-                      fontWeight: 800, 
-                      background: `linear-gradient(135deg, 
-                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                      )`,
-                      backgroundClip: 'text',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      fontSize: `${(settings?.theme?.fontSize || 14) + 10}px`,
-                      textShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                      position: 'relative',
-                      '&::after': settings?.theme?.animations ? {
-                        content: '""',
-                        position: 'absolute',
-                        bottom: '-2px',
-                        left: 0,
-                        width: '0%',
-                        height: '2px',
-                        background: `linear-gradient(90deg, 
-                          ${settings?.theme?.primaryColor || '#667eea'}, 
-                          ${settings?.theme?.secondaryColor || '#764ba2'}
-                        )`,
-                        borderRadius: '1px',
-                        transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-                        animation: 'title-underline 3s infinite'
-                      } : {}
+                      fontWeight: 600, 
+                      color: theme.palette.text.primary,
+                      fontSize: '20px'
                     }}>
                       Configuración
                     </Typography>
@@ -776,79 +705,36 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                 scrollButtons="auto"
                 allowScrollButtonsMobile
                 sx={{
-                  minHeight: 72,
+                  minHeight: 56,
                   '& .MuiTabs-scrollButtons': {
                     '&.Mui-disabled': {
                       opacity: 0.3,
                     }
                   },
                   '& .MuiTabs-indicator': {
-                    height: 4,
-                    borderRadius: `${settings?.theme?.borderRadius || 3}px ${settings?.theme?.borderRadius || 3}px 0 0`,
-                    background: `linear-gradient(135deg, 
-                      ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                      ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                    )`,
-                    boxShadow: `0 2px 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.4)}`,
+                    height: 3,
+                    borderRadius: '1px 1px 0 0',
+                    background: settings?.theme?.primaryColor || '#667eea',
                   },
                   '& .MuiTab-root': {
-                    minHeight: 72,
+                    minHeight: 56,
                     minWidth: { xs: 120, sm: 140 },
                     maxWidth: { xs: 160, sm: 180 },
                     textTransform: 'none',
-                    fontWeight: 600,
-                    fontSize: `${(settings?.theme?.fontSize || 14) - 0.5}px`,
+                    fontWeight: 500,
+                    fontSize: '14px',
                     color: theme.palette.text.secondary,
-                    padding: '12px 20px',
-                    margin: '0 4px',
-                    borderRadius: `${settings?.theme?.borderRadius || 8}px ${settings?.theme?.borderRadius || 8}px 0 0`,
-                    position: 'relative',
-                    overflow: 'hidden',
-                    transition: settings?.theme?.animations ? 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' : 'color 0.1s',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      background: `linear-gradient(135deg, 
-                        ${alpha(settings?.theme?.primaryColor || '#667eea', 0.08)} 0%, 
-                        transparent 100%
-                      )`,
-                      opacity: 0,
-                      transition: 'opacity 0.3s ease'
-                    },
+                    padding: '10px 16px',
+                    margin: '0 2px',
+                    borderRadius: '4px 4px 0 0',
+                    transition: 'color 0.2s ease',
                     '&:hover': {
-                      backgroundColor: alpha(settings?.theme?.primaryColor || theme.palette.primary.main, 0.12),
-                      color: settings?.theme?.primaryColor || theme.palette.primary.main,
-                      transform: settings?.theme?.animations ? 'translateY(-2px) scale(1.02)' : 'none',
-                      boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
-                      '&::before': {
-                        opacity: 1
-                      }
+                      backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                      color: theme.palette.primary.main
                     },
                     '&.Mui-selected': {
-                      color: settings?.theme?.primaryColor || theme.palette.primary.main,
-                      fontWeight: 700,
-                      background: `linear-gradient(135deg, 
-                        ${alpha(settings?.theme?.primaryColor || '#667eea', 0.15)} 0%, 
-                        ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.08)} 100%
-                      )`,
-                      backdropFilter: 'blur(10px)',
-                      boxShadow: `0 4px 16px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`,
-                      transform: settings?.theme?.animations ? 'translateY(-1px)' : 'none',
-                      '&::before': {
-                        opacity: 1,
-                        background: `linear-gradient(135deg, 
-                          ${alpha(settings?.theme?.primaryColor || '#667eea', 0.1)} 0%, 
-                          ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.05)} 100%
-                        )`
-                      },
-                      '& .MuiSvgIcon-root': {
-                        color: settings?.theme?.primaryColor || theme.palette.primary.main,
-                        filter: `drop-shadow(0 2px 4px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)})`
-                      }
+                      color: theme.palette.primary.main,
+                      fontWeight: 600
                     },
                     '&.Mui-disabled': {
                       opacity: 0.5,
