@@ -202,9 +202,9 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
           width: 420,
           maxHeight: 620,
           bgcolor: theme.palette.background.paper,
-          borderRadius: `${borderRadius}px`,
+          borderRadius: 2,
           boxShadow: theme.shadows[8],
-          border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+          border: `1px solid ${theme.palette.divider}`,
           overflow: 'visible',
           mt: 1,
           '&::before': {
@@ -218,7 +218,7 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
             bgcolor: theme.palette.background.paper,
             transform: 'translateY(-50%) rotate(45deg)',
             zIndex: 0,
-            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+            border: `1px solid ${theme.palette.divider}`,
             borderBottom: 'none',
             borderRight: 'none'
           },
@@ -226,28 +226,37 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
       }}
     >
       <MenuList sx={{ p: 0 }}>
-        {/* Header spectacular con gradiente dinámico */}
+        {/* Header limpio DS 3.0 sobrio */}
         <Box sx={{ 
           p: 2, 
-          borderRadius: `${borderRadius}px ${borderRadius}px 0 0`,
-          background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
-          color: 'white',
-          position: 'relative'
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          backgroundColor: theme.palette.background.paper,
         }}>
           <Box sx={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center'
           }}>
-            <Typography variant="h6" sx={{ fontWeight: 700, color: 'white' }}>
+            <Typography variant="h6" sx={{ 
+              fontWeight: 600, 
+              color: theme.palette.text.primary 
+            }}>
               Centro de Notificaciones
             </Typography>
             <IconButton 
               onClick={onClose} 
               size="small" 
               sx={{ 
-                color: 'white',
-                transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                color: theme.palette.text.secondary,
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                  color: theme.palette.text.primary,
+                  backgroundColor: theme.palette.action.hover
+                }
+              }}
+            >
+              <CloseIcon fontSize="small" />
+            </IconButton>
                 '&:hover': {
                   backgroundColor: 'rgba(255, 255, 255, 0.2)',
                   transform: animationsEnabled ? 'scale(1.1)' : 'none'

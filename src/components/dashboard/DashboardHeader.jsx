@@ -118,23 +118,22 @@ const DashboardHeader = ({ onOpenSettings }) => {
     }
   };
 
-  // 🎨 Estilo unificado para botones de la topbar
+  // 🎨 Estilo unificado para botones de la topbar - DS 3.0 Sobrio
   const topbarButtonStyle = {
     width: 44,
     height: 44,
-    backgroundColor: alpha(theme.palette.primary.main, 0.08),
-    border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+    color: theme.palette.text.secondary,
     borderRadius: 2,
-    color: theme.palette.primary.main,
+    backgroundColor: 'transparent',
+    border: 'none',
+    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
     '&:hover': {
-      backgroundColor: alpha(theme.palette.primary.main, 0.12),
-      borderColor: alpha(theme.palette.primary.main, 0.2),
-      transform: 'translateY(-1px)',
-      boxShadow: theme.shadows[2]
+      color: theme.palette.primary.main,
+      backgroundColor: alpha(theme.palette.primary.main, 0.04),
     },
-    transition: theme.transitions.create(['background-color', 'border-color', 'transform', 'box-shadow'], {
-      duration: theme.transitions.duration.short,
-    }),
+    '& .MuiSvgIcon-root': {
+      fontSize: '21px',
+    }
   };
 
   const handleProfileMenuOpen = (event) => {
@@ -254,7 +253,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'flex-end',
-        gap: 1.5 // Mejor espaciado entre botones
+        gap: theme.spacing(0.5) // Espaciado uniforme DS 3.0 sobrio
       }}>
         {/* Botón de notificaciones - Condicional según configuración */}
         {notificationsEnabled && (
@@ -270,15 +269,17 @@ const DashboardHeader = ({ onOpenSettings }) => {
               overlap="circular"
               sx={{
                 '& .MuiBadge-badge': {
-                  fontSize: '0.75rem',
-                  minWidth: 20,
-                  height: 20,
+                  fontSize: '0.7rem',
+                  minWidth: 18,
+                  height: 18,
                   backgroundColor: theme.palette.error.main,
-                  border: `2px solid ${theme.palette.background.paper}`,
+                  color: 'white',
+                  boxShadow: `0 2px 4px ${alpha(theme.palette.error.main, 0.3)}`,
+                  border: `1px solid ${theme.palette.background.paper}`,
                 },
               }}
             >
-              <NotificationsIcon sx={{ fontSize: 22 }} />
+              <NotificationsIcon />
             </Badge>
           </IconButton>
         </Tooltip>
@@ -361,6 +362,13 @@ const DashboardHeader = ({ onOpenSettings }) => {
               email={userProfile?.email}
               size={36}
               border={false}
+              sx={{
+                border: `2px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                  borderColor: alpha(theme.palette.primary.main, 0.3),
+                }
+              }}
             />
           </IconButton>
         </Tooltip>

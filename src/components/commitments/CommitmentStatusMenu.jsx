@@ -173,9 +173,9 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
           width: 420,
           maxHeight: 550,
           bgcolor: theme.palette.background.paper,
-          borderRadius: `${borderRadius}px`,
+          borderRadius: 2,
           boxShadow: theme.shadows[8],
-          border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+          border: `1px solid ${theme.palette.divider}`,
           overflow: 'visible',
           mt: 1,
           '&::before': {
@@ -189,7 +189,7 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
             bgcolor: theme.palette.background.paper,
             transform: 'translateY(-50%) rotate(45deg)',
             zIndex: 0,
-            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+            border: `1px solid ${theme.palette.divider}`,
             borderBottom: 'none',
             borderRight: 'none'
           },
@@ -199,12 +199,10 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
       anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
     >
       <Box sx={{ p: 0 }}>
-        {/* Header spectacular con gradiente dinámico */}
+        {/* Header limpio DS 3.0 sobrio */}
         <Box
           sx={{
-            transition: animationsEnabled ? theme.transitions.create(['opacity'], {
-              duration: theme.transitions.duration.short
-            }) : 'none'
+            transition: 'opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
           }}
         >
           <Box sx={{ 
@@ -212,22 +210,20 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
             alignItems: 'center', 
             justifyContent: 'space-between',
             p: 2,
-            borderRadius: `${borderRadius}px ${borderRadius}px 0 0`,
-            background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
-            color: 'white',
-            position: 'relative'
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            backgroundColor: theme.palette.background.paper,
           }}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <Assessment sx={{ 
-                color: 'white', 
+                color: theme.palette.primary.main, 
                 mr: 1, 
-                fontSize: 22 
+                fontSize: '21px' 
               }} />
               <Box>
-                <Typography variant="h6" fontWeight="700" color="white">
+                <Typography variant="h6" fontWeight="600" color={theme.palette.text.primary}>
                   Estado de Compromisos
                 </Typography>
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
                   {stats.total} total • {stats.thisMonth} este mes
                 </Typography>
               </Box>
@@ -283,11 +279,9 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
                 onMouseEnter={() => setHoveredCard(card.id)}
                 onMouseLeave={() => setHoveredCard(null)}
                 sx={{
-                  transition: animationsEnabled ? theme.transitions.create(['transform'], {
-                    duration: theme.transitions.duration.short
-                  }) : 'none',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                   '&:hover': {
-                    transform: animationsEnabled ? 'translateY(-2px)' : 'none'
+                    transform: 'translateY(-1px)'
                   }
                 }}
               >
@@ -295,11 +289,11 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
                   sx={{
                     height: 120,
                     p: 2,
-                    borderRadius: '8px',
+                    borderRadius: 2,
                     background: hoveredCard === card.id ? 
-                      alpha(card.color, 0.08) :
-                      alpha(card.color, 0.04),
-                    border: `1px solid ${alpha(card.color, hoveredCard === card.id ? 0.15 : 0.1)}`,
+                      alpha(card.color, 0.04) :
+                      theme.palette.background.paper,
+                    border: `1px solid ${hoveredCard === card.id ? alpha(card.color, 0.2) : theme.palette.divider}`,
                     cursor: 'pointer',
                     position: 'relative',
                     overflow: 'hidden',
@@ -312,7 +306,7 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <card.icon sx={{ 
                       color: card.color, 
-                      fontSize: 20
+                      fontSize: '21px'
                     }} />
                     <Typography 
                       variant="h5" 

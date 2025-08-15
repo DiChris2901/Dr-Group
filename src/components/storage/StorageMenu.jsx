@@ -136,9 +136,9 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
           width: 420,
           maxHeight: 580,
           bgcolor: theme.palette.background.paper,
-          borderRadius: `${borderRadius}px`,
+          borderRadius: 2,
           boxShadow: theme.shadows[8],
-          border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+          border: `1px solid ${theme.palette.divider}`,
           overflow: 'visible',
           mt: 1,
           '&::before': {
@@ -152,7 +152,7 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
             bgcolor: theme.palette.background.paper,
             transform: 'translateY(-50%) rotate(45deg)',
             zIndex: 0,
-            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+            border: `1px solid ${theme.palette.divider}`,
             borderBottom: 'none',
             borderRight: 'none'
           },
@@ -162,12 +162,10 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
       anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
     >
       <Box sx={{ p: 0 }}>
-        {/* Header spectacular con gradiente dinámico */}
+        {/* Header limpio DS 3.0 sobrio */}
         <Box
           sx={{
-            transition: animationsEnabled ? theme.transitions.create(['opacity'], {
-              duration: theme.transitions.duration.short
-            }) : 'none'
+            transition: 'opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
           }}
         >
           <Box sx={{ 
@@ -175,22 +173,20 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
             alignItems: 'center', 
             justifyContent: 'space-between',
             p: 2,
-            borderRadius: `${borderRadius}px ${borderRadius}px 0 0`,
-            background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
-            color: 'white',
-            position: 'relative'
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            backgroundColor: theme.palette.background.paper,
           }}>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <Storage sx={{ 
-                color: 'white', 
+                color: theme.palette.primary.main, 
                 mr: 1, 
-                fontSize: 22 
+                fontSize: '21px' 
               }} />
               <Box>
-                <Typography variant="h6" fontWeight="700" color="white">
+                <Typography variant="h6" fontWeight="600" color={theme.palette.text.primary}>
                   Almacenamiento
                 </Typography>
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
                   {storageStats.used || 0} GB de {storageStats.total || 5} GB
                 </Typography>
               </Box>
@@ -248,10 +244,10 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
               value={usagePercentage} 
               sx={{
                 height: 8,
-                borderRadius: '4px',
+                borderRadius: 1,
                 bgcolor: alpha(storageStatus.color, 0.1),
                 '& .MuiLinearProgress-bar': {
-                  borderRadius: '4px',
+                  borderRadius: 1,
                   bgcolor: storageStatus.color
                 }
               }}
@@ -291,21 +287,21 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
                   <Box
                     sx={{
                       p: 1.5,
-                      borderRadius: '8px',
+                      borderRadius: 2,
                       background: alpha(type.color, 0.04),
-                      border: `1px solid ${alpha(type.color, 0.1)}`,
+                      border: `1px solid ${alpha(type.color, 0.12)}`,
                       textAlign: 'center',
                       transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&:hover': {
-                        background: alpha(type.color, 0.08),
-                        border: `1px solid ${alpha(type.color, 0.15)}`,
+                        background: alpha(type.color, 0.06),
+                        border: `1px solid ${alpha(type.color, 0.2)}`,
                         transform: 'translateY(-1px)'
                       }
                     }}
                   >
                     <type.icon sx={{ 
                       color: type.color, 
-                      fontSize: 18,
+                      fontSize: '21px',
                       mb: 0.8
                     }} />
                     <Typography 
@@ -348,20 +344,25 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
         <Box
           sx={{
             transition: animationsEnabled ? theme.transitions.create(['opacity'], {
-              duration: theme.transitions.duration.short
+              duration: theme.transitions.duration.short,
+              easing: 'cubic-bezier(0.4, 0, 0.2, 1)'
             }) : 'none'
           }}
         >
           <Box sx={{ 
             mt: 2.5,
             p: 2, 
-            borderRadius: '8px',
+            borderRadius: 2,
             background: alpha(storageStatus.color, 0.08),
             border: `1px solid ${alpha(storageStatus.color, 0.12)}`,
+            transition: animationsEnabled ? theme.transitions.create(['background-color', 'border-color'], {
+              duration: theme.transitions.duration.shorter,
+              easing: 'cubic-bezier(0.4, 0, 0.2, 1)'
+            }) : 'none'
           }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <CloudUpload sx={{ color: storageStatus.color, mr: 1, fontSize: 18 }} />
+                <CloudUpload sx={{ color: storageStatus.color, mr: 1, fontSize: '21px' }} />
                 <Typography variant="body2" fontWeight="600" color="text.secondary">
                   Plan Actual
                 </Typography>

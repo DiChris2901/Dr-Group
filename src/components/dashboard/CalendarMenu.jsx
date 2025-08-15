@@ -164,9 +164,9 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
           width: 420,
           maxHeight: 480,
           bgcolor: theme.palette.background.paper,
-          borderRadius: `${borderRadius}px`,
+          borderRadius: 2,
           boxShadow: theme.shadows[8],
-          border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+          border: `1px solid ${theme.palette.divider}`,
           overflow: 'visible',
           mt: 1,
           '&::before': {
@@ -180,7 +180,7 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
             bgcolor: theme.palette.background.paper,
             transform: 'translateY(-50%) rotate(45deg)',
             zIndex: 0,
-            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+            border: `1px solid ${theme.palette.divider}`,
             borderBottom: 'none',
             borderRight: 'none'
           },
@@ -197,7 +197,7 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
         }}
       >
         <Box sx={{ p: 1.5 }}>
-          {/* Header del calendario con gradiente spectacular */}
+          {/* Header del calendario DS 3.0 sobrio */}
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
@@ -206,14 +206,18 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
             p: 1.5,
             mx: -1.5,
             mt: -1.5,
-            borderRadius: `${borderRadius}px ${borderRadius}px 0 0`,
-            background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
-            color: 'white',
-            position: 'relative'
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            backgroundColor: theme.palette.background.paper,
           }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <EventIcon sx={{ color: 'white', fontSize: 22 }} />
-              <Typography variant="h6" sx={{ fontWeight: 700, color: 'white' }}>
+              <EventIcon sx={{ 
+                color: theme.palette.primary.main, 
+                fontSize: '21px' 
+              }} />
+              <Typography variant="h6" sx={{ 
+                fontWeight: 600, 
+                color: theme.palette.text.primary 
+              }}>
                 Calendario
               </Typography>
             </Box>
@@ -223,17 +227,16 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
                 size="small"
                 onClick={goToToday}
                 sx={{ 
-                  borderRadius: `${borderRadius / 2}px`,
-                  bgcolor: 'rgba(255, 255, 255, 0.2)',
-                  color: 'white',
-                  transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                  borderRadius: 1,
+                  color: theme.palette.text.secondary,
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                   '&:hover': {
-                    bgcolor: 'rgba(255, 255, 255, 0.3)',
-                    transform: animationsEnabled ? 'scale(1.05)' : 'none'
+                    color: theme.palette.primary.main,
+                    backgroundColor: theme.palette.action.hover,
                   }
                 }}
               >
-                <Today fontSize="small" />
+                <Today sx={{ fontSize: '18px' }} />
               </IconButton>
             </Box>
           </Box>
@@ -249,11 +252,16 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
             size="small"
             onClick={() => navigateMonth(-1)} 
             sx={{ 
-              borderRadius: '8px',
-              '&:hover': { bgcolor: 'action.hover' }
+              borderRadius: 1,
+              color: theme.palette.text.secondary,
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': { 
+                color: theme.palette.primary.main,
+                bgcolor: theme.palette.action.hover 
+              }
             }}
           >
-            <ChevronLeft />
+            <ChevronLeft sx={{ fontSize: '21px' }} />
           </IconButton>
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
             {selectedMonth.toLocaleDateString('es-ES', { 
@@ -265,11 +273,16 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
             size="small"
             onClick={() => navigateMonth(1)}
             sx={{ 
-              borderRadius: '8px',
-              '&:hover': { bgcolor: 'action.hover' }
+              borderRadius: 1,
+              color: theme.palette.text.secondary,
+              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': { 
+                color: theme.palette.primary.main,
+                bgcolor: theme.palette.action.hover 
+              }
             }}
           >
-            <ChevronRight />
+            <ChevronRight sx={{ fontSize: '21px' }} />
           </IconButton>
         </Box>
 

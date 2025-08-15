@@ -155,13 +155,17 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
                   onClick={handleDrawerToggle}
                   sx={{ 
                     mr: 2,
-                    color: theme.palette.text.primary,
+                    width: 44,
+                    height: 44,
+                    color: theme.palette.text.secondary,
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
-                      backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.04)',
+                      color: theme.palette.primary.main,
+                      backgroundColor: theme.palette.action.hover,
                     },
                   }}
                 >
-                  <MenuIcon />
+                  <MenuIcon sx={{ fontSize: '21px' }} />
                 </IconButton>
               )}
 
@@ -231,14 +235,14 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
                         py: 0.25,
                         borderRadius: 1,
                         minWidth: 0,
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                         '&:hover': {
                           color: theme.palette.primary.main,
                           backgroundColor: theme.palette.action.hover,
                         },
-                        transition: theme.transitions.create(['color', 'background-color']),
                       }}
                     >
-                      <HomeIcon sx={{ mr: 0.5, fontSize: 16, flexShrink: 0 }} />
+                      <HomeIcon sx={{ mr: 0.5, fontSize: '16px', flexShrink: 0 }} />
                       <Typography 
                         variant="caption" 
                         sx={{ 
