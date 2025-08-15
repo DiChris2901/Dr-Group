@@ -3532,7 +3532,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                   onClick={handleCloseViewDialog}
                   variant="outlined"
                   sx={{ 
-                    borderRadius: 1,
+                    borderRadius: 12,
                     px: 4,
                     py: 1.25,
                     textTransform: 'none',
@@ -3588,22 +3588,22 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       textTransform: 'none',
                       fontWeight: 700,
                       fontSize: '0.95rem',
-                      color: 'primary.main',
+                      color: 'secondary.main',
                       borderWidth: 2,
                       borderColor: 'transparent',
                       background: theme => `
-                        linear-gradient(${alpha(theme.palette.background.paper, 0.9)}, ${alpha(theme.palette.background.paper, 0.9)}) padding-box,
-                        linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main}) border-box
+                        linear-gradient(${alpha(theme.palette.background.paper, 0.95)}, ${alpha(theme.palette.background.paper, 0.95)}) padding-box,
+                        linear-gradient(135deg, ${theme.palette.secondary.main}, ${theme.palette.primary.main}) border-box
                       `,
                       boxShadow: theme => theme.palette.mode === 'dark'
-                        ? '0 6px 18px rgba(102, 126, 234, 0.22)'
-                        : '0 8px 22px rgba(102, 126, 234, 0.28)',
+                        ? '0 6px 18px rgba(233, 30, 99, 0.22)'
+                        : '0 8px 22px rgba(233, 30, 99, 0.24)',
                       transition: 'all 0.25s ease',
                       '&:hover': {
                         transform: 'translateY(-1px)',
                         boxShadow: theme => theme.palette.mode === 'dark'
-                          ? '0 10px 26px rgba(102, 126, 234, 0.28)'
-                          : '0 12px 30px rgba(102, 126, 234, 0.35)'
+                          ? '0 10px 26px rgba(233, 30, 99, 0.28)'
+                          : '0 12px 30px rgba(233, 30, 99, 0.32)'
                       }
                     }}
                   >
@@ -3630,17 +3630,17 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       textTransform: 'none',
                       fontWeight: 800,
                       fontSize: '0.95rem',
-                      color: theme => theme.palette.mode === 'dark' ? '#fff' : '#fff',
-                      background: theme => `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.95)}, ${alpha(theme.palette.secondary.main, 0.95)})`,
+                      color: '#fff',
+                      background: theme => `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.98)}, ${alpha(theme.palette.primary.main, 0.98)})`,
                       boxShadow: theme => theme.palette.mode === 'dark'
-                        ? '0 8px 24px rgba(102,126,234,0.36), 0 2px 8px rgba(102,126,234,0.20)'
-                        : '0 12px 28px rgba(102,126,234,0.45), 0 3px 12px rgba(0,0,0,0.08)',
+                        ? '0 10px 26px rgba(102,126,234,0.42), 0 2px 10px rgba(0,0,0,0.25)'
+                        : '0 14px 34px rgba(102,126,234,0.50), 0 3px 12px rgba(0,0,0,0.10)',
                       transition: 'all 0.22s ease',
                       '&:hover': {
                         transform: 'translateY(-1px)',
                         boxShadow: theme => theme.palette.mode === 'dark'
-                          ? '0 12px 32px rgba(102,126,234,0.42)'
-                          : '0 16px 36px rgba(102,126,234,0.52)'
+                          ? '0 14px 36px rgba(102,126,234,0.48)'
+                          : '0 18px 40px rgba(102,126,234,0.58)'
                       },
                       '&.Mui-disabled': {
                         color: theme => alpha(theme.palette.common.white, 0.7),
