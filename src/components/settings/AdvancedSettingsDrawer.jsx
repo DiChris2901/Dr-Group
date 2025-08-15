@@ -811,8 +811,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         <Box sx={{
                           p: 1,
                           borderRadius: 2,
-                          background: settings?.theme?.primaryColor || '#667eea',
-                          color: 'white',
+                          backgroundColor: '#e91e63', // Elegant Pink
+                          color: '#ffffff',
                           display: 'flex',
                           alignItems: 'center'
                         }}>
@@ -896,8 +896,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         <Box sx={{
                           p: 1,
                           borderRadius: 2,
-                          background: settings?.theme?.primaryColor || '#667eea',
-                          color: 'white',
+                          backgroundColor: '#ff9800', // Finance Gold
+                          color: '#ffffff',
                           display: 'flex',
                           alignItems: 'center'
                         }}>
@@ -990,8 +990,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         <Box sx={{
                           p: 1,
                           borderRadius: 2,
-                          background: settings?.theme?.primaryColor || '#667eea',
-                          color: 'white',
+                          backgroundColor: '#009688', // Modern Teal
+                          color: '#ffffff',
                           display: 'flex',
                           alignItems: 'center'
                         }}>
@@ -1078,8 +1078,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         <Box sx={{
                           p: 1,
                           borderRadius: 2,
-                          background: settings?.theme?.primaryColor || '#667eea',
-                          color: 'white',
+                          backgroundColor: '#3f51b5', // Tech Indigo
+                          color: '#ffffff',
                           display: 'flex',
                           alignItems: 'center'
                         }}>
@@ -1293,8 +1293,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         <Box sx={{
                           p: 1,
                           borderRadius: 2,
-                          background: settings?.theme?.primaryColor || '#667eea',
-                          color: 'white',
+                          backgroundColor: '#1976d2', // Corporate Blue
+                          color: '#ffffff',
                           display: 'flex',
                           alignItems: 'center'
                         }}>
@@ -1407,8 +1407,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         <Box sx={{
                           p: 1,
                           borderRadius: 2,
-                          background: settings?.theme?.primaryColor || '#667eea',
-                          color: 'white',
+                          backgroundColor: '#4caf50', // Success Green
+                          color: '#ffffff',
                           display: 'flex',
                           alignItems: 'center'
                         }}>
@@ -1687,8 +1687,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         <Box sx={{
                           p: 1,
                           borderRadius: 2,
-                          background: settings?.theme?.primaryColor || '#667eea',
-                          color: 'white',
+                          backgroundColor: '#ff5722', // Creative Orange
+                          color: '#ffffff',
                           display: 'flex',
                           alignItems: 'center'
                         }}>
@@ -1757,8 +1757,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             <Box sx={{
                               p: 1,
                               borderRadius: 2,
-                              background: settings?.theme?.primaryColor || '#667eea',
-                              color: 'white',
+                              backgroundColor: '#8bc34a', // Nature Green
+                              color: '#ffffff',
                               display: 'flex',
                               alignItems: 'center'
                             }}>
@@ -2018,8 +2018,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         <Box sx={{
                           p: 1,
                           borderRadius: 1,
-                          backgroundColor: theme.palette.primary.main,
-                          color: theme.palette.primary.contrastText,
+                          backgroundColor: '#1565c0', // Executive Navy
+                          color: '#ffffff',
                           display: 'flex',
                           alignItems: 'center'
                         }}>
@@ -2122,8 +2122,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         <Box sx={{
                           p: 1,
                           borderRadius: 1,
-                          backgroundColor: theme.palette.primary.main,
-                          color: theme.palette.primary.contrastText,
+                          backgroundColor: '#2196f3', // Boss Lite
+                          color: '#ffffff',
                           display: 'flex',
                           alignItems: 'center'
                         }}>
@@ -2201,6 +2201,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
                         <Button
                           variant="outlined"
+                          color="primary"
                           size="small"
                           onClick={loadActiveSessions}
                           disabled={loadingSessions}
@@ -2209,8 +2210,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         </Button>
                         {activeSessions.length > 0 && (
                           <Button
-                            variant="outlined"
-                            color="warning"
+                            variant="contained"
+                            color="error"
                             size="small"
                             startIcon={<LogoutIcon />}
                             onClick={handleLogoutAllDevices}
@@ -2245,8 +2246,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         <Box sx={{
                           p: 1,
                           borderRadius: 1,
-                          backgroundColor: theme.palette.primary.main,
-                          color: theme.palette.primary.contrastText,
+                          backgroundColor: '#9c27b0', // Purple Accent
+                          color: '#ffffff',
                           display: 'flex',
                           alignItems: 'center'
                         }}>
