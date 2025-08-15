@@ -1,7 +1,42 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth, db } from '../config/firebase';
-import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+
+// Helper functions para detectar dispositivo y navegador
+const getDeviceType = () => {
+  const userAgent = navigator.userAgent;
+  if (/tablet|ipad|playbook|silk/i.test(userAgent)) {
+    return 'tablet';
+  }
+  if (/mobile|iphone|ipod|android|blackberry|opera|mini|windows\sce|palm|smartphone|iemobile/i.test(userAgent)) {
+    return 'mobile';
+  }
+  return 'desktop';
+};
+
+const getBrowserInfo = () => {
+  const userAgent = navigator.userAgent;
+  let browserName = 'Unknown';
+  let browserVersion = 'Unknown';
+
+  if (userAgent.indexOf('Chrome') > -1) {
+    browserName = 'Chrome';
+    browserVersion = userAgent.match(/Chrome\/(\d+)/)?.[1] || 'Unknown';
+  } else if (userAgent.indexOf('Firefox') > -1) {
+    browserName = 'Firefox';
+    browserVersion = userAgent.match(/Firefox\/(\d+)/)?.[1] || 'Unknown';
+  } else if (userAgent.indexOf('Safari') > -1) {
+    browserName = 'Safari';
+    browserVersion = userAgent.match(/Version\/(\d+)/)?.[1] || 'Unknown';
+  } else if (userAgent.indexOf('Edge') > -1) {
+    browserName = 'Edge';
+    browserVersion = userAgent.match(/Edge\/(\d+)/)?.[1] || 'Unknown';
+  }
+
+  const platform = navigator.platform || 'Unknown';
+  return `${browserName} ${browserVersion} on ${platform}`;
+};
 
 const AuthContext = createContext();
 
@@ -24,6 +59,56 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const result = await signInWithEmailAndPassword(auth, email, password);
+      
+      // 🆕 Registrar inicio de sesión en historial
+      try {
+        await addDoc(collection(db, 'loginHistory'), {
+          userId: result.user.uid,
+          action: 'login',
+          timestamp: new Date(),
+          email: result.user.email,
+          ipAddress: 'Unknown', // Requiere servicio externo para obtener IP real
+          userAgent: navigator.userAgent,
+          deviceType: getDeviceType(),
+          deviceInfo: getBrowserInfo(),
+          success: true
+        });
+        console.log('✅ Inicio de sesión registrado en historial');
+      } catch (historyError) {
+        console.error('⚠️ Error registrando historial:', historyError);
+        // No bloquear el login si falla el registro del historial
+      }
+
+      // 🆕 Crear sesión activa
+      try {
+        // Primero, marcar otras sesiones como no actuales
+        const sessionsRef = collection(db, 'activeSessions');
+        const existingSessionsQuery = query(sessionsRef, where('userId', '==', result.user.uid));
+        const existingSessionsSnapshot = await getDocs(existingSessionsQuery);
+        
+        // Actualizar sesiones existentes para marcarlas como no actuales
+        const updatePromises = existingSessionsSnapshot.docs.map(doc => 
+          updateDoc(doc.ref, { isCurrent: false })
+        );
+        await Promise.all(updatePromises);
+
+        // Crear nueva sesión activa
+        await addDoc(collection(db, 'activeSessions'), {
+          userId: result.user.uid,
+          deviceType: getDeviceType(),
+          deviceInfo: getBrowserInfo(),
+          lastActivity: new Date(),
+          loginTime: new Date(),
+          isCurrent: true,
+          location: 'Unknown', // Requiere geolocalización
+          sessionId: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        });
+        console.log('✅ Sesión activa creada');
+      } catch (sessionError) {
+        console.error('⚠️ Error creando sesión activa:', sessionError);
+        // No bloquear el login si falla el registro de sesión
+      }
+
       return result;
     } catch (error) {
       setError(error.message);
@@ -34,6 +119,47 @@ export const AuthProvider = ({ children }) => {
   // Función para cerrar sesión
   const logout = async () => {
     try {
+      const userId = currentUser?.uid;
+      
+      // 🆕 Limpiar sesiones activas antes de cerrar sesión
+      if (userId) {
+        try {
+          // Registrar cierre de sesión en historial
+          await addDoc(collection(db, 'loginHistory'), {
+            userId: userId,
+            action: 'logout',
+            timestamp: new Date(),
+            email: currentUser.email,
+            userAgent: navigator.userAgent,
+            deviceType: getDeviceType(),
+            deviceInfo: getBrowserInfo()
+          });
+
+          // Eliminar sesión activa actual
+          const sessionsRef = collection(db, 'activeSessions');
+          const currentSessionQuery = query(
+            sessionsRef, 
+            where('userId', '==', userId),
+            where('isCurrent', '==', true)
+          );
+          const currentSessionSnapshot = await getDocs(currentSessionQuery);
+          
+          const deletePromises = currentSessionSnapshot.docs.map(doc => 
+            updateDoc(doc.ref, { 
+              isCurrent: false, 
+              logoutTime: new Date(),
+              active: false 
+            })
+          );
+          await Promise.all(deletePromises);
+          
+          console.log('✅ Sesión cerrada y registrada en historial');
+        } catch (cleanupError) {
+          console.error('⚠️ Error en limpieza de sesión:', cleanupError);
+          // Continuar con el logout aunque falle la limpieza
+        }
+      }
+
       await signOut(auth);
       setUserProfile(null);
     } catch (error) {
@@ -146,6 +272,31 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // 🆕 Función para actualizar actividad de la sesión
+  const updateSessionActivity = async () => {
+    if (!currentUser) return;
+
+    try {
+      const sessionsRef = collection(db, 'activeSessions');
+      const currentSessionQuery = query(
+        sessionsRef, 
+        where('userId', '==', currentUser.uid),
+        where('isCurrent', '==', true)
+      );
+      const currentSessionSnapshot = await getDocs(currentSessionQuery);
+      
+      const updatePromises = currentSessionSnapshot.docs.map(doc => 
+        updateDoc(doc.ref, { 
+          lastActivity: new Date()
+        })
+      );
+      await Promise.all(updatePromises);
+      
+    } catch (error) {
+      console.error('⚠️ Error actualizando actividad de sesión:', error);
+    }
+  };
+
   // Cargar perfil del usuario desde Firestore
   const loadUserProfile = async (user) => {
     try {
@@ -239,6 +390,21 @@ export const AuthProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
+  // 🆕 Actualizar actividad de la sesión cada 5 minutos
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // Actualizar inmediatamente
+    updateSessionActivity();
+
+    // Configurar intervalo para actualizar cada 5 minutos
+    const interval = setInterval(() => {
+      updateSessionActivity();
+    }, 5 * 60 * 1000); // 5 minutos
+
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
   const value = {
     currentUser,
     user: currentUser, // Alias para compatibilidad
@@ -246,6 +412,7 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     updateUserProfile,
+    updateSessionActivity, // 🆕 Nueva función disponible
     getUserByEmail,
     checkEmailExists,
     loading,

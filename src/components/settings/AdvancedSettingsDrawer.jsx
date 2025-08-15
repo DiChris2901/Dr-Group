@@ -1997,55 +1997,29 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                 <Stack spacing={3}>
                   {/* Historial de Inicios de Sesión */}
                   <Card sx={{ 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
-                    background: `linear-gradient(135deg, 
-                      ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
-                      ${alpha(theme.palette.background.paper, 0.98)} 100%
-                    )`,
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
-                    position: 'relative',
-                    overflow: 'hidden',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: '3px',
-                      background: `linear-gradient(90deg, 
-                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                      )`,
-                      boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    backgroundColor: theme.palette.background.paper,
+                    boxShadow: theme.shadows[1],
+                    transition: 'box-shadow 0.2s ease-in-out',
+                    '&:hover': {
+                      boxShadow: theme.shadows[3]
                     }
                   }}>
                     <CardContent>
                       <Typography variant="h6" sx={{ 
-                        mb: 3, 
+                        mb: 2, 
                         display: 'flex', 
                         alignItems: 'center', 
                         gap: 1.5,
-                        fontWeight: 700,
-                        background: `linear-gradient(135deg, 
-                          ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                          ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                        )`,
-                        backgroundClip: 'text',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                        fontWeight: 600,
+                        color: theme.palette.text.primary
                       }}>
                         <Box sx={{
                           p: 1,
-                          borderRadius: '8px',
-                          background: `linear-gradient(135deg, 
-                            ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                            ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                          )`,
-                          color: 'white',
-                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
+                          borderRadius: 1,
+                          backgroundColor: theme.palette.primary.main,
+                          color: theme.palette.primary.contrastText,
                           display: 'flex',
                           alignItems: 'center'
                         }}>
@@ -2078,6 +2052,12 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                 <ListItemText
                                   primary={
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <Chip 
+                                        label={entry.action === 'login' ? 'Inicio' : entry.action === 'logout' ? 'Cierre' : 'Cambio'} 
+                                        size="small" 
+                                        color={entry.action === 'login' ? 'success' : entry.action === 'logout' ? 'info' : 'warning'}
+                                        sx={{ fontSize: '0.7rem', height: 20 }}
+                                      />
                                       <TimeIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                                       <Typography variant="body2">
                                         {entry.timestamp ? format(entry.timestamp, "dd/MM/yyyy 'a las' HH:mm", { locale: es }) : 'Fecha no disponible'}
@@ -2121,55 +2101,29 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
 
                   {/* Gestión de Sesiones Activas */}
                   <Card sx={{ 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
-                    background: `linear-gradient(135deg, 
-                      ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.03)} 0%, 
-                      ${alpha(theme.palette.background.paper, 0.98)} 100%
-                    )`,
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
-                    position: 'relative',
-                    overflow: 'hidden',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: '3px',
-                      background: `linear-gradient(90deg, 
-                        ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
-                        ${settings?.theme?.primaryColor || '#667eea'} 100%
-                      )`,
-                      boxShadow: `0 0 8px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.3)}`
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    backgroundColor: theme.palette.background.paper,
+                    boxShadow: theme.shadows[1],
+                    transition: 'box-shadow 0.2s ease-in-out',
+                    '&:hover': {
+                      boxShadow: theme.shadows[3]
                     }
                   }}>
                     <CardContent>
                       <Typography variant="h6" sx={{ 
-                        mb: 3, 
+                        mb: 2, 
                         display: 'flex', 
                         alignItems: 'center', 
                         gap: 1.5,
-                        fontWeight: 700,
-                        background: `linear-gradient(135deg, 
-                          ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
-                          ${settings?.theme?.primaryColor || '#667eea'} 100%
-                        )`,
-                        backgroundClip: 'text',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                        fontWeight: 600,
+                        color: theme.palette.text.primary
                       }}>
                         <Box sx={{
                           p: 1,
-                          borderRadius: '8px',
-                          background: `linear-gradient(135deg, 
-                            ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
-                            ${settings?.theme?.primaryColor || '#667eea'} 100%
-                          )`,
-                          color: 'white',
-                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.25)}`,
+                          borderRadius: 1,
+                          backgroundColor: theme.palette.primary.main,
+                          color: theme.palette.primary.contrastText,
                           display: 'flex',
                           alignItems: 'center'
                         }}>
@@ -2205,11 +2159,18 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                       <Typography variant="body1">
                                         {session.deviceInfo || 'Dispositivo desconocido'}
                                       </Typography>
-                                      {session.isCurrent && (
+                                      {session.isCurrent ? (
                                         <Chip 
-                                          label="Actual" 
+                                          label="Sesión Actual" 
                                           size="small" 
-                                          color="primary"
+                                          color="success"
+                                          sx={{ fontSize: '0.7rem', height: 20 }}
+                                        />
+                                      ) : (
+                                        <Chip 
+                                          label="Inactiva" 
+                                          size="small" 
+                                          color="default"
                                           sx={{ fontSize: '0.7rem', height: 20 }}
                                         />
                                       )}
@@ -2263,55 +2224,29 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
 
                   {/* Notificaciones de Seguridad */}
                   <Card sx={{ 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
-                    background: `linear-gradient(135deg, 
-                      ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
-                      ${alpha(theme.palette.background.paper, 0.98)} 100%
-                    )`,
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
-                    position: 'relative',
-                    overflow: 'hidden',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: '3px',
-                      background: `linear-gradient(90deg, 
-                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                      )`,
-                      boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    backgroundColor: theme.palette.background.paper,
+                    boxShadow: theme.shadows[1],
+                    transition: 'box-shadow 0.2s ease-in-out',
+                    '&:hover': {
+                      boxShadow: theme.shadows[3]
                     }
                   }}>
                     <CardContent>
                       <Typography variant="h6" sx={{ 
-                        mb: 3, 
+                        mb: 2, 
                         display: 'flex', 
                         alignItems: 'center', 
                         gap: 1.5,
-                        fontWeight: 700,
-                        background: `linear-gradient(135deg, 
-                          ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                          ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                        )`,
-                        backgroundClip: 'text',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                        fontWeight: 600,
+                        color: theme.palette.text.primary
                       }}>
                         <Box sx={{
                           p: 1,
-                          borderRadius: '8px',
-                          background: `linear-gradient(135deg, 
-                            ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                            ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                          )`,
-                          color: 'white',
-                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
+                          borderRadius: 1,
+                          backgroundColor: theme.palette.primary.main,
+                          color: theme.palette.primary.contrastText,
                           display: 'flex',
                           alignItems: 'center'
                         }}>
