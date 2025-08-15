@@ -9,12 +9,6 @@ import {
   Button,
   Chip,
   Avatar,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   IconButton,
   InputBase,
   Select,
@@ -24,7 +18,10 @@ import {
   Tooltip,
   CircularProgress,
   Alert,
-  TablePagination
+  Pagination,
+  Stack,
+  TextField,
+  alpha
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -35,7 +32,14 @@ import {
   TrendingUp as TrendingUpIcon,
   CheckCircle as CheckIcon,
   Schedule as PendingIcon,
-  Error as ErrorIcon
+  Error as ErrorIcon,
+  KeyboardArrowLeft as KeyboardArrowLeftIcon,
+  KeyboardArrowRight as KeyboardArrowRightIcon,
+  MoreVert as MoreVertIcon,
+  FirstPage,
+  LastPage,
+  NavigateBefore,
+  NavigateNext
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -51,15 +55,50 @@ const PaymentsPage = () => {
   const [statusFilter, setStatusFilter] = useState('all');
 
   // Cargar pagos reales desde Firebase
-  const { payments, loading, error } = usePayments({ status: statusFilter !== 'all' ? statusFilter : undefined });
+  const { payments: firebasePayments, loading, error } = usePayments({ status: statusFilter !== 'all' ? statusFilter : undefined });
+
+  // Datos de prueba para demostración (se eliminarán cuando haya datos reales)
+  const mockPayments = [
+    { id: '1', companyName: 'DR Group', concept: 'Nómina Diciembre', amount: 125000, method: 'Transferencia', date: { seconds: Date.now() / 1000 }, reference: 'TRF-001', status: 'Completado' },
+    { id: '2', companyName: 'Tech Solutions', concept: 'Servicios IT', amount: 85000, method: 'Tarjeta', date: { seconds: Date.now() / 1000 - 86400 }, reference: 'TRF-002', status: 'Completado' },
+    { id: '3', companyName: 'Marketing Pro', concept: 'Campaña Digital', amount: 45000, method: 'Efectivo', date: { seconds: Date.now() / 1000 - 172800 }, reference: 'EFE-001', status: 'Pendiente' },
+    { id: '4', companyName: 'Construcciones ABC', concept: 'Material Construcción', amount: 230000, method: 'Transferencia', date: { seconds: Date.now() / 1000 - 259200 }, reference: 'TRF-003', status: 'Completado' },
+    { id: '5', companyName: 'Logística Express', concept: 'Transporte Mensual', amount: 65000, method: 'Cheque', date: { seconds: Date.now() / 1000 - 345600 }, reference: 'CHE-001', status: 'Completado' },
+    { id: '6', companyName: 'Consultoría Legal', concept: 'Asesoría Jurídica', amount: 95000, method: 'Transferencia', date: { seconds: Date.now() / 1000 - 432000 }, reference: 'TRF-004', status: 'Fallido' },
+    { id: '7', companyName: 'Inmobiliaria Central', concept: 'Renta Oficina', amount: 155000, method: 'Transferencia', date: { seconds: Date.now() / 1000 - 518400 }, reference: 'TRF-005', status: 'Completado' },
+    { id: '8', companyName: 'Servicios Generales', concept: 'Mantenimiento', amount: 35000, method: 'Efectivo', date: { seconds: Date.now() / 1000 - 604800 }, reference: 'EFE-002', status: 'Pendiente' },
+    { id: '9', companyName: 'Proveedores Unidos', concept: 'Insumos Oficina', amount: 28000, method: 'Tarjeta', date: { seconds: Date.now() / 1000 - 691200 }, reference: 'TAR-001', status: 'Completado' },
+    { id: '10', companyName: 'Desarrollo Web', concept: 'Sitio Corporativo', amount: 180000, method: 'Transferencia', date: { seconds: Date.now() / 1000 - 777600 }, reference: 'TRF-006', status: 'Completado' },
+    { id: '11', companyName: 'Equipos y Sistemas', concept: 'Hardware Nuevo', amount: 320000, method: 'Transferencia', date: { seconds: Date.now() / 1000 - 864000 }, reference: 'TRF-007', status: 'Completado' },
+    { id: '12', companyName: 'Capacitación Pro', concept: 'Cursos Personal', amount: 75000, method: 'Cheque', date: { seconds: Date.now() / 1000 - 950400 }, reference: 'CHE-002', status: 'Completado' },
+    { id: '13', companyName: 'Seguros Integrales', concept: 'Póliza Anual', amount: 145000, method: 'Transferencia', date: { seconds: Date.now() / 1000 - 1036800 }, reference: 'TRF-008', status: 'Pendiente' },
+    { id: '14', companyName: 'Limpieza Total', concept: 'Servicio Limpieza', amount: 22000, method: 'Efectivo', date: { seconds: Date.now() / 1000 - 1123200 }, reference: 'EFE-003', status: 'Completado' },
+    { id: '15', companyName: 'Suministros ABC', concept: 'Material Oficina', amount: 38000, method: 'Tarjeta', date: { seconds: Date.now() / 1000 - 1209600 }, reference: 'TAR-002', status: 'Completado' }
+  ];
+
+  // Usar datos de prueba si no hay datos de Firebase
+  const payments = firebasePayments.length > 0 ? firebasePayments : mockPayments;
+
+  // Debug temporal - remover después
+  console.log('🔍 Debug Payments:', { 
+    firebaseCount: firebasePayments.length, 
+    mockCount: mockPayments.length, 
+    finalCount: payments.length,
+    loading,
+    error
+  });
 
   const getStatusColor = (status) => {
-    switch (status) {
+    const statusLower = status?.toLowerCase();
+    switch (statusLower) {
       case 'completed':
+      case 'completado':
         return 'success';
       case 'pending':
+      case 'pendiente':
         return 'warning';
       case 'failed':
+      case 'fallido':
         return 'error';
       default:
         return 'default';
@@ -67,12 +106,16 @@ const PaymentsPage = () => {
   };
 
   const getStatusIcon = (status) => {
-    switch (status) {
+    const statusLower = status?.toLowerCase();
+    switch (statusLower) {
       case 'completed':
+      case 'completado':
         return <CheckIcon fontSize="small" />;
       case 'pending':
+      case 'pendiente':
         return <PendingIcon fontSize="small" />;
       case 'failed':
+      case 'fallido':
         return <ErrorIcon fontSize="small" />;
       default:
         return null;
@@ -80,15 +123,20 @@ const PaymentsPage = () => {
   };
 
   const getStatusText = (status) => {
-    switch (status) {
+    const statusLower = status?.toLowerCase();
+    switch (statusLower) {
       case 'completed':
         return 'Completado';
       case 'pending':
         return 'Pendiente';
       case 'failed':
         return 'Fallido';
+      case 'completado':
+      case 'pendiente':
+      case 'fallido':
+        return status; // Ya están en español
       default:
-        return status;
+        return status || 'Desconocido';
     }
   };
 
@@ -107,21 +155,19 @@ const PaymentsPage = () => {
   // Calcular estadísticas de pagos
   const totalAmount = filteredPayments.reduce((sum, payment) => sum + payment.amount, 0);
   const completedAmount = filteredPayments
-    .filter(p => p.status === 'completed')
+    .filter(p => p.status?.toLowerCase() === 'completado' || p.status?.toLowerCase() === 'completed')
     .reduce((sum, payment) => sum + payment.amount, 0);
   const pendingAmount = filteredPayments
-    .filter(p => p.status === 'pending')
+    .filter(p => p.status?.toLowerCase() === 'pendiente' || p.status?.toLowerCase() === 'pending')
     .reduce((sum, payment) => sum + payment.amount, 0);
 
-  // Paleta/acentos suaves (versión liviana)
-  const gradients = {
-    primary: 'linear-gradient(135deg, rgba(102,126,234,0.35) 0%, rgba(118,75,162,0.35) 100%)'
-  };
+  // Acentos desde DS (gradients via theme variants y tokenUtils)
 
   const fadeUp = { initial:{opacity:0,y:16}, animate:{opacity:1,y:0}, transition:{duration:.45,ease:'easeOut'} };
 
   // Paginación (máx 10 registros por página)
   const [page, setPage] = useState(0);
+  const [jumpToPage, setJumpToPage] = useState('');
   const rowsPerPage = 10; // fijo según requerimiento
 
   useEffect(()=>{
@@ -131,13 +177,38 @@ const PaymentsPage = () => {
 
   const paginatedPayments = filteredPayments.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
+  // Funciones de navegación de paginación
+  const handlePageChange = (newPage) => {
+    setPage(newPage - 1); // Pagination component usa base 1, nosotros base 0
+  };
+
+  const handleFirstPage = () => setPage(0);
+  const handlePrevPage = () => setPage(Math.max(0, page - 1));
+  const handleNextPage = () => setPage(Math.min(Math.ceil(filteredPayments.length / rowsPerPage) - 1, page + 1));
+  const handleLastPage = () => setPage(Math.ceil(filteredPayments.length / rowsPerPage) - 1);
+
+  const handleJumpToPage = () => {
+    const pageNum = parseInt(jumpToPage);
+    const maxPage = Math.ceil(filteredPayments.length / rowsPerPage);
+    if (pageNum >= 1 && pageNum <= maxPage) {
+      setPage(pageNum - 1);
+      setJumpToPage('');
+    }
+  };
+
+  const handleJumpToPageKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleJumpToPage();
+    }
+  };
+
   return (
-    <Box sx={{ p: 3, pb:6, display:'flex', flexDirection:'column', gap:3 }}>
+    <Box sx={{ p: 2, pb: 4, display:'flex', flexDirection:'column', gap: 2 }}>
       {/* Mostrar indicador de carga */}
       {loading && (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-          <CircularProgress size={40} />
-          <Typography variant="body1" sx={{ ml: 2 }}>
+          <CircularProgress size={32} />
+          <Typography variant="body2" sx={{ ml: 2, color: 'text.secondary' }}>
             Cargando pagos...
           </Typography>
         </Box>
@@ -145,7 +216,7 @@ const PaymentsPage = () => {
 
       {/* Mostrar error si existe */}
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
           Error al cargar los pagos: {error}
         </Alert>
       )}
@@ -153,29 +224,79 @@ const PaymentsPage = () => {
       {/* Contenido principal - solo se muestra si no hay loading ni error */}
       {!loading && !error && (
         <>
-          {/* HEADER GESTIÓN EMPRESARIAL */}
+          {/* HEADER COMPACTO */}
           <motion.div {...fadeUp}>
-            <Paper variant="outlined" sx={{ mb:2.5, p:2.5, borderRadius:2, position:'relative', bgcolor: theme.palette.background.paper }}>
-              <Box sx={{ display:'flex', flexDirection:{ xs:'column', md:'row' }, justifyContent:'space-between', alignItems:{ md:'center' }, gap:2 }}>
-                <Box sx={{ flex:1, minWidth:260 }}>
-                  <Typography variant="overline" sx={{ fontWeight:600, letterSpacing:.5, color:'text.secondary' }}>FINANZAS • PAGOS</Typography>
-                  <Typography variant="h5" sx={{ fontWeight:700, letterSpacing:'-0.5px' }}>Gestión de Pagos</Typography>
-                  <Typography variant="body2" sx={{ color:'text.secondary', mt:0.5 }}>Administra pagos y transacciones corporativas</Typography>
+            <Paper sx={{ p: 2, borderRadius: 1, border: '1px solid', borderColor: 'divider', background: 'background.paper' }}>
+              <Box sx={{ display:'flex', flexDirection:{ xs:'column', md:'row' }, justifyContent:'space-between', alignItems:{ md:'center' }, gap: 1.5 }}>
+                <Box sx={{ flex:1 }}>
+                  <Typography variant="overline" sx={{ fontWeight:600, fontSize: '0.7rem', color:'text.secondary' }}>FINANZAS • PAGOS</Typography>
+                  <Typography variant="h6" sx={{ fontWeight:700, mt: 0.5, mb: 0.5 }}>Gestión de Pagos</Typography>
+                  <Typography variant="caption" sx={{ color:'text.secondary' }}>Administra pagos y transacciones corporativas</Typography>
                 </Box>
-                <Box sx={{ display:'flex', flexWrap:'wrap', gap:1.2, alignItems:'center' }}>
-                  <Chip size="small" label={`Total $${totalAmount.toLocaleString()}`} sx={{ fontWeight:600, borderRadius:1 }} />
-                  <Chip size="small" label={`Comp $${completedAmount.toLocaleString()}`} color="success" variant="outlined" sx={{ borderRadius:1 }} />
-                  <Chip size="small" label={`Pend $${pendingAmount.toLocaleString()}`} color="warning" variant="outlined" sx={{ borderRadius:1 }} />
-                  <Chip size="small" label={`${filteredPayments.length} pagos`} variant="outlined" sx={{ borderRadius:1 }} />
-                  <Box sx={{ width:1, display:{ xs:'block', md:'none' } }} />
-                  <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={()=>navigate('/payments/new')} sx={{ textTransform:'none', fontWeight:600, borderRadius:2 }}>Nuevo</Button>
+                <Box sx={{ display:'flex', flexWrap:'wrap', gap: 0.8, alignItems:'center' }}>
+                  <Chip 
+                    size="small" 
+                    label={`Total $${totalAmount.toLocaleString()}`} 
+                    sx={{ 
+                      fontWeight: 600, 
+                      borderRadius: 0.5,
+                      fontSize: '0.7rem',
+                      height: 24
+                    }} 
+                  />
+                  <Chip 
+                    size="small" 
+                    label={`Comp $${completedAmount.toLocaleString()}`} 
+                    color="success" 
+                    variant="outlined" 
+                    sx={{ 
+                      borderRadius: 0.5,
+                      fontSize: '0.7rem',
+                      height: 24
+                    }} 
+                  />
+                  <Chip 
+                    size="small" 
+                    label={`Pend $${pendingAmount.toLocaleString()}`} 
+                    color="warning" 
+                    variant="outlined" 
+                    sx={{ 
+                      borderRadius: 0.5,
+                      fontSize: '0.7rem',
+                      height: 24
+                    }} 
+                  />
+                  <Chip 
+                    size="small" 
+                    label={`${filteredPayments.length} pagos`} 
+                    variant="outlined" 
+                    sx={{ 
+                      borderRadius: 0.5,
+                      fontSize: '0.7rem',
+                      height: 24
+                    }} 
+                  />
+                  <Button 
+                    size="small" 
+                    variant="contained" 
+                    startIcon={<AddIcon />} 
+                    onClick={()=>navigate('/payments/new')} 
+                    sx={{ 
+                      textTransform:'none', 
+                      fontWeight: 600, 
+                      borderRadius: 0.5,
+                      fontSize: '0.75rem',
+                      height: 28,
+                      px: 1.5
+                    }}
+                  >
+                    Nuevo
+                  </Button>
                 </Box>
               </Box>
             </Paper>
-          </motion.div>
-
-          {/* KPIs / CARDS LIGEROS */}
-          <Grid container spacing={2}>
+          </motion.div>          {/* KPIs COMPACTOS */}
+          <Grid container spacing={1.5}>
             {[{
               label:'Total Procesado', value:`$${totalAmount.toLocaleString()}`, icon:<MoneyIcon />, color: theme.palette.primary.main
             },{
@@ -186,125 +307,591 @@ const PaymentsPage = () => {
               label:'Total Pagos', value:filteredPayments.length, icon:<ReceiptIcon />, color: theme.palette.info.main
             }].map(card => (
               <Grid item xs={12} sm={6} md={3} key={card.label}>
-                <motion.div whileHover={{ y:-3 }} transition={{ duration:.3 }}>
-                  <Card variant="outlined" sx={{ borderRadius:2, position:'relative', overflow:'hidden', backdropFilter:'blur(4px)', '&:hover':{ boxShadow:'0 4px 18px rgba(0,0,0,0.08)' } }}>
-                    <CardContent sx={{ p:2.2 }}>
-                      <Box sx={{ display:'flex', alignItems:'center', gap:1.5 }}>
-                        <Avatar variant="rounded" sx={{ width:40, height:40, bgcolor: `${card.color}14`, color:card.color, borderRadius:2 }}>{card.icon}</Avatar>
-                        <Box>
-                          <Typography variant="subtitle1" sx={{ fontWeight:700 }}>{card.value}</Typography>
-                          <Typography variant="caption" sx={{ color:'text.secondary', fontWeight:500 }}>{card.label}</Typography>
-                        </Box>
+                <Card sx={{ 
+                  borderRadius: 1, 
+                  border: '1px solid', 
+                  borderColor: 'divider',
+                  '&:hover': { 
+                    borderColor: 'primary.main',
+                    transform: 'translateY(-1px)',
+                    transition: 'all 0.2s'
+                  }
+                }}>
+                  <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
+                    <Box sx={{ display:'flex', alignItems:'center', gap: 1 }}>
+                      <Avatar sx={{ 
+                        width: 32, 
+                        height: 32, 
+                        bgcolor: `${card.color}15`, 
+                        color: card.color,
+                        '& .MuiSvgIcon-root': { fontSize: 18 }
+                      }}>
+                        {card.icon}
+                      </Avatar>
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Typography variant="subtitle2" sx={{ 
+                          fontWeight: 700, 
+                          fontSize: '0.9rem',
+                          lineHeight: 1.2
+                        }}>
+                          {card.value}
+                        </Typography>
+                        <Typography variant="caption" sx={{ 
+                          color: 'text.secondary', 
+                          fontWeight: 500,
+                          fontSize: '0.7rem'
+                        }}>
+                          {card.label}
+                        </Typography>
                       </Box>
-                    </CardContent>
-                  </Card>
-                </motion.div>
+                    </Box>
+                  </CardContent>
+                </Card>
               </Grid>
             ))}
           </Grid>
 
-          {/* FILTROS LIGEROS */}
+          {/* FILTROS COMPACTOS */}
           <motion.div {...fadeUp}>
-            <Paper sx={{ mt:3, mb:1, p:1.5, borderRadius:2, display:'flex', flexWrap:'wrap', gap:1.5, alignItems:'center', border:'1px solid', borderColor:'divider', background: theme.palette.background.paper }}>
-              <Box sx={{ flex:1, minWidth:240, display:'flex', alignItems:'center', gap:1, px:1.5, py:0.75, borderRadius:1, border:'1px solid', borderColor:'divider' }}>
-                <SearchIcon fontSize="small" sx={{ color:'text.secondary' }} />
-                <InputBase placeholder="Buscar pagos..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} sx={{ flex:1, fontSize:14 }} />
+            <Paper sx={{ 
+              p: 1.5, 
+              borderRadius: 1, 
+              display:'flex', 
+              flexWrap:'wrap', 
+              gap: 1.5, 
+              alignItems:'center', 
+              border: '1px solid', 
+              borderColor: 'divider' 
+            }}>
+              <Box sx={{ 
+                flex:1, 
+                minWidth: 240, 
+                display:'flex', 
+                alignItems:'center', 
+                gap: 1, 
+                px: 1.5, 
+                py: 0.5, 
+                borderRadius: 0.5, 
+                border:'1px solid', 
+                borderColor: 'divider', 
+                backgroundColor: 'background.default' 
+              }}>
+                <SearchIcon fontSize="small" sx={{ color:'text.secondary', fontSize: 18 }} />
+                <InputBase 
+                  placeholder="Buscar pagos..." 
+                  value={searchTerm} 
+                  onChange={e=>setSearchTerm(e.target.value)} 
+                  sx={{ 
+                    flex:1, 
+                    fontSize: '0.8rem',
+                    '& input::placeholder': {
+                      fontSize: '0.8rem'
+                    }
+                  }} 
+                />
               </Box>
-              <FormControl size="small" sx={{ minWidth:130 }}>
-                <InputLabel>Estado</InputLabel>
-                <Select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} label="Estado" sx={{ borderRadius:2 }}>
-                  <MenuItem value="all">Todos</MenuItem>
-                  <MenuItem value="completed">Completados</MenuItem>
-                  <MenuItem value="pending">Pendientes</MenuItem>
-                  <MenuItem value="failed">Fallidos</MenuItem>
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <InputLabel sx={{ fontSize: '0.8rem' }}>Estado</InputLabel>
+                <Select 
+                  value={statusFilter} 
+                  onChange={e=>setStatusFilter(e.target.value)} 
+                  label="Estado" 
+                  sx={{ 
+                    borderRadius: 0.5,
+                    fontSize: '0.8rem',
+                    height: 36
+                  }}
+                >
+                  <MenuItem value="all" sx={{ fontSize: '0.8rem' }}>Todos</MenuItem>
+                  <MenuItem value="completed" sx={{ fontSize: '0.8rem' }}>Completados</MenuItem>
+                  <MenuItem value="pending" sx={{ fontSize: '0.8rem' }}>Pendientes</MenuItem>
+                  <MenuItem value="failed" sx={{ fontSize: '0.8rem' }}>Fallidos</MenuItem>
                 </Select>
               </FormControl>
-              <Button variant="contained" startIcon={<AddIcon />} onClick={()=>navigate('/payments/new')} sx={{ borderRadius:2, fontWeight:600, textTransform:'none', px:2.5 }}>Nuevo Pago</Button>
+              <Button 
+                variant="contained" 
+                startIcon={<AddIcon />} 
+                onClick={()=>navigate('/payments/new')} 
+                sx={{ 
+                  borderRadius: 0.5, 
+                  fontWeight: 600,
+                  textTransform:'none', 
+                  px: 2,
+                  fontSize: '0.8rem',
+                  height: 36
+                }}
+              >
+                Nuevo Pago
+              </Button>
             </Paper>
           </motion.div>
 
-          {/* TABLA LIGERA */}
-            <motion.div {...fadeUp}>
-              <Paper sx={{ borderRadius:2, overflow:'hidden', border:'1px solid', borderColor:'divider' }}>
-                <TableContainer sx={{ maxHeight: '62vh' }}>
-                  <Table stickyHeader size="small" sx={{ '& td, & th':{ borderBottomColor:'divider' }, 'thead th':{ fontSize:12, letterSpacing:'.4px', textTransform:'uppercase', fontWeight:600, bgcolor: theme.palette.mode==='light'? 'grey.50':'grey.900' } }}>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Empresa</TableCell>
-                        <TableCell>Concepto</TableCell>
-                        <TableCell align="right">Monto</TableCell>
-                        <TableCell>Método</TableCell>
-                        <TableCell>Fecha</TableCell>
-                        <TableCell>Referencia</TableCell>
-                        <TableCell>Estado</TableCell>
-                        <TableCell>Acciones</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {paginatedPayments.map((payment, idx) => (
-                        <TableRow
-                          key={payment.id}
-                          hover
+          {/* TABLA ESTILO COMMITMENTS LIST */}
+          <motion.div {...fadeUp}>
+            <Paper sx={{ 
+              borderRadius: 1, 
+              overflow:'hidden', 
+              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+            }}>
+              {/* Header de la tabla */}
+              <Box sx={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 2fr 1.5fr 1.2fr 1fr 1fr 1fr 0.8fr',
+                gap: 2,
+                p: 2,
+                bgcolor: alpha(theme.palette.grey[50], 0.8),
+                borderBottom: `2px solid ${alpha(theme.palette.divider, 0.1)}`
+              }}>
+                {[
+                  'ESTADO',
+                  'CONCEPTO', 
+                  'EMPRESA',
+                  'MONTO',
+                  'MÉTODO',
+                  'FECHA',
+                  'REFERENCIA',
+                  'ACCIONES'
+                ].map((column) => (
+                  <Box 
+                    key={column}
+                    sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: column === 'MONTO' || column === 'ACCIONES' ? 'center' : 'flex-start'
+                    }}
+                  >
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        fontWeight: 600,
+                        fontSize: '0.7rem',
+                        letterSpacing: '0.03em',
+                        textTransform: 'uppercase',
+                        color: 'text.primary'
+                      }}
+                    >
+                      {column}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Filas de datos */}
+              <Box>
+                {paginatedPayments.length > 0 ? paginatedPayments.map((payment, index) => (
+                  <Box key={payment.id} sx={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 2fr 1.5fr 1.2fr 1fr 1fr 1fr 0.8fr',
+                    gap: 2,
+                    p: 2.5,
+                    borderBottom: index === paginatedPayments.length - 1 ? 'none' : `1px solid ${alpha(theme.palette.divider, 0.04)}`,
+                    transition: 'all 0.15s ease',
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.primary.main, 0.04)
+                    },
+                    alignItems: 'center'
+                  }}>
+                    {/* Estado */}
+                    <Box>
+                      <Chip
+                        icon={getStatusIcon(payment.status)}
+                        label={getStatusText(payment.status)}
+                        color={getStatusColor(payment.status)}
+                        size="small"
+                        sx={{
+                          height: 24,
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          borderRadius: 0.5,
+                          '& .MuiChip-icon': { fontSize: 14 }
+                        }}
+                      />
+                    </Box>
+
+                    {/* Concepto */}
+                    <Box>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          fontWeight: 500,
+                          mb: 0.5,
+                          color: 'text.primary',
+                          fontSize: '0.9rem'
+                        }}
+                      >
+                        {payment.concept || 'Sin concepto'}
+                      </Typography>
+                      {payment.reference && (
+                        <Typography 
+                          variant="caption" 
                           sx={{
-                            transition:'background .18s',
-                            backgroundColor: idx % 2 === 0 ? 'transparent' : (theme.palette.mode==='light' ? 'rgba(0,0,0,0.015)' : 'rgba(255,255,255,0.03)'),
-                            '&:hover': { background: theme.palette.mode==='light'? 'rgba(102,126,234,0.06)':'rgba(102,126,234,0.14)' }
+                            display: 'block',
+                            color: 'text.secondary',
+                            fontSize: '0.75rem',
+                            fontFamily: 'monospace'
                           }}
                         >
-                          <TableCell sx={{ py:1 }}>
-                            <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
-                              <Avatar sx={{ width:30, height:30, fontSize:'0.7rem', bgcolor:'primary.50', color:'primary.main', fontWeight:600, borderRadius:2 }}>
-                                {payment.companyName?.charAt(0) || 'N'}
-                              </Avatar>
-                              <Typography variant="body2" sx={{ fontWeight:500 }}>{payment.companyName || 'Sin empresa'}</Typography>
-                            </Box>
-                          </TableCell>
-                          <TableCell sx={{ py:1 }}><Typography variant="body2">{payment.concept}</Typography></TableCell>
-                          <TableCell sx={{ py:1, fontWeight:600 }} align="right">${payment.amount.toLocaleString()}</TableCell>
-                          <TableCell sx={{ py:1 }}>
-                            <Chip label={payment.method} size="small" variant="outlined" sx={{ fontWeight:600, borderRadius:1 }} />
-                          </TableCell>
-                          <TableCell sx={{ py:1 }}><Typography variant="caption">{new Date(payment.date).toLocaleDateString()}</Typography></TableCell>
-                          <TableCell sx={{ py:1 }}>
-                            <Typography variant="caption" sx={{ fontFamily:'monospace', fontWeight:500 }}>{payment.reference}</Typography>
-                          </TableCell>
-                          <TableCell sx={{ py:1 }}>
-                            <Chip icon={getStatusIcon(payment.status)} label={getStatusText(payment.status)} color={getStatusColor(payment.status)} size="small" sx={{ borderRadius:1 }} />
-                          </TableCell>
-                          <TableCell sx={{ py:1 }}>
-                            <Tooltip title="Ver detalles">
-                              <IconButton size="small">
-                                <ReceiptIcon fontSize="inherit" />
-                              </IconButton>
-                            </Tooltip>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {filteredPayments.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={8} sx={{ py:6 }}>
-                            <Box sx={{ textAlign:'center', opacity:0.75, display:'flex', flexDirection:'column', gap:1, alignItems:'center' }}>
-                              <ReceiptIcon fontSize="large" sx={{ opacity:0.4 }} />
-                              <Typography variant="subtitle2" sx={{ fontWeight:600 }}>No hay pagos registrados</Typography>
-                              <Typography variant="caption" sx={{ maxWidth:360, lineHeight:1.4 }}>Crea el primer registro con el botón "Nuevo" o ajusta los filtros para ampliar la búsqueda.</Typography>
-                            </Box>
-                          </TableCell>
-                        </TableRow>
+                          Ref: {payment.reference}
+                        </Typography>
                       )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-                <TablePagination
-                  component="div"
-                  rowsPerPageOptions={[10]}
-                  labelRowsPerPage={''}
-                  rowsPerPage={rowsPerPage}
-                  page={page}
-                  count={filteredPayments.length}
-                  onPageChange={(e, newPage)=> setPage(newPage)}
-                />
-              </Paper>
-            </motion.div>
+                    </Box>
+
+                    {/* Empresa */}
+                    <Box sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 1
+                    }}>
+                      <Avatar
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          bgcolor: alpha(theme.palette.primary.main, 0.1),
+                          color: 'primary.main',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
+                        }}
+                      >
+                        {(payment.companyName || 'SC').charAt(0)}
+                      </Avatar>
+                      <Typography 
+                        variant="body2"
+                        sx={{ 
+                          fontWeight: 500,
+                          color: 'text.primary'
+                        }}
+                      >
+                        {payment.companyName || 'Sin empresa'}
+                      </Typography>
+                    </Box>
+
+                    {/* Monto */}
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Typography variant="body2" sx={{ 
+                        fontWeight: 600, 
+                        color: 'success.main',
+                        fontFamily: 'monospace',
+                        fontSize: '0.9rem'
+                      }}>
+                        ${payment.amount?.toLocaleString('es-MX')}
+                      </Typography>
+                    </Box>
+
+                    {/* Método */}
+                    <Box>
+                      <Chip 
+                        label={payment.method} 
+                        size="small" 
+                        variant="outlined" 
+                        sx={{ 
+                          height: 20,
+                          fontSize: '0.68rem',
+                          fontWeight: 500,
+                          borderRadius: 0.5,
+                          borderColor: alpha(theme.palette.divider, 0.3),
+                          '& .MuiChip-label': { px: 0.5 }
+                        }} 
+                      />
+                    </Box>
+
+                    {/* Fecha */}
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Typography variant="caption" color="text.secondary">
+                        {payment.date ? new Date(payment.date.seconds * 1000).toLocaleDateString('es-MX') : '-'}
+                      </Typography>
+                    </Box>
+
+                    {/* Referencia */}
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Typography variant="caption" sx={{ 
+                        fontFamily: 'monospace', 
+                        color: 'text.secondary',
+                        fontSize: '0.7rem'
+                      }}>
+                        {payment.reference || '-'}
+                      </Typography>
+                    </Box>
+
+                    {/* Acciones */}
+                    <Box sx={{ 
+                      display: 'flex', 
+                      gap: 0.5,
+                      justifyContent: 'center'
+                    }}>
+                      <Tooltip title="Ver detalles" arrow>
+                        <IconButton
+                          size="small"
+                          sx={{ 
+                            color: 'primary.main',
+                            '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.1) }
+                          }}
+                        >
+                          <ReceiptIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </Box>
+                )) : (
+                  <Box sx={{ py: 6, textAlign: 'center' }}>
+                    <ReceiptIcon sx={{ fontSize: 48, opacity: 0.3, mb: 2 }} />
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                      No hay pagos registrados
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Crea el primer registro con el botón "Nuevo Pago"
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Paper>
+          </motion.div>
+                
+          {/* PAGINACIÓN SEPARADA ESTILO COMMITMENTS */}
+          {Math.ceil(filteredPayments.length / rowsPerPage) > 1 && (
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: { xs: 'column', sm: 'row' },
+              justifyContent: 'space-between',
+              alignItems: { xs: 'stretch', sm: 'center' },
+              gap: 2,
+              px: 2.5, 
+              py: 1.5,
+              mt: 2,
+              backgroundColor: alpha(theme.palette.background.paper, 0.95),
+              borderRadius: 1,
+              border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+            }}>
+              {/* Info de paginación y controles adicionales */}
+              <Stack 
+                direction={{ xs: 'column', sm: 'row' }} 
+                spacing={1.5} 
+                alignItems={{ xs: 'flex-start', sm: 'center' }}
+              >
+                {/* Info detallada */}
+                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, gap: 1 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 600,
+                      color: 'text.primary',
+                      fontSize: '0.85rem',
+                      lineHeight: 1.2
+                    }}
+                  >
+                    {filteredPayments.length === 0 ? 'Sin pagos' : 
+                     `${page * rowsPerPage + 1}-${Math.min((page + 1) * rowsPerPage, filteredPayments.length)} de ${filteredPayments.length}`}
+                  </Typography>
+                  
+                  {filteredPayments.length > 0 && (
+                    <Typography
+                      variant="caption"
+                      sx={{ 
+                        color: 'text.secondary', 
+                        fontSize: '0.75rem',
+                        lineHeight: 1.2
+                      }}
+                    >
+                      pagos encontrados
+                    </Typography>
+                  )}
+                </Box>
+
+                {/* Salto directo a página */}
+                {Math.ceil(filteredPayments.length / rowsPerPage) > 1 && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="caption" sx={{ 
+                      color: 'text.secondary', 
+                      fontSize: '0.75rem', 
+                      whiteSpace: 'nowrap',
+                      lineHeight: 1.2
+                    }}>
+                      Ir a:
+                    </Typography>
+                    <TextField
+                      size="small"
+                      placeholder="Pág"
+                      type="number"
+                      value={jumpToPage}
+                      onChange={(e) => setJumpToPage(e.target.value)}
+                      onKeyDown={handleJumpToPageKeyDown}
+                      onBlur={handleJumpToPage}
+                      inputProps={{
+                        min: 1,
+                        max: Math.ceil(filteredPayments.length / rowsPerPage),
+                        style: { 
+                          textAlign: 'center', 
+                          fontSize: '0.75rem',
+                          padding: '5px'
+                        }
+                      }}
+                      sx={{
+                        width: 55,
+                        '& .MuiOutlinedInput-root': {
+                          height: 30,
+                          borderRadius: 0.5,
+                          '& fieldset': {
+                            borderColor: alpha(theme.palette.divider, 0.2)
+                          },
+                          '&:hover fieldset': {
+                            borderColor: 'primary.main'
+                          }
+                        }
+                      }}
+                    />
+                  </Box>
+                )}
+              </Stack>
+
+              {/* Controles de paginación */}
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: { xs: 'center', sm: 'flex-end' },
+                alignItems: 'center',
+                gap: 1.5
+              }}>
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <IconButton
+                    onClick={handleFirstPage}
+                    disabled={page === 0}
+                    size="small"
+                    sx={{
+                      borderRadius: 0.5,
+                      width: 30,
+                      height: 30,
+                      border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                      bgcolor: page === 0 ? 'action.disabled' : 'background.paper',
+                      color: page === 0 ? 'text.disabled' : 'primary.main',
+                      transition: 'all 0.15s ease',
+                      '&:hover': page !== 0 ? {
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
+                        transform: 'translateY(-0.5px)',
+                        boxShadow: '0 1px 4px rgba(25, 118, 210, 0.2)'
+                      } : {}
+                    }}
+                  >
+                    <FirstPage fontSize="inherit" />
+                  </IconButton>
+
+                  <IconButton
+                    onClick={handlePrevPage}
+                    disabled={page === 0}
+                    size="small"
+                    sx={{
+                      borderRadius: 0.5,
+                      width: 30,
+                      height: 30,
+                      border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                      bgcolor: page === 0 ? 'action.disabled' : 'background.paper',
+                      color: page === 0 ? 'text.disabled' : 'primary.main',
+                      transition: 'all 0.15s ease',
+                      '&:hover': page !== 0 ? {
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
+                        transform: 'translateY(-0.5px)',
+                        boxShadow: '0 1px 4px rgba(25, 118, 210, 0.2)'
+                      } : {}
+                    }}
+                  >
+                    <NavigateBefore fontSize="inherit" />
+                  </IconButton>
+
+                  <Pagination
+                    count={Math.ceil(filteredPayments.length / rowsPerPage)}
+                    page={page + 1}
+                    onChange={(event, newPage) => handlePageChange(newPage)}
+                    color="primary"
+                    size="small"
+                    siblingCount={1}
+                    boundaryCount={1}
+                    sx={{
+                      '& .MuiPaginationItem-root': {
+                        fontWeight: 500,
+                        fontSize: '0.8rem',
+                        minWidth: 30,
+                        height: 30,
+                        borderRadius: 0.5,
+                        border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                        transition: 'all 0.15s ease',
+                        '&:hover': {
+                          bgcolor: 'primary.main',
+                          color: 'primary.contrastText',
+                          transform: 'translateY(-0.5px)',
+                          boxShadow: '0 1px 4px rgba(25, 118, 210, 0.2)'
+                        }
+                      },
+                      '& .MuiPaginationItem-page.Mui-selected': {
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
+                        boxShadow: '0 1px 4px rgba(25, 118, 210, 0.3)',
+                        fontWeight: 600,
+                        '&:hover': {
+                          bgcolor: 'primary.dark',
+                          boxShadow: '0 2px 6px rgba(25, 118, 210, 0.4)'
+                        }
+                      },
+                      '& .MuiPaginationItem-ellipsis': {
+                        color: 'text.secondary',
+                        fontSize: '0.75rem'
+                      },
+                      '& .MuiPaginationItem-icon': {
+                        fontSize: 16
+                      }
+                    }}
+                  />
+
+                  <IconButton
+                    onClick={handleNextPage}
+                    disabled={page >= Math.ceil(filteredPayments.length / rowsPerPage) - 1}
+                    size="small"
+                    sx={{
+                      borderRadius: 0.5,
+                      width: 30,
+                      height: 30,
+                      border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                      bgcolor: page >= Math.ceil(filteredPayments.length / rowsPerPage) - 1 ? 'action.disabled' : 'background.paper',
+                      color: page >= Math.ceil(filteredPayments.length / rowsPerPage) - 1 ? 'text.disabled' : 'primary.main',
+                      transition: 'all 0.15s ease',
+                      '&:hover': page < Math.ceil(filteredPayments.length / rowsPerPage) - 1 ? {
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
+                        transform: 'translateY(-0.5px)',
+                        boxShadow: '0 1px 4px rgba(25, 118, 210, 0.2)'
+                      } : {}
+                    }}
+                  >
+                    <NavigateNext fontSize="inherit" />
+                  </IconButton>
+
+                  <IconButton
+                    onClick={handleLastPage}
+                    disabled={page >= Math.ceil(filteredPayments.length / rowsPerPage) - 1}
+                    size="small"
+                    sx={{
+                      borderRadius: 0.5,
+                      width: 30,
+                      height: 30,
+                      border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                      bgcolor: page >= Math.ceil(filteredPayments.length / rowsPerPage) - 1 ? 'action.disabled' : 'background.paper',
+                      color: page >= Math.ceil(filteredPayments.length / rowsPerPage) - 1 ? 'text.disabled' : 'primary.main',
+                      transition: 'all 0.15s ease',
+                      '&:hover': page < Math.ceil(filteredPayments.length / rowsPerPage) - 1 ? {
+                        bgcolor: 'primary.main',
+                        color: 'primary.contrastText',
+                        transform: 'translateY(-0.5px)',
+                        boxShadow: '0 1px 4px rgba(25, 118, 210, 0.2)'
+                      } : {}
+                    }}
+                  >
+                    <LastPage fontSize="inherit" />
+                  </IconButton>
+                </Stack>
+              </Box>
+            </Box>
+          )}
         </>
       )}
     </Box>

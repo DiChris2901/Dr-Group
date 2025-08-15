@@ -32,3 +32,29 @@ npm run validate-tokens
 ---
 
 **Organización:** Documentos de referencia y análisis técnico del Design System 3.0
+
+---
+
+## 🧩 Guía rápida — Tiles suaves y Botones pill
+
+### Botones pill (DS 3.0)
+- Filled: `<Button variant="pillGradient" color="primary|secondary" />`
+- Outline borde degradado: `<Button variant="pillOutlineGradient" color="primary|secondary" />`
+- Neutro: `<Button variant="softNeutral" />`
+
+Recomendaciones:
+- Usar en footers de diálogos: Cerrar (softNeutral), Compartir (pillOutlineGradient), Acción primaria (pillGradient).
+
+### Tiles suaves (Paper/Card)
+- Glass panel: `<Paper variant="glass" />` o `<Card variant="glass" />`
+- Tile suave: `<Paper variant="tile" />` o `<Card variant="tile" />`
+
+Cuándo usar:
+- Glass: encabezados de modales/overlays o áreas con blur.
+- Tile: bloques informativos secundarios (beneficiario, método de pago, etc.).
+
+---
+
+## ✂️ Snippets de theme listos para pegar
+
+Los `variants` fueron integrados en `src/theme/premiumTheme.js`. Si necesitas replicarlos en otro tema, copia los bloques `components.MuiButton.variants`, `components.MuiPaper.variants` y `components.MuiCard.variants` desde ese archivo.

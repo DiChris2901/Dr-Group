@@ -34,11 +34,21 @@ self.addEventListener('activate', (event) => {
 
 // 🎯 Interceptar requests y aplicar cache strategy
 self.addEventListener('fetch', (event) => {
-  // Solo cachear requests específicos de Firebase
-  if (event.request.url.includes('firestore.googleapis.com') || 
-      event.request.url.includes('firebase')) {
-    
-    event.respondWith(handleFirebaseRequest(event.request));
+  const req = event.request;
+
+  // No interceptar assets (scripts, estilos, imágenes, workers, documentos)
+  const blockedDestinations = ['script', 'style', 'image', 'font', 'document', 'worker', 'sharedworker', 'serviceworker'];
+  if (blockedDestinations.includes(req.destination)) return;
+
+  // Limitar estrictamente a endpoints de APIs JSON de Firebase/Google
+  const url = new URL(req.url);
+  const host = url.hostname;
+  const isFirestore = host.endsWith('firestore.googleapis.com');
+  const isStorage = host.endsWith('firebasestorage.googleapis.com') || host.endsWith('storage.googleapis.com');
+  // Agrega otros APIs si necesitas cachearlos (identitytoolkit, securetoken, etc.)
+
+  if (isFirestore || isStorage) {
+    event.respondWith(handleFirebaseRequest(req));
   }
 });
 
@@ -46,7 +56,6 @@ self.addEventListener('fetch', (event) => {
  * Maneja requests de Firebase con cache inteligente
  */
 async function handleFirebaseRequest(request) {
-  const url = new URL(request.url);
   const cacheKey = generateCacheKey(request);
   
   try {
@@ -62,7 +71,7 @@ async function handleFirebaseRequest(request) {
     }
 
     // 🔥 Si no hay cache o expiró, hacer request real
-    const response = await fetch(request);
+  const response = await fetch(request);
     const data = await response.text();
     
     // 💾 Guardar en cache para futuras requests
@@ -98,16 +107,8 @@ async function handleFirebaseRequest(request) {
  * Genera clave única para cache basada en request
  */
 function generateCacheKey(request) {
-  const url = new URL(request.url);
-  
-  // Extraer parámetros importantes para la clave
-  const pathSegments = url.pathname.split('/');
-  const collection = pathSegments.find(segment => 
-    ['commitments', 'companies', 'users'].includes(segment)
-  ) || 'unknown';
-  
-  const queryParams = url.searchParams.toString();
-  return `${collection}-${btoa(queryParams)}`;
+  // Usar la URL completa como clave para evitar colisiones y respetar parámetros
+  return request.url;
 }
 
 /**
@@ -172,3 +173,27 @@ setInterval(async () => {
     }
   }
 }, 5 * 60 * 1000); // Cada 5 minutos
+
+// 📩 Manejo de mensajes desde la app (clear cache, estadísticas)
+self.addEventListener('message', async (event) => {
+  const { type } = event.data || {};
+  const cache = await caches.open(CACHE_NAME);
+
+  if (type === 'CLEAR_CACHE') {
+    const keys = await cache.keys();
+    await Promise.all(keys.map((k) => cache.delete(k)));
+    event.waitUntil(Promise.resolve());
+  }
+
+  if (type === 'GET_CACHE_STATS') {
+    const keys = await cache.keys();
+    let valid = 0;
+    for (const k of keys) {
+      const res = await cache.match(k);
+      if (res) valid++;
+    }
+    if (event.ports && event.ports[0]) {
+      event.ports[0].postMessage({ total: keys.length, valid });
+    }
+  }
+});

@@ -3,7 +3,8 @@
  * Configuración centralizada del sistema de temas premium
  */
 
-import { createTheme } from '@mui/material/styles';
+import { createTheme, alpha } from '@mui/material/styles';
+import { designTokens } from './tokens/index.js';
 
 // ========================================
 // 🎯 PALETA DE COLORES BASE
@@ -336,6 +337,7 @@ export const transitions = {
 export const createDRGroupTheme = (mode = 'light') => {
   const isLight = mode === 'light';
   const colors = isLight ? lightModeColors : darkModeColors;
+  const g2 = designTokens.gradients; // Gradients V2 tokens (full/soft)
   
   return createTheme({
     palette: {
@@ -447,7 +449,110 @@ export const createDRGroupTheme = (mode = 'light') => {
               height: '300px'
             }
           }
-        }
+        },
+        variants: [
+          // Pill gradient filled - Primary
+          {
+            props: { variant: 'pillGradient', color: 'primary' },
+            style: {
+              borderRadius: spacing.borderRadius['2xl'],
+              padding: '10px 22px',
+              color: '#fff',
+              backgroundImage: g2?.primary?.full,
+              boxShadow: '0 8px 20px rgba(0,0,0,0.15)',
+              '&:hover': {
+                boxShadow: '0 10px 24px rgba(0,0,0,0.18)',
+                filter: 'brightness(1.03)'
+              },
+              '&.Mui-disabled': {
+                color: alpha('#fff', 0.7),
+                filter: 'grayscale(20%)',
+                boxShadow: 'none',
+                opacity: 0.7
+              }
+            }
+          },
+          // Pill gradient filled - Secondary
+          {
+            props: { variant: 'pillGradient', color: 'secondary' },
+            style: {
+              borderRadius: spacing.borderRadius['2xl'],
+              padding: '10px 22px',
+              color: '#fff',
+              backgroundImage: g2?.secondary?.full,
+              boxShadow: '0 8px 20px rgba(0,0,0,0.15)',
+              '&:hover': {
+                boxShadow: '0 10px 24px rgba(0,0,0,0.18)',
+                filter: 'brightness(1.03)'
+              },
+              '&.Mui-disabled': {
+                color: alpha('#fff', 0.7),
+                filter: 'grayscale(20%)',
+                boxShadow: 'none',
+                opacity: 0.7
+              }
+            }
+          },
+          // Pill outline with gradient border - Primary
+          {
+            props: { variant: 'pillOutlineGradient', color: 'primary' },
+            style: {
+              borderRadius: spacing.borderRadius['2xl'],
+              padding: '9px 20px',
+              color: colors.text.primary,
+              border: '1.5px solid transparent',
+              backgroundImage: `${isLight ? 'linear-gradient(white, white)' : 'linear-gradient(#1a1a1a, #1a1a1a)'} , ${g2?.primary?.full}`,
+              backgroundOrigin: 'border-box',
+              backgroundClip: 'padding-box, border-box',
+              boxShadow: isLight ? '0 2px 8px rgba(0,0,0,0.08)' : '0 2px 8px rgba(0,0,0,0.5)',
+              '&:hover': {
+                backgroundImage: `${isLight ? 'linear-gradient(white, white)' : 'linear-gradient(#1a1a1a, #1a1a1a)'} , ${g2?.primary?.full}`,
+                boxShadow: isLight ? '0 4px 12px rgba(0,0,0,0.12)' : '0 4px 12px rgba(0,0,0,0.6)'
+              },
+              '&.Mui-disabled': {
+                opacity: 0.6,
+                boxShadow: 'none'
+              }
+            }
+          },
+          // Pill outline with gradient border - Secondary
+          {
+            props: { variant: 'pillOutlineGradient', color: 'secondary' },
+            style: {
+              borderRadius: spacing.borderRadius['2xl'],
+              padding: '9px 20px',
+              color: colors.text.primary,
+              border: '1.5px solid transparent',
+              backgroundImage: `${isLight ? 'linear-gradient(white, white)' : 'linear-gradient(#1a1a1a, #1a1a1a)'} , ${g2?.secondary?.full}`,
+              backgroundOrigin: 'border-box',
+              backgroundClip: 'padding-box, border-box',
+              boxShadow: isLight ? '0 2px 8px rgba(0,0,0,0.08)' : '0 2px 8px rgba(0,0,0,0.5)',
+              '&:hover': {
+                backgroundImage: `${isLight ? 'linear-gradient(white, white)' : 'linear-gradient(#1a1a1a, #1a1a1a)'} , ${g2?.secondary?.full}`,
+                boxShadow: isLight ? '0 4px 12px rgba(0,0,0,0.12)' : '0 4px 12px rgba(0,0,0,0.6)'
+              },
+              '&.Mui-disabled': {
+                opacity: 0.6,
+                boxShadow: 'none'
+              }
+            }
+          },
+          // Soft neutral button (used for Close)
+          {
+            props: { variant: 'softNeutral' },
+            style: {
+              borderRadius: spacing.borderRadius['2xl'],
+              padding: '9px 18px',
+              color: colors.text.primary,
+              backgroundColor: isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.06)',
+              border: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.12)'}`,
+              boxShadow: isLight ? '0 2px 6px rgba(0,0,0,0.08)' : '0 2px 6px rgba(0,0,0,0.6)',
+              '&:hover': {
+                backgroundColor: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'
+              }
+            }
+          }
+        ]
       },
       
       MuiPaper: {
@@ -462,7 +567,32 @@ export const createDRGroupTheme = (mode = 'light') => {
                 : '0 8px 24px rgba(255, 255, 255, 0.08)'
             }
           }
-        }
+        },
+        variants: [
+          // Glassmorphism surface
+          {
+            props: { variant: 'glass' },
+            style: {
+              borderRadius: spacing.borderRadius.large,
+              background: isLight
+                ? 'linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.75) 100%)'
+                : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.04) 100%)',
+              border: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.12)'}`,
+              backdropFilter: 'blur(12px)',
+              boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)'
+            }
+          },
+          // Soft tile surface
+          {
+            props: { variant: 'tile' },
+            style: {
+              borderRadius: spacing.borderRadius.large,
+              background: isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.06)',
+              border: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.12)'}`,
+              boxShadow: isLight ? '0 4px 12px rgba(0,0,0,0.08)' : '0 4px 12px rgba(0,0,0,0.6)'
+            }
+          }
+        ]
       },
       
       MuiCard: {
@@ -476,7 +606,32 @@ export const createDRGroupTheme = (mode = 'light') => {
                 : '0 12px 32px rgba(255, 255, 255, 0.1)'
             }
           }
-        }
+        },
+        variants: [
+          // Card as tile
+          {
+            props: { variant: 'tile' },
+            style: {
+              borderRadius: spacing.borderRadius.large,
+              background: isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.06)',
+              border: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.12)'}`,
+              boxShadow: isLight ? '0 4px 12px rgba(0,0,0,0.08)' : '0 4px 12px rgba(0,0,0,0.6)'
+            }
+          },
+          // Card with glassmorphism
+          {
+            props: { variant: 'glass' },
+            style: {
+              borderRadius: spacing.borderRadius.large,
+              background: isLight
+                ? 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.78) 100%)'
+                : 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.04) 100%)',
+              border: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.12)'}`,
+              backdropFilter: 'blur(12px)',
+              boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)'
+            }
+          }
+        ]
       },
       
       MuiTextField: {

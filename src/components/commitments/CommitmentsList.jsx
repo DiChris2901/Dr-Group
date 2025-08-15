@@ -11,6 +11,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogContentText,
   DialogActions,
   CircularProgress,
   Alert,
@@ -616,6 +617,10 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
   const [companyData, setCompanyData] = useState(null);
   const [loadingCompany, setLoadingCompany] = useState(false);
+  
+  // Estados para el diálogo de eliminación
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [commitmentToDelete, setCommitmentToDelete] = useState(null);
 
   // Estados de paginación spectacular
   const [currentPage, setCurrentPage] = useState(1);
@@ -770,16 +775,24 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter]);
 
   // 🚀 OPTIMIZACIÓN: Función para obtener el total con cache inteligente
-  const getTotalCount = useCallback(async () => {
+  const getTotalCount = useCallback(async (forceReload = false) => {
     try {
-      // 🎯 Cache key basado en filtros debouncados
-      const cacheKey = `count_${debouncedCompanyFilter || 'all'}_${debouncedYearFilter || 'all'}`;
+      // 🎯 Cache key basado en TODOS los filtros debouncados
+      const cacheKey = `count_${debouncedCompanyFilter || 'all'}_${debouncedStatusFilter || 'all'}_${debouncedSearchTerm || ''}_${debouncedYearFilter || 'all'}`;
       
-      // ✅ Intentar obtener del cache primero (TTL: 2 minutos para conteo)
-      const cachedCount = firestoreCache.get(cacheKey);
-      if (cachedCount !== null) {
-        performanceLogger.logCacheHit('firestore', cacheKey);
-        return cachedCount;
+      // ✅ Intentar obtener del cache primero (TTL: 1 minuto para conteo con filtros)
+      // Saltar caché si se fuerza la recarga
+      if (!forceReload) {
+        const cachedCount = firestoreCache.get(cacheKey);
+        if (cachedCount !== null) {
+          performanceLogger.logCacheHit('firestore', cacheKey);
+          setTotalCommitments(cachedCount);
+          return cachedCount;
+        }
+      } else {
+        // Limpiar caché específico cuando se fuerza
+        firestoreCache.delete(cacheKey);
+        console.log(`🧹 Cache de conteo limpiado para: ${cacheKey}`);
       }
 
       let q = query(collection(db, 'commitments'));
@@ -795,19 +808,77 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         q = query(q, where('dueDate', '>=', startDate), where('dueDate', '<=', endDate));
       }
 
-      const countSnapshot = await getCountFromServer(q);
-      const count = countSnapshot.data().count;
+      // Para contar con filtros de estado y búsqueda, necesitamos obtener todos los documentos
+      // ya que Firestore no puede filtrar por campos calculados
+      let totalCount = 0;
       
-      // 💾 Guardar en cache (TTL: 2 minutos)
-      firestoreCache.set(cacheKey, count, 2 * 60 * 1000);
-      performanceLogger.logFirebaseRead('getCountFromServer', 1);
+      if (debouncedStatusFilter !== 'all' || debouncedSearchTerm) {
+        // Obtener todos los documentos y filtrar localmente
+        const snapshot = await getDocs(q);
+        let filteredCommitments = [];
+        
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          filteredCommitments.push({
+            id: doc.id,
+            ...data,
+            dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : new Date(data.dueDate)
+          });
+        });
+
+        // Aplicar filtros locales
+        if (debouncedSearchTerm) {
+          filteredCommitments = filteredCommitments.filter(commitment =>
+            (commitment.concept && commitment.concept.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.description && commitment.description.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.companyName && commitment.companyName.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.company && commitment.company.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
+          );
+        }
+
+        if (debouncedStatusFilter && debouncedStatusFilter !== 'all') {
+          const today = new Date();
+          const threeDaysFromNow = new Date();
+          threeDaysFromNow.setDate(today.getDate() + 3);
+
+          filteredCommitments = filteredCommitments.filter(commitment => {
+            const dueDate = commitment.dueDate;
+            
+            switch (debouncedStatusFilter) {
+              case 'overdue':
+                return dueDate < today && !commitment.paid;
+              case 'due-soon':
+                return dueDate > today && dueDate < threeDaysFromNow && !commitment.paid;
+              case 'pending':
+                return !commitment.paid && dueDate >= threeDaysFromNow;
+              case 'paid':
+                return commitment.paid;
+              default:
+                return true;
+            }
+          });
+        }
+        
+        totalCount = filteredCommitments.length;
+      } else {
+        // Sin filtros de estado o búsqueda, usar getCountFromServer (más eficiente)
+        const countSnapshot = await getCountFromServer(q);
+        totalCount = countSnapshot.data().count;
+      }
       
-      return count;
+      // 💾 Guardar en cache (TTL: 1 minuto)
+      firestoreCache.set(cacheKey, totalCount, 60 * 1000);
+      performanceLogger.logFirebaseRead('getTotalCount', 1);
+      
+      setTotalCommitments(totalCount);
+      return totalCount;
     } catch (error) {
       console.error('Error getting count:', error);
+      setTotalCommitments(0);
       return 0;
     }
-  }, [debouncedCompanyFilter, debouncedYearFilter]);
+  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter]);
 
   // 🚀 OPTIMIZACIÓN FASE 2: Función para cargar página con query optimizer
   const loadCommitmentsPage = useCallback(async (pageNumber, pageSize = paginationConfig.itemsPerPage) => {
@@ -954,7 +1025,45 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     }
   }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, currentPage, paginationConfig.itemsPerPage, lastVisibleDoc, paginationCache, onCommitmentsChange]);
 
-  // 🚀 OPTIMIZACIÓN: Cargar datos con filtros debouncados
+  // � Función para forzar actualización completa
+  const forceRefresh = useCallback(async () => {
+    setLoading(true);
+    
+    // Limpiar TODO el caché (incluyendo contadores)
+    setPaginationCache(new Map());
+    firestoreCache.clear();
+    
+    // ⚠️ CRÍTICO: Limpiar también cachés específicos de conteo
+    const countCacheKey = `count_${debouncedCompanyFilter || 'all'}_${debouncedStatusFilter || 'all'}_${debouncedSearchTerm || ''}_${debouncedYearFilter || 'all'}`;
+    firestoreCache.delete(countCacheKey);
+    
+    // Forzar recálculo del total SIN caché
+    setTotalCommitments(0); // Reset temporal
+    const newTotal = await getTotalCount(true); // ⚠️ Forzar recarga
+    
+    console.log(`🔢 Total actualizado: ${newTotal} compromisos`);
+    
+    // Verificar si la página actual es válida
+    const totalPages = Math.ceil(newTotal / paginationConfig.itemsPerPage);
+    let targetPage = currentPage;
+    
+    console.log(`📄 Páginas totales: ${totalPages}, Página actual: ${currentPage}`);
+    
+    if (currentPage > totalPages && totalPages > 0) {
+      targetPage = totalPages;
+      setCurrentPage(targetPage);
+      console.log(`📄 Cambiando a página ${targetPage} (última disponible)`);
+    } else if (newTotal === 0) {
+      targetPage = 1;
+      setCurrentPage(1);
+      console.log(`📄 Sin registros, cambiando a página 1`);
+    }
+    
+    // Recargar datos
+    await loadCommitmentsPage(targetPage, paginationConfig.itemsPerPage);
+  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, getTotalCount, currentPage, paginationConfig.itemsPerPage, loadCommitmentsPage]);
+
+  // �🚀 OPTIMIZACIÓN: Cargar datos con filtros debouncados
   useEffect(() => {
     if (!currentUser) return;
     
@@ -1110,7 +1219,21 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     setSelectedCommitment(null);
   };
 
-  const handleCommitmentSaved = () => {
+  const handleCommitmentSaved = async () => {
+    // Cerrar el modal de edición
+    setEditDialogOpen(false);
+    setSelectedCommitment(null);
+    
+    // Limpiar caché del Service Worker (CRÍTICO para optimizaciones Firebase)
+    console.log(`🧹 Limpiando caché del Service Worker después de guardar...`);
+    if (swRegistered && clearSWCache) {
+      await clearSWCache();
+      console.log(`✅ Service Worker cache cleared after save`);
+    }
+    
+    // Forzar actualización completa para asegurar sincronización
+    await forceRefresh();
+    
     // Agregar notificación de éxito
     addNotification({
       type: 'success',
@@ -1214,33 +1337,35 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     }
   };
 
-  // Manejar eliminación de compromiso
-  const handleDeleteCommitment = async (commitment) => {
-    const confirmDelete = window.confirm(
-      `¿Estás seguro de que quieres eliminar el compromiso "${commitment.concept || commitment.description || 'Sin concepto'}"?\n\nEsta acción eliminará el compromiso y todos sus archivos adjuntos de forma permanente.`
-    );
+  // Manejar eliminación de compromiso - Abrir diálogo de confirmación
+  const handleDeleteCommitment = (commitment) => {
+    setCommitmentToDelete(commitment);
+    setDeleteDialogOpen(true);
+  };
 
-    if (!confirmDelete) return;
+  // Confirmar eliminación desde el diálogo
+  const confirmDelete = async () => {
+    if (!commitmentToDelete) return;
 
     try {
       // 1. Eliminar archivos de Firebase Storage si existen
       const filesToDelete = [];
       
       // Eliminar comprobante de pago si existe
-      if (commitment.receiptUrl) {
+      if (commitmentToDelete.receiptUrl) {
         try {
           // Extraer el path del archivo desde la URL de Firebase Storage
           let storagePath = '';
           
-          if (commitment.receiptUrl.includes('firebase.googleapis.com')) {
+          if (commitmentToDelete.receiptUrl.includes('firebase.googleapis.com')) {
             // URL con token: extraer path entre /o/ y ?alt=
-            const pathMatch = commitment.receiptUrl.match(/\/o\/(.+?)\?/);
+            const pathMatch = commitmentToDelete.receiptUrl.match(/\/o\/(.+?)\?/);
             if (pathMatch) {
               storagePath = decodeURIComponent(pathMatch[1]);
             }
-          } else if (commitment.receiptUrl.includes('firebasestorage.googleapis.com')) {
+          } else if (commitmentToDelete.receiptUrl.includes('firebasestorage.googleapis.com')) {
             // URL directa: extraer path después del bucket
-            const pathMatch = commitment.receiptUrl.match(/\/receipts\/.+$/);
+            const pathMatch = commitmentToDelete.receiptUrl.match(/\/receipts\/.+$/);
             if (pathMatch) {
               storagePath = pathMatch[0].substring(1); // Remover la barra inicial
             }
@@ -1258,8 +1383,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
       }
       
       // Eliminar otros archivos adjuntos si existen
-      if (commitment.attachments && Array.isArray(commitment.attachments)) {
-        for (const attachment of commitment.attachments) {
+      if (commitmentToDelete.attachments && Array.isArray(commitmentToDelete.attachments)) {
+        for (const attachment of commitmentToDelete.attachments) {
           try {
             if (attachment.url) {
               let storagePath = '';
@@ -1289,9 +1414,31 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
       }
 
       // 2. Eliminar el documento de Firestore
-      await deleteDoc(doc(db, 'commitments', commitment.id));
+      await deleteDoc(doc(db, 'commitments', commitmentToDelete.id));
       
-      // 3. Mostrar notificación de éxito
+      // 3. Actualizar estado local inmediatamente (optimistic update)
+      console.log(`🗑️ Eliminando compromiso: ${commitmentToDelete.concept} (ID: ${commitmentToDelete.id})`);
+      setCommitments(prevCommitments => {
+        const filtered = prevCommitments.filter(c => c.id !== commitmentToDelete.id);
+        console.log(`📊 Estado local: ${prevCommitments.length} → ${filtered.length} compromisos`);
+        return filtered;
+      });
+      
+      // 4. Limpiar caché del Service Worker (CRÍTICO para optimizaciones Firebase)
+      console.log(`🧹 Limpiando caché del Service Worker...`);
+      if (swRegistered && clearSWCache) {
+        await clearSWCache();
+        console.log(`✅ Service Worker cache cleared via hook`);
+      } else if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
+        console.log(`✅ Service Worker cache cleared via message`);
+      }
+      
+      // 5. Forzar actualización completa para asegurar sincronización
+      console.log(`🔄 Iniciando forceRefresh después de eliminación...`);
+      await forceRefresh();
+      
+      // 6. Mostrar notificación de éxito
       const deletedFilesMessage = filesToDelete.length > 0 
         ? ` y ${filesToDelete.length} archivo${filesToDelete.length > 1 ? 's' : ''} adjunto${filesToDelete.length > 1 ? 's' : ''}` 
         : '';
@@ -1299,9 +1446,13 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
       addNotification({
         type: 'success',
         title: '¡Compromiso eliminado!',
-        message: `Se eliminó exitosamente el compromiso "${commitment.concept || commitment.description || 'Sin concepto'}"${deletedFilesMessage}`,
+        message: `Se eliminó exitosamente el compromiso "${commitmentToDelete.concept || commitmentToDelete.description || 'Sin concepto'}"${deletedFilesMessage}`,
         icon: '🗑️'
       });
+
+      // 7. Cerrar el diálogo y limpiar estado
+      setDeleteDialogOpen(false);
+      setCommitmentToDelete(null);
 
     } catch (error) {
       console.error('Error al eliminar compromiso:', error);
@@ -1313,7 +1464,17 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         message: 'No se pudo eliminar el compromiso completamente. Algunos archivos pueden no haberse eliminado.',
         icon: '❌'
       });
+
+      // Cerrar el diálogo incluso si hubo error
+      setDeleteDialogOpen(false);
+      setCommitmentToDelete(null);
     }
+  };
+
+  // Cancelar eliminación
+  const cancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setCommitmentToDelete(null);
   };
 
   if (loading) {
@@ -1896,7 +2057,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           <Tooltip title="Eliminar" arrow>
                             <IconButton
                               size="small"
-                              onClick={() => handleDelete(commitment.id)}
+                              onClick={() => handleDeleteCommitment(commitment)}
                               sx={{ 
                                 color: 'error.main',
                                 '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.1)' }
@@ -1940,7 +2101,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           </IconButton>
                           <IconButton
                             size="small"
-                            onClick={() => handleDelete(commitment.id)}
+                            onClick={() => handleDeleteCommitment(commitment)}
                             sx={{ 
                               color: 'error.main',
                               '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.1)' }
@@ -3674,6 +3835,14 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         commitment={selectedCommitment}
       />
 
+      {/* Diálogo de confirmación de eliminación */}
+      <DeleteConfirmDialog 
+        open={deleteDialogOpen}
+        commitment={commitmentToDelete}
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+      />
+
       {/* Paginación Spectacular - Design System Premium v3.0 */}
       {!loading && commitments.length > 0 && (
         <motion.div
@@ -3705,7 +3874,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                     variant="h6"
                     sx={{
                       fontWeight: 700,
-                      color: theme.palette.primary.main,
+                      color: 'text.primary',
                       fontSize: '0.95rem',
                       lineHeight: 1.2
                     }}
@@ -3769,14 +3938,21 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           max: Math.ceil(totalCommitments / paginationConfig.itemsPerPage),
                           style: { 
                             textAlign: 'center', 
-                            fontSize: '0.8rem',
-                            padding: '6px'
+                            fontSize: '0.75rem',
+                            padding: '5px'
                           }
                         }}
                         sx={{
-                          width: 60,
+                          width: 55,
                           '& .MuiOutlinedInput-root': {
-                            height: 32
+                            height: 30,
+                            borderRadius: 0.5,
+                            '& fieldset': {
+                              borderColor: alpha(theme.palette.divider, 0.2)
+                            },
+                            '&:hover fieldset': {
+                              borderColor: 'primary.main'
+                            }
                           }
                         }}
                       />
@@ -3791,9 +3967,9 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                   display: 'flex', 
                   justifyContent: 'center',
                   alignItems: 'center',
-                  gap: 2,
-                  pt: 2,
-                  borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                  gap: 1.5,
+                  pt: 1.5,
+                  borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`
                 }}>
                   <Stack direction="row" spacing={0.5} alignItems="center">
                     <IconButton
@@ -3801,20 +3977,22 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       disabled={currentPage === 1}
                       size="small"
                       sx={{
-                        borderRadius: 1,
-                        border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                        borderRadius: 0.5,
+                        width: 30,
+                        height: 30,
+                        border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                         bgcolor: currentPage === 1 ? 'action.disabled' : 'background.paper',
                         color: currentPage === 1 ? 'text.disabled' : 'primary.main',
-                        transition: 'all 0.2s ease',
+                        transition: 'all 0.15s ease',
                         '&:hover': currentPage !== 1 ? {
                           bgcolor: 'primary.main',
                           color: 'primary.contrastText',
-                          transform: 'translateY(-1px)',
-                          boxShadow: '0 2px 8px rgba(25, 118, 210, 0.3)'
+                          transform: 'translateY(-0.5px)',
+                          boxShadow: '0 1px 4px rgba(25, 118, 210, 0.2)'
                         } : {}
                       }}
                     >
-                      <FirstPage fontSize="small" />
+                      <FirstPage fontSize="inherit" />
                     </IconButton>
 
                     <IconButton
@@ -3822,20 +4000,22 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       disabled={currentPage === 1}
                       size="small"
                       sx={{
-                        borderRadius: 1,
-                        border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                        borderRadius: 0.5,
+                        width: 30,
+                        height: 30,
+                        border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                         bgcolor: currentPage === 1 ? 'action.disabled' : 'background.paper',
                         color: currentPage === 1 ? 'text.disabled' : 'primary.main',
-                        transition: 'all 0.2s ease',
+                        transition: 'all 0.15s ease',
                         '&:hover': currentPage !== 1 ? {
                           bgcolor: 'primary.main',
                           color: 'primary.contrastText',
-                          transform: 'translateY(-1px)',
-                          boxShadow: '0 2px 8px rgba(25, 118, 210, 0.3)'
+                          transform: 'translateY(-0.5px)',
+                          boxShadow: '0 1px 4px rgba(25, 118, 210, 0.2)'
                         } : {}
                       }}
                     >
-                      <NavigateBefore fontSize="small" />
+                      <NavigateBefore fontSize="inherit" />
                     </IconButton>
 
                     <Pagination
@@ -3848,29 +4028,36 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       boundaryCount={1}
                       sx={{
                         '& .MuiPaginationItem-root': {
-                          fontWeight: 600,
-                          fontSize: '0.875rem',
-                          borderRadius: 1,
-                          border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
-                          transition: 'all 0.2s ease',
+                          fontWeight: 500,
+                          fontSize: '0.8rem',
+                          minWidth: 30,
+                          height: 30,
+                          borderRadius: 0.5,
+                          border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                          transition: 'all 0.15s ease',
                           '&:hover': {
                             bgcolor: 'primary.main',
                             color: 'primary.contrastText',
-                            transform: 'translateY(-1px)',
-                            boxShadow: '0 2px 8px rgba(25, 118, 210, 0.3)'
+                            transform: 'translateY(-0.5px)',
+                            boxShadow: '0 1px 4px rgba(25, 118, 210, 0.2)'
                           }
                         },
                         '& .MuiPaginationItem-page.Mui-selected': {
                           bgcolor: 'primary.main',
                           color: 'primary.contrastText',
-                          boxShadow: '0 2px 8px rgba(25, 118, 210, 0.4)',
+                          boxShadow: '0 1px 4px rgba(25, 118, 210, 0.3)',
+                          fontWeight: 600,
                           '&:hover': {
                             bgcolor: 'primary.dark',
-                            boxShadow: '0 3px 12px rgba(25, 118, 210, 0.5)'
+                            boxShadow: '0 2px 6px rgba(25, 118, 210, 0.4)'
                           }
                         },
                         '& .MuiPaginationItem-ellipsis': {
-                          color: 'text.secondary'
+                          color: 'text.secondary',
+                          fontSize: '0.75rem'
+                        },
+                        '& .MuiPaginationItem-icon': {
+                          fontSize: 16
                         }
                       }}
                     />
@@ -3880,20 +4067,22 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       disabled={currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage)}
                       size="small"
                       sx={{
-                        borderRadius: 1,
-                        border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                        borderRadius: 0.5,
+                        width: 30,
+                        height: 30,
+                        border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                         bgcolor: currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage) ? 'action.disabled' : 'background.paper',
                         color: currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage) ? 'text.disabled' : 'primary.main',
-                        transition: 'all 0.2s ease',
+                        transition: 'all 0.15s ease',
                         '&:hover': currentPage !== Math.ceil(totalCommitments / paginationConfig.itemsPerPage) ? {
                           bgcolor: 'primary.main',
                           color: 'primary.contrastText',
-                          transform: 'translateY(-1px)',
-                          boxShadow: '0 2px 8px rgba(25, 118, 210, 0.3)'
+                          transform: 'translateY(-0.5px)',
+                          boxShadow: '0 1px 4px rgba(25, 118, 210, 0.2)'
                         } : {}
                       }}
                     >
-                      <NavigateNext fontSize="small" />
+                      <NavigateNext fontSize="inherit" />
                     </IconButton>
 
                     <IconButton
@@ -3901,20 +4090,22 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       disabled={currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage)}
                       size="small"
                       sx={{
-                        borderRadius: 1,
-                        border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                        borderRadius: 0.5,
+                        width: 30,
+                        height: 30,
+                        border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                         bgcolor: currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage) ? 'action.disabled' : 'background.paper',
                         color: currentPage === Math.ceil(totalCommitments / paginationConfig.itemsPerPage) ? 'text.disabled' : 'primary.main',
-                        transition: 'all 0.2s ease',
+                        transition: 'all 0.15s ease',
                         '&:hover': currentPage !== Math.ceil(totalCommitments / paginationConfig.itemsPerPage) ? {
                           bgcolor: 'primary.main',
                           color: 'primary.contrastText',
-                          transform: 'translateY(-1px)',
-                          boxShadow: '0 2px 8px rgba(25, 118, 210, 0.3)'
+                          transform: 'translateY(-0.5px)',
+                          boxShadow: '0 1px 4px rgba(25, 118, 210, 0.2)'
                         } : {}
                       }}
                     >
-                      <LastPage fontSize="small" />
+                      <LastPage fontSize="inherit" />
                     </IconButton>
                   </Stack>
                 </Box>
@@ -3924,6 +4115,63 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         </motion.div>
       )}
     </Box>
+  );
+};
+
+// Componente para Confirmar Eliminación
+const DeleteConfirmDialog = ({ open, commitment, onConfirm, onCancel }) => {
+  const theme = useTheme();
+  
+  if (!commitment) return null;
+
+  return (
+    <Dialog 
+      open={open} 
+      onClose={onCancel}
+      maxWidth="sm"
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.12)'
+        }
+      }}
+    >
+      <DialogTitle>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <Warning sx={{ color: theme.palette.error.main }} />
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Confirmar Eliminación
+          </Typography>
+        </Stack>
+      </DialogTitle>
+      
+      <DialogContent>
+        <DialogContentText>
+          ¿Estás seguro de que deseas eliminar el compromiso <strong>"{commitment.concept || commitment.description || commitment.title || 'Sin concepto'}"</strong>?
+        </DialogContentText>
+        <DialogContentText sx={{ mt: 1, color: theme.palette.error.main }}>
+          Esta acción no se puede deshacer y eliminará todos los archivos adjuntos permanentemente.
+        </DialogContentText>
+      </DialogContent>
+      
+      <DialogActions sx={{ p: 3 }}>
+        <Button 
+          onClick={onCancel} 
+          variant="outlined"
+          sx={{ borderRadius: 2 }}
+        >
+          Cancelar
+        </Button>
+        <Button 
+          onClick={onConfirm} 
+          variant="contained" 
+          color="error"
+          sx={{ borderRadius: 2 }}
+        >
+          Eliminar
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 

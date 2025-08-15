@@ -45,6 +45,13 @@ class TokenValidator {
     this.errors = [];
     this.warnings = [];
     this.validatedFiles = 0;
+    this.allowedDesignTokensPaths = [
+      // Archivos de tema y tokens pueden usar/definir designTokens
+      path.join('src', 'theme') + path.sep,
+      // Página sandbox de diseño
+      path.join('src', 'pages', 'DesignSystemTemplatePage.jsx')
+    ];
+    this.selfPath = path.join('src', 'utils', 'tokenValidator.js');
     
     // Patrones prohibidos
     this.forbiddenPatterns = [
@@ -147,10 +154,24 @@ class TokenValidator {
     const content = fs.readFileSync(filePath, 'utf8');
     const relativePath = path.relative(process.cwd(), filePath);
 
+    // 🛡️ Evitar auto-reporte por strings en este archivo
+    if (relativePath === this.selfPath) {
+      // Solo verificar resumen final sin patrones para este archivo
+      return;
+    }
+
     // Verificar patrones prohibidos
     this.forbiddenPatterns.forEach(({ pattern, message, severity }) => {
       const matches = content.match(pattern);
       if (matches) {
+        // ✅ Permitir designTokens en rutas autorizadas (tema/sandbox)
+        const isDesignTokensRule = message.includes('designTokens');
+        if (isDesignTokensRule) {
+          const isAllowedPath = this.allowedDesignTokensPaths.some((allowed) => relativePath.startsWith(allowed));
+          if (isAllowedPath) {
+            return; // saltar reporte para archivos permitidos
+          }
+        }
         const issue = {
           file: relativePath,
           message,

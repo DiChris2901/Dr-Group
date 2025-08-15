@@ -1,6 +1,7 @@
 import {
     Add,
-    CalendarToday
+    CalendarToday,
+    Repeat
 } from '@mui/icons-material';
 import {
     Box,
@@ -17,10 +18,10 @@ import { useNavigate } from 'react-router-dom';
 import CommitmentsFilters from '../components/commitments/CommitmentsFilters';
 import CommitmentsList from '../components/commitments/CommitmentsList';
 import ExtendCommitmentsModal from '../components/commitments/ExtendCommitmentsModal';
+import { checkCommitmentsForExtension } from '../utils/recurringCommitments';
 import { useSettings } from '../context/SettingsContext';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
-import { checkCommitmentsForExtension } from '../utils/recurringCommitments';
 import {
     shimmerEffect,
     useThemeGradients
@@ -75,6 +76,40 @@ const CommitmentsPage = () => {
       });
       return;
     }
+
+    // Verificar compromisos que necesitan extensión
+    const extensionData = checkCommitmentsForExtension(commitmentsData, 3);
+    
+    if (extensionData.needsExtension === 0) {
+      addNotification({
+        type: 'info',
+        title: '✅ Todo al día',
+        message: 'No hay compromisos recurrentes que requieran extensión en este momento.',
+        duration: 4000
+      });
+      return;
+    }
+
+    // Abrir modal de extensión
+    setCommitmentsToExtend(extensionData);
+    setExtendModalOpen(true);
+
+    addNotification({
+      type: 'info',
+      title: '🔄 Extensiones Disponibles',
+      message: `Se encontraron ${extensionData.needsExtension} grupos que pueden ser extendidos.`,
+      duration: 3000
+    });
+  };
+
+  const handleCloseExtendModal = () => {
+    setExtendModalOpen(false);
+    setCommitmentsToExtend(null);
+  };
+
+  const handleExtensionComplete = (results) => {
+    // Refrescar los datos después de la extensión
+    window.location.reload(); // Opción simple para refrescar todo
   };
 
   // Verificación de autenticación
@@ -169,34 +204,65 @@ const CommitmentsPage = () => {
                 </Box>
               </Box>
               
-              {/* Botón Nuevo Compromiso */}
-              <Button
-                variant="contained"
-                startIcon={<Add />}
-                onClick={handleAddCommitment}
-                size="large"
-                sx={{
-                  py: 1.5,
-                  px: 4,
-                  fontSize: '1.1rem',
-                  fontWeight: 700,
-                  borderRadius: `${settings.theme?.borderRadius || 16}px`,
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  color: 'white',
-                  textTransform: 'none',
-                  boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  '&:hover': {
-                    background: 'rgba(255, 255, 255, 0.25)',
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.3)'
-                  }
-                }}
-              >
-                Nuevo Compromiso
-              </Button>
+              {/* Botones de Acción */}
+              <Box display="flex" gap={2} flexWrap="wrap">
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={handleAddCommitment}
+                  size="large"
+                  sx={{
+                    py: 1.5,
+                    px: 4,
+                    fontSize: '1.1rem',
+                    fontWeight: 700,
+                    borderRadius: `${settings.theme?.borderRadius || 16}px`,
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    color: 'white',
+                    textTransform: 'none',
+                    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': {
+                      background: 'rgba(255, 255, 255, 0.25)',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 6px 20px rgba(0, 0, 0, 0.3)'
+                    }
+                  }}
+                >
+                  Nuevo Compromiso
+                </Button>
+                
+                <Button
+                  variant="outlined"
+                  startIcon={<Repeat />}
+                  onClick={handleCheckExtensions}
+                  size="large"
+                  sx={{
+                    py: 1.5,
+                    px: 3,
+                    fontSize: '1.1rem',
+                    fontWeight: 700,
+                    borderRadius: `${settings.theme?.borderRadius || 16}px`,
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    backdropFilter: 'blur(10px)',
+                    border: '2px solid rgba(255, 255, 255, 0.3)',
+                    color: 'white',
+                    textTransform: 'none',
+                    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': {
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 6px 20px rgba(0, 0, 0, 0.2)',
+                      border: '2px solid rgba(255, 255, 255, 0.5)'
+                    }
+                  }}
+                >
+                  Verificar Extensiones
+                </Button>
+              </Box>
             </Box>
           </Box>
         </Box>
@@ -222,6 +288,14 @@ const CommitmentsPage = () => {
         yearFilter={yearFilter}
         viewMode={settings.dashboard?.layout?.viewMode || 'cards'}
         onCommitmentsChange={handleCommitmentsDataChange}
+      />
+
+      {/* Modal de Extensión de Compromisos */}
+      <ExtendCommitmentsModal
+        open={extendModalOpen}
+        onClose={handleCloseExtendModal}
+        commitmentsToExtend={commitmentsToExtend}
+        onExtensionComplete={handleExtensionComplete}
       />
     </Box>
   );

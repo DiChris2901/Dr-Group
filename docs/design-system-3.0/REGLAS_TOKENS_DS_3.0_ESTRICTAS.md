@@ -162,3 +162,39 @@ const MiComponente = () => {
 ---
 **ESTAS REGLAS SON OBLIGATORIAS**  
 **Cualquier código que las viole será rechazado**
+
+---
+
+## 🆕 Nuevos tokens/variants registrados (DS 3.0)
+
+Estas adiciones están definidas a nivel de theme (MUI Variants). Úsalas por props, nunca importando tokens crudos en componentes.
+
+### ✅ Variants de Button
+- `variant="pillGradient"` con `color="primary|secondary"`
+- `variant="pillOutlineGradient"` con `color="primary|secondary"`
+- `variant="softNeutral"` (neutro para acciones secundarias como Cerrar)
+
+Uso seguro en componentes:
+```jsx
+// ✅ Correcto (sin acceder a tokens internos)
+<Button variant="pillGradient" color="primary">Confirmar</Button>
+<Button variant="pillOutlineGradient" color="secondary">Compartir</Button>
+<Button variant="softNeutral">Cerrar</Button>
+```
+
+### ✅ Variants de superficies (Paper/Card)
+- `Paper`/`Card` con `variant="glass"` (glassmorphism controlado)
+- `Paper`/`Card` con `variant="tile"` (tile suave semántico)
+
+Uso seguro:
+```jsx
+<Paper variant="glass">…</Paper>
+<Card variant="tile">…</Card>
+```
+
+### ⚠️ No permitido
+- Importar `designTokens` directamente en componentes para estilizar (solo permitido dentro de la configuración del tema).
+- Hardcodear gradientes, sombras o radios; usa los `variants` anteriores.
+
+### Validación previa
+Antes de mergear, asegúrate de que ningún componente use `designTokens` ni valores hardcodeados para reproducir estos estilos. Deben consumirse exclusivamente vía `variant`.

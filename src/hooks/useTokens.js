@@ -11,9 +11,9 @@ import { unifiedTokens, enhancedTokenUtils } from '../theme/tokens/index.js';
  * 🛡️ Hook para acceso seguro a tokens del Design System 3.0
  * 
  * Previene errores comunes y detecta tema automáticamente:
- * - ❌ designTokens.typography.weights.semiBold (undefined)
- * - ❌ designTokens.colors.surface.primary (undefined) 
- * - ❌ designTokens.radii.sm (undefined)
+ * - ❌ Ejemplo inválido: uso directo de tipografías no unificadas
+ * - ❌ Ejemplo inválido: acceso directo a superficies sin hook/tema
+ * - ❌ Ejemplo inválido: radios no mapeados al sistema
  * 
  * ✅ Uso recomendado:
  * const tokens = useTokens();

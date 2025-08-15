@@ -311,54 +311,91 @@ const CommitmentEditForm = ({
           const selectedCompany = companies.find(c => c.id === formData.companyId);
           const companyName = selectedCompany?.name || 'Empresa';
           
-          // Estrategia mejorada: buscar compromisos relacionados por múltiples criterios
-          const baseConcept = originalData.concept.replace(/ - (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre) \d{4}$/i, '');
-          
-          // Buscar compromisos relacionados con criterios más amplios
-          const commitmentsQuery = query(
-            collection(db, 'commitments'),
-            where('companyId', '==', originalData.companyId),
-            where('beneficiary', '==', originalData.beneficiary),
-            where('amount', '==', originalData.amount),
-            where('periodicity', '==', originalData.periodicity)
-          );
-          
-          const querySnapshot = await getDocs(commitmentsQuery);
-          const deletePromises = [];
-          let deletedCount = 0;
-          
-          querySnapshot.forEach((docSnap) => {
-            const docData = docSnap.data();
-            const docConcept = docData.concept || '';
+          // Eliminar compromisos del MISMO GRUPO RECURRENTE
+          if (originalData.recurringGroup) {
+            const commitmentsQuery = query(
+              collection(db, 'commitments'),
+              where('recurringGroup', '==', originalData.recurringGroup)
+            );
             
-            // Verificar si es parte de la misma serie (concepto base similar)
-            const isRelated = docConcept.includes(baseConcept) || docConcept.startsWith(baseConcept);
+            const querySnapshot = await getDocs(commitmentsQuery);
+            const deletePromises = [];
+            let deletedCount = 0;
             
-            // No eliminar el compromiso actual que estamos editando
-            const isCurrentCommitment = docSnap.id === commitment.id;
+            querySnapshot.forEach((docSnap) => {
+              // No eliminar el compromiso actual que estamos editando
+              if (docSnap.id !== commitment.id) {
+                deletePromises.push(deleteDoc(docSnap.ref));
+                deletedCount++;
+                console.log(`🗑️ Marcado para eliminar (grupo recurrente): ${docSnap.data().concept} (${docSnap.id})`);
+              }
+            });
             
-            // Solo eliminar si es relacionado y no es el actual
-            if (isRelated && !isCurrentCommitment) {
-              deletePromises.push(deleteDoc(docSnap.ref));
-              deletedCount++;
-              console.log(`🗑️ Marcado para eliminar (cambio a único): ${docConcept} (${docSnap.id})`);
+            if (deletePromises.length > 0) {
+              await Promise.all(deletePromises);
+              console.log(`🗑️ Eliminados ${deletedCount} compromisos del grupo recurrente`);
+              
+              // Notificación de eliminación
+              if (notificationsEnabled) {
+                addNotification({
+                  type: 'success',
+                  title: '🗑️ Compromisos Recurrentes Eliminados',
+                  message: `Se eliminaron ${deletedCount} compromisos ${getPeriodicityDescription(originalData.periodicity).toLowerCase()} y se convirtió a pago único para "${companyName}"`,
+                  icon: 'success',
+                  color: 'warning',
+                  duration: 6000
+                });
+              }
             }
-          });
-          
-          if (deletePromises.length > 0) {
-            await Promise.all(deletePromises);
-            console.log(`🗑️ Eliminados ${deletedCount} compromisos recurrentes al cambiar a pago único`);
+          } else {
+            // Fallback: buscar por criterios similares (método anterior pero más específico)
+            const baseConcept = originalData.concept.replace(/ - (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre) \d{4}$/i, '');
             
-            // Notificación de eliminación
-            if (notificationsEnabled) {
-              addNotification({
-                type: 'success',
-                title: '🗑️ Compromisos Recurrentes Eliminados',
-                message: `Se eliminaron ${deletedCount} compromisos ${getPeriodicityDescription(originalData.periodicity).toLowerCase()} y se convirtió a pago único para "${companyName}"`,
-                icon: 'success',
-                color: 'warning',
-                duration: 6000
-              });
+            const commitmentsQuery = query(
+              collection(db, 'commitments'),
+              where('companyId', '==', originalData.companyId),
+              where('beneficiary', '==', originalData.beneficiary),
+              where('amount', '==', originalData.amount),
+              where('periodicity', '==', originalData.periodicity)
+            );
+            
+            const querySnapshot = await getDocs(commitmentsQuery);
+            const deletePromises = [];
+            let deletedCount = 0;
+            
+            querySnapshot.forEach((docSnap) => {
+              const docData = docSnap.data();
+              const docConcept = docData.concept || '';
+              
+              // Verificar si es parte de la misma serie (concepto base similar)
+              const isRelated = docConcept.includes(baseConcept) || docConcept.startsWith(baseConcept);
+              
+              // No eliminar el compromiso actual que estamos editando
+              const isCurrentCommitment = docSnap.id === commitment.id;
+              
+              // Solo eliminar si es relacionado y no es el actual
+              if (isRelated && !isCurrentCommitment) {
+                deletePromises.push(deleteDoc(docSnap.ref));
+                deletedCount++;
+                console.log(`🗑️ Marcado para eliminar (cambio a único): ${docConcept} (${docSnap.id})`);
+              }
+            });
+            
+            if (deletePromises.length > 0) {
+              await Promise.all(deletePromises);
+              console.log(`🗑️ Eliminados ${deletedCount} compromisos recurrentes al cambiar a pago único`);
+              
+              // Notificación de eliminación
+              if (notificationsEnabled) {
+                addNotification({
+                  type: 'success',
+                  title: '🗑️ Compromisos Recurrentes Eliminados',
+                  message: `Se eliminaron ${deletedCount} compromisos ${getPeriodicityDescription(originalData.periodicity).toLowerCase()} y se convirtió a pago único para "${companyName}"`,
+                  icon: 'success',
+                  color: 'warning',
+                  duration: 6000
+                });
+              }
             }
           }
           

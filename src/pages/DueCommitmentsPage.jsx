@@ -28,6 +28,7 @@ import {
   InputLabel,
   Dialog,
   DialogTitle,
+  Avatar,
   DialogContent,
   DialogActions,
   DialogContentText
@@ -47,6 +48,9 @@ import {
   TrendingUp,
   CheckCircle,
   NotificationImportant,
+  GetApp,
+  Payment,
+  NotificationAdd,
   Refresh,
   Flag,
   MoreHoriz,
@@ -55,11 +59,8 @@ import {
   Info,
   Notes,
   History,
-  Payment,
   AttachFile,
-  Share,
-  GetApp,
-  NotificationAdd
+  Share
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, differenceInDays, isAfter, isBefore, addDays } from 'date-fns';
@@ -89,6 +90,379 @@ import {
 
 // Styled components para animaciones CSS
 import { styled } from '@mui/material/styles';
+
+// Función para obtener colores de status (copiada de CommitmentsList)
+const getStatusColor = (status, theme) => {
+  // Validación de seguridad
+  if (!theme || !theme.palette) {
+    console.warn('Theme no está disponible en getStatusColor, usando colores por defecto');
+    return {
+      main: '#666',
+      light: '#999', 
+      dark: '#333'
+    };
+  }
+  
+  // Mejoramos los colores basándose en el chipColor para mejor consistencia
+  switch (status.chipColor) {
+    case 'success':
+      return {
+        main: theme.palette.success.main,
+        light: theme.palette.success.light,
+        dark: theme.palette.success.dark
+      };
+    case 'error':
+      return {
+        main: theme.palette.error.main,
+        light: theme.palette.error.light, 
+        dark: theme.palette.error.dark
+      };
+    case 'warning':
+      return {
+        main: theme.palette.warning.main,
+        light: theme.palette.warning.light,
+        dark: theme.palette.warning.dark
+      };
+    case 'info':
+      return {
+        main: theme.palette.info.main,
+        light: theme.palette.info.light,
+        dark: theme.palette.info.dark
+      };
+    default:
+      return {
+        main: theme.palette.grey[600],
+        light: theme.palette.grey[400],
+        dark: theme.palette.grey[800]
+      };
+  }
+};
+
+// Componentes especializados DS3 (copiados de CommitmentsList)
+const StatusChipDS3 = ({ status, showTooltip = false, theme }) => {
+  // status ya viene procesado como statusInfo
+  const colors = getStatusColor(status, theme);
+  
+  const ChipComponent = (
+    <motion.div
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+    >
+      <Chip 
+        icon={status.icon}
+        label={status.label}
+        size="small"
+        sx={{ 
+          fontWeight: 600,
+          fontSize: '0.75rem',
+          height: 28,
+          minWidth: 80,
+          borderRadius: '14px',
+          backgroundColor: 'transparent !important',
+          color: colors.main,
+          border: `1px solid ${alpha(colors.main, 0.25)}`,
+          boxShadow: 'none',
+          transition: 'all 0.2s ease',
+          '& .MuiChip-icon': {
+            color: colors.main,
+            fontSize: 16,
+            marginLeft: '4px'
+          },
+          '& .MuiChip-label': {
+            paddingLeft: '6px',
+            paddingRight: '12px',
+            letterSpacing: '0.3px',
+            fontWeight: 600
+          },
+          '&:hover': {
+            backgroundColor: 'transparent !important',
+            borderColor: alpha(colors.main, 0.35),
+            boxShadow: `0 2px 4px ${alpha(colors.main, 0.15)}`,
+            transform: 'scale(1.02)'
+          }
+        }}
+      />
+    </motion.div>
+  );
+
+  return showTooltip ? (
+    <Tooltip 
+      title={`Estado: ${status.label}`} 
+      arrow
+      placement="top"
+    >
+      {ChipComponent}
+    </Tooltip>
+  ) : ChipComponent;
+};
+
+// Componente para fechas mejoradas DS 3.0
+const DateDisplayDS3 = ({ date, showDaysRemaining = false, variant = 'standard', theme }) => {
+  if (!date) return <Typography color="text.secondary">Fecha no disponible</Typography>;
+  
+  // Función auxiliar para convertir fecha de manera segura
+  const safeToDate = (dateInput) => {
+    if (!dateInput) return null;
+    
+    // Si ya es un Date válido
+    if (dateInput instanceof Date && !isNaN(dateInput)) {
+      return dateInput;
+    }
+    
+    // Si es un timestamp de Firestore
+    if (dateInput && typeof dateInput.toDate === 'function') {
+      try {
+        return dateInput.toDate();
+      } catch (error) {
+        console.warn('Error al convertir timestamp de Firestore:', error);
+      }
+    }
+    
+    // Si es un string o number, intentar crear Date
+    try {
+      const newDate = new Date(dateInput);
+      if (!isNaN(newDate)) {
+        return newDate;
+      }
+    } catch (error) {
+      console.warn('Error al convertir fecha:', error);
+    }
+    
+    return null;
+  };
+  
+  const safeDate = safeToDate(date);
+  if (!safeDate) return <Typography color="text.secondary">Fecha inválida</Typography>;
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset time to start of day
+  
+  const targetDate = new Date(safeDate);
+  targetDate.setHours(0, 0, 0, 0); // Reset time to start of day
+  
+  const diffTime = targetDate - today;
+  const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  const formatOptions = {
+    standard: {
+      dateFormat: "dd/MM/yyyy",
+      fontSize: "0.875rem",
+      color: "text.primary"
+    },
+    compact: {
+      dateFormat: "dd MMM",
+      fontSize: "0.8rem", 
+      color: "text.secondary"
+    },
+    detailed: {
+      dateFormat: "EEEE, dd 'de' MMMM 'de' yyyy",
+      fontSize: "1rem",
+      color: "text.primary"
+    }
+  };
+  
+  const option = formatOptions[variant] || formatOptions.standard;
+  
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <Typography 
+        variant="body2"
+        sx={{ 
+          fontSize: option.fontSize,
+          fontWeight: variant === 'detailed' ? 500 : 400,
+          color: option.color,
+          lineHeight: 1.3
+        }}
+      >
+        {safeDate.toLocaleDateString('es-CO')}
+      </Typography>
+      {showDaysRemaining && (
+        <Typography 
+          variant="caption" 
+          sx={{ 
+            color: daysRemaining < 0 ? 'error.main' : 
+                   daysRemaining <= 7 ? 'warning.main' : 
+                   'success.main',
+            fontWeight: 500,
+            fontSize: '0.7rem',
+            mt: 0.2
+          }}
+        >
+          {daysRemaining < 0 ? `${Math.abs(daysRemaining)} días vencido` :
+           daysRemaining === 0 ? 'Vence hoy' :
+           `${daysRemaining} días restantes`}
+        </Typography>
+      )}
+    </Box>
+  );
+};
+
+// Componente mejorado para mostrar montos DS 3.0
+const AmountDisplayDS3 = ({ amount, variant = 'standard', showAnimation = false, theme }) => {
+  if (!amount && amount !== 0) return <Typography color="text.secondary">Monto no disponible</Typography>;
+  
+  const formatAmount = (value) => {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value);
+  };
+
+  const styles = {
+    standard: {
+      fontSize: '0.875rem',
+      fontWeight: 600,
+      color: 'text.primary'
+    },
+    large: {
+      fontSize: '1.125rem',
+      fontWeight: 700,
+      color: 'text.primary'
+    },
+    compact: {
+      fontSize: '0.8rem',
+      fontWeight: 500,
+      color: 'text.secondary'
+    }
+  };
+
+  const currentStyle = styles[variant] || styles.standard;
+
+  return (
+    <motion.div
+      initial={showAnimation ? { opacity: 0, scale: 0.8 } : { opacity: 1, scale: 1 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+    >
+      <Typography
+        variant="body2"
+        sx={{
+          ...currentStyle,
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          letterSpacing: variant === 'large' ? '-0.02em' : 0,
+          lineHeight: 1.2
+        }}
+      >
+        {formatAmount(amount)}
+      </Typography>
+    </motion.div>
+  );
+};
+
+// Función para obtener información de estado (copiada de CommitmentsList)
+const getStatusInfo = (commitment, theme) => {
+  // Función auxiliar para convertir fecha de manera segura
+  const safeToDate = (dateInput) => {
+    if (!dateInput) return null;
+    
+    // Si ya es un Date válido
+    if (dateInput instanceof Date && !isNaN(dateInput)) {
+      return dateInput;
+    }
+    
+    // Si es un timestamp de Firestore
+    if (dateInput && typeof dateInput.toDate === 'function') {
+      try {
+        return dateInput.toDate();
+      } catch (error) {
+        console.warn('Error al convertir timestamp de Firestore:', error);
+      }
+    }
+    
+    // Si es un string o number, intentar crear Date
+    try {
+      const newDate = new Date(dateInput);
+      if (!isNaN(newDate)) {
+        return newDate;
+      }
+    } catch (error) {
+      console.warn('Error al convertir fecha:', error);
+    }
+    
+    return null;
+  };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset time to start of day
+  
+  const dueDate = safeToDate(commitment.dueDate);
+  if (!dueDate) {
+    // Si no hay fecha válida, devolver estado por defecto
+    return {
+      label: 'Sin fecha',
+      color: theme.palette.grey[600],
+      chipColor: 'default',
+      icon: <CalendarToday />,
+      gradient: 'linear-gradient(135deg, #9e9e9e 0%, #757575 100%)',
+      shadowColor: 'rgba(158, 158, 158, 0.3)',
+      action: 'Ver Detalles',
+      actionIcon: <Visibility />
+    };
+  }
+
+  const dueDateCopy = new Date(dueDate);
+  dueDateCopy.setHours(0, 0, 0, 0); // Reset time to start of day
+  
+  const threeDaysFromNow = new Date(today);
+  threeDaysFromNow.setDate(today.getDate() + 3);
+  
+  const diffTime = dueDateCopy - today;
+  const daysDifference = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (commitment.paid || commitment.isPaid) {
+    return {
+      label: 'Pagado',
+      color: theme.palette.success.main,
+      chipColor: 'success',
+      icon: <CheckCircle />,
+      gradient: 'linear-gradient(135deg, #4caf50 0%, #8bc34a 100%)',
+      shadowColor: 'rgba(76, 175, 80, 0.3)',
+      action: 'Ver Comprobante',
+      actionIcon: <GetApp />
+    };
+  }
+
+  if (dueDateCopy < today) {
+    const urgency = Math.min(Math.abs(daysDifference), 30) / 30;
+    return {
+      label: 'Vencido',
+      color: theme.palette.error.main,
+      chipColor: 'error',
+      icon: <Warning />,
+      gradient: `linear-gradient(135deg, #f44336 0%, #d32f2f ${urgency * 50}%, #b71c1c 100%)`,
+      shadowColor: 'rgba(244, 67, 54, 0.4)',
+      action: 'Pagar Ahora',
+      actionIcon: <Payment />
+    };
+  }
+
+  if (dueDateCopy <= threeDaysFromNow) {
+    return {
+      label: 'Próximo',
+      color: theme.palette.warning.main,
+      chipColor: 'warning',
+      icon: <Schedule />,
+      gradient: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
+      shadowColor: 'rgba(255, 152, 0, 0.3)',
+      action: 'Programar Pago',
+      actionIcon: <NotificationAdd />
+    };
+  }
+
+  return {
+    label: 'Pendiente',
+    color: theme.palette.info.main,
+    chipColor: 'info',
+    icon: <CalendarToday />,
+    gradient: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
+    shadowColor: 'rgba(33, 150, 243, 0.3)',
+    action: 'Ver Detalles',
+    actionIcon: <Visibility />
+  };
+};
 
 const StyledContainer = styled(Box)(({ theme }) => ({
   '@keyframes shimmer': {
@@ -153,17 +527,6 @@ const getCommitmentStatus = (commitment) => {
   }
 };
 
-// Helper function para obtener el color del estado
-const getStatusColor = (status) => {
-  switch (status.color) {
-    case 'success': return { bg: 'rgba(76, 175, 80, 0.3)', border: 'rgba(76, 175, 80, 0.5)' };
-    case 'error': return { bg: 'rgba(244, 67, 54, 0.3)', border: 'rgba(244, 67, 54, 0.5)' };
-    case 'warning': return { bg: 'rgba(255, 152, 0, 0.3)', border: 'rgba(255, 152, 0, 0.5)' };
-    case 'info': return { bg: 'rgba(33, 150, 243, 0.3)', border: 'rgba(33, 150, 243, 0.5)' };
-    default: return { bg: 'rgba(158, 158, 158, 0.3)', border: 'rgba(158, 158, 158, 0.5)' };
-  }
-};
-
 const DueCommitmentsPage = () => {
   const theme = useTheme();
   const gradients = useThemeGradients();
@@ -195,65 +558,6 @@ const DueCommitmentsPage = () => {
   // Estados para formulario de pago
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [commitmentToPay, setCommitmentToPay] = useState(null);
-
-  // Función para obtener información del estado con detalles completos
-  const getStatusInfo = (commitment) => {
-    const today = new Date();
-    const dueDate = commitment.dueDate;
-    const threeDaysFromNow = addDays(today, 3);
-    const daysDifference = differenceInDays(dueDate, today);
-
-    if (commitment.paid) {
-      return {
-        label: 'Pagado',
-        color: theme.palette.success.main,
-        chipColor: 'success',
-        icon: <CheckCircle />,
-        gradient: 'linear-gradient(135deg, #4caf50 0%, #8bc34a 100%)',
-        shadowColor: 'rgba(76, 175, 80, 0.3)',
-        action: 'Ver Comprobante',
-        actionIcon: <GetApp />
-      };
-    }
-
-    if (isBefore(dueDate, today)) {
-      const urgency = Math.min(Math.abs(daysDifference), 30) / 30; // Más urgente = más rojo
-      return {
-        label: `Vencido (${Math.abs(daysDifference)} día${Math.abs(daysDifference) !== 1 ? 's' : ''})`,
-        color: theme.palette.error.main,
-        chipColor: 'error',
-        icon: <Warning />,
-        gradient: `linear-gradient(135deg, #f44336 0%, #d32f2f ${urgency * 50}%, #b71c1c 100%)`,
-        shadowColor: 'rgba(244, 67, 54, 0.4)',
-        action: 'Pagar Ahora',
-        actionIcon: <Payment />
-      };
-    }
-
-    if (isBefore(dueDate, threeDaysFromNow)) {
-      return {
-        label: `Próximo (${daysDifference} día${daysDifference !== 1 ? 's' : ''})`,
-        color: theme.palette.warning.main,
-        chipColor: 'warning',
-        icon: <Schedule />,
-        gradient: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
-        shadowColor: 'rgba(255, 152, 0, 0.3)',
-        action: 'Programar Pago',
-        actionIcon: <NotificationAdd />
-      };
-    }
-
-    return {
-      label: `Pendiente (${daysDifference} días)`,
-      color: theme.palette.info.main,
-      chipColor: 'info',
-      icon: <CalendarToday />,
-      gradient: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
-      shadowColor: 'rgba(33, 150, 243, 0.3)',
-      action: 'Ver Detalles',
-      actionIcon: <Visibility />
-    };
-  };
 
   const formatCurrency = (amount) => {
     if (!amount) return '$0';
@@ -1073,250 +1377,229 @@ const DueCommitmentsPage = () => {
             background: gradients.paper
           }}
         >
-          <TableContainer>
-            <Table sx={{ minWidth: 800 }}>
-              <TableHead>
-                <TableRow sx={{ 
-                  background: 'white',
-                  borderBottom: `1px solid #f0f0f0`
-                }}>
-                  {[
-                    { label: 'Compromiso', width: '22%' },
-                    { label: 'Empresa', width: '12%' }, 
-                    { label: 'Monto', width: '12%' },
-                    { label: 'Fecha Vencimiento', width: '15%' },
-                    { label: 'Días Restantes', width: '12%' },
-                    { label: 'Prioridad', width: '10%' },
-                    { label: 'Estado', width: '10%' },
-                    { label: 'Acciones', width: '7%' }
-                  ].map((header, index) => (
-                    <TableCell 
-                      key={header.label}
-                      sx={{ 
-                        fontWeight: 600,
-                        borderBottom: 'none',
-                        py: 2.5,
-                        pl: index === 0 ? 3 : 2,
-                        pr: index === 7 ? 3 : 2,
-                        width: header.width,
-                        color: '#1a1a1a',
-                        fontSize: '0.875rem',
-                        background: 'transparent'
-                      }}
-                    >
-                      {header.label}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                <AnimatePresence>
-                  {filteredCommitments.map((commitment, index) => (
-                    <motion.tr
-                      key={commitment.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
-                      transition={{ duration: 0.3, delay: index * 0.05 }}
-                      style={{ cursor: 'pointer' }}
-                      whileHover={{ 
+          {/* Grid Layout igual que CommitmentsList */}
+          <Box>
+            {/* Header usando Grid */}
+            <Box sx={{
+              display: 'grid',
+              gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 0.8fr',
+              gap: 2,
+              p: 2.5,
+              bgcolor: 'white',
+              borderBottom: `1px solid #f0f0f0`,
+              alignItems: 'center'
+            }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: '#1a1a1a' }}>
+                Estado
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: '#1a1a1a' }}>
+                Compromiso
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: '#1a1a1a' }}>
+                Empresa
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: '#1a1a1a', textAlign: 'center' }}>
+                Monto
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: '#1a1a1a', textAlign: 'center' }}>
+                Vencimiento
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: '#1a1a1a', textAlign: 'center' }}>
+                Acciones
+              </Typography>
+            </Box>
+
+            {/* Filas usando Grid */}
+            <AnimatePresence>
+              {filteredCommitments.map((commitment, index) => {
+                const daysUntilDue = getDaysUntilDue(commitment.dueDate);
+                const isOverdue = daysUntilDue < 0;
+                const isDueSoon = daysUntilDue <= 7 && daysUntilDue >= 0;
+                
+                return (
+                  <motion.div
+                    key={commitment.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                    whileHover={{ 
+                      backgroundColor: alpha(theme.palette.primary.main, 0.02),
+                      boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.08)}`,
+                      transition: { duration: 0.25 }
+                    }}
+                  >
+                    <Box sx={{
+                      display: 'grid',
+                      gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 0.8fr',
+                      gap: 2,
+                      p: 2.5,
+                      borderBottom: index === filteredCommitments.length - 1 ? 'none' : `1px solid ${alpha(theme.palette.divider, 0.8)}`,
+                      '&:hover': {
                         backgroundColor: alpha(theme.palette.primary.main, 0.02),
-                        boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.08)}`
-                      }}
-                    >
-                      <TableCell sx={{ 
-                        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.8)}`, 
-                        py: 2,
-                        pl: 3
-                      }}>
-                        <Box>
-                          <Typography variant="subtitle2" sx={{ 
-                            fontWeight: 600,
-                            color: 'text.primary',
-                            mb: 0.5
-                          }}>
-                            {commitment.title || 'Compromiso sin título'}
-                          </Typography>
-                          <Typography variant="caption" sx={{ 
-                            color: 'text.secondary',
-                            opacity: 0.8
-                          }}>
-                            {commitment.description || 'Sin descripción'}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell sx={{ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.8)}` }}>
-                        <Chip
-                          icon={<Business />}
-                          label={commitment.company || 'Sin empresa'}
-                          size="small"
+                        cursor: 'pointer'
+                      },
+                      alignItems: 'center'
+                    }}>
+                      {/* Estado con StatusChipDS3 */}
+                      <StatusChipDS3 
+                        status={getStatusInfo(commitment, theme)}
+                        showTooltip={true}
+                        theme={theme}
+                      />
+
+                      {/* Descripción igual que CommitmentsList */}
+                      <Box>
+                        <Typography 
+                          variant="body2" 
                           sx={{ 
-                            borderRadius: 3,
-                            backgroundColor: alpha(theme.palette.info.main, 0.08),
-                            color: theme.palette.info.main,
                             fontWeight: 500,
-                            border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`,
-                            '&:hover': {
-                              backgroundColor: alpha(theme.palette.info.main, 0.12)
-                            }
+                            mb: 0.5,
+                            color: 'text.primary',
+                            fontSize: '0.9rem'
                           }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.8)}` }}>
-                        <Typography variant="subtitle2" sx={{ 
-                          fontWeight: 700,
-                          color: commitment.amount >= 1000000 ? theme.palette.success.main : 'text.primary'
-                        }}>
-                          {formatCurrency(commitment.amount || 0)}
+                        >
+                          {commitment.concept || commitment.description || commitment.title || 'Sin concepto'}
                         </Typography>
-                      </TableCell>
-                      <TableCell sx={{ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.8)}` }}>
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                          <CalendarToday sx={{ 
-                            fontSize: 16, 
-                            color: 'text.secondary',
-                            opacity: 0.7
-                          }} />
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {formatSafeDate(commitment.dueDate)}
+                        {commitment.beneficiary && (
+                          <Typography 
+                            variant="caption" 
+                            sx={{
+                              display: 'block',
+                              color: 'text.secondary',
+                              fontSize: '0.75rem'
+                            }}
+                          >
+                            Para: {commitment.beneficiary}
                           </Typography>
-                        </Stack>
-                      </TableCell>
-                      <TableCell sx={{ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.8)}` }}>
-                        <Chip
-                          label={commitment.dueDate ? `${getDaysUntilDue(commitment.dueDate)} días` : '-- días'}
-                          size="small"
-                          sx={{
-                            borderRadius: 3,
-                            fontWeight: 600,
-                            border: '1px solid transparent',
-                            backgroundColor: commitment.dueDate && getDaysUntilDue(commitment.dueDate) < 0 
-                              ? alpha(theme.palette.error.main, 0.08)
-                              : commitment.dueDate && getDaysUntilDue(commitment.dueDate) <= 7
-                              ? alpha(theme.palette.warning.main, 0.08)
-                              : alpha(theme.palette.success.main, 0.08),
-                            color: commitment.dueDate && getDaysUntilDue(commitment.dueDate) < 0 
-                              ? theme.palette.error.main
-                              : commitment.dueDate && getDaysUntilDue(commitment.dueDate) <= 7
-                              ? theme.palette.warning.main
-                              : theme.palette.success.main,
-                            borderColor: commitment.dueDate && getDaysUntilDue(commitment.dueDate) < 0 
-                              ? alpha(theme.palette.error.main, 0.15)
-                              : commitment.dueDate && getDaysUntilDue(commitment.dueDate) <= 7
-                              ? alpha(theme.palette.warning.main, 0.15)
-                              : alpha(theme.palette.success.main, 0.15)
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.8)}` }}>
-                        <Chip
-                          label={commitment.priority ? commitment.priority.charAt(0).toUpperCase() + commitment.priority.slice(1) : 'Media'}
-                          size="small"
-                          sx={{
-                            borderRadius: 3,
-                            backgroundColor: alpha(getPriorityColor(commitment.priority || 'medium'), 0.08),
-                            color: getPriorityColor(commitment.priority || 'medium'),
-                            fontWeight: 600,
-                            border: `1px solid ${alpha(getPriorityColor(commitment.priority || 'medium'), 0.15)}`
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.8)}` }}>
-                        <Chip
-                          label={getStatusLabel(commitment.status || 'upcoming')}
-                          size="small"
-                          sx={{
-                            borderRadius: 3,
-                            backgroundColor: alpha(getStatusColor(commitment.status || 'upcoming'), 0.08),
-                            color: getStatusColor(commitment.status || 'upcoming'),
-                            fontWeight: 600,
-                            border: `1px solid ${alpha(getStatusColor(commitment.status || 'upcoming'), 0.15)}`
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ 
-                        borderBottom: `1px solid ${alpha(theme.palette.divider, 0.8)}`,
-                        pr: 3
+                        )}
+                      </Box>
+
+                      {/* Empresa con Avatar igual que CommitmentsList */}
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1
                       }}>
-                        <Stack direction="row" spacing={1}>
-                          {[
-                            { 
-                              icon: Visibility, 
-                              tooltip: 'Ver detalles', 
-                              color: theme.palette.info.main,
-                              hoverColor: theme.palette.info.dark,
-                              action: () => handleViewCommitment(commitment)
-                            },
-                            // Solo mostrar botón de pagar si el compromiso no está pagado
-                            ...(!commitment.paid && !commitment.isPaid ? [{
-                              icon: Payment, 
-                              tooltip: 'Marcar como pagado', 
-                              color: theme.palette.success.main,
-                              hoverColor: theme.palette.success.dark,
-                              action: () => handlePayCommitment(commitment)
-                            }] : []),
-                            { 
-                              icon: Edit, 
-                              tooltip: 'Editar', 
-                              color: theme.palette.warning.main,
-                              hoverColor: theme.palette.warning.dark,
-                              action: () => handleEditCommitment(commitment)
-                            },
-                            { 
-                              icon: Delete, 
-                              tooltip: 'Eliminar', 
-                              color: theme.palette.error.main,
-                              hoverColor: theme.palette.error.dark,
-                              action: () => handleDeleteCommitment(commitment)
-                            }
-                          ].map((action, actionIndex) => (
-                            <motion.div
-                              key={actionIndex}
-                              whileHover={{ 
-                                scale: 1.08, 
-                                y: -2,
-                                transition: { duration: 0.2, ease: "easeOut" }
+                        <Avatar
+                          sx={{
+                            width: 32,
+                            height: 32,
+                            bgcolor: 'primary.main',
+                            fontSize: '0.75rem',
+                            fontWeight: 600
+                          }}
+                        >
+                          {(commitment.companyName || commitment.company || 'SC').charAt(0)}
+                        </Avatar>
+                        <Typography 
+                          variant="body2"
+                          sx={{ 
+                            fontWeight: 500,
+                            color: 'text.primary'
+                          }}
+                        >
+                          {commitment.companyName || commitment.company || 'Sin empresa'}
+                        </Typography>
+                      </Box>
+
+                      {/* Monto con AmountDisplayDS3 */}
+                      <Box sx={{ textAlign: 'center' }}>
+                        <AmountDisplayDS3 
+                          amount={commitment.amount}
+                          animate={false}
+                          theme={theme}
+                        />
+                      </Box>
+
+                      {/* Fecha con DateDisplayDS3 */}
+                      <Box sx={{ textAlign: 'center' }}>
+                        <DateDisplayDS3
+                          date={commitment.dueDate}
+                          variant="standard"
+                          showDaysRemaining
+                          isOverdue={isOverdue}
+                          isDueSoon={isDueSoon}
+                          theme={theme}
+                        />
+                      </Box>
+
+                      {/* Acciones igual que CommitmentsList */}
+                      <Box sx={{ 
+                        display: 'flex', 
+                        gap: 0.5,
+                        justifyContent: 'center'
+                      }}>
+                        <Tooltip title="Ver detalles" arrow>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewCommitment(commitment);
+                            }}
+                            sx={{ 
+                              color: 'primary.main',
+                              '&:hover': { backgroundColor: 'rgba(25, 118, 210, 0.1)' }
+                            }}
+                          >
+                            <Visibility fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        {/* Solo mostrar botón de pagar si el compromiso no está pagado */}
+                        {(!commitment.paid && !commitment.isPaid) && (
+                          <Tooltip title="Marcar como pagado" arrow>
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePayCommitment(commitment);
                               }}
-                              whileTap={{ scale: 0.95 }}
-                              transition={{ type: "spring", bounce: 0.4 }}
+                              sx={{ 
+                                color: 'success.main',
+                                '&:hover': { backgroundColor: 'rgba(76, 175, 80, 0.1)' }
+                              }}
                             >
-                              <Tooltip 
-                                title={action.tooltip}
-                                placement="top"
-                                arrow
-                              >
-                                <IconButton
-                                  size="small"
-                                  onClick={action.action}
-                                  sx={{
-                                    backgroundColor: alpha(action.color, 0.08),
-                                    color: action.color,
-                                    borderRadius: 2.5,
-                                    border: `1px solid ${alpha(action.color, 0.15)}`,
-                                    width: 32,
-                                    height: 32,
-                                    transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                                    '&:hover': {
-                                      backgroundColor: alpha(action.color, 0.15),
-                                      borderColor: alpha(action.color, 0.3),
-                                      color: action.hoverColor,
-                                      boxShadow: `0 4px 12px ${alpha(action.color, 0.25)}`
-                                    }
-                                  }}
-                                >
-                                  <action.icon sx={{ fontSize: 16 }} />
-                                </IconButton>
-                              </Tooltip>
-                            </motion.div>
-                          ))}
-                        </Stack>
-                      </TableCell>
-                    </motion.tr>
-                  ))}
-                </AnimatePresence>
-              </TableBody>
-            </Table>
-          </TableContainer>
+                              <Payment fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        <Tooltip title="Editar" arrow>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditCommitment(commitment);
+                            }}
+                            sx={{ 
+                              color: 'warning.main',
+                              '&:hover': { backgroundColor: 'rgba(237, 108, 2, 0.1)' }
+                            }}
+                          >
+                            <Edit fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Eliminar" arrow>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteCommitment(commitment);
+                            }}
+                            sx={{ 
+                              color: 'error.main',
+                              '&:hover': { backgroundColor: 'rgba(211, 47, 47, 0.1)' }
+                            }}
+                          >
+                            <Delete fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </Box>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </Box>
         </Paper>
       </motion.div>
 

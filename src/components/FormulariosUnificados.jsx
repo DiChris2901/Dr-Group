@@ -68,9 +68,13 @@ import {
 import { motion } from 'framer-motion';
 
 // Importar tokens existentes (sin modificarlos)
-import { designTokens, tokenUtils } from '../theme/tokens';
+import { tokenUtils } from '../theme/tokens';
+import { useTokens } from '../hooks/useTokens.js';
+import { useTheme } from '@mui/material/styles';
 
 const FormulariosUnificados = () => {
+  const tokens = useTokens();
+  const theme = useTheme();
   const [activeSection, setActiveSection] = useState('auth');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -158,14 +162,14 @@ const FormulariosUnificados = () => {
     const getFieldStyles = () => {
       if (error) return {
         '& .MuiOutlinedInput-root': {
-          '& fieldset': { borderColor: designTokens.colors.error.main },
-          '&:hover fieldset': { borderColor: designTokens.colors.error.dark },
+          '& fieldset': { borderColor: tokens.colors.error.main },
+          '&:hover fieldset': { borderColor: tokens.colors.error.dark },
         }
       };
       if (success) return {
         '& .MuiOutlinedInput-root': {
-          '& fieldset': { borderColor: designTokens.colors.success.main },
-          '&:hover fieldset': { borderColor: designTokens.colors.success.dark },
+          '& fieldset': { borderColor: tokens.colors.success.main },
+          '&:hover fieldset': { borderColor: tokens.colors.success.dark },
         }
       };
       return {};
@@ -211,8 +215,8 @@ const FormulariosUnificados = () => {
             }}>
               <Typography variant="h6" sx={{ 
                 p: 2, 
-                ...designTokens.muiVariants.h6,
-                borderBottom: `1px solid ${designTokens.colors.grey[200]}`
+                ...theme.typography.h6,
+                borderBottom: `1px solid ${tokens.getBorder('light')}`
               }}>
                 📋 Navegación
               </Typography>
@@ -253,7 +257,7 @@ const FormulariosUnificados = () => {
             {/* SECCIÓN 1: AUTENTICACIÓN */}
             <Box ref={authRef} id="auth-section" sx={{ mb: 8 }}>
               <Typography variant="h4" sx={{ 
-                ...designTokens.muiVariants.h4,
+                ...theme.typography.h4,
                 mb: 1,
                 display: 'flex',
                 alignItems: 'center',
@@ -289,7 +293,7 @@ const FormulariosUnificados = () => {
                             <Login />
                           </Avatar>
                           <Box>
-                            <Typography variant="h6" sx={{ ...designTokens.muiVariants.h6 }}>
+                            <Typography variant="h6" sx={{ ...theme.typography.h6 }}>
                               Login Empresarial
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
@@ -417,7 +421,7 @@ const FormulariosUnificados = () => {
                             <Person />
                           </Avatar>
                           <Box>
-                            <Typography variant="h6" sx={{ ...designTokens.muiVariants.h6 }}>
+                            <Typography variant="h6" sx={{ ...theme.typography.h6 }}>
                               Registro Empresarial
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
@@ -539,7 +543,7 @@ const FormulariosUnificados = () => {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                           <Warning color="warning" sx={{ fontSize: 32 }} />
                           <Box>
-                            <Typography variant="h6" sx={{ ...designTokens.muiVariants.h6 }}>
+                            <Typography variant="h6" sx={{ ...theme.typography.h6 }}>
                               Recuperar Contraseña
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
@@ -578,7 +582,7 @@ const FormulariosUnificados = () => {
             {/* SECCIÓN 2: FORMULARIOS DE NEGOCIO */}
             <Box ref={businessRef} id="business-section" sx={{ mb: 8 }}>
               <Typography variant="h4" sx={{ 
-                ...designTokens.muiVariants.h4,
+                ...theme.typography.h4,
                 mb: 1,
                 display: 'flex',
                 alignItems: 'center',
@@ -610,7 +614,7 @@ const FormulariosUnificados = () => {
                             <Business />
                           </Avatar>
                           <Box>
-                            <Typography variant="h6" sx={{ ...designTokens.muiVariants.h6 }}>
+                            <Typography variant="h6" sx={{ ...theme.typography.h6 }}>
                               Registro de Empresa
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
@@ -726,7 +730,7 @@ const FormulariosUnificados = () => {
                             <Assignment />
                           </Avatar>
                           <Box>
-                            <Typography variant="h6" sx={{ ...designTokens.muiVariants.h6 }}>
+                            <Typography variant="h6" sx={{ ...theme.typography.h6 }}>
                               Nuevo Compromiso
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
@@ -864,7 +868,7 @@ const FormulariosUnificados = () => {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                           <Person color="primary" sx={{ fontSize: 32 }} />
                           <Box>
-                            <Typography variant="h6" sx={{ ...designTokens.muiVariants.h6 }}>
+                            <Typography variant="h6" sx={{ ...theme.typography.h6 }}>
                               Beneficiarios y Conceptos
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
@@ -936,7 +940,7 @@ const FormulariosUnificados = () => {
             {/* SECCIÓN 3: TRANSACCIONES */}
             <Box ref={transactionsRef} id="transactions-section" sx={{ mb: 4 }}>
               <Typography variant="h4" sx={{ 
-                ...designTokens.muiVariants.h4,
+                ...theme.typography.h4,
                 mb: 1,
                 display: 'flex',
                 alignItems: 'center',
@@ -968,7 +972,7 @@ const FormulariosUnificados = () => {
                             <Payment />
                           </Avatar>
                           <Box>
-                            <Typography variant="h6" sx={{ ...designTokens.muiVariants.h6 }}>
+                            <Typography variant="h6" sx={{ ...theme.typography.h6 }}>
                               Registrar Pago
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
@@ -1117,7 +1121,7 @@ const FormulariosUnificados = () => {
                       <CardContent sx={{ p: 3, textAlign: 'center' }}>
                         <Box sx={{ mb: 3 }}>
                           <Receipt color="info" sx={{ fontSize: 48, mb: 1 }} />
-                          <Typography variant="h6" sx={{ ...designTokens.muiVariants.h6, mb: 1 }}>
+                          <Typography variant="h6" sx={{ ...theme.typography.h6, mb: 1 }}>
                             Subir Comprobante
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
@@ -1206,7 +1210,7 @@ const FormulariosUnificados = () => {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                           <AttachMoney color="primary" sx={{ fontSize: 32 }} />
                           <Box>
-                            <Typography variant="h6" sx={{ ...designTokens.muiVariants.h6 }}>
+                            <Typography variant="h6" sx={{ ...theme.typography.h6 }}>
                               Valores COP con Máscara Visual
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
