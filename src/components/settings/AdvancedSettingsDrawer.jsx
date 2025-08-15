@@ -534,19 +534,12 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     sx={{
                       width: 60,
                       height: 60,
-                      borderRadius: (settings?.theme?.borderRadius || 2) * 2.5,
-                      background: `linear-gradient(135deg, 
-                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                      )`,
+                      borderRadius: 4,
+                      background: settings?.theme?.primaryColor || '#667eea',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: `
-                        0 8px 32px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.4)},
-                        0 2px 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.2)},
-                        inset 0 1px 0 ${alpha('#ffffff', 0.2)}
-                      `,
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
                       position: 'relative',
                       overflow: 'hidden',
                       cursor: 'pointer',
@@ -712,7 +705,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     }
                   },
                   '& .MuiTabs-indicator': {
-                    height: 3,
+                    height: 2,
                     borderRadius: '1px 1px 0 0',
                     background: settings?.theme?.primaryColor || '#667eea',
                   },
@@ -723,11 +716,11 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     textTransform: 'none',
                     fontWeight: 500,
                     fontSize: '14px',
-                    color: theme.palette.text.secondary,
+                    color: alpha(theme.palette.text.primary, 0.7),
                     padding: '10px 16px',
-                    margin: '0 2px',
+                    margin: '0 4px',
                     borderRadius: '4px 4px 0 0',
-                    transition: 'color 0.2s ease',
+                    transition: 'all 0.2s ease',
                     '&:hover': {
                       backgroundColor: alpha(theme.palette.primary.main, 0.08),
                       color: theme.palette.primary.main
