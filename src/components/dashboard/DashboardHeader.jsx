@@ -394,12 +394,12 @@ const DashboardHeader = ({ onOpenSettings }) => {
           },
         }}
       >
-        {/* Header del usuario - DS 3.0 con Gradiente Spectacular */}
+        {/* Header del usuario - DS 3.0 sobrio */}
         <Box sx={{ 
           px: 0, 
           py: 0,
-          background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
-          borderRadius: '8px 8px 0 0',
+          backgroundColor: theme.palette.background.paper,
+          borderBottom: `1px solid ${theme.palette.divider}`,
           position: 'relative'
         }}>
           <Box sx={{ 
@@ -418,8 +418,8 @@ const DashboardHeader = ({ onOpenSettings }) => {
                 size={52}
                 border={true}
                 sx={{
-                  border: '3px solid white',
-                  boxShadow: theme.shadows[2]
+                  border: `2px solid ${theme.palette.primary.main}`,
+                  boxShadow: theme.shadows[1]
                 }}
               />
               {/* Indicador de estado online */}
@@ -428,23 +428,24 @@ const DashboardHeader = ({ onOpenSettings }) => {
                   position: 'absolute',
                   bottom: 2,
                   right: 2,
-                  width: 16,
-                  height: 16,
+                  width: 14,
+                  height: 14,
                   borderRadius: '50%',
                   backgroundColor: theme.palette.success.main,
-                  border: '2px solid white',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                  border: `2px solid ${theme.palette.background.paper}`,
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)'
                 }}
               />
             </Box>
             
-            <Box sx={{ flex: 1, color: 'white' }}>
+            <Box sx={{ flex: 1, color: theme.palette.text.primary }}>
               <Typography 
                 variant="h6" 
                 sx={{ 
                   fontWeight: 600, 
                   fontSize: '1rem',
-                  mb: 0.5
+                  mb: 0.5,
+                  color: theme.palette.text.primary
                 }}
               >
                 {userProfile.name}
@@ -452,7 +453,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
               <Typography 
                 variant="body2" 
                 sx={{ 
-                  opacity: 0.9,
+                  color: theme.palette.text.secondary,
                   fontSize: '0.875rem',
                   mb: 1
                 }}
@@ -464,7 +465,8 @@ const DashboardHeader = ({ onOpenSettings }) => {
                   px: 1.5,
                   py: 0.5,
                   borderRadius: 1,
-                  backgroundColor: 'rgba(255, 255, 255, 0.25)',
+                  backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
                   display: 'inline-flex',
                   alignItems: 'center'
                 }}
@@ -476,7 +478,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
                     fontSize: '0.75rem',
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px',
-                    color: 'white'
+                    color: theme.palette.primary.main
                   }}
                 >
                   {userProfile.role || 'Admin'}
@@ -498,7 +500,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
               minWidth: 40,
               color: theme.palette.text.secondary
             }}>
-              <PersonIcon fontSize="small" />
+              <PersonIcon sx={{ fontSize: '21px' }} />
             </ListItemIcon>
             <ListItemText 
               primary="Mi Perfil" 
@@ -517,7 +519,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
               minWidth: 40,
               color: theme.palette.text.secondary
             }}>
-              <SettingsIcon fontSize="small" />
+              <SettingsIcon sx={{ fontSize: '21px' }} />
             </ListItemIcon>
             <ListItemText 
               primary="Configuración" 
@@ -530,7 +532,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
         </Box>
 
         <Divider sx={{ 
-          borderColor: isDarkMode ? `${primaryColor}30` : `${primaryColor}20`,
+          borderColor: theme.palette.divider,
           my: 0.5 
         }} />
 
@@ -540,7 +542,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
             sx={{
               ...menuItemStyle,
               '&:hover': {
-                backgroundColor: alpha(theme.palette.error.main, 0.08),
+                backgroundColor: alpha(theme.palette.error.main, 0.04),
                 transform: 'translateX(4px)',
                 '& .MuiListItemIcon-root': {
                   color: theme.palette.error.main
@@ -556,7 +558,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
               minWidth: 40,
               color: theme.palette.text.secondary
             }}>
-              <LogoutIcon fontSize="small" />
+              <LogoutIcon sx={{ fontSize: '21px' }} />
             </ListItemIcon>
             <ListItemText 
               primary="Cerrar Sesión" 

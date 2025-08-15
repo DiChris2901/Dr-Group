@@ -257,17 +257,9 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
             >
               <CloseIcon fontSize="small" />
             </IconButton>
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                  transform: animationsEnabled ? 'scale(1.1)' : 'none'
-                }
-              }}
-            >
-              <CloseIcon fontSize="small" />
-            </IconButton>
           </Box>
           
-          {/* Tabs spectacular mejorados */}
+          {/* Tabs limpios DS 3.0 sobrio */}
           <Tabs
             value={tabValue}
             onChange={handleTabChange}
@@ -277,27 +269,26 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
               minHeight: 48,
               position: 'relative',
               zIndex: 1,
+              borderBottom: `1px solid ${theme.palette.divider}`,
               '& .MuiTab-root': {
-                color: 'rgba(255,255,255,0.7)',
+                color: theme.palette.text.secondary,
                 textTransform: 'none',
-                fontWeight: 600,
-                borderRadius: `${borderRadius / 2}px`,
-                transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                fontWeight: 500,
+                borderRadius: 0,
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 '&.Mui-selected': {
-                  color: 'white',
-                  backgroundColor: alpha(theme.palette.common.white, 0.15),
-                  boxShadow: theme.shadows[2]
+                  color: theme.palette.primary.main,
+                  fontWeight: 600
                 },
                 '&:hover': {
-                  backgroundColor: alpha(theme.palette.common.white, 0.08),
-                  transform: animationsEnabled ? 'translateY(-1px)' : 'none'
+                  color: theme.palette.primary.main,
+                  backgroundColor: alpha(theme.palette.primary.main, 0.04)
                 }
               },
               '& .MuiTabs-indicator': {
-                backgroundColor: 'white',
-                height: 3,
-                borderRadius: 2,
-                boxShadow: theme.shadows[1]
+                backgroundColor: theme.palette.primary.main,
+                height: 2,
+                borderRadius: 1
               }
             }}
           >
@@ -326,10 +317,29 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
         <TabPanel value={tabValue} index={0}>
           <Box sx={{ maxHeight: 400, overflow: 'auto' }}>
             {sortedNotifications.length === 0 ? (
-              <Box sx={{ p: 3, textAlign: 'center' }}>
-                <NotificationsIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-                <Typography variant="body2" color="text.secondary">
+              <Box sx={{ 
+                p: 4, 
+                textAlign: 'center',
+                color: theme.palette.text.secondary
+              }}>
+                <NotificationsIcon sx={{ 
+                  fontSize: 56, 
+                  color: theme.palette.text.disabled, 
+                  mb: 2,
+                  opacity: 0.5
+                }} />
+                <Typography variant="body1" sx={{ 
+                  fontWeight: 500,
+                  color: theme.palette.text.secondary,
+                  mb: 0.5
+                }}>
                   No hay notificaciones
+                </Typography>
+                <Typography variant="caption" sx={{ 
+                  color: theme.palette.text.disabled,
+                  fontSize: '0.75rem'
+                }}>
+                  Las nuevas notificaciones aparecerán aquí
                 </Typography>
               </Box>
             ) : (
@@ -338,19 +348,22 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                   <ListItem
                     key={notification.id}
                     sx={{
-                      borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                      borderBottom: `1px solid ${theme.palette.divider}`,
                       backgroundColor: notification.read 
                         ? 'transparent' 
-                        : alpha(primaryColor, 0.04),
+                        : alpha(theme.palette.primary.main, 0.02),
                       cursor: 'pointer',
-                      borderRadius: `${borderRadius / 3}px`,
-                      mx: 0.5,
-                      my: 0.5,
-                      transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                      borderRadius: 0,
+                      mx: 0,
+                      my: 0,
+                      px: 2,
+                      py: 1.5,
+                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&:hover': {
-                        backgroundColor: alpha(primaryColor, 0.08),
-                        transform: animationsEnabled ? 'translateX(6px) scale(1.01)' : 'none',
-                        boxShadow: `0 4px 16px ${alpha(primaryColor, 0.15)}`
+                        backgroundColor: alpha(theme.palette.primary.main, 0.04),
+                        '& .MuiListItemIcon-root': {
+                          color: theme.palette.primary.main
+                        }
                       }
                     }}
                     onClick={() => handleNotificationClick(notification)}
@@ -358,13 +371,14 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                     <ListItemIcon sx={{ minWidth: 40 }}>
                       <Avatar
                         sx={{
-                          width: 36,
-                          height: 36,
-                          backgroundColor: alpha(getNotificationColor(notification.type), 0.15),
+                          width: 32,
+                          height: 32,
+                          backgroundColor: alpha(getNotificationColor(notification.type), 0.1),
                           color: getNotificationColor(notification.type),
-                          boxShadow: `0 4px 12px ${alpha(getNotificationColor(notification.type), 0.25)}`,
-                          border: `2px solid ${alpha(getNotificationColor(notification.type), 0.2)}`,
-                          transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
+                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '& .MuiSvgIcon-root': {
+                            fontSize: '18px'
+                          }
                         }}
                       >
                         {getNotificationIcon(notification.type)}
@@ -426,18 +440,16 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                             }}
                             sx={{ 
                               p: 0.5,
-                              opacity: 0.7,
-                              borderRadius: `${borderRadius / 2}px`,
-                              transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                              color: theme.palette.text.secondary,
+                              borderRadius: 1,
+                              transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                               '&:hover': { 
-                                opacity: 1,
-                                backgroundColor: alpha(theme.palette.error.main, 0.1),
-                                transform: animationsEnabled ? 'scale(1.1)' : 'none',
-                                boxShadow: `0 4px 12px ${alpha(theme.palette.error.main, 0.2)}`
+                                color: theme.palette.error.main,
+                                backgroundColor: alpha(theme.palette.error.main, 0.04)
                               }
                             }}
                           >
-                            <DeleteIcon fontSize="small" />
+                            <DeleteIcon sx={{ fontSize: '18px' }} />
                           </IconButton>
                         </Tooltip>
                       </Box>
@@ -460,16 +472,15 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                 onClick={clearAllNotifications}
                 sx={{ 
                   textTransform: 'none',
-                  fontWeight: 600,
-                  borderRadius: `${borderRadius / 2}px`,
-                  background: `linear-gradient(135deg, ${alpha(primaryColor, 0.1)}, ${alpha(secondaryColor, 0.05)})`,
-                  color: primaryColor,
-                  border: `1px solid ${alpha(primaryColor, 0.2)}`,
-                  transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                  fontWeight: 500,
+                  borderRadius: 1,
+                  color: theme.palette.text.secondary,
+                  border: `1px solid ${theme.palette.divider}`,
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                   '&:hover': {
-                    background: `linear-gradient(135deg, ${alpha(primaryColor, 0.15)}, ${alpha(secondaryColor, 0.08)})`,
-                    transform: animationsEnabled ? 'translateY(-1px)' : 'none',
-                    boxShadow: `0 4px 12px ${alpha(primaryColor, 0.2)}`
+                    borderColor: theme.palette.primary.main,
+                    color: theme.palette.primary.main,
+                    backgroundColor: alpha(theme.palette.primary.main, 0.04)
                   }
                 }}
               >
