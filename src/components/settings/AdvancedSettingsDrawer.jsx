@@ -1671,28 +1671,10 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   {/* Notifications Main Settings */}
                   <Card sx={{ 
                     border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
-                    background: `linear-gradient(135deg, 
-                      ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
-                      ${alpha(theme.palette.background.paper, 0.98)} 100%
-                    )`,
-                    backdropFilter: 'blur(10px)',
-                    boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
-                    position: 'relative',
-                    overflow: 'hidden',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: '3px',
-                      background: `linear-gradient(90deg, 
-                        ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                        ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                      )`,
-                      boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
-                    }
+                    borderRadius: 4,
+                    background: theme.palette.background.paper,
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                    position: 'relative'
                   }}>
                     <CardContent>
                       <Typography variant="h6" sx={{ 
@@ -1700,25 +1682,14 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         display: 'flex', 
                         alignItems: 'center', 
                         gap: 1.5,
-                        fontWeight: 700,
-                        background: `linear-gradient(135deg, 
-                          ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                          ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                        )`,
-                        backgroundClip: 'text',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                        fontWeight: 600,
+                        color: theme.palette.text.primary
                       }}>
                         <Box sx={{
                           p: 1,
-                          borderRadius: '8px',
-                          background: `linear-gradient(135deg, 
-                            ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                            ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                          )`,
+                          borderRadius: 2,
+                          background: settings?.theme?.primaryColor || '#667eea',
                           color: 'white',
-                          boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
                           display: 'flex',
                           alignItems: 'center'
                         }}>
@@ -1770,28 +1741,10 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       {/* Threshold Configuration */}
                       <Card sx={{ 
                         border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                        borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
-                        background: `linear-gradient(135deg, 
-                          ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.03)} 0%, 
-                          ${alpha(theme.palette.background.paper, 0.98)} 100%
-                        )`,
-                        backdropFilter: 'blur(10px)',
-                        boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
-                        position: 'relative',
-                        overflow: 'hidden',
-                        '&::before': {
-                          content: '""',
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          height: '3px',
-                          background: `linear-gradient(90deg, 
-                            ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
-                            ${settings?.theme?.primaryColor || '#667eea'} 100%
-                          )`,
-                          boxShadow: `0 0 8px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.3)}`
-                        }
+                        borderRadius: 4,
+                        background: theme.palette.background.paper,
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                        position: 'relative'
                       }}>
                         <CardContent>
                           <Typography variant="h6" sx={{ 
@@ -1799,25 +1752,14 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             display: 'flex', 
                             alignItems: 'center', 
                             gap: 1.5,
-                            fontWeight: 700,
-                            background: `linear-gradient(135deg, 
-                              ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
-                              ${settings?.theme?.primaryColor || '#667eea'} 100%
-                            )`,
-                            backgroundClip: 'text',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            fontWeight: 600,
+                            color: theme.palette.text.primary
                           }}>
                             <Box sx={{
                               p: 1,
-                              borderRadius: '8px',
-                              background: `linear-gradient(135deg, 
-                                ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
-                                ${settings?.theme?.primaryColor || '#667eea'} 100%
-                              )`,
+                              borderRadius: 2,
+                              background: '#764ba2',
                               color: 'white',
-                              boxShadow: `0 4px 12px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.25)}`,
                               display: 'flex',
                               alignItems: 'center'
                             }}>
@@ -1870,28 +1812,10 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       {/* Notification Types */}
                       <Card sx={{ 
                         border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                        borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
-                        background: `linear-gradient(135deg, 
-                          ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
-                          ${alpha(theme.palette.background.paper, 0.98)} 100%
-                        )`,
-                        backdropFilter: 'blur(10px)',
-                        boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
-                        position: 'relative',
-                        overflow: 'hidden',
-                        '&::before': {
-                          content: '""',
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          height: '3px',
-                          background: `linear-gradient(90deg, 
-                            ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                            ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                          )`,
-                          boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
-                        }
+                        borderRadius: 4,
+                        background: theme.palette.background.paper,
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                        position: 'relative'
                       }}>
                         <CardContent>
                           <Typography variant="h6" sx={{ 
@@ -1899,25 +1823,14 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             display: 'flex', 
                             alignItems: 'center', 
                             gap: 1.5,
-                            fontWeight: 700,
-                            background: `linear-gradient(135deg, 
-                              ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                              ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                            )`,
-                            backgroundClip: 'text',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            fontWeight: 600,
+                            color: theme.palette.text.primary
                           }}>
                             <Box sx={{
                               p: 1,
-                              borderRadius: '8px',
-                              background: `linear-gradient(135deg, 
-                                ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                                ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                              )`,
+                              borderRadius: 2,
+                              background: settings?.theme?.primaryColor || '#667eea',
                               color: 'white',
-                              boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
                               display: 'flex',
                               alignItems: 'center'
                             }}>
@@ -2149,65 +2062,46 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       {/* Notification Preview */}
                       <Card sx={{ 
                         border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                        borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
-                        background: `linear-gradient(135deg, 
-                          ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.03)} 0%, 
-                          ${alpha(theme.palette.background.paper, 0.98)} 100%
-                        )`,
-                        backdropFilter: 'blur(10px)',
-                        boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
-                        position: 'relative',
-                        overflow: 'hidden',
-                        '&::before': {
-                          content: '""',
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          height: '3px',
-                          background: `linear-gradient(90deg, 
-                            ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
-                            ${settings?.theme?.primaryColor || '#667eea'} 100%
-                          )`,
-                          boxShadow: `0 0 8px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.3)}`
-                        }
+                        borderRadius: 4,
+                        background: theme.palette.background.paper,
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                        position: 'relative'
                       }}>
-                        <CardContent>
-                          <Typography variant="h6" sx={{ 
-                            mb: 3, 
+                        <CardContent sx={{ p: 3 }}>
+                          {/* Header with Icon */}
+                          <Box sx={{ 
                             display: 'flex', 
                             alignItems: 'center', 
-                            gap: 1.5,
-                            fontWeight: 700,
-                            background: `linear-gradient(135deg, 
-                              ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
-                              ${settings?.theme?.primaryColor || '#667eea'} 100%
-                            )`,
-                            backgroundClip: 'text',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            gap: 2, 
+                            mb: 3
                           }}>
                             <Box sx={{
-                              p: 1,
-                              borderRadius: '8px',
-                              background: `linear-gradient(135deg, 
-                                ${settings?.theme?.secondaryColor || '#764ba2'} 0%, 
-                                ${settings?.theme?.primaryColor || '#667eea'} 100%
-                              )`,
-                              color: 'white',
-                              boxShadow: `0 4px 12px ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.25)}`,
                               display: 'flex',
-                              alignItems: 'center'
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 48,
+                              height: 48,
+                              borderRadius: 2,
+                              backgroundColor: alpha(theme.palette.warning.main, 0.1),
                             }}>
-                              <NotificationsIcon sx={{ fontSize: 20 }} />
+                              <NotificationsIcon sx={{ 
+                                fontSize: 28, 
+                                color: theme.palette.warning.main
+                              }}/>
                             </Box>
-                            Vista Previa de Notificaciones
-                          </Typography>
-                          
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            Ejemplos de cómo se verán las notificaciones en tu dashboard
-                          </Typography>
+                            <Box>
+                              <Typography variant="h6" sx={{ 
+                                fontWeight: 600,
+                                color: theme.palette.text.primary,
+                                mb: 0.5
+                              }}>
+                                Vista Previa de Notificaciones
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Ejemplos de cómo se verán las notificaciones
+                              </Typography>
+                            </Box>
+                          </Box>
 
                           <Stack spacing={2}>
                             {/* Sample notification previews */}
@@ -2277,114 +2171,91 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       {/* Action Buttons */}
                       <Card sx={{ 
                         border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                        borderRadius: `${(settings?.theme?.borderRadius || 8) * 1.5}px`,
-                        background: `linear-gradient(135deg, 
-                          ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
-                          ${alpha(theme.palette.background.paper, 0.98)} 100%
-                        )`,
-                        backdropFilter: 'blur(10px)',
-                        boxShadow: `0 4px 16px ${alpha(theme.palette.common.black, 0.08)}`,
-                        position: 'relative',
-                        overflow: 'hidden',
-                        '&::before': {
-                          content: '""',
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          height: '3px',
-                          background: `linear-gradient(90deg, 
-                            ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                            ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                          )`,
-                          boxShadow: `0 0 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}`
-                        }
+                        borderRadius: 4,
+                        background: theme.palette.background.paper,
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                        position: 'relative'
                       }}>
-                        <CardContent>
-                          <Typography variant="h6" sx={{ 
-                            mb: 3, 
+                        <CardContent sx={{ p: 3 }}>
+                          {/* Header with Icon */}
+                          <Box sx={{ 
                             display: 'flex', 
                             alignItems: 'center', 
-                            gap: 1.5,
-                            fontWeight: 700,
-                            background: `linear-gradient(135deg, 
-                              ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                              ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                            )`,
-                            backgroundClip: 'text',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            textShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            gap: 2, 
+                            mb: 3
                           }}>
                             <Box sx={{
-                              p: 1,
-                              borderRadius: '8px',
-                              background: `linear-gradient(135deg, 
-                                ${settings?.theme?.primaryColor || '#667eea'} 0%, 
-                                ${settings?.theme?.secondaryColor || '#764ba2'} 100%
-                              )`,
-                              color: 'white',
-                              boxShadow: `0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.25)}`,
                               display: 'flex',
-                              alignItems: 'center'
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 48,
+                              height: 48,
+                              borderRadius: 2,
+                              backgroundColor: alpha(theme.palette.primary.main, 0.1),
                             }}>
-                              <SettingsIcon sx={{ fontSize: 20 }} />
+                              <SettingsIcon sx={{ 
+                                fontSize: 28, 
+                                color: theme.palette.primary.main
+                              }}/>
                             </Box>
-                            Acciones de Configuración
-                          </Typography>
+                            <Box>
+                              <Typography variant="h6" sx={{ 
+                                fontWeight: 600,
+                                color: theme.palette.text.primary,
+                                mb: 0.5
+                              }}>
+                                Acciones de Configuración
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Gestiona tu configuración de notificaciones
+                              </Typography>
+                            </Box>
+                          </Box>
                           
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <Typography variant="body2" color="text.secondary">
-                              Gestiona tu configuración de notificaciones con las siguientes opciones
-                            </Typography>
-                            
-                            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                              <Button
-                                variant="outlined"
-                                color="warning"
-                                startIcon={<SettingsIcon />}
-                                onClick={() => {
-                                  // Restaurar configuraciones por defecto de notificaciones
-                                  const defaultNotifications = {
-                                    enabled: true,
-                                    sound: true,
-                                    desktop: true,
-                                    email: false,
-                                    reminderDays: 3,
-                                    overdueAlerts: true,
-                                    weeklyReport: true,
-                                    proximosPagos: true,
-                                    actualizacionesSistema: true,
-                                    montosElevados: true,
-                                    pagosVencidos: true,
-                                    umbralesMonto: 100000,
-                                    dailyDigest: false,
-                                    instantAlerts: true,
-                                    batchNotifications: false
-                                  };
-                                  
-                                  updateSettings({
-                                    notifications: defaultNotifications
-                                  });
-                                  
-                                  setSaveMessage('Configuración de notificaciones restaurada a valores por defecto');
-                                  setShowSaveSuccess(true);
-                                  setTimeout(() => setShowSaveSuccess(false), 3000);
-                                }}
-                                sx={{
-                                  borderColor: theme.palette.warning.main,
-                                  color: theme.palette.warning.main,
-                                  '&:hover': {
-                                    borderColor: theme.palette.warning.dark,
-                                    backgroundColor: alpha(theme.palette.warning.main, 0.04)
-                                  }
-                                }}
-                              >
-                                Restaurar por Defecto
-                              </Button>
-                              
-
-                            </Box>
+                          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                            <Button
+                              variant="outlined"
+                              color="warning"
+                              startIcon={<SettingsIcon />}
+                              onClick={() => {
+                                // Restaurar configuraciones por defecto de notificaciones
+                                const defaultNotifications = {
+                                  enabled: true,
+                                  sound: true,
+                                  desktop: true,
+                                  email: false,
+                                  reminderDays: 3,
+                                  overdueAlerts: true,
+                                  weeklyReport: true,
+                                  proximosPagos: true,
+                                  actualizacionesSistema: true,
+                                  montosElevados: true,
+                                  pagosVencidos: true,
+                                  umbralesMonto: 100000,
+                                  dailyDigest: false,
+                                  instantAlerts: true,
+                                  batchNotifications: false
+                                };
+                                
+                                updateSettings({
+                                  notifications: defaultNotifications
+                                });
+                                
+                                setSaveMessage('Configuración de notificaciones restaurada a valores por defecto');
+                                setShowSaveSuccess(true);
+                                setTimeout(() => setShowSaveSuccess(false), 3000);
+                              }}
+                              sx={{
+                                borderColor: theme.palette.warning.main,
+                                color: theme.palette.warning.main,
+                                '&:hover': {
+                                  borderColor: theme.palette.warning.dark,
+                                  backgroundColor: alpha(theme.palette.warning.main, 0.04)
+                                }
+                              }}
+                            >
+                              Restaurar por Defecto
+                            </Button>
                           </Box>
                         </CardContent>
                       </Card>
