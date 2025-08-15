@@ -206,9 +206,18 @@ const getCommitmentStatus = (commitment) => {
 };
 
 // Helper function para obtener el color del estado con DS 3.0
-const getStatusColor = (status) => {
+const getStatusColor = (status, theme) => {
+  // Validación de seguridad
+  if (!theme || !theme.palette) {
+    console.warn('Theme no está disponible en getStatusColor, usando colores por defecto');
+    return {
+      main: '#666',
+      light: '#999', 
+      dark: '#333'
+    };
+  }
+  
   // Mejoramos los colores basándose en el chipColor para mejor consistencia
-  const theme = useTheme();
   
   switch (status.chipColor) {
     case 'success':
@@ -245,9 +254,9 @@ const getStatusColor = (status) => {
 };
 
 // Componente de Chip DS 3.0 mejorado
-const StatusChipDS3 = ({ status, showTooltip = false }) => {
+const StatusChipDS3 = ({ status, showTooltip = false, theme }) => {
   // status ya viene procesado como statusInfo
-  const colors = getStatusColor(status);
+  const colors = getStatusColor(status, theme);
   
   const ChipComponent = (
     <motion.div
@@ -306,8 +315,7 @@ const StatusChipDS3 = ({ status, showTooltip = false }) => {
 };
 
 // Componente para fechas mejoradas DS 3.0
-const DateDisplayDS3 = ({ date, showDaysRemaining = false, variant = 'standard' }) => {
-  const theme = useTheme();
+const DateDisplayDS3 = ({ date, showDaysRemaining = false, variant = 'standard', theme }) => {
   const darkColors = getGlobalDarkModeColors(theme);
   
   if (!date) return <Typography color={darkColors.textSecondary}>Fecha no disponible</Typography>;
@@ -373,8 +381,7 @@ const DateDisplayDS3 = ({ date, showDaysRemaining = false, variant = 'standard' 
 };
 
 // Componente mejorado para mostrar montos DS 3.0
-const AmountDisplayDS3 = ({ amount, variant = 'standard', showAnimation = false }) => {
-  const theme = useTheme();
+const AmountDisplayDS3 = ({ amount, variant = 'standard', showAnimation = false, theme }) => {
   const darkColors = getGlobalDarkModeColors(theme);
   
   if (!amount && amount !== 0) return <Typography color={darkColors.textSecondary}>Monto no disponible</Typography>;
@@ -1721,6 +1728,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                     <StatusChipDS3 
                       status={statusInfo}
                       showTooltip={showTooltips}
+                      theme={theme}
                     />
 
                     {/* Descripción */}
@@ -1783,6 +1791,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       <AmountDisplayDS3 
                         amount={commitment.amount}
                         animate={animationsEnabled}
+                        theme={theme}
                       />
                     </Box>
 
@@ -1794,6 +1803,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         showDaysRemaining
                         isOverdue={isOverdue}
                         isDueSoon={isDueSoon}
+                        theme={theme}
                       />
                     </Box>
 
@@ -1808,7 +1818,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           <Tooltip title="Ver detalles" arrow>
                             <IconButton
                               size="small"
-                              onClick={() => handleViewDetails(commitment)}
+                              onClick={() => handleViewCommitment(commitment)}
                               sx={{ 
                                 color: 'primary.main',
                                 '&:hover': { backgroundColor: 'rgba(25, 118, 210, 0.1)' }
@@ -1832,7 +1842,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           <Tooltip title="Editar" arrow>
                             <IconButton
                               size="small"
-                              onClick={() => handleEdit(commitment)}
+                              onClick={() => handleEditFromCard(commitment)}
                               sx={{ 
                                 color: 'warning.main',
                                 '&:hover': { backgroundColor: 'rgba(237, 108, 2, 0.1)' }
@@ -1858,7 +1868,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         <>
                           <IconButton
                             size="small"
-                            onClick={() => handleViewDetails(commitment)}
+                            onClick={() => handleViewCommitment(commitment)}
                             sx={{ 
                               color: 'primary.main',
                               '&:hover': { backgroundColor: 'rgba(25, 118, 210, 0.1)' }
@@ -1878,7 +1888,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           </IconButton>
                           <IconButton
                             size="small"
-                            onClick={() => handleEdit(commitment)}
+                            onClick={() => handleEditFromCard(commitment)}
                             sx={{ 
                               color: 'warning.main',
                               '&:hover': { backgroundColor: 'rgba(237, 108, 2, 0.1)' }
@@ -2802,7 +2812,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           </Typography>
                           {(() => {
                             const status = getCommitmentStatus(selectedCommitment);
-                            const colors = getStatusColor(status);
+                            const colors = getStatusColor(status, theme);
                             return (
                               <Box
                                 sx={{
