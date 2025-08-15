@@ -7,16 +7,18 @@
 // Inyectar estilos CSS para animaciones spectacular
 const spectacularStyles = `
   @keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(200%); }
+    0% { transform: translateX(-100%) skewX(-15deg); }
+    100% { transform: translateX(200%) skewX(-15deg); }
   }
   
   @keyframes pulse-glow {
     0%, 100% { 
       box-shadow: 0 0 8px rgba(102, 126, 234, 0.3);
+      transform: scale(1);
     }
     50% { 
-      box-shadow: 0 0 20px rgba(102, 126, 234, 0.6);
+      box-shadow: 0 0 25px rgba(102, 126, 234, 0.7);
+      transform: scale(1.02);
     }
   }
   
@@ -30,19 +32,38 @@ const spectacularStyles = `
   }
 
   @keyframes title-underline {
-    0%, 100% { width: 0%; }
-    50% { width: 100%; }
+    0%, 100% { width: 0%; opacity: 0.3; }
+    25% { width: 100%; opacity: 1; }
+    75% { width: 100%; opacity: 1; }
   }
 
   @keyframes icon-pulse {
     0%, 100% { 
-      transform: scale(1);
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+      transform: scale(1) rotate(0deg);
+      filter: brightness(1) saturate(1);
+    }
+    25% { 
+      transform: scale(1.05) rotate(2deg);
+      filter: brightness(1.1) saturate(1.2);
+    }
+    75% { 
+      transform: scale(1.05) rotate(-2deg);
+      filter: brightness(1.1) saturate(1.2);
+    }
+  }
+
+  @keyframes tab-glow {
+    0%, 100% { 
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
     }
     50% { 
-      transform: scale(1.1);
-      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));
+      box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
     }
+  }
+
+  @keyframes rotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
   }
 `;
 
@@ -473,31 +494,11 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
       PaperProps={{
         sx: {
           width: { xs: '100vw', sm: 520, md: 600, lg: 650 },
-          background: `linear-gradient(135deg, 
-            ${alpha(settings?.theme?.primaryColor || '#667eea', 0.03)} 0%, 
-            ${alpha(theme.palette.background.paper, 0.98)} 15%,
-            ${alpha(theme.palette.background.paper, 0.98)} 85%,
-            ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.03)} 100%
-          )`,
-          backdropFilter: 'blur(20px) saturate(180%)',
+          background: theme.palette.background.paper,
           borderLeft: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-          boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.12)}`,
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
           zIndex: 1300,
-          position: 'relative',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: `linear-gradient(45deg, 
-              ${alpha(settings?.theme?.primaryColor || '#667eea', 0.02)} 0%, 
-              transparent 50%, 
-              ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.02)} 100%
-            )`,
-            pointerEvents: 'none'
-          }
+          position: 'relative'
         }
       }}
       ModalProps={{
@@ -523,12 +524,19 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                 p: 3,
                 borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
                 background: `linear-gradient(135deg, 
-                  ${alpha(settings?.theme?.primaryColor || '#667eea', 0.12)} 0%, 
-                  ${alpha(theme.palette.background.paper, 0.95)} 25%,
-                  ${alpha(theme.palette.background.paper, 0.95)} 75%,
-                  ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.12)} 100%
+                  ${alpha(settings?.theme?.primaryColor || '#667eea', 0.15)} 0%, 
+                  ${alpha(theme.palette.background.paper, 0.98)} 20%,
+                  ${alpha(theme.palette.background.paper, 0.98)} 80%,
+                  ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.15)} 100%
+                ), linear-gradient(45deg, 
+                  ${alpha('#ffffff', 0.02)} 0%,
+                  ${alpha('#ffffff', 0.08)} 50%,
+                  ${alpha('#ffffff', 0.02)} 100%
                 )`,
-                backdropFilter: 'blur(20px)',
+                backdropFilter: 'blur(30px) saturate(200%)',
+                WebkitBackdropFilter: 'blur(30px) saturate(200%)', // Safari support
+                boxShadow: `0 8px 32px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.12)}, 
+                           inset 0 1px 0 ${alpha('#ffffff', theme.palette.mode === 'dark' ? 0.08 : 0.15)}`,
                 position: 'relative',
                 overflow: 'hidden',
                 '&::before': settings?.theme?.animations ? {
@@ -536,14 +544,16 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                   position: 'absolute',
                   top: 0,
                   left: '-100%',
-                  width: '100%',
+                  width: '200%',
                   height: '100%',
                   background: `linear-gradient(90deg, 
                     transparent 0%, 
-                    ${alpha('#ffffff', 0.1)} 50%, 
+                    ${alpha('#ffffff', theme.palette.mode === 'dark' ? 0.06 : 0.12)} 30%,
+                    ${alpha('#ffffff', theme.palette.mode === 'dark' ? 0.1 : 0.2)} 50%, 
+                    ${alpha('#ffffff', theme.palette.mode === 'dark' ? 0.06 : 0.12)} 70%,
                     transparent 100%
                   )`,
-                  animation: 'shimmer 4s infinite',
+                  animation: 'shimmer 6s ease-in-out infinite',
                   pointerEvents: 'none'
                 } : {},
                 '&::after': {
@@ -568,9 +578,9 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                   <Box
                     sx={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: (settings?.theme?.borderRadius || 2) * 2,
+                      width: 60,
+                      height: 60,
+                      borderRadius: (settings?.theme?.borderRadius || 2) * 2.5,
                       background: `linear-gradient(135deg, 
                         ${settings?.theme?.primaryColor || '#667eea'} 0%, 
                         ${settings?.theme?.secondaryColor || '#764ba2'} 100%
@@ -578,24 +588,31 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: `0 12px 32px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.4)}`,
+                      boxShadow: `
+                        0 8px 32px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.4)},
+                        0 2px 8px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.2)},
+                        inset 0 1px 0 ${alpha('#ffffff', 0.2)}
+                      `,
                       position: 'relative',
                       overflow: 'hidden',
-                      transition: settings?.theme?.animations ? 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                      cursor: 'pointer',
+                      transition: settings?.theme?.animations ? 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
                       '&::before': settings?.theme?.animations ? {
                         content: '""',
                         position: 'absolute',
                         top: '-50%',
-                        left: '-50%',
+                        left: '-100%',
                         width: '200%',
                         height: '200%',
-                        background: `linear-gradient(45deg, 
-                          transparent 30%, 
-                          ${alpha('#ffffff', 0.15)} 50%, 
-                          transparent 70%
+                        background: `conic-gradient(from 45deg, 
+                          transparent 0deg,
+                          ${alpha('#ffffff', 0.1)} 90deg,
+                          ${alpha('#ffffff', 0.2)} 180deg,
+                          ${alpha('#ffffff', 0.1)} 270deg,
+                          transparent 360deg
                         )`,
-                        animation: 'shimmer 3s infinite',
-                        transform: 'translateX(-100%)'
+                        animation: 'icon-pulse 5s ease-in-out infinite',
+                        borderRadius: '50%'
                       } : {},
                       '&::after': {
                         content: '""',
@@ -603,15 +620,18 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         inset: '2px',
                         borderRadius: 'inherit',
                         background: `linear-gradient(135deg, 
-                          ${alpha('#ffffff', 0.1)} 0%, 
+                          ${alpha('#ffffff', theme.palette.mode === 'dark' ? 0.05 : 0.15)} 0%, 
                           transparent 50%,
-                          ${alpha('#000000', 0.05)} 100%
+                          ${alpha('#000000', 0.08)} 100%
                         )`,
                         pointerEvents: 'none'
                       },
                       '&:hover': settings?.theme?.animations ? {
-                        transform: 'translateY(-3px) scale(1.05) rotate(5deg)',
-                        boxShadow: `0 16px 40px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.5)}`
+                        transform: 'translateY(-4px) scale(1.08) rotate(8deg)',
+                        boxShadow: `
+                          0 12px 40px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.5)},
+                          0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}
+                        `
                       } : {}
                     }}
                   >

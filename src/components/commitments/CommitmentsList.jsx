@@ -99,6 +99,31 @@ const safeToDate = (timestamp) => {
   return null;
 };
 
+// 🎨 Función global para obtener colores optimizados para modo oscuro
+const getGlobalDarkModeColors = (theme) => ({
+  cardBackground: theme.palette.mode === 'dark' 
+    ? alpha(theme.palette.background.paper, 0.95)
+    : '#ffffff',
+  cardBorder: theme.palette.mode === 'dark'
+    ? alpha(theme.palette.divider, 0.3)
+    : alpha(theme.palette.divider, 0.2),
+  hoverBackground: theme.palette.mode === 'dark'
+    ? alpha(theme.palette.background.paper, 0.98)
+    : alpha('#f8fafc', 0.8),
+  shadowColor: theme.palette.mode === 'dark'
+    ? 'rgba(0, 0, 0, 0.4)'
+    : 'rgba(0, 0, 0, 0.1)',
+  textPrimary: theme.palette.mode === 'dark'
+    ? '#e2e8f0'
+    : theme.palette.text.primary,
+  textSecondary: theme.palette.mode === 'dark'
+    ? '#94a3b8'
+    : theme.palette.text.secondary,
+  shimmerEffect: theme.palette.mode === 'dark'
+    ? 'linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)'
+    : 'linear-gradient(90deg, transparent, rgba(0,0,0,0.03), transparent)',
+});
+
 // Helper function para estilos de chips sin relleno
 const getTransparentChipStyles = (statusColor) => ({
   fontWeight: 500,
@@ -282,6 +307,9 @@ const StatusChipDS3 = ({ status, showTooltip = false }) => {
 
 // Componente para fechas mejoradas DS 3.0
 const DateDisplayDS3 = ({ date, showDaysRemaining = false, variant = 'standard' }) => {
+  const theme = useTheme();
+  const darkColors = getGlobalDarkModeColors(theme);
+  
   if (!date) return <Typography color={darkColors.textSecondary}>Fecha no disponible</Typography>;
   
   const safeDate = safeToDate(date);
@@ -346,6 +374,9 @@ const DateDisplayDS3 = ({ date, showDaysRemaining = false, variant = 'standard' 
 
 // Componente mejorado para mostrar montos DS 3.0
 const AmountDisplayDS3 = ({ amount, variant = 'standard', showAnimation = false }) => {
+  const theme = useTheme();
+  const darkColors = getGlobalDarkModeColors(theme);
+  
   if (!amount && amount !== 0) return <Typography color={darkColors.textSecondary}>Monto no disponible</Typography>;
   
   const formatAmount = (value) => {
@@ -398,83 +429,6 @@ const AmountDisplayDS3 = ({ amount, variant = 'standard', showAnimation = false 
           formatAmount(amount)
         )}
       </Typography>
-    </motion.div>
-  );
-};
-
-// Header de tabla DS 3.0 mejorado
-const TableHeaderDS3 = () => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
-    >
-      <Box sx={{
-        display: 'grid',
-        gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 0.8fr',
-        gap: 2,
-        p: 3,
-        backgroundColor: darkColors.cardBackground,
-        borderRadius: '1px 1px 0 0',
-        border: `1px solid ${darkColors.cardBorder}`,
-        borderBottom: `2px solid ${darkColors.cardBorder}`,
-        position: 'sticky',
-        top: 0,
-        zIndex: 10,
-        background: darkColors.cardBackground,
-        boxShadow: `0 4px 20px ${darkColors.shadowColor}`
-      }}>
-        {[
-          { label: 'ESTADO', icon: '📊' },
-          { label: 'DESCRIPCION', icon: '📝' },
-          { label: 'EMPRESA', icon: '🏢' },
-          { label: 'MONTO', icon: '💰' },
-          { label: 'VENCIMIENTO', icon: '📅' },
-          { label: 'ACCIONES', icon: '⚙️' }
-        ].map((column, index) => (
-          <motion.div
-            key={column.label}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3, delay: index * 0.1 }}
-          >
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 1,
-              justifyContent: column.label === 'MONTO' ? 'center' : 
-                            column.label === 'ACCIONES' ? 'center' : 'flex-start'
-            }}>
-              <Typography
-                variant="overline"
-                sx={{
-                  fontWeight: 600,
-                  fontSize: '0.8rem',
-                  color: 'text.primary',
-                  letterSpacing: '0.8px',
-                  lineHeight: 1,
-                  textTransform: 'uppercase',
-                  opacity: 0.9,
-                  textShadow: theme => theme.palette.mode === 'dark'
-                    ? '0 1px 2px rgba(0, 0, 0, 0.3)'
-                    : 'none',
-                  filter: theme => theme.palette.mode === 'dark'
-                    ? 'brightness(1.1)'
-                    : 'none'
-                }}
-              >
-                <span style={{ 
-                  marginRight: 6, 
-                  opacity: 0.9,
-                  filter: 'brightness(1.1)'
-                }}>{column.icon}</span>
-                {column.label}
-              </Typography>
-            </Box>
-          </motion.div>
-        ))}
-      </Box>
     </motion.div>
   );
 };
@@ -549,6 +503,61 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   }), [theme]);
 
   const darkColors = getDarkModeColors();
+
+  // Header de tabla DS 3.0 simplificado - Profesional sin animaciones
+  const TableHeaderDS3 = () => {
+    return (
+      <Box sx={{
+        display: 'grid',
+        gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 0.8fr',
+        gap: 2,
+        p: 3,
+        backgroundColor: darkColors.cardBackground,
+        borderRadius: '1px 1px 0 0',
+        border: `1px solid ${darkColors.cardBorder}`,
+        borderBottom: `2px solid ${darkColors.cardBorder}`,
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        background: darkColors.cardBackground,
+        boxShadow: `0 4px 20px ${darkColors.shadowColor}`
+      }}>
+        {[
+          'ESTADO',
+          'DESCRIPCIÓN',
+          'EMPRESA',
+          'MONTO',
+          'VENCIMIENTO',
+          'ACCIONES'
+        ].map((column) => (
+          <Box 
+            key={column}
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: column === 'MONTO' ? 'center' : 
+                            column === 'ACCIONES' ? 'center' : 'flex-start'
+            }}
+          >
+            <Typography
+              variant="overline"
+              sx={{
+                fontWeight: 600,
+                fontSize: '0.75rem',
+                color: darkColors.textPrimary,
+                letterSpacing: '0.8px',
+                lineHeight: 1,
+                textTransform: 'uppercase',
+                opacity: 0.85
+              }}
+            >
+              {column}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+    );
+  };
   
   // 🚀 OPTIMIZACIÓN FASE 1: Debounce para filtros críticos
   const debouncedSearchTerm = useDebounce(searchTerm, 500, 'search'); // 500ms para búsqueda
