@@ -98,9 +98,7 @@ const NewPaymentPage = () => {
               style: 'currency',
               currency: 'COP',
               minimumFractionDigits: 0
-            }).format(data.amount || 0),
-            // Calcular intereses (ejemplo: 1% mensual por retraso)
-            calculatedInterests: calculateInterests(data.dueDate, data.amount)
+            }).format(data.amount || 0)
           });
         }
       });
@@ -127,16 +125,23 @@ const NewPaymentPage = () => {
     }
   };
 
-  // Calcular intereses por retraso
-  const calculateInterests = (dueDate, amount) => {
-    if (!dueDate || !amount) return 0;
+  // Detectar si es un compromiso de Coljuegos
+  const isColjuegosCommitment = (commitment) => {
+    if (!commitment) return false;
+    const companyName = commitment.companyName?.toLowerCase() || '';
+    return companyName.includes('coljuegos') || companyName.includes('col juegos');
+  };
+
+  // Calcular si hay intereses basado en la fecha de pago vs fecha de vencimiento
+  const calculateInterestsForPaymentDate = (dueDate, amount, paymentDate) => {
+    if (!dueDate || !amount || !paymentDate) return 0;
     
-    const today = new Date();
     const due = dueDate.toDate();
-    const diffTime = today - due;
+    const payment = new Date(paymentDate);
+    const diffTime = payment - due;
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    // Si no está vencido, no hay intereses
+    // Si no está vencido en la fecha de pago, no hay intereses
     if (diffDays <= 0) return 0;
     
     // Calcular interés: 1% mensual (0.033% diario) por días de retraso
@@ -161,25 +166,23 @@ const NewPaymentPage = () => {
     }
 
     setSelectedCommitment(commitment);
-    const interests = commitment.calculatedInterests || 0;
-    const finalAmount = (commitment.amount || 0) + interests;
+    
+    // No calcular intereses automáticamente, dejar en 0
+    const finalAmount = commitment.amount || 0;
 
     setFormData(prev => ({
       ...prev,
       commitmentId: commitment.id,
       originalAmount: commitment.amount || 0,
-      interests: interests,
+      interests: 0,
       finalAmount: finalAmount
     }));
   };
 
   const paymentMethods = [
-    'Transferencia Bancaria',
-    'Cheque',
-    'Efectivo',
-    'Tarjeta de Crédito',
-    'Tarjeta de Débito',
-    'PSE'
+    'Transferencia',
+    'PSE',
+    'Efectivo'
   ];
 
   const handleInputChange = (field) => (event) => {
@@ -319,40 +322,34 @@ const NewPaymentPage = () => {
                           }}
                         />
                       )}
-                      renderOption={(props, option) => (
-                        <li {...props}>
-                          <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <Typography variant="body1" fontWeight={600}>
-                                {option.companyName}
-                              </Typography>
-                              <Chip 
-                                label={option.formattedAmount} 
-                                size="small" 
-                                color="primary" 
-                                variant="outlined"
-                              />
-                            </Box>
-                            <Typography variant="body2" color="text.secondary">
-                              {option.concept}
-                            </Typography>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                              <Typography variant="caption" color="warning.main">
-                                Vencimiento: {option.formattedDueDate}
-                              </Typography>
-                              {option.calculatedInterests > 0 && (
-                                <Typography variant="caption" color="error.main">
-                                  +{new Intl.NumberFormat('es-CO', {
-                                    style: 'currency',
-                                    currency: 'COP',
-                                    minimumFractionDigits: 0
-                                  }).format(option.calculatedInterests)} intereses
+                      renderOption={(props, option) => {
+                        const { key, ...otherProps } = props;
+                        return (
+                          <li key={key} {...otherProps}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="body1" fontWeight={600}>
+                                  {option.companyName}
                                 </Typography>
-                              )}
+                                <Chip 
+                                  label={option.formattedAmount} 
+                                  size="small" 
+                                  color="primary" 
+                                  variant="outlined"
+                                />
+                              </Box>
+                              <Typography variant="body2" color="text.secondary">
+                                {option.concept}
+                              </Typography>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                                <Typography variant="caption" color="warning.main">
+                                  Vencimiento: {option.formattedDueDate}
+                                </Typography>
+                              </Box>
                             </Box>
-                          </Box>
-                        </li>
-                      )}
+                          </li>
+                        );
+                      }}
                       noOptionsText={loadingCommitments ? "Cargando..." : "No hay compromisos pendientes"}
                     />
                   </Grid>
@@ -365,6 +362,22 @@ const NewPaymentPage = () => {
                         <Typography variant="subtitle2" gutterBottom color="primary">
                           📋 Detalles del Compromiso Seleccionado
                         </Typography>
+                        
+                        {/* Información del compromiso */}
+                        <Box sx={{ mb: 2, p: 2, backgroundColor: theme.palette.grey[50], borderRadius: 1 }}>
+                          <Grid container spacing={2}>
+                            <Grid item xs={12} sm={6}>
+                              <Typography variant="body2" color="text.secondary">
+                                <strong>Concepto:</strong> {selectedCommitment.concept}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={6}>
+                              <Typography variant="body2" color="warning.main">
+                                <strong>Fecha de Vencimiento:</strong> {selectedCommitment.formattedDueDate}
+                              </Typography>
+                            </Grid>
+                          </Grid>
+                        </Box>
                       </Grid>
 
                       <Grid item xs={12} sm={4}>
@@ -396,13 +409,17 @@ const NewPaymentPage = () => {
                       <Grid item xs={12} sm={4}>
                         <TextField
                           label="Intereses por Mora"
-                          value={new Intl.NumberFormat('es-CO', {
-                            style: 'currency',
-                            currency: 'COP',
-                            minimumFractionDigits: 0
-                          }).format(formData.interests)}
+                          value={formData.interests}
+                          onChange={(e) => {
+                            const interestValue = parseFloat(e.target.value) || 0;
+                            setFormData(prev => ({
+                              ...prev,
+                              interests: interestValue,
+                              finalAmount: prev.originalAmount + interestValue
+                            }));
+                          }}
                           fullWidth
-                          disabled
+                          type="number"
                           InputProps={{
                             startAdornment: (
                               <InputAdornment position="start">
@@ -416,6 +433,7 @@ const NewPaymentPage = () => {
                               color: formData.interests > 0 ? 'warning.main' : 'text.secondary'
                             }
                           }}
+                          helperText="Ingrese el monto de intereses si corresponde"
                         />
                       </Grid>
 
