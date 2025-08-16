@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -15,54 +15,171 @@ import {
   Divider,
   Alert,
   InputAdornment,
-  Avatar,
   Stepper,
   Step,
-  StepLabel
+  StepLabel,
+  Autocomplete,
+  Chip,
+  CircularProgress
 } from '@mui/material';
 import {
   AttachMoney as MoneyIcon,
   Business as CompanyIcon,
   Receipt as ReceiptIcon,
   Save as SaveIcon,
-  Cancel as CancelIcon
+  Cancel as CancelIcon,
+  Schedule as ScheduleIcon,
+  TrendingUp as InterestIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationsContext';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../config/firebase';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const NewPaymentPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { addNotification } = useNotifications();
   
+  // Estado para compromisos pendientes
+  const [pendingCommitments, setPendingCommitments] = useState([]);
+  const [loadingCommitments, setLoadingCommitments] = useState(true);
+  const [selectedCommitment, setSelectedCommitment] = useState(null);
+  
   const [formData, setFormData] = useState({
-    company: '',
-    amount: '',
+    commitmentId: '',
     method: '',
-    concept: '',
     reference: '',
     date: new Date().toISOString().split('T')[0],
-    notes: ''
+    notes: '',
+    // Campos calculados automáticamente
+    originalAmount: 0,
+    interests: 0,
+    finalAmount: 0
   });
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Cargar compromisos pendientes de pago
+  useEffect(() => {
+    loadPendingCommitments();
+  }, []);
+
+  const loadPendingCommitments = async () => {
+    try {
+      setLoadingCommitments(true);
+      
+      // Consultar todos los compromisos y filtrar en cliente por ahora
+      // Para evitar el error de índice compuesto de Firebase
+      const commitmentsQuery = query(
+        collection(db, 'commitments')
+      );
+      
+      const snapshot = await getDocs(commitmentsQuery);
+      const commitments = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        
+        // Filtrar solo compromisos pendientes o vencidos
+        const status = data.status || 'pending';
+        if (status === 'pending' || status === 'overdue') {
+          commitments.push({
+            id: doc.id,
+            ...data,
+            // Formatear datos para el display
+            displayName: `${data.companyName} - ${data.concept}`,
+            formattedDueDate: data.dueDate ? format(data.dueDate.toDate(), 'dd/MMM/yyyy', { locale: es }) : 'Sin fecha',
+            formattedAmount: new Intl.NumberFormat('es-CO', {
+              style: 'currency',
+              currency: 'COP',
+              minimumFractionDigits: 0
+            }).format(data.amount || 0),
+            // Calcular intereses (ejemplo: 1% mensual por retraso)
+            calculatedInterests: calculateInterests(data.dueDate, data.amount)
+          });
+        }
+      });
+      
+      // Ordenar por fecha de vencimiento
+      commitments.sort((a, b) => {
+        if (!a.dueDate && !b.dueDate) return 0;
+        if (!a.dueDate) return 1;
+        if (!b.dueDate) return -1;
+        return a.dueDate.toDate() - b.dueDate.toDate();
+      });
+      
+      setPendingCommitments(commitments);
+    } catch (error) {
+      console.error('Error loading pending commitments:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'No se pudieron cargar los compromisos pendientes',
+        icon: 'error'
+      });
+    } finally {
+      setLoadingCommitments(false);
+    }
+  };
+
+  // Calcular intereses por retraso
+  const calculateInterests = (dueDate, amount) => {
+    if (!dueDate || !amount) return 0;
+    
+    const today = new Date();
+    const due = dueDate.toDate();
+    const diffTime = today - due;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Si no está vencido, no hay intereses
+    if (diffDays <= 0) return 0;
+    
+    // Calcular interés: 1% mensual (0.033% diario) por días de retraso
+    const dailyRate = 0.01 / 30; // 1% mensual dividido en 30 días
+    const interestAmount = amount * dailyRate * diffDays;
+    
+    return Math.round(interestAmount);
+  };
+
+  // Manejar selección de compromiso
+  const handleCommitmentSelect = (commitment) => {
+    if (!commitment) {
+      setSelectedCommitment(null);
+      setFormData(prev => ({
+        ...prev,
+        commitmentId: '',
+        originalAmount: 0,
+        interests: 0,
+        finalAmount: 0
+      }));
+      return;
+    }
+
+    setSelectedCommitment(commitment);
+    const interests = commitment.calculatedInterests || 0;
+    const finalAmount = (commitment.amount || 0) + interests;
+
+    setFormData(prev => ({
+      ...prev,
+      commitmentId: commitment.id,
+      originalAmount: commitment.amount || 0,
+      interests: interests,
+      finalAmount: finalAmount
+    }));
+  };
 
   const paymentMethods = [
     'Transferencia Bancaria',
     'Cheque',
     'Efectivo',
     'Tarjeta de Crédito',
-    'Tarjeta de Débito'
-  ];
-
-  const companies = [
-    'ABC Construcciones',
-    'XYZ Logística',
-    'DEF Tecnología',
-    'GHI Servicios',
-    'JKL Consultores'
+    'Tarjeta de Débito',
+    'PSE'
   ];
 
   const handleInputChange = (field) => (event) => {
@@ -82,13 +199,9 @@ const NewPaymentPage = () => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.company) newErrors.company = 'La empresa es requerida';
-    if (!formData.amount) newErrors.amount = 'El monto es requerido';
-    if (formData.amount && parseFloat(formData.amount) <= 0) {
-      newErrors.amount = 'El monto debe ser mayor a 0';
-    }
+    if (!formData.commitmentId) newErrors.commitmentId = 'Debe seleccionar un compromiso';
     if (!formData.method) newErrors.method = 'El método de pago es requerido';
-    if (!formData.concept) newErrors.concept = 'El concepto es requerido';
+    if (!formData.reference) newErrors.reference = 'La referencia es requerida';
     if (!formData.date) newErrors.date = 'La fecha es requerida';
 
     setErrors(newErrors);
@@ -99,36 +212,35 @@ const NewPaymentPage = () => {
     event.preventDefault();
     
     if (!validateForm()) {
+      addNotification({
+        type: 'error',
+        title: 'Formulario incompleto',
+        message: 'Por favor complete todos los campos requeridos',
+        icon: 'error'
+      });
       return;
     }
 
     setIsSubmitting(true);
     
     try {
-      // Simular envío de datos
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Aquí iría la lógica para guardar el pago
+      console.log('Saving payment:', formData);
       
-      console.log('Datos del pago:', formData);
-      
-      // Agregar notificación de éxito
       addNotification({
-        type: 'payment',
-        title: '💰 Pago Registrado',
-        message: `Pago de $${formData.amount} registrado para ${formData.company}`,
-        icon: '💳'
+        type: 'success',
+        title: 'Pago registrado',
+        message: 'El pago ha sido registrado exitosamente',
+        icon: 'success'
       });
       
-      // Redirigir a la página de pagos
       navigate('/payments');
     } catch (error) {
-      console.error('Error al registrar el pago:', error);
-      
-      // Agregar notificación de error
       addNotification({
         type: 'error',
-        title: '❌ Error al Registrar Pago',
-        message: 'Hubo un problema al registrar el pago. Intenta nuevamente.',
-        icon: '⚠️'
+        title: 'Error',
+        message: 'Hubo un error al registrar el pago',
+        icon: 'error'
       });
     } finally {
       setIsSubmitting(false);
@@ -139,23 +251,23 @@ const NewPaymentPage = () => {
     navigate('/payments');
   };
 
-  const steps = ['Información Básica', 'Detalles del Pago', 'Confirmación'];
+  const steps = ['Seleccionar Compromiso', 'Información del Pago', 'Confirmación'];
 
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>
-          Registrar Nuevo Pago
+          💳 Registrar Pago de Compromiso
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Complete la información del pago a registrar
+          Seleccione un compromiso pendiente y registre su pago
         </Typography>
       </Box>
 
       {/* Progress Stepper */}
       <Paper sx={{ p: 3, mb: 3 }}>
-        <Stepper activeStep={0} alternativeLabel>
+        <Stepper activeStep={selectedCommitment ? 1 : 0} alternativeLabel>
           {steps.map((label) => (
             <Step key={label}>
               <StepLabel>{label}</StepLabel>
@@ -171,202 +283,347 @@ const NewPaymentPage = () => {
             <Card>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CompanyIcon color="primary" />
-                  Información del Pago
+                  <ScheduleIcon color="primary" />
+                  Seleccionar Compromiso Pendiente
                 </Typography>
                 
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth error={!!errors.company}>
-                      <InputLabel>Empresa</InputLabel>
-                      <Select
-                        value={formData.company}
-                        onChange={handleInputChange('company')}
-                        label="Empresa"
-                      >
-                        {companies.map((company) => (
-                          <MenuItem key={company} value={company}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Avatar sx={{ width: 24, height: 24, fontSize: '0.7rem' }}>
-                                {company.charAt(0)}
-                              </Avatar>
-                              {company}
+                <Grid container spacing={3}>
+                  {/* Selector de Compromiso Pendiente */}
+                  <Grid item xs={12}>
+                    <Autocomplete
+                      options={pendingCommitments}
+                      getOptionLabel={(option) => option.displayName || ''}
+                      loading={loadingCommitments}
+                      value={selectedCommitment}
+                      onChange={(event, newValue) => handleCommitmentSelect(newValue)}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Compromiso a Pagar"
+                          placeholder="Seleccione un compromiso pendiente..."
+                          fullWidth
+                          required
+                          InputProps={{
+                            ...params.InputProps,
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <CompanyIcon color="primary" />
+                              </InputAdornment>
+                            ),
+                            endAdornment: (
+                              <>
+                                {loadingCommitments ? <CircularProgress color="inherit" size={20} /> : null}
+                                {params.InputProps.endAdornment}
+                              </>
+                            ),
+                          }}
+                        />
+                      )}
+                      renderOption={(props, option) => (
+                        <li {...props}>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <Typography variant="body1" fontWeight={600}>
+                                {option.companyName}
+                              </Typography>
+                              <Chip 
+                                label={option.formattedAmount} 
+                                size="small" 
+                                color="primary" 
+                                variant="outlined"
+                              />
                             </Box>
-                          </MenuItem>
-                        ))}
-                      </Select>
-                      {errors.company && (
-                        <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
-                          {errors.company}
-                        </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {option.concept}
+                            </Typography>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                              <Typography variant="caption" color="warning.main">
+                                Vencimiento: {option.formattedDueDate}
+                              </Typography>
+                              {option.calculatedInterests > 0 && (
+                                <Typography variant="caption" color="error.main">
+                                  +{new Intl.NumberFormat('es-CO', {
+                                    style: 'currency',
+                                    currency: 'COP',
+                                    minimumFractionDigits: 0
+                                  }).format(option.calculatedInterests)} intereses
+                                </Typography>
+                              )}
+                            </Box>
+                          </Box>
+                        </li>
                       )}
-                    </FormControl>
-                  </Grid>
-
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Monto"
-                      type="number"
-                      value={formData.amount}
-                      onChange={handleInputChange('amount')}
-                      error={!!errors.amount}
-                      helperText={errors.amount}
-                      InputProps={{
-                        startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                      }}
+                      noOptionsText={loadingCommitments ? "Cargando..." : "No hay compromisos pendientes"}
                     />
                   </Grid>
 
-                  <Grid item xs={12} sm={6}>
-                    <FormControl fullWidth error={!!errors.method}>
-                      <InputLabel>Método de Pago</InputLabel>
-                      <Select
-                        value={formData.method}
-                        onChange={handleInputChange('method')}
-                        label="Método de Pago"
-                      >
-                        {paymentMethods.map((method) => (
-                          <MenuItem key={method} value={method}>
-                            {method}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                      {errors.method && (
-                        <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
-                          {errors.method}
+                  {/* Información del Compromiso Seleccionado */}
+                  {selectedCommitment && (
+                    <>
+                      <Grid item xs={12}>
+                        <Divider sx={{ my: 1 }} />
+                        <Typography variant="subtitle2" gutterBottom color="primary">
+                          📋 Detalles del Compromiso Seleccionado
                         </Typography>
-                      )}
-                    </FormControl>
-                  </Grid>
+                      </Grid>
 
-                  <Grid item xs={12} sm={6}>
-                    <TextField
-                      fullWidth
-                      label="Fecha"
-                      type="date"
-                      value={formData.date}
-                      onChange={handleInputChange('date')}
-                      error={!!errors.date}
-                      helperText={errors.date}
-                      InputLabelProps={{
-                        shrink: true,
-                      }}
-                    />
-                  </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <TextField
+                          label="Valor Original"
+                          value={new Intl.NumberFormat('es-CO', {
+                            style: 'currency',
+                            currency: 'COP',
+                            minimumFractionDigits: 0
+                          }).format(formData.originalAmount)}
+                          fullWidth
+                          disabled
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <MoneyIcon color="success" />
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{
+                            '& .MuiInputBase-input': {
+                              fontWeight: 600,
+                              color: 'success.main'
+                            }
+                          }}
+                        />
+                      </Grid>
 
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Concepto"
-                      value={formData.concept}
-                      onChange={handleInputChange('concept')}
-                      error={!!errors.concept}
-                      helperText={errors.concept}
-                      placeholder="Ej: Cuota mensual, Servicios profesionales, etc."
-                    />
-                  </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <TextField
+                          label="Intereses por Mora"
+                          value={new Intl.NumberFormat('es-CO', {
+                            style: 'currency',
+                            currency: 'COP',
+                            minimumFractionDigits: 0
+                          }).format(formData.interests)}
+                          fullWidth
+                          disabled
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <InterestIcon color="warning" />
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{
+                            '& .MuiInputBase-input': {
+                              fontWeight: 600,
+                              color: formData.interests > 0 ? 'warning.main' : 'text.secondary'
+                            }
+                          }}
+                        />
+                      </Grid>
 
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Referencia"
-                      value={formData.reference}
-                      onChange={handleInputChange('reference')}
-                      placeholder="Número de referencia o comprobante"
-                    />
-                  </Grid>
+                      <Grid item xs={12} sm={4}>
+                        <TextField
+                          label="Total a Pagar"
+                          value={new Intl.NumberFormat('es-CO', {
+                            style: 'currency',
+                            currency: 'COP',
+                            minimumFractionDigits: 0
+                          }).format(formData.finalAmount)}
+                          fullWidth
+                          disabled
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <MoneyIcon color="error" />
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{
+                            '& .MuiInputBase-input': {
+                              fontWeight: 700,
+                              color: 'error.main',
+                              fontSize: '1.1rem'
+                            },
+                            '& .MuiOutlinedInput-root': {
+                              backgroundColor: theme.palette.error.main + '10',
+                              '& fieldset': {
+                                borderColor: theme.palette.error.main,
+                                borderWidth: 2
+                              }
+                            }
+                          }}
+                        />
+                      </Grid>
 
-                  <Grid item xs={12}>
-                    <TextField
-                      fullWidth
-                      label="Notas adicionales"
-                      multiline
-                      rows={3}
-                      value={formData.notes}
-                      onChange={handleInputChange('notes')}
-                      placeholder="Información adicional sobre el pago..."
-                    />
-                  </Grid>
+                      <Grid item xs={12}>
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="subtitle2" gutterBottom color="primary">
+                          💳 Información del Pago
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth error={!!errors.method}>
+                          <InputLabel>Método de Pago</InputLabel>
+                          <Select
+                            value={formData.method}
+                            onChange={handleInputChange('method')}
+                            label="Método de Pago"
+                          >
+                            {paymentMethods.map((method) => (
+                              <MenuItem key={method} value={method}>
+                                {method}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          label="Referencia/ID del Pago"
+                          value={formData.reference}
+                          onChange={handleInputChange('reference')}
+                          fullWidth
+                          error={!!errors.reference}
+                          helperText={errors.reference}
+                          placeholder="Ej: TRF-2025-001, CHE-12345"
+                        />
+                      </Grid>
+
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          label="Fecha del Pago"
+                          type="date"
+                          value={formData.date}
+                          onChange={handleInputChange('date')}
+                          fullWidth
+                          error={!!errors.date}
+                          helperText={errors.date}
+                          InputLabelProps={{
+                            shrink: true,
+                          }}
+                        />
+                      </Grid>
+
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          label="Observaciones"
+                          value={formData.notes}
+                          onChange={handleInputChange('notes')}
+                          fullWidth
+                          multiline
+                          rows={1}
+                          placeholder="Notas adicionales sobre el pago..."
+                        />
+                      </Grid>
+                    </>
+                  )}
                 </Grid>
               </CardContent>
             </Card>
           </Grid>
 
-          {/* Resumen */}
+          {/* Panel de Resumen */}
           <Grid item xs={12} lg={4}>
-            <Card>
+            <Card sx={{ position: 'sticky', top: 20 }}>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <ReceiptIcon color="primary" />
+                  <ReceiptIcon color="secondary" />
                   Resumen del Pago
                 </Typography>
                 
-                <Box sx={{ space: 2 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Empresa:
-                    </Typography>
-                    <Typography variant="body2">
-                      {formData.company || '-'}
-                    </Typography>
+                {selectedCommitment ? (
+                  <Box>
+                    <Box sx={{ mb: 2, p: 2, backgroundColor: theme.palette.grey[50], borderRadius: 1 }}>
+                      <Typography variant="subtitle2" color="primary" gutterBottom>
+                        {selectedCommitment.companyName}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {selectedCommitment.concept}
+                      </Typography>
+                    </Box>
+                    
+                    <Divider sx={{ my: 2 }} />
+                    
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                      <Typography variant="body2">Valor Original:</Typography>
+                      <Typography variant="body2" color="success.main" fontWeight={600}>
+                        {new Intl.NumberFormat('es-CO', {
+                          style: 'currency',
+                          currency: 'COP',
+                          minimumFractionDigits: 0
+                        }).format(formData.originalAmount)}
+                      </Typography>
+                    </Box>
+                    
+                    {formData.interests > 0 && (
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2">Intereses:</Typography>
+                        <Typography variant="body2" color="warning.main" fontWeight={600}>
+                          +{new Intl.NumberFormat('es-CO', {
+                            style: 'currency',
+                            currency: 'COP',
+                            minimumFractionDigits: 0
+                          }).format(formData.interests)}
+                        </Typography>
+                      </Box>
+                    )}
+                    
+                    <Divider sx={{ my: 1 }} />
+                    
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                      <Typography variant="h6">Total a Pagar:</Typography>
+                      <Typography variant="h6" color="error.main">
+                        {new Intl.NumberFormat('es-CO', {
+                          style: 'currency',
+                          currency: 'COP',
+                          minimumFractionDigits: 0
+                        }).format(formData.finalAmount)}
+                      </Typography>
+                    </Box>
+                    
+                    {formData.method && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Método: <strong>{formData.method}</strong>
+                        </Typography>
+                      </Box>
+                    )}
                   </Box>
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Monto:
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {formData.amount ? `$${parseFloat(formData.amount).toLocaleString()}` : '-'}
-                    </Typography>
-                  </Box>
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Método:
-                    </Typography>
-                    <Typography variant="body2">
-                      {formData.method || '-'}
-                    </Typography>
-                  </Box>
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Fecha:
-                    </Typography>
-                    <Typography variant="body2">
-                      {formData.date ? new Date(formData.date).toLocaleDateString() : '-'}
-                    </Typography>
-                  </Box>
-
-                  <Divider sx={{ my: 2 }} />
-
-                  <Alert severity="info" sx={{ mb: 2 }}>
-                    El pago será registrado como "Pendiente" hasta su confirmación.
+                ) : (
+                  <Alert severity="info">
+                    Seleccione un compromiso para ver el resumen del pago
                   </Alert>
-                </Box>
+                )}
               </CardContent>
             </Card>
           </Grid>
         </Grid>
 
-        {/* Actions */}
+        {/* Botones de Acción */}
         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', mt: 3 }}>
           <Button
             variant="outlined"
             onClick={handleCancel}
             disabled={isSubmitting}
-            startIcon={<CancelIcon />}
+            sx={{ minWidth: 120 }}
           >
+            <CancelIcon sx={{ mr: 1 }} />
             Cancelar
           </Button>
           <Button
             type="submit"
             variant="contained"
-            disabled={isSubmitting}
-            startIcon={<SaveIcon />}
+            disabled={isSubmitting || !selectedCommitment}
+            sx={{ minWidth: 120 }}
           >
-            {isSubmitting ? 'Guardando...' : 'Registrar Pago'}
+            {isSubmitting ? (
+              <CircularProgress size={20} />
+            ) : (
+              <>
+                <SaveIcon sx={{ mr: 1 }} />
+                Registrar Pago
+              </>
+            )}
           </Button>
         </Box>
       </form>

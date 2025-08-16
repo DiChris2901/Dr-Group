@@ -18,9 +18,9 @@ import {
 } from '@mui/material';
 import { Delete as DeleteIcon, Warning as WarningIcon } from '@mui/icons-material';
 import { collection, getDocs, writeBatch, doc } from 'firebase/firestore';
-import { db } from '../config/firebase';
-import { useAuth } from '../context/AuthContext';
-import { useNotifications } from '../context/NotificationsContext';
+import { db } from '../../config/firebase';
+import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationsContext';
 
 const DataCleanupTool = () => {
   const { currentUser } = useAuth();
