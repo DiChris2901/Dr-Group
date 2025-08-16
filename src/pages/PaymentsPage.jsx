@@ -21,7 +21,9 @@ import {
   Pagination,
   Stack,
   TextField,
-  alpha
+  alpha,
+  Snackbar,
+  Alert as MuiAlert
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -39,7 +41,9 @@ import {
   FirstPage,
   LastPage,
   NavigateBefore,
-  NavigateNext
+  NavigateNext,
+  Delete as DeleteIcon,
+  Edit as EditIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -47,6 +51,10 @@ import { useNavigate } from 'react-router-dom';
 
 // Hook para cargar pagos desde Firebase
 import { usePayments } from '../hooks/useFirestore';
+// Firebase para manejo de archivos y Firestore
+import { doc, updateDoc } from 'firebase/firestore';
+import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../config/firebase';
 // Componente temporal para agregar datos de prueba
 import AddSamplePayments from '../components/debug/AddSamplePayments';
 // Componente para visor de comprobantes de pago
@@ -61,6 +69,13 @@ const PaymentsPage = () => {
   // Estados para el visor de comprobantes
   const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
+  
+  // Estados para edición de archivos
+  const [editingReceipt, setEditingReceipt] = useState(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  
+  // Estados para notificaciones
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   // Cargar pagos reales desde Firebase
   const { payments: firebasePayments, loading, error } = usePayments({ status: statusFilter !== 'all' ? statusFilter : undefined });
@@ -194,6 +209,161 @@ const PaymentsPage = () => {
     setSelectedPayment(null);
   };
 
+  // Función para mostrar notificaciones
+  const showNotification = (message, severity = 'success') => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  // Función para eliminar comprobante
+  const handleDeleteReceipt = async (payment) => {
+    // Confirmar eliminación
+    if (!window.confirm('¿Estás seguro de que quieres eliminar este comprobante? Esta acción no se puede deshacer.')) {
+      return;
+    }
+
+    try {
+      setUploadingFile(true);
+      console.log('🗑️ Iniciando eliminación de comprobante para pago:', payment.id);
+      
+      // Verificar que el pago tenga comprobantes - usar attachments como campo principal
+      const receiptUrls = payment.attachments || payment.receiptUrls || [payment.receiptUrl].filter(Boolean) || [];
+      console.log('📄 URLs a eliminar:', receiptUrls);
+      console.log('📄 Estructura completa del pago:', {
+        attachments: payment.attachments,
+        receiptUrls: payment.receiptUrls,
+        receiptUrl: payment.receiptUrl,
+        files: payment.files
+      });
+      
+      if (receiptUrls.length === 0) {
+        showNotification('No hay comprobantes para eliminar', 'warning');
+        return;
+      }
+      
+      // Eliminar archivos de Storage
+      for (const url of receiptUrls) {
+        if (url) {
+          try {
+            // Extraer el path del archivo desde la URL
+            const filePathMatch = url.match(/o\/(.+?)\?/);
+            if (filePathMatch) {
+              const filePath = decodeURIComponent(filePathMatch[1]);
+              console.log('🔥 Eliminando archivo:', filePath);
+              const fileRef = ref(storage, filePath);
+              await deleteObject(fileRef);
+              console.log('✅ Archivo eliminado de Storage');
+            }
+          } catch (storageError) {
+            console.warn('⚠️ Error al eliminar archivo de Storage:', storageError);
+          }
+        }
+      }
+
+      // Actualizar documento en Firestore removiendo las URLs
+      const paymentRef = doc(db, 'payments', payment.id);
+      await updateDoc(paymentRef, {
+        attachments: [], // Campo principal donde se guardan los comprobantes
+        receiptUrls: [],
+        receiptUrl: null,
+        files: [],
+        updatedAt: new Date()
+      });
+
+      console.log('✅ Comprobante eliminado exitosamente de Firestore');
+      
+      // Cerrar el visor de PDF si está abierto para este pago
+      if (selectedPayment?.id === payment.id) {
+        handleCloseReceiptViewer();
+      }
+      
+      showNotification('Comprobante eliminado exitosamente', 'success');
+    } catch (error) {
+      console.error('❌ Error al eliminar comprobante:', error);
+      showNotification(`Error al eliminar comprobante: ${error.message}`, 'error');
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  // Función para editar comprobante (reemplazar)
+  const handleEditReceipt = (payment) => {
+    console.log('✏️ Editando comprobante para pago:', payment.id);
+    setEditingReceipt(payment);
+    
+    // Crear input de archivo temporal
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.jpg,.jpeg,.png';
+    input.multiple = true;
+    
+    input.onchange = async (e) => {
+      const files = Array.from(e.target.files);
+      if (files.length === 0) {
+        setEditingReceipt(null);
+        return;
+      }
+
+      try {
+        setUploadingFile(true);
+        console.log('📤 Subiendo nuevos archivos:', files.map(f => f.name));
+
+        // 1. Eliminar archivos antiguos del Storage
+        const receiptUrls = payment.attachments || payment.receiptUrls || [payment.receiptUrl].filter(Boolean) || [];
+        console.log('🗑️ Eliminando archivos antiguos:', receiptUrls);
+        
+        for (const url of receiptUrls) {
+          if (url) {
+            try {
+              const filePathMatch = url.match(/o\/(.+?)\?/);
+              if (filePathMatch) {
+                const filePath = decodeURIComponent(filePathMatch[1]);
+                const fileRef = ref(storage, filePath);
+                await deleteObject(fileRef);
+                console.log('✅ Archivo antiguo eliminado:', filePath);
+              }
+            } catch (deleteError) {
+              console.warn('⚠️ Error al eliminar archivo antiguo:', deleteError);
+            }
+          }
+        }
+
+        // 2. Subir nuevos archivos
+        const newReceiptUrls = [];
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const fileName = `receipts/${payment.id}_${i + 1}_${Date.now()}_${file.name}`;
+          const storageRef = ref(storage, fileName);
+          
+          console.log('⬆️ Subiendo archivo:', fileName);
+          await uploadBytes(storageRef, file);
+          const downloadURL = await getDownloadURL(storageRef);
+          newReceiptUrls.push(downloadURL);
+          console.log('✅ Archivo subido:', downloadURL);
+        }
+
+        // 3. Actualizar documento en Firestore
+        const paymentRef = doc(db, 'payments', payment.id);
+        await updateDoc(paymentRef, {
+          attachments: newReceiptUrls, // Campo principal
+          receiptUrls: newReceiptUrls,
+          receiptUrl: newReceiptUrls[0] || null, // Para compatibilidad
+          updatedAt: new Date()
+        });
+
+        console.log('✅ Comprobante editado exitosamente');
+        showNotification('Comprobante editado exitosamente', 'success');
+      } catch (error) {
+        console.error('❌ Error al editar comprobante:', error);
+        showNotification(`Error al editar comprobante: ${error.message}`, 'error');
+      } finally {
+        setUploadingFile(false);
+        setEditingReceipt(null);
+      }
+    };
+
+    input.click();
+  };
+
   return (
     <Box sx={{ p: 2, pb: 4, display:'flex', flexDirection:'column', gap: 2 }}>
       {/* Mostrar indicador de carga */}
@@ -210,6 +380,16 @@ const PaymentsPage = () => {
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           Error al cargar los pagos: {error}
+        </Alert>
+      )}
+
+      {/* Mostrar indicador de carga para operaciones de archivos */}
+      {uploadingFile && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Box display="flex" alignItems="center">
+            <CircularProgress size={20} sx={{ mr: 1 }} />
+            {editingReceipt ? 'Editando comprobante...' : 'Eliminando comprobante...'}
+          </Box>
         </Alert>
       )}
 
@@ -624,6 +804,49 @@ const PaymentsPage = () => {
                           <ReceiptIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
+                      
+                      {/* Solo mostrar botones de editar/eliminar si hay comprobante */}
+                      {(payment.attachments?.length > 0) && (
+                        <>
+                          <Tooltip title="Editar comprobante" arrow>
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            console.log('🔍 Datos del pago para edición:', payment);
+                            handleEditReceipt(payment);
+                          }}
+                          disabled={uploadingFile}
+                          sx={{ 
+                            color: 'warning.main',
+                            '&:hover': { backgroundColor: alpha(theme.palette.warning.main, 0.1) }
+                          }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      
+                      <Tooltip title="Eliminar comprobante" arrow>
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            alert('🔍 BOTÓN CLICKEADO - Revisa la consola');
+                            console.log('🔍 DATOS COMPLETOS DEL PAGO:', JSON.stringify(payment, null, 2));
+                            console.log('🔍 payment.receiptUrls:', payment.receiptUrls);
+                            console.log('🔍 payment.receiptUrl:', payment.receiptUrl);
+                            console.log('🔍 payment.attachments:', payment.attachments);
+                            handleDeleteReceipt(payment);
+                          }}
+                          disabled={uploadingFile}
+                          sx={{ 
+                            color: 'error.main',
+                            '&:hover': { backgroundColor: alpha(theme.palette.error.main, 0.1) }
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                        </>
+                      )}
                     </Box>
                   </Box>
                 )) : (
@@ -907,6 +1130,23 @@ const PaymentsPage = () => {
           receiptUrls: selectedPayment.attachments || []
         } : null}
       />
+
+      {/* Snackbar para notificaciones */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <MuiAlert
+          elevation={6}
+          variant="filled"
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+        >
+          {snackbar.message}
+        </MuiAlert>
+      </Snackbar>
     </Box>
   );
 };
