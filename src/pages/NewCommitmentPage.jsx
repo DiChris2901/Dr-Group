@@ -799,6 +799,18 @@ const NewCommitmentPage = () => {
       }
     }
 
+    // Validación de fecha de vencimiento
+    if (!formData.dueDate) {
+      addNotification({
+        type: 'error',
+        title: 'Error de validación',
+        message: 'La fecha de vencimiento es obligatoria',
+        icon: 'error',
+        color: 'error'
+      });
+      return false;
+    }
+
     return true;
   };
 
@@ -2281,8 +2293,12 @@ const NewCommitmentPage = () => {
                           !formData.periodicity ||
                           !formData.beneficiary?.trim() ||
                           !formData.concept?.trim() ||
-                          !(parseFloat(formData.baseAmount) > 0) ||
-                          !formData.paymentMethod
+                          !(isColjuegosCommitment() 
+                            ? (parseFloat(formData.derechosExplotacion) > 0 && parseFloat(formData.gastosAdministracion) > 0)
+                            : parseFloat(formData.baseAmount) > 0
+                          ) ||
+                          !formData.paymentMethod ||
+                          !formData.dueDate
                         }
                         sx={{ 
                           borderRadius: 2,

@@ -17,6 +17,7 @@ import MainLayout from './components/layout/MainLayout';
 // Pages
 import WelcomeDashboardSimple from './components/dashboard/WelcomeDashboardSimple';
 import AdminSetupPage from './pages/AdminSetupPage';
+import CleanupPage from './pages/CleanupPage';
 import CommitmentsPage from './pages/CommitmentsPage';
 import CompaniesPage from './pages/CompaniesPage';
 import DataPage from './pages/DataPage';
@@ -239,6 +240,14 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Gestión de Usuarios" breadcrumbs={['Administración', 'Usuarios']}>
             <UserManagementPage />
+          </MainLayout>
+        }
+      />
+      <Route 
+        path="/admin/cleanup" 
+        element={
+          <MainLayout title="Limpieza de Datos" breadcrumbs={['Administración', 'Limpieza']}>
+            <CleanupPage />
           </MainLayout>
         }
       />

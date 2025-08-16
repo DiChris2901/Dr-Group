@@ -57,36 +57,8 @@ const PaymentsPage = () => {
   // Cargar pagos reales desde Firebase
   const { payments: firebasePayments, loading, error } = usePayments({ status: statusFilter !== 'all' ? statusFilter : undefined });
 
-  // Datos de prueba para demostración (se eliminarán cuando haya datos reales)
-  const mockPayments = [
-    { id: '1', companyName: 'DR Group', concept: 'Nómina Diciembre', amount: 125000, method: 'Transferencia', date: { seconds: Date.now() / 1000 }, reference: 'TRF-001', status: 'Completado' },
-    { id: '2', companyName: 'Tech Solutions', concept: 'Servicios IT', amount: 85000, method: 'Tarjeta', date: { seconds: Date.now() / 1000 - 86400 }, reference: 'TRF-002', status: 'Completado' },
-    { id: '3', companyName: 'Marketing Pro', concept: 'Campaña Digital', amount: 45000, method: 'Efectivo', date: { seconds: Date.now() / 1000 - 172800 }, reference: 'EFE-001', status: 'Pendiente' },
-    { id: '4', companyName: 'Construcciones ABC', concept: 'Material Construcción', amount: 230000, method: 'Transferencia', date: { seconds: Date.now() / 1000 - 259200 }, reference: 'TRF-003', status: 'Completado' },
-    { id: '5', companyName: 'Logística Express', concept: 'Transporte Mensual', amount: 65000, method: 'Cheque', date: { seconds: Date.now() / 1000 - 345600 }, reference: 'CHE-001', status: 'Completado' },
-    { id: '6', companyName: 'Consultoría Legal', concept: 'Asesoría Jurídica', amount: 95000, method: 'Transferencia', date: { seconds: Date.now() / 1000 - 432000 }, reference: 'TRF-004', status: 'Fallido' },
-    { id: '7', companyName: 'Inmobiliaria Central', concept: 'Renta Oficina', amount: 155000, method: 'Transferencia', date: { seconds: Date.now() / 1000 - 518400 }, reference: 'TRF-005', status: 'Completado' },
-    { id: '8', companyName: 'Servicios Generales', concept: 'Mantenimiento', amount: 35000, method: 'Efectivo', date: { seconds: Date.now() / 1000 - 604800 }, reference: 'EFE-002', status: 'Pendiente' },
-    { id: '9', companyName: 'Proveedores Unidos', concept: 'Insumos Oficina', amount: 28000, method: 'Tarjeta', date: { seconds: Date.now() / 1000 - 691200 }, reference: 'TAR-001', status: 'Completado' },
-    { id: '10', companyName: 'Desarrollo Web', concept: 'Sitio Corporativo', amount: 180000, method: 'Transferencia', date: { seconds: Date.now() / 1000 - 777600 }, reference: 'TRF-006', status: 'Completado' },
-    { id: '11', companyName: 'Equipos y Sistemas', concept: 'Hardware Nuevo', amount: 320000, method: 'Transferencia', date: { seconds: Date.now() / 1000 - 864000 }, reference: 'TRF-007', status: 'Completado' },
-    { id: '12', companyName: 'Capacitación Pro', concept: 'Cursos Personal', amount: 75000, method: 'Cheque', date: { seconds: Date.now() / 1000 - 950400 }, reference: 'CHE-002', status: 'Completado' },
-    { id: '13', companyName: 'Seguros Integrales', concept: 'Póliza Anual', amount: 145000, method: 'Transferencia', date: { seconds: Date.now() / 1000 - 1036800 }, reference: 'TRF-008', status: 'Pendiente' },
-    { id: '14', companyName: 'Limpieza Total', concept: 'Servicio Limpieza', amount: 22000, method: 'Efectivo', date: { seconds: Date.now() / 1000 - 1123200 }, reference: 'EFE-003', status: 'Completado' },
-    { id: '15', companyName: 'Suministros ABC', concept: 'Material Oficina', amount: 38000, method: 'Tarjeta', date: { seconds: Date.now() / 1000 - 1209600 }, reference: 'TAR-002', status: 'Completado' }
-  ];
-
-  // Usar datos de prueba si no hay datos de Firebase
-  const payments = firebasePayments.length > 0 ? firebasePayments : mockPayments;
-
-  // Debug temporal - remover después
-  console.log('🔍 Debug Payments:', { 
-    firebaseCount: firebasePayments.length, 
-    mockCount: mockPayments.length, 
-    finalCount: payments.length,
-    loading,
-    error
-  });
+  // Usar solo datos reales de Firebase
+  const payments = firebasePayments;
 
   const getStatusColor = (status) => {
     const statusLower = status?.toLowerCase();
