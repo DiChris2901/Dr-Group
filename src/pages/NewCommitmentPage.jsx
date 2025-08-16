@@ -123,6 +123,7 @@ const NewCommitmentPage = () => {
   ica: '', // 🏙️ ICA
   discount: '', // 🏷️ Descuento
   invoiceNumber: '', // 🧾 Número de Factura
+  hasTaxes: false, // ✅ Mostrar/ocultar impuestos y descuentos
     totalAmount: '', // 💵 Total calculado
     paymentMethod: 'transfer', // transfer, check, cash, debit, credit
     observations: '',
@@ -208,12 +209,13 @@ const NewCommitmentPage = () => {
   // 🧮 Calcular automáticamente el total
   const calculateTotal = () => {
     const base = parseFloat(formData.baseAmount) || 0;
+    if (!formData.hasTaxes) return base;
     const iva = parseFloat(formData.iva) || 0;
     const retefuente = parseFloat(formData.retefuente) || 0;
-  const ica = parseFloat(formData.ica) || 0;
-  const discount = parseFloat(formData.discount) || 0;
-  // Total a Pagar = Valor base + IVA + Retefuente + ICA - Descuento
-  return base + iva + retefuente + ica - discount;
+    const ica = parseFloat(formData.ica) || 0;
+    const discount = parseFloat(formData.discount) || 0;
+    // Total a Pagar = Valor base + IVA + Retefuente + ICA - Descuento
+    return base + iva + retefuente + ica - discount;
   };
 
   // Actualizar total automáticamente cuando cambien los valores
@@ -223,7 +225,7 @@ const NewCommitmentPage = () => {
       ...prev,
       totalAmount: total.toString()
     }));
-  }, [formData.baseAmount, formData.iva, formData.retefuente, formData.ica, formData.discount]);
+  }, [formData.baseAmount, formData.iva, formData.retefuente, formData.ica, formData.discount, formData.hasTaxes]);
 
   // 📎 Estados y funciones para drag & drop
   const [isDragOver, setIsDragOver] = useState(false);
@@ -454,6 +456,7 @@ const NewCommitmentPage = () => {
       retefuente: '',
   ica: '',
   discount: '',
+  hasTaxes: false,
       totalAmount: '',
       paymentMethod: 'transfer',
       observations: '',
@@ -680,6 +683,7 @@ const NewCommitmentPage = () => {
         retefuente: parseFloat(formData.retefuente) || 0,
   ica: parseFloat(formData.ica) || 0,
   discount: parseFloat(formData.discount) || 0,
+  hasTaxes: !!formData.hasTaxes,
         createdAt: serverTimestamp(),
         createdBy: currentUser.uid,
         updatedAt: serverTimestamp(),
@@ -1194,7 +1198,7 @@ const NewCommitmentPage = () => {
                       </Grid>
 
                       {/* Fila 2: Beneficiario, Concepto */}
-                      <Grid item xs={12} md={6}>
+                      <Grid item xs={12} md={8}>
                         <Autocomplete
                           freeSolo
                           options={beneficiariesSuggestions}
@@ -1275,7 +1279,7 @@ const NewCommitmentPage = () => {
                       </Grid>
 
                       {/* Sección 2: Beneficiario / Proveedor y NIT */}
-                      <Grid item xs={12} md={6}>
+                      <Grid item xs={12} md={4}>
                         <TextField
                           fullWidth
                           label="NIT/Identificación"
@@ -1295,7 +1299,7 @@ const NewCommitmentPage = () => {
                       </Grid>
 
                       {/* Sección 3: Concepto y Número de Factura */}
-                      <Grid item xs={12} md={6}>
+                      <Grid item xs={12} md={8}>
                         <Autocomplete
                           freeSolo
                           options={conceptsSuggestions}
@@ -1375,7 +1379,7 @@ const NewCommitmentPage = () => {
                         />
                       </Grid>
 
-                      <Grid item xs={12} md={6}>
+                      <Grid item xs={12} md={4}>
                         <TextField
                           fullWidth
                           label="Número de Factura"
@@ -1393,7 +1397,7 @@ const NewCommitmentPage = () => {
                         />
                       </Grid>
 
-                      <Grid item xs={12} md={6}>
+                      <Grid item xs={12} md={3}>
                         <TextField
                           fullWidth
                           required
@@ -1424,8 +1428,25 @@ const NewCommitmentPage = () => {
                         />
                       </Grid>
 
+                      {/* Mostrar/Ocultar Impuestos */}
+                      <Grid item xs={12} md={12}>
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={!!formData.hasTaxes}
+                              onChange={(e) => handleFormChange('hasTaxes', e.target.checked)}
+                              disabled={saving}
+                              color="primary"
+                            />
+                          }
+                          label={<Typography>Este compromiso tiene impuestos y/o descuentos</Typography>}
+                          sx={{ mt: { xs: 1, md: 0 } }}
+                        />
+                      </Grid>
+
                       {/* IVA */}
-                      <Grid item xs={12} md={6}>
+                      {formData.hasTaxes && (
+                      <Grid item xs={12} md={2}>
                         <TextField
                           fullWidth
                           label="IVA"
@@ -1445,9 +1466,11 @@ const NewCommitmentPage = () => {
                           helperText="Impuesto al Valor Agregado"
                         />
                       </Grid>
+                      )}
 
                       {/* Retefuente */}
-                      <Grid item xs={12} md={6}>
+                      {formData.hasTaxes && (
+                      <Grid item xs={12} md={2}>
                         <TextField
                           fullWidth
                           label="Retefuente"
@@ -1467,9 +1490,11 @@ const NewCommitmentPage = () => {
                           helperText="Retefuente aplicada"
                         />
                       </Grid>
+                      )}
 
                       {/* ICA */}
-                      <Grid item xs={12} md={6}>
+                      {formData.hasTaxes && (
+                      <Grid item xs={12} md={2}>
                         <TextField
                           fullWidth
                           label="ICA"
@@ -1489,9 +1514,11 @@ const NewCommitmentPage = () => {
                           helperText="Impuesto de Industria y Comercio"
                         />
                       </Grid>
+                      )}
 
                       {/* Descuento */}
-                      <Grid item xs={12} md={6}>
+                      {formData.hasTaxes && (
+                      <Grid item xs={12} md={3}>
                         <TextField
                           fullWidth
                           label="Descuento"
@@ -1511,9 +1538,10 @@ const NewCommitmentPage = () => {
                           helperText="Descuento aplicado"
                         />
                       </Grid>
+                      )}
 
                       {/* Total calculado */}
-                      <Grid item xs={12} md={6}>
+                      <Grid item xs={12} md={4}>
                         <TextField
                           fullWidth
                           label="Total a pagar"
@@ -1542,11 +1570,13 @@ const NewCommitmentPage = () => {
                               }
                             }
                           }}
-                          helperText={`Base + IVA + Retefuente + ICA - Descuento = ${formatCurrency(formData.totalAmount || 0)}`}
+                          helperText={formData.hasTaxes
+                            ? `Base + IVA + Retefuente + ICA - Descuento = ${formatCurrency(formData.totalAmount || 0)}`
+                            : `Total = Base = ${formatCurrency(formData.totalAmount || 0)}`}
                         />
                       </Grid>
 
-                      <Grid item xs={12} md={6}>
+                      <Grid item xs={12} md={4}>
                         <FormControl fullWidth required>
                           <InputLabel>Método de pago</InputLabel>
                           <Select
@@ -1568,7 +1598,7 @@ const NewCommitmentPage = () => {
                       </Grid>
 
                       {/* Fila 4: Fecha de vencimiento, Pago aplazado */}
-                      <Grid item xs={12} md={6}>
+                      <Grid item xs={12} md={4}>
                         <TextField
                           fullWidth
                           type="date"
@@ -1590,7 +1620,7 @@ const NewCommitmentPage = () => {
                         />
                       </Grid>
 
-                      <Grid item xs={12} md={6}>
+                      <Grid item xs={12} md={3}>
                         <FormControlLabel
                           control={
                             <Checkbox
@@ -1638,7 +1668,7 @@ const NewCommitmentPage = () => {
                       </Grid>
 
             {/* Sección 4: Comentarios */}
-                      <Grid item xs={12}>
+                      <Grid item xs={12} md={9}>
                         <TextField
                           fullWidth
               label="Comentarios"
