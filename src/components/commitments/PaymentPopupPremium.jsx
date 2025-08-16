@@ -50,6 +50,7 @@ import { db, storage } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { hasPermission, PERMISSIONS } from '../../utils/userPermissions';
 import FallbackPDFViewer from '../common/FallbackPDFViewer';
+import PDFPreviewDialog from '../common/PDFPreviewDialog';
 
 const PaymentPopupPremium = ({ 
   open, 
@@ -869,156 +870,15 @@ const PaymentPopupPremium = ({
       )}
     </AnimatePresence>
 
-    {/* Modal de Vista Previa de Comprobante */}
-    <Dialog
+    {/* Modal de Vista Previa de Comprobante - COMPONENTE COMPARTIDO */}
+    <PDFPreviewDialog
       open={showReceiptPreview}
       onClose={() => setShowReceiptPreview(false)}
-      maxWidth="md"
-      fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 3,
-          background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255,255,255,0.2)',
-        }
-      }}
-    >
-      <DialogTitle sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: 'white',
-        fontWeight: 600
-      }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ReceiptIcon />
-          Vista Previa del Comprobante
-        </Box>
-        <IconButton 
-          onClick={() => setShowReceiptPreview(false)}
-          sx={{ color: 'white' }}
-        >
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-      
-      <DialogContent sx={{ p: 3 }}>
-        {existingReceiptUrl ? (
-          <Box sx={{ width: '100%' }}>
-            {existingReceiptMetadata?.type?.startsWith('image/') ? (
-              // Vista previa de imágenes
-              <Card sx={{ 
-                maxWidth: 600, 
-                mx: 'auto',
-                boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
-                borderRadius: 2
-              }}>
-                <CardMedia
-                  component="img"
-                  image={existingReceiptUrl}
-                  alt="Comprobante de pago"
-                  sx={{ 
-                    width: '100%',
-                    height: 'auto',
-                    maxHeight: 500,
-                    objectFit: 'contain'
-                  }}
-                />
-              </Card>
-            ) : (
-              // Vista previa segura de PDFs
-              <Box sx={{ width: '100%' }}>
-                <Box sx={{ 
-                  p: 2, 
-                  textAlign: 'center',
-                  background: 'linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%)',
-                  borderRadius: '8px 8px 0 0',
-                  border: '2px solid #dee2e6',
-                  borderBottom: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between'
-                }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <PictureAsPdfIcon sx={{ fontSize: 24, color: '#dc3545' }} />
-                    <Box>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                        {existingReceiptMetadata?.originalName || 'comprobante.pdf'}
-                      </Typography>
-                      <Typography variant="caption" color="textSecondary">
-                        Documento PDF • {(existingReceiptMetadata?.size / 1024 / 1024).toFixed(2)} MB
-                      </Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <SecurityIcon sx={{ fontSize: 16, color: '#28a745' }} />
-                    <Typography variant="caption" color="success.main" sx={{ fontWeight: 600 }}>
-                      Vista Segura
-                    </Typography>
-                  </Box>
-                </Box>
-                
-                {/* Visor PDF mejorado */}
-                <FallbackPDFViewer 
-                  url={existingReceiptUrl}
-                  height={500}
-                  filename={existingReceiptMetadata?.originalName || 'comprobante.pdf'}
-                  onError={(error) => {
-                    console.error('Error loading PDF:', error);
-                  }}
-                />
-              </Box>
-            )}
-            
-            {existingReceiptMetadata && (
-              <Box sx={{ mt: 2, p: 2, backgroundColor: '#f8f9fa', borderRadius: 1 }}>
-                <Typography variant="caption" color="textSecondary">
-                  <strong>Archivo:</strong> {existingReceiptMetadata.originalName}<br/>
-                  <strong>Tamaño:</strong> {(existingReceiptMetadata.size / 1024 / 1024).toFixed(2)} MB<br/>
-                  <strong>Tipo:</strong> {existingReceiptMetadata.type}
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        ) : (
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            <Typography variant="body2">
-              No se encontró el archivo del comprobante.
-            </Typography>
-          </Alert>
-        )}
-      </DialogContent>
-      
-      <DialogActions sx={{ p: 3, pt: 0, justifyContent: 'space-between' }}>
-        {/* Botón de descarga solo si tiene permisos - sin mensaje cuando no los tiene */}
-        {canDownloadReceipts && (
-          <Button 
-            variant="outlined"
-            onClick={() => window.open(existingReceiptUrl, '_blank')}
-            startIcon={<DownloadIcon />}
-            sx={{ 
-              color: 'success.main',
-              borderColor: 'success.main',
-              '&:hover': {
-                backgroundColor: 'success.light',
-                borderColor: 'success.dark'
-              }
-            }}
-          >
-            Descargar
-          </Button>
-        )}
-        
-        <Button 
-          onClick={() => setShowReceiptPreview(false)}
-          variant="contained"
-        >
-          Cerrar
-        </Button>
-      </DialogActions>
-    </Dialog>
+      receiptUrl={existingReceiptUrl}
+      receiptMetadata={existingReceiptMetadata}
+      canDownloadReceipts={canDownloadReceipts}
+      title="Vista Previa del Comprobante"
+    />
     </>
   );
 };

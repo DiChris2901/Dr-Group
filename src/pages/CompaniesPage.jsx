@@ -48,7 +48,8 @@ import {
   ContentCopy as ContentCopyIcon,
   Security as SecurityIcon,
   AccountBalance as AccountBalanceIcon,
-  Description as DescriptionIcon
+  Description as DescriptionIcon,
+  Receipt as ReceiptIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -81,6 +82,7 @@ const CompaniesPage = () => {
     email: '',
     legalRepresentative: '',
     legalRepresentativeId: '',
+    contractNumber: '',
     logoURL: '',
     platforms: {
       coljuegos: {
@@ -198,6 +200,7 @@ const CompaniesPage = () => {
       email: '',
       legalRepresentative: '',
       legalRepresentativeId: '',
+      contractNumber: '',
       logoURL: '',
       platforms: {
         coljuegos: {
@@ -303,6 +306,7 @@ const CompaniesPage = () => {
       email: company.email || '',
       legalRepresentative: company.legalRepresentative || '',
       legalRepresentativeId: company.legalRepresentativeId || '',
+      contractNumber: company.contractNumber || '',
       logoURL: company.logoURL || '',
       platforms: {
         coljuegos: {
@@ -751,10 +755,19 @@ const CompaniesPage = () => {
                     )}
 
                     {company.legalRepresentativeId && (
-                      <Box display="flex" alignItems="center">
+                      <Box display="flex" alignItems="center" mb={1}>
                         <BusinessIcon sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
                         <Typography variant="body2" color="text.secondary">
                           CC: {company.legalRepresentativeId}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {company.contractNumber && (
+                      <Box display="flex" alignItems="center">
+                        <ReceiptIcon sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                        <Typography variant="body2" color="text.secondary">
+                          Contrato: {company.contractNumber}
                         </Typography>
                       </Box>
                     )}
@@ -1103,6 +1116,22 @@ const CompaniesPage = () => {
                           value={formData.legalRepresentativeId}
                           onChange={(e) => handleFormChange('legalRepresentativeId', e.target.value)}
                           variant="outlined"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2
+                            }
+                          }}
+                        />
+                      </Grid>
+                      
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Número de Contrato"
+                          value={formData.contractNumber}
+                          onChange={(e) => handleFormChange('contractNumber', e.target.value)}
+                          variant="outlined"
+                          placeholder="Ej: CT-2025-001"
                           sx={{
                             '& .MuiOutlinedInput-root': {
                               borderRadius: 2
@@ -1613,32 +1642,50 @@ const CompaniesPage = () => {
                   </Grid>
                 )}
 
-                {/* Segunda fila */}
-                {selectedCompany.legalRepresentative && (
-                  <Grid item xs={12} md={6}>
-                    <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                      <Typography variant="subtitle2" color="primary" gutterBottom>
-                        <PersonIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                        Representante Legal
-                      </Typography>
-                      <Typography variant="body1">
-                        {selectedCompany.legalRepresentative}
-                      </Typography>
-                    </Card>
-                  </Grid>
-                )}
+                {/* Segunda fila - Información del Representante Legal y Contrato */}
+                {(selectedCompany.legalRepresentative || selectedCompany.legalRepresentativeId || selectedCompany.contractNumber) && (
+                  <>
+                    {selectedCompany.legalRepresentative && (
+                      <Grid item xs={12} md={4}>
+                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" color="primary" gutterBottom>
+                            <PersonIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                            Representante Legal
+                          </Typography>
+                          <Typography variant="body1">
+                            {selectedCompany.legalRepresentative}
+                          </Typography>
+                        </Card>
+                      </Grid>
+                    )}
 
-                {selectedCompany.legalRepresentativeId && (
-                  <Grid item xs={12} md={6}>
-                    <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                      <Typography variant="subtitle2" color="primary" gutterBottom>
-                        Cédula Rep Legal
-                      </Typography>
-                      <Typography variant="body1">
-                        {selectedCompany.legalRepresentativeId}
-                      </Typography>
-                    </Card>
-                  </Grid>
+                    {selectedCompany.legalRepresentativeId && (
+                      <Grid item xs={12} md={4}>
+                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" color="primary" gutterBottom>
+                            Cédula Rep Legal
+                          </Typography>
+                          <Typography variant="body1">
+                            {selectedCompany.legalRepresentativeId}
+                          </Typography>
+                        </Card>
+                      </Grid>
+                    )}
+
+                    {selectedCompany.contractNumber && (
+                      <Grid item xs={12} md={4}>
+                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" color="primary" gutterBottom>
+                            <ReceiptIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                            Número de Contrato
+                          </Typography>
+                          <Typography variant="body1">
+                            {selectedCompany.contractNumber}
+                          </Typography>
+                        </Card>
+                      </Grid>
+                    )}
+                  </>
                 )}
               </Grid>
 

@@ -112,6 +112,33 @@ const getUserData = async (email) => {
   }
   
   try {
+    // Primero verificar si es un usuario del sistema
+    const { SYSTEM_USERS } = await import('../config/systemUsers.js');
+    if (SYSTEM_USERS[cacheKey]) {
+      const systemUser = SYSTEM_USERS[cacheKey];
+      console.log('🔍 [DEBUG] Found system user:', systemUser);
+      
+      // Convertir permissions ['ALL'] a todos los permisos disponibles para ADMIN
+      let permissions = systemUser.permissions;
+      if (permissions.includes('ALL') && systemUser.role === 'ADMIN') {
+        permissions = Object.values(PERMISSIONS);
+        console.log('🔍 [DEBUG] Converted ALL permissions to:', permissions);
+      }
+      
+      const userData = {
+        ...systemUser,
+        email: cacheKey,
+        permissions: permissions
+      };
+      
+      // Actualizar cache
+      userCache.set(cacheKey, userData);
+      cacheExpiry = now + CACHE_DURATION;
+      
+      return userData;
+    }
+    
+    // Si no es usuario del sistema, buscar en Firebase
     const usersRef = collection(db, 'users');
     const q = query(usersRef, where('email', '==', email.toLowerCase()));
     const querySnapshot = await getDocs(q);
