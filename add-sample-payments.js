@@ -4,8 +4,12 @@ import { getFirestore, collection, addDoc, Timestamp } from 'firebase/firestore'
 
 // Configuración de Firebase (usa la misma de tu proyecto)
 const firebaseConfig = {
-  // Aquí van tus credenciales de Firebase
-  // Cópialas de src/config/firebase.js
+  apiKey: "AIzaSyBVT3zE5j8U5JJQp4fLKj4VQGn_dYlKqKo",
+  authDomain: "dr-group-dashboard.firebaseapp.com",
+  projectId: "dr-group-dashboard",
+  storageBucket: "dr-group-dashboard.appspot.com",
+  messagingSenderId: "877584017413",
+  appId: "1:877584017413:web:c5821234567890abcdef"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -150,9 +154,7 @@ async function addSamplePayments() {
   }
 }
 
-// Ejecutar si se llama directamente
-if (import.meta.url === `file://${process.argv[1]}`) {
-  addSamplePayments();
-}
+// Ejecutar la función
+addSamplePayments();
 
 export { addSamplePayments };

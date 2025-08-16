@@ -43,14 +43,38 @@ const PaymentReceiptViewer = ({
     paidAt: commitment.paidAt,
     paymentMethod: commitment.paymentMethod,
     notes: commitment.paymentNotes || commitment.notes,
-    receiptUrl: commitment.receiptUrl
+    receiptUrl: commitment.receiptUrl || (commitment.receiptUrls && commitment.receiptUrls.length > 0 ? commitment.receiptUrls[0] : null)
   } : null;
+
+  // Logging para debug
+  console.log('🔍 PaymentReceiptViewer - Props recibidas:', {
+    open,
+    commitment,
+    receiptUrl,
+    receiptMetadata
+  });
+  console.log('🔍 PaymentReceiptViewer - Payment extraído:', payment);
 
   // Validación de fecha de pago
   const validPaymentDate = payment?.paidAt?.toDate?.() || payment?.paidAt || new Date();
-  const hasReceipt = Boolean(receiptUrl || payment?.receiptUrl);
+  const hasReceipt = Boolean(receiptUrl || payment?.receiptUrl || commitment?.receiptUrls?.length > 0);
+  
+  // Determinar la URL final del comprobante
+  const finalReceiptUrl = receiptUrl || payment?.receiptUrl || (commitment?.receiptUrls && commitment.receiptUrls.length > 0 ? commitment.receiptUrls[0] : null);
+  
+  console.log('🔍 PaymentReceiptViewer - Validaciones:', {
+    validPaymentDate,
+    hasReceipt,
+    receiptUrl,
+    commitmentReceiptUrl: commitment?.receiptUrl,
+    commitmentReceiptUrls: commitment?.receiptUrls,
+    finalReceiptUrl
+  });
 
-  if (!payment || !commitment) return null;
+  if (!payment || !commitment) {
+    console.warn('⚠️ PaymentReceiptViewer - No hay payment o commitment válido');
+    return null;
+  }
 
   const modalVariants = {
     initial: { opacity: 0, scale: 0.95, y: 20 },
@@ -269,7 +293,7 @@ const PaymentReceiptViewer = ({
             )}
 
             {/* 📎 Comprobante */}
-            {hasReceipt && (
+            {finalReceiptUrl && (
               <motion.div
                 key="payment-receipt"
                 initial={{ opacity: 0, y: 20 }}
@@ -359,7 +383,7 @@ const PaymentReceiptViewer = ({
       <PDFPreviewDialog
         open={previewDialogOpen}
         onClose={() => setPreviewDialogOpen(false)}
-        receiptUrl={receiptUrl || payment?.receiptUrl}
+        receiptUrl={finalReceiptUrl}
         receiptMetadata={receiptMetadata}
         canDownloadReceipts={false} // Sin descarga en visor de comprobantes ya pagados
         title="Vista Previa del Comprobante"

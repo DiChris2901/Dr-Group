@@ -47,12 +47,20 @@ import { useNavigate } from 'react-router-dom';
 
 // Hook para cargar pagos desde Firebase
 import { usePayments } from '../hooks/useFirestore';
+// Componente temporal para agregar datos de prueba
+import AddSamplePayments from '../components/debug/AddSamplePayments';
+// Componente para visor de comprobantes de pago
+import PaymentReceiptViewer from '../components/commitments/PaymentReceiptViewer';
 
 const PaymentsPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  
+  // Estados para el visor de comprobantes
+  const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState(null);
 
   // Cargar pagos reales desde Firebase
   const { payments: firebasePayments, loading, error } = usePayments({ status: statusFilter !== 'all' ? statusFilter : undefined });
@@ -172,6 +180,18 @@ const PaymentsPage = () => {
     if (e.key === 'Enter') {
       handleJumpToPage();
     }
+  };
+
+  // Funciones para el visor de comprobantes
+  const handleViewReceipt = (payment) => {
+    console.log('📄 Abriendo visor para pago:', payment);
+    setSelectedPayment(payment);
+    setReceiptViewerOpen(true);
+  };
+
+  const handleCloseReceiptViewer = () => {
+    setReceiptViewerOpen(false);
+    setSelectedPayment(null);
   };
 
   return (
@@ -592,9 +612,10 @@ const PaymentsPage = () => {
                       gap: 0.5,
                       justifyContent: 'center'
                     }}>
-                      <Tooltip title="Ver detalles" arrow>
+                      <Tooltip title="Ver comprobantes" arrow>
                         <IconButton
                           size="small"
+                          onClick={() => handleViewReceipt(payment)}
                           sx={{ 
                             color: 'primary.main',
                             '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.1) }
@@ -611,9 +632,12 @@ const PaymentsPage = () => {
                     <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
                       No hay pagos registrados
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                       Crea el primer registro con el botón "Nuevo Pago"
                     </Typography>
+                    
+                    {/* Componente temporal para agregar datos de prueba */}
+                    <AddSamplePayments />
                   </Box>
                 )}
               </Box>
@@ -866,6 +890,23 @@ const PaymentsPage = () => {
           )}
         </>
       )}
+
+      {/* Visor de comprobantes de pago */}
+      <PaymentReceiptViewer
+        open={receiptViewerOpen}
+        onClose={handleCloseReceiptViewer}
+        commitment={selectedPayment ? {
+          id: selectedPayment.commitmentId,
+          companyName: selectedPayment.companyName,
+          concept: selectedPayment.concept,
+          amount: selectedPayment.amount,
+          paidAt: selectedPayment.date, // date del pago -> paidAt
+          paymentMethod: selectedPayment.method,
+          paymentNotes: selectedPayment.notes,
+          receiptUrl: selectedPayment.attachments && selectedPayment.attachments.length > 0 ? selectedPayment.attachments[0] : null,
+          receiptUrls: selectedPayment.attachments || []
+        } : null}
+      />
     </Box>
   );
 };

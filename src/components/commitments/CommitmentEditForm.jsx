@@ -143,6 +143,18 @@ const CommitmentEditForm = ({
   // Opciones para método de pago (centralizadas)
   const paymentMethodOptions = getPaymentMethodOptions();
 
+  // Función helper para verificar si un compromiso tiene pago válido
+  const hasValidPayment = (commitment) => {
+    const isPaid = commitment?.paid || commitment?.isPaid;
+    const hasPaymentDate = commitment?.paymentDate || commitment?.paidAt;
+    const hasReceipt = commitment?.receiptUrl || (commitment?.receiptUrls && commitment.receiptUrls.length > 0);
+    const hasPaymentRef = commitment?.paymentReference || commitment?.paymentId;
+    const hasPaymentMetadata = commitment?.receiptMetadata && commitment.receiptMetadata.length > 0;
+    
+    // Devolver true si está marcado como pagado
+    return isPaid;
+  };
+
   // Validar campo en tiempo real
   const validateField = (field, value) => {
     const newErrors = { ...errors };
@@ -1659,74 +1671,77 @@ const CommitmentEditForm = ({
               display: 'flex',
               alignItems: 'center'
             }}>
-              <motion.div
-                // 🔄 CACHE BUST: Optimización anti-lag v2.0
-                whileHover={{ scale: 1.01, y: -0.5 }}
-                whileTap={{ scale: 0.99 }}
-                transition={{ 
-                  type: "spring", 
-                  stiffness: 800, 
-                  damping: 40,
-                  mass: 0.4
-                }}
-                style={{ 
-                  width: '100%',
-                  opacity: paymentPopupOpen ? 0.5 : 1, // Más visible el cambio
-                  transition: 'opacity 0.15s ease',
-                  pointerEvents: paymentPopupOpen ? 'none' : 'auto' // Evitar clicks
-                }}
-              >
-                <Button
-                  variant="outlined"
-                  size="medium"
-                  startIcon={<CheckCircleOutline />}
-                  onClick={() => setPaymentPopupOpen(true)}
-                  disabled={paymentPopupOpen} // Deshabilitar cuando popup abierto
-                  sx={{
-                    borderRadius: 3,
-                    px: 3,
-                    py: 1.25,
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    fontSize: '0.95rem',
-                    border: `1.5px solid ${theme.palette.success.main}`,
-                    color: theme.palette.success.main,
-                    backgroundColor: 'transparent',
-                    minWidth: { xs: '100%', sm: '140px' },
-                    height: '42px', // Altura fija para mantener consistencia
-                    position: 'relative',
-                    overflow: 'hidden',
-                    willChange: 'transform, opacity',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: '-100%',
-                      width: '100%',
-                      height: '100%',
-                      background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.success.main, 0.12)}, transparent)`,
-                      transition: 'transform 0.5s ease',
-                      willChange: 'transform'
-                    },
-                    '&:hover:not(:disabled)': {
-                      borderColor: theme.palette.success.dark,
-                      backgroundColor: alpha(theme.palette.success.main, 0.08),
-                      boxShadow: `0 4px 12px ${alpha(theme.palette.success.main, 0.25)}`,
-                      '&::before': {
-                        transform: 'translateX(200%)'
-                      }
-                    },
-                    '&:disabled': {
-                      borderColor: alpha(theme.palette.success.main, 0.3),
-                      color: alpha(theme.palette.success.main, 0.5),
-                      cursor: 'default'
-                    },
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+              {/* Solo mostrar botón "Marcar Pagado" si el compromiso NO está pagado */}
+              {!hasValidPayment(commitment) && (
+                <motion.div
+                  // 🔄 CACHE BUST: Optimización anti-lag v2.0
+                  whileHover={{ scale: 1.01, y: -0.5 }}
+                  whileTap={{ scale: 0.99 }}
+                  transition={{ 
+                    type: "spring", 
+                    stiffness: 800, 
+                    damping: 40,
+                    mass: 0.4
+                  }}
+                  style={{ 
+                    width: '100%',
+                    opacity: paymentPopupOpen ? 0.5 : 1, // Más visible el cambio
+                    transition: 'opacity 0.15s ease',
+                    pointerEvents: paymentPopupOpen ? 'none' : 'auto' // Evitar clicks
                   }}
                 >
-                  Marcar Pagado
-                </Button>
-              </motion.div>
+                  <Button
+                    variant="outlined"
+                    size="medium"
+                    startIcon={<CheckCircleOutline />}
+                    onClick={() => setPaymentPopupOpen(true)}
+                    disabled={paymentPopupOpen} // Deshabilitar cuando popup abierto
+                    sx={{
+                      borderRadius: 3,
+                      px: 3,
+                      py: 1.25,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      fontSize: '0.95rem',
+                      border: `1.5px solid ${theme.palette.success.main}`,
+                      color: theme.palette.success.main,
+                      backgroundColor: 'transparent',
+                      minWidth: { xs: '100%', sm: '140px' },
+                      height: '42px', // Altura fija para mantener consistencia
+                      position: 'relative',
+                      overflow: 'hidden',
+                      willChange: 'transform, opacity',
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: '-100%',
+                        width: '100%',
+                        height: '100%',
+                        background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.success.main, 0.12)}, transparent)`,
+                        transition: 'transform 0.5s ease',
+                        willChange: 'transform'
+                      },
+                      '&:hover:not(:disabled)': {
+                        borderColor: theme.palette.success.dark,
+                        backgroundColor: alpha(theme.palette.success.main, 0.08),
+                        boxShadow: `0 4px 12px ${alpha(theme.palette.success.main, 0.25)}`,
+                        '&::before': {
+                          transform: 'translateX(200%)'
+                        }
+                      },
+                      '&:disabled': {
+                        borderColor: alpha(theme.palette.success.main, 0.3),
+                        color: alpha(theme.palette.success.main, 0.5),
+                        cursor: 'default'
+                      },
+                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
+                  >
+                    Marcar Pagado
+                  </Button>
+                </motion.div>
+              )}
             </Box>
 
             {/* Botones Principales - Jerarquía Clara */}

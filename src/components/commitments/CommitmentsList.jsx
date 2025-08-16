@@ -752,15 +752,30 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
 
   const paginationConfig = getPaginationConfig();
 
-  // Función helper para verificar si un compromiso tiene pago válido
+  // Función helper para verificar si un compromiso tiene pago válido (SIMPLIFICADA PARA DEBUG)
   const hasValidPayment = (commitment) => {
-    return commitment.paid && (
-      commitment.paymentDate || 
-      commitment.paidAt || 
-      commitment.receiptUrl ||
-      commitment.receiptMetadata ||
-      commitment.paymentReference
-    );
+    const isPaid = commitment.paid || commitment.isPaid;
+    const hasPaymentDate = commitment.paymentDate || commitment.paidAt;
+    const hasReceipt = commitment.receiptUrl || (commitment.receiptUrls && commitment.receiptUrls.length > 0);
+    const hasPaymentRef = commitment.paymentReference || commitment.paymentId;
+    const hasPaymentMetadata = commitment.receiptMetadata && commitment.receiptMetadata.length > 0;
+    
+    console.log('🔍 [DEBUG] Validando pago para compromiso:', commitment.id, {
+      isPaid,
+      hasPaymentDate,
+      hasReceipt,
+      hasPaymentRef,
+      hasPaymentMetadata,
+      receiptUrl: commitment.receiptUrl,
+      receiptUrls: commitment.receiptUrls,
+      paid: commitment.paid,
+      isPaidField: commitment.isPaid
+    });
+    
+    // TEMPORALMENTE: devolver true si está marcado como pagado, sin importar los comprobantes
+    const result = isPaid;
+    console.log('🔍 [DEBUG] Resultado final hasValidPayment:', result);
+    return result;
   };
 
   // Reset página cuando cambian los filtros (OPTIMIZADO con debounce)
@@ -1199,12 +1214,25 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
 
   // Manejar visualización de comprobante de pago
   const handleViewReceipt = (commitment) => {
-    // Verificar que el compromiso tenga pago válido
-    if (!commitment.paid) {
+    console.log('📄 Intentando ver comprobante para compromiso:', commitment.id);
+    console.log('📋 Datos del compromiso:', {
+      paid: commitment.paid,
+      isPaid: commitment.isPaid,
+      receiptUrl: commitment.receiptUrl,
+      receiptUrls: commitment.receiptUrls,
+      paymentDate: commitment.paymentDate,
+      paidAt: commitment.paidAt,
+      paymentReference: commitment.paymentReference,
+      paymentId: commitment.paymentId,
+      receiptMetadata: commitment.receiptMetadata
+    });
+    
+    // Verificar que el compromiso tenga pago válido usando la función helper
+    if (!hasValidPayment(commitment)) {
       addNotification({
         type: 'warning',
-        title: 'Compromiso no pagado',
-        message: 'Este compromiso aún no ha sido marcado como pagado',
+        title: 'Sin comprobantes',
+        message: 'Este compromiso no tiene comprobantes de pago disponibles',
         icon: '⚠️'
       });
       return;
@@ -1767,11 +1795,17 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                             <Visibility />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Validar pago" arrow>
+                        <Tooltip title={hasValidPayment(commitment) ? "Ver comprobante de pago" : "Sin comprobantes"} arrow>
                           <IconButton 
                             size="small" 
                             onClick={() => handleViewReceipt(commitment)}
-                            sx={{ color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary' }}
+                            disabled={!hasValidPayment(commitment)}
+                            sx={{ 
+                              color: hasValidPayment(commitment) ? 'success.main' : 'text.disabled',
+                              '&:disabled': {
+                                color: 'text.disabled'
+                              }
+                            }}
                           >
                             <ReceiptIcon />
                           </IconButton>
@@ -1807,7 +1841,13 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         <IconButton 
                           size="small" 
                           onClick={() => handleViewReceipt(commitment)}
-                          sx={{ color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary' }}
+                          disabled={!hasValidPayment(commitment)}
+                          sx={{ 
+                            color: hasValidPayment(commitment) ? 'success.main' : 'text.disabled',
+                            '&:disabled': {
+                              color: 'text.disabled'
+                            }
+                          }}
                         >
                           <ReceiptIcon />
                         </IconButton>

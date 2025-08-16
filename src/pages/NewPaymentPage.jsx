@@ -45,7 +45,8 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationsContext';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { useAuth } from '../context/AuthContext';
+import { collection, query, where, getDocs, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore';
 import { db, storage } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { PDFDocument } from 'pdf-lib';
@@ -56,6 +57,7 @@ const NewPaymentPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const { addNotification } = useNotifications();
+  const { user } = useAuth();
   
   // Estado para compromisos pendientes
   const [pendingCommitments, setPendingCommitments] = useState([]);
@@ -128,11 +130,12 @@ const NewPaymentPage = () => {
         // Filtrar solo compromisos pendientes o vencidos
         const status = data.status || 'pending';
         if (status === 'pending' || status === 'overdue') {
+          console.log('📄 Compromiso encontrado:', doc.id, data);
           commitments.push({
             id: doc.id,
             ...data,
             // Formatear datos para el display
-            displayName: `${data.companyName} - ${data.concept}`,
+            displayName: `${data.companyName || 'Sin empresa'} - ${data.concept || data.name || 'Sin concepto'}`,
             formattedDueDate: data.dueDate ? format(data.dueDate.toDate(), 'dd/MMM/yyyy', { locale: es }) : 'Sin fecha',
             formattedAmount: new Intl.NumberFormat('es-CO', {
               style: 'currency',
@@ -318,6 +321,18 @@ const NewPaymentPage = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    console.log('🎯 handleSubmit INICIADO - event:', event);
+    
+    // Verificar autenticación
+    if (!user) {
+      addNotification({
+        type: 'error',
+        title: 'No autenticado',
+        message: 'Debe iniciar sesión para registrar pagos',
+        icon: 'error'
+      });
+      return;
+    }
     
     if (!validateForm()) {
       addNotification({
@@ -332,31 +347,91 @@ const NewPaymentPage = () => {
     setIsSubmitting(true);
     
     try {
+      console.log('🚀 Iniciando proceso de pago...');
+      console.log('👤 Usuario autenticado:', user?.uid, user?.email);
+      console.log('📋 Selected commitment completo:', JSON.stringify(selectedCommitment, null, 2));
+      console.log('📝 Form data completo:', JSON.stringify(formData, null, 2));
+      
       // Subir archivos primero
+      console.log('📎 Subiendo archivos...');
       const uploadedFileUrls = await uploadFiles();
+      console.log('✅ Archivos subidos:', uploadedFileUrls);
       
       // Preparar datos del pago incluyendo URLs de archivos
       const paymentData = {
-        ...formData,
-        attachments: uploadedFileUrls
+        commitmentId: selectedCommitment.id,
+        companyName: selectedCommitment.companyName || selectedCommitment.company || 'Sin empresa',
+        concept: selectedCommitment.name || selectedCommitment.concept || selectedCommitment.description || 'Sin concepto',
+        amount: formData.finalAmount || 0,
+        originalAmount: formData.originalAmount || 0,
+        interests: (formData.interests || 0) + (formData.interesesDerechosExplotacion || 0) + (formData.interesesGastosAdministracion || 0),
+        method: formData.method || '',
+        reference: formData.reference || '',
+        date: Timestamp.fromDate(new Date(formData.date)),
+        notes: formData.notes || '',
+        status: 'completed',
+        attachments: uploadedFileUrls || [],
+        processedBy: user.uid,
+        processedByEmail: user.email,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
       };
       
-      // Aquí iría la lógica para guardar el pago
-      console.log('Saving payment:', paymentData);
+      // Validar que los campos críticos no estén vacíos
+      console.log('🔍 Validando paymentData antes de guardar:', paymentData);
+      
+      if (!paymentData.commitmentId) {
+        throw new Error('ID del compromiso no válido');
+      }
+      if (!paymentData.concept || paymentData.concept === 'Sin concepto') {
+        console.warn('⚠️ Concepto no encontrado en selectedCommitment:', selectedCommitment);
+      }
+      
+      // Guardar el pago en la colección payments
+      console.log('💾 Guardando pago en Firebase:', paymentData);
+      const paymentRef = await addDoc(collection(db, 'payments'), paymentData);
+      console.log('✅ Pago guardado con ID:', paymentRef.id);
+      
+      // Actualizar el compromiso como pagado
+      console.log('🔄 Actualizando compromiso como pagado...');
+      const commitmentRef = doc(db, 'commitments', selectedCommitment.id);
+      await updateDoc(commitmentRef, {
+        isPaid: true,
+        paid: true,
+        paymentDate: Timestamp.fromDate(new Date(formData.date)),
+        paidAt: Timestamp.fromDate(new Date(formData.date)), // También agregar paidAt para compatibilidad
+        paymentAmount: formData.finalAmount,
+        paymentId: paymentRef.id,
+        interestPaid: (formData.interests || 0) + (formData.interesesDerechosExplotacion || 0) + (formData.interesesGastosAdministracion || 0),
+        paymentMethod: formData.method,
+        paymentReference: formData.reference,
+        paymentNotes: formData.notes,
+        receiptUrl: uploadedFileUrls && uploadedFileUrls.length > 0 ? uploadedFileUrls[0] : null, // Primer archivo para compatibilidad
+        receiptUrls: uploadedFileUrls || [], // Todos los archivos
+        receiptMetadata: uploadedFileUrls ? uploadedFileUrls.map(url => ({
+          url: url,
+          uploadedAt: new Date(),
+          type: url.includes('.pdf') ? 'pdf' : 'image'
+        })) : [],
+        updatedAt: Timestamp.now()
+      });
+      
+      console.log('✅ Compromiso actualizado como pagado');
       
       addNotification({
         type: 'success',
-        title: 'Pago registrado',
-        message: 'El pago ha sido registrado exitosamente con sus comprobantes',
+        title: 'Pago registrado exitosamente',
+        message: `Pago de $${formData.finalAmount.toLocaleString()} registrado para ${selectedCommitment.companyName}`,
         icon: 'success'
       });
       
       navigate('/payments');
     } catch (error) {
+      console.error('Error guardando pago:', error);
       addNotification({
         type: 'error',
-        title: 'Error',
-        message: 'Hubo un error al registrar el pago',
+        title: 'Error al registrar pago',
+        message: `No se pudo guardar el pago: ${error.message}`,
         icon: 'error'
       });
     } finally {
@@ -1235,8 +1310,17 @@ const NewPaymentPage = () => {
             <Button
               type="submit"
               variant="contained"
-              disabled={isSubmitting || uploading || !selectedCommitment || !areInterestsComplete()}
+              disabled={isSubmitting || uploading}
               sx={{ minWidth: 120 }}
+              onClick={() => {
+                console.log('🔘 Botón clicked - Estado del formulario:');
+                console.log('- isSubmitting:', isSubmitting);
+                console.log('- uploading:', uploading);
+                console.log('- selectedCommitment:', !!selectedCommitment);
+                console.log('- areInterestsComplete():', areInterestsComplete());
+                console.log('- requiresInterests:', requiresInterests(selectedCommitment, formData.date));
+                console.log('- formData:', formData);
+              }}
             >
               {isSubmitting ? (
                 <CircularProgress size={20} />
