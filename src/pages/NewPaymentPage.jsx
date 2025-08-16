@@ -20,7 +20,14 @@ import {
   StepLabel,
   Autocomplete,
   Chip,
-  CircularProgress
+  CircularProgress,
+  LinearProgress,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemSecondaryAction,
+  IconButton
 } from '@mui/material';
 import {
   AttachMoney as MoneyIcon,
@@ -29,13 +36,18 @@ import {
   Save as SaveIcon,
   Cancel as CancelIcon,
   Schedule as ScheduleIcon,
-  TrendingUp as InterestIcon
+  TrendingUp as InterestIcon,
+  CloudUpload as UploadIcon,
+  AttachFile as AttachIcon,
+  Delete as DeleteIcon,
+  InsertDriveFile as FileIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationsContext';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { db, storage } from '../config/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -66,6 +78,12 @@ const NewPaymentPage = () => {
 
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Estado para archivos
+  const [files, setFiles] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [dragActive, setDragActive] = useState(false);
 
   // Cargar compromisos pendientes de pago
   useEffect(() => {
@@ -143,6 +161,23 @@ const NewPaymentPage = () => {
       });
     } finally {
       setLoadingCommitments(false);
+    }
+  };
+
+  // Verificar si los intereses requeridos están completos
+  const areInterestsComplete = () => {
+    // Si no se requieren intereses, siempre está completo
+    if (!requiresInterests(selectedCommitment, formData.date)) {
+      return true;
+    }
+    
+    // Si se requieren intereses
+    if (isColjuegosCommitment(selectedCommitment)) {
+      // Para Coljuegos: al menos uno de los dos tipos debe tener valor > 0
+      return formData.interesesDerechosExplotacion > 0 || formData.interesesGastosAdministracion > 0;
+    } else {
+      // Para otros compromisos: debe tener intereses > 0
+      return formData.interests > 0;
     }
   };
 
@@ -264,6 +299,17 @@ const NewPaymentPage = () => {
     if (!formData.method) newErrors.method = 'El método de pago es requerido';
     if (!formData.reference) newErrors.reference = 'La referencia es requerida';
     if (!formData.date) newErrors.date = 'La fecha es requerida';
+    
+    // Validar intereses si se requieren
+    if (requiresInterests(selectedCommitment, formData.date)) {
+      if (!areInterestsComplete()) {
+        if (isColjuegosCommitment(selectedCommitment)) {
+          newErrors.interests = 'Debe ingresar al menos uno de los tipos de intereses de Coljuegos';
+        } else {
+          newErrors.interests = 'Debe ingresar el monto de intereses por mora';
+        }
+      }
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -285,13 +331,22 @@ const NewPaymentPage = () => {
     setIsSubmitting(true);
     
     try {
+      // Subir archivos primero
+      const uploadedFileUrls = await uploadFiles();
+      
+      // Preparar datos del pago incluyendo URLs de archivos
+      const paymentData = {
+        ...formData,
+        attachments: uploadedFileUrls
+      };
+      
       // Aquí iría la lógica para guardar el pago
-      console.log('Saving payment:', formData);
+      console.log('Saving payment:', paymentData);
       
       addNotification({
         type: 'success',
         title: 'Pago registrado',
-        message: 'El pago ha sido registrado exitosamente',
+        message: 'El pago ha sido registrado exitosamente con sus comprobantes',
         icon: 'success'
       });
       
@@ -310,6 +365,122 @@ const NewPaymentPage = () => {
 
   const handleCancel = () => {
     navigate('/payments');
+  };
+
+  // Funciones para manejo de archivos
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    handleFiles(droppedFiles);
+  };
+
+  const handleFileSelect = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    handleFiles(selectedFiles);
+  };
+
+  const handleFiles = (newFiles) => {
+    // Filtrar solo archivos de imagen y PDF
+    const validFiles = newFiles.filter(file => {
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+      return validTypes.includes(file.type) && file.size <= 10 * 1024 * 1024; // 10MB max
+    });
+
+    if (validFiles.length !== newFiles.length) {
+      addNotification({
+        type: 'warning',
+        title: 'Archivos filtrados',
+        message: 'Solo se permiten imágenes (JPG, PNG) y PDFs menores a 10MB',
+        icon: 'warning'
+      });
+    }
+
+    setFiles(prev => [...prev, ...validFiles.map(file => ({
+      file,
+      id: Date.now() + Math.random(),
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      uploaded: false,
+      url: null
+    }))]);
+  };
+
+  const removeFile = (fileId) => {
+    setFiles(prev => prev.filter(f => f.id !== fileId));
+  };
+
+  const uploadFiles = async () => {
+    if (files.length === 0) return [];
+
+    setUploading(true);
+    setUploadProgress(0);
+    const uploadedUrls = [];
+
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const fileData = files[i];
+        if (fileData.uploaded) {
+          uploadedUrls.push(fileData.url);
+          continue;
+        }
+
+        // Crear referencia única para el archivo
+        const timestamp = Date.now();
+        const fileName = `payments/${timestamp}_${fileData.name}`;
+        const storageRef = ref(storage, fileName);
+
+        // Subir archivo
+        const snapshot = await uploadBytes(storageRef, fileData.file);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        
+        uploadedUrls.push(downloadURL);
+        
+        // Actualizar estado del archivo
+        setFiles(prev => prev.map(f => 
+          f.id === fileData.id 
+            ? { ...f, uploaded: true, url: downloadURL }
+            : f
+        ));
+
+        // Actualizar progreso
+        setUploadProgress(Math.round(((i + 1) / files.length) * 100));
+      }
+
+      addNotification({
+        type: 'success',
+        title: 'Archivos subidos',
+        message: `${files.length} comprobante(s) subido(s) exitosamente`,
+        icon: 'success'
+      });
+
+      return uploadedUrls;
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error de carga',
+        message: 'Hubo un error al subir los archivos',
+        icon: 'error'
+      });
+      return [];
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
   };
 
   const steps = ['Seleccionar Compromiso', 'Información del Pago', 'Confirmación'];
@@ -503,6 +674,7 @@ const NewPaymentPage = () => {
                                   }}
                                   fullWidth
                                   type="number"
+                                  error={errors.interests && formData.interesesDerechosExplotacion === 0 && formData.interesesGastosAdministracion === 0}
                                   InputProps={{
                                     startAdornment: (
                                       <InputAdornment position="start">
@@ -534,6 +706,7 @@ const NewPaymentPage = () => {
                                   }}
                                   fullWidth
                                   type="number"
+                                  error={errors.interests && formData.interesesDerechosExplotacion === 0 && formData.interesesGastosAdministracion === 0}
                                   InputProps={{
                                     startAdornment: (
                                       <InputAdornment position="start">
@@ -601,6 +774,8 @@ const NewPaymentPage = () => {
                                   }}
                                   fullWidth
                                   type="number"
+                                  error={errors.interests && formData.interests === 0}
+                                  helperText={errors.interests && formData.interests === 0 ? "Este campo es requerido para pagos tardíos" : "Ingrese el monto de intereses por mora"}
                                   InputProps={{
                                     startAdornment: (
                                       <InputAdornment position="start">
@@ -614,7 +789,6 @@ const NewPaymentPage = () => {
                                       color: formData.interests > 0 ? 'warning.main' : 'text.secondary'
                                     }
                                   }}
-                                  helperText="Ingrese el monto de intereses por mora"
                                 />
                               </Grid>
 
@@ -731,6 +905,106 @@ const NewPaymentPage = () => {
                           placeholder="Notas adicionales sobre el pago..."
                         />
                       </Grid>
+
+                      {/* Sección de carga de archivos */}
+                      <Grid item xs={12}>
+                        <Divider sx={{ my: 2 }} />
+                        <Typography variant="subtitle2" gutterBottom color="primary">
+                          📎 Comprobantes de Pago
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={12}>
+                        {/* Zona de drag & drop */}
+                        <Card 
+                          sx={{ 
+                            border: dragActive ? '2px dashed #1976d2' : '2px dashed #ccc',
+                            backgroundColor: dragActive ? 'action.hover' : 'background.paper',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                              backgroundColor: 'action.hover',
+                              borderColor: 'primary.main'
+                            }
+                          }}
+                          onDragEnter={handleDrag}
+                          onDragLeave={handleDrag}
+                          onDragOver={handleDrag}
+                          onDrop={handleDrop}
+                        >
+                          <CardContent sx={{ textAlign: 'center', py: 4 }}>
+                            <input
+                              type="file"
+                              multiple
+                              accept=".jpg,.jpeg,.png,.pdf"
+                              onChange={handleFileSelect}
+                              style={{ display: 'none' }}
+                              id="file-upload"
+                            />
+                            <label htmlFor="file-upload" style={{ cursor: 'pointer', width: '100%', display: 'block' }}>
+                              <UploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
+                              <Typography variant="h6" gutterBottom>
+                                Arrastra archivos aquí o haz clic para seleccionar
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Formatos permitidos: JPG, PNG, PDF (máx. 10MB cada uno)
+                              </Typography>
+                              <Button
+                                variant="outlined"
+                                startIcon={<AttachIcon />}
+                                sx={{ mt: 2 }}
+                                component="span"
+                              >
+                                Seleccionar Archivos
+                              </Button>
+                            </label>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+
+                      {/* Lista de archivos seleccionados */}
+                      {files.length > 0 && (
+                        <Grid item xs={12}>
+                          <Typography variant="subtitle2" gutterBottom>
+                            📋 Archivos Seleccionados ({files.length})
+                          </Typography>
+                          <List dense>
+                            {files.map((fileData) => (
+                              <ListItem key={fileData.id}>
+                                <ListItemIcon>
+                                  <FileIcon color={fileData.uploaded ? 'success' : 'default'} />
+                                </ListItemIcon>
+                                <ListItemText
+                                  primary={fileData.name}
+                                  secondary={`${Math.round(fileData.size / 1024)} KB - ${fileData.uploaded ? 'Subido' : 'Pendiente'}`}
+                                />
+                                <ListItemSecondaryAction>
+                                  <IconButton
+                                    edge="end"
+                                    onClick={() => removeFile(fileData.id)}
+                                    size="small"
+                                    disabled={uploading}
+                                  >
+                                    <DeleteIcon />
+                                  </IconButton>
+                                </ListItemSecondaryAction>
+                              </ListItem>
+                            ))}
+                          </List>
+                        </Grid>
+                      )}
+
+                      {/* Barra de progreso durante la carga */}
+                      {uploading && (
+                        <Grid item xs={12}>
+                          <Box sx={{ width: '100%', mb: 1 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              Subiendo archivos... {uploadProgress}%
+                            </Typography>
+                            <LinearProgress variant="determinate" value={uploadProgress} />
+                          </Box>
+                        </Grid>
+                      )}
                     </>
                   )}
                 </Grid>
@@ -838,6 +1112,17 @@ const NewPaymentPage = () => {
                         </Typography>
                       </Box>
                     )}
+
+                    {files.length > 0 && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Comprobantes: <strong>{files.length} archivo(s)</strong>
+                        </Typography>
+                        <Typography variant="caption" color={files.every(f => f.uploaded) ? 'success.main' : 'warning.main'}>
+                          {files.every(f => f.uploaded) ? '✓ Todos subidos' : '⚠ Pendientes de subir'}
+                        </Typography>
+                      </Box>
+                    )}
                   </Box>
                 ) : (
                   <Alert severity="info">
@@ -860,21 +1145,49 @@ const NewPaymentPage = () => {
             <CancelIcon sx={{ mr: 1 }} />
             Cancelar
           </Button>
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={isSubmitting || !selectedCommitment}
-            sx={{ minWidth: 120 }}
-          >
-            {isSubmitting ? (
-              <CircularProgress size={20} />
-            ) : (
-              <>
-                <SaveIcon sx={{ mr: 1 }} />
-                Registrar Pago
-              </>
+          
+          <Box sx={{ position: 'relative' }}>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={isSubmitting || uploading || !selectedCommitment || !areInterestsComplete()}
+              sx={{ minWidth: 120 }}
+            >
+              {isSubmitting ? (
+                <CircularProgress size={20} />
+              ) : uploading ? (
+                <>
+                  <CircularProgress size={16} sx={{ mr: 1 }} />
+                  Subiendo...
+                </>
+              ) : (
+                <>
+                  <SaveIcon sx={{ mr: 1 }} />
+                  Registrar Pago
+                </>
+              )}
+            </Button>
+            
+            {/* Mensaje de ayuda cuando el botón está deshabilitado por intereses */}
+            {selectedCommitment && 
+             requiresInterests(selectedCommitment, formData.date) && 
+             !areInterestsComplete() && (
+              <Typography 
+                variant="caption" 
+                color="warning.main" 
+                sx={{ 
+                  position: 'absolute', 
+                  top: '100%', 
+                  left: 0, 
+                  mt: 0.5,
+                  fontStyle: 'italic',
+                  fontSize: '0.7rem'
+                }}
+              >
+                ⚠️ Ingrese los intereses para habilitar el pago
+              </Typography>
             )}
-          </Button>
+          </Box>
         </Box>
       </form>
     </Box>
