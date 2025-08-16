@@ -120,6 +120,9 @@ const NewCommitmentPage = () => {
     baseAmount: '', // 💰 Valor base (antes era 'amount')
     iva: '', // 📊 IVA
     retefuente: '', // 📉 Retención en la fuente
+  ica: '', // 🏙️ ICA
+  discount: '', // 🏷️ Descuento
+  invoiceNumber: '', // 🧾 Número de Factura
     totalAmount: '', // 💵 Total calculado
     paymentMethod: 'transfer', // transfer, check, cash, debit, credit
     observations: '',
@@ -182,12 +185,35 @@ const NewCommitmentPage = () => {
     }));
   };
 
+  const handleIcaChange = (e) => {
+    const inputValue = e.target.value;
+    const cleanValue = parseFormattedNumber(inputValue);
+
+    setFormData(prev => ({
+      ...prev,
+      ica: cleanValue
+    }));
+  };
+
+  const handleDiscountChange = (e) => {
+    const inputValue = e.target.value;
+    const cleanValue = parseFormattedNumber(inputValue);
+
+    setFormData(prev => ({
+      ...prev,
+      discount: cleanValue
+    }));
+  };
+
   // 🧮 Calcular automáticamente el total
   const calculateTotal = () => {
     const base = parseFloat(formData.baseAmount) || 0;
     const iva = parseFloat(formData.iva) || 0;
     const retefuente = parseFloat(formData.retefuente) || 0;
-    return base + iva - retefuente; // Base + IVA - Retención
+  const ica = parseFloat(formData.ica) || 0;
+  const discount = parseFloat(formData.discount) || 0;
+  // Total a Pagar = Valor base + IVA + Retefuente + ICA - Descuento
+  return base + iva + retefuente + ica - discount;
   };
 
   // Actualizar total automáticamente cuando cambien los valores
@@ -197,7 +223,7 @@ const NewCommitmentPage = () => {
       ...prev,
       totalAmount: total.toString()
     }));
-  }, [formData.baseAmount, formData.iva, formData.retefuente]);
+  }, [formData.baseAmount, formData.iva, formData.retefuente, formData.ica, formData.discount]);
 
   // 📎 Estados y funciones para drag & drop
   const [isDragOver, setIsDragOver] = useState(false);
@@ -422,9 +448,12 @@ const NewCommitmentPage = () => {
       beneficiary: '',
       beneficiaryNit: '',
       concept: '',
+  invoiceNumber: '',
       baseAmount: '',
       iva: '',
       retefuente: '',
+  ica: '',
+  discount: '',
       totalAmount: '',
       paymentMethod: 'transfer',
       observations: '',
@@ -649,6 +678,8 @@ const NewCommitmentPage = () => {
         baseAmount: parseFloat(formData.baseAmount),
         iva: parseFloat(formData.iva) || 0,
         retefuente: parseFloat(formData.retefuente) || 0,
+  ica: parseFloat(formData.ica) || 0,
+  discount: parseFloat(formData.discount) || 0,
         createdAt: serverTimestamp(),
         createdBy: currentUser.uid,
         updatedAt: serverTimestamp(),
@@ -1181,7 +1212,7 @@ const NewCommitmentPage = () => {
                               {...params}
                               fullWidth
                               required
-                              label="Beneficiario"
+                              label="Beneficiario / Proveedor"
                               placeholder="Nombre de la entidad o persona a quien se le paga"
                               InputProps={{
                                 ...params.InputProps,
@@ -1243,6 +1274,27 @@ const NewCommitmentPage = () => {
                         />
                       </Grid>
 
+                      {/* Sección 2: Beneficiario / Proveedor y NIT */}
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="NIT/Identificación"
+                          value={formData.beneficiaryNit}
+                          onChange={(e) => handleFormChange('beneficiaryNit', e.target.value)}
+                          disabled={saving}
+                          placeholder="Ej: 900123456-1 o 12345678"
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <AssignmentIcon sx={{ color: primaryColor }} />
+                              </InputAdornment>
+                            )
+                          }}
+                          helperText="NIT, CC, CE o documento de identificación"
+                        />
+                      </Grid>
+
+                      {/* Sección 3: Concepto y Número de Factura */}
                       <Grid item xs={12} md={6}>
                         <Autocomplete
                           freeSolo
@@ -1323,15 +1375,14 @@ const NewCommitmentPage = () => {
                         />
                       </Grid>
 
-                      {/* NIT/Identificación del beneficiario */}
                       <Grid item xs={12} md={6}>
                         <TextField
                           fullWidth
-                          label="NIT/Identificación"
-                          value={formData.beneficiaryNit}
-                          onChange={(e) => handleFormChange('beneficiaryNit', e.target.value)}
+                          label="Número de Factura"
+                          value={formData.invoiceNumber}
+                          onChange={(e) => handleFormChange('invoiceNumber', e.target.value)}
                           disabled={saving}
-                          placeholder="Ej: 900123456-1 o 12345678"
+                          placeholder="Ej: FAC-0001"
                           InputProps={{
                             startAdornment: (
                               <InputAdornment position="start">
@@ -1339,7 +1390,6 @@ const NewCommitmentPage = () => {
                               </InputAdornment>
                             )
                           }}
-                          helperText="NIT, CC, CE o documento de identificación"
                         />
                       </Grid>
 
@@ -1396,11 +1446,11 @@ const NewCommitmentPage = () => {
                         />
                       </Grid>
 
-                      {/* Retención en la fuente */}
+                      {/* Retefuente */}
                       <Grid item xs={12} md={6}>
                         <TextField
                           fullWidth
-                          label="Retención en la fuente"
+                          label="Retefuente"
                           value={formData.retefuente ? formatNumberWithCommas(formData.retefuente) : ''}
                           onChange={handleRetefuenteChange}
                           disabled={saving}
@@ -1414,7 +1464,51 @@ const NewCommitmentPage = () => {
                               </InputAdornment>
                             )
                           }}
-                          helperText="Retención aplicada"
+                          helperText="Retefuente aplicada"
+                        />
+                      </Grid>
+
+                      {/* ICA */}
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="ICA"
+                          value={formData.ica ? formatNumberWithCommas(formData.ica) : ''}
+                          onChange={handleIcaChange}
+                          disabled={saving}
+                          placeholder="0"
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Typography variant="body2" sx={{ color: 'info.main', fontWeight: 600 }}>
+                                  🏙️ $
+                                </Typography>
+                              </InputAdornment>
+                            )
+                          }}
+                          helperText="Impuesto de Industria y Comercio"
+                        />
+                      </Grid>
+
+                      {/* Descuento */}
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Descuento"
+                          value={formData.discount ? formatNumberWithCommas(formData.discount) : ''}
+                          onChange={handleDiscountChange}
+                          disabled={saving}
+                          placeholder="0"
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Typography variant="body2" sx={{ color: 'secondary.main', fontWeight: 600 }}>
+                                  🔻 $
+                                </Typography>
+                              </InputAdornment>
+                            )
+                          }}
+                          helperText="Descuento aplicado"
                         />
                       </Grid>
 
@@ -1448,7 +1542,7 @@ const NewCommitmentPage = () => {
                               }
                             }
                           }}
-                          helperText={`Base + IVA - Retención = ${formatCurrency(formData.totalAmount || 0)}`}
+                          helperText={`Base + IVA + Retefuente + ICA - Descuento = ${formatCurrency(formData.totalAmount || 0)}`}
                         />
                       </Grid>
 
@@ -1543,11 +1637,11 @@ const NewCommitmentPage = () => {
                         />
                       </Grid>
 
-                      {/* Fila 5: Observaciones */}
+            {/* Sección 4: Comentarios */}
                       <Grid item xs={12}>
                         <TextField
                           fullWidth
-                          label="Observaciones"
+              label="Comentarios"
                           value={formData.observations}
                           onChange={(e) => handleFormChange('observations', e.target.value)}
                           disabled={saving}
@@ -1715,7 +1809,7 @@ const NewCommitmentPage = () => {
                 </Grid>
 
                 {/* Estilos CSS para animaciones */}
-                <style jsx>{`
+                <style>{`
                   @keyframes pulse {
                     0% { transform: scale(1); opacity: 0.8; }
                     50% { transform: scale(1.1); opacity: 1; }
@@ -1804,7 +1898,16 @@ const NewCommitmentPage = () => {
                         variant="contained"
                         startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
                         onClick={handleSaveCommitment}
-                        disabled={saving || !formData.companyId || !formData.month || !formData.year || !formData.periodicity || !formData.beneficiary?.trim() || !formData.concept?.trim() || !formData.amount || !formData.paymentMethod}
+                        disabled={
+                          saving ||
+                          !formData.companyId ||
+                          !formData.month ||
+                          !formData.periodicity ||
+                          !formData.beneficiary?.trim() ||
+                          !formData.concept?.trim() ||
+                          !(parseFloat(formData.baseAmount) > 0) ||
+                          !formData.paymentMethod
+                        }
                         sx={{ 
                           borderRadius: 2,
                           px: 3,
