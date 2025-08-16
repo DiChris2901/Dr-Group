@@ -106,6 +106,68 @@ const NewCommitmentPage = () => {
     return counts[periodicity] || 12;
   };
 
+  // 🆔 Formatear NIT/Identificación automáticamente
+  const formatNitId = (value) => {
+    if (!value) return '';
+    
+    // Permitir números, guiones y espacios (los espacios se convertirán en guiones)
+    let cleanValue = value.replace(/[^\d\s-]/g, '');
+    
+    // Convertir espacios en guiones (para casos como "900505060 5")
+    cleanValue = cleanValue.replace(/\s+/g, '-');
+    
+    // Si está vacío después de limpiar, retornar vacío
+    if (!cleanValue) return '';
+    
+    // Detectar si es NIT (contiene guión o más de 8 dígitos)
+    const hasHyphen = cleanValue.includes('-');
+    const parts = cleanValue.split('-');
+    const mainPart = parts[0] || '';
+    const verificationPart = parts[1] || '';
+    
+    // Si es muy corto y no tiene guión, retornar con puntos básicos
+    if (mainPart.length < 4 && !hasHyphen) {
+      return cleanValue;
+    }
+    
+    // Formatear la parte principal con puntos
+    const formattedMain = mainPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    
+    if (hasHyphen) {
+      // Es NIT con dígito de verificación
+      if (verificationPart) {
+        // Limitar dígito de verificación a 1 carácter
+        const limitedVerification = verificationPart.substring(0, 1);
+        return `${formattedMain}-${limitedVerification}`;
+      } else {
+        // Usuario escribió guión pero no dígito, mantener guión
+        return `${formattedMain}-`;
+      }
+    } else if (mainPart.length >= 9) {
+      // Si tiene 9 o más dígitos sin guión, asumir que es NIT
+      // Separar los primeros 9 dígitos del último para verificación
+      const nitMain = mainPart.substring(0, 9);
+      const nitVerification = mainPart.substring(9, 10);
+      
+      const formattedNitMain = nitMain.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      
+      if (nitVerification) {
+        return `${formattedNitMain}-${nitVerification}`;
+      } else {
+        return formattedNitMain;
+      }
+    } else {
+      // Es ID personal (cédula, etc.)
+      return formattedMain;
+    }
+  };
+
+  // 🎮 Detectar si es compromiso de Coljuegos
+  const isColjuegosCommitment = () => {
+    return formData.beneficiary && 
+           formData.beneficiary.toLowerCase().includes('coljuegos');
+  };
+
   // Formulario para nuevo compromiso
   const [formData, setFormData] = useState({
     companyId: preselectedCompany?.id || '',
@@ -118,6 +180,9 @@ const NewCommitmentPage = () => {
     beneficiaryNit: '', // 🆔 NIT o identificación del beneficiario
     concept: '',
     baseAmount: '', // 💰 Valor base (antes era 'amount')
+    // 🎮 Campos específicos de Coljuegos
+    derechosExplotacion: '', // Derechos de Explotación
+    gastosAdministracion: '', // Gastos de Administración
     iva: '', // 📊 IVA
     retefuente: '', // 📉 Retención en la fuente
   ica: '', // 🏙️ ICA
@@ -199,23 +264,52 @@ const NewCommitmentPage = () => {
   const handleDiscountChange = (e) => {
     const inputValue = e.target.value;
     const cleanValue = parseFormattedNumber(inputValue);
-
+    
     setFormData(prev => ({
       ...prev,
       discount: cleanValue
     }));
   };
 
-  // 🧮 Calcular automáticamente el total
+  // 🎮 Manejadores específicos para Coljuegos
+  const handleDerechosChange = (e) => {
+    const inputValue = e.target.value;
+    const cleanValue = parseFormattedNumber(inputValue);
+    
+    setFormData(prev => ({
+      ...prev,
+      derechosExplotacion: cleanValue
+    }));
+  };
+
+  const handleGastosChange = (e) => {
+    const inputValue = e.target.value;
+    const cleanValue = parseFormattedNumber(inputValue);
+    
+    setFormData(prev => ({
+      ...prev,
+      gastosAdministracion: cleanValue
+    }));
+  };  // 🧮 Calcular automáticamente el total
   const calculateTotal = () => {
+    // 🎮 Caso especial: Coljuegos
+    if (isColjuegosCommitment()) {
+      const derechos = parseFloat(formData.derechosExplotacion) || 0;
+      const gastos = parseFloat(formData.gastosAdministracion) || 0;
+      return derechos + gastos; // Suma directa sin impuestos
+    }
+    
+    // 📊 Caso general: Otras empresas
     const base = parseFloat(formData.baseAmount) || 0;
     if (!formData.hasTaxes) return base;
+    
     const iva = parseFloat(formData.iva) || 0;
     const retefuente = parseFloat(formData.retefuente) || 0;
     const ica = parseFloat(formData.ica) || 0;
     const discount = parseFloat(formData.discount) || 0;
-    // Total a Pagar = Valor base + IVA + Retefuente + ICA - Descuento
-    return base + iva + retefuente + ica - discount;
+    
+    // Total = Valor base + IVA - Retefuente - ICA - Descuento
+    return base + iva - retefuente - ica - discount;
   };
 
   // Actualizar total automáticamente cuando cambien los valores
@@ -225,7 +319,21 @@ const NewCommitmentPage = () => {
       ...prev,
       totalAmount: total.toString()
     }));
-  }, [formData.baseAmount, formData.iva, formData.retefuente, formData.ica, formData.discount, formData.hasTaxes]);
+  }, [formData.baseAmount, formData.iva, formData.retefuente, formData.ica, formData.discount, formData.hasTaxes, formData.derechosExplotacion, formData.gastosAdministracion, formData.beneficiary]);
+
+  // 🎮 Auto-desactivar impuestos para Coljuegos
+  React.useEffect(() => {
+    if (isColjuegosCommitment() && formData.hasTaxes) {
+      setFormData(prev => ({
+        ...prev,
+        hasTaxes: false,
+        iva: '',
+        retefuente: '',
+        ica: '',
+        discount: ''
+      }));
+    }
+  }, [formData.beneficiary]);
 
   // 📎 Estados y funciones para drag & drop
   const [isDragOver, setIsDragOver] = useState(false);
@@ -653,15 +761,42 @@ const NewCommitmentPage = () => {
       return false;
     }
 
-    if (!formData.baseAmount || parseFloat(formData.baseAmount) <= 0) {
-      addNotification({
-        type: 'error',
-        title: 'Error de validación',
-        message: 'El valor base debe ser mayor a cero',
-        icon: 'error',
-        color: 'error'
-      });
-      return false;
+    // Validación específica según el tipo de compromiso
+    if (isColjuegosCommitment()) {
+      // 🎮 Validación para Coljuegos
+      if (!formData.derechosExplotacion || parseFloat(formData.derechosExplotacion) <= 0) {
+        addNotification({
+          type: 'error',
+          title: 'Error de validación',
+          message: 'Los derechos de explotación deben ser mayor a cero',
+          icon: 'error',
+          color: 'error'
+        });
+        return false;
+      }
+
+      if (!formData.gastosAdministracion || parseFloat(formData.gastosAdministracion) <= 0) {
+        addNotification({
+          type: 'error',
+          title: 'Error de validación',
+          message: 'Los gastos de administración deben ser mayor a cero',
+          icon: 'error',
+          color: 'error'
+        });
+        return false;
+      }
+    } else {
+      // 📊 Validación para empresas estándar
+      if (!formData.baseAmount || parseFloat(formData.baseAmount) <= 0) {
+        addNotification({
+          type: 'error',
+          title: 'Error de validación',
+          message: 'El valor base debe ser mayor a cero',
+          icon: 'error',
+          color: 'error'
+        });
+        return false;
+      }
     }
 
     return true;
@@ -690,12 +825,16 @@ const NewCommitmentPage = () => {
       const commitmentData = {
         ...formData,
         amount: parseFloat(formData.totalAmount), // El campo amount en la BD será el total
-        baseAmount: parseFloat(formData.baseAmount),
+        baseAmount: parseFloat(formData.baseAmount) || 0,
+        // 🎮 Campos específicos de Coljuegos
+        derechosExplotacion: parseFloat(formData.derechosExplotacion) || 0,
+        gastosAdministracion: parseFloat(formData.gastosAdministracion) || 0,
+        isColjuegosCommitment: isColjuegosCommitment(), // Bandera para identificar tipo
         iva: parseFloat(formData.iva) || 0,
         retefuente: parseFloat(formData.retefuente) || 0,
   ica: parseFloat(formData.ica) || 0,
   discount: parseFloat(formData.discount) || 0,
-  hasTaxes: !!formData.hasTaxes,
+  hasTaxes: !!formData.hasTaxes && !isColjuegosCommitment(), // No impuestos para Coljuegos
         createdAt: serverTimestamp(),
         createdBy: currentUser.uid,
         updatedAt: serverTimestamp(),
@@ -1351,17 +1490,64 @@ const NewCommitmentPage = () => {
                           fullWidth
                           label="NIT/Identificación"
                           value={formData.beneficiaryNit}
-                          onChange={(e) => handleFormChange('beneficiaryNit', e.target.value)}
+                          onChange={(e) => {
+                            const formattedValue = formatNitId(e.target.value);
+                            handleFormChange('beneficiaryNit', formattedValue);
+                          }}
                           disabled={saving}
-                          placeholder="Ej: 900123456-1 o 12345678"
+                          placeholder="Ej: 900505060-5 o 9005050605 o 1082881132"
                           InputProps={{
                             startAdornment: (
                               <InputAdornment position="start">
                                 <AssignmentIcon sx={{ color: primaryColor }} />
                               </InputAdornment>
-                            )
+                            ),
+                            sx: {
+                              borderRadius: `${borderRadius}px`,
+                              '& .MuiOutlinedInput-root': {
+                                transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                                '&:hover': animationsEnabled ? {
+                                  borderColor: primaryColor,
+                                  transform: 'translateY(-1px)',
+                                  boxShadow: theme.palette.mode === 'dark' 
+                                    ? `0 4px 12px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.2)` 
+                                    : `0 4px 12px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.15)`
+                                } : {},
+                                '&.Mui-focused': animationsEnabled ? {
+                                  borderColor: primaryColor,
+                                  boxShadow: theme.palette.mode === 'dark' 
+                                    ? `0 0 0 2px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.25)` 
+                                    : `0 0 0 2px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.08)`,
+                                  transform: 'translateX(4px)'
+                                } : {}
+                              }
+                            }
                           }}
-                          helperText="NIT, CC, CE o documento de identificación"
+                          helperText={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                NIT, CC, CE o documento de identificación
+                              </Typography>
+                              {formData.beneficiaryNit && (
+                                <Chip
+                                  size="small"
+                                  icon={formData.beneficiaryNit.includes('-') ? 
+                                    <BusinessIcon sx={{ fontSize: 12 }} /> : 
+                                    <PersonIcon sx={{ fontSize: 12 }} />
+                                  }
+                                  label={formData.beneficiaryNit.includes('-') ? 'NIT' : 'ID'}
+                                  sx={{
+                                    height: 16,
+                                    fontSize: '0.65rem',
+                                    '& .MuiChip-label': { px: 0.5 },
+                                    '& .MuiChip-icon': { fontSize: 10 }
+                                  }}
+                                  color={formData.beneficiaryNit.includes('-') ? 'primary' : 'secondary'}
+                                  variant="outlined"
+                                />
+                              )}
+                            </Box>
+                          }
                         />
                       </Grid>
 
@@ -1464,39 +1650,128 @@ const NewCommitmentPage = () => {
                         />
                       </Grid>
 
-                      <Grid item xs={12} md={3}>
-                        <TextField
-                          fullWidth
-                          required
-                          label="Valor Base"
-                          value={formData.baseAmount ? formatNumberWithCommas(formData.baseAmount) : ''}
-                          onChange={handleAmountChange}
-                          disabled={saving}
-                          placeholder="0"
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <MoneyIcon color="primary" />
-                                $
-                              </InputAdornment>
-                            ),
-                            sx: {
-                              '& .MuiOutlinedInput-root': {
-                                '&.Mui-focused': {
-                                  '& .MuiOutlinedInput-notchedOutline': {
-                                    borderColor: theme.palette.success.main,
-                                    borderWidth: 2,
+                      {/* 🎮 Campos específicos para Coljuegos */}
+                      {isColjuegosCommitment() ? (
+                        <>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              required
+                              label="Derechos de Explotación"
+                              value={formData.derechosExplotacion ? formatNumberWithCommas(formData.derechosExplotacion) : ''}
+                              onChange={handleDerechosChange}
+                              disabled={saving}
+                              placeholder="0"
+                              InputProps={{
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <MoneyIcon color="primary" />
+                                    $
+                                  </InputAdornment>
+                                ),
+                                sx: {
+                                  '& .MuiOutlinedInput-root': {
+                                    '&.Mui-focused': {
+                                      '& .MuiOutlinedInput-notchedOutline': {
+                                        borderColor: theme.palette.warning.main,
+                                        borderWidth: 2,
+                                      }
+                                    }
                                   }
                                 }
-                              }
-                            }
-                          }}
-                          helperText="Valor antes de impuestos"
-                        />
-                      </Grid>
+                              }}
+                              helperText="Monto por derechos de explotación"
+                            />
+                          </Grid>
 
-                      {/* Mostrar/Ocultar Impuestos */}
-                      <Grid item xs={12} md={12}>
+                          <Grid item xs={12} md={6}>
+                            <TextField
+                              fullWidth
+                              required
+                              label="Gastos de Administración"
+                              value={formData.gastosAdministracion ? formatNumberWithCommas(formData.gastosAdministracion) : ''}
+                              onChange={handleGastosChange}
+                              disabled={saving}
+                              placeholder="0"
+                              InputProps={{
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <MoneyIcon color="secondary" />
+                                    $
+                                  </InputAdornment>
+                                ),
+                                sx: {
+                                  '& .MuiOutlinedInput-root': {
+                                    '&.Mui-focused': {
+                                      '& .MuiOutlinedInput-notchedOutline': {
+                                        borderColor: theme.palette.secondary.main,
+                                        borderWidth: 2,
+                                      }
+                                    }
+                                  }
+                                }
+                              }}
+                              helperText="Monto por gastos de administración"
+                            />
+                          </Grid>
+
+                          {/* Alert informativo para Coljuegos */}
+                          <Grid item xs={12}>
+                            <Alert 
+                              severity="info" 
+                              icon={<BusinessIcon />}
+                              sx={{
+                                backgroundColor: alpha(theme.palette.info.main, 0.1),
+                                border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                                borderRadius: `${borderRadius}px`
+                              }}
+                            >
+                              <Typography variant="body2" fontWeight={500}>
+                                🎮 <strong>Compromiso Coljuegos</strong> - El total se calcula como: 
+                                <strong> Derechos + Gastos</strong> (sin impuestos aplicables)
+                              </Typography>
+                            </Alert>
+                          </Grid>
+                        </>
+                      ) : (
+                        <>
+                          {/* 📊 Campos estándar para otras empresas */}
+                          <Grid item xs={12} md={3}>
+                            <TextField
+                              fullWidth
+                              required
+                              label="Valor Base"
+                              value={formData.baseAmount ? formatNumberWithCommas(formData.baseAmount) : ''}
+                              onChange={handleAmountChange}
+                              disabled={saving}
+                              placeholder="0"
+                              InputProps={{
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <MoneyIcon color="primary" />
+                                    $
+                                  </InputAdornment>
+                                ),
+                                sx: {
+                                  '& .MuiOutlinedInput-root': {
+                                    '&.Mui-focused': {
+                                      '& .MuiOutlinedInput-notchedOutline': {
+                                        borderColor: theme.palette.success.main,
+                                        borderWidth: 2,
+                                      }
+                                    }
+                                  }
+                                }
+                              }}
+                              helperText="Valor antes de impuestos"
+                            />
+                          </Grid>
+                        </>
+                      )}
+
+                      {/* Mostrar/Ocultar Impuestos - Solo para empresas que NO son Coljuegos */}
+                      {!isColjuegosCommitment() && (
+                        <Grid item xs={12} md={12}>
                         <FormControlLabel
                           control={
                             <Checkbox
@@ -1510,9 +1785,10 @@ const NewCommitmentPage = () => {
                           sx={{ mt: { xs: 1, md: 0 } }}
                         />
                       </Grid>
+                      )}
 
-                      {/* IVA */}
-                      {formData.hasTaxes && (
+                      {/* IVA - Solo para empresas que NO son Coljuegos */}
+                      {formData.hasTaxes && !isColjuegosCommitment() && (
                       <Grid item xs={12} md={2}>
                         <TextField
                           fullWidth
@@ -1535,8 +1811,8 @@ const NewCommitmentPage = () => {
                       </Grid>
                       )}
 
-                      {/* Retefuente */}
-                      {formData.hasTaxes && (
+                      {/* Retefuente - Solo para empresas que NO son Coljuegos */}
+                      {formData.hasTaxes && !isColjuegosCommitment() && (
                       <Grid item xs={12} md={2}>
                         <TextField
                           fullWidth
@@ -1559,8 +1835,8 @@ const NewCommitmentPage = () => {
                       </Grid>
                       )}
 
-                      {/* ICA */}
-                      {formData.hasTaxes && (
+                      {/* ICA - Solo para empresas que NO son Coljuegos */}
+                      {formData.hasTaxes && !isColjuegosCommitment() && (
                       <Grid item xs={12} md={2}>
                         <TextField
                           fullWidth
@@ -1583,8 +1859,8 @@ const NewCommitmentPage = () => {
                       </Grid>
                       )}
 
-                      {/* Descuento */}
-                      {formData.hasTaxes && (
+                      {/* Descuento - Solo para empresas que NO son Coljuegos */}
+                      {formData.hasTaxes && !isColjuegosCommitment() && (
                       <Grid item xs={12} md={3}>
                         <TextField
                           fullWidth
@@ -1637,9 +1913,12 @@ const NewCommitmentPage = () => {
                               }
                             }
                           }}
-                          helperText={formData.hasTaxes
-                            ? `Base + IVA + Retefuente + ICA - Descuento = ${formatCurrency(formData.totalAmount || 0)}`
-                            : `Total = Base = ${formatCurrency(formData.totalAmount || 0)}`}
+                          helperText={isColjuegosCommitment() 
+                            ? `🎮 Total Coljuegos = Derechos + Gastos = ${formatCurrency(formData.totalAmount || 0)}`
+                            : formData.hasTaxes
+                              ? `📊 Base + IVA - Retención - ICA - Descuento = ${formatCurrency(formData.totalAmount || 0)}`
+                              : `💰 Total = Base = ${formatCurrency(formData.totalAmount || 0)}`
+                          }
                         />
                       </Grid>
 
