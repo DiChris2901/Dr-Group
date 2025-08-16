@@ -58,6 +58,9 @@ const NewPaymentPage = () => {
     // Campos calculados automáticamente
     originalAmount: 0,
     interests: 0,
+    // Campos específicos para Coljuegos
+    interesesDerechosExplotacion: 0,
+    interesesGastosAdministracion: 0,
     finalAmount: 0
   });
 
@@ -68,6 +71,24 @@ const NewPaymentPage = () => {
   useEffect(() => {
     loadPendingCommitments();
   }, []);
+
+  // Limpiar intereses cuando la fecha ya no los requiere
+  useEffect(() => {
+    if (selectedCommitment && formData.date) {
+      const needsInterests = requiresInterests(selectedCommitment, formData.date);
+      
+      if (!needsInterests) {
+        // Limpiar todos los tipos de intereses si no se requieren
+        setFormData(prev => ({
+          ...prev,
+          interests: 0,
+          interesesDerechosExplotacion: 0,
+          interesesGastosAdministracion: 0,
+          finalAmount: prev.originalAmount
+        }));
+      }
+    }
+  }, [formData.date, selectedCommitment]);
 
   const loadPendingCommitments = async () => {
     try {
@@ -125,11 +146,44 @@ const NewPaymentPage = () => {
     }
   };
 
+  // Verificar si la fecha de pago requiere intereses (posterior al vencimiento)
+  const requiresInterests = (commitment, paymentDate) => {
+    if (!commitment?.dueDate || !paymentDate) return false;
+    
+    const dueDate = commitment.dueDate.toDate();
+    const payment = new Date(paymentDate);
+    
+    // Resetear horas para comparar solo fechas
+    dueDate.setHours(0, 0, 0, 0);
+    payment.setHours(0, 0, 0, 0);
+    
+    console.log('Checking interests requirement:', {
+      dueDate: dueDate.toDateString(),
+      paymentDate: payment.toDateString(),
+      isLater: payment > dueDate
+    });
+    
+    return payment > dueDate;
+  };
+
   // Detectar si es un compromiso de Coljuegos
   const isColjuegosCommitment = (commitment) => {
     if (!commitment) return false;
     const companyName = commitment.companyName?.toLowerCase() || '';
-    return companyName.includes('coljuegos') || companyName.includes('col juegos');
+    const concept = commitment.concept?.toLowerCase() || '';
+    
+    console.log('Checking Coljuegos for:', { companyName, concept });
+    
+    // Buscar por nombre de empresa o concepto relacionado a Coljuegos
+    const isColjuegos = companyName.includes('coljuegos') || 
+           companyName.includes('col juegos') ||
+           concept.includes('derechos de explotación') ||
+           concept.includes('derechos de explotacion') ||
+           concept.includes('gastos de administración') ||
+           concept.includes('gastos de administracion');
+           
+    console.log('Is Coljuegos:', isColjuegos);
+    return isColjuegos;
   };
 
   // Calcular si hay intereses basado en la fecha de pago vs fecha de vencimiento
@@ -160,6 +214,8 @@ const NewPaymentPage = () => {
         commitmentId: '',
         originalAmount: 0,
         interests: 0,
+        interesesDerechosExplotacion: 0,
+        interesesGastosAdministracion: 0,
         finalAmount: 0
       }));
       return;
@@ -175,6 +231,8 @@ const NewPaymentPage = () => {
       commitmentId: commitment.id,
       originalAmount: commitment.amount || 0,
       interests: 0,
+      interesesDerechosExplotacion: 0,
+      interesesGastosAdministracion: 0,
       finalAmount: finalAmount
     }));
   };
@@ -361,6 +419,15 @@ const NewPaymentPage = () => {
                         <Divider sx={{ my: 1 }} />
                         <Typography variant="subtitle2" gutterBottom color="primary">
                           📋 Detalles del Compromiso Seleccionado
+                          {/* Indicador temporal para depuración */}
+                          {isColjuegosCommitment(selectedCommitment) && (
+                            <Chip 
+                              label="COLJUEGOS DETECTED" 
+                              color="secondary" 
+                              size="small" 
+                              sx={{ ml: 2 }}
+                            />
+                          )}
                         </Typography>
                         
                         {/* Información del compromiso */}
@@ -406,36 +473,167 @@ const NewPaymentPage = () => {
                         />
                       </Grid>
 
-                      <Grid item xs={12} sm={4}>
-                        <TextField
-                          label="Intereses por Mora"
-                          value={formData.interests}
-                          onChange={(e) => {
-                            const interestValue = parseFloat(e.target.value) || 0;
-                            setFormData(prev => ({
-                              ...prev,
-                              interests: interestValue,
-                              finalAmount: prev.originalAmount + interestValue
-                            }));
-                          }}
-                          fullWidth
-                          type="number"
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <InterestIcon color="warning" />
-                              </InputAdornment>
-                            ),
-                          }}
-                          sx={{
-                            '& .MuiInputBase-input': {
-                              fontWeight: 600,
-                              color: formData.interests > 0 ? 'warning.main' : 'text.secondary'
-                            }
-                          }}
-                          helperText="Ingrese el monto de intereses si corresponde"
-                        />
-                      </Grid>
+                      {/* Campos de Intereses - Solo cuando la fecha de pago es posterior al vencimiento */}
+                      {requiresInterests(selectedCommitment, formData.date) ? (
+                        <>
+                          {(() => {
+                            const isColj = isColjuegosCommitment(selectedCommitment);
+                            console.log('Rendering interest fields - Is Coljuegos:', isColj);
+                            return isColj;
+                          })() ? (
+                            <>
+                              {/* Intereses específicos para Coljuegos */}
+                              <Grid item xs={12}>
+                                <Typography variant="body2" color="info.main" sx={{ mb: 1, fontStyle: 'italic' }}>
+                                  ⚠️ Pago posterior al vencimiento - Se requieren intereses específicos de Coljuegos
+                                </Typography>
+                              </Grid>
+
+                              <Grid item xs={12} sm={4}>
+                                <TextField
+                                  label="Intereses Derechos de Explotación"
+                                  value={formData.interesesDerechosExplotacion}
+                                  onChange={(e) => {
+                                    const value = parseFloat(e.target.value) || 0;
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      interesesDerechosExplotacion: value,
+                                      finalAmount: prev.originalAmount + value + prev.interesesGastosAdministracion
+                                    }));
+                                  }}
+                                  fullWidth
+                                  type="number"
+                                  InputProps={{
+                                    startAdornment: (
+                                      <InputAdornment position="start">
+                                        <InterestIcon color="warning" />
+                                      </InputAdornment>
+                                    ),
+                                  }}
+                                  sx={{
+                                    '& .MuiInputBase-input': {
+                                      fontWeight: 600,
+                                      color: formData.interesesDerechosExplotacion > 0 ? 'warning.main' : 'text.secondary'
+                                    }
+                                  }}
+                                  helperText="Intereses específicos para derechos de explotación"
+                                />
+                              </Grid>
+
+                              <Grid item xs={12} sm={4}>
+                                <TextField
+                                  label="Intereses Gastos de Administración"
+                                  value={formData.interesesGastosAdministracion}
+                                  onChange={(e) => {
+                                    const value = parseFloat(e.target.value) || 0;
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      interesesGastosAdministracion: value,
+                                      finalAmount: prev.originalAmount + prev.interesesDerechosExplotacion + value
+                                    }));
+                                  }}
+                                  fullWidth
+                                  type="number"
+                                  InputProps={{
+                                    startAdornment: (
+                                      <InputAdornment position="start">
+                                        <InterestIcon color="error" />
+                                      </InputAdornment>
+                                    ),
+                                  }}
+                                  sx={{
+                                    '& .MuiInputBase-input': {
+                                      fontWeight: 600,
+                                      color: formData.interesesGastosAdministracion > 0 ? 'error.main' : 'text.secondary'
+                                    }
+                                  }}
+                                  helperText="Intereses específicos para gastos de administración"
+                                />
+                              </Grid>
+
+                              <Grid item xs={12} sm={4}>
+                                <TextField
+                                  label="Total Intereses Coljuegos"
+                                  value={new Intl.NumberFormat('es-CO', {
+                                    style: 'currency',
+                                    currency: 'COP',
+                                    minimumFractionDigits: 0
+                                  }).format(formData.interesesDerechosExplotacion + formData.interesesGastosAdministracion)}
+                                  fullWidth
+                                  disabled
+                                  InputProps={{
+                                    startAdornment: (
+                                      <InputAdornment position="start">
+                                        <InterestIcon color="secondary" />
+                                      </InputAdornment>
+                                    ),
+                                  }}
+                                  sx={{
+                                    '& .MuiInputBase-input': {
+                                      fontWeight: 700,
+                                      color: 'secondary.main'
+                                    }
+                                  }}
+                                  helperText="Suma de ambos tipos de intereses"
+                                />
+                              </Grid>
+                            </>
+                          ) : (
+                            <>
+                              {/* Intereses regulares para otros compromisos */}
+                              <Grid item xs={12}>
+                                <Typography variant="body2" color="warning.main" sx={{ mb: 1, fontStyle: 'italic' }}>
+                                  ⚠️ Pago posterior al vencimiento - Se pueden aplicar intereses por mora
+                                </Typography>
+                              </Grid>
+
+                              <Grid item xs={12} sm={6}>
+                                <TextField
+                                  label="Intereses por Mora"
+                                  value={formData.interests}
+                                  onChange={(e) => {
+                                    const interestValue = parseFloat(e.target.value) || 0;
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      interests: interestValue,
+                                      finalAmount: prev.originalAmount + interestValue
+                                    }));
+                                  }}
+                                  fullWidth
+                                  type="number"
+                                  InputProps={{
+                                    startAdornment: (
+                                      <InputAdornment position="start">
+                                        <InterestIcon color="warning" />
+                                      </InputAdornment>
+                                    ),
+                                  }}
+                                  sx={{
+                                    '& .MuiInputBase-input': {
+                                      fontWeight: 600,
+                                      color: formData.interests > 0 ? 'warning.main' : 'text.secondary'
+                                    }
+                                  }}
+                                  helperText="Ingrese el monto de intereses por mora"
+                                />
+                              </Grid>
+
+                              <Grid item xs={12} sm={6}>
+                                {/* Espacio vacío para mantener layout */}
+                              </Grid>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          {/* Mensaje cuando no se requieren intereses */}
+                          <Grid item xs={12}>
+                            <Alert severity="success" sx={{ mt: 1 }}>
+                              ✅ Pago a tiempo - No se requieren intereses adicionales
+                            </Alert>
+                          </Grid>
+                        </>
+                      )}
 
                       <Grid item xs={12} sm={4}>
                         <TextField
@@ -573,17 +771,51 @@ const NewPaymentPage = () => {
                       </Typography>
                     </Box>
                     
-                    {formData.interests > 0 && (
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Typography variant="body2">Intereses:</Typography>
-                        <Typography variant="body2" color="warning.main" fontWeight={600}>
-                          +{new Intl.NumberFormat('es-CO', {
-                            style: 'currency',
-                            currency: 'COP',
-                            minimumFractionDigits: 0
-                          }).format(formData.interests)}
-                        </Typography>
-                      </Box>
+                    {isColjuegosCommitment(selectedCommitment) ? (
+                      <>
+                        {/* Mostrar intereses de Coljuegos separados */}
+                        {formData.interesesDerechosExplotacion > 0 && (
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <Typography variant="body2">Int. Derechos Explotación:</Typography>
+                            <Typography variant="body2" color="warning.main" fontWeight={600}>
+                              +{new Intl.NumberFormat('es-CO', {
+                                style: 'currency',
+                                currency: 'COP',
+                                minimumFractionDigits: 0
+                              }).format(formData.interesesDerechosExplotacion)}
+                            </Typography>
+                          </Box>
+                        )}
+                        
+                        {formData.interesesGastosAdministracion > 0 && (
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <Typography variant="body2">Int. Gastos Administración:</Typography>
+                            <Typography variant="body2" color="error.main" fontWeight={600}>
+                              +{new Intl.NumberFormat('es-CO', {
+                                style: 'currency',
+                                currency: 'COP',
+                                minimumFractionDigits: 0
+                              }).format(formData.interesesGastosAdministracion)}
+                            </Typography>
+                          </Box>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {/* Mostrar intereses regulares */}
+                        {formData.interests > 0 && (
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <Typography variant="body2">Intereses:</Typography>
+                            <Typography variant="body2" color="warning.main" fontWeight={600}>
+                              +{new Intl.NumberFormat('es-CO', {
+                                style: 'currency',
+                                currency: 'COP',
+                                minimumFractionDigits: 0
+                              }).format(formData.interests)}
+                            </Typography>
+                          </Box>
+                        )}
+                      </>
                     )}
                     
                     <Divider sx={{ my: 1 }} />
