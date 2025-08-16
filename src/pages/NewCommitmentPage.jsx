@@ -1067,7 +1067,7 @@ const NewCommitmentPage = () => {
                     
                     <Grid container spacing={3}>
                       {/* Fila 1: Mes, Año, Periodicidad */}
-                      <Grid item xs={12} md={4}>
+                      <Grid item xs={12} md={6}>
                         <FormControl fullWidth required>
                           <InputLabel>Mes</InputLabel>
                           <Select
@@ -1085,25 +1085,7 @@ const NewCommitmentPage = () => {
                         </FormControl>
                       </Grid>
 
-                      <Grid item xs={12} md={4}>
-                        <FormControl fullWidth required>
-                          <InputLabel>Año</InputLabel>
-                          <Select
-                            value={formData.year}
-                            label="Año"
-                            onChange={(e) => handleFormChange('year', e.target.value)}
-                            disabled={saving}
-                          >
-                            {years.map((year) => (
-                              <MenuItem key={year.value} value={year.value}>
-                                {year.label}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Grid>
-
-                      <Grid item xs={12} md={4}>
+                      <Grid item xs={12} md={6}>
                         <Box position="relative">
                           <FormControl fullWidth required>
                             <InputLabel>Periodicidad</InputLabel>
@@ -1361,7 +1343,6 @@ const NewCommitmentPage = () => {
                         />
                       </Grid>
 
-                      <Grid item xs={12} md={6}>
                       <Grid item xs={12} md={6}>
                         <TextField
                           fullWidth
