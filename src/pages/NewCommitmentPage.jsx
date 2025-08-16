@@ -52,7 +52,7 @@ import {
 import { motion } from 'framer-motion';
 import { useTheme, alpha } from '@mui/material/styles';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs, where, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
@@ -83,7 +83,7 @@ const NewCommitmentPage = () => {
   const [loadingCompanies, setLoadingCompanies] = useState(true);
   
   // Estados para autocompletado
-  const [beneficiariesSuggestions, setBeneficiariesSuggestions] = useState([]);
+  const [providersSuggestions, setProvidersSuggestions] = useState([]);
   const [conceptsSuggestions, setConceptsSuggestions] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
   
@@ -334,30 +334,42 @@ const NewCommitmentPage = () => {
     return () => unsubscribe();
   }, [currentUser, addNotification]);
 
-  // Cargar sugerencias para autocompletado desde compromisos existentes
+  // Cargar sugerencias para autocompletado desde proveedores y compromisos
   useEffect(() => {
     if (!currentUser) return;
 
     const loadSuggestions = async () => {
       setLoadingSuggestions(true);
       try {
-        const q = query(collection(db, 'commitments'));
-        const snapshot = await getDocs(q);
+        // Cargar proveedores desde la colección providers
+        const providersQuery = query(collection(db, 'providers'), orderBy('name'));
+        const providersSnapshot = await getDocs(providersQuery);
         
-        const beneficiariesSet = new Set();
-        const conceptsSet = new Set();
-        
-        snapshot.forEach((doc) => {
+        const providers = [];
+        providersSnapshot.forEach((doc) => {
           const data = doc.data();
-          if (data.beneficiary && data.beneficiary.trim()) {
-            beneficiariesSet.add(data.beneficiary.trim());
+          if (data.name && data.name.trim()) {
+            providers.push({
+              name: data.name.trim(),
+              nit: data.nit?.trim() || '',
+              id: doc.id
+            });
           }
+        });
+        
+        // Cargar conceptos desde compromisos existentes
+        const commitmentsQuery = query(collection(db, 'commitments'));
+        const commitmentsSnapshot = await getDocs(commitmentsQuery);
+        
+        const conceptsSet = new Set();
+        commitmentsSnapshot.forEach((doc) => {
+          const data = doc.data();
           if (data.concept && data.concept.trim()) {
             conceptsSet.add(data.concept.trim());
           }
         });
         
-        setBeneficiariesSuggestions(Array.from(beneficiariesSet).sort());
+        setProvidersSuggestions(providers);
         setConceptsSuggestions(Array.from(conceptsSet).sort());
       } catch (error) {
         console.error('Error loading suggestions:', error);
@@ -696,6 +708,48 @@ const NewCommitmentPage = () => {
       delete commitmentData.invoiceFile;
       delete commitmentData.invoiceURL;
       delete commitmentData.invoiceFileName;
+
+      // 🏢 Auto-guardar proveedor si no existe
+      if (formData.beneficiary && formData.beneficiary.trim()) {
+        try {
+          const providersQuery = query(
+            collection(db, 'providers'), 
+            where('name', '==', formData.beneficiary.trim())
+          );
+          const existingProvider = await getDocs(providersQuery);
+          
+          if (existingProvider.empty) {
+            // Crear nuevo proveedor
+            const providerData = {
+              name: formData.beneficiary.trim(),
+              nit: formData.beneficiaryNit?.trim() || '',
+              createdAt: serverTimestamp(),
+              createdBy: currentUser.uid,
+              updatedAt: serverTimestamp(),
+              updatedBy: currentUser.uid
+            };
+            
+            await addDoc(collection(db, 'providers'), providerData);
+            console.log('✅ Nuevo proveedor guardado:', providerData.name);
+          } else if (formData.beneficiaryNit?.trim()) {
+            // Actualizar NIT si el proveedor existe pero no tiene NIT o es diferente
+            const providerDoc = existingProvider.docs[0];
+            const currentNit = providerDoc.data().nit;
+            
+            if (!currentNit || currentNit !== formData.beneficiaryNit.trim()) {
+              await updateDoc(providerDoc.ref, {
+                nit: formData.beneficiaryNit.trim(),
+                updatedAt: serverTimestamp(),
+                updatedBy: currentUser.uid
+              });
+              console.log('✅ NIT del proveedor actualizado:', formData.beneficiary);
+            }
+          }
+        } catch (error) {
+          console.warn('Error al guardar proveedor:', error);
+          // No detener el proceso si falla el guardado del proveedor
+        }
+      }
 
       // 🔄 Si la periodicidad NO es "único", generar compromisos recurrentes automáticamente
       if (formData.periodicity !== 'unique') {
@@ -1201,10 +1255,23 @@ const NewCommitmentPage = () => {
                       <Grid item xs={12} md={8}>
                         <Autocomplete
                           freeSolo
-                          options={beneficiariesSuggestions}
+                          options={providersSuggestions}
+                          getOptionLabel={(option) => {
+                            if (typeof option === 'string') return option;
+                            return option?.name || '';
+                          }}
                           value={formData.beneficiary}
                           onChange={(event, newValue) => {
-                            handleFormChange('beneficiary', newValue || '');
+                            if (typeof newValue === 'object' && newValue?.name) {
+                              // Si selecciona un proveedor de las sugerencias, auto-llenar NIT
+                              handleFormChange('beneficiary', newValue.name);
+                              if (newValue.nit) {
+                                handleFormChange('beneficiaryNit', newValue.nit);
+                              }
+                            } else {
+                              // Si es texto libre
+                              handleFormChange('beneficiary', newValue || '');
+                            }
                           }}
                           onInputChange={(event, newInputValue) => {
                             handleFormChange('beneficiary', newInputValue || '');
