@@ -23,7 +23,9 @@ import {
   Autocomplete,
   Fab,
   Tooltip,
-  Switch
+  Switch,
+  IconButton,
+  LinearProgress
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -41,13 +43,18 @@ import {
   Tune as TuneIcon,
   Repeat as RepeatIcon,
   Timeline as TimelineIcon,
-  Event as EventIcon
+  Event as EventIcon,
+  AttachFile as AttachFileIcon,
+  CloudUpload as CloudUploadIcon,
+  Delete as DeleteIcon,
+  InsertDriveFile as FileIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useTheme, alpha } from '@mui/material/styles';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { db, storage } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { getPaymentMethodOptions } from '../utils/formatUtils';
@@ -108,15 +115,126 @@ const NewCommitmentPage = () => {
     dueDate: null, // Fecha de vencimiento específica
     periodicity: 'monthly', // unique, monthly, bimonthly, quarterly, fourmonthly, biannual, annual
     beneficiary: '',
+    beneficiaryNit: '', // 🆔 NIT o identificación del beneficiario
     concept: '',
-    amount: '',
+    baseAmount: '', // 💰 Valor base (antes era 'amount')
+    iva: '', // 📊 IVA
+    retefuente: '', // 📉 Retención en la fuente
+    totalAmount: '', // 💵 Total calculado
     paymentMethod: 'transfer', // transfer, check, cash, debit, credit
     observations: '',
     deferredPayment: false,
     status: 'pending', // pending, paid, overdue
     // 🔄 Solo contador para compromisos recurrentes (automático según periodicidad)
-    recurringCount: getDefaultRecurringCount('monthly') // Valor dinámico basado en periodicidad inicial
+    recurringCount: getDefaultRecurringCount('monthly'), // Valor dinámico basado en periodicidad inicial
+    // 📄 Campo para factura
+    invoiceFile: null,
+    invoiceURL: null,
+    invoiceFileName: null
   });
+
+  // Estados para subida de archivo
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  // 💰 Funciones para formateo de moneda colombiana
+  const formatNumberWithCommas = (value) => {
+    if (!value) return '';
+    const cleanValue = value.toString().replace(/[^\d]/g, '');
+    if (!cleanValue) return '';
+    return cleanValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  const parseFormattedNumber = (value) => {
+    if (!value) return '';
+    return value.toString().replace(/\./g, '');
+  };
+
+  const handleAmountChange = (e) => {
+    const inputValue = e.target.value;
+    const cleanValue = parseFormattedNumber(inputValue);
+    const formattedValue = formatNumberWithCommas(cleanValue);
+    
+    // Actualizar el valor formateado en el estado
+    setFormData(prev => ({
+      ...prev,
+      baseAmount: cleanValue // Guardamos el valor sin formato para cálculos
+    }));
+  };
+
+  const handleIvaChange = (e) => {
+    const inputValue = e.target.value;
+    const cleanValue = parseFormattedNumber(inputValue);
+    
+    setFormData(prev => ({
+      ...prev,
+      iva: cleanValue
+    }));
+  };
+
+  const handleRetefuenteChange = (e) => {
+    const inputValue = e.target.value;
+    const cleanValue = parseFormattedNumber(inputValue);
+    
+    setFormData(prev => ({
+      ...prev,
+      retefuente: cleanValue
+    }));
+  };
+
+  // 🧮 Calcular automáticamente el total
+  const calculateTotal = () => {
+    const base = parseFloat(formData.baseAmount) || 0;
+    const iva = parseFloat(formData.iva) || 0;
+    const retefuente = parseFloat(formData.retefuente) || 0;
+    return base + iva - retefuente; // Base + IVA - Retención
+  };
+
+  // Actualizar total automáticamente cuando cambien los valores
+  React.useEffect(() => {
+    const total = calculateTotal();
+    setFormData(prev => ({
+      ...prev,
+      totalAmount: total.toString()
+    }));
+  }, [formData.baseAmount, formData.iva, formData.retefuente]);
+
+  // 📎 Estados y funciones para drag & drop
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!saving && !uploadingFile) {
+      setIsDragOver(true);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+
+    if (saving || uploadingFile) return;
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      // Simular el evento de selección de archivo
+      const mockEvent = {
+        target: {
+          files: [file]
+        }
+      };
+      handleFileSelect(mockEvent);
+    }
+  };
 
   // 🎨 Design System Spectacular - Configuraciones dinámicas
   const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;
@@ -302,13 +420,158 @@ const NewCommitmentPage = () => {
       dueDate: null,
       periodicity: 'monthly',
       beneficiary: '',
+      beneficiaryNit: '',
       concept: '',
-      amount: '',
+      baseAmount: '',
+      iva: '',
+      retefuente: '',
+      totalAmount: '',
       paymentMethod: 'transfer',
       observations: '',
       deferredPayment: false,
-      status: 'pending'
+      status: 'pending',
+      invoiceFile: null,
+      invoiceURL: null,
+      invoiceFileName: null
     });
+    setUploadProgress(0);
+  };
+
+  // 📄 Funciones para manejo de archivos
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validar tipo de archivo
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      addNotification({
+        type: 'error',
+        title: 'Tipo de archivo no válido',
+        message: 'Solo se permiten archivos PDF o imágenes (JPG, PNG, WebP)',
+        icon: 'error',
+        color: 'error'
+      });
+      return;
+    }
+
+    // Validar tamaño (máximo 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      addNotification({
+        type: 'error',
+        title: 'Archivo muy grande',
+        message: 'El archivo no puede superar los 10MB',
+        icon: 'error',
+        color: 'error'
+      });
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      invoiceFile: file,
+      invoiceFileName: file.name
+    }));
+
+    addNotification({
+      type: 'success',
+      title: 'Archivo seleccionado',
+      message: `Archivo "${file.name}" listo para subir`,
+      icon: 'success',
+      color: 'success'
+    });
+  };
+
+  const uploadInvoiceFile = async (file) => {
+    if (!file) return null;
+
+    setUploadingFile(true);
+    setUploadProgress(0);
+
+    try {
+      // Generar nombre único para el archivo
+      const timestamp = new Date().getTime();
+      const extension = file.name.split('.').pop();
+      const fileName = `invoices/${timestamp}_${Math.random().toString(36).substr(2, 9)}.${extension}`;
+      
+      // Crear referencia en Firebase Storage
+      const storageRef = ref(storage, fileName);
+      
+      // Simular progreso de subida (Firebase no proporciona progreso real para uploadBytes)
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+
+      // Subir archivo
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
+      addNotification({
+        type: 'success',
+        title: 'Factura subida exitosamente',
+        message: `El archivo "${file.name}" se subió correctamente`,
+        icon: 'success',
+        color: 'success'
+      });
+
+      return {
+        url: downloadURL,
+        fileName: file.name,
+        storagePath: fileName
+      };
+
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error al subir archivo',
+        message: 'No se pudo subir la factura. Inténtalo de nuevo.',
+        icon: 'error',
+        color: 'error'
+      });
+      return null;
+    } finally {
+      setUploadingFile(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const removeInvoiceFile = async () => {
+    try {
+      // Si hay un archivo ya subido, eliminarlo de Storage
+      if (formData.invoiceURL) {
+        const storageRef = ref(storage, formData.invoiceURL);
+        await deleteObject(storageRef);
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        invoiceFile: null,
+        invoiceURL: null,
+        invoiceFileName: null
+      }));
+
+      addNotification({
+        type: 'info',
+        title: 'Archivo eliminado',
+        message: 'La factura fue eliminada',
+        icon: 'info',
+        color: 'info'
+      });
+    } catch (error) {
+      console.error('Error removing file:', error);
+      addNotification({
+        type: 'warning',
+        title: 'Archivo eliminado localmente',
+        message: 'El archivo fue eliminado del formulario',
+        icon: 'warning',
+        color: 'warning'
+      });
+    }
   };
 
   // Validar formulario
@@ -346,11 +609,11 @@ const NewCommitmentPage = () => {
       return false;
     }
 
-    if (!formData.amount || parseFloat(formData.amount) <= 0) {
+    if (!formData.baseAmount || parseFloat(formData.baseAmount) <= 0) {
       addNotification({
         type: 'error',
         title: 'Error de validación',
-        message: 'El valor a cancelar debe ser mayor a cero',
+        message: 'El valor base debe ser mayor a cero',
         icon: 'error',
         color: 'error'
       });
@@ -366,14 +629,38 @@ const NewCommitmentPage = () => {
 
     setSaving(true);
     try {
+      // 📄 Subir archivo de factura si existe
+      let invoiceData = null;
+      if (formData.invoiceFile) {
+        const uploadResult = await uploadInvoiceFile(formData.invoiceFile);
+        if (uploadResult) {
+          invoiceData = {
+            url: uploadResult.url,
+            fileName: uploadResult.fileName,
+            storagePath: uploadResult.storagePath,
+            uploadedAt: serverTimestamp()
+          };
+        }
+      }
+
       const commitmentData = {
         ...formData,
-        amount: parseFloat(formData.amount),
+        amount: parseFloat(formData.totalAmount), // El campo amount en la BD será el total
+        baseAmount: parseFloat(formData.baseAmount),
+        iva: parseFloat(formData.iva) || 0,
+        retefuente: parseFloat(formData.retefuente) || 0,
         createdAt: serverTimestamp(),
         createdBy: currentUser.uid,
         updatedAt: serverTimestamp(),
-        updatedBy: currentUser.uid
+        updatedBy: currentUser.uid,
+        // Agregar datos de factura si existe
+        invoice: invoiceData
       };
+
+      // Limpiar campos de archivo del objeto que se guarda en Firestore
+      delete commitmentData.invoiceFile;
+      delete commitmentData.invoiceURL;
+      delete commitmentData.invoiceFileName;
 
       // 🔄 Si la periodicidad NO es "único", generar compromisos recurrentes automáticamente
       if (formData.periodicity !== 'unique') {
@@ -413,7 +700,7 @@ const NewCommitmentPage = () => {
           addNotification({
             type: 'info',
             title: '📊 Registro de Compromiso Recurrente',
-            message: `✅ Sistema recurrente configurado: ${getPeriodicityDescription(formData.periodicity)} • ${result.count} instancias • Beneficiario: ${formData.beneficiary} • Monto: $${formData.amount.toLocaleString('es-CO')} c/u • ID Grupo: ${result.groupId?.split('_')[1]}`,
+            message: `✅ Sistema recurrente configurado: ${getPeriodicityDescription(formData.periodicity)} • ${result.count} instancias • Beneficiario: ${formData.beneficiary} • Monto: $${parseFloat(formData.totalAmount || 0).toLocaleString('es-CO')} c/u • ID Grupo: ${result.groupId?.split('_')[1]}`,
             icon: 'info',
             color: 'info',
             duration: 10000 // Mayor duración para información detallada
@@ -1054,16 +1341,36 @@ const NewCommitmentPage = () => {
                         />
                       </Grid>
 
-                      {/* Fila 3: Valor a cancelar, Método de pago */}
+                      {/* NIT/Identificación del beneficiario */}
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="NIT/Identificación"
+                          value={formData.beneficiaryNit}
+                          onChange={(e) => handleFormChange('beneficiaryNit', e.target.value)}
+                          disabled={saving}
+                          placeholder="Ej: 900123456-1 o 12345678"
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <AssignmentIcon sx={{ color: primaryColor }} />
+                              </InputAdornment>
+                            )
+                          }}
+                          helperText="NIT, CC, CE o documento de identificación"
+                        />
+                      </Grid>
+
+                      <Grid item xs={12} md={6}>
                       <Grid item xs={12} md={6}>
                         <TextField
                           fullWidth
                           required
-                          label="Valor a cancelar"
-                          type="number"
-                          value={formData.amount}
-                          onChange={(e) => handleFormChange('amount', e.target.value)}
+                          label="Valor Base"
+                          value={formData.baseAmount ? formatNumberWithCommas(formData.baseAmount) : ''}
+                          onChange={handleAmountChange}
                           disabled={saving}
+                          placeholder="0"
                           InputProps={{
                             startAdornment: (
                               <InputAdornment position="start">
@@ -1082,7 +1389,85 @@ const NewCommitmentPage = () => {
                               }
                             }
                           }}
-                          helperText={formData.amount ? formatCurrency(formData.amount) : ''}
+                          helperText="Valor antes de impuestos"
+                        />
+                      </Grid>
+
+                      {/* IVA */}
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="IVA"
+                          value={formData.iva ? formatNumberWithCommas(formData.iva) : ''}
+                          onChange={handleIvaChange}
+                          disabled={saving}
+                          placeholder="0"
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Typography variant="body2" sx={{ color: 'primary.main', fontWeight: 600 }}>
+                                  📊 $
+                                </Typography>
+                              </InputAdornment>
+                            )
+                          }}
+                          helperText="Impuesto al Valor Agregado"
+                        />
+                      </Grid>
+
+                      {/* Retención en la fuente */}
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Retención en la fuente"
+                          value={formData.retefuente ? formatNumberWithCommas(formData.retefuente) : ''}
+                          onChange={handleRetefuenteChange}
+                          disabled={saving}
+                          placeholder="0"
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Typography variant="body2" sx={{ color: 'warning.main', fontWeight: 600 }}>
+                                  📉 $
+                                </Typography>
+                              </InputAdornment>
+                            )
+                          }}
+                          helperText="Retención aplicada"
+                        />
+                      </Grid>
+
+                      {/* Total calculado */}
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Total a pagar"
+                          value={formData.totalAmount ? formatNumberWithCommas(formData.totalAmount) : '0'}
+                          disabled={true}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 700 }}>
+                                  💵 $
+                                </Typography>
+                              </InputAdornment>
+                            ),
+                            sx: {
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: alpha(theme.palette.success.main, 0.05),
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                  borderColor: theme.palette.success.main,
+                                  borderWidth: 2
+                                }
+                              },
+                              '& .MuiInputBase-input': {
+                                fontWeight: 600,
+                                color: theme.palette.success.main,
+                                fontSize: '1.1rem'
+                              }
+                            }
+                          }}
+                          helperText={`Base + IVA - Retención = ${formatCurrency(formData.totalAmount || 0)}`}
                         />
                       </Grid>
 
@@ -1190,10 +1575,172 @@ const NewCommitmentPage = () => {
                           placeholder="Información adicional, notas importantes, condiciones especiales..."
                         />
                       </Grid>
+
+                      {/* Fila 6: Factura */}
+                      <Grid item xs={12}>
+                        <motion.div
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.5, delay: 0.3 }}
+                        >
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <AttachFileIcon sx={{ color: theme.palette.text.secondary, fontSize: 20 }} />
+                            <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontWeight: 500 }}>
+                              Factura (opcional):
+                            </Typography>
+                          </Box>
+
+                          <Box sx={{ mt: 1.5 }}>
+                            {!formData.invoiceFile && !formData.invoiceFileName ? (
+                              <Box
+                                onDragOver={handleDragOver}
+                                onDragLeave={handleDragLeave}
+                                onDrop={handleDrop}
+                                sx={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 1,
+                                  px: 2,
+                                  py: 1,
+                                  border: `1px dashed ${isDragOver ? primaryColor : theme.palette.divider}`,
+                                  borderRadius: 2,
+                                  background: isDragOver 
+                                    ? alpha(primaryColor, 0.08)
+                                    : 'transparent',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.3s ease',
+                                  maxWidth: 200,
+                                  '&:hover': {
+                                    borderColor: primaryColor,
+                                    borderStyle: 'solid',
+                                    background: alpha(primaryColor, 0.04)
+                                  }
+                                }}
+                                component="label"
+                              >
+                                <input
+                                  type="file"
+                                  hidden
+                                  accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                  onChange={handleFileSelect}
+                                  disabled={saving || uploadingFile}
+                                />
+                                
+                                <CloudUploadIcon 
+                                  sx={{ 
+                                    color: isDragOver ? primaryColor : theme.palette.text.secondary,
+                                    fontSize: 18,
+                                    transition: 'all 0.3s ease'
+                                  }} 
+                                />
+                                
+                                <Typography 
+                                  variant="body2" 
+                                  sx={{ 
+                                    fontSize: '0.875rem',
+                                    color: isDragOver ? primaryColor : theme.palette.text.secondary,
+                                    fontWeight: 500
+                                  }}
+                                >
+                                  {isDragOver ? 'Soltar aquí' : 'Seleccionar'}
+                                </Typography>
+                              </Box>
+                            ) : (
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                transition={{ duration: 0.2 }}
+                              >
+                                <Box
+                                  sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1.5,
+                                    p: 1.5,
+                                    border: `1px solid ${alpha(primaryColor, 0.2)}`,
+                                    borderRadius: 2,
+                                    background: alpha(primaryColor, 0.03),
+                                    maxWidth: 400
+                                  }}
+                                >
+                                  <FileIcon sx={{ color: primaryColor, fontSize: 20 }} />
+                                  
+                                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <Typography 
+                                      variant="body2" 
+                                      sx={{ 
+                                        fontWeight: 500,
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                        fontSize: '0.875rem'
+                                      }}
+                                    >
+                                      {formData.invoiceFileName}
+                                    </Typography>
+                                    
+                                    {formData.invoiceFile && (
+                                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                        {(formData.invoiceFile.size / 1024 / 1024).toFixed(1)} MB
+                                      </Typography>
+                                    )}
+                                  </Box>
+
+                                  <IconButton
+                                    onClick={removeInvoiceFile}
+                                    disabled={saving || uploadingFile}
+                                    size="small"
+                                    sx={{
+                                      color: theme.palette.text.secondary,
+                                      '&:hover': {
+                                        color: theme.palette.error.main,
+                                        backgroundColor: alpha(theme.palette.error.main, 0.1)
+                                      }
+                                    }}
+                                  >
+                                    <DeleteIcon fontSize="small" />
+                                  </IconButton>
+                                </Box>
+
+                                {uploadingFile && (
+                                  <Box sx={{ mt: 1, maxWidth: 400 }}>
+                                    <LinearProgress 
+                                      variant="determinate" 
+                                      value={uploadProgress}
+                                      size="small"
+                                      sx={{
+                                        height: 3,
+                                        borderRadius: 1.5,
+                                        backgroundColor: alpha(primaryColor, 0.1),
+                                        '& .MuiLinearProgress-bar': {
+                                          backgroundColor: primaryColor
+                                        }
+                                      }}
+                                    />
+                                  </Box>
+                                )}
+                              </motion.div>
+                            )}
+
+                            <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: 'block' }}>
+                              PDF, JPG, PNG • Max. 10MB
+                            </Typography>
+                          </Box>
+                        </motion.div>
+                      </Grid>
                     </Grid>
                   </Paper>
                   </motion.div>
                 </Grid>
+
+                {/* Estilos CSS para animaciones */}
+                <style jsx>{`
+                  @keyframes pulse {
+                    0% { transform: scale(1); opacity: 0.8; }
+                    50% { transform: scale(1.1); opacity: 1; }
+                    100% { transform: scale(1); opacity: 0.8; }
+                  }
+                `}</style>
 
                 {/* Botones de Acción */}
                 <Grid item xs={12}>
