@@ -48,6 +48,7 @@ import { useNotifications } from '../context/NotificationsContext';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db, storage } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { PDFDocument } from 'pdf-lib';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -423,57 +424,128 @@ const NewPaymentPage = () => {
     setFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
+  // Función para convertir imagen a PDF
+  const imageToPdf = async (imageFile) => {
+    const pdfDoc = await PDFDocument.create();
+    const imageBytes = await imageFile.arrayBuffer();
+    
+    let image;
+    if (imageFile.type === 'image/jpeg' || imageFile.type === 'image/jpg') {
+      image = await pdfDoc.embedJpg(imageBytes);
+    } else if (imageFile.type === 'image/png') {
+      image = await pdfDoc.embedPng(imageBytes);
+    } else {
+      throw new Error('Tipo de imagen no soportado');
+    }
+
+    // Crear página con el tamaño de la imagen
+    const { width, height } = image.scale(1);
+    const page = pdfDoc.addPage([width, height]);
+    page.drawImage(image, {
+      x: 0,
+      y: 0,
+      width,
+      height,
+    });
+
+    return pdfDoc;
+  };
+
+  // Función para combinar todos los archivos en un solo PDF
+  const combineFilesToPdf = async (files) => {
+    try {
+      const mainPdfDoc = await PDFDocument.create();
+
+      for (const fileData of files) {
+        const file = fileData.file;
+        
+        if (file.type === 'application/pdf') {
+          // Si es PDF, copiarlo al documento principal
+          const pdfBytes = await file.arrayBuffer();
+          const pdf = await PDFDocument.load(pdfBytes);
+          const copiedPages = await mainPdfDoc.copyPages(pdf, pdf.getPageIndices());
+          copiedPages.forEach((page) => mainPdfDoc.addPage(page));
+        } else if (file.type.startsWith('image/')) {
+          // Si es imagen, convertirla a PDF primero
+          const imagePdf = await imageToPdf(file);
+          const copiedPages = await mainPdfDoc.copyPages(imagePdf, imagePdf.getPageIndices());
+          copiedPages.forEach((page) => mainPdfDoc.addPage(page));
+        }
+      }
+
+      // Generar el PDF combinado
+      const pdfBytes = await mainPdfDoc.save();
+      return new Blob([pdfBytes], { type: 'application/pdf' });
+    } catch (error) {
+      console.error('Error combining files:', error);
+      throw error;
+    }
+  };
+
   const uploadFiles = async () => {
     if (files.length === 0) return [];
 
     setUploading(true);
     setUploadProgress(0);
-    const uploadedUrls = [];
 
     try {
-      for (let i = 0; i < files.length; i++) {
-        const fileData = files[i];
-        if (fileData.uploaded) {
-          uploadedUrls.push(fileData.url);
-          continue;
-        }
+      let fileToUpload;
+      let fileName;
 
-        // Crear referencia única para el archivo
-        const timestamp = Date.now();
-        const fileName = `payments/${timestamp}_${fileData.name}`;
-        const storageRef = ref(storage, fileName);
-
-        // Subir archivo
-        const snapshot = await uploadBytes(storageRef, fileData.file);
-        const downloadURL = await getDownloadURL(snapshot.ref);
+      if (files.length === 1) {
+        // Si solo hay un archivo, subirlo directamente
+        fileToUpload = files[0].file;
+        fileName = files[0].name;
+      } else {
+        // Si hay múltiples archivos, combinarlos en un PDF
+        setUploadProgress(25); // Progreso durante la combinación
         
-        uploadedUrls.push(downloadURL);
-        
-        // Actualizar estado del archivo
-        setFiles(prev => prev.map(f => 
-          f.id === fileData.id 
-            ? { ...f, uploaded: true, url: downloadURL }
-            : f
-        ));
+        addNotification({
+          type: 'info',
+          title: 'Combinando archivos',
+          message: 'Creando PDF combinado con todos los comprobantes...',
+          icon: 'info'
+        });
 
-        // Actualizar progreso
-        setUploadProgress(Math.round(((i + 1) / files.length) * 100));
+        const combinedPdf = await combineFilesToPdf(files);
+        fileToUpload = combinedPdf;
+        fileName = `comprobantes_pago_${Date.now()}.pdf`;
+        
+        setUploadProgress(50); // Progreso después de combinar
       }
+
+      // Crear referencia para el archivo
+      const timestamp = Date.now();
+      const finalFileName = `payments/${timestamp}_${fileName}`;
+      const storageRef = ref(storage, finalFileName);
+
+      setUploadProgress(75); // Progreso antes de subir
+
+      // Subir archivo
+      const snapshot = await uploadBytes(storageRef, fileToUpload);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      setUploadProgress(100); // Completado
 
       addNotification({
         type: 'success',
-        title: 'Archivos subidos',
-        message: `${files.length} comprobante(s) subido(s) exitosamente`,
+        title: 'Comprobante subido',
+        message: files.length > 1 
+          ? `${files.length} archivos combinados y subidos como PDF único`
+          : 'Comprobante subido exitosamente',
         icon: 'success'
       });
 
-      return uploadedUrls;
+      // Marcar todos los archivos como subidos
+      setFiles(prev => prev.map(f => ({ ...f, uploaded: true, url: downloadURL })));
+
+      return [downloadURL];
     } catch (error) {
       console.error('Error uploading files:', error);
       addNotification({
         type: 'error',
         title: 'Error de carga',
-        message: 'Hubo un error al subir los archivos',
+        message: 'Hubo un error al procesar y subir los archivos',
         icon: 'error'
       });
       return [];
@@ -946,8 +1018,11 @@ const NewPaymentPage = () => {
                               <Typography variant="h6" gutterBottom>
                                 Arrastra archivos aquí o haz clic para seleccionar
                               </Typography>
-                              <Typography variant="body2" color="text.secondary">
+                              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                                 Formatos permitidos: JPG, PNG, PDF (máx. 10MB cada uno)
+                              </Typography>
+                              <Typography variant="caption" color="primary.main" sx={{ fontWeight: 600 }}>
+                                💡 Múltiples archivos se combinarán automáticamente en un solo PDF
                               </Typography>
                               <Button
                                 variant="outlined"
@@ -1116,10 +1191,20 @@ const NewPaymentPage = () => {
                     {files.length > 0 && (
                       <Box sx={{ mb: 2 }}>
                         <Typography variant="body2" color="text.secondary">
-                          Comprobantes: <strong>{files.length} archivo(s)</strong>
+                          Comprobantes: <strong>
+                            {files.length === 1 
+                              ? '1 archivo' 
+                              : `${files.length} archivos → 1 PDF combinado`
+                            }
+                          </strong>
                         </Typography>
                         <Typography variant="caption" color={files.every(f => f.uploaded) ? 'success.main' : 'warning.main'}>
-                          {files.every(f => f.uploaded) ? '✓ Todos subidos' : '⚠ Pendientes de subir'}
+                          {files.every(f => f.uploaded) 
+                            ? '✓ Comprobante listo' 
+                            : files.length > 1 
+                              ? '⚠ Se combinarán al registrar' 
+                              : '⚠ Pendiente de subir'
+                          }
                         </Typography>
                       </Box>
                     )}
