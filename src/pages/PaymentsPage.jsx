@@ -23,7 +23,17 @@ import {
   TextField,
   alpha,
   Snackbar,
-  Alert as MuiAlert
+  Alert as MuiAlert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  LinearProgress,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  ListItemSecondaryAction
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -43,16 +53,23 @@ import {
   NavigateBefore,
   NavigateNext,
   Delete as DeleteIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  Save as SaveIcon,
+  Close as CloseIcon,
+  Cancel as CancelIcon,
+  CloudUpload as UploadIcon,
+  InsertDriveFile as FileIcon,
+  Business as CompanyIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { PDFDocument } from 'pdf-lib';
 
 // Hook para cargar pagos desde Firebase
 import { usePayments } from '../hooks/useFirestore';
 // Firebase para manejo de archivos y Firestore
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 // Componente temporal para agregar datos de prueba
@@ -74,6 +91,57 @@ const PaymentsPage = () => {
   const [editingReceipt, setEditingReceipt] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   
+  // Estados para edición de pago
+  const [editPaymentOpen, setEditPaymentOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    concept: '',
+    amount: '',
+    method: '',
+    notes: '',
+    reference: '',
+    date: '',
+    companyName: '',
+    provider: '',
+    interests: '',
+    interesesDerechosExplotacion: '',
+    interesesGastosAdministracion: '',
+    originalAmount: ''
+  });
+  
+  // Estados adicionales para cargar datos del compromiso
+  const [loadingCommitment, setLoadingCommitment] = useState(false);
+  const [commitmentData, setCommitmentData] = useState(null);
+  
+  // Estados para manejo de múltiples archivos y combinación PDF
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [dragActive, setDragActive] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploading, setUploading] = useState(false);
+  
+  // Función para cargar datos del compromiso
+  const loadCommitmentData = async (commitmentId) => {
+    if (!commitmentId) return null;
+    
+    try {
+      setLoadingCommitment(true);
+      const commitmentRef = doc(db, 'commitments', commitmentId);
+      const commitmentSnap = await getDoc(commitmentRef);
+      
+      if (commitmentSnap.exists()) {
+        const data = commitmentSnap.data();
+        setCommitmentData(data);
+        return data;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error cargando compromiso:', error);
+      return null;
+    } finally {
+      setLoadingCommitment(false);
+    }
+  };
+
   // Estados para notificaciones
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
@@ -216,11 +284,6 @@ const PaymentsPage = () => {
 
   // Función para eliminar comprobante
   const handleDeleteReceipt = async (payment) => {
-    // Confirmar eliminación
-    if (!window.confirm('¿Estás seguro de que quieres eliminar este comprobante? Esta acción no se puede deshacer.')) {
-      return;
-    }
-
     try {
       setUploadingFile(true);
       console.log('🗑️ Iniciando eliminación de comprobante para pago:', payment.id);
@@ -362,6 +425,440 @@ const PaymentsPage = () => {
     };
 
     input.click();
+  };
+
+  // Función para abrir el modal de edición de pago
+  const handleEditPayment = async (payment) => {
+    console.log('✏️ Editando pago:', payment.id);
+    setEditingPayment(payment);
+    
+    // Cargar datos del compromiso si existe commitmentId
+    let providerName = '';
+    let commitment = null;
+    if (payment.commitmentId) {
+      commitment = await loadCommitmentData(payment.commitmentId);
+      providerName = commitment?.provider || commitment?.beneficiary || '';
+    }
+    
+    // Determinar si es Coljuegos para mostrar campos específicos
+    const isColjuegos = isColjuegosCommitment(commitment);
+    
+    setEditFormData({
+      concept: payment.concept || '',
+      amount: formatCurrency(payment.amount || ''),
+      method: payment.method || '',
+      notes: payment.notes || '',
+      reference: payment.reference || '',
+      companyName: payment.companyName || '',
+      provider: providerName,
+      interests: isColjuegos ? '' : formatCurrency(payment.interests || ''),
+      interesesDerechosExplotacion: isColjuegos ? formatCurrency(payment.interesesDerechosExplotacion || '') : '',
+      interesesGastosAdministracion: isColjuegos ? formatCurrency(payment.interesesGastosAdministracion || '') : '',
+      originalAmount: formatCurrency(payment.originalAmount || payment.amount || ''),
+      date: payment.date ? 
+        (payment.date.toISOString ? payment.date.toISOString().split('T')[0] : 
+         new Date(payment.date).toISOString().split('T')[0]) : 
+        new Date().toISOString().split('T')[0]
+    });
+    
+    setEditPaymentOpen(true);
+  };
+
+  // Función para cerrar el modal de edición
+  const handleCloseEditPayment = () => {
+    setEditPaymentOpen(false);
+    setEditingPayment(null);
+    setCommitmentData(null);
+    setSelectedFiles([]); // Limpiar archivos seleccionados
+    setDragActive(false); // Reset drag state
+    setUploading(false); // Reset upload state
+    setUploadProgress(0); // Reset progress
+    setEditFormData({
+      concept: '',
+      amount: '',
+      method: '',
+      notes: '',
+      reference: '',
+      date: '',
+      companyName: '',
+      provider: '',
+      interests: '',
+      interesesDerechosExplotacion: '',
+      interesesGastosAdministracion: '',
+      originalAmount: ''
+    });
+  };
+
+  // Función para guardar los cambios del pago
+  const handleSavePayment = async () => {
+    if (!editingPayment || !editFormData.concept.trim() || !editFormData.amount) {
+      showNotification('Por favor completa los campos obligatorios', 'warning');
+      return;
+    }
+
+    try {
+      setUploadingFile(true);
+      
+      const paymentRef = doc(db, 'payments', editingPayment.id);
+      
+      // Determinar si es Coljuegos para guardar campos específicos
+      const isColjuegos = isColjuegosCommitment(commitmentData);
+      
+      const updateData = {
+        concept: editFormData.concept.trim(),
+        amount: parseFloat(cleanCurrency(editFormData.amount)),
+        originalAmount: parseFloat(cleanCurrency(editFormData.originalAmount || editFormData.amount)),
+        method: editFormData.method,
+        notes: editFormData.notes.trim(),
+        reference: editFormData.reference?.trim() || '',
+        companyName: editFormData.companyName?.trim() || '',
+        date: new Date(editFormData.date),
+        updatedAt: new Date()
+      };
+
+      // Agregar campos de intereses según el tipo
+      if (isColjuegos) {
+        updateData.interesesDerechosExplotacion = parseFloat(cleanCurrency(editFormData.interesesDerechosExplotacion)) || 0;
+        updateData.interesesGastosAdministracion = parseFloat(cleanCurrency(editFormData.interesesGastosAdministracion)) || 0;
+        updateData.interests = updateData.interesesDerechosExplotacion + updateData.interesesGastosAdministracion;
+      } else {
+        updateData.interests = parseFloat(cleanCurrency(editFormData.interests)) || 0;
+        updateData.interesesDerechosExplotacion = 0;
+        updateData.interesesGastosAdministracion = 0;
+      }
+
+      // =====================================================
+      // SUBIR COMPROBANTES SELECCIONADOS (SI LOS HAY)
+      // =====================================================
+      if (selectedFiles.length > 0) {
+        console.log('📁 Subiendo comprobantes seleccionados...');
+        setUploadProgress(10);
+        
+        try {
+          let fileToUpload;
+          let fileName;
+
+          if (selectedFiles.length === 1) {
+            // Un solo archivo
+            fileToUpload = selectedFiles[0].file;
+            fileName = selectedFiles[0].name;
+            console.log('📄 Subiendo archivo único:', fileName);
+          } else {
+            // Múltiples archivos - combinar en PDF
+            setUploadProgress(25);
+            showNotification('Combinando archivos en PDF único...', 'info');
+            
+            const combinedPdf = await combineFilesToPdf(selectedFiles);
+            fileToUpload = combinedPdf;
+            fileName = `comprobantes_editado_${Date.now()}.pdf`;
+            console.log('✅ PDF combinado generado:', fileName);
+          }
+
+          // Subir a Firebase Storage
+          setUploadProgress(50);
+          const timestamp = Date.now();
+          const finalFileName = `payments/${timestamp}_${fileName}`;
+          const storageRef = ref(storage, finalFileName);
+          
+          console.log('⬆️ Subiendo a Firebase Storage:', finalFileName);
+          const snapshot = await uploadBytes(storageRef, fileToUpload);
+          const downloadURL = await getDownloadURL(snapshot.ref);
+          
+          console.log('✅ Comprobante subido exitosamente:', downloadURL);
+          setUploadProgress(75);
+
+          // Agregar URLs de comprobantes al updateData
+          updateData.attachments = [downloadURL];
+          updateData.receiptUrls = [downloadURL];
+          updateData.receiptUrl = downloadURL;
+
+          // Actualizar estado local para mostrar inmediatamente
+          setEditingPayment(prev => ({
+            ...prev,
+            attachments: [downloadURL],
+            receiptUrls: [downloadURL],
+            receiptUrl: downloadURL
+          }));
+
+          // Limpiar archivos seleccionados
+          setSelectedFiles([]);
+          
+        } catch (uploadError) {
+          console.error('❌ Error subiendo comprobantes:', uploadError);
+          showNotification(`Error subiendo comprobantes: ${uploadError.message}`, 'error');
+          setUploadingFile(false);
+          setUploadProgress(0);
+          return; // Detener ejecución si falla la subida
+        }
+      }
+
+      // Actualizar documento en Firestore
+      setUploadProgress(90);
+      await updateDoc(paymentRef, updateData);
+      setUploadProgress(100);
+
+      console.log('✅ Pago actualizado exitosamente con comprobantes');
+      showNotification(
+        selectedFiles.length > 0 
+          ? `Pago actualizado y ${selectedFiles.length > 1 ? 'comprobantes combinados' : 'comprobante'} subido exitosamente`
+          : 'Pago actualizado exitosamente', 
+        'success'
+      );
+      
+      handleCloseEditPayment();
+    } catch (error) {
+      console.error('❌ Error al actualizar pago:', error);
+      showNotification(`Error al actualizar pago: ${error.message}`, 'error');
+    } finally {
+      setUploadingFile(false);
+      setUploadProgress(0);
+    }
+  };
+
+  // Función para formatear números con separadores de miles
+  const formatCurrency = (value) => {
+    if (!value) return '';
+    // Remover todos los caracteres no numéricos
+    const cleanValue = value.toString().replace(/[^\d]/g, '');
+    // Aplicar formato con puntos separadores de miles
+    return cleanValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  // Función para limpiar formato de moneda (remover puntos)
+  const cleanCurrency = (value) => {
+    return value.toString().replace(/\./g, '');
+  };
+
+  // Función para detectar si es un compromiso de Coljuegos
+  const isColjuegosCommitment = (commitment) => {
+    if (!commitment) return false;
+    const provider = commitment.provider || commitment.beneficiary || '';
+    return provider.toLowerCase().includes('coljuegos');
+  };
+
+  // Función para manejar cambios en el formulario
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Formateo especial para campos de monto
+    if (name === 'amount' || name === 'interests' || name === 'originalAmount' || 
+        name === 'interesesDerechosExplotacion' || name === 'interesesGastosAdministracion') {
+      const formattedValue = formatCurrency(value);
+      setEditFormData(prev => ({
+        ...prev,
+        [name]: formattedValue
+      }));
+    } else {
+      setEditFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  // ========================
+  // FUNCIONES PARA MANEJAR MÚLTIPLES ARCHIVOS Y COMBINAR PDFs
+  // ========================
+
+  // Función para convertir imagen a PDF
+  const imageToPdf = async (imageFile) => {
+    const pdfDoc = await PDFDocument.create();
+    const imageBytes = await imageFile.arrayBuffer();
+    
+    let image;
+    if (imageFile.type === 'image/jpeg' || imageFile.type === 'image/jpg') {
+      image = await pdfDoc.embedJpg(imageBytes);
+    } else if (imageFile.type === 'image/png') {
+      image = await pdfDoc.embedPng(imageBytes);
+    } else {
+      throw new Error('Tipo de imagen no soportado: ' + imageFile.type);
+    }
+
+    // Crear página con el tamaño de la imagen
+    const { width, height } = image.scale(1);
+    const page = pdfDoc.addPage([width, height]);
+    page.drawImage(image, {
+      x: 0,
+      y: 0,
+      width,
+      height,
+    });
+
+    return pdfDoc;
+  };
+
+  // Función para combinar todos los archivos en un solo PDF
+  const combineFilesToPdf = async (files) => {
+    try {
+      const mainPdfDoc = await PDFDocument.create();
+
+      for (const fileData of files) {
+        const file = fileData.file || fileData;
+        
+        if (file.type === 'application/pdf') {
+          // Si es PDF, copiarlo al documento principal
+          const pdfBytes = await file.arrayBuffer();
+          const pdf = await PDFDocument.load(pdfBytes);
+          const copiedPages = await mainPdfDoc.copyPages(pdf, pdf.getPageIndices());
+          copiedPages.forEach((page) => mainPdfDoc.addPage(page));
+        } else if (file.type.startsWith('image/')) {
+          // Si es imagen, convertirla a PDF primero
+          const imagePdf = await imageToPdf(file);
+          const copiedPages = await mainPdfDoc.copyPages(imagePdf, imagePdf.getPageIndices());
+          copiedPages.forEach((page) => mainPdfDoc.addPage(page));
+        }
+      }
+
+      // Generar el PDF combinado
+      const pdfBytes = await mainPdfDoc.save();
+      return new Blob([pdfBytes], { type: 'application/pdf' });
+    } catch (error) {
+      console.error('Error combinando archivos:', error);
+      throw error;
+    }
+  };
+
+  // Función para manejar selección de archivos
+  const handleFiles = (newFiles) => {
+    // Filtrar solo archivos de imagen y PDF
+    const validFiles = newFiles.filter(file => {
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+      return validTypes.includes(file.type) && file.size <= 10 * 1024 * 1024; // 10MB max
+    });
+
+    if (validFiles.length !== newFiles.length) {
+      showNotification('Solo se permiten imágenes (JPG, PNG) y PDFs menores a 10MB', 'warning');
+    }
+
+    setSelectedFiles(prev => [...prev, ...validFiles.map(file => ({
+      file,
+      id: Date.now() + Math.random(),
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      uploaded: false,
+      url: null
+    }))]);
+  };
+
+  // Funciones para drag and drop
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    handleFiles(droppedFiles);
+  };
+
+  const handleFileSelect = (e) => {
+    const selectedFilesArray = Array.from(e.target.files);
+    handleFiles(selectedFilesArray);
+  };
+
+  const removeFile = (fileId) => {
+    setSelectedFiles(prev => prev.filter(f => f.id !== fileId));
+  };
+
+  // Función para subir archivos combinados
+  const uploadCombinedFiles = async () => {
+    if (selectedFiles.length === 0) {
+      showNotification('Por favor selecciona al menos un archivo', 'warning');
+      return;
+    }
+
+    if (!editingPayment) {
+      showNotification('Error: No se encontró el pago a editar', 'error');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      setUploadProgress(0);
+
+      let fileToUpload;
+      let fileName;
+
+      if (selectedFiles.length === 1) {
+        // Si solo hay un archivo, subirlo directamente
+        fileToUpload = selectedFiles[0].file;
+        fileName = selectedFiles[0].name;
+      } else {
+        // Si hay múltiples archivos, combinarlos en un PDF
+        setUploadProgress(25);
+        showNotification('Combinando archivos en PDF único...', 'info');
+
+        const combinedPdf = await combineFilesToPdf(selectedFiles);
+        fileToUpload = combinedPdf;
+        fileName = `comprobantes_editado_${Date.now()}.pdf`;
+        
+        setUploadProgress(50);
+      }
+
+      // Crear referencia para el archivo
+      const timestamp = Date.now();
+      const finalFileName = `payments/${timestamp}_${fileName}`;
+      const storageRef = ref(storage, finalFileName);
+
+      setUploadProgress(75);
+
+      // Subir archivo
+      const snapshot = await uploadBytes(storageRef, fileToUpload);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      setUploadProgress(100);
+
+      // Actualizar el pago con el nuevo comprobante
+      if (editingPayment) {
+        const paymentRef = doc(db, 'payments', editingPayment.id);
+        const updateData = {
+          attachments: [downloadURL],
+          receiptUrls: [downloadURL],
+          receiptUrl: downloadURL,
+          updatedAt: new Date()
+        };
+        
+        await updateDoc(paymentRef, updateData);
+
+        // Actualizar el estado local del pago editado
+        setEditingPayment(prev => ({
+          ...prev,
+          attachments: [downloadURL],
+          receiptUrls: [downloadURL],
+          receiptUrl: downloadURL,
+          updatedAt: new Date()
+        }));
+
+        showNotification(
+          selectedFiles.length > 1 
+            ? `${selectedFiles.length} archivos combinados y subidos como PDF único`
+            : 'Comprobante subido exitosamente', 
+          'success'
+        );
+
+        // Limpiar archivos seleccionados
+        setSelectedFiles([]);
+      }
+
+      return [downloadURL];
+    } catch (error) {
+      console.error('Error al procesar y subir archivos:', error);
+      showNotification(`Error al procesar y subir los archivos: ${error.message}`, 'error');
+      return [];
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
   };
 
   return (
@@ -804,47 +1301,62 @@ const PaymentsPage = () => {
                           <ReceiptIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      
-                      {/* Solo mostrar botones de editar/eliminar si hay comprobante */}
-                      {(payment.attachments?.length > 0) && (
-                        <>
-                          <Tooltip title="Editar comprobante" arrow>
+
+                      {/* Botón para editar los datos del pago (siempre disponible) */}
+                      <Tooltip title="Editar pago" arrow>
                         <IconButton
                           size="small"
-                          onClick={() => {
-                            console.log('🔍 Datos del pago para edición:', payment);
-                            handleEditReceipt(payment);
-                          }}
+                          onClick={() => handleEditPayment(payment)}
                           disabled={uploadingFile}
                           sx={{ 
-                            color: 'warning.main',
-                            '&:hover': { backgroundColor: alpha(theme.palette.warning.main, 0.1) }
+                            color: 'info.main',
+                            '&:hover': { backgroundColor: alpha(theme.palette.info.main, 0.1) }
                           }}
                         >
                           <EditIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
                       
-                      <Tooltip title="Eliminar comprobante" arrow>
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            alert('🔍 BOTÓN CLICKEADO - Revisa la consola');
-                            console.log('🔍 DATOS COMPLETOS DEL PAGO:', JSON.stringify(payment, null, 2));
-                            console.log('🔍 payment.receiptUrls:', payment.receiptUrls);
-                            console.log('🔍 payment.receiptUrl:', payment.receiptUrl);
-                            console.log('🔍 payment.attachments:', payment.attachments);
-                            handleDeleteReceipt(payment);
-                          }}
-                          disabled={uploadingFile}
-                          sx={{ 
-                            color: 'error.main',
-                            '&:hover': { backgroundColor: alpha(theme.palette.error.main, 0.1) }
-                          }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
+                      {/* Solo mostrar botones de editar/eliminar si hay comprobante */}
+                      {(payment.attachments?.length > 0) && (
+                        <>
+                          <Tooltip title="Editar comprobante" arrow>
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                console.log('🔍 Datos del pago para edición:', payment);
+                                handleEditReceipt(payment);
+                              }}
+                              disabled={uploadingFile}
+                              sx={{ 
+                                color: 'warning.main',
+                                '&:hover': { backgroundColor: alpha(theme.palette.warning.main, 0.1) }
+                              }}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          
+                          <Tooltip title="Eliminar comprobante" arrow>
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                alert('🔍 BOTÓN CLICKEADO - Revisa la consola');
+                                console.log('🔍 DATOS COMPLETOS DEL PAGO:', JSON.stringify(payment, null, 2));
+                                console.log('🔍 payment.receiptUrls:', payment.receiptUrls);
+                                console.log('🔍 payment.receiptUrl:', payment.receiptUrl);
+                                console.log('🔍 payment.attachments:', payment.attachments);
+                                handleDeleteReceipt(payment);
+                              }}
+                              disabled={uploadingFile}
+                              sx={{ 
+                                color: 'error.main',
+                                '&:hover': { backgroundColor: alpha(theme.palette.error.main, 0.1) }
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                         </>
                       )}
                     </Box>
@@ -1130,6 +1642,601 @@ const PaymentsPage = () => {
           receiptUrls: selectedPayment.attachments || []
         } : null}
       />
+
+      {/* Modal de edición de pago - COMPLETO ESTILO NEWPAYMENTPAGE */}
+      <Dialog
+        open={editPaymentOpen}
+        onClose={handleCloseEditPayment}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+            minHeight: '80vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          fontWeight: 600, 
+          color: 'primary.main',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2
+        }}>
+          <EditIcon color="primary" />
+          Editar Pago - {editingPayment?.companyName}
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3, pb: 0 }}>
+          <Grid container spacing={4}>
+            {/* Columna Izquierda - Información del Pago */}
+            <Grid item xs={12} md={6}>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 3, color: 'primary.main' }}>
+                📊 Datos del Pago
+              </Typography>
+              
+              <Stack spacing={3}>
+                {/* Empresa/Cliente (a quién le corresponde el pago) */}
+                <TextField
+                  name="companyName"
+                  label="Empresa / Cliente"
+                  fullWidth
+                  required
+                  value={editFormData.companyName}
+                  onChange={handleFormChange}
+                  variant="outlined"
+                  helperText="Empresa a la que le corresponde este pago"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2
+                    }
+                  }}
+                />
+
+                {/* Proveedor/Beneficiario (desde el compromiso - solo lectura) */}
+                <TextField
+                  name="provider"
+                  label="Proveedor / Beneficiario"
+                  fullWidth
+                  value={editFormData.provider}
+                  variant="outlined"
+                  disabled
+                  helperText="Tomado del compromiso original (no editable)"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2,
+                      backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                    }
+                  }}
+                />
+
+                {/* Concepto */}
+                <TextField
+                  name="concept"
+                  label="Concepto del Pago"
+                  fullWidth
+                  required
+                  value={editFormData.concept}
+                  onChange={handleFormChange}
+                  variant="outlined"
+                  helperText="Describe el motivo del pago"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2
+                    }
+                  }}
+                />
+                
+                {/* Montos - Layout dinámico según tipo de compromiso */}
+                {isColjuegosCommitment(commitmentData) ? (
+                  // Layout para Coljuegos (4 campos)
+                  <>
+                    <TextField
+                      name="originalAmount"
+                      label="Monto Original"
+                      type="text"
+                      required
+                      fullWidth
+                      value={editFormData.originalAmount}
+                      onChange={handleFormChange}
+                      variant="outlined"
+                      InputProps={{
+                        startAdornment: (
+                          <Typography sx={{ mr: 1, color: 'primary.main', fontWeight: 600 }}>
+                            $
+                          </Typography>
+                        )
+                      }}
+                      helperText="Monto base del compromiso"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2
+                        }
+                      }}
+                    />
+
+                    <Stack direction="row" spacing={2}>
+                      <TextField
+                        name="interesesDerechosExplotacion"
+                        label="Derechos de Explotación"
+                        type="text"
+                        fullWidth
+                        value={editFormData.interesesDerechosExplotacion}
+                        onChange={handleFormChange}
+                        variant="outlined"
+                        InputProps={{
+                          startAdornment: (
+                            <Typography sx={{ mr: 1, color: 'warning.main', fontWeight: 600 }}>
+                              $
+                            </Typography>
+                          )
+                        }}
+                        helperText="Intereses por derechos"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2
+                          }
+                        }}
+                      />
+
+                      <TextField
+                        name="interesesGastosAdministracion"
+                        label="Gastos de Administración"
+                        type="text"
+                        fullWidth
+                        value={editFormData.interesesGastosAdministracion}
+                        onChange={handleFormChange}
+                        variant="outlined"
+                        InputProps={{
+                          startAdornment: (
+                            <Typography sx={{ mr: 1, color: 'warning.main', fontWeight: 600 }}>
+                              $
+                            </Typography>
+                          )
+                        }}
+                        helperText="Gastos administrativos"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2
+                          }
+                        }}
+                      />
+                    </Stack>
+
+                    <TextField
+                      name="amount"
+                      label="Monto Total Pagado"
+                      type="text"
+                      required
+                      fullWidth
+                      value={editFormData.amount}
+                      onChange={handleFormChange}
+                      variant="outlined"
+                      InputProps={{
+                        startAdornment: (
+                          <Typography sx={{ mr: 1, color: 'success.main', fontWeight: 600 }}>
+                            $
+                          </Typography>
+                        )
+                      }}
+                      helperText="Monto final pagado"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2
+                        }
+                      }}
+                    />
+                  </>
+                ) : (
+                  // Layout para compromisos normales (3 campos)
+                  <Stack direction="row" spacing={2}>
+                    <TextField
+                      name="originalAmount"
+                      label="Monto Original"
+                      type="text"
+                      required
+                      fullWidth
+                      value={editFormData.originalAmount}
+                      onChange={handleFormChange}
+                      variant="outlined"
+                      InputProps={{
+                        startAdornment: (
+                          <Typography sx={{ mr: 1, color: 'primary.main', fontWeight: 600 }}>
+                            $
+                          </Typography>
+                        )
+                      }}
+                      helperText="Monto base del compromiso"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2
+                        }
+                      }}
+                    />
+
+                    <TextField
+                      name="interests"
+                      label="Intereses"
+                      type="text"
+                      fullWidth
+                      value={editFormData.interests}
+                      onChange={handleFormChange}
+                      variant="outlined"
+                      InputProps={{
+                        startAdornment: (
+                          <Typography sx={{ mr: 1, color: 'warning.main', fontWeight: 600 }}>
+                            $
+                          </Typography>
+                        )
+                      }}
+                      helperText="Intereses aplicados"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2
+                        }
+                      }}
+                    />
+                    
+                    <TextField
+                      name="amount"
+                      label="Monto Total Pagado"
+                      type="text"
+                      required
+                      fullWidth
+                      value={editFormData.amount}
+                      onChange={handleFormChange}
+                      variant="outlined"
+                      InputProps={{
+                        startAdornment: (
+                          <Typography sx={{ mr: 1, color: 'success.main', fontWeight: 600 }}>
+                            $
+                          </Typography>
+                        )
+                      }}
+                      helperText="Monto final pagado"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2
+                        }
+                      }}
+                    />
+                  </Stack>
+                )}
+                
+                {/* Método de Pago */}
+                <FormControl fullWidth required>
+                  <InputLabel>Método de Pago</InputLabel>
+                  <Select
+                    name="method"
+                    value={editFormData.method}
+                    onChange={handleFormChange}
+                    label="Método de Pago"
+                    sx={{
+                      borderRadius: 2
+                    }}
+                  >
+                    <MenuItem value="Efectivo">
+                      <Stack direction="row" alignItems="center" gap={1}>
+                        <MoneyIcon fontSize="small" />
+                        Efectivo
+                      </Stack>
+                    </MenuItem>
+                    <MenuItem value="Transferencia">
+                      <Stack direction="row" alignItems="center" gap={1}>
+                        <CompanyIcon fontSize="small" />
+                        Transferencia Bancaria
+                      </Stack>
+                    </MenuItem>
+                    <MenuItem value="PSE">
+                      <Stack direction="row" alignItems="center" gap={1}>
+                        <ReceiptIcon fontSize="small" />
+                        PSE (Pagos Seguros en Línea)
+                      </Stack>
+                    </MenuItem>
+                  </Select>
+                </FormControl>
+
+                {/* Fecha de Pago */}
+                <TextField
+                  name="date"
+                  label="Fecha de Pago"
+                  type="date"
+                  required
+                  fullWidth
+                  value={editFormData.date}
+                  onChange={handleFormChange}
+                  variant="outlined"
+                  InputLabelProps={{
+                    shrink: true
+                  }}
+                  helperText="Fecha en que se realizó el pago"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2
+                    }
+                  }}
+                />
+
+                {/* Referencia/Número */}
+                <TextField
+                  name="reference"
+                  label="Referencia/Número (Opcional)"
+                  fullWidth
+                  value={editFormData.reference || ''}
+                  onChange={handleFormChange}
+                  variant="outlined"
+                  placeholder="Ej: Transferencia #123456, Cheque #001"
+                  helperText="Número de referencia del pago"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2
+                    }
+                  }}
+                />
+
+                {/* Notas */}
+                <TextField
+                  name="notes"
+                  label="Notas Adicionales (Opcional)"
+                  multiline
+                  rows={4}
+                  fullWidth
+                  value={editFormData.notes}
+                  onChange={handleFormChange}
+                  variant="outlined"
+                  placeholder="Agregar observaciones, condiciones especiales, o información relevante sobre este pago..."
+                  helperText="Información adicional sobre el pago"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 2
+                    }
+                  }}
+                />
+              </Stack>
+            </Grid>
+
+            {/* Columna Derecha - Comprobantes */}
+            <Grid item xs={12} md={6}>
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 3, color: 'primary.main' }}>
+                📎 Comprobantes de Pago
+              </Typography>
+
+              {/* Área de carga de comprobantes */}
+              <Paper
+                elevation={0}
+                sx={{
+                  border: `2px dashed ${dragActive ? theme.palette.primary.main : theme.palette.primary.main + '40'}`,
+                  borderRadius: 4,
+                  p: 4,
+                  textAlign: 'center',
+                  background: dragActive ? 
+                    alpha(theme.palette.primary.main, 0.08) : 
+                    alpha(theme.palette.primary.main, 0.02),
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  minHeight: 300,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  '&:hover': {
+                    borderColor: theme.palette.primary.main,
+                    background: alpha(theme.palette.primary.main, 0.05),
+                    transform: 'translateY(-2px)'
+                  }
+                }}
+                onClick={() => document.getElementById('receipt-upload-edit').click()}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+              >
+                <motion.div
+                  animate={{ 
+                    rotate: [0, 5, -5, 0],
+                    scale: [1, 1.05, 1]
+                  }}
+                  transition={{ 
+                    duration: 2,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                >
+                  <UploadIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
+                </motion.div>
+                
+                <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main', mb: 1 }}>
+                  {dragActive ? 'Suelta los archivos aquí' : 'Subir Comprobantes'}
+                </Typography>
+                
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+                  Arrastra aquí tus archivos o haz clic para seleccionar
+                </Typography>
+                
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem', mb: 1 }}>
+                  Formatos soportados: PDF, JPG, PNG
+                  <br />
+                  Máximo 10MB por archivo
+                </Typography>
+
+                <Typography variant="caption" color="primary.main" sx={{ fontWeight: 600 }}>
+                  💡 Múltiples archivos se combinarán automáticamente en un solo PDF
+                </Typography>
+
+                <input
+                  id="receipt-upload-edit"
+                  type="file"
+                  hidden
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  multiple
+                  onChange={handleFileSelect}
+                />
+              </Paper>
+
+              {/* Lista de archivos seleccionados */}
+              {selectedFiles.length > 0 && (
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: 'text.secondary' }}>
+                    📋 Archivos Seleccionados ({selectedFiles.length})
+                  </Typography>
+                  <List dense>
+                    {selectedFiles.map((fileData) => (
+                      <ListItem key={fileData.id}>
+                        <ListItemIcon>
+                          <FileIcon color={fileData.uploaded ? 'success' : 'default'} />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={fileData.name}
+                          secondary={`${(fileData.size / 1024 / 1024).toFixed(2)} MB`}
+                        />
+                        <ListItemSecondaryAction>
+                          <IconButton 
+                            edge="end" 
+                            onClick={() => removeFile(fileData.id)}
+                            size="small"
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </ListItemSecondaryAction>
+                      </ListItem>
+                    ))}
+                  </List>
+                  
+                  {/* Información sobre múltiples archivos */}
+                  <Box sx={{ mt: 2, p: 2, bgcolor: 'info.main', color: 'info.contrastText', borderRadius: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                          📋 Archivos seleccionados
+                        </Typography>
+                        <Typography variant="caption">
+                          {selectedFiles.length > 1 
+                            ? `${selectedFiles.length} archivos se combinarán automáticamente en un PDF único al guardar cambios`
+                            : '1 archivo se subirá al guardar cambios'
+                          }
+                        </Typography>
+                      </Box>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => setSelectedFiles([])}
+                        sx={{ 
+                          color: 'info.contrastText', 
+                          borderColor: 'info.contrastText',
+                          '&:hover': {
+                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                            borderColor: 'info.contrastText'
+                          }
+                        }}
+                      >
+                        Limpiar
+                      </Button>
+                    </Box>
+                  </Box>
+                </Box>
+              )}
+
+              {/* Mostrar comprobantes actuales si existen */}
+              {editingPayment?.attachments?.length > 0 && (
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: 'text.secondary' }}>
+                    📋 Comprobantes Actuales:
+                  </Typography>
+                  {editingPayment.attachments.map((attachment, index) => (
+                    <Paper
+                      key={index}
+                      elevation={1}
+                      sx={{
+                        p: 2,
+                        mb: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 2,
+                        background: alpha(theme.palette.success.main, 0.05),
+                        border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
+                      }}
+                    >
+                      <FileIcon color="success" />
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          Comprobante {index + 1}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {attachment.slice(-20)}
+                        </Typography>
+                      </Box>
+                      <IconButton
+                        size="small"
+                        onClick={() => window.open(attachment, '_blank')}
+                        sx={{ color: 'primary.main' }}
+                      >
+                        <ReceiptIcon fontSize="small" />
+                      </IconButton>
+                    </Paper>
+                  ))}
+                </Box>
+              )}
+            </Grid>
+          </Grid>
+        </DialogContent>
+
+        {/* Progress bar durante la subida */}
+        {uploadingFile && uploadProgress > 0 && (
+          <Box sx={{ px: 3, pb: 2 }}>
+            <LinearProgress variant="determinate" value={uploadProgress} sx={{ mb: 1, borderRadius: 1 }} />
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center' }}>
+              {uploadProgress < 25 ? 'Preparando archivos...' :
+               uploadProgress < 50 ? 'Combinando documentos...' :
+               uploadProgress < 75 ? 'Subiendo a la nube...' :
+               uploadProgress < 90 ? 'Actualizando datos...' :
+               'Finalizando...'}
+            </Typography>
+          </Box>
+        )}
+
+        <DialogActions sx={{ p: 3, pt: 2, gap: 2 }}>
+          <Button
+            onClick={handleCloseEditPayment}
+            variant="outlined"
+            startIcon={<CancelIcon />}
+            sx={{ 
+              borderRadius: 2,
+              px: 3
+            }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleSavePayment}
+            variant="contained"
+            startIcon={uploadingFile ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+            disabled={!editFormData.concept || !editFormData.amount || !editFormData.method || !editFormData.companyName || uploadingFile}
+            sx={{ 
+              borderRadius: 2,
+              px: 3,
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+                transform: 'translateY(-1px)',
+                boxShadow: '0 4px 20px rgba(102, 126, 234, 0.4)'
+              },
+              '&:disabled': {
+                background: 'linear-gradient(135deg, #999 0%, #777 100%)',
+                transform: 'none'
+              }
+            }}
+          >
+            {uploadingFile ? 
+              (uploadProgress > 0 ? 
+                `${uploadProgress < 50 ? 'Subiendo...' : uploadProgress < 90 ? 'Guardando...' : 'Finalizando...'}` 
+                : 'Procesando...'
+              ) 
+              : 'Guardar Cambios'
+            }
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Snackbar para notificaciones */}
       <Snackbar
