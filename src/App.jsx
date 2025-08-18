@@ -26,7 +26,6 @@ import NewCommitmentPage from './pages/NewCommitmentPage';
 import NewPaymentPage from './pages/NewPaymentPage';
 import PaymentsPage from './pages/PaymentsPage';
 import ProfilePage from './pages/ProfilePage';
-import ReceiptsPage from './pages/ReceiptsPage';
 import ReportsCompanyPage from './pages/reports/ReportsCompanyPage';
 import ReportsConceptPage from './pages/reports/ReportsConceptPage';
 import ReportsPeriodPage from './pages/reports/ReportsPeriodPage';
@@ -202,14 +201,6 @@ const DashboardLayout = () => {
         }
       />
       {/* ========================================= */}
-      <Route 
-        path="/receipts" 
-        element={
-          <MainLayout title="Gestión de Comprobantes" breadcrumbs={['Comprobantes']}>
-            <ReceiptsPage />
-          </MainLayout>
-        }
-      />
       <Route 
         path="/profile" 
         element={

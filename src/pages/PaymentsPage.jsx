@@ -59,7 +59,10 @@ import {
   Cancel as CancelIcon,
   CloudUpload as UploadIcon,
   InsertDriveFile as FileIcon,
-  Business as CompanyIcon
+  Business as CompanyIcon,
+  AttachFile as AttachFileIcon,
+  PictureAsPdf as PdfIcon,
+  RemoveRedEye as RemoveRedEyeIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -82,6 +85,7 @@ const PaymentsPage = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [receiptsFilter, setReceiptsFilter] = useState('all'); // Nuevo filtro para comprobantes
   
   // Estados para el visor de comprobantes
   const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
@@ -203,16 +207,34 @@ const PaymentsPage = () => {
     }
   };
 
-  // Filtrar pagos por término de búsqueda
+  // Filtrar pagos por término de búsqueda y comprobantes
   const filteredPayments = payments.filter(payment => {
-    if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      payment.companyName?.toLowerCase().includes(searchLower) ||
-      payment.concept?.toLowerCase().includes(searchLower) ||
-      payment.reference?.toLowerCase().includes(searchLower) ||
-      payment.method?.toLowerCase().includes(searchLower)
-    );
+    // Filtro por búsqueda
+    let matchesSearch = true;
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      matchesSearch = (
+        payment.companyName?.toLowerCase().includes(searchLower) ||
+        payment.concept?.toLowerCase().includes(searchLower) ||
+        payment.reference?.toLowerCase().includes(searchLower) ||
+        payment.method?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Filtro por comprobantes
+    let matchesReceipts = true;
+    if (receiptsFilter !== 'all') {
+      const hasReceipts = !!(
+        payment.receiptUrl || 
+        (payment.receiptUrls && payment.receiptUrls.length > 0) ||
+        (payment.attachments && payment.attachments.length > 0)
+      );
+      
+      matchesReceipts = (receiptsFilter === 'with' && hasReceipts) || 
+                       (receiptsFilter === 'without' && !hasReceipts);
+    }
+    
+    return matchesSearch && matchesReceipts;
   });
 
   // Calcular estadísticas de pagos
@@ -223,6 +245,18 @@ const PaymentsPage = () => {
   const pendingAmount = filteredPayments
     .filter(p => p.status?.toLowerCase() === 'pendiente' || p.status?.toLowerCase() === 'pending')
     .reduce((sum, payment) => sum + payment.amount, 0);
+
+  // Estadísticas de comprobantes
+  const paymentsWithReceipts = filteredPayments.filter(payment => 
+    !!(payment.receiptUrl || 
+       (payment.receiptUrls && payment.receiptUrls.length > 0) ||
+       (payment.attachments && payment.attachments.length > 0))
+  );
+  const paymentsWithoutReceipts = filteredPayments.filter(payment => 
+    !(payment.receiptUrl || 
+      (payment.receiptUrls && payment.receiptUrls.length > 0) ||
+      (payment.attachments && payment.attachments.length > 0))
+  );
 
   // Acentos desde DS (gradients via theme variants y tokenUtils)
 
@@ -974,8 +1008,12 @@ const PaymentsPage = () => {
               label:'Pendientes', value:`$${pendingAmount.toLocaleString()}`, icon:<PendingIcon />, color: theme.palette.warning.main
             },{
               label:'Total Pagos', value:filteredPayments.length, icon:<ReceiptIcon />, color: theme.palette.info.main
+            },{
+              label:'Con Comprobantes', value:paymentsWithReceipts.length, icon:<AttachFileIcon />, color: theme.palette.success.main
+            },{
+              label:'Sin Comprobantes', value:paymentsWithoutReceipts.length, icon:<ErrorIcon />, color: theme.palette.error.main
             }].map(card => (
-              <Grid item xs={12} sm={6} md={3} key={card.label}>
+              <Grid item xs={12} sm={6} md={4} lg={2} key={card.label}>
                 <Card sx={{ 
                   borderRadius: 1, 
                   border: '1px solid', 
@@ -1075,6 +1113,23 @@ const PaymentsPage = () => {
                   <MenuItem value="completed" sx={{ fontSize: '0.8rem' }}>Completados</MenuItem>
                   <MenuItem value="pending" sx={{ fontSize: '0.8rem' }}>Pendientes</MenuItem>
                   <MenuItem value="failed" sx={{ fontSize: '0.8rem' }}>Fallidos</MenuItem>
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={{ minWidth: 150 }}>
+                <InputLabel sx={{ fontSize: '0.8rem' }}>Comprobantes</InputLabel>
+                <Select 
+                  value={receiptsFilter} 
+                  onChange={e=>setReceiptsFilter(e.target.value)} 
+                  label="Comprobantes" 
+                  sx={{ 
+                    borderRadius: 0.5,
+                    fontSize: '0.8rem',
+                    height: 36
+                  }}
+                >
+                  <MenuItem value="all" sx={{ fontSize: '0.8rem' }}>Todos</MenuItem>
+                  <MenuItem value="with" sx={{ fontSize: '0.8rem' }}>Con comprobantes</MenuItem>
+                  <MenuItem value="without" sx={{ fontSize: '0.8rem' }}>Sin comprobantes</MenuItem>
                 </Select>
               </FormControl>
               <Button 

@@ -132,7 +132,6 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       color: primaryColor,
       submenu: [
         { title: 'Historial', icon: Assessment, path: '/payments' },
-        { title: 'Comprobantes', icon: Receipt, path: '/receipts' },
         { title: 'Nuevo Pago', icon: AttachMoney, path: '/payments/new' }
       ]
     },
