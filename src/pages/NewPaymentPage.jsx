@@ -77,12 +77,18 @@ const NewPaymentPage = () => {
   const [loadingCommitments, setLoadingCommitments] = useState(true);
   const [selectedCommitment, setSelectedCommitment] = useState(null);
   
+  // Estado para empresas y cuentas bancarias
+  const [companies, setCompanies] = useState([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(true);
+  
   const [formData, setFormData] = useState({
     commitmentId: '',
     method: '',
     reference: '',
     date: new Date().toISOString().split('T')[0],
     notes: '',
+    sourceAccount: '', // NUEVO: cuenta de origen del pago
+    sourceBank: '',    // NUEVO: banco de origen (se autocompleta)
     // Campos calculados automáticamente
     originalAmount: 0,
     interests: 0,
@@ -104,6 +110,11 @@ const NewPaymentPage = () => {
   // Cargar compromisos pendientes de pago
   useEffect(() => {
     loadPendingCommitments();
+  }, []);
+
+  // Cargar empresas con cuentas bancarias
+  useEffect(() => {
+    loadCompanies();
   }, []);
 
   // Limpiar intereses cuando la fecha ya no los requiere
@@ -201,6 +212,69 @@ const NewPaymentPage = () => {
       });
     } finally {
       setLoadingCommitments(false);
+    }
+  };
+
+  // Cargar empresas con información bancaria
+  const loadCompanies = async () => {
+    try {
+      setLoadingCompanies(true);
+      const companiesQuery = query(collection(db, 'companies'));
+      const snapshot = await getDocs(companiesQuery);
+      
+      const companiesData = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        companiesData.push({
+          id: doc.id,
+          ...data
+        });
+      });
+      
+      setCompanies(companiesData);
+    } catch (error) {
+      console.error('Error cargando empresas:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error al cargar empresas',
+        message: 'No se pudieron cargar las empresas',
+        icon: 'error'
+      });
+    } finally {
+      setLoadingCompanies(false);
+    }
+  };
+
+  // Obtener cuentas bancarias disponibles
+  const getBankAccounts = () => {
+    return companies
+      .filter(company => company.bankAccount && company.bankName)
+      .map(company => ({
+        id: company.id,
+        companyName: company.name,
+        bankAccount: company.bankAccount,
+        bankName: company.bankName,
+        displayText: `${company.bankAccount} - ${company.bankName} (${company.name})`
+      }));
+  };
+
+  // Manejar selección de cuenta bancaria
+  const handleSourceAccountSelect = (selectedAccount) => {
+    if (selectedAccount) {
+      const accountInfo = getBankAccounts().find(acc => acc.bankAccount === selectedAccount);
+      if (accountInfo) {
+        setFormData(prev => ({
+          ...prev,
+          sourceAccount: accountInfo.bankAccount,
+          sourceBank: accountInfo.bankName
+        }));
+      }
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        sourceAccount: '',
+        sourceBank: ''
+      }));
     }
   };
 
@@ -405,6 +479,8 @@ const NewPaymentPage = () => {
         reference: formData.reference || '',
         date: Timestamp.fromDate(createLocalDate(formData.date)),
         notes: formData.notes || '',
+        sourceAccount: formData.sourceAccount || '',  // NUEVO: cuenta de origen
+        sourceBank: formData.sourceBank || '',        // NUEVO: banco de origen
         status: 'completed',
         attachments: uploadedFileUrls || [],
         processedBy: user.uid,
@@ -1067,6 +1143,87 @@ const NewPaymentPage = () => {
                           💳 Información del Pago
                         </Typography>
                       </Grid>
+
+                      {/* Campo de cuenta de origen */}
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth error={!!errors.sourceAccount}>
+                          <InputLabel>Cuenta de Origen</InputLabel>
+                          <Select
+                            value={formData.sourceAccount}
+                            label="Cuenta de Origen"
+                            onChange={(e) => handleSourceAccountSelect(e.target.value)}
+                            disabled={loadingCompanies}
+                          >
+                            <MenuItem value="">
+                              <em>Seleccionar cuenta de origen</em>
+                            </MenuItem>
+                            {getBankAccounts().map((account) => (
+                              <MenuItem 
+                                key={`${account.id}-${account.bankAccount}`} 
+                                value={account.bankAccount}
+                              >
+                                <Box>
+                                  <Typography variant="body2" fontWeight="medium">
+                                    {account.bankAccount}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {account.bankName} - {account.companyName}
+                                  </Typography>
+                                </Box>
+                              </MenuItem>
+                            ))}
+                            {getBankAccounts().length === 0 && (
+                              <MenuItem disabled>
+                                <Typography variant="body2" color="text.secondary">
+                                  {loadingCompanies ? 'Cargando...' : 'No hay cuentas bancarias registradas'}
+                                </Typography>
+                              </MenuItem>
+                            )}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+
+                      {/* Campo de banco (autocompletado) */}
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          label="Banco de Origen"
+                          value={formData.sourceBank}
+                          fullWidth
+                          disabled={true}
+                          placeholder="Se autocompleta al seleccionar cuenta"
+                          helperText="Se completa automáticamente al seleccionar una cuenta"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              backgroundColor: theme.palette.action.hover,
+                            },
+                            '& .MuiInputLabel-root.Mui-disabled': {
+                              color: theme.palette.text.secondary
+                            }
+                          }}
+                        />
+                      </Grid>
+
+                      {/* Mensaje informativo sobre cuentas bancarias */}
+                      {getBankAccounts().length === 0 && !loadingCompanies && (
+                        <Grid item xs={12}>
+                          <Alert 
+                            severity="info" 
+                            sx={{ 
+                              bgcolor: theme.palette.mode === 'dark' ? 'rgba(25, 118, 210, 0.1)' : 'rgba(25, 118, 210, 0.05)',
+                              border: `1px solid rgba(25, 118, 210, 0.2)`,
+                              borderRadius: 2
+                            }}
+                          >
+                            <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                              💡 Consejo
+                            </Typography>
+                            <Typography variant="caption">
+                              Para registrar cuentas de origen, primero agrega la información bancaria en la sección de Empresas. 
+                              Allí puedes agregar número de cuenta, banco y certificación bancaria de cada empresa.
+                            </Typography>
+                          </Alert>
+                        </Grid>
+                      )}
 
                       <Grid item xs={12} sm={6}>
                         <FormControl fullWidth error={!!errors.method}>

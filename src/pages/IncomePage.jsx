@@ -127,6 +127,32 @@ const IncomePage = () => {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
+  // Función para obtener cuentas bancarias de las empresas
+  const getBankAccounts = () => {
+    return companies
+      .filter(company => company.bankAccount && company.bankName)
+      .map(company => ({
+        id: company.id,
+        companyName: company.name,
+        bankAccount: company.bankAccount,
+        bankName: company.bankName
+      }));
+  };
+
+  // Función para manejar la selección de cuenta bancaria
+  const handleBankAccountSelect = (selectedAccount) => {
+    if (selectedAccount) {
+      const accountInfo = getBankAccounts().find(acc => acc.bankAccount === selectedAccount);
+      if (accountInfo) {
+        setFormData(prev => ({
+          ...prev,
+          account: accountInfo.bankAccount,
+          bank: accountInfo.bankName
+        }));
+      }
+    }
+  };
+
   // Cargar ingresos desde Firebase
   useEffect(() => {
     if (!currentUser) return;
@@ -1332,21 +1358,19 @@ const IncomePage = () => {
                   
                   <Grid container spacing={2}>
                     <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        label="Número de Cuenta"
-                        value={formData.account}
-                        onChange={(e) => handleFormChange('account', e.target.value)}
-                        disabled={saving}
-                        InputProps={{
-                          startAdornment: (
+                      <FormControl fullWidth>
+                        <InputLabel>Número de Cuenta</InputLabel>
+                        <Select
+                          value={formData.account}
+                          label="Número de Cuenta"
+                          onChange={(e) => handleBankAccountSelect(e.target.value)}
+                          disabled={saving}
+                          startAdornment={
                             <InputAdornment position="start">
                               <AccountBalanceIcon sx={{ color: '#9c27b0', fontSize: 18 }} />
                             </InputAdornment>
-                          )
-                        }}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
+                          }
+                          sx={{
                             borderRadius: 1.5,
                             transition: 'all 0.2s ease',
                             '&:hover': {
@@ -1359,9 +1383,39 @@ const IncomePage = () => {
                               transform: 'translateY(-1px)',
                               boxShadow: '0 4px 12px rgba(156, 39, 176, 0.2)'
                             }
-                          }
-                        }}
-                      />
+                          }}
+                        >
+                          <MenuItem value="">
+                            <em>Seleccionar cuenta bancaria</em>
+                          </MenuItem>
+                          {getBankAccounts().map((account) => (
+                            <MenuItem 
+                              key={`${account.id}-${account.bankAccount}`} 
+                              value={account.bankAccount}
+                              sx={{ 
+                                display: 'flex', 
+                                flexDirection: 'column', 
+                                alignItems: 'flex-start',
+                                py: 1.5
+                              }}
+                            >
+                              <Typography variant="body2" fontWeight="medium">
+                                {account.bankAccount}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {account.bankName} - {account.companyName}
+                              </Typography>
+                            </MenuItem>
+                          ))}
+                          {getBankAccounts().length === 0 && (
+                            <MenuItem disabled>
+                              <Typography variant="body2" color="text.secondary">
+                                No hay cuentas bancarias registradas en las empresas
+                              </Typography>
+                            </MenuItem>
+                          )}
+                        </Select>
+                      </FormControl>
                     </Grid>
                     
                     <Grid item xs={12} md={6}>
@@ -1370,7 +1424,8 @@ const IncomePage = () => {
                         label="Banco"
                         value={formData.bank}
                         onChange={(e) => handleFormChange('bank', e.target.value)}
-                        disabled={saving}
+                        disabled={true} // Siempre deshabilitado porque se autocompleta
+                        placeholder="Se autocompletará al seleccionar una cuenta"
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">
@@ -1382,21 +1437,42 @@ const IncomePage = () => {
                           '& .MuiOutlinedInput-root': {
                             borderRadius: 1.5,
                             transition: 'all 0.2s ease',
+                            backgroundColor: theme.palette.action.hover,
                             '&:hover': {
                               transform: 'translateY(-1px)',
                               boxShadow: theme.palette.mode === 'dark' 
                                 ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
                                 : '0 4px 12px rgba(0, 0, 0, 0.08)'
-                            },
-                            '&.Mui-focused': {
-                              transform: 'translateY(-1px)',
-                              boxShadow: '0 4px 12px rgba(156, 39, 176, 0.2)'
                             }
+                          },
+                          '& .MuiInputLabel-root.Mui-disabled': {
+                            color: theme.palette.text.secondary
                           }
                         }}
                       />
                     </Grid>
                   </Grid>
+                  
+                  {/* Mensaje informativo sobre cuentas bancarias */}
+                  {getBankAccounts().length === 0 && (
+                    <Box 
+                      sx={{ 
+                        mt: 2, 
+                        p: 2, 
+                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(156, 39, 176, 0.1)' : 'rgba(156, 39, 176, 0.05)',
+                        borderRadius: 2,
+                        border: `1px solid rgba(156, 39, 176, 0.2)`
+                      }}
+                    >
+                      <Typography variant="body2" sx={{ color: '#9c27b0', fontWeight: 500, mb: 0.5 }}>
+                        💡 Consejo
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Para tener cuentas bancarias disponibles, primero regístralas en la sección de Empresas. 
+                        Allí puedes agregar el número de cuenta, banco y certificación bancaria de cada empresa.
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
               </Grid>
 
@@ -1954,13 +2030,23 @@ const IncomePage = () => {
                   </Typography>
                 </Box>
               </Grid>
-              {selectedIncome.accountNumber && (
+              {selectedIncome.account && (
                 <Grid item xs={12} md={6}>
                   <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                     Número de Cuenta
                   </Typography>
                   <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                    {selectedIncome.accountNumber}
+                    {selectedIncome.account}
+                  </Typography>
+                </Grid>
+              )}
+              {selectedIncome.bank && (
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Banco
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                    {selectedIncome.bank}
                   </Typography>
                 </Grid>
               )}
