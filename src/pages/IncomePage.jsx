@@ -25,7 +25,12 @@ import {
   InputAdornment,
   Checkbox,
   FormControlLabel,
-  Tooltip
+  Tooltip,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  ListItemSecondaryAction
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -42,7 +47,11 @@ import {
   CalendarToday as CalendarIcon,
   Person as PersonIcon,
   Description as DescriptionIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  AttachFile as AttachFileIcon,
+  CloudUpload as CloudUploadIcon,
+  Delete as DeleteFileIcon,
+  Download as DownloadIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -50,7 +59,8 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { db } from '../config/firebase';
+import { useSettings } from '../context/SettingsContext';
+import { db, storage } from '../config/firebase';
 import {
   collection,
   addDoc,
@@ -63,11 +73,22 @@ import {
   where,
   Timestamp
 } from 'firebase/firestore';
+import {
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject
+} from 'firebase/storage';
 
 const IncomePage = () => {
   const theme = useTheme();
   const { currentUser } = useAuth();
   const { addToast } = useToast();
+  const { settings } = useSettings();
+  
+  // 🎨 Colores dinámicos del tema (igual que el sidebar)
+  const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;
+  const secondaryColor = settings?.theme?.secondaryColor || theme.palette.secondary.main;
   
   // Estados principales
   const [incomes, setIncomes] = useState([]);
@@ -99,6 +120,12 @@ const IncomePage = () => {
   });
   
   const [saving, setSaving] = useState(false);
+  
+  // Estados para archivos/comprobantes
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [uploadProgress, setUploadProgress] = useState({});
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
   // Cargar ingresos desde Firebase
   useEffect(() => {
@@ -222,9 +249,170 @@ const IncomePage = () => {
     }
   };
 
+  // ====================================
+  // 📎 FUNCIONES PARA MANEJO DE ARCHIVOS
+  // ====================================
+
+  // Validar archivos (reutilizable para drag y click)
+  const validateFiles = (files) => {
+    return files.filter(file => {
+      // Validar tipo de archivo (imágenes y PDFs)
+      const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+      if (!validTypes.includes(file.type)) {
+        addToast({
+          type: 'error',
+          title: 'Archivo no válido',
+          message: `${file.name}: Solo se permiten imágenes (JPG, PNG, WEBP) y archivos PDF`
+        });
+        return false;
+      }
+
+      // Validar tamaño (máximo 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        addToast({
+          type: 'error',
+          title: 'Archivo muy grande',
+          message: `${file.name}: El archivo no puede exceder 10MB`
+        });
+        return false;
+      }
+
+      return true;
+    });
+  };
+
+  // Procesar archivos (reutilizable)
+  const processFiles = (validFiles) => {
+    if (validFiles.length > 0) {
+      setSelectedFiles(prev => [...prev, ...validFiles]);
+      addToast({
+        type: 'success',
+        title: 'Archivos agregados',
+        message: `${validFiles.length} archivo(s) agregado(s)`
+      });
+    }
+  };
+
+  // Actualizar handleFileSelect para usar las funciones reutilizables
+  const handleFileSelect = (event) => {
+    const files = Array.from(event.target.files);
+    const validFiles = validateFiles(files);
+    processFiles(validFiles);
+
+    // Limpiar el input
+    event.target.value = '';
+  };
+
+  // Remover archivo de la lista
+  const handleRemoveFile = (index) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // ====================================
+  // 🖱️ FUNCIONES DRAG AND DROP
+  // ====================================
+
+  // Manejar drag over
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!dragOver) setDragOver(true);
+  };
+
+  // Manejar drag leave
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Solo quitar dragOver si realmente salimos del área
+    if (!e.currentTarget.contains(e.relatedTarget)) {
+      setDragOver(false);
+    }
+  };
+
+  // Manejar drop
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+
+    const files = Array.from(e.dataTransfer.files);
+    const validFiles = validateFiles(files);
+    processFiles(validFiles);
+  };
+
+  // Subir archivos a Firebase Storage
+  const uploadFiles = async (incomeId) => {
+    if (selectedFiles.length === 0) return [];
+
+    setUploading(true);
+    const uploadedFiles = [];
+
+    try {
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        const fileName = `${Date.now()}_${file.name}`;
+        const storageRef = ref(storage, `incomes/${incomeId}/${fileName}`);
+
+        // Crear la tarea de subida
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        // Promesa para manejar el progreso y resultado
+        await new Promise((resolve, reject) => {
+          uploadTask.on(
+            'state_changed',
+            (snapshot) => {
+              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              setUploadProgress(prev => ({
+                ...prev,
+                [i]: progress
+              }));
+            },
+            (error) => {
+              console.error('Error uploading file:', error);
+              reject(error);
+            },
+            async () => {
+              try {
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                uploadedFiles.push({
+                  name: file.name,
+                  originalName: file.name,
+                  url: downloadURL,
+                  size: file.size,
+                  type: file.type,
+                  path: `incomes/${incomeId}/${fileName}`,
+                  uploadedAt: new Date().toISOString()
+                });
+                resolve();
+              } catch (error) {
+                reject(error);
+              }
+            }
+          );
+        });
+      }
+
+      return uploadedFiles;
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      addToast({
+        type: 'error',
+        title: 'Error al subir archivos',
+        message: error.message
+      });
+      return [];
+    } finally {
+      setUploading(false);
+      setUploadProgress({});
+    }
+  };
+
   // Abrir modal para agregar ingreso
   const handleAddIncome = () => {
     setSelectedIncome(null);
+    setSelectedFiles([]);
+    setUploadProgress({});
+    setDragOver(false);
     setFormData({
       client: '',
       amount: '',
@@ -293,9 +481,25 @@ const IncomePage = () => {
         updatedAt: Timestamp.fromDate(new Date())
       };
 
+      let incomeId;
+
       if (selectedIncome) {
         // Actualizar
-        await updateDoc(doc(db, 'incomes', selectedIncome.id), incomeData);
+        incomeId = selectedIncome.id;
+        await updateDoc(doc(db, 'incomes', incomeId), incomeData);
+        
+        // Subir archivos si hay nuevos
+        if (selectedFiles.length > 0) {
+          const uploadedFiles = await uploadFiles(incomeId);
+          if (uploadedFiles.length > 0) {
+            // Agregar archivos nuevos a los existentes
+            const existingFiles = selectedIncome.attachments || [];
+            await updateDoc(doc(db, 'incomes', incomeId), {
+              attachments: [...existingFiles, ...uploadedFiles]
+            });
+          }
+        }
+        
         addToast({
           type: 'success',
           title: 'Ingreso actualizado',
@@ -305,11 +509,25 @@ const IncomePage = () => {
         // Crear nuevo (solo si NO está marcado como "al día")
         if (!formData.isClientPaidInFull) {
           incomeData.createdAt = Timestamp.fromDate(new Date());
-          await addDoc(collection(db, 'incomes'), incomeData);
+          const incomeDoc = await addDoc(collection(db, 'incomes'), incomeData);
+          incomeId = incomeDoc.id;
+          
+          // Subir archivos después de crear el documento
+          if (selectedFiles.length > 0) {
+            const uploadedFiles = await uploadFiles(incomeId);
+            if (uploadedFiles.length > 0) {
+              await updateDoc(doc(db, 'incomes', incomeId), {
+                attachments: uploadedFiles
+              });
+            }
+          }
+          
           addToast({
             type: 'success',
             title: 'Ingreso registrado',
-            message: 'El ingreso ha sido registrado correctamente'
+            message: selectedFiles.length > 0 
+              ? `Ingreso registrado con ${selectedFiles.length} archivo(s)`
+              : 'El ingreso ha sido registrado correctamente'
           });
         } else {
           // Si está marcado como "al día", el guardado se hace desde el modal de distribución
@@ -403,10 +621,22 @@ const IncomePage = () => {
       };
 
       const incomeDoc = await addDoc(collection(db, 'incomes'), incomeData);
+      const incomeId = incomeDoc.id;
+
+      // Subir archivos si hay
+      let uploadedFiles = [];
+      if (selectedFiles.length > 0) {
+        uploadedFiles = await uploadFiles(incomeId);
+        if (uploadedFiles.length > 0) {
+          await updateDoc(doc(db, 'incomes', incomeId), {
+            attachments: uploadedFiles
+          });
+        }
+      }
 
       // Guardar la distribución
       const distributionData = {
-        incomeId: incomeDoc.id,
+        incomeId: incomeId,
         client: formData.client.trim(),
         totalAmount: parseFloat(formData.amount),
         distributions: distributions.filter(dist => dist.amount > 0),
@@ -419,7 +649,9 @@ const IncomePage = () => {
       addToast({
         type: 'success',
         title: 'Ingreso y distribución guardados',
-        message: 'El ingreso ha sido registrado con su distribución por empresas'
+        message: uploadedFiles.length > 0 
+          ? `Ingreso registrado con distribución y ${uploadedFiles.length} archivo(s)`
+          : 'El ingreso ha sido registrado con su distribución por empresas'
       });
 
       setDialogOpen(false);
@@ -758,155 +990,856 @@ const IncomePage = () => {
       <Dialog
         open={dialogOpen}
         onClose={() => !saving && setDialogOpen(false)}
-        maxWidth="md"
+        maxWidth="lg"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: theme.palette.mode === 'dark' 
+              ? 'linear-gradient(145deg, rgba(30, 30, 30, 0.95) 0%, rgba(20, 20, 20, 0.98) 100%)'
+              : 'linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 24px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05)'
+              : '0 24px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+            overflow: 'hidden'
+          }
+        }}
       >
-        <DialogTitle>
-          {selectedIncome ? 'Editar Ingreso' : 'Registrar Nuevo Ingreso'}
-          <Typography variant="caption" sx={{ ml: 'auto', opacity: 0.7 }}>
-            DEBUG: Modal={distributionDialogOpen ? 'OPEN' : 'CLOSED'} | Companies={companies.length}
-          </Typography>
+        <DialogTitle sx={{ 
+          background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+          color: 'common.white',
+          py: 3,
+          position: 'relative',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 100%)',
+            pointerEvents: 'none'
+          }
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, position: 'relative', zIndex: 1 }}>
+            <Box sx={{
+              p: 1.5,
+              borderRadius: 2,
+              background: 'rgba(255, 255, 255, 0.15)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.2)'
+            }}>
+              {selectedIncome ? <EditIcon /> : <AddIcon />}
+            </Box>
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5, textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
+                {selectedIncome ? '✏️ Editar Ingreso' : '✨ Registrar Nuevo Ingreso'}
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9, textShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
+                {selectedIncome ? 'Modifica los detalles del ingreso' : 'Complete la información del nuevo pago recibido'}
+              </Typography>
+            </Box>
+          </Box>
         </DialogTitle>
-        <DialogContent dividers>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Cliente *"
-                value={formData.client}
-                onChange={(e) => handleFormChange('client', e.target.value)}
-                disabled={saving}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <PersonIcon />
-                    </InputAdornment>
-                  )
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Monto *"
-                type="number"
-                value={formData.amount}
-                onChange={(e) => handleFormChange('amount', e.target.value)}
-                disabled={saving}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <AttachMoneyIcon />
-                    </InputAdornment>
-                  )
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Fecha *"
-                type="date"
-                value={formData.date}
-                onChange={(e) => handleFormChange('date', e.target.value)}
-                disabled={saving}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
-                <InputLabel>Método de Pago</InputLabel>
-                <Select
-                  value={formData.paymentMethod}
-                  onChange={(e) => handleFormChange('paymentMethod', e.target.value)}
-                  disabled={saving}
-                  label="Método de Pago"
-                >
-                  <MenuItem value="transferencia">Transferencia</MenuItem>
-                  <MenuItem value="consignacion">Consignación</MenuItem>
-                  <MenuItem value="efectivo">Efectivo</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Descripción"
-                multiline
-                rows={3}
-                value={formData.description}
-                onChange={(e) => handleFormChange('description', e.target.value)}
-                disabled={saving}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Cuenta"
-                value={formData.account}
-                onChange={(e) => handleFormChange('account', e.target.value)}
-                disabled={saving}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <AccountBalanceIcon />
-                    </InputAdornment>
-                  )
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Banco"
-                value={formData.bank}
-                onChange={(e) => handleFormChange('bank', e.target.value)}
-                disabled={saving}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <AccountBalanceIcon />
-                    </InputAdornment>
-                  )
-                }}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <Box sx={{ 
-                p: 2, 
-                bgcolor: 'primary.50', 
-                borderRadius: 2,
-                border: `1px solid ${theme.palette.primary.main}20`
-              }}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={formData.isClientPaidInFull}
-                      onChange={(e) => handlePaidInFullChange(e.target.checked)}
-                      disabled={saving}
-                      color="primary"
+        
+        <DialogContent sx={{ p: 2.5, position: 'relative' }}>
+          {/* Decorative background elements */}
+          <Box sx={{
+            position: 'absolute',
+            top: -30,
+            right: -30,
+            width: 120,
+            height: 120,
+            borderRadius: '50%',
+            background: `linear-gradient(135deg, ${primaryColor}06, ${secondaryColor}03)`,
+            filter: 'blur(30px)',
+            pointerEvents: 'none',
+            zIndex: 0
+          }} />
+          
+          <Box sx={{ position: 'relative', zIndex: 1 }}>
+            <Grid container spacing={2.5} sx={{ mt: 0.5 }}>
+              {/* Información Principal */}
+              <Grid item xs={12}>
+                <Box sx={{ 
+                  p: 2, 
+                  borderRadius: 2, 
+                  background: theme.palette.mode === 'dark' 
+                    ? 'linear-gradient(145deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.05) 100%)'
+                    : 'linear-gradient(145deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.9) 100%)',
+                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
+                  boxShadow: theme.palette.mode === 'dark' 
+                    ? '0 4px 20px rgba(0, 0, 0, 0.2)' 
+                    : '0 4px 20px rgba(0, 0, 0, 0.06)',
+                  mb: 1.5
+                }}>
+                  <Typography variant="subtitle1" sx={{ 
+                    mb: 2, 
+                    fontWeight: 600, 
+                    color: primaryColor,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <PersonIcon sx={{ fontSize: 20 }} /> Información Principal
+                  </Typography>
+                  
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Cliente"
+                        value={formData.client}
+                        onChange={(e) => handleFormChange('client', e.target.value)}
+                        disabled={saving}
+                        required
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <PersonIcon sx={{ color: primaryColor }} />
+                            </InputAdornment>
+                          )
+                        }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              transform: 'translateY(-1px)',
+                              boxShadow: theme.palette.mode === 'dark' 
+                                ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
+                                : '0 4px 12px rgba(0, 0, 0, 0.08)'
+                            },
+                            '&.Mui-focused': {
+                              transform: 'translateY(-1px)',
+                              boxShadow: `0 4px 12px ${primaryColor}20`
+                            }
+                          }
+                        }}
+                      />
+                    </Grid>
+                    
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Monto"
+                        type="number"
+                        value={formData.amount}
+                        onChange={(e) => handleFormChange('amount', e.target.value)}
+                        disabled={saving}
+                        required
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <AttachMoneyIcon sx={{ color: '#4caf50' }} />
+                            </InputAdornment>
+                          )
+                        }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              transform: 'translateY(-1px)',
+                              boxShadow: theme.palette.mode === 'dark' 
+                                ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
+                                : '0 4px 12px rgba(0, 0, 0, 0.08)'
+                            },
+                            '&.Mui-focused': {
+                              transform: 'translateY(-1px)',
+                              boxShadow: '0 4px 12px rgba(76, 175, 80, 0.2)'
+                            }
+                          }
+                        }}
+                      />
+                    </Grid>
+                    
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Fecha"
+                        type="date"
+                        value={formData.date}
+                        onChange={(e) => handleFormChange('date', e.target.value)}
+                        disabled={saving}
+                        required
+                        InputLabelProps={{ shrink: true }}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <CalendarIcon sx={{ color: '#ff9800' }} />
+                            </InputAdornment>
+                          )
+                        }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              transform: 'translateY(-2px)',
+                              boxShadow: theme.palette.mode === 'dark' 
+                                ? '0 8px 25px rgba(0, 0, 0, 0.4)' 
+                                : '0 8px 25px rgba(0, 0, 0, 0.1)'
+                            },
+                            '&.Mui-focused': {
+                              transform: 'translateY(-2px)',
+                              boxShadow: '0 8px 25px rgba(255, 152, 0, 0.3)'
+                            }
+                          }
+                        }}
+                      />
+                    </Grid>
+                    
+                    <Grid item xs={12} md={6}>
+                      <FormControl fullWidth>
+                        <InputLabel>Método de Pago</InputLabel>
+                        <Select
+                          value={formData.paymentMethod}
+                          onChange={(e) => handleFormChange('paymentMethod', e.target.value)}
+                          disabled={saving}
+                          label="Método de Pago"
+                          startAdornment={
+                            <InputAdornment position="start">
+                              <AccountBalanceIcon sx={{ color: '#2196f3' }} />
+                            </InputAdornment>
+                          }
+                          sx={{
+                            borderRadius: 2,
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              transform: 'translateY(-2px)',
+                              boxShadow: theme.palette.mode === 'dark' 
+                                ? '0 8px 25px rgba(0, 0, 0, 0.4)' 
+                                : '0 8px 25px rgba(0, 0, 0, 0.1)'
+                            },
+                            '&.Mui-focused': {
+                              transform: 'translateY(-2px)',
+                              boxShadow: '0 8px 25px rgba(33, 150, 243, 0.3)'
+                            }
+                          }}
+                        >
+                          <MenuItem value="transferencia">
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <AccountBalanceIcon sx={{ fontSize: 18, color: '#2196f3' }} />
+                              Transferencia
+                            </Box>
+                          </MenuItem>
+                          <MenuItem value="consignacion">
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <ReceiptIcon sx={{ fontSize: 18, color: '#ff9800' }} />
+                              Consignación
+                            </Box>
+                          </MenuItem>
+                          <MenuItem value="efectivo">
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <AttachMoneyIcon sx={{ fontSize: 18, color: '#4caf50' }} />
+                              Efectivo
+                            </Box>
+                          </MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  </Grid>
+                </Box>
+              </Grid>
+
+              {/* Descripción */}
+              <Grid item xs={12}>
+                <Box sx={{ 
+                  p: 2, 
+                  borderRadius: 2, 
+                  background: theme.palette.mode === 'dark' 
+                    ? 'linear-gradient(145deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.05) 100%)'
+                    : 'linear-gradient(145deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.9) 100%)',
+                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
+                  boxShadow: theme.palette.mode === 'dark' 
+                    ? '0 4px 20px rgba(0, 0, 0, 0.2)' 
+                    : '0 4px 20px rgba(0, 0, 0, 0.06)',
+                  mb: 1.5
+                }}>
+                  <Typography variant="subtitle1" sx={{ 
+                    mb: 2, 
+                    fontWeight: 600, 
+                    color: secondaryColor,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <DescriptionIcon sx={{ fontSize: 20 }} /> Descripción
+                  </Typography>
+                  
+                  <TextField
+                    fullWidth
+                    label="Descripción del ingreso"
+                    multiline
+                    rows={3}
+                    value={formData.description}
+                    onChange={(e) => handleFormChange('description', e.target.value)}
+                    disabled={saving}
+                    placeholder="Describe los detalles del pago..."
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
+                          <DescriptionIcon sx={{ color: secondaryColor, fontSize: 20 }} />
+                        </InputAdornment>
+                      )
+                    }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          transform: 'translateY(-1px)',
+                          boxShadow: theme.palette.mode === 'dark' 
+                            ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
+                            : '0 4px 12px rgba(0, 0, 0, 0.08)'
+                        },
+                        '&.Mui-focused': {
+                          transform: 'translateY(-1px)',
+                          boxShadow: `0 4px 12px ${secondaryColor}20`
+                        }
+                      }
+                    }}
+                  />
+                </Box>
+              </Grid>
+
+              {/* Información Bancaria */}
+              <Grid item xs={12}>
+                <Box sx={{ 
+                  p: 2, 
+                  borderRadius: 2, 
+                  background: theme.palette.mode === 'dark' 
+                    ? 'linear-gradient(145deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.05) 100%)'
+                    : 'linear-gradient(145deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.9) 100%)',
+                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
+                  boxShadow: theme.palette.mode === 'dark' 
+                    ? '0 4px 20px rgba(0, 0, 0, 0.2)' 
+                    : '0 4px 20px rgba(0, 0, 0, 0.06)',
+                  mb: 1.5
+                }}>
+                  <Typography variant="subtitle1" sx={{ 
+                    mb: 2, 
+                    fontWeight: 600, 
+                    color: '#9c27b0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <AccountBalanceIcon sx={{ fontSize: 20 }} /> Información Bancaria
+                  </Typography>
+                  
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Número de Cuenta"
+                        value={formData.account}
+                        onChange={(e) => handleFormChange('account', e.target.value)}
+                        disabled={saving}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <AccountBalanceIcon sx={{ color: '#9c27b0', fontSize: 18 }} />
+                            </InputAdornment>
+                          )
+                        }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              transform: 'translateY(-1px)',
+                              boxShadow: theme.palette.mode === 'dark' 
+                                ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
+                                : '0 4px 12px rgba(0, 0, 0, 0.08)'
+                            },
+                            '&.Mui-focused': {
+                              transform: 'translateY(-1px)',
+                              boxShadow: '0 4px 12px rgba(156, 39, 176, 0.2)'
+                            }
+                          }
+                        }}
+                      />
+                    </Grid>
+                    
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Banco"
+                        value={formData.bank}
+                        onChange={(e) => handleFormChange('bank', e.target.value)}
+                        disabled={saving}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <BusinessIcon sx={{ color: '#9c27b0', fontSize: 18 }} />
+                            </InputAdornment>
+                          )
+                        }}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              transform: 'translateY(-1px)',
+                              boxShadow: theme.palette.mode === 'dark' 
+                                ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
+                                : '0 4px 12px rgba(0, 0, 0, 0.08)'
+                            },
+                            '&.Mui-focused': {
+                              transform: 'translateY(-1px)',
+                              boxShadow: '0 4px 12px rgba(156, 39, 176, 0.2)'
+                            }
+                          }
+                        }}
+                      />
+                    </Grid>
+                  </Grid>
+                </Box>
+              </Grid>
+
+              {/* Sección de archivos adjuntos con Drag & Drop */}
+              <Grid item xs={12}>
+                <Box sx={{ 
+                  p: 2, 
+                  borderRadius: 2, 
+                  background: theme.palette.mode === 'dark' 
+                    ? 'linear-gradient(145deg, rgba(76, 175, 80, 0.03) 0%, rgba(67, 160, 71, 0.05) 100%)'
+                    : 'linear-gradient(145deg, rgba(232, 245, 233, 0.6) 0%, rgba(220, 237, 200, 0.7) 100%)',
+                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(76, 175, 80, 0.1)' : 'rgba(76, 175, 80, 0.2)'}`,
+                  boxShadow: theme.palette.mode === 'dark' 
+                    ? '0 4px 20px rgba(0, 0, 0, 0.2)' 
+                    : '0 4px 20px rgba(76, 175, 80, 0.1)',
+                }}>
+                  <Typography variant="subtitle1" sx={{ 
+                    mb: 2, 
+                    fontWeight: 600, 
+                    color: '#4caf50',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <CloudUploadIcon sx={{ fontSize: 20 }} /> Comprobantes de Pago
+                  </Typography>
+                  
+                  {/* Zona de Drag & Drop mejorada */}
+                  <Box
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    sx={{
+                      border: dragOver 
+                        ? `2px dashed #4caf50` 
+                        : `1px dashed rgba(76, 175, 80, 0.3)`,
+                      borderRadius: 2,
+                      p: 2.5,
+                      textAlign: 'center',
+                      backgroundColor: dragOver 
+                        ? 'rgba(76, 175, 80, 0.08)' 
+                        : 'rgba(76, 175, 80, 0.03)',
+                      transition: 'all 0.2s ease',
+                      cursor: 'pointer',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      '&:hover': {
+                        borderColor: '#4caf50',
+                        backgroundColor: 'rgba(76, 175, 80, 0.06)',
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 12px rgba(76, 175, 80, 0.15)'
+                      },
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: -30,
+                        left: -30,
+                        width: 60,
+                        height: 60,
+                        borderRadius: '50%',
+                        background: 'radial-gradient(circle, rgba(76, 175, 80, 0.08) 0%, transparent 70%)',
+                        opacity: dragOver ? 1 : 0,
+                        transition: 'opacity 0.2s ease',
+                        pointerEvents: 'none'
+                      }
+                    }}
+                  >
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf"
+                      onChange={handleFileSelect}
+                      style={{ display: 'none' }}
+                      id="file-upload"
                     />
-                  }
-                  label={
-                    <Box>
-                      <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                        ✅ Cliente queda al día con este pago
+                    
+                    <motion.div
+                      animate={dragOver ? { scale: 1.05, rotate: [0, 2, -2, 0] } : { scale: 1 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <CloudUploadIcon 
+                        sx={{ 
+                          fontSize: 48, 
+                          color: dragOver ? '#4caf50' : 'rgba(76, 175, 80, 0.6)',
+                          mb: 1.5,
+                          transition: 'all 0.2s ease',
+                          filter: dragOver ? 'drop-shadow(0 2px 8px rgba(76, 175, 80, 0.3))' : 'none'
+                        }} 
+                      />
+                    </motion.div>
+                    
+                    <Typography 
+                      variant="h6" 
+                      sx={{ 
+                        mb: 0.5, 
+                        color: dragOver ? '#4caf50' : '#388e3c',
+                        fontWeight: 600,
+                        textShadow: dragOver ? '0 1px 4px rgba(76, 175, 80, 0.2)' : 'none'
+                      }}
+                    >
+                      {dragOver ? '¡Suelta los archivos aquí!' : '✨ Arrastra archivos aquí'}
+                    </Typography>
+                    
+                    <Typography variant="body1" color="text.secondary" sx={{ mb: 3, fontWeight: 500 }}>
+                      o haz click para seleccionar desde tu dispositivo
+                    </Typography>
+                    
+                    <label htmlFor="file-upload">
+                      <Button
+                        variant={dragOver ? 'contained' : 'outlined'}
+                        component="span"
+                        size="large"
+                        startIcon={<AttachFileIcon />}
+                        disabled={saving || uploading}
+                        sx={{
+                          borderRadius: 3,
+                          px: 4,
+                          py: 1.5,
+                          fontWeight: 600,
+                          textTransform: 'none',
+                          fontSize: '1.1rem',
+                          background: dragOver 
+                            ? 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)'
+                            : 'transparent',
+                          borderColor: '#4caf50',
+                          color: dragOver ? 'white' : '#4caf50',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': {
+                            background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
+                            color: 'white',
+                            transform: 'translateY(-2px)',
+                            boxShadow: '0 8px 25px rgba(76, 175, 80, 0.4)'
+                          }
+                        }}
+                      >
+                        {dragOver ? 'Procesar Archivos' : 'Seleccionar Archivos'}
+                      </Button>
+                    </label>
+                    
+                    <Typography variant="caption" sx={{ 
+                      display: 'block', 
+                      mt: 2, 
+                      color: 'text.secondary',
+                      fontWeight: 500
+                    }}>
+                      📄 Imágenes (JPG, PNG, WEBP) y PDF • Máximo 10MB por archivo
+                    </Typography>
+                  </Box>
+
+                  {/* Lista de archivos seleccionados mejorada */}
+                  {selectedFiles.length > 0 && (
+                    <Box sx={{ mt: 3 }}>
+                      <Typography variant="subtitle1" sx={{ 
+                        mb: 2, 
+                        fontWeight: 700,
+                        color: '#4caf50',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1
+                      }}>
+                        <ReceiptIcon /> Archivos Seleccionados ({selectedFiles.length})
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Si marcas esta opción, se abrirá un formulario para distribuir el monto entre empresas
-                      </Typography>
+                      <List sx={{ 
+                        bgcolor: 'background.paper', 
+                        borderRadius: 2,
+                        border: `1px solid ${theme.palette.divider}`,
+                        overflow: 'hidden'
+                      }}>
+                        {selectedFiles.map((file, index) => (
+                          <motion.div
+                            key={index}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3, delay: index * 0.1 }}
+                          >
+                            <ListItem 
+                              sx={{ 
+                                borderBottom: index < selectedFiles.length - 1 ? `1px solid ${theme.palette.divider}` : 'none',
+                                transition: 'all 0.3s ease',
+                                '&:hover': {
+                                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(76, 175, 80, 0.05)',
+                                  transform: 'translateX(4px)'
+                                }
+                              }}
+                            >
+                              <ListItemIcon>
+                                <Box sx={{
+                                  p: 1,
+                                  borderRadius: 2,
+                                  bgcolor: file.type === 'application/pdf' ? 'error.light' : 'primary.light',
+                                  color: 'white'
+                                }}>
+                                  {file.type === 'application/pdf' ? 
+                                    <DescriptionIcon /> : 
+                                    <AttachFileIcon />
+                                  }
+                                </Box>
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={
+                                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                                    {file.name}
+                                  </Typography>
+                                }
+                                secondary={
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                                    <Chip 
+                                      label={`${(file.size / 1024 / 1024).toFixed(2)} MB`}
+                                      size="small"
+                                      color="primary"
+                                      variant="outlined"
+                                    />
+                                    <Chip 
+                                      label={file.type === 'application/pdf' ? 'PDF' : 'Imagen'}
+                                      size="small"
+                                      color={file.type === 'application/pdf' ? 'error' : 'success'}
+                                      variant="filled"
+                                    />
+                                  </Box>
+                                }
+                              />
+                              {uploadProgress[index] && (
+                                <Box sx={{ mr: 2, minWidth: 80, textAlign: 'center' }}>
+                                  <Typography variant="caption" color="primary" sx={{ fontWeight: 700 }}>
+                                    {Math.round(uploadProgress[index])}%
+                                  </Typography>
+                                  <Box sx={{ 
+                                    width: '100%', 
+                                    height: 4, 
+                                    bgcolor: 'grey.200', 
+                                    borderRadius: 2, 
+                                    overflow: 'hidden',
+                                    mt: 0.5
+                                  }}>
+                                    <Box sx={{
+                                      width: `${uploadProgress[index]}%`,
+                                      height: '100%',
+                                      bgcolor: 'primary.main',
+                                      transition: 'width 0.3s ease'
+                                    }} />
+                                  </Box>
+                                </Box>
+                              )}
+                              <ListItemSecondaryAction>
+                                <Tooltip title="Eliminar archivo">
+                                  <IconButton
+                                    edge="end"
+                                    onClick={() => handleRemoveFile(index)}
+                                    disabled={uploading}
+                                    sx={{
+                                      color: 'error.main',
+                                      '&:hover': {
+                                        bgcolor: 'error.light',
+                                        color: 'error.contrastText',
+                                        transform: 'scale(1.1)'
+                                      },
+                                      transition: 'all 0.3s ease'
+                                    }}
+                                  >
+                                    <DeleteFileIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              </ListItemSecondaryAction>
+                            </ListItem>
+                          </motion.div>
+                        ))}
+                      </List>
                     </Box>
-                  }
-                />
-              </Box>
+                  )}
+
+                  {uploading && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      <Alert 
+                        severity="info" 
+                        sx={{ 
+                          mt: 2,
+                          borderRadius: 2,
+                          '& .MuiAlert-icon': {
+                            fontSize: 24
+                          }
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                            📤 Subiendo archivos...
+                          </Typography>
+                          <Typography variant="body2">
+                            Por favor espere mientras procesamos sus documentos
+                          </Typography>
+                        </Box>
+                      </Alert>
+                    </motion.div>
+                  )}
+                </Box>
+              </Grid>
+              
+              {/* Checkbox de Cliente al Día - Mejorado */}
+              <Grid item xs={12}>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Box sx={{ 
+                    p: 2, 
+                    borderRadius: 2, 
+                    background: theme.palette.mode === 'dark' 
+                      ? `linear-gradient(135deg, ${primaryColor}10 0%, ${secondaryColor}08 100%)`
+                      : `linear-gradient(135deg, ${primaryColor}05 0%, ${secondaryColor}03 100%)`,
+                    border: `1px solid ${formData.isClientPaidInFull ? primaryColor : 'rgba(0, 0, 0, 0.06)'}`,
+                    boxShadow: formData.isClientPaidInFull 
+                      ? `0 4px 20px ${primaryColor}20`
+                      : theme.palette.mode === 'dark' 
+                        ? '0 4px 20px rgba(0, 0, 0, 0.2)' 
+                        : '0 4px 20px rgba(0, 0, 0, 0.06)',
+                    transition: 'all 0.2s ease',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: '2px',
+                      background: formData.isClientPaidInFull 
+                        ? `linear-gradient(90deg, ${primaryColor}, ${secondaryColor})`
+                        : 'transparent',
+                      transition: 'all 0.2s ease'
+                    }
+                  }}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formData.isClientPaidInFull}
+                          onChange={(e) => handlePaidInFullChange(e.target.checked)}
+                          disabled={saving}
+                          icon={
+                            <Box sx={{
+                              width: 20,
+                              height: 20,
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              borderRadius: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'all 0.2s ease'
+                            }} />
+                          }
+                          checkedIcon={
+                            <Box sx={{
+                              width: 20,
+                              height: 20,
+                              background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
+                              borderRadius: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'white',
+                              boxShadow: `0 2px 8px ${primaryColor}30`
+                            }}>
+                              ✓
+                            </Box>
+                          }
+                          sx={{
+                            '&:hover': {
+                              bgcolor: 'transparent',
+                            },
+                            '& .MuiSvgIcon-root': {
+                              fontSize: 28
+                            }
+                          }}
+                        />
+                      }
+                      label={
+                        <Box sx={{ ml: 2 }}>
+                          <Typography variant="h6" sx={{ 
+                            fontWeight: 700, 
+                            color: formData.isClientPaidInFull ? primaryColor : 'text.primary',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            mb: 0.5
+                          }}>
+                            {formData.isClientPaidInFull ? '✅' : '💰'} Cliente queda al día con este pago
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                            {formData.isClientPaidInFull 
+                              ? '🎉 Perfecto! Se abrirá un formulario para distribuir el monto entre empresas'
+                              : 'Si marcas esta opción, podrás distribuir el pago entre diferentes empresas'
+                            }
+                          </Typography>
+                        </Box>
+                      }
+                      sx={{ 
+                        margin: 0,
+                        alignItems: 'flex-start',
+                        width: '100%'
+                      }}
+                    />
+                  </Box>
+                </motion.div>
+              </Grid>
             </Grid>
-          </Grid>
+          </Box>
         </DialogContent>
-        <DialogActions>
+        
+        <DialogActions sx={{ 
+          p: 2, 
+          gap: 1.5,
+          background: theme.palette.mode === 'dark' 
+            ? 'linear-gradient(145deg, rgba(30, 30, 30, 0.6) 0%, rgba(20, 20, 20, 0.8) 100%)'
+            : 'linear-gradient(145deg, rgba(248, 250, 252, 0.6) 0%, rgba(255, 255, 255, 0.8) 100%)',
+          backdropFilter: 'blur(15px)',
+          borderTop: `1px solid ${theme.palette.divider}`
+        }}>
           <Button
             onClick={() => setDialogOpen(false)}
             disabled={saving}
-            startIcon={<CancelIcon />}
+            variant="outlined"
+            size="medium"
+            startIcon={<CancelIcon sx={{ fontSize: 18 }} />}
+            sx={{
+              borderRadius: 1.5,
+              px: 3,
+              py: 1,
+              fontWeight: 500,
+              textTransform: 'none',
+              borderColor: 'error.main',
+              color: 'error.main',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                borderColor: 'error.dark',
+                backgroundColor: 'error.light',
+                color: 'error.contrastText',
+                transform: 'translateY(-1px)',
+                boxShadow: '0 4px 12px rgba(244, 67, 54, 0.2)'
+              }
+            }}
           >
             Cancelar
           </Button>
@@ -914,9 +1847,33 @@ const IncomePage = () => {
             onClick={handleSaveIncome}
             disabled={saving}
             variant="contained"
-            startIcon={saving ? <RefreshIcon className="spinning" /> : <SaveIcon />}
+            size="medium"
+            startIcon={saving ? (
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                <RefreshIcon sx={{ fontSize: 18 }} />
+              </motion.div>
+            ) : <SaveIcon sx={{ fontSize: 18 }} />}
+            sx={{
+              borderRadius: 1.5,
+              px: 3,
+              py: 1,
+              fontWeight: 600,
+              textTransform: 'none',
+              fontSize: '1rem',
+              background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                background: `linear-gradient(135deg, ${primaryColor}DD 0%, ${secondaryColor}DD 100%)`,
+                transform: 'translateY(-1px)',
+                boxShadow: `0 4px 20px ${primaryColor}30`
+              },
+              '&:disabled': {
+                background: theme.palette.action.disabled,
+                color: theme.palette.action.disabled,
+              }
+            }}
           >
-            {saving ? 'Guardando...' : 'Guardar'}
+            {saving ? 'Guardando...' : (selectedIncome ? 'Actualizar Ingreso' : 'Guardar Ingreso')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1070,46 +2027,168 @@ const IncomePage = () => {
         fullWidth
       >
         <DialogTitle sx={{ 
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white',
+          background: theme.palette.mode === 'dark' 
+            ? `linear-gradient(135deg, ${primaryColor}80 0%, ${secondaryColor}80 50%, ${primaryColor}60 100%)`
+            : `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 50%, ${primaryColor}CC 100%)`,
+          color: 'common.white',
           display: 'flex',
           alignItems: 'center',
-          gap: 2
+          gap: 2,
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0,0,0,0.5)'
+            : `0 4px 20px ${primaryColor}30`,
+          position: 'relative',
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '1px',
+            background: theme.palette.mode === 'dark'
+              ? 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)'
+              : 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)'
+          },
+          '& .MuiSvgIcon-root': {
+            fontSize: '1.5rem',
+            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+          }
         }}>
           <BusinessIcon />
-          Distribución por Empresas - {formData.client}
+          <Box sx={{ flex: 1 }}>
+            <Typography 
+              variant="h6" 
+              component="div" 
+              sx={{ 
+                fontWeight: 600, 
+                mb: 0.5,
+                textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                letterSpacing: '0.02em'
+              }}
+            >
+              Distribución por Empresas
+            </Typography>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                opacity: 0.95, 
+                fontWeight: 400,
+                textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+              }}
+            >
+              Cliente: {formData.client}
+            </Typography>
+          </Box>
         </DialogTitle>
-        <DialogContent dividers sx={{ position: 'relative', minHeight: 400 }}>
-          {/* Header fijo con total a distribuir */}
+        <DialogContent dividers sx={{ position: 'relative', minHeight: 400, p: 0 }}>
+          {/* Header fijo con total a distribuir y progreso */}
           <Box sx={{ 
             position: 'sticky',
-            top: 0,
+            top: -1,
             bgcolor: 'background.paper',
             zIndex: 10,
             borderBottom: `1px solid ${theme.palette.divider}`,
-            pb: 2,
-            mb: 3
+            p: 3,
+            mb: 3,
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 2px 8px rgba(0,0,0,0.4)' 
+              : '0 2px 8px rgba(0,0,0,0.1)'
           }}>
-            <Typography variant="h6" gutterBottom>
-              Total a Distribuir: <Chip 
-                label={`$${parseFloat(formData.amount || 0).toLocaleString()}`} 
-                color="primary" 
-                variant="outlined" 
-                size="medium"
-              />
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                Total a Distribuir: <Chip 
+                  label={`$${parseFloat(formData.amount || 0).toLocaleString()}`} 
+                  color="primary" 
+                  variant="filled" 
+                  size="medium"
+                  sx={{ 
+                    fontWeight: 600, 
+                    fontSize: '0.9rem',
+                    ml: 1
+                  }}
+                />
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  {companies.length} empresas
+                </Typography>
+                <Chip 
+                  label={getTotalDistribution() === parseFloat(formData.amount || 0) ? "✅ Completo" : `${Math.round((getTotalDistribution() / parseFloat(formData.amount || 1)) * 100)}%`}
+                  color={getTotalDistribution() === parseFloat(formData.amount || 0) ? "success" : "warning"}
+                  variant="outlined"
+                  size="small"
+                  sx={{ fontWeight: 500 }}
+                />
+              </Box>
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.5 }}>
               Especifica cuánto corresponde a cada empresa. La suma debe ser igual al monto total.
             </Typography>
+            {/* Barra de progreso visual mejorada */}
+            <Box sx={{ 
+              width: '100%', 
+              bgcolor: theme.palette.mode === 'dark' ? 'grey.800' : 'grey.200', 
+              borderRadius: 2,
+              height: 10,
+              overflow: 'hidden',
+              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)',
+              mb: 1
+            }}>
+              <Box sx={{
+                width: `${Math.min((getTotalDistribution() / parseFloat(formData.amount || 1)) * 100, 100)}%`,
+                height: '100%',
+                bgcolor: getTotalDistribution() === parseFloat(formData.amount || 0) 
+                  ? 'success.main' 
+                  : getTotalDistribution() > parseFloat(formData.amount || 0)
+                    ? 'error.main'
+                    : 'warning.main',
+                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: getTotalDistribution() > 0 
+                  ? '0 2px 8px rgba(0,0,0,0.2)' 
+                  : 'none'
+              }} />
+            </Box>
+            {/* Indicador numérico del progreso */}
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              typography: 'caption',
+              color: 'text.secondary',
+              fontWeight: 500
+            }}>
+              <span>
+                Distribuido: ${getTotalDistribution().toLocaleString()}
+              </span>
+              <span>
+                {getTotalDistribution() === parseFloat(formData.amount || 0) 
+                  ? '✅ Completo' 
+                  : `Falta: $${(parseFloat(formData.amount || 0) - getTotalDistribution()).toLocaleString()}`
+                }
+              </span>
+            </Box>
           </Box>
 
-          <Grid container spacing={2}>
-            {companies.map((company) => (
+          <Box sx={{ px: 3 }}>
+            <Grid container spacing={2}>
+              {companies.map((company) => (
               <Grid item xs={12} md={6} key={company.id}>
                 <Card sx={{ 
-                  p: 2,
+                  p: 2.5,
                   border: `1px solid ${theme.palette.divider}`,
-                  '&:hover': { boxShadow: theme.shadows[4] }
+                  borderRadius: 2,
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '&:hover': { 
+                    boxShadow: theme.palette.mode === 'dark' 
+                      ? '0 8px 25px rgba(0,0,0,0.4)' 
+                      : '0 8px 25px rgba(0,0,0,0.15)',
+                    transform: 'translateY(-2px)',
+                    borderColor: 'primary.main'
+                  },
+                  background: theme.palette.mode === 'dark'
+                    ? 'linear-gradient(145deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.05) 100%)'
+                    : 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)'
                 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                     {company.logoURL ? (
@@ -1166,14 +2245,26 @@ const IncomePage = () => {
                     InputProps={{
                       startAdornment: <InputAdornment position="start">$</InputAdornment>
                     }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        '&:hover .MuiOutlinedInput-notchedOutline': {
+                          borderColor: 'primary.main'
+                        },
+                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                          borderWidth: 2
+                        }
+                      }
+                    }}
                   />
                 </Card>
               </Grid>
             ))}
-          </Grid>
+            </Grid>
+          </Box>
 
           {/* Resumen de la distribución */}
-          <Box sx={{ mt: 3, p: 2, bgcolor: 'background.paper', borderRadius: 2, border: `1px solid ${theme.palette.divider}` }}>
+          <Box sx={{ mt: 3, p: 2, mx: 3, bgcolor: 'background.paper', borderRadius: 2, border: `1px solid ${theme.palette.divider}` }}>
             <Grid container spacing={2} alignItems="center">
               <Grid item xs={6}>
                 <Typography variant="body1">

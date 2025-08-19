@@ -84,6 +84,9 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { PDFDocument } from 'pdf-lib';
 
+// Context para tema
+import { useTheme as useThemeContext } from '../context/ThemeContext';
+
 // Hook para cargar pagos desde Firebase
 import { usePayments } from '../hooks/useFirestore';
 // Firebase para manejo de archivos y Firestore
@@ -97,6 +100,17 @@ import PaymentReceiptViewer from '../components/commitments/PaymentReceiptViewer
 
 const PaymentsPage = () => {
   const theme = useTheme();
+  const { primaryColor, secondaryColor } = useThemeContext();
+  
+  // Debug: Verificar que los colores se están obteniendo correctamente
+  console.log('PaymentsPage - Colores del tema:', { primaryColor, secondaryColor });
+  console.log('PaymentsPage - Tipos de colores:', { 
+    primaryType: typeof primaryColor, 
+    secondaryType: typeof secondaryColor,
+    primaryValue: primaryColor,
+    secondaryValue: secondaryColor
+  });
+  
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -2152,46 +2166,120 @@ const PaymentsPage = () => {
           fontWeight: 600, 
           color: theme.palette.text.primary,
           background: theme.palette.mode === 'dark' 
-            ? theme.palette.background.default 
-            : theme.palette.grey[50],
-          borderBottom: `1px solid ${theme.palette.divider}`,
+            ? 'linear-gradient(135deg, rgba(31, 38, 135, 0.15) 0%, rgba(76, 175, 80, 0.08) 100%)'
+            : 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.8) 100%)',
+          borderBottom: `3px solid ${primaryColor}`,
+          backdropFilter: 'blur(15px)',
           display: 'flex',
           alignItems: 'center',
           gap: 2,
-          py: 2
+          py: 2.5,
+          px: 3,
+          position: 'relative',
+          overflow: 'hidden',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '3px',
+            background: `linear-gradient(90deg, ${primaryColor}, ${secondaryColor})`,
+            opacity: 0.8
+          }
         }}>
-          <Avatar sx={{ 
-            bgcolor: theme.palette.primary.main,
-            width: 32,
-            height: 32
-          }}>
-            <EditIcon fontSize="small" />
-          </Avatar>
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.4, type: "spring" }}
+            whileHover={{ scale: 1.1 }}
+          >
+            <Avatar sx={{ 
+              background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+              width: 48,
+              height: 48,
+              boxShadow: `0 6px 20px ${primaryColor}40`,
+              border: `2px solid ${theme.palette.background.paper}`,
+              transition: 'all 0.3s ease'
+            }}>
+              <EditIcon sx={{ 
+                fontSize: 24,
+                color: 'white',
+                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+              }} />
+            </Avatar>
+          </motion.div>
+          
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
-              Editar Pago
+            <Typography variant="h6" sx={{ 
+              fontWeight: 700, 
+              color: theme.palette.text.primary,
+              fontSize: '1.3rem',
+              letterSpacing: '-0.02em'
+            }}>
+              Editar Pago Empresarial
             </Typography>
-            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+            <Typography variant="body2" sx={{ 
+              color: primaryColor,
+              fontSize: '0.9rem',
+              fontWeight: 500,
+              mt: 0.5
+            }}>
               {editingPayment?.companyName}
             </Typography>
           </Box>
         </DialogTitle>
-        <DialogContent sx={{ pt: 4, pb: 0, background: theme.palette.background.paper }}>
-          <Grid container spacing={3}>
+        <DialogContent sx={{ 
+          pt: 2.5, 
+          pb: 0, 
+          background: theme.palette.mode === 'dark'
+            ? 'linear-gradient(145deg, rgba(18, 18, 18, 0.95) 0%, rgba(30, 30, 30, 0.9) 100%)'
+            : 'linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+          position: 'relative',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 120,
+            height: 120,
+            borderRadius: '50%',
+            background: theme.palette.mode === 'dark'
+              ? `radial-gradient(circle, ${primaryColor}08 0%, transparent 70%)`
+              : `radial-gradient(circle, ${primaryColor}05 0%, transparent 70%)`,
+            filter: 'blur(40px)',
+            pointerEvents: 'none'
+          }
+        }}>
+          <Grid container spacing={2}>
             {/* Columna Izquierda - Información del Pago */}
             <Grid item xs={12} md={6}>
-              <Typography variant="h6" sx={{ 
-                fontWeight: 600, 
-                color: theme.palette.text.primary,
-                mb: 2.5,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
+              <Box sx={{ 
+                p: 2, 
+                borderRadius: 2, 
+                background: theme.palette.mode === 'dark' 
+                  ? 'linear-gradient(145deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.05) 100%)'
+                  : 'linear-gradient(145deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.9) 100%)',
+                border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
+                boxShadow: theme.palette.mode === 'dark' 
+                  ? '0 4px 20px rgba(0, 0, 0, 0.2)' 
+                  : '0 4px 20px rgba(0, 0, 0, 0.06)',
+                mb: 1.5
               }}>
-                📊 Datos del Pago
-              </Typography>
-              
-              <Stack spacing={2.5}>
+                <Typography variant="subtitle1" sx={{ 
+                  fontWeight: 600, 
+                  color: primaryColor,
+                  mb: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}>
+                  <MoneyIcon sx={{ fontSize: 20 }} /> Datos del Pago
+                </Typography>
+                
+                <Stack spacing={2}>
                 {/* Empresa/Cliente (a quién le corresponde el pago) */}
                 <TextField
                   name="companyName"
@@ -2204,8 +2292,17 @@ const PaymentsPage = () => {
                   helperText="Empresa a la que le corresponde este pago"
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                      backgroundColor: theme.palette.background.paper
+                      borderRadius: 1.5,
+                      backgroundColor: theme.palette.background.paper,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                      },
+                      '&.Mui-focused': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: `0 0 0 2px ${primaryColor}20`,
+                      }
                     }
                   }}
                 />
@@ -2221,7 +2318,7 @@ const PaymentsPage = () => {
                   helperText="Tomado del compromiso original (no editable)"
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
+                      borderRadius: 1.5,
                       backgroundColor: theme.palette.action.hover
                     }
                   }}
@@ -2239,8 +2336,17 @@ const PaymentsPage = () => {
                   helperText="Describe el motivo del pago"
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                      backgroundColor: theme.palette.background.paper
+                      borderRadius: 1.5,
+                      backgroundColor: theme.palette.background.paper,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                      },
+                      '&.Mui-focused': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: `0 0 0 2px ${primaryColor}20`,
+                      }
                     }
                   }}
                 />
@@ -2273,8 +2379,17 @@ const PaymentsPage = () => {
                       helperText="Monto base del compromiso"
                       sx={{
                         '& .MuiOutlinedInput-root': {
-                          borderRadius: 1,
-                          backgroundColor: theme.palette.background.paper
+                          borderRadius: 1.5,
+                          backgroundColor: theme.palette.background.paper,
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            transform: 'translateY(-1px)',
+                            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                          },
+                          '&.Mui-focused': {
+                            transform: 'translateY(-1px)',
+                            boxShadow: `0 0 0 2px ${primaryColor}20`,
+                          }
                         }
                       }}
                     />
@@ -2474,7 +2589,16 @@ const PaymentsPage = () => {
                     onChange={handleFormChange}
                     label="Método de Pago"
                     sx={{
-                      borderRadius: 2
+                      borderRadius: 1.5,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                      },
+                      '&.Mui-focused': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: `0 0 0 2px ${primaryColor}20`,
+                      }
                     }}
                   >
                     <MenuItem value="Efectivo">
@@ -2514,7 +2638,16 @@ const PaymentsPage = () => {
                   helperText="Fecha en que se realizó el pago"
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 2
+                      borderRadius: 1.5,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                      },
+                      '&.Mui-focused': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: `0 0 0 2px ${primaryColor}20`,
+                      }
                     }
                   }}
                 />
@@ -2531,7 +2664,16 @@ const PaymentsPage = () => {
                   helperText="Número de referencia del pago"
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 2
+                      borderRadius: 1.5,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                      },
+                      '&.Mui-focused': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: `0 0 0 2px ${primaryColor}20`,
+                      }
                     }
                   }}
                 />
@@ -2541,7 +2683,7 @@ const PaymentsPage = () => {
                   name="notes"
                   label="Notas Adicionales (Opcional)"
                   multiline
-                  rows={4}
+                  rows={3}
                   fullWidth
                   value={editFormData.notes}
                   onChange={handleFormChange}
@@ -2550,64 +2692,96 @@ const PaymentsPage = () => {
                   helperText="Información adicional sobre el pago"
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 2
+                      borderRadius: 1.5,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                      },
+                      '&.Mui-focused': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: `0 0 0 2px ${primaryColor}20`,
+                      }
                     }
                   }}
                 />
               </Stack>
+              </Box>
             </Grid>
 
             {/* Columna Derecha - Comprobantes */}
             <Grid item xs={12} md={6}>
-              <Typography variant="h6" sx={{ 
-                fontWeight: 600, 
-                color: theme.palette.text.primary,
-                mb: 2.5,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
+              <Box sx={{ 
+                p: 2, 
+                borderRadius: 2, 
+                background: theme.palette.mode === 'dark' 
+                  ? 'linear-gradient(145deg, rgba(76, 175, 80, 0.03) 0%, rgba(67, 160, 71, 0.05) 100%)'
+                  : 'linear-gradient(145deg, rgba(232, 245, 233, 0.6) 0%, rgba(220, 237, 200, 0.7) 100%)',
+                border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(76, 175, 80, 0.1)' : 'rgba(76, 175, 80, 0.2)'}`,
+                boxShadow: theme.palette.mode === 'dark' 
+                  ? '0 4px 20px rgba(0, 0, 0, 0.2)' 
+                  : '0 4px 20px rgba(0, 0, 0, 0.06)',
+                mb: 1.5
               }}>
-                📎 Comprobantes de Pago
-              </Typography>
-
-              {/* Área de carga de comprobantes */}
-              <Paper
-                elevation={0}
-                sx={{
-                  border: `2px dashed ${theme.palette.divider}`,
-                  borderRadius: 2,
-                  p: 4,
-                  textAlign: 'center',
-                  background: theme.palette.background.paper,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  minHeight: 300,
+                <Typography variant="subtitle1" sx={{ 
+                  fontWeight: 600, 
+                  color: '#4caf50',
+                  mb: 2,
                   display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  '&:hover': {
-                    borderColor: theme.palette.primary.main,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.02)
-                  }
-                }}
-                onClick={() => document.getElementById('receipt-upload-edit').click()}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
+                  alignItems: 'center',
+                  gap: 1
+                }}>
+                  <UploadIcon sx={{ fontSize: 20 }} /> Comprobantes de Pago
+                </Typography>
+
+                {/* Área de carga de comprobantes */}
+                <Paper
+                  elevation={0}
+                  sx={{
+                    border: `1px dashed ${theme.palette.divider}`,
+                    borderRadius: 1.5,
+                    p: 2.5,
+                    textAlign: 'center',
+                    background: theme.palette.background.paper,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    minHeight: 250,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    '&:hover': {
+                      borderColor: theme.palette.primary.main,
+                      backgroundColor: alpha(theme.palette.primary.main, 0.02),
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
+                    }
+                  }}
+                  onClick={() => document.getElementById('receipt-upload-edit').click()}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
               >
-                <UploadIcon sx={{ 
-                  fontSize: 48, 
-                  color: theme.palette.text.secondary,
-                  mb: 2
-                }} />
+                <motion.div
+                  animate={dragActive ? { scale: 1.05, rotate: [0, 2, -2, 0] } : { scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <UploadIcon sx={{ 
+                    fontSize: 40, 
+                    color: dragActive ? '#4caf50' : 'rgba(76, 175, 80, 0.6)',
+                    mb: 1.5,
+                    transition: 'all 0.2s ease',
+                    filter: dragActive ? 'drop-shadow(0 2px 8px rgba(76, 175, 80, 0.3))' : 'none'
+                  }} />
+                </motion.div>
                 
                 <Typography variant="h6" sx={{ 
                   fontWeight: 600, 
-                  color: theme.palette.text.primary,
-                  mb: 1
+                  color: dragActive ? '#4caf50' : theme.palette.text.primary,
+                  mb: 0.5,
+                  textShadow: dragActive ? '0 1px 4px rgba(76, 175, 80, 0.2)' : 'none'
                 }}>
-                  {dragActive ? 'Suelta los archivos aquí' : 'Subir Comprobantes'}
+                  {dragActive ? '¡Suelta los archivos aquí!' : '✨ Subir Comprobantes'}
                 </Typography>
                 
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
@@ -2742,6 +2916,7 @@ const PaymentsPage = () => {
                   ))}
                 </Box>
               )}
+              </Box>
             </Grid>
           </Grid>
         </DialogContent>
@@ -2761,10 +2936,13 @@ const PaymentsPage = () => {
         )}
 
         <DialogActions sx={{ 
-          p: 3, 
-          pt: 2, 
-          gap: 2,
-          background: theme.palette.background.paper,
+          p: 2, 
+          pt: 1.5, 
+          gap: 1.5,
+          background: theme.palette.mode === 'dark' 
+            ? 'linear-gradient(145deg, rgba(30, 30, 30, 0.6) 0%, rgba(20, 20, 20, 0.8) 100%)'
+            : 'linear-gradient(145deg, rgba(248, 250, 252, 0.6) 0%, rgba(255, 255, 255, 0.8) 100%)',
+          backdropFilter: 'blur(15px)',
           borderTop: `1px solid ${theme.palette.divider}`,
           display: 'flex',
           justifyContent: 'space-between'
@@ -2774,13 +2952,18 @@ const PaymentsPage = () => {
             onClick={() => handleOpenDeletePayment(editingPayment)}
             variant="outlined"
             color="error"
-            startIcon={<DeleteIcon />}
+            size="medium"
+            startIcon={<DeleteIcon sx={{ fontSize: 18 }} />}
             sx={{ 
-              borderRadius: 1,
-              px: 3,
-              fontWeight: 600,
+              borderRadius: 1.5,
+              px: 2.5,
+              py: 1,
+              fontWeight: 500,
+              transition: 'all 0.2s ease',
               '&:hover': {
-                backgroundColor: alpha(theme.palette.error.main, 0.08)
+                backgroundColor: alpha(theme.palette.error.main, 0.08),
+                transform: 'translateY(-1px)',
+                boxShadow: '0 4px 12px rgba(244, 67, 54, 0.2)'
               }
             }}
           >
@@ -2788,15 +2971,22 @@ const PaymentsPage = () => {
           </Button>
 
           {/* Botones de cancelar y guardar - Lado derecho */}
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
             <Button
               onClick={handleCloseEditPayment}
               variant="outlined"
-              startIcon={<CancelIcon />}
+              size="medium"
+              startIcon={<CancelIcon sx={{ fontSize: 18 }} />}
               sx={{ 
-                borderRadius: 1,
-                px: 3,
-                fontWeight: 600
+                borderRadius: 1.5,
+                px: 2.5,
+                py: 1,
+                fontWeight: 500,
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  transform: 'translateY(-1px)',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
+                }
               }}
             >
               Cancelar
@@ -2804,12 +2994,26 @@ const PaymentsPage = () => {
             <Button
               onClick={handleSavePayment}
               variant="contained"
-              startIcon={uploadingFile ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+              size="medium"
+              startIcon={uploadingFile ? <CircularProgress size={18} color="inherit" /> : <SaveIcon sx={{ fontSize: 18 }} />}
               disabled={!editFormData.concept || !editFormData.amount || !editFormData.method || !editFormData.companyName || uploadingFile}
               sx={{ 
-                borderRadius: 1,
-                px: 3,
-                fontWeight: 600
+                borderRadius: 1.5,
+                px: 2.5,
+                py: 1,
+                fontWeight: 600,
+                fontSize: '1rem',
+                background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  background: `linear-gradient(135deg, ${primaryColor}DD 0%, ${secondaryColor}DD 100%)`,
+                  transform: 'translateY(-1px)',
+                  boxShadow: `0 4px 20px ${primaryColor}30`
+                },
+                '&:disabled': {
+                  background: theme.palette.action.disabled,
+                  color: theme.palette.action.disabled,
+                }
               }}
             >
               {uploadingFile ? 
