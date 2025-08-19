@@ -59,26 +59,49 @@ const PaymentReceiptViewer = ({
   const validPaymentDate = payment?.paidAt?.toDate?.() || payment?.paidAt || new Date();
   const hasReceipt = Boolean(receiptUrl || payment?.receiptUrl || commitment?.receiptUrls?.length > 0);
   
-  // Determinar la URL final del comprobante con validación
+  // Determinar la URL final del comprobante con validación MEJORADA - SOLUCIÓN DEFINITIVA
   const finalReceiptUrl = useMemo(() => {
-    // Priorizar receiptUrl prop si existe y es válido
-    if (receiptUrl && receiptUrl.trim() !== '') return receiptUrl;
-    
-    // Luego verificar receiptUrls más reciente
-    if (commitment?.receiptUrls && commitment.receiptUrls.length > 0) {
-      return commitment.receiptUrls[commitment.receiptUrls.length - 1]; // Tomar el más reciente
+    console.log('🔍 [DEBUG PaymentReceiptViewer] Determinando URL final:', {
+      propsReceiptUrl: receiptUrl,
+      commitmentAttachments: commitment?.attachments, // ← NUEVA PRIORIDAD
+      commitmentReceiptUrls: commitment?.receiptUrls,
+      commitmentReceiptUrl: commitment?.receiptUrl,
+      paymentReceiptUrl: payment?.receiptUrl
+    });
+
+    // PRIORIDAD 1: receiptUrl prop si existe y es válido
+    if (receiptUrl && receiptUrl.trim() !== '') {
+      console.log('✅ [DEBUG] Usando receiptUrl prop:', receiptUrl);
+      return receiptUrl;
     }
     
-    // Finalmente receiptUrl del commitment
+    // PRIORIDAD 2: attachments más reciente del commitment (URLs MÁS FRESCAS)
+    if (commitment?.attachments && commitment.attachments.length > 0) {
+      const latestUrl = commitment.attachments[commitment.attachments.length - 1];
+      console.log('✅ [DEBUG] Usando attachments más reciente (FRESCO):', latestUrl);
+      return latestUrl;
+    }
+    
+    // PRIORIDAD 3: receiptUrls más reciente del commitment
+    if (commitment?.receiptUrls && commitment.receiptUrls.length > 0) {
+      const latestUrl = commitment.receiptUrls[commitment.receiptUrls.length - 1];
+      console.log('⚠️ [DEBUG] Usando receiptUrls más reciente (PUEDE ESTAR EXPIRADA):', latestUrl);
+      return latestUrl;
+    }
+    
+    // PRIORIDAD 3: receiptUrl del commitment
     if (commitment?.receiptUrl && commitment.receiptUrl.trim() !== '') {
+      console.log('✅ [DEBUG] Usando receiptUrl del commitment:', commitment.receiptUrl);
       return commitment.receiptUrl;
     }
     
-    // Último recurso: payment receiptUrl
+    // PRIORIDAD 4: receiptUrl del payment (último recurso)
     if (payment?.receiptUrl && payment.receiptUrl.trim() !== '') {
+      console.log('✅ [DEBUG] Usando receiptUrl del payment:', payment.receiptUrl);
       return payment.receiptUrl;
     }
     
+    console.warn('⚠️ [DEBUG] No se encontró URL válida para el comprobante');
     return null;
   }, [receiptUrl, commitment?.receiptUrls, commitment?.receiptUrl, payment?.receiptUrl]);
   
@@ -92,13 +115,38 @@ const PaymentReceiptViewer = ({
     commitmentId: commitment?.id
   });
 
-  // LOGGING CRÍTICO para debug del error 403
-  console.log('🚨 [DEBUG 403] PaymentReceiptViewer URL Analysis:', {
+  // LOGGING CRÍTICO MEJORADO para debug del error 403
+  console.log('🚨 [DEBUG 403] PaymentReceiptViewer URL Analysis COMPLETO:', {
+    // Props recibidas
     propsReceiptUrl: receiptUrl,
+    receiptMetadata: receiptMetadata,
+    
+    // Commitment data
+    commitmentId: commitment?.id,
     commitmentReceiptUrl: commitment?.receiptUrl,
     commitmentReceiptUrls: commitment?.receiptUrls,
+    commitmentReceiptUrlsLength: commitment?.receiptUrls?.length || 0,
+    
+    // Payment data
+    paymentReceiptUrl: payment?.receiptUrl,
+    
+    // URLs finales calculadas
     finalReceiptUrlCalculated: finalReceiptUrl,
-    commitmentFullData: commitment
+    
+    // Estado del componente
+    hasReceipt,
+    validPaymentDate,
+    
+    // Datos completos para debug
+    commitmentFullStructure: {
+      id: commitment?.id,
+      concept: commitment?.concept,
+      receiptUrl: commitment?.receiptUrl,
+      receiptUrls: commitment?.receiptUrls,
+      attachments: commitment?.attachments,
+      paid: commitment?.paid,
+      isPaid: commitment?.isPaid
+    }
   });
 
   if (!payment || !commitment) {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -48,7 +49,7 @@ import {
   NotificationAdd,
   GetApp,
   Close,
-  Receipt as ReceiptIcon,
+  // ✅ Receipt as ReceiptIcon ELIMINADO (ya no se usa)
   Person,
   Info,
   Notes,
@@ -63,7 +64,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO, isAfter, isBefore, addDays, differenceInDays, differenceInHours } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { collection, query, orderBy, onSnapshot, where, doc, getDoc, deleteDoc, limit, startAfter, getDocs, getCountFromServer } from 'firebase/firestore';
-import { ref, deleteObject } from 'firebase/storage';
+import { ref, deleteObject, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
@@ -75,7 +76,7 @@ import { unifiedTokens, enhancedTokenUtils } from '../../theme/tokens';
 import { useTableTokens } from '../../hooks/useTokens';
 import useCommitmentAlerts from '../../hooks/useCommitmentAlerts';
 import CommitmentEditForm from './CommitmentEditForm';
-import PaymentReceiptViewer from './PaymentReceiptViewer';
+// ✅ PaymentReceiptViewer ELIMINADO COMPLETAMENTE
 
 // Helper function para manejar fechas de Firebase de manera segura
 const safeToDate = (timestamp) => {
@@ -474,6 +475,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   const { currentUser } = useAuth();
   const { addNotification, addAlert } = useNotifications();
   const { settings } = useSettings();
+  const navigate = useNavigate(); // ✅ Hook para navegación
   const theme = useTheme();
   const gradients = useThemeGradients();
   
@@ -603,7 +605,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   const [selectedCommitment, setSelectedCommitment] = useState(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
+  // ✅ receiptViewerOpen ELIMINADO COMPLETAMENTE
   const [companyData, setCompanyData] = useState(null);
   const [loadingCompany, setLoadingCompany] = useState(false);
   
@@ -1159,40 +1161,9 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     setSelectedCommitment(null);
   };
 
-  // Manejar visualización de comprobante de pago
-  const handleViewReceipt = (commitment) => {
-    console.log('📄 Intentando ver comprobante para compromiso:', commitment.id);
-    console.log('📋 Datos del compromiso:', {
-      paid: commitment.paid,
-      isPaid: commitment.isPaid,
-      receiptUrl: commitment.receiptUrl,
-      receiptUrls: commitment.receiptUrls,
-      paymentDate: commitment.paymentDate,
-      paidAt: commitment.paidAt,
-      paymentReference: commitment.paymentReference,
-      paymentId: commitment.paymentId,
-      receiptMetadata: commitment.receiptMetadata
-    });
-    
-    // Verificar que el compromiso tenga pago válido usando la función helper
-    if (!hasValidPayment(commitment)) {
-      addNotification({
-        type: 'warning',
-        title: 'Sin comprobantes',
-        message: 'Este compromiso no tiene comprobantes de pago disponibles',
-        icon: '⚠️'
-      });
-      return;
-    }
-
-    setSelectedCommitment(commitment);
-    setReceiptViewerOpen(true);
-  };
-
-  const handleCloseReceiptViewer = () => {
-    setReceiptViewerOpen(false);
-    setSelectedCommitment(null);
-  };
+  // ✅ TODAS LAS FUNCIONES DEL VISOR DE COMPROBANTES ELIMINADAS COMPLETAMENTE
+  // - handleViewReceipt (completamente eliminada)
+  // - handleCloseReceiptViewer (completamente eliminada)
 
   const handleCommitmentSaved = async () => {
     console.log('🔄 [DEBUG] handleCommitmentSaved iniciado');
@@ -1772,21 +1743,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                             <Visibility />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title={hasValidPayment(commitment) ? "Ver comprobante de pago" : "Sin comprobantes"} arrow>
-                          <IconButton 
-                            size="small" 
-                            onClick={() => handleViewReceipt(commitment)}
-                            disabled={!hasValidPayment(commitment)}
-                            sx={{ 
-                              color: hasValidPayment(commitment) ? 'success.main' : 'text.disabled',
-                              '&:disabled': {
-                                color: 'text.disabled'
-                              }
-                            }}
-                          >
-                            <ReceiptIcon />
-                          </IconButton>
-                        </Tooltip>
+                        {/* ✅ BOTÓN "Ver comprobante de pago" ELIMINADO COMPLETAMENTE */}
                         <Tooltip title="Editar compromiso" arrow>
                           <IconButton 
                             size="small" 
@@ -1815,19 +1772,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         >
                           <Visibility />
                         </IconButton>
-                        <IconButton 
-                          size="small" 
-                          onClick={() => handleViewReceipt(commitment)}
-                          disabled={!hasValidPayment(commitment)}
-                          sx={{ 
-                            color: hasValidPayment(commitment) ? 'success.main' : 'text.disabled',
-                            '&:disabled': {
-                              color: 'text.disabled'
-                            }
-                          }}
-                        >
-                          <ReceiptIcon />
-                        </IconButton>
+                        {/* ✅ BOTÓN DE COMPROBANTE DE PAGO ELIMINADO COMPLETAMENTE */}
                         <IconButton 
                           size="small" 
                           onClick={() => handleEditFromCard(commitment)}
@@ -2048,18 +1993,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                               <Visibility fontSize="small" />
                             </IconButton>
                           </Tooltip>
-                          <Tooltip title="Validar pago" arrow>
-                            <IconButton
-                              size="small"
-                              onClick={() => handleViewReceipt(commitment)}
-                              sx={{ 
-                                color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary',
-                                '&:hover': { backgroundColor: 'rgba(76, 175, 80, 0.1)' }
-                              }}
-                            >
-                              <ReceiptIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
+                          {/* ✅ BOTÓN "Validar pago" ELIMINADO COMPLETAMENTE */}
                           <Tooltip title="Editar" arrow>
                             <IconButton
                               size="small"
@@ -2097,16 +2031,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           >
                             <Visibility fontSize="small" />
                           </IconButton>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleViewReceipt(commitment)}
-                            sx={{ 
-                              color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary',
-                              '&:hover': { backgroundColor: 'rgba(76, 175, 80, 0.1)' }
-                            }}
-                          >
-                            <ReceiptIcon fontSize="small" />
-                          </IconButton>
+                          {/* ✅ BOTÓN handleViewReceipt ELIMINADO COMPLETAMENTE */}
                           <IconButton
                             size="small"
                             onClick={() => handleEditFromCard(commitment)}
@@ -2281,15 +2206,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                     <Visibility fontSize="small" />
                                   </IconButton>
                                 </Tooltip>
-                                <Tooltip title="Validar pago" arrow>
-                                  <IconButton 
-                                    size="small" 
-                                    onClick={() => handleViewReceipt(commitment)}
-                                    sx={{ mr: 1, color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary' }}
-                                  >
-                                    <ReceiptIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
+                                {/* ✅ BOTÓN "Validar pago" ELIMINADO COMPLETAMENTE */}
                                 <Tooltip title="Editar compromiso" arrow>
                                   <IconButton 
                                     size="small" 
@@ -2318,13 +2235,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                 >
                                   <Visibility fontSize="small" />
                                 </IconButton>
-                                <IconButton 
-                                  size="small" 
-                                  onClick={() => handleViewReceipt(commitment)}
-                                  sx={{ mr: 1, color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary' }}
-                                >
-                                  <ReceiptIcon fontSize="small" />
-                                </IconButton>
+                                {/* ✅ BOTÓN handleViewReceipt ELIMINADO COMPLETAMENTE */}
                                 <IconButton 
                                   size="small" 
                                   sx={{ mr: 1 }}
@@ -2584,15 +2495,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                   <Visibility fontSize="small" />
                                 </IconButton>
                               </Tooltip>
-                              <Tooltip title="Validar pago" arrow>
-                                <IconButton 
-                                  size="small" 
-                                  onClick={() => handleViewReceipt(commitment)}
-                                  sx={{ mr: 1, color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary' }}
-                                >
-                                  <ReceiptIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
+                              {/* ✅ BOTÓN "Validar pago" ELIMINADO COMPLETAMENTE */}
                               <Tooltip title="Editar compromiso" arrow>
                                 <IconButton 
                                   size="small" 
@@ -2621,13 +2524,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                               >
                                 <Visibility fontSize="small" />
                               </IconButton>
-                              <IconButton 
-                                size="small" 
-                                onClick={() => handleViewReceipt(commitment)}
-                                sx={{ mr: 1, color: hasValidPayment(commitment) ? 'success.main' : 'text.secondary' }}
-                              >
-                                <ReceiptIcon fontSize="small" />
-                              </IconButton>
+                              {/* ✅ BOTÓN "Validar pago" SIN TOOLTIP ELIMINADO COMPLETAMENTE */}
                               <IconButton 
                                 size="small" 
                                 sx={{ mr: 1 }}
@@ -3832,6 +3729,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                     Editar
                   </Button>
                 </motion.div>
+
+                {/* ✅ BOTÓN "Marcar Pagado" ELIMINADO COMPLETAMENTE DEL POPUP DE VISTA PREVIA */}
               </Box>
             </DialogActions>
           </motion.div>
@@ -3846,12 +3745,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         onSaved={handleCommitmentSaved}
       />
 
-      {/* Visor de comprobantes de pago */}
-      <PaymentReceiptViewer
-        open={receiptViewerOpen}
-        onClose={handleCloseReceiptViewer}
-        commitment={selectedCommitment}
-      />
+      {/* ✅ VISOR DE COMPROBANTES DE PAGO ELIMINADO COMPLETAMENTE */}
 
       {/* Diálogo de confirmación de eliminación */}
       <DeleteConfirmDialog 
