@@ -59,6 +59,19 @@ const NewPaymentPage = () => {
   const { addNotification } = useNotifications();
   const { user } = useAuth();
   
+  // Helper para crear fecha local sin problemas de zona horaria
+  const createLocalDate = (dateString) => {
+    if (!dateString) return new Date();
+    
+    // Si es una fecha en formato YYYY-MM-DD del input
+    if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = dateString.split('-').map(Number);
+      return new Date(year, month - 1, day); // month - 1 porque Date usa base 0 para meses
+    }
+    
+    return new Date(dateString);
+  };
+  
   // Estado para compromisos pendientes
   const [pendingCommitments, setPendingCommitments] = useState([]);
   const [loadingCommitments, setLoadingCommitments] = useState(true);
@@ -367,7 +380,7 @@ const NewPaymentPage = () => {
         interests: (formData.interests || 0) + (formData.interesesDerechosExplotacion || 0) + (formData.interesesGastosAdministracion || 0),
         method: formData.method || '',
         reference: formData.reference || '',
-        date: Timestamp.fromDate(new Date(formData.date)),
+        date: Timestamp.fromDate(createLocalDate(formData.date)),
         notes: formData.notes || '',
         status: 'completed',
         attachments: uploadedFileUrls || [],
@@ -398,8 +411,8 @@ const NewPaymentPage = () => {
       await updateDoc(commitmentRef, {
         isPaid: true,
         paid: true,
-        paymentDate: Timestamp.fromDate(new Date(formData.date)),
-        paidAt: Timestamp.fromDate(new Date(formData.date)), // También agregar paidAt para compatibilidad
+        paymentDate: Timestamp.fromDate(createLocalDate(formData.date)),
+        paidAt: Timestamp.fromDate(createLocalDate(formData.date)), // También agregar paidAt para compatibilidad
         paymentAmount: formData.finalAmount,
         paymentId: paymentRef.id,
         interestPaid: (formData.interests || 0) + (formData.interesesDerechosExplotacion || 0) + (formData.interesesGastosAdministracion || 0),

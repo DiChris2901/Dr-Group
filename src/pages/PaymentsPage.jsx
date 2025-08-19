@@ -87,7 +87,7 @@ import { PDFDocument } from 'pdf-lib';
 // Hook para cargar pagos desde Firebase
 import { usePayments } from '../hooks/useFirestore';
 // Firebase para manejo de archivos y Firestore
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 // Componente temporal para agregar datos de prueba
@@ -118,6 +118,140 @@ const PaymentsPage = () => {
   const [receiptManagementOpen, setReceiptManagementOpen] = useState(false);
   const [receiptDragActive, setReceiptDragActive] = useState(false);
   
+  // Helper para crear fecha local sin problemas de zona horaria
+  const createLocalDate = (dateString) => {
+    if (!dateString) return new Date();
+    
+    // Si es una fecha en formato YYYY-MM-DD del input
+    if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = dateString.split('-').map(Number);
+      return new Date(year, month - 1, day); // month - 1 porque Date usa base 0 para meses
+    }
+    
+    return new Date(dateString);
+  };
+
+  // Helper para formatear fechas de diferentes fuentes
+  const formatPaymentDate = (date) => {
+    if (!date) return '-';
+    
+    // Debug temporal
+    console.log('Formato de fecha recibido:', date, typeof date, date instanceof Date);
+    
+    try {
+      let dateObj;
+      
+      // Si ya es un objeto Date (que es lo que debería venir del hook)
+      if (date instanceof Date) {
+        dateObj = date;
+      }
+      // Si es un Timestamp de Firebase con seconds
+      else if (date && typeof date === 'object' && date.seconds) {
+        dateObj = new Date(date.seconds * 1000);
+      }
+      // Si es un string de fecha ISO (usar fecha local)
+      else if (typeof date === 'string') {
+        if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          dateObj = createLocalDate(date); // Usar fecha local
+        } else {
+          dateObj = new Date(date);
+        }
+      }
+      // Si es un timestamp numérico
+      else if (typeof date === 'number') {
+        dateObj = new Date(date);
+      }
+      // Otros casos
+      else {
+        console.log('Formato de fecha no reconocido:', date);
+        return '-';
+      }
+      
+      // Verificar si la fecha es válida
+      if (isNaN(dateObj.getTime())) {
+        console.log('Fecha inválida después de conversión:', dateObj);
+        return '-';
+      }
+      
+      const formattedDate = dateObj.toLocaleDateString('es-MX', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      
+      console.log('Fecha original:', date, '-> Fecha formateada:', formattedDate);
+      return formattedDate;
+    } catch (error) {
+      console.warn('Error formateando fecha:', error, date);
+      return '-';
+    }
+  };
+
+  // Helper para convertir fecha a formato ISO para inputs (usando fecha local)
+  const formatDateForInput = (date) => {
+    if (!date) {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    
+    try {
+      let dateObj;
+      
+      // Si ya es un objeto Date
+      if (date instanceof Date) {
+        dateObj = date;
+      }
+      // Si es un Timestamp de Firebase con seconds
+      else if (date && typeof date === 'object' && date.seconds) {
+        dateObj = new Date(date.seconds * 1000);
+      }
+      // Si es un string de fecha
+      else if (typeof date === 'string') {
+        if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+          return date; // Ya está en el formato correcto
+        }
+        dateObj = createLocalDate(date); // Usar fecha local
+      }
+      // Si es un timestamp numérico
+      else if (typeof date === 'number') {
+        dateObj = new Date(date);
+      }
+      // Otros casos - usar fecha actual
+      else {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+      
+      // Verificar si la fecha es válida
+      if (isNaN(dateObj.getTime())) {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+      
+      // Convertir usando componentes locales para evitar problemas de zona horaria
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } catch (error) {
+      console.warn('Error convirtiendo fecha para input:', error, date);
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+  };
+  
   // Estados para edición de pago
   const [editPaymentOpen, setEditPaymentOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
@@ -139,6 +273,11 @@ const PaymentsPage = () => {
   // Estados adicionales para cargar datos del compromiso
   const [loadingCommitment, setLoadingCommitment] = useState(false);
   const [commitmentData, setCommitmentData] = useState(null);
+  
+  // Estados para confirmación de eliminación de pago
+  const [deletePaymentDialogOpen, setDeletePaymentDialogOpen] = useState(false);
+  const [paymentToDelete, setPaymentToDelete] = useState(null);
+  const [deletingPayment, setDeletingPayment] = useState(false);
   
   // Estados para manejo de múltiples archivos y combinación PDF
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -625,10 +764,7 @@ const PaymentsPage = () => {
       interesesDerechosExplotacion: isColjuegos ? formatCurrency(payment.interesesDerechosExplotacion || '') : '',
       interesesGastosAdministracion: isColjuegos ? formatCurrency(payment.interesesGastosAdministracion || '') : '',
       originalAmount: formatCurrency(payment.originalAmount || payment.amount || ''),
-      date: payment.date ? 
-        (payment.date.toISOString ? payment.date.toISOString().split('T')[0] : 
-         new Date(payment.date).toISOString().split('T')[0]) : 
-        new Date().toISOString().split('T')[0]
+      date: formatDateForInput(payment.date)
     });
     
     setEditPaymentOpen(true);
@@ -682,7 +818,7 @@ const PaymentsPage = () => {
         notes: editFormData.notes.trim(),
         reference: editFormData.reference?.trim() || '',
         companyName: editFormData.companyName?.trim() || '',
-        date: new Date(editFormData.date),
+        date: createLocalDate(editFormData.date),
         updatedAt: new Date()
       };
 
@@ -783,6 +919,62 @@ const PaymentsPage = () => {
       setUploadingFile(false);
       setUploadProgress(0);
     }
+  };
+
+  // Función para eliminar un pago completo
+  const handleDeletePayment = async () => {
+    if (!paymentToDelete) return;
+    
+    setDeletingPayment(true);
+    
+    try {
+      console.log('🗑️ Iniciando eliminación del pago:', paymentToDelete.id);
+      
+      // 1. Eliminar comprobantes de Firebase Storage si existen
+      if (paymentToDelete.attachments && paymentToDelete.attachments.length > 0) {
+        console.log('📎 Eliminando comprobantes del storage...');
+        for (const attachmentUrl of paymentToDelete.attachments) {
+          try {
+            const storageRef = ref(storage, attachmentUrl);
+            await deleteObject(storageRef);
+            console.log('✅ Comprobante eliminado del storage');
+          } catch (storageError) {
+            console.warn('⚠️ Error eliminando comprobante del storage:', storageError.message);
+            // Continuar aunque falle eliminar el archivo
+          }
+        }
+      }
+      
+      // 2. Eliminar el documento del pago de Firestore
+      const paymentRef = doc(db, 'payments', paymentToDelete.id);
+      await deleteDoc(paymentRef);
+      
+      console.log('✅ Pago eliminado exitosamente');
+      showNotification('Pago eliminado exitosamente', 'success');
+      
+      // 3. Cerrar modal y limpiar estado
+      setDeletePaymentDialogOpen(false);
+      setPaymentToDelete(null);
+      handleCloseEditPayment();
+      
+    } catch (error) {
+      console.error('❌ Error al eliminar pago:', error);
+      showNotification(`Error al eliminar pago: ${error.message}`, 'error');
+    } finally {
+      setDeletingPayment(false);
+    }
+  };
+
+  // Función para abrir diálogo de confirmación de eliminación
+  const handleOpenDeletePayment = (payment) => {
+    setPaymentToDelete(payment || editingPayment);
+    setDeletePaymentDialogOpen(true);
+  };
+
+  // Función para cerrar diálogo de eliminación
+  const handleCloseDeletePayment = () => {
+    setDeletePaymentDialogOpen(false);
+    setPaymentToDelete(null);
   };
 
   // Función para formatear números con separadores de miles
@@ -1288,20 +1480,26 @@ const PaymentsPage = () => {
 
           {/* TABLA ESTILO COMMITMENTS LIST */}
           <motion.div {...fadeUp}>
-            <Paper sx={{ 
-              borderRadius: 1, 
-              overflow:'hidden', 
-              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+            <Box sx={{
+              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+              borderRadius: 1,
+              overflow: 'hidden',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
             }}>
-              {/* Header de la tabla */}
+              {/* Header de la tabla - Estilo Commitments */}
               <Box sx={{
                 display: 'grid',
-                gridTemplateColumns: '1fr 2fr 1.5fr 1.2fr 1fr 1fr 1fr 0.8fr',
+                gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 1fr 1fr 0.8fr',
                 gap: 2,
-                p: 2,
-                bgcolor: alpha(theme.palette.grey[50], 0.8),
-                borderBottom: `2px solid ${alpha(theme.palette.divider, 0.1)}`
+                p: 3,
+                backgroundColor: 'background.paper',
+                borderRadius: '1px 1px 0 0',
+                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                borderBottom: `2px solid ${alpha(theme.palette.divider, 0.2)}`,
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)'
               }}>
                 {[
                   'ESTADO',
@@ -1318,18 +1516,20 @@ const PaymentsPage = () => {
                     sx={{ 
                       display: 'flex', 
                       alignItems: 'center', 
-                      justifyContent: column === 'MONTO' || column === 'ACCIONES' ? 'center' : 'flex-start'
+                      justifyContent: column === 'MONTO' ? 'center' : 
+                                    column === 'ACCIONES' ? 'center' : 'flex-start'
                     }}
                   >
                     <Typography
-                      variant="subtitle2"
+                      variant="overline"
                       sx={{
                         fontWeight: 600,
                         fontSize: '0.75rem',
-                        letterSpacing: '0.05em',
-                        textTransform: 'uppercase',
                         color: 'text.primary',
-                        lineHeight: 1.2
+                        letterSpacing: '0.8px',
+                        lineHeight: 1,
+                        textTransform: 'uppercase',
+                        opacity: 0.85
                       }}
                     >
                       {column}
@@ -1338,33 +1538,59 @@ const PaymentsPage = () => {
                 ))}
               </Box>
 
-              {/* Filas de datos */}
-              <Box>
+              {/* Cards en formato grid - Estilo Commitments */}
+              <Box sx={{ 
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 1,
+                backgroundColor: 'background.paper',
+                borderRadius: '0 0 1px 1px',
+                borderTop: 'none'
+              }}>
                 {paginatedPayments.length > 0 ? paginatedPayments.map((payment, index) => (
-                  <Box key={payment.id} sx={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 2fr 1.5fr 1.2fr 1fr 1fr 1fr 0.8fr',
-                    gap: 2,
-                    p: 2.5,
-                    borderBottom: index === paginatedPayments.length - 1 ? 'none' : `1px solid ${alpha(theme.palette.divider, 0.04)}`,
-                    transition: 'all 0.15s ease',
-                    '&:hover': {
-                      bgcolor: alpha(theme.palette.primary.main, 0.04)
-                    },
-                    alignItems: 'center'
-                  }}>
-                    {/* Estado */}
+                  <motion.div
+                    key={payment.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                    whileHover={{ 
+                      backgroundColor: 'rgba(0, 0, 0, 0.01)',
+                      transition: { duration: 0.25 }
+                    }}
+                  >
+                    <Box sx={{
+                      display: 'grid',
+                      gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 1fr 1fr 0.8fr',
+                      gap: 2,
+                      p: 2.5,
+                      borderBottom: index === paginatedPayments.length - 1 ? 'none' : '1px solid rgba(0, 0, 0, 0.04)',
+                      '&:hover': {
+                        backgroundColor: 'rgba(0, 0, 0, 0.03)'
+                      },
+                      alignItems: 'center'
+                    }}>
+                    {/* Estado - Estilo Commitments */}
                     <Box>
                       <Chip
                         icon={getStatusIcon(payment.status)}
                         label={getStatusText(payment.status)}
-                        color={getStatusColor(payment.status)}
+                        variant="outlined"
                         size="small"
                         sx={{
-                          height: 28,
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          borderRadius: 0.5,
+                          fontWeight: 500,
+                          borderRadius: '20px',
+                          borderColor: getStatusColor(payment.status) === 'success' ? theme.palette.success.main :
+                                      getStatusColor(payment.status) === 'warning' ? theme.palette.warning.main :
+                                      getStatusColor(payment.status) === 'error' ? theme.palette.error.main :
+                                      theme.palette.primary.main,
+                          color: getStatusColor(payment.status) === 'success' ? theme.palette.success.main :
+                                 getStatusColor(payment.status) === 'warning' ? theme.palette.warning.main :
+                                 getStatusColor(payment.status) === 'error' ? theme.palette.error.main :
+                                 theme.palette.primary.main,
+                          backgroundColor: 'transparent !important',
+                          '&.MuiChip-root': {
+                            backgroundColor: 'transparent !important'
+                          },
                           '& .MuiChip-icon': { fontSize: 14 },
                           '& .MuiChip-label': { 
                             px: 1,
@@ -1414,11 +1640,9 @@ const PaymentsPage = () => {
                         sx={{
                           width: 32,
                           height: 32,
-                          bgcolor: alpha(theme.palette.primary.main, 0.1),
-                          color: 'primary.main',
+                          bgcolor: 'primary.main',
                           fontSize: '0.75rem',
-                          fontWeight: 600,
-                          border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
+                          fontWeight: 600
                         }}
                       >
                         {(payment.companyName || 'SC').charAt(0)}
@@ -1436,14 +1660,15 @@ const PaymentsPage = () => {
                       </Typography>
                     </Box>
 
-                    {/* Monto */}
+                    {/* Monto - Estilo Commitments */}
                     <Box sx={{ textAlign: 'center' }}>
                       <Typography variant="body2" sx={{ 
                         fontWeight: 600, 
-                        color: 'success.main',
-                        fontFamily: 'monospace',
+                        color: 'text.primary',
+                        fontFamily: 'system-ui, -apple-system, sans-serif',
                         fontSize: '0.875rem',
-                        lineHeight: 1.3
+                        lineHeight: 1.2,
+                        letterSpacing: 0
                       }}>
                         ${payment.amount?.toLocaleString('es-MX')}
                       </Typography>
@@ -1477,7 +1702,7 @@ const PaymentsPage = () => {
                         fontWeight: 400,
                         lineHeight: 1.3
                       }}>
-                        {payment.date ? new Date(payment.date.seconds * 1000).toLocaleDateString('es-MX') : '-'}
+                        {formatPaymentDate(payment.date)}
                       </Typography>
                     </Box>
 
@@ -1533,7 +1758,8 @@ const PaymentsPage = () => {
                         </IconButton>
                       </Tooltip>
                     </Box>
-                  </Box>
+                    </Box>
+                  </motion.div>
                 )) : (
                   <Box sx={{ py: 6, textAlign: 'center' }}>
                     <ReceiptIcon sx={{ fontSize: 48, opacity: 0.3, mb: 2 }} />
@@ -1549,7 +1775,7 @@ const PaymentsPage = () => {
                   </Box>
                 )}
               </Box>
-            </Paper>
+            </Box>
           </motion.div>
                 
           {/* PAGINACIÓN SEPARADA ESTILO COMMITMENTS */}
@@ -2448,12 +2674,132 @@ const PaymentsPage = () => {
           pt: 2, 
           gap: 2,
           background: theme.palette.background.paper,
-          borderTop: `1px solid ${theme.palette.divider}`
+          borderTop: `1px solid ${theme.palette.divider}`,
+          display: 'flex',
+          justifyContent: 'space-between'
         }}>
+          {/* Botón de eliminar pago - Lado izquierdo */}
           <Button
-            onClick={handleCloseEditPayment}
+            onClick={() => handleOpenDeletePayment(editingPayment)}
             variant="outlined"
-            startIcon={<CancelIcon />}
+            color="error"
+            startIcon={<DeleteIcon />}
+            sx={{ 
+              borderRadius: 1,
+              px: 3,
+              fontWeight: 600,
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.error.main, 0.08)
+              }
+            }}
+          >
+            Eliminar Pago
+          </Button>
+
+          {/* Botones de cancelar y guardar - Lado derecho */}
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              onClick={handleCloseEditPayment}
+              variant="outlined"
+              startIcon={<CancelIcon />}
+              sx={{ 
+                borderRadius: 1,
+                px: 3,
+                fontWeight: 600
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSavePayment}
+              variant="contained"
+              startIcon={uploadingFile ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
+              disabled={!editFormData.concept || !editFormData.amount || !editFormData.method || !editFormData.companyName || uploadingFile}
+              sx={{ 
+                borderRadius: 1,
+                px: 3,
+                fontWeight: 600
+              }}
+            >
+              {uploadingFile ? 
+                (uploadProgress > 0 ? 
+                  `${uploadProgress < 50 ? 'Subiendo...' : uploadProgress < 90 ? 'Guardando...' : 'Finalizando...'}` 
+                  : 'Procesando...'
+                ) 
+                : 'Guardar Cambios'
+              }
+            </Button>
+          </Box>
+        </DialogActions>
+      </Dialog>
+
+      {/* Diálogo de confirmación de eliminación de pago */}
+      <Dialog
+        open={deletePaymentDialogOpen}
+        onClose={handleCloseDeletePayment}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          pb: 1, 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 1,
+          color: 'error.main',
+          fontWeight: 600
+        }}>
+          <DeleteIcon />
+          Eliminar Pago
+        </DialogTitle>
+        
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            ¿Estás seguro de que deseas eliminar este pago? Esta acción no se puede deshacer.
+          </Typography>
+          
+          {paymentToDelete && (
+            <Paper sx={{ 
+              p: 2, 
+              bgcolor: alpha(theme.palette.error.main, 0.05),
+              border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+              borderRadius: 1
+            }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                Detalles del pago:
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Concepto:</strong> {paymentToDelete.concept || 'Sin concepto'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Monto:</strong> ${paymentToDelete.amount?.toLocaleString('es-MX')}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                <strong>Empresa:</strong> {paymentToDelete.companyName || 'Sin empresa'}
+              </Typography>
+              {paymentToDelete.attachments?.length > 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  <strong>Comprobantes:</strong> {paymentToDelete.attachments.length} archivo(s)
+                </Typography>
+              )}
+            </Paper>
+          )}
+          
+          <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
+            Se eliminará el registro del pago y todos sus comprobantes asociados.
+          </Typography>
+        </DialogContent>
+        
+        <DialogActions sx={{ p: 3, gap: 2 }}>
+          <Button
+            onClick={handleCloseDeletePayment}
+            variant="outlined"
+            disabled={deletingPayment}
             sx={{ 
               borderRadius: 1,
               px: 3,
@@ -2463,23 +2809,18 @@ const PaymentsPage = () => {
             Cancelar
           </Button>
           <Button
-            onClick={handleSavePayment}
+            onClick={handleDeletePayment}
             variant="contained"
-            startIcon={uploadingFile ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
-            disabled={!editFormData.concept || !editFormData.amount || !editFormData.method || !editFormData.companyName || uploadingFile}
+            color="error"
+            disabled={deletingPayment}
+            startIcon={deletingPayment ? <CircularProgress size={20} color="inherit" /> : <DeleteIcon />}
             sx={{ 
               borderRadius: 1,
               px: 3,
               fontWeight: 600
             }}
           >
-            {uploadingFile ? 
-              (uploadProgress > 0 ? 
-                `${uploadProgress < 50 ? 'Subiendo...' : uploadProgress < 90 ? 'Guardando...' : 'Finalizando...'}` 
-                : 'Procesando...'
-              ) 
-              : 'Guardar Cambios'
-            }
+            {deletingPayment ? 'Eliminando...' : 'Eliminar Pago'}
           </Button>
         </DialogActions>
       </Dialog>
