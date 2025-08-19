@@ -35,6 +35,7 @@ import UserManagementPage from './pages/UserManagementPage';
 // Módulo de Ingresos
 import IncomePage from './pages/IncomePage';
 import IncomeHistoryPage from './pages/IncomeHistoryPage';
+import BankAccountsPage from './pages/BankAccountsPage';
 
 // Nuevos módulos profesionales
 import AdvancedToolsPage from './pages/AdvancedToolsPage';
@@ -142,6 +143,14 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Histórico de Consignaciones" breadcrumbs={['Ingresos', 'Histórico']}>
             <IncomeHistoryPage />
+          </MainLayout>
+        }
+      />
+      <Route 
+        path="/income/accounts" 
+        element={
+          <MainLayout title="Cuentas Bancarias" breadcrumbs={['Ingresos', 'Cuentas Bancarias']}>
+            <BankAccountsPage />
           </MainLayout>
         }
       />

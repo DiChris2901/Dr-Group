@@ -15,6 +15,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  FormHelperText,
   Tooltip,
   CircularProgress,
   Alert,
@@ -90,15 +91,18 @@ import { PDFDocument } from 'pdf-lib';
 // Hook para cargar pagos desde Firebase
 import { usePayments } from '../hooks/useFirestore';
 // Firebase para manejo de archivos y Firestore
-import { doc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, deleteDoc, collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 // Componente temporal para agregar datos de prueba
 import AddSamplePayments from '../components/debug/AddSamplePayments';
 // Componente para visor de comprobantes de pago
 import PaymentReceiptViewer from '../components/commitments/PaymentReceiptViewer';
+// Context para autenticación
+import { useAuth } from '../context/AuthContext';
 
 const PaymentsPage = () => {
+  const { currentUser } = useAuth();
   const theme = useTheme();
   // Tomar colores desde el tema efectivo de MUI (que ya refleja SettingsContext)
   const primaryColor = theme.palette.primary.main;
@@ -262,6 +266,11 @@ const PaymentsPage = () => {
   // Estados para edición de pago
   const [editPaymentOpen, setEditPaymentOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
+  
+  // Estados para empresas y cuentas bancarias
+  const [companies, setCompanies] = useState([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(true);
+  
   const [editFormData, setEditFormData] = useState({
     concept: '',
     amount: '',
@@ -274,7 +283,9 @@ const PaymentsPage = () => {
     interests: '',
     interesesDerechosExplotacion: '',
     interesesGastosAdministracion: '',
-    originalAmount: ''
+    originalAmount: '',
+    sourceAccount: '',  // NUEVO: cuenta de origen
+    sourceBank: ''      // NUEVO: banco de origen
   });
   
   // Estados adicionales para cargar datos del compromiso
@@ -440,6 +451,42 @@ const PaymentsPage = () => {
     const maxPage = Math.max(0, Math.ceil(filteredPayments.length / rowsPerPage) - 1);
     if(page > maxPage) setPage(0);
   }, [filteredPayments.length, page]);
+
+  // Cargar empresas con cuentas bancarias
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const loadCompanies = async () => {
+      try {
+        setLoadingCompanies(true);
+        const companiesQuery = query(
+          collection(db, 'companies'),
+          orderBy('name', 'asc')
+        );
+        
+        const unsubscribe = onSnapshot(companiesQuery, (snapshot) => {
+          const companiesData = [];
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            companiesData.push({
+              id: doc.id,
+              ...data
+            });
+          });
+          setCompanies(companiesData);
+          setLoadingCompanies(false);
+          console.log('✅ Companies loaded:', companiesData.length, companiesData);
+        });
+
+        return () => unsubscribe();
+      } catch (error) {
+        console.error('Error cargando empresas:', error);
+        setLoadingCompanies(false);
+      }
+    };
+
+    loadCompanies();
+  }, [currentUser]);
 
   const paginatedPayments = filteredPayments.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
@@ -862,10 +909,43 @@ const PaymentsPage = () => {
       interesesDerechosExplotacion: isColjuegos ? formatCurrency(payment.interesesDerechosExplotacion || '') : '',
       interesesGastosAdministracion: isColjuegos ? formatCurrency(payment.interesesGastosAdministracion || '') : '',
       originalAmount: formatCurrency(payment.originalAmount || payment.amount || ''),
+      sourceAccount: payment.sourceAccount || '',
+      sourceBank: payment.sourceBank || '',
       date: formatDateForInput(payment.date)
     });
     
     setEditPaymentOpen(true);
+  };
+
+  // Función para obtener cuentas bancarias de todas las empresas
+  const getBankAccounts = () => {
+    console.log('🏦 getBankAccounts - Companies:', companies);
+    const accounts = [];
+    companies.forEach(company => {
+      console.log('🏢 Company:', company.name, 'Bank Account:', company.bankAccount, 'Bank Name:', company.bankName);
+      // La estructura de datos usa bankAccount y bankName (singular), no bankAccounts (array)
+      if (company.bankAccount && company.bankName) {
+        accounts.push({
+          account: company.bankAccount,
+          bank: company.bankName,
+          companyName: company.name
+        });
+      }
+    });
+    console.log('💳 Total accounts found:', accounts);
+    return accounts;
+  };
+
+  // Función para manejar la selección de cuenta bancaria
+  const handleSourceAccountSelect = (event) => {
+    const selectedAccount = event.target.value;
+    const accountInfo = getBankAccounts().find(acc => acc.account === selectedAccount);
+    
+    setEditFormData(prev => ({
+      ...prev,
+      sourceAccount: selectedAccount,
+      sourceBank: accountInfo ? accountInfo.bank : ''
+    }));
   };
 
   // Función para cerrar el modal de edición
@@ -916,6 +996,8 @@ const PaymentsPage = () => {
         notes: editFormData.notes.trim(),
         reference: editFormData.reference?.trim() || '',
         companyName: editFormData.companyName?.trim() || '',
+        sourceAccount: editFormData.sourceAccount?.trim() || '',
+        sourceBank: editFormData.sourceBank?.trim() || '',
         date: createLocalDate(editFormData.date),
         updatedAt: new Date()
       };
@@ -2614,6 +2696,80 @@ const PaymentsPage = () => {
                     </MenuItem>
                   </Select>
                 </FormControl>
+
+                {/* Cuenta Bancaria de Origen */}
+                <FormControl fullWidth sx={{ mt: 1 }}>
+                  <InputLabel 
+                    id="source-account-label" 
+                    shrink
+                    sx={{ 
+                      backgroundColor: theme.palette.background.paper,
+                      px: 0.5,
+                      borderRadius: 0.5,
+                      fontSize: '0.875rem',
+                      fontWeight: 500
+                    }}
+                  >
+                    Cuenta Bancaria de Origen
+                  </InputLabel>
+                  <Select
+                    labelId="source-account-label"
+                    name="sourceAccount"
+                    value={editFormData.sourceAccount}
+                    onChange={handleSourceAccountSelect}
+                    label="Cuenta Bancaria de Origen"
+                    displayEmpty
+                    notched
+                    sx={{
+                      borderRadius: 1.5,
+                      backgroundColor: theme.palette.background.paper,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                      },
+                      '&.Mui-focused': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: `0 0 0 2px ${primaryColor}20`,
+                      }
+                    }}
+                  >
+                    <MenuItem value="">
+                      <em>Seleccionar cuenta bancaria</em>
+                    </MenuItem>
+                    {getBankAccounts().map((account, index) => (
+                      <MenuItem key={index} value={account.account}>
+                        <Stack direction="column" alignItems="flex-start">
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {account.account}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {account.bank} - {account.companyName}
+                          </Typography>
+                        </Stack>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  <FormHelperText>Selecciona de qué cuenta salió el dinero</FormHelperText>
+                </FormControl>
+
+                {/* Campo banco de origen (auto-completado) */}
+                {editFormData.sourceBank && (
+                  <TextField
+                    name="sourceBank"
+                    label="Banco de Origen"
+                    fullWidth
+                    value={editFormData.sourceBank}
+                    variant="outlined"
+                    disabled
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1.5,
+                        backgroundColor: theme.palette.action.hover
+                      }
+                    }}
+                  />
+                )}
 
                 {/* Fecha de Pago */}
                 <TextField

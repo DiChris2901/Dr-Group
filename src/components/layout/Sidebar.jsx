@@ -144,7 +144,8 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       color: '#4caf50',
       submenu: [
         { title: 'Registrar Ingreso', icon: AddBox, path: '/income' },
-        { title: 'Historial', icon: Timeline, path: '/income/history' }
+        { title: 'Historial', icon: Timeline, path: '/income/history' },
+        { title: 'Cuentas Bancarias', icon: AccountBalance, path: '/income/accounts' }
       ]
     },
     {
