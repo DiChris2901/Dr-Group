@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -59,8 +59,28 @@ const PaymentReceiptViewer = ({
   const validPaymentDate = payment?.paidAt?.toDate?.() || payment?.paidAt || new Date();
   const hasReceipt = Boolean(receiptUrl || payment?.receiptUrl || commitment?.receiptUrls?.length > 0);
   
-  // Determinar la URL final del comprobante
-  const finalReceiptUrl = receiptUrl || payment?.receiptUrl || (commitment?.receiptUrls && commitment.receiptUrls.length > 0 ? commitment.receiptUrls[0] : null);
+  // Determinar la URL final del comprobante con validación
+  const finalReceiptUrl = useMemo(() => {
+    // Priorizar receiptUrl prop si existe y es válido
+    if (receiptUrl && receiptUrl.trim() !== '') return receiptUrl;
+    
+    // Luego verificar receiptUrls más reciente
+    if (commitment?.receiptUrls && commitment.receiptUrls.length > 0) {
+      return commitment.receiptUrls[commitment.receiptUrls.length - 1]; // Tomar el más reciente
+    }
+    
+    // Finalmente receiptUrl del commitment
+    if (commitment?.receiptUrl && commitment.receiptUrl.trim() !== '') {
+      return commitment.receiptUrl;
+    }
+    
+    // Último recurso: payment receiptUrl
+    if (payment?.receiptUrl && payment.receiptUrl.trim() !== '') {
+      return payment.receiptUrl;
+    }
+    
+    return null;
+  }, [receiptUrl, commitment?.receiptUrls, commitment?.receiptUrl, payment?.receiptUrl]);
   
   console.log('🔍 PaymentReceiptViewer - Validaciones:', {
     validPaymentDate,

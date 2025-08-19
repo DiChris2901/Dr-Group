@@ -71,16 +71,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { useThemeGradients, shimmerEffect } from '../../utils/designSystem';
 import { unifiedTokens, enhancedTokenUtils } from '../../theme/tokens';
 
-// 🚀 OPTIMIZACIÓN FASE 1: Performance hooks y cache
-import useDebounce from '../../hooks/useDebounce';
-import { firestoreCache } from '../../utils/FirestoreCache';
-import { performanceLogger } from '../../utils/PerformanceLogger';
-
-// 🚀 OPTIMIZACIÓN FASE 2: Virtual scrolling y lazy loading
-import VirtualScrollList from '../common/VirtualScrollList';
-import { queryOptimizer } from '../../utils/FirestoreQueryOptimizer';
-import useServiceWorker from '../../hooks/useServiceWorker';
-import useLazyData from '../../hooks/useLazyData';
+// Imports básicos sin optimizaciones problemáticas
 import { useTableTokens } from '../../hooks/useTokens';
 import useCommitmentAlerts from '../../hooks/useCommitmentAlerts';
 import CommitmentEditForm from './CommitmentEditForm';
@@ -317,7 +308,7 @@ const StatusChipDS3 = ({ status, showTooltip = false, theme }) => {
 };
 
 // Componente para fechas mejoradas DS 3.0
-const DateDisplayDS3 = ({ date, showDaysRemaining = false, variant = 'standard', theme }) => {
+const DateDisplayDS3 = ({ date, showDaysRemaining = false, variant = 'standard', theme, isPaid = false }) => {
   const darkColors = getGlobalDarkModeColors(theme);
   
   if (!date) return <Typography color={darkColors.textSecondary}>Fecha no disponible</Typography>;
@@ -361,7 +352,7 @@ const DateDisplayDS3 = ({ date, showDaysRemaining = false, variant = 'standard',
       >
         {format(safeDate, option.dateFormat, { locale: es })}
       </Typography>
-      {showDaysRemaining && (
+      {showDaysRemaining && !isPaid && (
         <Typography 
           variant="caption" 
           sx={{ 
@@ -569,20 +560,18 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   };
   
   // 🚀 OPTIMIZACIÓN FASE 1: Debounce para filtros críticos
-  const debouncedSearchTerm = useDebounce(searchTerm, 500, 'search'); // 500ms para búsqueda
-  const debouncedCompanyFilter = useDebounce(companyFilter, 300, 'company'); // 300ms para filtros
-  const debouncedStatusFilter = useDebounce(statusFilter, 300, 'status');
-  const debouncedYearFilter = useDebounce(yearFilter, 300, 'year');
+  // Variables sin debounce para eliminar caché problemático
+  const debouncedSearchTerm = searchTerm;
+  const debouncedCompanyFilter = companyFilter;
+  const debouncedStatusFilter = statusFilter;
+  const debouncedYearFilter = yearFilter;
   
-  // 🚀 OPTIMIZACIÓN FASE 2: Service Worker para cache persistente
-  const { isRegistered: swRegistered, clearCache: clearSWCache } = useServiceWorker();
-  
-  // 🎯 Virtual scrolling configuration
+  // Configuración básica sin optimizaciones problemáticas
   const [virtualScrollEnabled, setVirtualScrollEnabled] = useState(false);
-  const itemHeight = viewMode === 'cards' ? 160 : 80; // Altura por elemento
-  const containerHeight = 600; // Altura del contenedor
+  const itemHeight = viewMode === 'cards' ? 160 : 80;
+  const containerHeight = 600;
   
-  // 🎯 Hook mejorado para tokens de tabla - Sistema DS 3.0 Unificado
+  // Hook mejorado para tokens de tabla
   const tableTokens = useTableTokens();
   
   // Hook para detectar el tamaño de pantalla y densidad
@@ -627,6 +616,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   const [totalCommitments, setTotalCommitments] = useState(0);
   const [lastVisibleDoc, setLastVisibleDoc] = useState(null);
   const [firstVisibleDoc, setFirstVisibleDoc] = useState(null);
+  const [pageDocuments, setPageDocuments] = useState({}); // Cache de documentos por página
   const [paginationCache, setPaginationCache] = useState(new Map());
   const [jumpToPage, setJumpToPage] = useState(''); // Estado para salto directo a página
   
@@ -778,41 +768,20 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     return result;
   };
 
-  // Reset página cuando cambian los filtros (OPTIMIZADO con debounce)
+  // Reset página cuando cambian los filtros
   useEffect(() => {
     setCurrentPage(1);
     setLastVisibleDoc(null);
     setFirstVisibleDoc(null);
-    
-    // 🚀 OPTIMIZACIÓN: Invalidar cache por patrón cuando cambian filtros
-    firestoreCache.invalidatePattern(`commitments_${debouncedCompanyFilter || 'all'}_*`);
     setPaginationCache(new Map());
-  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter]);
+  }, [searchTerm, companyFilter, statusFilter, yearFilter]);
 
-  // 🚀 OPTIMIZACIÓN: Función para obtener el total con cache inteligente
-  const getTotalCount = useCallback(async (forceReload = false) => {
+  // Función simplificada para obtener el total sin caché
+  const getTotalCount = useCallback(async () => {
     try {
-      // 🎯 Cache key basado en TODOS los filtros debouncados
-      const cacheKey = `count_${debouncedCompanyFilter || 'all'}_${debouncedStatusFilter || 'all'}_${debouncedSearchTerm || ''}_${debouncedYearFilter || 'all'}`;
-      
-      // ✅ Intentar obtener del cache primero (TTL: 1 minuto para conteo con filtros)
-      // Saltar caché si se fuerza la recarga
-      if (!forceReload) {
-        const cachedCount = firestoreCache.get(cacheKey);
-        if (cachedCount !== null) {
-          performanceLogger.logCacheHit('firestore', cacheKey);
-          setTotalCommitments(cachedCount);
-          return cachedCount;
-        }
-      } else {
-        // Limpiar caché específico cuando se fuerza
-        firestoreCache.delete(cacheKey);
-        console.log(`🧹 Cache de conteo limpiado para: ${cacheKey}`);
-      }
-
       let q = query(collection(db, 'commitments'));
 
-      // Aplicar filtros con variables debouncadas
+      // Aplicar filtros
       if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
         q = query(q, where('companyId', '==', debouncedCompanyFilter));
       }
@@ -823,8 +792,6 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         q = query(q, where('dueDate', '>=', startDate), where('dueDate', '<=', endDate));
       }
 
-      // Para contar con filtros de estado y búsqueda, necesitamos obtener todos los documentos
-      // ya que Firestore no puede filtrar por campos calculados
       let totalCount = 0;
       
       if (debouncedStatusFilter !== 'all' || debouncedSearchTerm) {
@@ -877,14 +844,10 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         
         totalCount = filteredCommitments.length;
       } else {
-        // Sin filtros de estado o búsqueda, usar getCountFromServer (más eficiente)
+        // Sin filtros de estado o búsqueda, usar getCountFromServer
         const countSnapshot = await getCountFromServer(q);
         totalCount = countSnapshot.data().count;
       }
-      
-      // 💾 Guardar en cache (TTL: 1 minuto)
-      firestoreCache.set(cacheKey, totalCount, 60 * 1000);
-      performanceLogger.logFirebaseRead('getTotalCount', 1);
       
       setTotalCommitments(totalCount);
       return totalCount;
@@ -896,51 +859,61 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter]);
 
   // 🚀 OPTIMIZACIÓN FASE 2: Función para cargar página con query optimizer
+  // Función simplificada para cargar página sin caché problemático
   const loadCommitmentsPage = useCallback(async (pageNumber, pageSize = paginationConfig.itemsPerPage) => {
     try {
       setLoading(true);
       setError(null);
 
-      // 🎯 Cache key con filtros debouncados
-      const cacheKey = `page_${pageNumber}_${debouncedCompanyFilter || 'all'}_${debouncedStatusFilter || 'all'}_${debouncedSearchTerm || ''}_${debouncedYearFilter || 'all'}`;
+      let q = query(collection(db, 'commitments'), orderBy('dueDate', 'desc'));
+
+      // Aplicar filtros básicos en Firestore
+      if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
+        q = query(collection(db, 'commitments'), where('companyId', '==', debouncedCompanyFilter), orderBy('dueDate', 'desc'));
+      }
       
-      // ✅ Verificar cache de Firestore primero (TTL: 1 minuto para páginas)
-      const cachedPageData = firestoreCache.get(cacheKey);
-      if (cachedPageData) {
-        performanceLogger.logCacheHit('firestore-page', cacheKey);
-        setCommitments(cachedPageData.commitments);
-        setLastVisibleDoc(cachedPageData.lastVisible);
-        setFirstVisibleDoc(cachedPageData.firstVisible);
-        setLoading(false);
-        return;
-      }
-
-      // 🔥 Fallback al cache local (pagination cache)
-      if (paginationCache.has(cacheKey)) {
-        const localCachedData = paginationCache.get(cacheKey);
-        performanceLogger.logCacheHit('local-pagination', cacheKey);
-        setCommitments(localCachedData.commitments);
-        setLastVisibleDoc(localCachedData.lastVisible);
-        setFirstVisibleDoc(localCachedData.firstVisible);
-        setLoading(false);
-        return;
-      }
-
-      // 🚀 FASE 2: Usar Query Optimizer para consultas optimizadas
-      const optimizedQuery = await queryOptimizer.buildOptimizedCommitmentsQuery(
-        {
-          companyId: debouncedCompanyFilter !== 'all' ? debouncedCompanyFilter : null,
-          year: debouncedYearFilter !== 'all' ? debouncedYearFilter : null,
-          status: debouncedStatusFilter !== 'all' ? debouncedStatusFilter : null,
-          searchTerm: debouncedSearchTerm
-        },
-        {
-          pageSize,
-          lastDoc: pageNumber > 1 ? lastVisibleDoc : null
+      if (debouncedYearFilter && debouncedYearFilter !== 'all') {
+        const startDate = new Date(parseInt(debouncedYearFilter), 0, 1);
+        const endDate = new Date(parseInt(debouncedYearFilter), 11, 31);
+        if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
+          q = query(collection(db, 'commitments'), 
+            where('companyId', '==', debouncedCompanyFilter),
+            where('dueDate', '>=', startDate),
+            where('dueDate', '<=', endDate),
+            orderBy('dueDate', 'desc')
+          );
+        } else {
+          q = query(collection(db, 'commitments'), 
+            where('dueDate', '>=', startDate),
+            where('dueDate', '<=', endDate),
+            orderBy('dueDate', 'desc')
+          );
         }
-      );
+      }
 
-      const snapshot = await getDocs(optimizedQuery);
+      // Paginación: Para página 1, no usar startAfter
+      if (pageNumber > 1) {
+        // Buscar el documento de inicio para esta página
+        const prevPageKey = pageNumber - 1;
+        const prevPageDoc = pageDocuments[prevPageKey]?.lastVisible;
+        if (prevPageDoc) {
+          q = query(q, startAfter(prevPageDoc), limit(pageSize));
+        } else if (lastVisibleDoc) {
+          // Fallback al lastVisibleDoc general
+          q = query(q, startAfter(lastVisibleDoc), limit(pageSize));
+        } else {
+          // Si no tenemos referencia, empezar desde el principio
+          q = query(q, limit(pageSize));
+        }
+      } else {
+        // Para página 1, resetear la paginación
+        setLastVisibleDoc(null);
+        setFirstVisibleDoc(null);
+        setPageDocuments({}); // Limpiar cache de páginas
+        q = query(q, limit(pageSize));
+      }
+
+      const snapshot = await getDocs(q);
       
       if (snapshot.empty) {
         setCommitments([]);
@@ -959,10 +932,10 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         });
       });
 
-      // Aplicar filtros locales restantes con variables debouncadas
+      // Aplicar filtros locales
       let filteredCommitments = commitmentsData;
 
-      // Filtro por término de búsqueda (local) - DEBOUNCADO
+      // Filtro por término de búsqueda
       if (debouncedSearchTerm) {
         filteredCommitments = filteredCommitments.filter(
           commitment =>
@@ -974,7 +947,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         );
       }
 
-      // Filtro por estado (local) - DEBOUNCADO
+      // Filtro por estado
       if (debouncedStatusFilter && debouncedStatusFilter !== 'all') {
         const today = new Date();
         const threeDaysFromNow = addDays(today, 3);
@@ -1000,25 +973,19 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
       const firstVisible = snapshot.docs[0];
       const lastVisible = snapshot.docs[snapshot.docs.length - 1];
 
-      // 🚀 OPTIMIZACIÓN: Doble cache (local + Firestore)
-      const pageData = {
-        commitments: filteredCommitments,
-        firstVisible,
-        lastVisible
-      };
-
-      // Cache local (inmediato)
-      const newCache = new Map(paginationCache);
-      newCache.set(cacheKey, pageData);
-      setPaginationCache(newCache);
-
-      // Cache Firestore (TTL: 1 minuto)
-      firestoreCache.set(cacheKey, pageData, 60 * 1000);
-      performanceLogger.logFirebaseRead('getDocs', filteredCommitments.length);
-
       setCommitments(filteredCommitments);
       setFirstVisibleDoc(firstVisible);
       setLastVisibleDoc(lastVisible);
+      
+      // Guardar documentos de esta página en el cache
+      setPageDocuments(prev => ({
+        ...prev,
+        [pageNumber]: {
+          firstVisible,
+          lastVisible
+        }
+      }));
+      
       setLoading(false);
 
       // Notificar al componente padre
@@ -1026,35 +993,23 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         onCommitmentsChange(filteredCommitments);
       }
 
-      // 🚀 FASE 2: Prefetch inteligente en background
-      queryOptimizer.intelligentPrefetch({
-        companyId: debouncedCompanyFilter !== 'all' ? debouncedCompanyFilter : null,
-        year: debouncedYearFilter !== 'all' ? debouncedYearFilter : null,
-        status: debouncedStatusFilter !== 'all' ? debouncedStatusFilter : null
-      });
-
     } catch (error) {
       console.error('Error loading commitments page:', error);
       setError('Error al cargar los compromisos');
       setLoading(false);
     }
-  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, currentPage, paginationConfig.itemsPerPage, lastVisibleDoc, paginationCache, onCommitmentsChange]);
+  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, paginationConfig.itemsPerPage]); // Removed lastVisibleDoc dependency
 
-  // � Función para forzar actualización completa
+  // Función simplificada para actualización completa sin caché
   const forceRefresh = useCallback(async () => {
     setLoading(true);
     
-    // Limpiar TODO el caché (incluyendo contadores)
+    // Limpiar paginación local
     setPaginationCache(new Map());
-    firestoreCache.clear();
     
-    // ⚠️ CRÍTICO: Limpiar también cachés específicos de conteo
-    const countCacheKey = `count_${debouncedCompanyFilter || 'all'}_${debouncedStatusFilter || 'all'}_${debouncedSearchTerm || ''}_${debouncedYearFilter || 'all'}`;
-    firestoreCache.delete(countCacheKey);
-    
-    // Forzar recálculo del total SIN caché
-    setTotalCommitments(0); // Reset temporal
-    const newTotal = await getTotalCount(true); // ⚠️ Forzar recarga
+    // Recalcular total
+    setTotalCommitments(0);
+    const newTotal = await getTotalCount();
     
     console.log(`🔢 Total actualizado: ${newTotal} compromisos`);
     
@@ -1062,35 +1017,47 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     const totalPages = Math.ceil(newTotal / paginationConfig.itemsPerPage);
     let targetPage = currentPage;
     
-    console.log(`📄 Páginas totales: ${totalPages}, Página actual: ${currentPage}`);
-    
     if (currentPage > totalPages && totalPages > 0) {
       targetPage = totalPages;
       setCurrentPage(targetPage);
-      console.log(`📄 Cambiando a página ${targetPage} (última disponible)`);
     } else if (newTotal === 0) {
       targetPage = 1;
       setCurrentPage(1);
-      console.log(`📄 Sin registros, cambiando a página 1`);
     }
     
     // Recargar datos
     await loadCommitmentsPage(targetPage, paginationConfig.itemsPerPage);
-  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, getTotalCount, currentPage, paginationConfig.itemsPerPage, loadCommitmentsPage]);
+  }, []);
 
-  // �🚀 OPTIMIZACIÓN: Cargar datos con filtros debouncados
+  // Cargar datos cuando cambien SOLO los filtros o usuario (resetear a página 1)
   useEffect(() => {
     if (!currentUser) return;
     
-    // Obtener total y cargar primera página con filtros debouncados
     const initialize = async () => {
+      setCurrentPage(1); // Reset page to 1 when filters change
+      setPageDocuments({}); // Clear page cache when filters change
       const total = await getTotalCount();
       setTotalCommitments(total);
-      await loadCommitmentsPage(currentPage);
+      await loadCommitmentsPage(1);
     };
     
     initialize();
-  }, [currentUser, loadCommitmentsPage, getTotalCount, currentPage]);
+  }, [currentUser, debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter]);
+
+  // Cargar datos cuando cambie SOLO la página (sin resetear página)
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    const loadCurrentPage = async () => {
+      await loadCommitmentsPage(currentPage);
+    };
+    
+    // Cargar cualquier página que no sea la inicial (que ya se carga en el primer useEffect)
+    // Usamos una flag para evitar doble carga en el primer render
+    if (commitments.length > 0) { // Si ya hay datos cargados, significa que el cambio de página es intencional
+      loadCurrentPage();
+    }
+  }, [currentPage]);
 
   const getStatusInfo = (commitment) => {
     const today = new Date();
@@ -1251,13 +1218,6 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     // Cerrar el modal de edición
     setEditDialogOpen(false);
     setSelectedCommitment(null);
-    
-    // Limpiar caché del Service Worker (CRÍTICO para optimizaciones Firebase)
-    console.log(`🧹 Limpiando caché del Service Worker después de guardar...`);
-    if (swRegistered && clearSWCache) {
-      await clearSWCache();
-      console.log(`✅ Service Worker cache cleared after save`);
-    }
     
     // Forzar actualización completa para asegurar sincronización
     await forceRefresh();
@@ -1454,10 +1414,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
       
       // 4. Limpiar caché del Service Worker (CRÍTICO para optimizaciones Firebase)
       console.log(`🧹 Limpiando caché del Service Worker...`);
-      if (swRegistered && clearSWCache) {
-        await clearSWCache();
-        console.log(`✅ Service Worker cache cleared via hook`);
-      } else if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      // Limpiar caché básico si está disponible
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
         console.log(`✅ Service Worker cache cleared via message`);
       }
@@ -1754,15 +1712,15 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       </Typography>
                       <Typography 
                         variant="caption" 
-                        color={commitment.paid ? 'success.main' : (isOverdue ? 'error.main' : isDueSoon ? 'warning.main' : 'text.secondary')}
+                        color={commitment.paid || commitment.isPaid ? 'success.main' : (isOverdue ? 'error.main' : isDueSoon ? 'warning.main' : 'text.secondary')}
                         sx={{ 
                           fontSize: '0.65rem',
                           fontWeight: 600,
                           lineHeight: 1.1
                         }}
                       >
-                        {commitment.paid 
-                          ? '' 
+                        {(commitment.paid || commitment.isPaid)
+                          ? '✅ Pagado' 
                           : (daysUntilDue >= 0 ? `${daysUntilDue} días restantes` : `${Math.abs(daysUntilDue)} días vencido`)
                         }
                       </Typography>
@@ -2046,6 +2004,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         showDaysRemaining
                         isOverdue={isOverdue}
                         isDueSoon={isDueSoon}
+                        isPaid={commitment.paid || commitment.isPaid}
                         theme={theme}
                       />
                     </Box>

@@ -291,12 +291,15 @@ const CommitmentEditForm = ({
 
     setSaving(true);
     try {
+      // Convertir fecha a formato compatible con Firestore
+      const dueDateToSave = formData.dueDate ? new Date(formData.dueDate) : null;
+      
       // Datos del compromiso actualizado
       const updatedData = {
         concept: formData.concept.trim(),
         companyId: formData.companyId,
         amount: parseFloat(formData.amount),
-        dueDate: formData.dueDate,
+        dueDate: dueDateToSave, // Usar fecha convertida
         beneficiary: formData.beneficiary.trim(),
         observations: formData.observations.trim(),
         paymentMethod: formData.paymentMethod,
@@ -305,11 +308,25 @@ const CommitmentEditForm = ({
         updatedBy: currentUser.uid
       };
 
+      console.log('🔄 Actualizando compromiso:', commitment.id, {
+        originalDueDate: commitment.dueDate,
+        newDueDate: dueDateToSave,
+        updatedData
+      });
+
       // Actualizar el compromiso existente
       const commitmentRef = doc(db, 'commitments', commitment.id);
       await updateDoc(commitmentRef, updatedData);
 
-      // 🔄 Detectar cambios en la periodicidad para regenerar compromisos
+      console.log('✅ Compromiso actualizado exitosamente');
+
+      // � CRÍTICO: Limpiar caché para forzar recarga
+      if (window.firestoreCache) {
+        window.firestoreCache.clear();
+        console.log('🗑️ Cache invalidado después de actualización');
+      }
+
+      // �🔄 Detectar cambios en la periodicidad para regenerar compromisos
       const periodicityChanged = originalData.periodicity !== formData.periodicity;
       const wasUnique = originalData.periodicity === 'unique';
       const isNowRecurring = formData.periodicity !== 'unique';
