@@ -85,7 +85,7 @@ import { useNavigate } from 'react-router-dom';
 import { PDFDocument } from 'pdf-lib';
 
 // Context para tema
-import { useTheme as useThemeContext } from '../context/ThemeContext';
+// Nota: Los colores dinámicos se deben leer del theme de MUI
 
 // Hook para cargar pagos desde Firebase
 import { usePayments } from '../hooks/useFirestore';
@@ -100,16 +100,9 @@ import PaymentReceiptViewer from '../components/commitments/PaymentReceiptViewer
 
 const PaymentsPage = () => {
   const theme = useTheme();
-  const { primaryColor, secondaryColor } = useThemeContext();
-  
-  // Debug: Verificar que los colores se están obteniendo correctamente
-  console.log('PaymentsPage - Colores del tema:', { primaryColor, secondaryColor });
-  console.log('PaymentsPage - Tipos de colores:', { 
-    primaryType: typeof primaryColor, 
-    secondaryType: typeof secondaryColor,
-    primaryValue: primaryColor,
-    secondaryValue: secondaryColor
-  });
+  // Tomar colores desde el tema efectivo de MUI (que ya refleja SettingsContext)
+  const primaryColor = theme.palette.primary.main;
+  const secondaryColor = theme.palette.secondary.main;
   
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');

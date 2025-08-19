@@ -84,6 +84,9 @@ const CompaniesPage = () => {
     legalRepresentativeId: '',
     contractNumber: '',
     logoURL: '',
+    bankAccount: '',
+    bankName: '',
+    bankCertificationURL: '',
     platforms: {
       coljuegos: {
         username: '',
@@ -112,6 +115,9 @@ const CompaniesPage = () => {
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [bankCertificationFile, setBankCertificationFile] = useState(null);
+  const [uploadingBankCertification, setUploadingBankCertification] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // Función para obtener colores dinámicos basados en el tema
   const getThemeColor = (colorName) => {
@@ -202,6 +208,9 @@ const CompaniesPage = () => {
       legalRepresentativeId: '',
       contractNumber: '',
       logoURL: '',
+      bankAccount: '',
+      bankName: '',
+      bankCertificationURL: '',
       platforms: {
         coljuegos: {
           username: '',
@@ -228,6 +237,8 @@ const CompaniesPage = () => {
     });
     setLogoFile(null);
     setLogoPreview(null);
+    setBankCertificationFile(null);
+    setIsDragOver(false);
   };
 
   // Manejar selección de archivo de logotipo
@@ -291,6 +302,84 @@ const CompaniesPage = () => {
     }
   };
 
+  // Manejar selección de archivo de certificación bancaria
+  const handleBankCertificationSelect = (event) => {
+    const file = event.target ? event.target.files[0] : event; // Soporte para drag & drop
+    if (file) {
+      // Validar que sea un archivo válido (PDF, imagen, etc.)
+      const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+      if (!validTypes.includes(file.type)) {
+        addNotification({
+          type: 'error',
+          title: 'Archivo inválido',
+          message: 'Por favor selecciona un archivo PDF o imagen válido',
+          icon: 'error',
+          color: 'error'
+        });
+        return;
+      }
+
+      // Validar tamaño (máximo 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        addNotification({
+          type: 'error',
+          title: 'Archivo muy grande',
+          message: 'El archivo debe ser menor a 10MB',
+          icon: 'error',
+          color: 'error'
+        });
+        return;
+      }
+
+      setBankCertificationFile(file);
+    }
+  };
+
+  // Manejar drag over
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  // Manejar drag leave
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  // Manejar drop
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleBankCertificationSelect(files[0]);
+    }
+  };
+
+  // Subir certificación bancaria a Firebase Storage
+  const uploadBankCertification = async () => {
+    if (!bankCertificationFile) return null;
+
+    setUploadingBankCertification(true);
+    try {
+      const fileExtension = bankCertificationFile.name.split('.').pop();
+      const fileName = `bank-certifications/${Date.now()}_${Math.random().toString(36).substr(2, 9)}.${fileExtension}`;
+      const storageRef = ref(storage, fileName);
+      
+      await uploadBytes(storageRef, bankCertificationFile);
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      return downloadURL;
+    } catch (error) {
+      console.error('Error uploading bank certification:', error);
+      throw error;
+    } finally {
+      setUploadingBankCertification(false);
+    }
+  };
+
   // Abrir diálogo de agregar empresa
   const handleAddCompany = () => {
     clearForm();
@@ -308,6 +397,9 @@ const CompaniesPage = () => {
       legalRepresentativeId: company.legalRepresentativeId || '',
       contractNumber: company.contractNumber || '',
       logoURL: company.logoURL || '',
+      bankAccount: company.bankAccount || '',
+      bankName: company.bankName || '',
+      bankCertificationURL: company.bankCertificationURL || '',
       platforms: {
         coljuegos: {
           username: company.platforms?.coljuegos?.username || '',
@@ -369,15 +461,22 @@ const CompaniesPage = () => {
     setSaving(true);
     try {
       let logoURL = formData.logoURL;
+      let bankCertificationURL = formData.bankCertificationURL;
 
       // Subir logotipo si hay uno nuevo
       if (logoFile) {
         logoURL = await uploadLogo();
       }
 
+      // Subir certificación bancaria si hay una nueva
+      if (bankCertificationFile) {
+        bankCertificationURL = await uploadBankCertification();
+      }
+
       const companyData = {
         ...formData,
         logoURL,
+        bankCertificationURL,
         updatedAt: serverTimestamp(),
         updatedBy: currentUser.uid
       };
@@ -908,21 +1007,34 @@ const CompaniesPage = () => {
       >
         <DialogTitle 
           sx={{ 
-            background: getThemeColor('primary'),
+            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
             color: 'white',
             textAlign: 'center',
-            py: 2
+            py: 2.5,
+            borderBottom: `3px solid ${theme.palette.primary.main}`,
           }}
         >
           <Box display="flex" alignItems="center" justifyContent="center">
-            <BusinessIcon sx={{ mr: 1.5, fontSize: 28 }} />
-            <Typography variant="h5" component="div" fontWeight="bold">
-              {selectedCompany ? 'Editar Empresa' : 'Nueva Empresa'}
-            </Typography>
+            <Avatar
+              sx={{
+                width: 42,
+                height: 42,
+                mr: 2,
+                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                boxShadow: `0 2px 8px ${theme.palette.primary.main}25`,
+              }}
+            >
+              <BusinessIcon sx={{ fontSize: 22, color: 'white' }} />
+            </Avatar>
+            <Box textAlign="left">
+              <Typography variant="h5" component="div" fontWeight="600">
+                {selectedCompany ? 'Editar Empresa' : 'Nueva Empresa'}
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.7, fontSize: '0.85rem' }}>
+                {selectedCompany ? 'Modifica la información de la empresa' : 'Completa los datos para registrar una nueva empresa'}
+              </Typography>
+            </Box>
           </Box>
-          <Typography variant="body2" sx={{ mt: 0.5, opacity: 0.9, fontSize: '0.85rem' }}>
-            {selectedCompany ? 'Modifica la información de la empresa' : 'Completa los datos para registrar una nueva empresa'}
-          </Typography>
         </DialogTitle>
         <DialogContent sx={{ p: 2, overflow: 'auto', maxHeight: 'calc(95vh - 180px)' }}>
           <Box sx={{ pt: 0.5 }}>
@@ -932,19 +1044,35 @@ const CompaniesPage = () => {
                 <Card 
                   sx={{ 
                     mb: 1.5,
-                    background: getThemeColor('primary'),
-                    color: 'white'
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
+                    boxShadow: 1,
                   }}
                 >
                   <CardHeader
-                    avatar={<ImageIcon sx={{ color: 'white', fontSize: 20 }} />}
+                    avatar={
+                      <Avatar
+                        sx={{
+                          backgroundColor: theme.palette.grey[100],
+                          color: theme.palette.primary.main,
+                          width: 36,
+                          height: 36,
+                        }}
+                      >
+                        <ImageIcon sx={{ fontSize: 18 }} />
+                      </Avatar>
+                    }
                     title="Logotipo de la Empresa"
                     titleTypographyProps={{ 
                       variant: 'subtitle1', 
-                      fontWeight: 'bold',
-                      color: 'white'
+                      fontWeight: '500',
+                      color: theme.palette.text.secondary
                     }}
-                    sx={{ pb: 0.5, pt: 1.5 }}
+                    sx={{ 
+                      pb: 0.5, 
+                      pt: 1.5,
+                      backgroundColor: theme.palette.grey[50]
+                    }}
                   />
                   <CardContent sx={{ pt: 0, pb: 1.5 }}>
                     <Box sx={{ mb: 1.5 }}>
@@ -957,28 +1085,27 @@ const CompaniesPage = () => {
                       />
                       <label htmlFor="logo-upload">
                         <Button
-                          variant="contained"
+                          variant="outlined"
                           component="span"
                           startIcon={<CloudUploadIcon />}
                           disabled={uploadingLogo}
                           sx={{
-                            backgroundColor: 'rgba(255,255,255,0.15)',
-                            color: 'white',
-                            border: '2px solid rgba(255,255,255,0.3)',
-                            backdropFilter: 'blur(10px)',
-                            fontWeight: 'bold',
+                            borderColor: theme.palette.primary.main,
+                            color: theme.palette.primary.main,
+                            borderRadius: 2,
+                            px: 2.5,
+                            py: 1,
+                            fontSize: '0.9rem',
+                            fontWeight: '500',
                             '&:hover': {
-                              backgroundColor: 'rgba(255,255,255,0.25)',
-                              border: '2px solid rgba(255,255,255,0.5)',
-                              transform: 'translateY(-1px)',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                              borderColor: theme.palette.primary.dark,
+                              backgroundColor: `${theme.palette.primary.main}08`,
                             },
                             '&:disabled': {
-                              backgroundColor: 'rgba(255,255,255,0.1)',
-                              color: 'rgba(255,255,255,0.6)',
-                              border: '2px solid rgba(255,255,255,0.2)'
+                              borderColor: theme.palette.action.disabled,
+                              color: theme.palette.action.disabled,
                             },
-                            transition: 'all 0.3s ease'
+                            transition: 'all 0.2s ease'
                           }}
                         >
                           {logoPreview ? 'Cambiar Logotipo' : 'Subir Logotipo'}
@@ -987,18 +1114,18 @@ const CompaniesPage = () => {
                       {logoPreview && (
                         <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center' }}>
                           <Paper
-                            elevation={3}
+                            elevation={1}
                             sx={{
-                              width: 100,
-                              height: 60,
+                              width: 80,
+                              height: 50,
                               mr: 1.5,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              border: '2px solid rgba(255,255,255,0.3)',
-                              borderRadius: 2,
+                              border: `1px solid ${theme.palette.divider}`,
+                              borderRadius: 1.5,
                               p: 0.5,
-                              backgroundColor: 'white'
+                              backgroundColor: theme.palette.background.paper,
                             }}
                           >
                             <Box
@@ -1008,11 +1135,12 @@ const CompaniesPage = () => {
                               sx={{
                                 maxWidth: '100%',
                                 maxHeight: '100%',
-                                objectFit: 'contain'
+                                objectFit: 'contain',
+                                borderRadius: 0.5
                               }}
                             />
                           </Paper>
-                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.75rem' }}>
+                          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: '0.75rem' }}>
                             Vista previa del logotipo
                           </Typography>
                         </Box>
@@ -1146,6 +1274,180 @@ const CompaniesPage = () => {
                             }
                           }}
                         />
+                      </Grid>
+                      
+                      {/* Nuevos campos bancarios */}
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Número de Cuenta"
+                          value={formData.bankAccount}
+                          onChange={(e) => handleFormChange('bankAccount', e.target.value)}
+                          variant="outlined"
+                          placeholder="Ej: 1234567890"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2
+                            }
+                          }}
+                        />
+                      </Grid>
+                      
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Banco"
+                          value={formData.bankName}
+                          onChange={(e) => handleFormChange('bankName', e.target.value)}
+                          variant="outlined"
+                          placeholder="Ej: Banco de Bogotá"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2
+                            }
+                          }}
+                        />
+                      </Grid>
+                      
+                      {/* Campo para certificación bancaria */}
+                      <Grid item xs={12}>
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600, color: theme.palette.text.primary }}>
+                            Certificación Bancaria
+                          </Typography>
+                          <Box 
+                            sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 2,
+                              flexDirection: { xs: 'column', sm: 'row' },
+                              alignItems: { xs: 'stretch', sm: 'center' }
+                            }}
+                          >
+                            <input
+                              accept=".pdf,.jpg,.jpeg,.png"
+                              style={{ display: 'none' }}
+                              id="bank-certification-upload"
+                              type="file"
+                              onChange={handleBankCertificationSelect}
+                            />
+                            
+                            {/* Zona de drag & drop */}
+                            <Box
+                              onDragOver={handleDragOver}
+                              onDragLeave={handleDragLeave}
+                              onDrop={handleDrop}
+                              sx={{
+                                border: '2px dashed',
+                                borderColor: isDragOver 
+                                  ? theme.palette.secondary.main 
+                                  : theme.palette.divider,
+                                borderRadius: 2,
+                                p: 2,
+                                backgroundColor: isDragOver 
+                                  ? `${theme.palette.secondary.main}08` 
+                                  : 'transparent',
+                                transition: 'all 0.2s ease',
+                                cursor: 'pointer',
+                                minWidth: { xs: '100%', sm: '200px' },
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: 1,
+                                '&:hover': {
+                                  borderColor: theme.palette.secondary.main,
+                                  backgroundColor: `${theme.palette.secondary.main}05`
+                                }
+                              }}
+                              onClick={() => document.getElementById('bank-certification-upload').click()}
+                            >
+                              <CloudUploadIcon 
+                                sx={{ 
+                                  fontSize: 32,
+                                  color: isDragOver 
+                                    ? theme.palette.secondary.main 
+                                    : theme.palette.action.disabled,
+                                  transition: 'color 0.2s ease'
+                                }} 
+                              />
+                              <Typography 
+                                variant="body2" 
+                                align="center"
+                                sx={{ 
+                                  color: isDragOver 
+                                    ? theme.palette.secondary.main 
+                                    : theme.palette.text.secondary,
+                                  fontWeight: isDragOver ? 'medium' : 'normal',
+                                  transition: 'all 0.2s ease'
+                                }}
+                              >
+                                {isDragOver 
+                                  ? '¡Suelta el archivo aquí!' 
+                                  : bankCertificationFile
+                                    ? 'Haz clic o arrastra para cambiar'
+                                    : 'Haz clic o arrastra un archivo'
+                                }
+                              </Typography>
+                              {!bankCertificationFile && (
+                                <Typography variant="caption" sx={{ color: theme.palette.text.disabled, fontSize: '0.7rem' }}>
+                                  PDF, JPG, PNG (máx. 10MB)
+                                </Typography>
+                              )}
+                            </Box>
+
+                            {/* Botón alternativo */}
+                            <label htmlFor="bank-certification-upload">
+                              <Button
+                                variant="outlined"
+                                component="span"
+                                startIcon={<CloudUploadIcon />}
+                                disabled={uploadingBankCertification}
+                                sx={{
+                                  borderColor: theme.palette.secondary.main,
+                                  color: theme.palette.secondary.main,
+                                  borderRadius: 2,
+                                  px: 2.5,
+                                  py: 1,
+                                  fontSize: '0.9rem',
+                                  fontWeight: '500',
+                                  minWidth: { xs: '100%', sm: 'auto' },
+                                  '&:hover': {
+                                    borderColor: theme.palette.secondary.dark,
+                                    backgroundColor: `${theme.palette.secondary.main}08`,
+                                  },
+                                  '&:disabled': {
+                                    borderColor: theme.palette.action.disabled,
+                                    color: theme.palette.action.disabled,
+                                  },
+                                  transition: 'all 0.2s ease'
+                                }}
+                              >
+                                {bankCertificationFile ? 'Cambiar Certificación' : 'Subir Certificación'}
+                              </Button>
+                            </label>
+                            
+                            {bankCertificationFile && (
+                              <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0, flex: 1 }}>
+                                <Typography 
+                                  variant="caption" 
+                                  sx={{ 
+                                    color: theme.palette.success.main,
+                                    fontSize: '0.75rem',
+                                    fontWeight: 'medium',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  ✓ {bankCertificationFile.name}
+                                </Typography>
+                              </Box>
+                            )}
+                          </Box>
+                          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, display: 'block', mt: 0.5 }}>
+                            Formatos soportados: PDF, JPG, PNG (máx. 10MB)
+                          </Typography>
+                        </Box>
                       </Grid>
                     </Grid>
                   </CardContent>
@@ -1696,6 +1998,78 @@ const CompaniesPage = () => {
                   </>
                 )}
               </Grid>
+
+              {/* Información Bancaria */}
+              {(selectedCompany.bankAccount || selectedCompany.bankName || selectedCompany.bankCertificationURL) && (
+                <>
+                  <Typography variant="h6" sx={{ mb: 2, color: 'secondary.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AccountBalanceIcon />
+                    Información Bancaria
+                  </Typography>
+                  
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                    {selectedCompany.bankAccount && (
+                      <Grid item xs={12} md={6}>
+                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" color="secondary" gutterBottom>
+                            <AccountBalanceIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                            Número de Cuenta
+                          </Typography>
+                          <Typography variant="body1" fontWeight="medium">
+                            {selectedCompany.bankAccount}
+                          </Typography>
+                        </Card>
+                      </Grid>
+                    )}
+
+                    {selectedCompany.bankName && (
+                      <Grid item xs={12} md={6}>
+                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" color="secondary" gutterBottom>
+                            Banco
+                          </Typography>
+                          <Typography variant="body1" fontWeight="medium">
+                            {selectedCompany.bankName}
+                          </Typography>
+                        </Card>
+                      </Grid>
+                    )}
+
+                    {selectedCompany.bankCertificationURL && (
+                      <Grid item xs={12}>
+                        <Card variant="outlined" sx={{ p: 2 }}>
+                          <Typography variant="subtitle2" color="secondary" gutterBottom>
+                            <DescriptionIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                            Certificación Bancaria
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              startIcon={<OpenInNewIcon />}
+                              onClick={() => window.open(selectedCompany.bankCertificationURL, '_blank')}
+                              sx={{
+                                borderColor: 'secondary.main',
+                                color: 'secondary.main',
+                                '&:hover': {
+                                  borderColor: 'secondary.dark',
+                                  backgroundColor: 'secondary.main',
+                                  color: 'white',
+                                }
+                              }}
+                            >
+                              Ver Certificación
+                            </Button>
+                            <Typography variant="caption" color="text.secondary">
+                              Documento disponible para descarga
+                            </Typography>
+                          </Box>
+                        </Card>
+                      </Grid>
+                    )}
+                  </Grid>
+                </>
+              )}
 
               {/* Accesos a Plataformas en Grid Compacto */}
               {(selectedCompany.platforms?.coljuegos?.username || 
