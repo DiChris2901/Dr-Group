@@ -594,15 +594,42 @@ const PaymentsPage = () => {
         }
       }
 
-      // 2. Subir nuevos archivos
-      const newReceiptUrls = [];
+      // 2. Procesar y subir archivos (combinar múltiples archivos en un PDF)
+      let filesToUpload = [];
       const timestamp = Date.now();
       
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
+      // Si hay múltiples archivos, combinarlos en un PDF único
+      if (files.length > 1) {
+        console.log('📄 Combinando múltiples archivos en un PDF único...');
+        showNotification('Combinando archivos en PDF único...', 'info');
+        
+        try {
+          const combinedBlob = await combineFilesToPdf(files);
+          const combinedFile = new File([combinedBlob], `comprobante_${payment.id}_${timestamp}.pdf`, {
+            type: 'application/pdf'
+          });
+          filesToUpload = [combinedFile];
+          console.log('✅ Archivos combinados exitosamente en PDF único');
+        } catch (combineError) {
+          console.error('❌ Error combinando archivos:', combineError);
+          showNotification('Error combinando archivos. Subiendo archivos por separado...', 'warning');
+          filesToUpload = files; // Fallback: subir archivos individuales
+        }
+      } else {
+        // Un solo archivo
+        filesToUpload = files;
+      }
+      
+      // Subir archivos procesados
+      const newReceiptUrls = [];
+      
+      for (let i = 0; i < filesToUpload.length; i++) {
+        const file = filesToUpload[i];
         // Generar nombre único para evitar conflictos
         const fileExtension = file.name.split('.').pop();
-        const fileName = `payments/${payment.id}_${timestamp}_${i + 1}.${fileExtension}`;
+        const fileName = files.length > 1 && filesToUpload.length === 1
+          ? `payments/comprobante_${payment.id}_${timestamp}.pdf`
+          : `payments/${payment.id}_${timestamp}_${i + 1}.${fileExtension}`;
         const storageRef = ref(storage, fileName);
         
         console.log('⬆️ Subiendo archivo:', fileName, 'Tamaño:', file.size, 'bytes');
