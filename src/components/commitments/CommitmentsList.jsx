@@ -103,7 +103,7 @@ const getGlobalDarkModeColors = (theme) => ({
     : alpha(theme.palette.divider, 0.2),
   hoverBackground: theme.palette.mode === 'dark'
     ? alpha(theme.palette.background.paper, 0.98)
-    : alpha('#f8fafc', 0.8),
+    : alpha(theme.palette.background.default, 0.8),
   shadowColor: theme.palette.mode === 'dark'
     ? 'rgba(0, 0, 0, 0.4)'
     : 'rgba(0, 0, 0, 0.1)',
@@ -1306,88 +1306,335 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     setDeleteDialogOpen(true);
   };
 
-  // Confirmar eliminación desde el diálogo
+  // 🚀 FUNCIÓN MEJORADA: confirmDelete con debugging avanzado
   const confirmDelete = async () => {
     if (!commitmentToDelete) return;
 
+    console.group(`🗑️ ELIMINANDO COMPROMISO: ${commitmentToDelete.concept || commitmentToDelete.description || commitmentToDelete.id}`);
+    
     try {
-      // 1. Eliminar archivos de Firebase Storage si existen
+      // 1. Análisis previo de archivos
       const filesToDelete = [];
       
-      // Eliminar comprobante de pago si existe
-      if (commitmentToDelete.receiptUrl) {
+      console.log('📋 Analizando archivos asociados...');
+      console.log('📊 Datos del compromiso:', {
+        id: commitmentToDelete.id,
+        receiptUrl: commitmentToDelete.receiptUrl ? '✅ Presente' : '❌ No presente',
+        receiptUrls: commitmentToDelete.receiptUrls ? `✅ Array con ${commitmentToDelete.receiptUrls.length} elementos` : '❌ No presente',
+        attachments: commitmentToDelete.attachments ? `✅ Array con ${commitmentToDelete.attachments.length} elementos` : '❌ No presente'
+      });
+
+      // Función avanzada para debug y extracción de paths
+      const debugAndExtractPath = (url, type = 'archivo') => {
+        console.group(`🔍 Analizando ${type}`);
+        console.log('URL original:', url);
+        
+        if (!url) {
+          console.log('❌ URL vacía o undefined');
+          console.groupEnd();
+          return null;
+        }
+        
         try {
-          // Extraer el path del archivo desde la URL de Firebase Storage
-          let storagePath = '';
+          const urlObj = new URL(url);
+          console.log('✅ URL válida:', {
+            protocol: urlObj.protocol,
+            hostname: urlObj.hostname,
+            pathname: urlObj.pathname,
+            search: urlObj.search
+          });
           
-          if (commitmentToDelete.receiptUrl.includes('firebase.googleapis.com')) {
-            // URL con token: extraer path entre /o/ y ?alt=
-            const pathMatch = commitmentToDelete.receiptUrl.match(/\/o\/(.+?)\?/);
-            if (pathMatch) {
-              storagePath = decodeURIComponent(pathMatch[1]);
+          // Verificar si es Firebase Storage
+          const isFirebaseStorage = url.includes('firebase') && (url.includes('googleapis.com') || url.includes('firebasestorage'));
+          console.log('Es Firebase Storage:', isFirebaseStorage);
+          
+          if (!isFirebaseStorage) {
+            console.log('⚠️ No es una URL de Firebase Storage válida');
+            console.groupEnd();
+            return null;
+          }
+          
+          let extractedPath = null;
+          
+          // Método 1: URLs con token (formato /o/path?alt=media)
+          if (url.includes('/o/') && url.includes('?alt=')) {
+            const pathMatch = url.match(/\/o\/(.+?)\?/);
+            if (pathMatch && pathMatch[1]) {
+              extractedPath = decodeURIComponent(pathMatch[1]);
+              console.log('✅ Método 1 exitoso - Path extraído:', extractedPath);
+              console.groupEnd();
+              return extractedPath;
             }
-          } else if (commitmentToDelete.receiptUrl.includes('firebasestorage.googleapis.com')) {
-            // URL directa: extraer path después del bucket
-            const pathMatch = commitmentToDelete.receiptUrl.match(/\/receipts\/.+$/);
-            if (pathMatch) {
-              storagePath = pathMatch[0].substring(1); // Remover la barra inicial
+            console.log('⚠️ Método 1 falló - no se encontró match');
+          }
+          
+          // Método 2: URLs directas
+          if (url.includes('firebasestorage.googleapis.com')) {
+            const pathParts = urlObj.pathname.split('/');
+            console.log('🔍 Path parts:', pathParts);
+            
+            if (pathParts.length > 4) {
+              // Buscar patrón /v0/b/bucket/o/path
+              const bucketIndex = pathParts.findIndex(part => part === 'b');
+              const oIndex = pathParts.findIndex(part => part === 'o');
+              
+              if (bucketIndex !== -1 && oIndex !== -1 && oIndex > bucketIndex) {
+                extractedPath = pathParts.slice(oIndex + 1).join('/');
+                if (extractedPath) {
+                  extractedPath = decodeURIComponent(extractedPath);
+                  console.log('✅ Método 2 exitoso - Path extraído:', extractedPath);
+                  console.groupEnd();
+                  return extractedPath;
+                }
+              }
+            }
+            console.log('⚠️ Método 2 falló - estructura no reconocida');
+          }
+          
+          // Método 3: Patrones comunes
+          const patterns = [
+            /receipts\/[^?#]+/,
+            /attachments\/[^?#]+/,
+            /payments\/[^?#]+/,
+            /commitments\/[^?#]+/,
+            /files\/[^?#]+/
+          ];
+          
+          for (let i = 0; i < patterns.length; i++) {
+            const match = url.match(patterns[i]);
+            if (match) {
+              extractedPath = match[0];
+              console.log(`✅ Método 3.${i+1} exitoso - Path extraído:`, extractedPath);
+              console.groupEnd();
+              return extractedPath;
             }
           }
           
-          if (storagePath) {
-            const fileRef = ref(storage, storagePath);
-            await deleteObject(fileRef);
-            filesToDelete.push('comprobante de pago');
-          }
-        } catch (storageError) {
-          console.warn('Error al eliminar comprobante de pago:', storageError);
-          // Continuar con la eliminación del documento aunque falle la eliminación del archivo
+          console.log('❌ Ningún método pudo extraer el path');
+          console.groupEnd();
+          return null;
+          
+        } catch (error) {
+          console.error('❌ Error parseando URL:', error);
+          console.groupEnd();
+          return null;
+        }
+      };
+
+      // 2. Procesar receiptUrl (formato singular)
+      if (commitmentToDelete.receiptUrl) {
+        console.log('� Procesando receiptUrl...');
+        const path = debugAndExtractPath(commitmentToDelete.receiptUrl, 'receiptUrl');
+        if (path) {
+          filesToDelete.push({ 
+            url: commitmentToDelete.receiptUrl, 
+            type: 'receiptUrl', 
+            path: path,
+            name: 'Comprobante de pago'
+          });
         }
       }
       
-      // Eliminar otros archivos adjuntos si existen
-      if (commitmentToDelete.attachments && Array.isArray(commitmentToDelete.attachments)) {
-        for (const attachment of commitmentToDelete.attachments) {
-          try {
-            if (attachment.url) {
-              let storagePath = '';
-              
-              if (attachment.url.includes('firebase.googleapis.com')) {
-                const pathMatch = attachment.url.match(/\/o\/(.+?)\?/);
-                if (pathMatch) {
-                  storagePath = decodeURIComponent(pathMatch[1]);
-                }
-              } else if (attachment.url.includes('firebasestorage.googleapis.com')) {
-                const pathMatch = attachment.url.match(/\/attachments\/.+$/);
-                if (pathMatch) {
-                  storagePath = pathMatch[0].substring(1);
-                }
-              }
-              
-              if (storagePath) {
-                const fileRef = ref(storage, storagePath);
-                await deleteObject(fileRef);
-                filesToDelete.push(attachment.name || 'archivo adjunto');
-              }
+      // 3. Procesar receiptUrls (formato array)
+      if (commitmentToDelete.receiptUrls && Array.isArray(commitmentToDelete.receiptUrls)) {
+        console.log(`📎 Procesando receiptUrls (${commitmentToDelete.receiptUrls.length} elementos)...`);
+        commitmentToDelete.receiptUrls.forEach((url, index) => {
+          if (url) {
+            const path = debugAndExtractPath(url, `receiptUrls[${index}]`);
+            if (path) {
+              filesToDelete.push({ 
+                url, 
+                type: `receiptUrls[${index}]`, 
+                path: path,
+                name: `Comprobante ${index + 1}`
+              });
             }
-          } catch (storageError) {
-            console.warn('Error al eliminar archivo adjunto:', storageError);
           }
+        });
+      }
+      
+      // 4. Procesar attachments (formato array)
+      if (commitmentToDelete.attachments && Array.isArray(commitmentToDelete.attachments)) {
+        console.log(`📎 Procesando attachments (${commitmentToDelete.attachments.length} elementos)...`);
+        commitmentToDelete.attachments.forEach((attachment, index) => {
+          const attachmentUrl = attachment.url || attachment;
+          if (attachmentUrl) {
+            const path = debugAndExtractPath(attachmentUrl, `attachments[${index}]`);
+            if (path) {
+              filesToDelete.push({ 
+                url: attachmentUrl, 
+                type: `attachments[${index}]`, 
+                path: path,
+                name: attachment.name || `Archivo adjunto ${index + 1}`
+              });
+            }
+          }
+        });
+      }
+      
+      console.log(`🎯 RESUMEN: ${filesToDelete.length} archivos válidos encontrados para eliminar`);
+      filesToDelete.forEach((file, index) => {
+        console.log(`   ${index + 1}. ${file.name} (${file.type})`);
+        console.log(`      Path: ${file.path}`);
+      });
+      
+      // 5. Eliminar cada archivo de Storage con monitoreo detallado
+      let deletedFiles = [];
+      let failedFiles = [];
+      
+      for (let i = 0; i < filesToDelete.length; i++) {
+        const fileInfo = filesToDelete[i];
+        console.group(`🔥 Eliminando archivo ${i + 1}/${filesToDelete.length}: ${fileInfo.name}`);
+        
+        try {
+          console.log('� Path del archivo:', fileInfo.path);
+          console.log('🔗 URL original:', fileInfo.url);
+          
+          const fileRef = ref(storage, fileInfo.path);
+          console.log('📋 Referencia creada:', fileRef.fullPath);
+          
+          await deleteObject(fileRef);
+          
+          deletedFiles.push(fileInfo.name);
+          console.log(`✅ ${fileInfo.name} eliminado exitosamente`);
+          
+        } catch (storageError) {
+          console.error(`❌ Error eliminando ${fileInfo.name}:`, storageError);
+          console.log(`🔍 URL problemática: ${fileInfo.url}`);
+          console.log(`🔍 Path intentado: ${fileInfo.path}`);
+          console.log(`� Código de error: ${storageError.code}`);
+          console.log(`🔍 Mensaje de error: ${storageError.message}`);
+          
+          failedFiles.push({
+            name: fileInfo.name,
+            error: storageError.code || storageError.message
+          });
         }
+        
+        console.groupEnd();
       }
 
-      // 2. Eliminar el documento de Firestore
-      await deleteDoc(doc(db, 'commitments', commitmentToDelete.id));
+      // 2. Eliminar pagos relacionados con este compromiso
+      console.log('🧹 Buscando pagos relacionados con el compromiso...');
+      let deletedPayments = 0;
+      let failedPaymentDeletions = 0;
       
-      // 3. Actualizar estado local inmediatamente (optimistic update)
-      console.log(`🗑️ Eliminando compromiso: ${commitmentToDelete.concept} (ID: ${commitmentToDelete.id})`);
+      try {
+        const paymentsQuery = query(
+          collection(db, 'payments'),
+          where('commitmentId', '==', commitmentToDelete.id)
+        );
+        
+        const paymentsSnapshot = await getDocs(paymentsQuery);
+        console.log(`📋 Pagos encontrados: ${paymentsSnapshot.size}`);
+        
+        if (paymentsSnapshot.size > 0) {
+          // Eliminar cada pago encontrado
+          for (const paymentDoc of paymentsSnapshot.docs) {
+            try {
+              const paymentData = paymentDoc.data();
+              console.log(`🗑️ Eliminando pago: ${paymentDoc.id} (Monto: ${formatCurrency(paymentData.amount || 0)})`);
+              
+              // Eliminar archivos de Storage del pago si existen
+              const paymentFilesToDelete = [];
+              
+              if (paymentData.receiptUrl) {
+                const path = debugAndExtractPath(paymentData.receiptUrl, `Pago-receiptUrl`);
+                if (path) {
+                  paymentFilesToDelete.push({ 
+                    url: paymentData.receiptUrl, 
+                    type: 'Pago-receiptUrl', 
+                    path: path,
+                    name: 'Comprobante de pago'
+                  });
+                }
+              }
+              
+              if (paymentData.receiptUrls && Array.isArray(paymentData.receiptUrls)) {
+                paymentData.receiptUrls.forEach((url, index) => {
+                  if (url) {
+                    const path = debugAndExtractPath(url, `Pago-receiptUrls[${index}]`);
+                    if (path) {
+                      paymentFilesToDelete.push({ 
+                        url, 
+                        type: `Pago-receiptUrls[${index}]`, 
+                        path: path,
+                        name: `Comprobante pago ${index + 1}`
+                      });
+                    }
+                  }
+                });
+              }
+              
+              if (paymentData.attachments && Array.isArray(paymentData.attachments)) {
+                paymentData.attachments.forEach((attachment, index) => {
+                  const attachmentUrl = attachment.url || attachment;
+                  if (attachmentUrl) {
+                    const path = debugAndExtractPath(attachmentUrl, `Pago-attachments[${index}]`);
+                    if (path) {
+                      paymentFilesToDelete.push({ 
+                        url: attachmentUrl, 
+                        type: `Pago-attachments[${index}]`, 
+                        path: path,
+                        name: attachment.name || `Archivo pago ${index + 1}`
+                      });
+                    }
+                  }
+                });
+              }
+              
+              // Eliminar archivos del pago de Storage
+              for (const fileInfo of paymentFilesToDelete) {
+                try {
+                  console.log(`🔥 Eliminando archivo de pago: ${fileInfo.name}`);
+                  const fileRef = ref(storage, fileInfo.path);
+                  await deleteObject(fileRef);
+                  deletedFiles.push(fileInfo.name);
+                  console.log(`✅ ${fileInfo.name} eliminado exitosamente`);
+                } catch (storageError) {
+                  console.error(`❌ Error eliminando archivo de pago ${fileInfo.name}:`, storageError);
+                  failedFiles.push({
+                    name: fileInfo.name,
+                    error: storageError.code || storageError.message
+                  });
+                }
+              }
+              
+              // Eliminar documento de pago
+              await deleteDoc(paymentDoc.ref);
+              deletedPayments++;
+              console.log(`✅ Pago ${paymentDoc.id} eliminado exitosamente`);
+              
+            } catch (paymentError) {
+              console.error(`❌ Error eliminando pago ${paymentDoc.id}:`, paymentError);
+              failedPaymentDeletions++;
+            }
+          }
+        } else {
+          console.log('ℹ️ No se encontraron pagos asociados con este compromiso');
+        }
+        
+      } catch (paymentsError) {
+        console.error('❌ Error consultando pagos relacionados:', paymentsError);
+        failedPaymentDeletions++;
+      }
+
+      console.log(`📊 RESULTADO PAGOS: ${deletedPayments} eliminados, ${failedPaymentDeletions} fallos`);
+
+      // 3. Eliminar el documento de Firestore
+      console.log('🗑️ Eliminando documento de Firestore...');
+      await deleteDoc(doc(db, 'commitments', commitmentToDelete.id));
+      console.log('✅ Documento eliminado de Firestore exitosamente');
+      
+      // 4. Actualizar estado local
+      console.log(`� Actualizando estado local: ${commitmentToDelete.concept} (ID: ${commitmentToDelete.id})`);
       setCommitments(prevCommitments => {
         const filtered = prevCommitments.filter(c => c.id !== commitmentToDelete.id);
-        console.log(`📊 Estado local: ${prevCommitments.length} → ${filtered.length} compromisos`);
+        console.log(`📊 Compromisos: ${prevCommitments.length} → ${filtered.length}`);
         return filtered;
       });
       
-      // 4. Limpiar caché del Service Worker (CRÍTICO para optimizaciones Firebase)
+      // 5. Limpiar caché del Service Worker (opcional)
       console.log(`🧹 Limpiando caché del Service Worker...`);
       // Limpiar caché básico si está disponible
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -1395,7 +1642,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         console.log(`✅ Service Worker cache cleared via message`);
       }
       
-      // 5. Recargar datos después de eliminación
+      // 6. Recargar datos
       console.log(`🔄 Recargando datos después de eliminación...`);
       try {
         const total = await getTotalCount();
@@ -1414,19 +1661,33 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         console.error('Error recargando después de eliminar:', error);
       }
       
-      // 6. Mostrar notificación de éxito
-      const deletedFilesMessage = filesToDelete.length > 0 
-        ? ` y ${filesToDelete.length} archivo${filesToDelete.length > 1 ? 's' : ''} adjunto${filesToDelete.length > 1 ? 's' : ''}` 
+      // 10. Mostrar notificación de éxito con detalles mejorados
+      const deletedFilesMessage = deletedFiles.length > 0 
+        ? ` y ${deletedFiles.length} archivo${deletedFiles.length > 1 ? 's' : ''}`
+        : '';
+        
+      const deletedPaymentsMessage = deletedPayments > 0
+        ? ` y ${deletedPayments} pago${deletedPayments > 1 ? 's' : ''} relacionado${deletedPayments > 1 ? 's' : ''}`
+        : '';
+        
+      const failureMessage = (failedFiles.length > 0 || failedPaymentDeletions > 0)
+        ? ` (${failedFiles.length + failedPaymentDeletions} elemento${failedFiles.length + failedPaymentDeletions > 1 ? 's' : ''} no se pudo${failedFiles.length + failedPaymentDeletions > 1 ? 'ieron' : ''} eliminar)`
         : '';
       
+      console.log(`🎉 ELIMINACIÓN COMPLETADA`);
+      console.log(`   📋 Compromiso: "${commitmentToDelete.concept || commitmentToDelete.description || 'Sin concepto'}"`);
+      console.log(`   📁 Archivos eliminados: ${deletedFiles.length}`);
+      console.log(`   💰 Pagos eliminados: ${deletedPayments}`);
+      console.log(`   ❌ Fallos totales: ${failedFiles.length + failedPaymentDeletions}`);
+      
       addNotification({
-        type: 'success',
-        title: '¡Compromiso eliminado!',
-        message: `Se eliminó exitosamente el compromiso "${commitmentToDelete.concept || commitmentToDelete.description || 'Sin concepto'}"${deletedFilesMessage}`,
-        icon: '🗑️'
+        type: (deletedFiles.length > 0 || deletedPayments > 0) ? 'success' : 'warning',
+        title: (failedFiles.length > 0 || failedPaymentDeletions > 0) ? 'Compromiso eliminado parcialmente' : '¡Compromiso eliminado completamente!',
+        message: `Se eliminó "${commitmentToDelete.concept || commitmentToDelete.description || 'Sin concepto'}"${deletedFilesMessage}${deletedPaymentsMessage}${failureMessage}`,
+        icon: (failedFiles.length > 0 || failedPaymentDeletions > 0) ? '⚠️' : '🗑️'
       });
 
-      // 7. Cerrar el diálogo y limpiar estado
+      // 11. Cerrar diálogo y limpiar estado
       setDeleteDialogOpen(false);
       setCommitmentToDelete(null);
 
@@ -1533,7 +1794,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
               left: 0,
               right: 0,
               bottom: 0,
-              background: theme.palette.background.paper,
+              background: 'transparent',
               pointerEvents: 'none',
               zIndex: 0
             }
@@ -1558,7 +1819,9 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                   transition: 'all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                   '&:hover': {
                     transform: 'translateY(-2px)',
-                    background: darkColors.hoverBackground,
+                    background: theme.palette.mode === 'dark'
+                      ? alpha(theme.palette.background.paper, 0.98)
+                      : alpha(theme.palette.grey[50], 0.9),
                     boxShadow: theme.palette.mode === 'dark'
                       ? `0 4px 16px ${alpha('#000000', 0.5)}`
                       : `0 4px 12px ${alpha(theme.palette.grey[900], 0.12)}`,
@@ -1677,12 +1940,16 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       mr: 1,
                       p: 1.25,
                       borderRadius: 1,
-                      background: `${alpha(theme.palette.background.paper, 0.6)}`,
+                      background: theme.palette.mode === 'dark'
+                        ? alpha(theme.palette.background.paper, 0.6)
+                        : alpha(theme.palette.background.paper, 0.95),
                       border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
                       transition: 'all 0.3s ease',
                       
                       '&:hover': {
-                        background: `${alpha(theme.palette.background.paper, 0.8)}`,
+                        background: theme.palette.mode === 'dark'
+                          ? alpha(theme.palette.background.paper, 0.8)
+                          : alpha(theme.palette.grey[50], 0.95),
                         borderColor: alpha(theme.palette.primary.main, 0.2),
                         transform: 'translateY(-1px)'
                       }
@@ -1721,14 +1988,17 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                     display: 'flex', 
                     gap: 0.5,
                     '& .MuiIconButton-root': {
-                      background: theme.palette.background.paper,
-                      
+                      background: theme.palette.mode === 'dark'
+                        ? alpha(theme.palette.background.paper, 0.95)
+                        : theme.palette.background.paper,
                       border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&:hover': {
                         transform: 'translateY(-2px) scale(1.1)',
                         boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.2)}`,
-                        background: theme.palette.background.paper
+                        background: theme.palette.mode === 'dark'
+                          ? alpha(theme.palette.background.paper, 1)
+                          : alpha(theme.palette.grey[50], 0.95)
                       }
                     }
                   }}>
@@ -1743,7 +2013,18 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                             <Visibility />
                           </IconButton>
                         </Tooltip>
-                        {/* ✅ BOTÓN "Ver comprobante de pago" ELIMINADO COMPLETAMENTE */}
+                        {/* ✅ NUEVO: Botón condicional "Marcar Pagado" con tooltip - Solo aparece si NO está pagado */}
+                        {!commitment.paid && !commitment.isPaid && (
+                          <Tooltip title="Marcar como pagado" arrow>
+                            <IconButton 
+                              size="small" 
+                              onClick={() => navigate('/payments/new')}
+                              sx={{ color: 'success.main' }}
+                            >
+                              <Payment />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                         <Tooltip title="Editar compromiso" arrow>
                           <IconButton 
                             size="small" 
@@ -1772,7 +2053,16 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         >
                           <Visibility />
                         </IconButton>
-                        {/* ✅ BOTÓN DE COMPROBANTE DE PAGO ELIMINADO COMPLETAMENTE */}
+                        {/* ✅ NUEVO: Botón condicional "Marcar Pagado" sin tooltip - Solo aparece si NO está pagado */}
+                        {!commitment.paid && !commitment.isPaid && (
+                          <IconButton 
+                            size="small" 
+                            onClick={() => navigate('/payments/new')}
+                            sx={{ color: 'success.main' }}
+                          >
+                            <Payment />
+                          </IconButton>
+                        )}
                         <IconButton 
                           size="small" 
                           onClick={() => handleEditFromCard(commitment)}
@@ -1993,7 +2283,21 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                               <Visibility fontSize="small" />
                             </IconButton>
                           </Tooltip>
-                          {/* ✅ BOTÓN "Validar pago" ELIMINADO COMPLETAMENTE */}
+                          {/* ✅ NUEVO: Botón condicional "Marcar Pagado" - Solo aparece si NO está pagado */}
+                          {!commitment.paid && !commitment.isPaid && (
+                            <Tooltip title="Marcar como pagado" arrow>
+                              <IconButton
+                                size="small"
+                                onClick={() => navigate('/payments/new')}
+                                sx={{ 
+                                  color: 'success.main',
+                                  '&:hover': { backgroundColor: 'rgba(76, 175, 80, 0.1)' }
+                                }}
+                              >
+                                <Payment fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
                           <Tooltip title="Editar" arrow>
                             <IconButton
                               size="small"
@@ -2031,7 +2335,19 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                           >
                             <Visibility fontSize="small" />
                           </IconButton>
-                          {/* ✅ BOTÓN handleViewReceipt ELIMINADO COMPLETAMENTE */}
+                          {/* ✅ NUEVO: Botón condicional "Marcar Pagado" - Solo aparece si NO está pagado */}
+                          {!commitment.paid && !commitment.isPaid && (
+                            <IconButton
+                              size="small"
+                              onClick={() => navigate('/payments/new')}
+                              sx={{ 
+                                color: 'success.main',
+                                '&:hover': { backgroundColor: 'rgba(76, 175, 80, 0.1)' }
+                              }}
+                            >
+                              <Payment fontSize="small" />
+                            </IconButton>
+                          )}
                           <IconButton
                             size="small"
                             onClick={() => handleEditFromCard(commitment)}
@@ -2206,7 +2522,18 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                     <Visibility fontSize="small" />
                                   </IconButton>
                                 </Tooltip>
-                                {/* ✅ BOTÓN "Validar pago" ELIMINADO COMPLETAMENTE */}
+                                {/* ✅ NUEVO: Botón condicional "Marcar Pagado" - Solo aparece si NO está pagado */}
+                                {!commitment.paid && !commitment.isPaid && (
+                                  <Tooltip title="Marcar como pagado" arrow>
+                                    <IconButton 
+                                      size="small" 
+                                      sx={{ mr: 1 }}
+                                      onClick={() => navigate('/payments/new')}
+                                    >
+                                      <Payment fontSize="small" sx={{ color: 'success.main' }} />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
                                 <Tooltip title="Editar compromiso" arrow>
                                   <IconButton 
                                     size="small" 
@@ -2495,7 +2822,18 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                                   <Visibility fontSize="small" />
                                 </IconButton>
                               </Tooltip>
-                              {/* ✅ BOTÓN "Validar pago" ELIMINADO COMPLETAMENTE */}
+                              {/* ✅ NUEVO: Botón condicional "Marcar Pagado" - Solo aparece si NO está pagado */}
+                              {!commitment.paid && !commitment.isPaid && (
+                                <Tooltip title="Marcar como pagado" arrow>
+                                  <IconButton 
+                                    size="small" 
+                                    sx={{ mr: 1 }}
+                                    onClick={() => navigate('/payments/new')}
+                                  >
+                                    <Payment fontSize="small" sx={{ color: 'success.main' }} />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
                               <Tooltip title="Editar compromiso" arrow>
                                 <IconButton 
                                   size="small" 
@@ -2524,7 +2862,16 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                               >
                                 <Visibility fontSize="small" />
                               </IconButton>
-                              {/* ✅ BOTÓN "Validar pago" SIN TOOLTIP ELIMINADO COMPLETAMENTE */}
+                              {/* ✅ NUEVO: Botón condicional "Marcar Pagado" sin tooltip - Solo aparece si NO está pagado */}
+                              {!commitment.paid && !commitment.isPaid && (
+                                <IconButton 
+                                  size="small" 
+                                  sx={{ mr: 1 }}
+                                  onClick={() => navigate('/payments/new')}
+                                >
+                                  <Payment fontSize="small" sx={{ color: 'success.main' }} />
+                                </IconButton>
+                              )}
                               <IconButton 
                                 size="small" 
                                 sx={{ mr: 1 }}
