@@ -32,6 +32,10 @@ import ReportsPeriodPage from './pages/reports/ReportsPeriodPage';
 import ReportsSummaryPage from './pages/reports/ReportsSummaryPage';
 import UserManagementPage from './pages/UserManagementPage';
 
+// Módulo de Ingresos
+import IncomePage from './pages/IncomePage';
+import IncomeHistoryPage from './pages/IncomeHistoryPage';
+
 // Nuevos módulos profesionales
 import AdvancedToolsPage from './pages/AdvancedToolsPage';
 import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
@@ -123,6 +127,25 @@ const DashboardLayout = () => {
           </MainLayout>
         }
       />
+      
+      {/* Rutas de Ingresos */}
+      <Route 
+        path="/income" 
+        element={
+          <MainLayout title="Gestión de Ingresos" breadcrumbs={['Ingresos']}>
+            <IncomePage />
+          </MainLayout>
+        }
+      />
+      <Route 
+        path="/income/history" 
+        element={
+          <MainLayout title="Histórico de Consignaciones" breadcrumbs={['Ingresos', 'Histórico']}>
+            <IncomeHistoryPage />
+          </MainLayout>
+        }
+      />
+      
       <Route 
         path="/reports" 
         element={

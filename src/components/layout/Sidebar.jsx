@@ -1,5 +1,6 @@
 import {
     AccountBalance,
+    AddBox,
     Analytics,
     Assessment,
     Assignment,
@@ -11,7 +12,9 @@ import {
     Notifications,
     Palette,
     People,
-    Receipt
+    Receipt,
+    Timeline,
+    TrendingUp
 } from '@mui/icons-material';
 import {
     Box,
@@ -133,6 +136,15 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       submenu: [
         { title: 'Historial', icon: Assessment, path: '/payments' },
         { title: 'Nuevo Pago', icon: AttachMoney, path: '/payments/new' }
+      ]
+    },
+    {
+      title: 'Ingresos',
+      icon: TrendingUp,
+      color: '#4caf50',
+      submenu: [
+        { title: 'Registrar Ingreso', icon: AddBox, path: '/income' },
+        { title: 'Historial', icon: Timeline, path: '/income/history' }
       ]
     },
     {

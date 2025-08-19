@@ -585,9 +585,17 @@ const CompaniesPage = () => {
     <Box>
       {/* Header con botón de agregar */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" component="h1">
-          Gestión de Empresas
-        </Typography>
+        <Box>
+          <Typography variant="h4" component="h1">
+            Gestión de Empresas
+          </Typography>
+          <Box display="flex" alignItems="center" gap={1} mt={0.5}>
+            <BusinessIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+              {companies.length} {companies.length === 1 ? 'empresa registrada' : 'empresas registradas'}
+            </Typography>
+          </Box>
+        </Box>
         <Box display="flex" gap={1}>
           <Button
             variant="contained"

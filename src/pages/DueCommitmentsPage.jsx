@@ -31,7 +31,8 @@ import {
   Avatar,
   DialogContent,
   DialogActions,
-  DialogContentText
+  DialogContentText,
+  Pagination
 } from '@mui/material';
 import {
   Warning,
@@ -198,7 +199,7 @@ const StatusChipDS3 = ({ status, showTooltip = false, theme }) => {
 };
 
 // Componente para fechas mejoradas DS 3.0
-const DateDisplayDS3 = ({ date, showDaysRemaining = false, variant = 'standard', theme }) => {
+const DateDisplayDS3 = ({ date, showDaysRemaining = false, variant = 'standard', theme, isPaid = false }) => {
   if (!date) return <Typography color="text.secondary">Fecha no disponible</Typography>;
   
   // Función auxiliar para convertir fecha de manera segura
@@ -277,7 +278,7 @@ const DateDisplayDS3 = ({ date, showDaysRemaining = false, variant = 'standard',
       >
         {safeDate.toLocaleDateString('es-CO')}
       </Typography>
-      {showDaysRemaining && (
+      {showDaysRemaining && !isPaid && (
         <Typography 
           variant="caption" 
           sx={{ 
@@ -547,6 +548,10 @@ const DueCommitmentsPage = () => {
   const [companyFilter, setCompanyFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
   
+  // Estados para paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10); // Número de elementos por página
+  
   // Estados para modales y dialogs
   const [selectedCommitment, setSelectedCommitment] = useState(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
@@ -572,6 +577,11 @@ const DueCommitmentsPage = () => {
     // Filtrar compromisos según prioridad y empresa usando datos reales
     let filtered = getCommitmentsByPriority(priorityFilter);
     
+    // Excluir compromisos pagados (esta es una página de compromisos próximos a vencer)
+    filtered = filtered.filter(commitment => 
+      !commitment.isPaid && !commitment.paid
+    );
+    
     if (companyFilter !== 'all') {
       filtered = filtered.filter(commitment => 
         commitment.company === companyFilter
@@ -579,7 +589,65 @@ const DueCommitmentsPage = () => {
     }
     
     setFilteredCommitments(filtered);
+    
+    // Reset to first page when filters change
+    setCurrentPage(1);
   }, [priorityFilter, companyFilter, commitments, getCommitmentsByPriority]);
+
+  // Calculate paginated data
+  const totalPages = Math.ceil(filteredCommitments.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedCommitments = filteredCommitments.slice(startIndex, endIndex);
+
+  // Handle page change
+  const handlePageChange = (event, page) => {
+    setCurrentPage(page);
+  };
+
+  // Calculate stats only for non-paid commitments (due commitments)
+  const calculateDueCommitmentsStats = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dueCommitments = commitments.filter(commitment => 
+      !commitment.isPaid && !commitment.paid
+    );
+
+    let overdue = 0;
+    let dueSoon = 0;
+    let upcoming = 0;
+    let totalAmount = 0;
+    let overdueAmount = 0;
+
+    dueCommitments.forEach(commitment => {
+      const dueDate = commitment.dueDate?.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate);
+      const diffTime = dueDate - today;
+      const daysUntilDue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      totalAmount += commitment.amount || 0;
+
+      if (daysUntilDue < 0) {
+        overdue++;
+        overdueAmount += commitment.amount || 0;
+      } else if (daysUntilDue <= 7) {
+        dueSoon++;
+      } else {
+        upcoming++;
+      }
+    });
+
+    return {
+      total: dueCommitments.length,
+      overdue,
+      dueSoon,
+      upcoming,
+      totalAmount,
+      overdueAmount
+    };
+  };
+
+  const dueCommitmentsStats = calculateDueCommitmentsStats();
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -873,12 +941,12 @@ const DueCommitmentsPage = () => {
   };
 
   const overdueCounts = {
-    total: stats.total,
-    overdue: stats.overdue,
-    dueSoon: stats.dueSoon,
-    upcoming: stats.upcoming,
-    totalAmount: stats.totalAmount,
-    overdueAmount: stats.overdueAmount
+    total: dueCommitmentsStats.total,
+    overdue: dueCommitmentsStats.overdue,
+    dueSoon: dueCommitmentsStats.dueSoon,
+    upcoming: dueCommitmentsStats.upcoming,
+    totalAmount: dueCommitmentsStats.totalAmount,
+    overdueAmount: dueCommitmentsStats.overdueAmount
   };
 
   // Mostrar estado de carga
@@ -1411,7 +1479,7 @@ const DueCommitmentsPage = () => {
 
             {/* Filas usando Grid */}
             <AnimatePresence>
-              {filteredCommitments.map((commitment, index) => {
+              {paginatedCommitments.map((commitment, index) => {
                 const daysUntilDue = getDaysUntilDue(commitment.dueDate);
                 const isOverdue = daysUntilDue < 0;
                 const isDueSoon = daysUntilDue <= 7 && daysUntilDue >= 0;
@@ -1434,7 +1502,7 @@ const DueCommitmentsPage = () => {
                       gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 0.8fr',
                       gap: 2,
                       p: 2.5,
-                      borderBottom: index === filteredCommitments.length - 1 ? 'none' : `1px solid ${alpha(theme.palette.divider, 0.8)}`,
+                      borderBottom: index === paginatedCommitments.length - 1 ? 'none' : `1px solid ${alpha(theme.palette.divider, 0.8)}`,
                       '&:hover': {
                         backgroundColor: alpha(theme.palette.primary.main, 0.02),
                         cursor: 'pointer'
@@ -1521,6 +1589,7 @@ const DueCommitmentsPage = () => {
                           isOverdue={isOverdue}
                           isDueSoon={isDueSoon}
                           theme={theme}
+                          isPaid={commitment.isPaid || commitment.paid}
                         />
                       </Box>
 
@@ -1601,6 +1670,74 @@ const DueCommitmentsPage = () => {
             </AnimatePresence>
           </Box>
         </Paper>
+
+        {/* Paginación */}
+        {filteredCommitments.length > itemsPerPage && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+          >
+            <Box 
+              sx={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center',
+                mt: 4,
+                mb: 2
+              }}
+            >
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                  background: theme.palette.mode === 'dark'
+                    ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.8) 0%, rgba(50, 50, 50, 0.6) 100%)'
+                    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.8) 100%)',
+                  backdropFilter: 'blur(10px)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2
+                }}
+              >
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  Página {currentPage} de {totalPages} • {filteredCommitments.length} compromisos total
+                </Typography>
+                <Pagination
+                  count={totalPages}
+                  page={currentPage}
+                  onChange={handlePageChange}
+                  color="primary"
+                  variant="outlined"
+                  shape="rounded"
+                  showFirstButton
+                  showLastButton
+                  sx={{
+                    '& .MuiPaginationItem-root': {
+                      borderRadius: 1,
+                      fontWeight: 500,
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                      },
+                      '&.Mui-selected': {
+                        background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                        color: 'white',
+                        fontWeight: 600,
+                        '&:hover': {
+                          background: `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`
+                        }
+                      }
+                    }
+                  }}
+                />
+              </Paper>
+            </Box>
+          </motion.div>
+        )}
       </motion.div>
 
       {/* Empty State */}
