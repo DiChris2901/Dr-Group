@@ -88,7 +88,17 @@ const PaymentReceiptViewer = ({
     receiptUrl,
     commitmentReceiptUrl: commitment?.receiptUrl,
     commitmentReceiptUrls: commitment?.receiptUrls,
-    finalReceiptUrl
+    finalReceiptUrl,
+    commitmentId: commitment?.id
+  });
+
+  // LOGGING CRÍTICO para debug del error 403
+  console.log('🚨 [DEBUG 403] PaymentReceiptViewer URL Analysis:', {
+    propsReceiptUrl: receiptUrl,
+    commitmentReceiptUrl: commitment?.receiptUrl,
+    commitmentReceiptUrls: commitment?.receiptUrls,
+    finalReceiptUrlCalculated: finalReceiptUrl,
+    commitmentFullData: commitment
   });
 
   if (!payment || !commitment) {

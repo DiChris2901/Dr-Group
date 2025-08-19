@@ -768,14 +768,6 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     return result;
   };
 
-  // Reset página cuando cambian los filtros
-  useEffect(() => {
-    setCurrentPage(1);
-    setLastVisibleDoc(null);
-    setFirstVisibleDoc(null);
-    setPaginationCache(new Map());
-  }, [searchTerm, companyFilter, statusFilter, yearFilter]);
-
   // Función simplificada para obtener el total sin caché
   const getTotalCount = useCallback(async () => {
     try {
@@ -891,25 +883,27 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         }
       }
 
-      // Paginación: Para página 1, no usar startAfter
+      // Paginación simplificada: Para página 1, no usar startAfter
       if (pageNumber > 1) {
-        // Buscar el documento de inicio para esta página
+        // Para páginas > 1, intentar usar el cache de páginas
         const prevPageKey = pageNumber - 1;
         const prevPageDoc = pageDocuments[prevPageKey]?.lastVisible;
         if (prevPageDoc) {
           q = query(q, startAfter(prevPageDoc), limit(pageSize));
-        } else if (lastVisibleDoc) {
-          // Fallback al lastVisibleDoc general
-          q = query(q, startAfter(lastVisibleDoc), limit(pageSize));
         } else {
-          // Si no tenemos referencia, empezar desde el principio
-          q = query(q, limit(pageSize));
+          // Fallback: usar lastVisibleDoc actual si no hay cache
+          if (lastVisibleDoc) {
+            q = query(q, startAfter(lastVisibleDoc), limit(pageSize));
+          } else {
+            // Si no hay referencia, cargar desde el principio
+            console.warn('Sin documento de referencia para paginación, cargando desde inicio');
+            q = query(q, limit(pageSize));
+          }
         }
       } else {
-        // Para página 1, resetear la paginación
+        // Página 1: limpiar estado y empezar desde el principio
         setLastVisibleDoc(null);
         setFirstVisibleDoc(null);
-        setPageDocuments({}); // Limpiar cache de páginas
         q = query(q, limit(pageSize));
       }
 
@@ -1000,64 +994,50 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     }
   }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, paginationConfig.itemsPerPage]); // Removed lastVisibleDoc dependency
 
-  // Función simplificada para actualización completa sin caché
-  const forceRefresh = useCallback(async () => {
-    setLoading(true);
-    
-    // Limpiar paginación local
-    setPaginationCache(new Map());
-    
-    // Recalcular total
-    setTotalCommitments(0);
-    const newTotal = await getTotalCount();
-    
-    console.log(`🔢 Total actualizado: ${newTotal} compromisos`);
-    
-    // Verificar si la página actual es válida
-    const totalPages = Math.ceil(newTotal / paginationConfig.itemsPerPage);
-    let targetPage = currentPage;
-    
-    if (currentPage > totalPages && totalPages > 0) {
-      targetPage = totalPages;
-      setCurrentPage(targetPage);
-    } else if (newTotal === 0) {
-      targetPage = 1;
-      setCurrentPage(1);
-    }
-    
-    // Recargar datos
-    await loadCommitmentsPage(targetPage, paginationConfig.itemsPerPage);
-  }, []);
-
-  // Cargar datos cuando cambien SOLO los filtros o usuario (resetear a página 1)
+  // SISTEMA DE PAGINACIÓN SIMPLIFICADO - Una sola función para cargar datos
   useEffect(() => {
     if (!currentUser) return;
     
-    const initialize = async () => {
-      setCurrentPage(1); // Reset page to 1 when filters change
-      setPageDocuments({}); // Clear page cache when filters change
-      const total = await getTotalCount();
-      setTotalCommitments(total);
-      await loadCommitmentsPage(1);
+    console.log('🔄 [DEBUG Pagination] useEffect triggered:', {
+      currentPage,
+      debouncedCompanyFilter,
+      debouncedStatusFilter,
+      debouncedSearchTerm,
+      debouncedYearFilter
+    });
+    
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        
+        // Recalcular total cuando cambien filtros
+        const total = await getTotalCount();
+        console.log('📊 [DEBUG Pagination] Total compromisos:', total);
+        setTotalCommitments(total);
+        
+        // Cargar página actual
+        console.log('📖 [DEBUG Pagination] Cargando página:', currentPage);
+        await loadCommitmentsPage(currentPage);
+        
+      } catch (error) {
+        console.error('❌ [DEBUG Pagination] Error loading commitments:', error);
+        setError('Error al cargar los compromisos');
+      } finally {
+        setLoading(false);
+      }
     };
     
-    initialize();
-  }, [currentUser, debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter]);
+    loadData();
+  }, [currentUser, debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, currentPage]);
 
-  // Cargar datos cuando cambie SOLO la página (sin resetear página)
+  // Reset página cuando cambien SOLO los filtros (no la página)
   useEffect(() => {
-    if (!currentUser) return;
-    
-    const loadCurrentPage = async () => {
-      await loadCommitmentsPage(currentPage);
-    };
-    
-    // Cargar cualquier página que no sea la inicial (que ya se carga en el primer useEffect)
-    // Usamos una flag para evitar doble carga en el primer render
-    if (commitments.length > 0) { // Si ya hay datos cargados, significa que el cambio de página es intencional
-      loadCurrentPage();
-    }
-  }, [currentPage]);
+    console.log('🔄 [DEBUG Reset] Resetting to page 1 due to filter change');
+    setCurrentPage(1);
+    setLastVisibleDoc(null);
+    setFirstVisibleDoc(null);
+    setPageDocuments({}); // Limpiar cache de páginas
+  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter]);
 
   const getStatusInfo = (commitment) => {
     const today = new Date();
@@ -1215,20 +1195,44 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   };
 
   const handleCommitmentSaved = async () => {
+    console.log('🔄 [DEBUG] handleCommitmentSaved iniciado');
+    console.log('🔍 [DEBUG] Compromiso seleccionado antes de actualizar:', selectedCommitment?.id);
+    
     // Cerrar el modal de edición
     setEditDialogOpen(false);
     setSelectedCommitment(null);
     
-    // Forzar actualización completa para asegurar sincronización
-    await forceRefresh();
-    
-    // Agregar notificación de éxito
-    addNotification({
-      type: 'success',
-      title: '¡Compromiso actualizado!',
-      message: 'Los cambios se han guardado correctamente',
-      icon: '💾'
-    });
+    // Recargar la página actual directamente - SIMPLE Y EFECTIVO
+    try {
+      setLoading(true);
+      console.log('🔄 [DEBUG] Recargando datos después de guardar compromiso...');
+      
+      const total = await getTotalCount();
+      console.log('📊 [DEBUG] Total compromisos después de actualizar:', total);
+      setTotalCommitments(total);
+      
+      await loadCommitmentsPage(currentPage);
+      console.log('✅ [DEBUG] Página recargada exitosamente');
+      
+      // Agregar notificación de éxito
+      addNotification({
+        type: 'success',
+        title: '¡Compromiso actualizado!',
+        message: 'Los cambios se han guardado correctamente',
+        icon: '💾'
+      });
+    } catch (error) {
+      console.error('❌ [DEBUG] Error recargando después de guardar:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error',
+        message: 'Error actualizando la vista, por favor recarga la página',
+        icon: '❌'
+      });
+    } finally {
+      setLoading(false);
+      console.log('🏁 [DEBUG] handleCommitmentSaved finalizado');
+    }
   };
 
   // Compartir desde el popup (Web Share API con fallback a portapapeles)
@@ -1420,9 +1424,24 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         console.log(`✅ Service Worker cache cleared via message`);
       }
       
-      // 5. Forzar actualización completa para asegurar sincronización
-      console.log(`🔄 Iniciando forceRefresh después de eliminación...`);
-      await forceRefresh();
+      // 5. Recargar datos después de eliminación
+      console.log(`🔄 Recargando datos después de eliminación...`);
+      try {
+        const total = await getTotalCount();
+        setTotalCommitments(total);
+        
+        // Si eliminamos el último elemento de la página, ir a la página anterior
+        const totalPages = Math.ceil(total / paginationConfig.itemsPerPage);
+        let targetPage = currentPage;
+        if (currentPage > totalPages && totalPages > 0) {
+          targetPage = totalPages;
+          setCurrentPage(targetPage);
+        }
+        
+        await loadCommitmentsPage(targetPage);
+      } catch (error) {
+        console.error('Error recargando después de eliminar:', error);
+      }
       
       // 6. Mostrar notificación de éxito
       const deletedFilesMessage = filesToDelete.length > 0 

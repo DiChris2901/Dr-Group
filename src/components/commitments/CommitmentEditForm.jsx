@@ -80,9 +80,22 @@ const safeToDate = (timestamp) => {
 
 // Función segura para formatear fechas
 const formatSafeDate = (dateValue, formatString = 'yyyy-MM-dd') => {
+  // Si ya es string y está en formato correcto para input date, retornar directamente
+  if (typeof dateValue === 'string' && formatString === 'yyyy-MM-dd' && dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return dateValue;
+  }
+  
   const safeDate = safeToDate(dateValue);
   if (!safeDate) return '';
+  
   try {
+    // Para inputs type="date", usar método que evite problemas de zona horaria
+    if (formatString === 'yyyy-MM-dd') {
+      const year = safeDate.getFullYear();
+      const month = String(safeDate.getMonth() + 1).padStart(2, '0');
+      const day = String(safeDate.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
     return format(safeDate, formatString, { locale: es });
   } catch (error) {
     console.warn('Error formatting date in CommitmentEditForm:', error);
@@ -223,7 +236,7 @@ const CommitmentEditForm = ({
         concept: commitment.concept || commitment.description || '',
         companyId: commitment.companyId || '',
         amount: commitment.amount || '',
-        dueDate: safeToDate(commitment.dueDate),
+        dueDate: formatSafeDate(commitment.dueDate, 'yyyy-MM-dd'), // Convertir a string para input
         beneficiary: commitment.beneficiary || '',
         observations: commitment.observations || '',
         paymentMethod: commitment.paymentMethod || 'transfer',
@@ -291,8 +304,24 @@ const CommitmentEditForm = ({
 
     setSaving(true);
     try {
-      // Convertir fecha a formato compatible con Firestore
-      const dueDateToSave = formData.dueDate ? new Date(formData.dueDate) : null;
+      // Convertir fecha a formato compatible con Firestore SIN problemas de zona horaria
+      let dueDateToSave = null;
+      if (formData.dueDate) {
+        if (typeof formData.dueDate === 'string') {
+          // Si es string (del input date), crear fecha local sin zona horaria
+          const [year, month, day] = formData.dueDate.split('-');
+          dueDateToSave = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), 12, 0, 0);
+        } else {
+          // Si ya es Date, usar directamente
+          dueDateToSave = formData.dueDate;
+        }
+      }
+      
+      console.log('🕐 [DEBUG] Conversión de fecha:', {
+        original: formData.dueDate,
+        converted: dueDateToSave,
+        string: dueDateToSave?.toString()
+      });
       
       // Datos del compromiso actualizado
       const updatedData = {
@@ -602,7 +631,9 @@ const CommitmentEditForm = ({
         }
       }
 
+      console.log('🔄 [DEBUG CommitmentEditForm] Llamando callback onSaved...');
       onSaved?.();
+      console.log('🏁 [DEBUG CommitmentEditForm] Callback onSaved ejecutado, cerrando...');
       onClose();
     } catch (error) {
       console.error('Error updating commitment:', error);
@@ -1370,7 +1401,12 @@ const CommitmentEditForm = ({
                     label="Fecha de Vencimiento"
                     type="date"
                     value={formatSafeDate(formData.dueDate, 'yyyy-MM-dd')}
-                    onChange={(e) => handleFormChange('dueDate', new Date(e.target.value))}
+                    onChange={(e) => {
+                      // Manejar fecha sin problemas de zona horaria
+                      const dateString = e.target.value;
+                      console.log('📅 [DEBUG] Input date changed:', dateString);
+                      handleFormChange('dueDate', dateString); // Guardar como string
+                    }}
                     variant="outlined"
                     required
                     size="small"
