@@ -128,8 +128,7 @@ const NewPaymentPage = () => {
     try {
       setLoadingCommitments(true);
       
-      // Consultar todos los compromisos y filtrar en cliente por ahora
-      // Para evitar el error de índice compuesto de Firebase
+      // Consultar todos los compromisos
       const commitmentsQuery = query(
         collection(db, 'commitments')
       );
@@ -137,13 +136,34 @@ const NewPaymentPage = () => {
       const snapshot = await getDocs(commitmentsQuery);
       const commitments = [];
       
+      // También consultar todos los pagos para verificar cuáles compromisos ya tienen pago
+      const paymentsQuery = query(
+        collection(db, 'payments')
+      );
+      
+      const paymentsSnapshot = await getDocs(paymentsQuery);
+      const commitmentsWithPayments = new Set();
+      
+      // Crear set de commitmentIds que ya tienen pagos
+      paymentsSnapshot.forEach((doc) => {
+        const paymentData = doc.data();
+        if (paymentData.commitmentId) {
+          commitmentsWithPayments.add(paymentData.commitmentId);
+        }
+      });
+      
+      console.log('📊 Compromisos que ya tienen pagos:', Array.from(commitmentsWithPayments));
+      
       snapshot.forEach((doc) => {
         const data = doc.data();
         
-        // Filtrar solo compromisos pendientes o vencidos
+        // Filtrar solo compromisos pendientes o vencidos Y que NO tengan pagos registrados Y que no estén marcados como pagados
         const status = data.status || 'pending';
-        if (status === 'pending' || status === 'overdue') {
-          console.log('📄 Compromiso encontrado:', doc.id, data);
+        const isPaid = data.paid === true || data.isPaid === true || status === 'paid';
+        const hasPayment = commitmentsWithPayments.has(doc.id);
+        
+        if ((status === 'pending' || status === 'overdue') && !hasPayment && !isPaid) {
+          console.log('📄 Compromiso sin pago encontrado:', doc.id, data);
           commitments.push({
             id: doc.id,
             ...data,
@@ -156,6 +176,8 @@ const NewPaymentPage = () => {
               minimumFractionDigits: 0
             }).format(data.amount || 0)
           });
+        } else if (hasPayment || isPaid) {
+          console.log('🚫 Compromiso omitido (ya pagado):', doc.id, data.concept, { hasPayment, isPaid, status });
         }
       });
       
@@ -167,6 +189,7 @@ const NewPaymentPage = () => {
         return a.dueDate.toDate() - b.dueDate.toDate();
       });
       
+      console.log(`📋 Total compromisos sin pago: ${commitments.length}`);
       setPendingCommitments(commitments);
     } catch (error) {
       console.error('Error loading pending commitments:', error);
@@ -431,6 +454,9 @@ const NewPaymentPage = () => {
       
       console.log('✅ Compromiso actualizado como pagado');
       
+      // Recargar la lista de compromisos para quitar el que acaba de ser pagado
+      await loadPendingCommitments();
+      
       addNotification({
         type: 'success',
         title: 'Pago registrado exitosamente',
@@ -438,7 +464,26 @@ const NewPaymentPage = () => {
         icon: 'success'
       });
       
-      navigate('/payments');
+      // Limpiar el formulario para permitir otro pago
+      setSelectedCommitment(null);
+      setFormData({
+        commitmentId: '',
+        method: '',
+        reference: '',
+        date: new Date().toISOString().split('T')[0],
+        notes: '',
+        originalAmount: 0,
+        interests: 0,
+        interesesDerechosExplotacion: 0,
+        interesesGastosAdministracion: 0,
+        finalAmount: 0
+      });
+      setFiles([]);
+      
+      // Opcional: navegar a pagos después de 2 segundos
+      setTimeout(() => {
+        navigate('/payments');
+      }, 2000);
     } catch (error) {
       console.error('Error guardando pago:', error);
       addNotification({
@@ -688,13 +733,27 @@ const NewPaymentPage = () => {
                       loading={loadingCommitments}
                       value={selectedCommitment}
                       onChange={(event, newValue) => handleCommitmentSelect(newValue)}
+                      noOptionsText={
+                        loadingCommitments 
+                          ? "Cargando compromisos..." 
+                          : "No hay compromisos pendientes sin pago registrado"
+                      }
                       renderInput={(params) => (
                         <TextField
                           {...params}
                           label="Compromiso a Pagar"
-                          placeholder="Seleccione un compromiso pendiente..."
+                          placeholder={
+                            pendingCommitments.length === 0 && !loadingCommitments
+                              ? "No hay compromisos disponibles para pagar..."
+                              : "Seleccione un compromiso pendiente..."
+                          }
                           fullWidth
                           required
+                          helperText={
+                            pendingCommitments.length === 0 && !loadingCommitments
+                              ? "Solo se muestran compromisos pendientes que aún no tienen pagos registrados"
+                              : ""
+                          }
                           InputProps={{
                             ...params.InputProps,
                             startAdornment: (
@@ -739,7 +798,6 @@ const NewPaymentPage = () => {
                           </li>
                         );
                       }}
-                      noOptionsText={loadingCommitments ? "Cargando..." : "No hay compromisos pendientes"}
                     />
                   </Grid>
 

@@ -487,19 +487,23 @@ const PaymentsPage = () => {
 
   const handleActionMenuClose = () => {
     setActionMenuAnchor(null);
-    setCurrentPayment(null);
+    // No limpiar currentPayment aquí si hay un modal abierto
+    if (!receiptManagementOpen) {
+      setCurrentPayment(null);
+    }
   };
 
   const handleOpenReceiptManagement = (payment) => {
     setCurrentPayment(payment);
     setReceiptManagementOpen(true);
-    handleActionMenuClose();
+    setActionMenuAnchor(null); // Solo cerrar el menú, mantener currentPayment
   };
 
   const handleCloseReceiptManagement = () => {
     setReceiptManagementOpen(false);
-    setCurrentPayment(null);
     setReceiptDragActive(false);
+    // Limpiar currentPayment al cerrar el modal
+    setTimeout(() => setCurrentPayment(null), 100);
   };
 
   // Drag & Drop para el modal de gestión de comprobantes
@@ -526,16 +530,29 @@ const PaymentsPage = () => {
     setReceiptDragActive(false);
     
     const files = Array.from(e.dataTransfer.files);
-    if (files.length > 0 && currentPayment) {
+    if (files.length > 0 && currentPayment && currentPayment.id) {
       await handleEditReceiptWithFiles(currentPayment, files);
+    } else if (!currentPayment) {
+      showNotification('Error: No hay pago seleccionado', 'error');
     }
   };
 
   // Función mejorada para editar comprobante con archivos específicos
   const handleEditReceiptWithFiles = async (payment, files) => {
     try {
+      if (!payment || !payment.id) {
+        showNotification('Error: Pago no válido', 'error');
+        return;
+      }
+
       setUploadingFile(true);
       console.log('📤 Reemplazando comprobantes con archivos:', files.map(f => f.name));
+      console.log('💾 Datos del pago actual:', {
+        id: payment.id,
+        attachments: payment.attachments,
+        receiptUrls: payment.receiptUrls,
+        receiptUrl: payment.receiptUrl
+      });
 
       // 1. Eliminar archivos antiguos del Storage
       const receiptUrls = payment.attachments || payment.receiptUrls || [payment.receiptUrl].filter(Boolean) || [];
@@ -544,45 +561,92 @@ const PaymentsPage = () => {
       for (const url of receiptUrls) {
         if (url) {
           try {
-            const filePathMatch = url.match(/o\/(.+?)\?/);
-            if (filePathMatch) {
-              const filePath = decodeURIComponent(filePathMatch[1]);
+            let filePath = null;
+            
+            // Intentar extraer el path de diferentes formatos de URL de Firebase Storage
+            if (url.includes('firebasestorage.googleapis.com')) {
+              // Formato: https://firebasestorage.googleapis.com/v0/b/bucket/o/path%2Ffile?alt=media&token=...
+              const pathMatch = url.match(/\/o\/(.+?)\?/);
+              if (pathMatch) {
+                filePath = decodeURIComponent(pathMatch[1]);
+              }
+            } else if (url.includes('storage.googleapis.com')) {
+              // Formato: https://storage.googleapis.com/bucket/path/file
+              const urlParts = new URL(url);
+              const pathParts = urlParts.pathname.split('/').slice(2); // Eliminar '' y bucket
+              if (pathParts.length > 0) {
+                filePath = pathParts.join('/');
+              }
+            }
+            
+            if (filePath) {
+              console.log('🔥 Eliminando archivo con path:', filePath);
               const fileRef = ref(storage, filePath);
               await deleteObject(fileRef);
-              console.log('✅ Archivo antiguo eliminado:', filePath);
+              console.log('✅ Archivo antiguo eliminado exitosamente');
+            } else {
+              console.warn('⚠️ No se pudo extraer el path del archivo:', url);
             }
           } catch (deleteError) {
-            console.warn('⚠️ Error al eliminar archivo antiguo:', deleteError);
+            console.warn('⚠️ Error al eliminar archivo antiguo:', deleteError.message);
+            // Continuar con el siguiente archivo aunque falle la eliminación
           }
         }
       }
 
       // 2. Subir nuevos archivos
       const newReceiptUrls = [];
+      const timestamp = Date.now();
+      
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const fileName = `receipts/${payment.id}_${i + 1}_${Date.now()}_${file.name}`;
+        // Generar nombre único para evitar conflictos
+        const fileExtension = file.name.split('.').pop();
+        const fileName = `payments/${payment.id}_${timestamp}_${i + 1}.${fileExtension}`;
         const storageRef = ref(storage, fileName);
         
-        console.log('⬆️ Subiendo archivo:', fileName);
-        await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(storageRef);
-        newReceiptUrls.push(downloadURL);
-        console.log('✅ Archivo subido:', downloadURL);
+        console.log('⬆️ Subiendo archivo:', fileName, 'Tamaño:', file.size, 'bytes');
+        
+        try {
+          await uploadBytes(storageRef, file);
+          const downloadURL = await getDownloadURL(storageRef);
+          newReceiptUrls.push(downloadURL);
+          console.log('✅ Archivo subido exitosamente:', downloadURL);
+        } catch (uploadError) {
+          console.error('❌ Error subiendo archivo:', fileName, uploadError);
+          throw new Error(`Error subiendo ${file.name}: ${uploadError.message}`);
+        }
       }
+      
+      console.log('📋 URLs de nuevos comprobantes:', newReceiptUrls);
 
       // 3. Actualizar documento en Firestore
       const paymentRef = doc(db, 'payments', payment.id);
-      await updateDoc(paymentRef, {
+      const updateData = {
         attachments: newReceiptUrls, // Campo principal
-        receiptUrls: newReceiptUrls,
-        receiptUrl: newReceiptUrls[0] || null, // Para compatibilidad
+        receiptUrls: newReceiptUrls, // Para compatibilidad
+        receiptUrl: newReceiptUrls[0] || null, // Para compatibilidad con código legacy
         updatedAt: new Date()
-      });
+      };
+      
+      console.log('🔄 Actualizando Firestore con datos:', updateData);
+      await updateDoc(paymentRef, updateData);
+      console.log('✅ Documento actualizado en Firestore exitosamente');
+
+      // Actualizar el estado local del currentPayment para reflejar los cambios inmediatamente
+      setCurrentPayment(prevPayment => ({
+        ...prevPayment,
+        ...updateData,
+        id: payment.id
+      }));
 
       console.log('✅ Comprobantes reemplazados exitosamente');
       showNotification('Comprobantes reemplazados exitosamente', 'success');
-      handleCloseReceiptManagement();
+      
+      // Cerrar el modal después de un breve delay para permitir que el usuario vea el éxito
+      setTimeout(() => {
+        handleCloseReceiptManagement();
+      }, 1000);
     } catch (error) {
       console.error('❌ Error al reemplazar comprobantes:', error);
       showNotification(`Error al reemplazar comprobantes: ${error.message}`, 'error');
@@ -2989,13 +3053,17 @@ const PaymentsPage = () => {
                 }
               }}
               onClick={() => {
+                if (!currentPayment || !currentPayment.id) {
+                  showNotification('Error: No hay pago seleccionado para reemplazar comprobantes', 'error');
+                  return;
+                }
                 const input = document.createElement('input');
                 input.type = 'file';
                 input.accept = '.pdf,.jpg,.jpeg,.png';
                 input.multiple = true;
                 input.onchange = (e) => {
-                  const files = Array.from(e.target.files);
-                  if (files.length > 0) {
+                  const files = Array.from(e.target.files || []);
+                  if (files.length > 0 && currentPayment && currentPayment.id) {
                     handleEditReceiptWithFiles(currentPayment, files);
                   }
                 };
