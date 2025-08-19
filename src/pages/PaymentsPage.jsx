@@ -33,7 +33,14 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  ListItemSecondaryAction
+  ListItemSecondaryAction,
+  Menu,
+  Popover,
+  Fade,
+  Grow,
+  Slide,
+  Divider,
+  ListItemButton
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -62,7 +69,15 @@ import {
   Business as CompanyIcon,
   AttachFile as AttachFileIcon,
   PictureAsPdf as PdfIcon,
-  RemoveRedEye as RemoveRedEyeIcon
+  RemoveRedEye as RemoveRedEyeIcon,
+  SwapHoriz as SwapIcon,
+  AttachEmail as AttachEmailIcon,
+  Menu as MenuIcon,
+  Visibility,
+  Edit,
+  Delete,
+  CloudUpload,
+  DragHandle as DragIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -94,6 +109,14 @@ const PaymentsPage = () => {
   // Estados para edición de archivos
   const [editingReceipt, setEditingReceipt] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  
+  // Estados para menú contextual de acciones
+  const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
+  const [currentPayment, setCurrentPayment] = useState(null);
+  
+  // Estados para modal de gestión de comprobantes
+  const [receiptManagementOpen, setReceiptManagementOpen] = useState(false);
+  const [receiptDragActive, setReceiptDragActive] = useState(false);
   
   // Estados para edición de pago
   const [editPaymentOpen, setEditPaymentOpen] = useState(false);
@@ -314,6 +337,119 @@ const PaymentsPage = () => {
   // Función para mostrar notificaciones
   const showNotification = (message, severity = 'success') => {
     setSnackbar({ open: true, message, severity });
+  };
+
+  // 🎯 === FUNCIONES PARA MENÚ CONTEXTUAL MEJORADO ===
+  
+  const handleActionMenuOpen = (event, payment) => {
+    setActionMenuAnchor(event.currentTarget);
+    setCurrentPayment(payment);
+  };
+
+  const handleActionMenuClose = () => {
+    setActionMenuAnchor(null);
+    setCurrentPayment(null);
+  };
+
+  const handleOpenReceiptManagement = (payment) => {
+    setCurrentPayment(payment);
+    setReceiptManagementOpen(true);
+    handleActionMenuClose();
+  };
+
+  const handleCloseReceiptManagement = () => {
+    setReceiptManagementOpen(false);
+    setCurrentPayment(null);
+    setReceiptDragActive(false);
+  };
+
+  // Drag & Drop para el modal de gestión de comprobantes
+  const handleReceiptDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setReceiptDragActive(true);
+  };
+
+  const handleReceiptDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setReceiptDragActive(false);
+  };
+
+  const handleReceiptDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleReceiptDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setReceiptDragActive(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0 && currentPayment) {
+      await handleEditReceiptWithFiles(currentPayment, files);
+    }
+  };
+
+  // Función mejorada para editar comprobante con archivos específicos
+  const handleEditReceiptWithFiles = async (payment, files) => {
+    try {
+      setUploadingFile(true);
+      console.log('📤 Reemplazando comprobantes con archivos:', files.map(f => f.name));
+
+      // 1. Eliminar archivos antiguos del Storage
+      const receiptUrls = payment.attachments || payment.receiptUrls || [payment.receiptUrl].filter(Boolean) || [];
+      console.log('🗑️ Eliminando archivos antiguos:', receiptUrls);
+      
+      for (const url of receiptUrls) {
+        if (url) {
+          try {
+            const filePathMatch = url.match(/o\/(.+?)\?/);
+            if (filePathMatch) {
+              const filePath = decodeURIComponent(filePathMatch[1]);
+              const fileRef = ref(storage, filePath);
+              await deleteObject(fileRef);
+              console.log('✅ Archivo antiguo eliminado:', filePath);
+            }
+          } catch (deleteError) {
+            console.warn('⚠️ Error al eliminar archivo antiguo:', deleteError);
+          }
+        }
+      }
+
+      // 2. Subir nuevos archivos
+      const newReceiptUrls = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileName = `receipts/${payment.id}_${i + 1}_${Date.now()}_${file.name}`;
+        const storageRef = ref(storage, fileName);
+        
+        console.log('⬆️ Subiendo archivo:', fileName);
+        await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(storageRef);
+        newReceiptUrls.push(downloadURL);
+        console.log('✅ Archivo subido:', downloadURL);
+      }
+
+      // 3. Actualizar documento en Firestore
+      const paymentRef = doc(db, 'payments', payment.id);
+      await updateDoc(paymentRef, {
+        attachments: newReceiptUrls, // Campo principal
+        receiptUrls: newReceiptUrls,
+        receiptUrl: newReceiptUrls[0] || null, // Para compatibilidad
+        updatedAt: new Date()
+      });
+
+      console.log('✅ Comprobantes reemplazados exitosamente');
+      showNotification('Comprobantes reemplazados exitosamente', 'success');
+      handleCloseReceiptManagement();
+    } catch (error) {
+      console.error('❌ Error al reemplazar comprobantes:', error);
+      showNotification(`Error al reemplazar comprobantes: ${error.message}`, 'error');
+    } finally {
+      setUploadingFile(false);
+    }
   };
 
   // Función para eliminar comprobante
@@ -1338,82 +1474,44 @@ const PaymentsPage = () => {
                       </Typography>
                     </Box>
 
-                    {/* Acciones */}
+                    {/* ACCIONES MEJORADAS - Menú Contextual */}
                     <Box sx={{ 
                       display: 'flex', 
                       gap: 0.5,
                       justifyContent: 'center'
                     }}>
-                      <Tooltip title="Ver comprobantes" arrow>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleViewReceipt(payment)}
-                          sx={{ 
-                            color: 'primary.main',
-                            '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.1) }
-                          }}
-                        >
-                          <ReceiptIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-
-                      {/* Botón para editar los datos del pago (siempre disponible) */}
-                      <Tooltip title="Editar pago" arrow>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleEditPayment(payment)}
-                          disabled={uploadingFile}
-                          sx={{ 
-                            color: 'info.main',
-                            '&:hover': { backgroundColor: alpha(theme.palette.info.main, 0.1) }
-                          }}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      
-                      {/* Solo mostrar botones de editar/eliminar si hay comprobante */}
+                      {/* Botón principal de ver comprobante - siempre visible si hay attachments */}
                       {(payment.attachments?.length > 0) && (
-                        <>
-                          <Tooltip title="Editar comprobante" arrow>
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                console.log('🔍 Datos del pago para edición:', payment);
-                                handleEditReceipt(payment);
-                              }}
-                              disabled={uploadingFile}
-                              sx={{ 
-                                color: 'warning.main',
-                                '&:hover': { backgroundColor: alpha(theme.palette.warning.main, 0.1) }
-                              }}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          
-                          <Tooltip title="Eliminar comprobante" arrow>
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                alert('🔍 BOTÓN CLICKEADO - Revisa la consola');
-                                console.log('🔍 DATOS COMPLETOS DEL PAGO:', JSON.stringify(payment, null, 2));
-                                console.log('🔍 payment.receiptUrls:', payment.receiptUrls);
-                                console.log('🔍 payment.receiptUrl:', payment.receiptUrl);
-                                console.log('🔍 payment.attachments:', payment.attachments);
-                                handleDeleteReceipt(payment);
-                              }}
-                              disabled={uploadingFile}
-                              sx={{ 
-                                color: 'error.main',
-                                '&:hover': { backgroundColor: alpha(theme.palette.error.main, 0.1) }
-                              }}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </>
+                        <Tooltip title="Ver comprobante" arrow>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleViewReceipt(payment)}
+                            sx={{ 
+                              color: 'primary.main',
+                              '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.1) }
+                            }}
+                          >
+                            <Visibility fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                       )}
+                      
+                      {/* Menú contextual para más acciones */}
+                      <Tooltip title="Más opciones" arrow>
+                        <IconButton
+                          size="small"
+                          onClick={(event) => handleActionMenuOpen(event, payment)}
+                          sx={{ 
+                            color: 'text.secondary',
+                            '&:hover': { 
+                              backgroundColor: alpha(theme.palette.text.primary, 0.08),
+                              color: 'text.primary'
+                            }
+                          }}
+                        >
+                          <MoreVertIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
                   </Box>
                 )) : (
@@ -2309,6 +2407,218 @@ const PaymentsPage = () => {
           {snackbar.message}
         </MuiAlert>
       </Snackbar>
+
+      {/* 🎯 MENÚ CONTEXTUAL MEJORADO */}
+      <Menu
+        anchorEl={actionMenuAnchor}
+        open={Boolean(actionMenuAnchor)}
+        onClose={handleActionMenuClose}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        PaperProps={{
+          sx: {
+            mt: 1,
+            minWidth: 200,
+            borderRadius: 2,
+            boxShadow: theme.shadows[8],
+            border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          }
+        }}
+        TransitionComponent={Fade}
+      >
+        {/* Ver comprobante - solo si existe */}
+        {currentPayment?.attachments?.length > 0 && (
+          <ListItemButton onClick={() => {
+            handleViewReceipt(currentPayment);
+            handleActionMenuClose();
+          }}>
+            <ListItemIcon>
+              <Visibility sx={{ color: 'primary.main' }} />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Ver comprobante"
+              primaryTypographyProps={{ fontSize: '0.9rem' }}
+            />
+          </ListItemButton>
+        )}
+
+        {/* Editar datos del pago */}
+        <ListItemButton onClick={() => {
+          handleEditPayment(currentPayment);
+          handleActionMenuClose();
+        }}>
+          <ListItemIcon>
+            <Edit sx={{ color: 'info.main' }} />
+          </ListItemIcon>
+          <ListItemText 
+            primary="Editar pago"
+            primaryTypographyProps={{ fontSize: '0.9rem' }}
+          />
+        </ListItemButton>
+
+        {/* Gestión de comprobantes - solo si existe */}
+        {currentPayment?.attachments?.length > 0 && (
+          <>
+            <Divider sx={{ my: 0.5 }} />
+            
+            <ListItemButton onClick={() => handleOpenReceiptManagement(currentPayment)}>
+              <ListItemIcon>
+                <SwapIcon sx={{ color: 'warning.main' }} />
+              </ListItemIcon>
+              <ListItemText 
+                primary="Gestionar comprobantes"
+                secondary="Reemplazar o eliminar"
+                primaryTypographyProps={{ fontSize: '0.9rem' }}
+                secondaryTypographyProps={{ fontSize: '0.75rem' }}
+              />
+            </ListItemButton>
+          </>
+        )}
+      </Menu>
+
+      {/* 📄 MODAL DE GESTIÓN DE COMPROBANTES MEJORADO */}
+      <Dialog
+        open={receiptManagementOpen}
+        onClose={handleCloseReceiptManagement}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            overflow: 'hidden'
+          }
+        }}
+        TransitionComponent={Slide}
+        TransitionProps={{ direction: 'up' }}
+      >
+        <DialogTitle sx={{ 
+          background: theme.palette.mode === 'dark' 
+            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+            : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          textAlign: 'center'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}>
+            <AttachEmailIcon />
+            <Typography variant="h6" fontWeight="600">
+              Gestionar Comprobantes
+            </Typography>
+          </Box>
+          <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5 }}>
+            {currentPayment?.concept || 'Pago seleccionado'}
+          </Typography>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 3 }}>
+          {/* Comprobantes actuales */}
+          {currentPayment?.attachments?.length > 0 && (
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle1" fontWeight="600" sx={{ mb: 2 }}>
+                📎 Comprobantes actuales
+              </Typography>
+              <Box sx={{ 
+                p: 2, 
+                borderRadius: 2, 
+                bgcolor: alpha(theme.palette.success.main, 0.1),
+                border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
+              }}>
+                <Typography variant="body2" color="success.dark">
+                  ✅ {currentPayment.attachments.length} archivo(s) adjunto(s)
+                </Typography>
+              </Box>
+            </Box>
+          )}
+
+          {/* Zona de drag & drop mejorada */}
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle1" fontWeight="600" sx={{ mb: 2 }}>
+              🔄 Reemplazar comprobantes
+            </Typography>
+            <Box
+              onDragEnter={handleReceiptDragEnter}
+              onDragLeave={handleReceiptDragLeave}
+              onDragOver={handleReceiptDragOver}
+              onDrop={handleReceiptDrop}
+              sx={{
+                border: `2px dashed ${receiptDragActive ? theme.palette.primary.main : alpha(theme.palette.primary.main, 0.3)}`,
+                borderRadius: 3,
+                p: 4,
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                background: receiptDragActive 
+                  ? alpha(theme.palette.primary.main, 0.05)
+                  : alpha(theme.palette.primary.main, 0.02),
+                '&:hover': {
+                  borderColor: theme.palette.primary.main,
+                  background: alpha(theme.palette.primary.main, 0.05)
+                }
+              }}
+              onClick={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.pdf,.jpg,.jpeg,.png';
+                input.multiple = true;
+                input.onchange = (e) => {
+                  const files = Array.from(e.target.files);
+                  if (files.length > 0) {
+                    handleEditReceiptWithFiles(currentPayment, files);
+                  }
+                };
+                input.click();
+              }}
+            >
+              <CloudUpload sx={{ 
+                fontSize: 48, 
+                color: receiptDragActive ? 'primary.main' : 'primary.light',
+                mb: 1 
+              }} />
+              <Typography variant="h6" color="primary.main" fontWeight="600">
+                {receiptDragActive ? 'Suelta los archivos aquí' : 'Subir nuevos comprobantes'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Arrastra archivos aquí o haz clic para seleccionar
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Formatos: PDF, JPG, PNG | Múltiples archivos permitidos
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* Loading indicator */}
+          {uploadingFile && (
+            <Box sx={{ mt: 2 }}>
+              <LinearProgress />
+              <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 1 }}>
+                Procesando archivos...
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          <Button
+            onClick={() => {
+              if (window.confirm('¿Estás seguro de eliminar todos los comprobantes? Esta acción no se puede deshacer.')) {
+                handleDeleteReceipt(currentPayment);
+                handleCloseReceiptManagement();
+              }
+            }}
+            disabled={uploadingFile}
+            startIcon={<Delete />}
+            sx={{ 
+              color: 'error.main',
+              '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.1) }
+            }}
+          >
+            Eliminar todos
+          </Button>
+          <Box sx={{ flex: 1 }} />
+          <Button onClick={handleCloseReceiptManagement} disabled={uploadingFile}>
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
