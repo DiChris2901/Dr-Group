@@ -290,7 +290,8 @@ const PaymentsPage = () => {
     interesesGastosAdministracion: '',
     originalAmount: '',
     sourceAccount: '',  // NUEVO: cuenta de origen
-    sourceBank: ''      // NUEVO: banco de origen
+    sourceBank: '',     // NUEVO: banco de origen
+    tax4x1000: 0       // NUEVO: campo visual para 4x1000
   });
   
   // Estados adicionales para cargar datos del compromiso
@@ -956,7 +957,13 @@ const PaymentsPage = () => {
       originalAmount: formatCurrency(payment.originalAmount || payment.amount || ''),
       sourceAccount: payment.sourceAccount || '',
       sourceBank: payment.sourceBank || '',
-      date: formatDateForInput(payment.date)
+      date: formatDateForInput(payment.date),
+      // Calcular 4x1000 inicial
+      tax4x1000: calculate4x1000Visual(
+        payment.amount || 0, 
+        payment.method || '', 
+        payment.sourceAccount || ''
+      )
     });
     
     setEditPaymentOpen(true);
@@ -1017,6 +1024,32 @@ const PaymentsPage = () => {
       minimumFractionDigits: 0
     }).format(amount || 0);
   };
+
+  // 💰 Función para calcular 4x1000 visual
+  const calculate4x1000Visual = (amount, method, sourceAccount) => {
+    // 4x1000 se aplica a TODOS los pagos que requieren movimiento bancario
+    // Para métodos como "Efectivo", se asume retiro de cuenta bancaria
+    if (amount > 0) {
+      return Math.round((amount * 4) / 1000);
+    }
+    return 0;
+  };
+
+  // 🔄 useEffect para calcular 4x1000 automáticamente en formulario de edición
+  useEffect(() => {
+    const tax4x1000Amount = calculate4x1000Visual(
+      editFormData.amount, 
+      editFormData.method, 
+      editFormData.sourceAccount
+    );
+    
+    if (tax4x1000Amount !== editFormData.tax4x1000) {
+      setEditFormData(prev => ({
+        ...prev,
+        tax4x1000: tax4x1000Amount
+      }));
+    }
+  }, [editFormData.amount, editFormData.method, editFormData.sourceAccount]);
 
   // Función para calcular y crear registro del 4x1000
   const create4x1000Record = async (paymentAmount, sourceAccount, sourceBank, companyName, paymentDate) => {
@@ -1198,14 +1231,14 @@ const PaymentsPage = () => {
       // GENERAR 4x1000 AUTOMÁTICAMENTE (SI APLICA)
       // =====================================================
       // Solo generar 4x1000 si:
-      // 1. Es transferencia bancaria
+      // 1. Es transferencia bancaria o PSE
       // 2. Tiene cuenta de origen definida
       // 3. El monto es mayor a 0
-      if (updateData.method === 'Transferencia' && 
+      if ((updateData.method === 'Transferencia' || updateData.method === 'PSE') && 
           updateData.sourceAccount && 
           updateData.amount > 0) {
         
-        console.log('💰 Generando 4x1000 para transferencia de:', formatCurrencyBalance(updateData.amount));
+        console.log('💰 Generando 4x1000 para', updateData.method, 'de:', formatCurrencyBalance(updateData.amount));
         
         const tax4x1000Amount = await create4x1000Record(
           updateData.amount,
@@ -1325,15 +1358,39 @@ const PaymentsPage = () => {
     if (name === 'amount' || name === 'interests' || name === 'originalAmount' || 
         name === 'interesesDerechosExplotacion' || name === 'interesesGastosAdministracion') {
       const formattedValue = formatCurrency(value);
-      setEditFormData(prev => ({
-        ...prev,
-        [name]: formattedValue
-      }));
+      
+      setEditFormData(prev => {
+        const newData = {
+          ...prev,
+          [name]: formattedValue
+        };
+        
+        // Si se actualizó el amount, recalcular 4x1000 automáticamente
+        if (name === 'amount') {
+          const numericAmount = parseFloat(formattedValue?.toString().replace(/[^\d.-]/g, '') || 0);
+          newData.tax4x1000 = calculate4x1000Visual(numericAmount, prev.method, prev.sourceAccount);
+        }
+        
+        return newData;
+      });
     } else {
-      setEditFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
+      setEditFormData(prev => {
+        const newData = {
+          ...prev,
+          [name]: value
+        };
+        
+        // Si se actualizó el método o cuenta origen, recalcular 4x1000
+        if (name === 'method' || name === 'sourceAccount') {
+          const numericAmount = parseFloat(prev.amount?.toString().replace(/[^\d.-]/g, '') || 0);
+          newData.tax4x1000 = calculate4x1000Visual(numericAmount, 
+            name === 'method' ? value : prev.method, 
+            name === 'sourceAccount' ? value : prev.sourceAccount
+          );
+        }
+        
+        return newData;
+      });
     }
   };
 
@@ -2791,6 +2848,45 @@ const PaymentsPage = () => {
                         }
                       }}
                     />
+                    
+                    {/* Campo visual del 4x1000 - Visible cuando hay monto válido */}
+                    {editFormData.amount && editFormData.amount > 0 && (
+                      <TextField
+                        label="4x1000 (Automático)"
+                        value={new Intl.NumberFormat('es-CO', {
+                          style: 'currency',
+                          currency: 'COP',
+                          minimumFractionDigits: 0
+                        }).format(editFormData.tax4x1000)}
+                        fullWidth
+                        disabled
+                        variant="outlined"
+                        InputLabelProps={{
+                          sx: {
+                            backgroundColor: theme.palette.background.paper,
+                            px: 0.5
+                          }
+                        }}
+                        InputProps={{
+                          startAdornment: (
+                            <Typography sx={{ mr: 1, color: 'warning.main', fontWeight: 600 }}>
+                              🏦
+                            </Typography>
+                          )
+                        }}
+                        helperText="Se genera automáticamente como registro separado"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                            backgroundColor: theme.palette.warning.main + '10',
+                            '& fieldset': {
+                              borderColor: theme.palette.warning.main,
+                              borderWidth: 1
+                            }
+                          }
+                        }}
+                      />
+                    )}
                   </Stack>
                 )}
                 

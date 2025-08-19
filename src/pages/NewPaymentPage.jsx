@@ -71,6 +71,16 @@ const NewPaymentPage = () => {
     
     return new Date(dateString);
   };
+
+  // 💰 Función para calcular 4x1000 automáticamente
+  const calculate4x1000Visual = (amount, method, sourceAccount) => {
+    // 4x1000 se aplica a TODOS los pagos que requieren movimiento bancario
+    // Para métodos como "Efectivo", se asume retiro de cuenta bancaria
+    if (amount > 0) {
+      return Math.round((amount * 4) / 1000);
+    }
+    return 0;
+  };
   
   // Estado para compromisos pendientes
   const [pendingCommitments, setPendingCommitments] = useState([]);
@@ -89,6 +99,7 @@ const NewPaymentPage = () => {
     notes: '',
     sourceAccount: '', // NUEVO: cuenta de origen del pago
     sourceBank: '',    // NUEVO: banco de origen (se autocompleta)
+    tax4x1000: 0,     // NUEVO: campo visual para 4x1000
     // Campos calculados automáticamente
     originalAmount: 0,
     interests: 0,
@@ -134,6 +145,22 @@ const NewPaymentPage = () => {
       }
     }
   }, [formData.date, selectedCommitment]);
+
+  // 🔄 useEffect para calcular 4x1000 automáticamente
+  useEffect(() => {
+    const tax4x1000Amount = calculate4x1000Visual(
+      formData.finalAmount, 
+      formData.method, 
+      formData.sourceAccount
+    );
+    
+    if (tax4x1000Amount !== formData.tax4x1000) {
+      setFormData(prev => ({
+        ...prev,
+        tax4x1000: tax4x1000Amount
+      }));
+    }
+  }, [formData.finalAmount, formData.method, formData.sourceAccount]);
 
   const loadPendingCommitments = async () => {
     try {
@@ -558,20 +585,21 @@ const NewPaymentPage = () => {
       // =====================================================
       // GENERAR 4x1000 AUTOMÁTICAMENTE (SI APLICA)
       // =====================================================
-      // Solo generar 4x1000 si:
-      // 1. Es transferencia bancaria
-      // 2. Tiene cuenta de origen definida
-      // 3. El monto es mayor a 0
-      if (paymentData.method === 'Transferencia' && 
-          paymentData.sourceAccount && 
-          paymentData.amount > 0) {
+      // Generar 4x1000 para CUALQUIER pago que requiera movimiento bancario
+      // Esto incluye transferencias, PSE, e incluso retiros para efectivo
+      // Para efectivo, se usará una cuenta por defecto si no hay cuenta específica
+      if (paymentData.amount > 0) {
         
-        console.log('💰 Generando 4x1000 para transferencia de:', formatCurrencyBalance(paymentData.amount));
+        // Para pagos sin cuenta específica (ej: efectivo), usar la primera cuenta disponible
+        const effectiveSourceAccount = paymentData.sourceAccount || 'Cuenta Corriente Principal';
+        const effectiveSourceBank = paymentData.sourceBank || 'Banco Principal';
+        
+        console.log('💰 Generando 4x1000 para método', paymentData.method, 'de:', formatCurrencyBalance(paymentData.amount));
         
         const tax4x1000Result = await create4x1000Record(
           paymentData.amount,
-          paymentData.sourceAccount,
-          paymentData.sourceBank,
+          effectiveSourceAccount,
+          effectiveSourceBank,
           paymentData.companyName,
           paymentData.date
         );
@@ -1214,6 +1242,44 @@ const NewPaymentPage = () => {
                         />
                       </Grid>
 
+                      {/* Campo visual del 4x1000 - Visible cuando hay monto válido */}
+                      {formData.finalAmount > 0 && (
+                        <Grid item xs={12} sm={4}>
+                          <TextField
+                            label="4x1000 (Automático)"
+                            value={new Intl.NumberFormat('es-CO', {
+                              style: 'currency',
+                              currency: 'COP',
+                              minimumFractionDigits: 0
+                            }).format(formData.tax4x1000)}
+                            fullWidth
+                            disabled
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <ReceiptIcon color="warning" />
+                                </InputAdornment>
+                              ),
+                            }}
+                            sx={{
+                              '& .MuiInputBase-input': {
+                                fontWeight: 600,
+                                color: 'warning.main',
+                                fontSize: '0.95rem'
+                              },
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: theme.palette.warning.main + '10',
+                                '& fieldset': {
+                                  borderColor: theme.palette.warning.main,
+                                  borderWidth: 1
+                                }
+                              }
+                            }}
+                            helperText="Se genera automáticamente para transferencias"
+                          />
+                        </Grid>
+                      )}
+
                       <Grid item xs={12}>
                         <Divider sx={{ my: 2 }} />
                         <Typography variant="subtitle2" gutterBottom color="primary">
@@ -1564,6 +1630,22 @@ const NewPaymentPage = () => {
                       <Box sx={{ mb: 2 }}>
                         <Typography variant="body2" color="text.secondary">
                           Método: <strong>{formData.method}</strong>
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {/* Mostrar información del 4x1000 si aplica */}
+                    {(formData.method === 'Transferencia' || formData.method === 'PSE') && formData.sourceAccount && formData.tax4x1000 > 0 && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" color="warning.main" sx={{ fontStyle: 'italic' }}>
+                          💳 4x1000 (Automático): <strong>{new Intl.NumberFormat('es-CO', {
+                            style: 'currency',
+                            currency: 'COP',
+                            minimumFractionDigits: 0
+                          }).format(formData.tax4x1000)}</strong>
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Se generará automáticamente como registro separado
                         </Typography>
                       </Box>
                     )}
