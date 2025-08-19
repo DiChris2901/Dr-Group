@@ -10,11 +10,6 @@ import {
   Chip,
   Avatar,
   Divider,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  ListItemSecondaryAction,
   FormControl,
   InputLabel,
   Select,
@@ -24,7 +19,6 @@ import {
   Alert,
   LinearProgress,
   Tooltip,
-  IconButton,
   Button
 } from '@mui/material';
 import {
@@ -38,8 +32,6 @@ import {
   Receipt as ReceiptIcon,
   FilterList as FilterIcon,
   Visibility as VisibilityIcon,
-  KeyboardArrowUp as ArrowUpIcon,
-  KeyboardArrowDown as ArrowDownIcon,
   Add as AddIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
@@ -57,6 +49,7 @@ import {
   where
 } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
+import AccountMovementsModal from '../components/modals/AccountMovementsModal';
 
 const BankAccountsPage = () => {
   const theme = useTheme();
@@ -71,7 +64,12 @@ const BankAccountsPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedAccount, setSelectedAccount] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
-  const [expandedCard, setExpandedCard] = useState(null);
+  
+  // Estados del modal
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedAccountForModal, setSelectedAccountForModal] = useState(null);
+  const [selectedAccountMovements, setSelectedAccountMovements] = useState([]);
+  const [selectedAccountBalance, setSelectedAccountBalance] = useState({});
 
   // Cargar datos desde Firebase
   useEffect(() => {
@@ -244,6 +242,25 @@ const BankAccountsPage = () => {
     if (balance > 0) return 'success.main';
     if (balance < 0) return 'error.main';
     return 'text.secondary';
+  };
+
+  // Abrir modal de movimientos
+  const handleOpenMovementsModal = (account) => {
+    const balance = calculateAccountBalance(account.account);
+    const movements = getAccountMovements(account.account);
+    
+    setSelectedAccountForModal(account);
+    setSelectedAccountMovements(movements);
+    setSelectedAccountBalance(balance);
+    setModalOpen(true);
+  };
+
+  // Cerrar modal
+  const handleCloseModal = () => {
+    setModalOpen(false);
+    setSelectedAccountForModal(null);
+    setSelectedAccountMovements([]);
+    setSelectedAccountBalance({});
   };
 
   if (loading) {
@@ -419,7 +436,6 @@ const BankAccountsPage = () => {
             {bankAccounts.map((account, index) => {
               const balance = calculateAccountBalance(account.account);
               const movements = getAccountMovements(account.account);
-              const isExpanded = expandedCard === account.account;
 
               return (
                 <Grid item xs={12} lg={6} key={account.id}>
@@ -462,12 +478,14 @@ const BankAccountsPage = () => {
                           </Box>
                         }
                         action={
-                          <IconButton
-                            onClick={() => setExpandedCard(isExpanded ? null : account.account)}
-                            sx={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<VisibilityIcon />}
+                            onClick={() => handleOpenMovementsModal(account)}
                           >
-                            <ArrowDownIcon />
-                          </IconButton>
+                            Detalles
+                          </Button>
                         }
                       />
 
@@ -522,81 +540,6 @@ const BankAccountsPage = () => {
                             </Box>
                           </Grid>
                         </Grid>
-
-                        {/* Movimientos (collapsed/expanded) */}
-                        <AnimatePresence>
-                          {isExpanded && movements.length > 0 && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.3 }}
-                              style={{ overflow: 'hidden' }}
-                            >
-                              <Divider sx={{ my: 2 }} />
-                              <Typography variant="subtitle2" gutterBottom>
-                                Últimos Movimientos
-                              </Typography>
-                              
-                              <List dense sx={{ maxHeight: 300, overflow: 'auto' }}>
-                                {movements.slice(0, 10).map((movement, idx) => (
-                                  <ListItem key={`${movement.type}-${movement.id}-${idx}`}>
-                                    <ListItemIcon>
-                                      {movement.type === 'income' ? (
-                                        <TrendingUpIcon color="success" />
-                                      ) : movement.type === '4x1000' ? (
-                                        <ReceiptIcon color="warning" />
-                                      ) : (
-                                        <TrendingDownIcon color="error" />
-                                      )}
-                                    </ListItemIcon>
-                                    <ListItemText
-                                      primary={
-                                        <Typography variant="body2">
-                                          {movement.type === 'income' 
-                                            ? `Ingreso: ${movement.client}` 
-                                            : movement.type === '4x1000'
-                                            ? `4x1000: Impuesto Gravamen`
-                                            : `Pago: ${movement.concept}`
-                                          }
-                                        </Typography>
-                                      }
-                                      secondary={
-                                        <Typography variant="caption" color="text.secondary">
-                                          {format(movement.date, 'dd/MMM/yyyy', { locale: es })}
-                                          {movement.type === '4x1000' && (
-                                            <Chip 
-                                              label="Automático" 
-                                              size="small" 
-                                              color="warning" 
-                                              variant="outlined" 
-                                              sx={{ ml: 1, height: 16, fontSize: '0.6rem' }} 
-                                            />
-                                          )}
-                                        </Typography>
-                                      }
-                                    />
-                                    <ListItemSecondaryAction>
-                                      <Typography 
-                                        variant="body2" 
-                                        color={movement.type === 'income' ? 'success.main' : movement.type === '4x1000' ? 'warning.main' : 'error.main'}
-                                        fontWeight="medium"
-                                      >
-                                        {movement.type === 'income' ? '+' : '-'}{formatCurrency(movement.amount)}
-                                      </Typography>
-                                    </ListItemSecondaryAction>
-                                  </ListItem>
-                                ))}
-                              </List>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-
-                        {movements.length === 0 && (
-                          <Alert severity="info" sx={{ mt: 2 }}>
-                            No hay movimientos registrados para esta cuenta.
-                          </Alert>
-                        )}
                       </CardContent>
                     </Card>
                   </motion.div>
@@ -606,6 +549,15 @@ const BankAccountsPage = () => {
           </Grid>
         </>
       )}
+
+      {/* Modal de movimientos de cuenta */}
+      <AccountMovementsModal
+        open={modalOpen}
+        onClose={handleCloseModal}
+        account={selectedAccountForModal}
+        movements={selectedAccountMovements}
+        balance={selectedAccountBalance}
+      />
     </Box>
   );
 };

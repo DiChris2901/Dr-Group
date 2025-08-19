@@ -193,7 +193,7 @@ export const usePayments = (filters = {}) => {
   useEffect(() => {
     let q = collection(db, 'payments');
     
-    // Aplicar filtros
+    // Aplicar filtros (sin filtro de 4x1000 en query)
     if (filters.company) {
       q = query(q, where('companyName', '==', filters.company));
     }
@@ -207,13 +207,19 @@ export const usePayments = (filters = {}) => {
 
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
-        const paymentsData = snapshot.docs.map(doc => ({
+        const allPaymentsData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
           date: doc.data().date?.toDate ? doc.data().date.toDate() : new Date(doc.data().date),
           amount: parseFloat(doc.data().amount) || 0
         }));
-        setPayments(paymentsData);
+        
+        // Filtrar registros automáticos de 4x1000 en el cliente
+        const filteredPayments = allPaymentsData.filter(payment => 
+          !payment.is4x1000Tax && !payment.isAutomatic
+        );
+        
+        setPayments(filteredPayments);
         setLoading(false);
       },
       (err) => {

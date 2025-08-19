@@ -1250,10 +1250,21 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   // El componente CommitmentEditForm manejará el cierre
   // Los datos se actualizarán automáticamente por el listener en tiempo real
 
-  // Funciones de manejo de paginación spectacular
+  // Funciones de manejo de paginación spectacular - SIMPLIFICADO
   const handlePageChange = async (newPage) => {
+    console.log(`🔄 Cambiando a página ${newPage}`);
     if (newPage !== currentPage && newPage >= 1) {
       setCurrentPage(newPage);
+      // Forzar recarga inmediata
+      try {
+        setLoading(true);
+        await loadCommitmentsPage(newPage);
+      } catch (error) {
+        console.error('Error al cambiar página:', error);
+        setError('Error al cargar la página');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
