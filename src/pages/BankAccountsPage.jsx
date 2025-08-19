@@ -161,16 +161,54 @@ const BankAccountsPage = () => {
     const accountIncomes = incomes.filter(income => income.account === accountNumber);
     const totalIncomes = accountIncomes.reduce((sum, income) => sum + (income.amount || 0), 0);
 
-    // Pagos desde esta cuenta
-    const accountPayments = payments.filter(payment => payment.sourceAccount === accountNumber);
+    // Pagos desde esta cuenta (excluyendo 4x1000)
+    const accountPayments = payments.filter(payment => 
+      payment.sourceAccount === accountNumber && !payment.is4x1000Tax
+    );
     const totalPayments = accountPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+
+    // 4x1000 desde esta cuenta
+    const account4x1000 = payments.filter(payment => 
+      payment.sourceAccount === accountNumber && payment.is4x1000Tax
+    );
+    const total4x1000 = account4x1000.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+
+    // Debug logging para cuentas específicas
+    if (account4x1000.length > 0) {
+      console.log(`🔍 Debug Account ${accountNumber} 4x1000:`, {
+        account4x1000: account4x1000.length,
+        total4x1000: total4x1000,
+        sampleTax: account4x1000[0]
+      });
+    }
 
     return {
       incomes: totalIncomes,
       payments: totalPayments,
-      balance: totalIncomes - totalPayments,
+      tax4x1000: total4x1000,
+      balance: totalIncomes - totalPayments - total4x1000,
       incomesCount: accountIncomes.length,
-      paymentsCount: accountPayments.length
+      paymentsCount: accountPayments.length,
+      tax4x1000Count: account4x1000.length
+    };
+  };
+
+  // Calcular totales de 4x1000
+  const calculate4x1000Totals = () => {
+    const tax4x1000Payments = payments.filter(payment => payment.is4x1000Tax);
+    const total4x1000 = tax4x1000Payments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+    
+    // Debug logging
+    console.log('🔍 Debug 4x1000 Totals:', {
+      totalPayments: payments.length,
+      tax4x1000Payments: tax4x1000Payments.length,
+      total4x1000: total4x1000,
+      sampleTaxPayment: tax4x1000Payments[0]
+    });
+    
+    return {
+      total: total4x1000,
+      count: tax4x1000Payments.length
     };
   };
 
@@ -181,10 +219,14 @@ const BankAccountsPage = () => {
       .map(income => ({ ...income, type: 'income' }));
     
     const accountPayments = payments
-      .filter(payment => payment.sourceAccount === accountNumber)
+      .filter(payment => payment.sourceAccount === accountNumber && !payment.is4x1000Tax)
       .map(payment => ({ ...payment, type: 'payment' }));
 
-    return [...accountIncomes, ...accountPayments]
+    const account4x1000 = payments
+      .filter(payment => payment.sourceAccount === accountNumber && payment.is4x1000Tax)
+      .map(payment => ({ ...payment, type: '4x1000' }));
+
+    return [...accountIncomes, ...accountPayments, ...account4x1000]
       .sort((a, b) => new Date(b.date) - new Date(a.date));
   };
 
@@ -261,7 +303,7 @@ const BankAccountsPage = () => {
         <>
           {/* Resumen General */}
           <Grid container spacing={3} sx={{ mb: 4 }}>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={2.4}>
               <Card sx={{ background: `linear-gradient(135deg, ${theme.palette.success.main}20 0%, ${theme.palette.success.main}10 100%)` }}>
                 <CardContent>
                   <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -283,7 +325,7 @@ const BankAccountsPage = () => {
               </Card>
             </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={2.4}>
               <Card sx={{ background: `linear-gradient(135deg, ${theme.palette.error.main}20 0%, ${theme.palette.error.main}10 100%)` }}>
                 <CardContent>
                   <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -293,7 +335,7 @@ const BankAccountsPage = () => {
                       </Typography>
                       <Typography variant="h5" fontWeight="bold">
                         {formatCurrency(
-                          payments.reduce((sum, payment) => sum + (payment.amount || 0), 0)
+                          payments.filter(p => !p.is4x1000Tax).reduce((sum, payment) => sum + (payment.amount || 0), 0)
                         )}
                       </Typography>
                     </Box>
@@ -305,7 +347,30 @@ const BankAccountsPage = () => {
               </Card>
             </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={2.4}>
+              <Card sx={{ background: `linear-gradient(135deg, ${theme.palette.warning.main}20 0%, ${theme.palette.warning.main}10 100%)` }}>
+                <CardContent>
+                  <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Box>
+                      <Typography variant="subtitle2" color="warning.main" gutterBottom>
+                        4x1000 Pagado
+                      </Typography>
+                      <Typography variant="h5" fontWeight="bold">
+                        {formatCurrency(calculate4x1000Totals().total)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {calculate4x1000Totals().count} impuestos
+                      </Typography>
+                    </Box>
+                    <Avatar sx={{ bgcolor: 'warning.main' }}>
+                      <ReceiptIcon />
+                    </Avatar>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={2.4}>
               <Card sx={{ background: `linear-gradient(135deg, ${theme.palette.primary.main}20 0%, ${theme.palette.primary.main}10 100%)` }}>
                 <CardContent>
                   <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -328,7 +393,7 @@ const BankAccountsPage = () => {
               </Card>
             </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid item xs={12} sm={6} md={2.4}>
               <Card sx={{ background: `linear-gradient(135deg, ${theme.palette.secondary.main}20 0%, ${theme.palette.secondary.main}10 100%)` }}>
                 <CardContent>
                   <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -409,7 +474,7 @@ const BankAccountsPage = () => {
                       <CardContent sx={{ pt: 0 }}>
                         {/* Balance Summary */}
                         <Grid container spacing={2} sx={{ mb: 2 }}>
-                          <Grid item xs={4}>
+                          <Grid item xs={3}>
                             <Box textAlign="center">
                               <Typography variant="h6" color="success.main" fontWeight="bold">
                                 {formatCurrency(balance.incomes)}
@@ -420,7 +485,7 @@ const BankAccountsPage = () => {
                             </Box>
                           </Grid>
                           
-                          <Grid item xs={4}>
+                          <Grid item xs={3}>
                             <Box textAlign="center">
                               <Typography variant="h6" color="error.main" fontWeight="bold">
                                 {formatCurrency(balance.payments)}
@@ -430,8 +495,19 @@ const BankAccountsPage = () => {
                               </Typography>
                             </Box>
                           </Grid>
+
+                          <Grid item xs={3}>
+                            <Box textAlign="center">
+                              <Typography variant="h6" color="warning.main" fontWeight="bold">
+                                {formatCurrency(balance.tax4x1000)}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                4x1000 ({balance.tax4x1000Count})
+                              </Typography>
+                            </Box>
+                          </Grid>
                           
-                          <Grid item xs={4}>
+                          <Grid item xs={3}>
                             <Box textAlign="center">
                               <Typography 
                                 variant="h6" 
@@ -468,6 +544,8 @@ const BankAccountsPage = () => {
                                     <ListItemIcon>
                                       {movement.type === 'income' ? (
                                         <TrendingUpIcon color="success" />
+                                      ) : movement.type === '4x1000' ? (
+                                        <ReceiptIcon color="warning" />
                                       ) : (
                                         <TrendingDownIcon color="error" />
                                       )}
@@ -477,6 +555,8 @@ const BankAccountsPage = () => {
                                         <Typography variant="body2">
                                           {movement.type === 'income' 
                                             ? `Ingreso: ${movement.client}` 
+                                            : movement.type === '4x1000'
+                                            ? `4x1000: Impuesto Gravamen`
                                             : `Pago: ${movement.concept}`
                                           }
                                         </Typography>
@@ -484,13 +564,22 @@ const BankAccountsPage = () => {
                                       secondary={
                                         <Typography variant="caption" color="text.secondary">
                                           {format(movement.date, 'dd/MMM/yyyy', { locale: es })}
+                                          {movement.type === '4x1000' && (
+                                            <Chip 
+                                              label="Automático" 
+                                              size="small" 
+                                              color="warning" 
+                                              variant="outlined" 
+                                              sx={{ ml: 1, height: 16, fontSize: '0.6rem' }} 
+                                            />
+                                          )}
                                         </Typography>
                                       }
                                     />
                                     <ListItemSecondaryAction>
                                       <Typography 
                                         variant="body2" 
-                                        color={movement.type === 'income' ? 'success.main' : 'error.main'}
+                                        color={movement.type === 'income' ? 'success.main' : movement.type === '4x1000' ? 'warning.main' : 'error.main'}
                                         fontWeight="medium"
                                       >
                                         {movement.type === 'income' ? '+' : '-'}{formatCurrency(movement.amount)}

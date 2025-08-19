@@ -91,7 +91,7 @@ import { PDFDocument } from 'pdf-lib';
 // Hook para cargar pagos desde Firebase
 import { usePayments } from '../hooks/useFirestore';
 // Firebase para manejo de archivos y Firestore
-import { doc, updateDoc, getDoc, deleteDoc, collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, deleteDoc, collection, query, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
 import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 // Componente temporal para agregar datos de prueba
@@ -112,6 +112,7 @@ const PaymentsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [receiptsFilter, setReceiptsFilter] = useState('all'); // Nuevo filtro para comprobantes
+  const [show4x1000, setShow4x1000] = useState(true); // Filtro para mostrar/ocultar 4x1000
   
   // Estados para el visor de comprobantes
   const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
@@ -271,6 +272,10 @@ const PaymentsPage = () => {
   const [companies, setCompanies] = useState([]);
   const [loadingCompanies, setLoadingCompanies] = useState(true);
   
+  // Estados para ingresos (necesarios para calcular balances)
+  const [incomes, setIncomes] = useState([]);
+  const [loadingIncomes, setLoadingIncomes] = useState(true);
+  
   const [editFormData, setEditFormData] = useState({
     concept: '',
     amount: '',
@@ -414,7 +419,13 @@ const PaymentsPage = () => {
                        (receiptsFilter === 'without' && !hasReceipts);
     }
     
-    return matchesSearch && matchesReceipts;
+    // Filtro para mostrar/ocultar registros del 4x1000
+    let matches4x1000Filter = true;
+    if (!show4x1000) {
+      matches4x1000Filter = !payment.is4x1000Tax; // Ocultar registros del 4x1000
+    }
+    
+    return matchesSearch && matchesReceipts && matches4x1000Filter;
   });
 
   // Calcular estadísticas de pagos
@@ -475,7 +486,6 @@ const PaymentsPage = () => {
           });
           setCompanies(companiesData);
           setLoadingCompanies(false);
-          console.log('✅ Companies loaded:', companiesData.length, companiesData);
         });
 
         return () => unsubscribe();
@@ -486,6 +496,41 @@ const PaymentsPage = () => {
     };
 
     loadCompanies();
+  }, [currentUser]);
+
+  // useEffect para cargar ingresos
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const loadIncomes = async () => {
+      try {
+        setLoadingIncomes(true);
+        const incomesQuery = query(
+          collection(db, 'income'),
+          orderBy('date', 'desc')
+        );
+        
+        const unsubscribe = onSnapshot(incomesQuery, (snapshot) => {
+          const incomesData = [];
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            incomesData.push({
+              id: doc.id,
+              ...data
+            });
+          });
+          setIncomes(incomesData);
+          setLoadingIncomes(false);
+        });
+
+        return () => unsubscribe();
+      } catch (error) {
+        console.error('Error cargando ingresos:', error);
+        setLoadingIncomes(false);
+      }
+    };
+
+    loadIncomes();
   }, [currentUser]);
 
   const paginatedPayments = filteredPayments.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
@@ -919,10 +964,8 @@ const PaymentsPage = () => {
 
   // Función para obtener cuentas bancarias de todas las empresas
   const getBankAccounts = () => {
-    console.log('🏦 getBankAccounts - Companies:', companies);
     const accounts = [];
     companies.forEach(company => {
-      console.log('🏢 Company:', company.name, 'Bank Account:', company.bankAccount, 'Bank Name:', company.bankName);
       // La estructura de datos usa bankAccount y bankName (singular), no bankAccounts (array)
       if (company.bankAccount && company.bankName) {
         accounts.push({
@@ -932,7 +975,6 @@ const PaymentsPage = () => {
         });
       }
     });
-    console.log('💳 Total accounts found:', accounts);
     return accounts;
   };
 
@@ -946,6 +988,76 @@ const PaymentsPage = () => {
       sourceAccount: selectedAccount,
       sourceBank: accountInfo ? accountInfo.bank : ''
     }));
+  };
+
+  // Función para calcular balance de una cuenta específica
+  const calculateAccountBalance = (accountNumber) => {
+    // Ingresos para esta cuenta
+    const accountIncomes = incomes.filter(income => income.account === accountNumber);
+    const totalIncomes = accountIncomes.reduce((sum, income) => sum + (income.amount || 0), 0);
+
+    // Pagos desde esta cuenta (usando todos los pagos cargados)
+    const accountPayments = payments.filter(payment => payment.sourceAccount === accountNumber);
+    const totalPayments = accountPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+
+    return {
+      incomes: totalIncomes,
+      payments: totalPayments,
+      balance: totalIncomes - totalPayments,
+      incomesCount: accountIncomes.length,
+      paymentsCount: accountPayments.length
+    };
+  };
+
+  // Función para formatear moneda
+  const formatCurrencyBalance = (amount) => {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0
+    }).format(amount || 0);
+  };
+
+  // Función para calcular y crear registro del 4x1000
+  const create4x1000Record = async (paymentAmount, sourceAccount, sourceBank, companyName, paymentDate) => {
+    // Calcular 4x1000: 4 pesos por cada 1000 pesos transferidos
+    const tax4x1000 = Math.round((paymentAmount * 4) / 1000);
+    
+    // Solo crear si el impuesto es mayor a 0
+    if (tax4x1000 <= 0) return null;
+
+    try {
+      // Crear registro del 4x1000 como un pago adicional
+      const tax4x1000Data = {
+        concept: '4x1000 - Impuesto Gravamen Movimientos Financieros',
+        amount: tax4x1000,
+        originalAmount: tax4x1000,
+        method: 'Transferencia',
+        notes: `Impuesto 4x1000 generado automáticamente (${formatCurrencyBalance(paymentAmount)} x 0.004)`,
+        reference: `4x1000-${Date.now()}`,
+        companyName: companyName,
+        sourceAccount: sourceAccount,
+        sourceBank: sourceBank,
+        date: paymentDate,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        interests: 0,
+        interesesDerechosExplotacion: 0,
+        interesesGastosAdministracion: 0,
+        is4x1000Tax: true, // Flag para identificar registros de 4x1000
+        relatedToPayment: true, // Flag para indicar que es un impuesto relacionado
+        tags: ['impuesto', '4x1000', 'automatico']
+      };
+
+      // Agregar a la colección de pagos
+      await addDoc(collection(db, 'payments'), tax4x1000Data);
+      
+      console.log('✅ Registro 4x1000 creado:', formatCurrencyBalance(tax4x1000));
+      return tax4x1000;
+    } catch (error) {
+      console.error('❌ Error creando registro 4x1000:', error);
+      return null;
+    }
   };
 
   // Función para cerrar el modal de edición
@@ -1081,6 +1193,33 @@ const PaymentsPage = () => {
       // Actualizar documento en Firestore
       setUploadProgress(90);
       await updateDoc(paymentRef, updateData);
+      
+      // =====================================================
+      // GENERAR 4x1000 AUTOMÁTICAMENTE (SI APLICA)
+      // =====================================================
+      // Solo generar 4x1000 si:
+      // 1. Es transferencia bancaria
+      // 2. Tiene cuenta de origen definida
+      // 3. El monto es mayor a 0
+      if (updateData.method === 'Transferencia' && 
+          updateData.sourceAccount && 
+          updateData.amount > 0) {
+        
+        console.log('💰 Generando 4x1000 para transferencia de:', formatCurrencyBalance(updateData.amount));
+        
+        const tax4x1000Amount = await create4x1000Record(
+          updateData.amount,
+          updateData.sourceAccount,
+          updateData.sourceBank,
+          updateData.companyName,
+          updateData.date
+        );
+
+        if (tax4x1000Amount) {
+          console.log('ℹ️ 4x1000 generado automáticamente:', formatCurrencyBalance(tax4x1000Amount));
+        }
+      }
+      
       setUploadProgress(100);
 
       console.log('✅ Pago actualizado exitosamente con comprobantes');
@@ -2737,18 +2876,40 @@ const PaymentsPage = () => {
                     <MenuItem value="">
                       <em>Seleccionar cuenta bancaria</em>
                     </MenuItem>
-                    {getBankAccounts().map((account, index) => (
-                      <MenuItem key={index} value={account.account}>
-                        <Stack direction="column" alignItems="flex-start">
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            {account.account}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {account.bank} - {account.companyName}
-                          </Typography>
-                        </Stack>
-                      </MenuItem>
-                    ))}
+                    {getBankAccounts().map((account, index) => {
+                      const balance = calculateAccountBalance(account.account);
+                      const balanceColor = balance.balance >= 0 ? 'success.main' : 'error.main';
+                      
+                      return (
+                        <MenuItem key={index} value={account.account}>
+                          <Stack direction="row" alignItems="center" justifyContent="space-between" width="100%">
+                            <Stack direction="column" alignItems="flex-start" flex={1}>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                {account.account}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {account.bank} - {account.companyName}
+                              </Typography>
+                            </Stack>
+                            <Stack direction="column" alignItems="flex-end">
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  fontWeight: 600,
+                                  color: balanceColor,
+                                  fontSize: '0.875rem'
+                                }}
+                              >
+                                {formatCurrencyBalance(balance.balance)}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                Balance
+                              </Typography>
+                            </Stack>
+                          </Stack>
+                        </MenuItem>
+                      );
+                    })}
                   </Select>
                   <FormHelperText>Selecciona de qué cuenta salió el dinero</FormHelperText>
                 </FormControl>

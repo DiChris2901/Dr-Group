@@ -278,6 +278,57 @@ const NewPaymentPage = () => {
     }
   };
 
+  // Función para formatear moneda
+  const formatCurrencyBalance = (amount) => {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0
+    }).format(amount || 0);
+  };
+
+  // Función para calcular y crear registro del 4x1000
+  const create4x1000Record = async (paymentAmount, sourceAccount, sourceBank, companyName, paymentDate) => {
+    // Calcular 4x1000: 4 pesos por cada 1000 pesos transferidos
+    const tax4x1000 = Math.round((paymentAmount * 4) / 1000);
+    
+    // Solo crear si el impuesto es mayor a 0
+    if (tax4x1000 <= 0) return null;
+
+    try {
+      // Crear registro del 4x1000 como un pago adicional
+      const tax4x1000Data = {
+        concept: '4x1000 - Impuesto Gravamen Movimientos Financieros',
+        amount: tax4x1000,
+        originalAmount: tax4x1000,
+        method: 'Transferencia',
+        notes: `Impuesto 4x1000 generado automáticamente (${formatCurrencyBalance(paymentAmount)} x 0.004)`,
+        reference: `4x1000-${Date.now()}`,
+        companyName: companyName,
+        sourceAccount: sourceAccount,
+        sourceBank: sourceBank,
+        date: paymentDate,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+        interests: 0,
+        interesesDerechosExplotacion: 0,
+        interesesGastosAdministracion: 0,
+        is4x1000Tax: true, // Flag para identificar registros de 4x1000
+        relatedToPayment: true, // Flag para indicar que es un impuesto relacionado
+        tags: ['impuesto', '4x1000', 'automatico']
+      };
+
+      // Agregar a la colección de pagos
+      const taxRef = await addDoc(collection(db, 'payments'), tax4x1000Data);
+      
+      console.log('✅ Registro 4x1000 creado:', formatCurrencyBalance(tax4x1000));
+      return { amount: tax4x1000, id: taxRef.id };
+    } catch (error) {
+      console.error('❌ Error creando registro 4x1000:', error);
+      return null;
+    }
+  };
+
   // Verificar si los intereses requeridos están completos
   const areInterestsComplete = () => {
     // Si no se requieren intereses, siempre está completo
@@ -503,6 +554,32 @@ const NewPaymentPage = () => {
       console.log('💾 Guardando pago en Firebase:', paymentData);
       const paymentRef = await addDoc(collection(db, 'payments'), paymentData);
       console.log('✅ Pago guardado con ID:', paymentRef.id);
+      
+      // =====================================================
+      // GENERAR 4x1000 AUTOMÁTICAMENTE (SI APLICA)
+      // =====================================================
+      // Solo generar 4x1000 si:
+      // 1. Es transferencia bancaria
+      // 2. Tiene cuenta de origen definida
+      // 3. El monto es mayor a 0
+      if (paymentData.method === 'Transferencia' && 
+          paymentData.sourceAccount && 
+          paymentData.amount > 0) {
+        
+        console.log('💰 Generando 4x1000 para transferencia de:', formatCurrencyBalance(paymentData.amount));
+        
+        const tax4x1000Result = await create4x1000Record(
+          paymentData.amount,
+          paymentData.sourceAccount,
+          paymentData.sourceBank,
+          paymentData.companyName,
+          paymentData.date
+        );
+
+        if (tax4x1000Result) {
+          console.log('ℹ️ 4x1000 generado automáticamente:', formatCurrencyBalance(tax4x1000Result.amount));
+        }
+      }
       
       // Actualizar el compromiso como pagado
       console.log('🔄 Actualizando compromiso como pagado...');
