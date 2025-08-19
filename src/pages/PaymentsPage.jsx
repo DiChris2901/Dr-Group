@@ -1325,10 +1325,11 @@ const PaymentsPage = () => {
                       variant="subtitle2"
                       sx={{
                         fontWeight: 600,
-                        fontSize: '0.7rem',
-                        letterSpacing: '0.03em',
+                        fontSize: '0.75rem',
+                        letterSpacing: '0.05em',
                         textTransform: 'uppercase',
-                        color: 'text.primary'
+                        color: 'text.primary',
+                        lineHeight: 1.2
                       }}
                     >
                       {column}
@@ -1360,11 +1361,15 @@ const PaymentsPage = () => {
                         color={getStatusColor(payment.status)}
                         size="small"
                         sx={{
-                          height: 24,
-                          fontSize: '0.7rem',
+                          height: 28,
+                          fontSize: '0.75rem',
                           fontWeight: 600,
                           borderRadius: 0.5,
-                          '& .MuiChip-icon': { fontSize: 14 }
+                          '& .MuiChip-icon': { fontSize: 14 },
+                          '& .MuiChip-label': { 
+                            px: 1,
+                            lineHeight: 1.2
+                          }
                         }}
                       />
                     </Box>
@@ -1377,7 +1382,8 @@ const PaymentsPage = () => {
                           fontWeight: 500,
                           mb: 0.5,
                           color: 'text.primary',
-                          fontSize: '0.9rem'
+                          fontSize: '0.875rem',
+                          lineHeight: 1.3
                         }}
                       >
                         {payment.concept || 'Sin concepto'}
@@ -1389,7 +1395,8 @@ const PaymentsPage = () => {
                             display: 'block',
                             color: 'text.secondary',
                             fontSize: '0.75rem',
-                            fontFamily: 'monospace'
+                            lineHeight: 1.2,
+                            fontWeight: 400
                           }}
                         >
                           Ref: {payment.reference}
@@ -1420,7 +1427,9 @@ const PaymentsPage = () => {
                         variant="body2"
                         sx={{ 
                           fontWeight: 500,
-                          color: 'text.primary'
+                          color: 'text.primary',
+                          fontSize: '0.875rem',
+                          lineHeight: 1.3
                         }}
                       >
                         {payment.companyName || 'Sin empresa'}
@@ -1433,7 +1442,8 @@ const PaymentsPage = () => {
                         fontWeight: 600, 
                         color: 'success.main',
                         fontFamily: 'monospace',
-                        fontSize: '0.9rem'
+                        fontSize: '0.875rem',
+                        lineHeight: 1.3
                       }}>
                         ${payment.amount?.toLocaleString('es-MX')}
                       </Typography>
@@ -1446,29 +1456,39 @@ const PaymentsPage = () => {
                         size="small" 
                         variant="outlined" 
                         sx={{ 
-                          height: 20,
-                          fontSize: '0.68rem',
+                          height: 24,
+                          fontSize: '0.75rem',
                           fontWeight: 500,
                           borderRadius: 0.5,
                           borderColor: alpha(theme.palette.divider, 0.3),
-                          '& .MuiChip-label': { px: 0.5 }
+                          '& .MuiChip-label': { 
+                            px: 1,
+                            lineHeight: 1.2
+                          }
                         }} 
                       />
                     </Box>
 
                     {/* Fecha */}
                     <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="body2" sx={{
+                        color: 'text.secondary',
+                        fontSize: '0.875rem',
+                        fontWeight: 400,
+                        lineHeight: 1.3
+                      }}>
                         {payment.date ? new Date(payment.date.seconds * 1000).toLocaleDateString('es-MX') : '-'}
                       </Typography>
                     </Box>
 
                     {/* Referencia */}
                     <Box sx={{ textAlign: 'center' }}>
-                      <Typography variant="caption" sx={{ 
+                      <Typography variant="body2" sx={{ 
                         fontFamily: 'monospace', 
                         color: 'text.secondary',
-                        fontSize: '0.7rem'
+                        fontSize: '0.75rem',
+                        fontWeight: 400,
+                        lineHeight: 1.3
                       }}>
                         {payment.reference || '-'}
                       </Typography>
@@ -1533,7 +1553,7 @@ const PaymentsPage = () => {
           </motion.div>
                 
           {/* PAGINACIÓN SEPARADA ESTILO COMMITMENTS */}
-          {Math.ceil(filteredPayments.length / rowsPerPage) > 1 && (
+          {filteredPayments.length > 0 && (
             <Box sx={{ 
               display: 'flex', 
               flexDirection: { xs: 'column', sm: 'row' },
@@ -1583,7 +1603,7 @@ const PaymentsPage = () => {
                   )}
                 </Box>
 
-                {/* Salto directo a página */}
+                {/* Salto directo a página - Solo si hay más de 1 página */}
                 {Math.ceil(filteredPayments.length / rowsPerPage) > 1 && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Typography variant="caption" sx={{ 
@@ -1684,7 +1704,7 @@ const PaymentsPage = () => {
                   </IconButton>
 
                   <Pagination
-                    count={Math.ceil(filteredPayments.length / rowsPerPage)}
+                    count={Math.max(1, Math.ceil(filteredPayments.length / rowsPerPage))}
                     page={page + 1}
                     onChange={(event, newPage) => handlePageChange(newPage)}
                     color="primary"
@@ -1804,69 +1824,61 @@ const PaymentsPage = () => {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: 4,
-            background: theme.palette.background.default,
-            minHeight: '80vh',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.12)'
+            borderRadius: 2,
+            background: theme.palette.background.paper,
+            minHeight: '70vh',
+            boxShadow: theme.shadows[8]
           }
         }}
       >
         <DialogTitle sx={{ 
-          fontWeight: 700, 
-          color: 'white',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          borderBottom: 'none',
+          fontWeight: 600, 
+          color: theme.palette.text.primary,
+          background: theme.palette.mode === 'dark' 
+            ? theme.palette.background.default 
+            : theme.palette.grey[50],
+          borderBottom: `1px solid ${theme.palette.divider}`,
           display: 'flex',
           alignItems: 'center',
           gap: 2,
-          py: 3
+          py: 2
         }}>
           <Avatar sx={{ 
-            bgcolor: 'rgba(255,255,255,0.2)', 
-            border: '2px solid rgba(255,255,255,0.3)' 
+            bgcolor: theme.palette.primary.main,
+            width: 32,
+            height: 32
           }}>
-            <EditIcon />
+            <EditIcon fontSize="small" />
           </Avatar>
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, color: 'white' }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
               Editar Pago
             </Typography>
-            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)' }}>
+            <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
               {editingPayment?.companyName}
             </Typography>
           </Box>
         </DialogTitle>
-        <DialogContent sx={{ pt: 3, pb: 0, background: theme.palette.background.default }}>
-          <Grid container spacing={4}>
+        <DialogContent sx={{ pt: 4, pb: 0, background: theme.palette.background.paper }}>
+          <Grid container spacing={3}>
             {/* Columna Izquierda - Información del Pago */}
             <Grid item xs={12} md={6}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 2, 
-                mb: 3,
-                p: 2,
-                background: alpha(theme.palette.primary.main, 0.08),
-                borderRadius: 2,
-                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
+              <Typography variant="h6" sx={{ 
+                fontWeight: 600, 
+                color: theme.palette.text.primary,
+                mb: 2.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
               }}>
-                <Avatar sx={{ 
-                  bgcolor: 'primary.main',
-                  width: 40,
-                  height: 40
-                }}>
-                  📊
-                </Avatar>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                  Datos del Pago
-                </Typography>
-              </Box>
+                📊 Datos del Pago
+              </Typography>
               
-              <Stack spacing={3}>
+              <Stack spacing={2.5}>
                 {/* Empresa/Cliente (a quién le corresponde el pago) */}
                 <TextField
                   name="companyName"
-                  label="🏢 Empresa / Cliente"
+                  label="Empresa / Cliente"
                   fullWidth
                   required
                   value={editFormData.companyName}
@@ -1875,20 +1887,8 @@ const PaymentsPage = () => {
                   helperText="Empresa a la que le corresponde este pago"
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 3,
-                      backgroundColor: alpha(theme.palette.background.paper, 0.8),
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        backgroundColor: alpha(theme.palette.background.paper, 1),
-                        boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.1)}`
-                      },
-                      '&.Mui-focused': {
-                        backgroundColor: alpha(theme.palette.background.paper, 1),
-                        boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.25)}`
-                      }
-                    },
-                    '& .MuiInputLabel-root': {
-                      fontWeight: 600
+                      borderRadius: 1,
+                      backgroundColor: theme.palette.background.paper
                     }
                   }}
                 />
@@ -1896,19 +1896,16 @@ const PaymentsPage = () => {
                 {/* Proveedor/Beneficiario (desde el compromiso - solo lectura) */}
                 <TextField
                   name="provider"
-                  label="👤 Proveedor / Beneficiario"
+                  label="Proveedor / Beneficiario"
                   fullWidth
                   value={editFormData.provider}
                   variant="outlined"
                   disabled
-                  helperText="🔒 Tomado del compromiso original (no editable)"
+                  helperText="Tomado del compromiso original (no editable)"
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 3,
-                      backgroundColor: alpha(theme.palette.action.disabled, 0.06)
-                    },
-                    '& .MuiInputLabel-root': {
-                      fontWeight: 600
+                      borderRadius: 1,
+                      backgroundColor: theme.palette.action.hover
                     }
                   }}
                 />
@@ -1916,7 +1913,7 @@ const PaymentsPage = () => {
                 {/* Concepto */}
                 <TextField
                   name="concept"
-                  label="📝 Concepto del Pago"
+                  label="Concepto del Pago"
                   fullWidth
                   required
                   value={editFormData.concept}
@@ -1925,20 +1922,8 @@ const PaymentsPage = () => {
                   helperText="Describe el motivo del pago"
                   sx={{
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 3,
-                      backgroundColor: alpha(theme.palette.background.paper, 0.8),
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        backgroundColor: alpha(theme.palette.background.paper, 1),
-                        boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.1)}`
-                      },
-                      '&.Mui-focused': {
-                        backgroundColor: alpha(theme.palette.background.paper, 1),
-                        boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.25)}`
-                      }
-                    },
-                    '& .MuiInputLabel-root': {
-                      fontWeight: 600
+                      borderRadius: 1,
+                      backgroundColor: theme.palette.background.paper
                     }
                   }}
                 />
@@ -1949,7 +1934,7 @@ const PaymentsPage = () => {
                   <>
                     <TextField
                       name="originalAmount"
-                      label="💵 Monto Original"
+                      label="Monto Original"
                       type="text"
                       required
                       fullWidth
@@ -1958,7 +1943,12 @@ const PaymentsPage = () => {
                       variant="outlined"
                       InputProps={{
                         startAdornment: (
-                          <Typography sx={{ mr: 1, color: 'primary.main', fontWeight: 700, fontSize: '1.1rem' }}>
+                          <Typography sx={{ 
+                            mr: 1, 
+                            color: theme.palette.text.secondary, 
+                            fontWeight: 600,
+                            fontSize: '1rem'
+                          }}>
                             $
                           </Typography>
                         )
@@ -1966,17 +1956,8 @@ const PaymentsPage = () => {
                       helperText="Monto base del compromiso"
                       sx={{
                         '& .MuiOutlinedInput-root': {
-                          borderRadius: 3,
-                          backgroundColor: alpha(theme.palette.success.main, 0.05),
-                          border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-                          transition: 'all 0.3s ease',
-                          '&:hover': {
-                            backgroundColor: alpha(theme.palette.success.main, 0.08),
-                            borderColor: alpha(theme.palette.success.main, 0.3)
-                          }
-                        },
-                        '& .MuiInputLabel-root': {
-                          fontWeight: 600
+                          borderRadius: 1,
+                          backgroundColor: theme.palette.background.paper
                         }
                       }}
                     />
@@ -1984,7 +1965,7 @@ const PaymentsPage = () => {
                     <Stack direction="row" spacing={2}>
                       <TextField
                         name="interesesDerechosExplotacion"
-                        label="⚖️ Derechos de Explotación"
+                        label="Derechos de Explotación"
                         type="text"
                         fullWidth
                         value={editFormData.interesesDerechosExplotacion}
@@ -1992,7 +1973,12 @@ const PaymentsPage = () => {
                         variant="outlined"
                         InputProps={{
                           startAdornment: (
-                            <Typography sx={{ mr: 1, color: 'warning.main', fontWeight: 700, fontSize: '1.1rem' }}>
+                            <Typography sx={{ 
+                              mr: 1, 
+                              color: theme.palette.text.secondary, 
+                              fontWeight: 600,
+                              fontSize: '1rem'
+                            }}>
                               $
                             </Typography>
                           )
@@ -2000,20 +1986,15 @@ const PaymentsPage = () => {
                         helperText="Intereses por derechos"
                         sx={{
                           '& .MuiOutlinedInput-root': {
-                            borderRadius: 3,
-                            backgroundColor: alpha(theme.palette.warning.main, 0.05),
-                            border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
-                            transition: 'all 0.3s ease'
-                          },
-                          '& .MuiInputLabel-root': {
-                            fontWeight: 600
+                            borderRadius: 1,
+                            backgroundColor: theme.palette.background.paper
                           }
                         }}
                       />
 
                       <TextField
                         name="interesesGastosAdministracion"
-                        label="📊 Gastos de Administración"
+                        label="Gastos de Administración"
                         type="text"
                         fullWidth
                         value={editFormData.interesesGastosAdministracion}
@@ -2021,7 +2002,12 @@ const PaymentsPage = () => {
                         variant="outlined"
                         InputProps={{
                           startAdornment: (
-                            <Typography sx={{ mr: 1, color: 'warning.main', fontWeight: 700, fontSize: '1.1rem' }}>
+                            <Typography sx={{ 
+                              mr: 1, 
+                              color: theme.palette.text.secondary, 
+                              fontWeight: 600,
+                              fontSize: '1rem'
+                            }}>
                               $
                             </Typography>
                           )
@@ -2029,13 +2015,8 @@ const PaymentsPage = () => {
                         helperText="Gastos administrativos"
                         sx={{
                           '& .MuiOutlinedInput-root': {
-                            borderRadius: 3,
-                            backgroundColor: alpha(theme.palette.warning.main, 0.05),
-                            border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
-                            transition: 'all 0.3s ease'
-                          },
-                          '& .MuiInputLabel-root': {
-                            fontWeight: 600
+                            borderRadius: 1,
+                            backgroundColor: theme.palette.background.paper
                           }
                         }}
                       />
@@ -2043,16 +2024,30 @@ const PaymentsPage = () => {
 
                     <TextField
                       name="amount"
-                      label="💎 Monto Total Pagado"
+                      label="Monto Total Pagado"
                       type="text"
                       required
                       fullWidth
                       value={editFormData.amount}
                       onChange={handleFormChange}
                       variant="outlined"
+                      InputLabelProps={{
+                        sx: {
+                          backgroundColor: theme.palette.background.paper,
+                          px: 0.5,
+                          '&.Mui-focused': {
+                            backgroundColor: theme.palette.background.paper
+                          }
+                        }
+                      }}
                       InputProps={{
                         startAdornment: (
-                          <Typography sx={{ mr: 1, color: 'success.main', fontWeight: 800, fontSize: '1.2rem' }}>
+                          <Typography sx={{ 
+                            mr: 1, 
+                            color: theme.palette.text.secondary, 
+                            fontWeight: 600,
+                            fontSize: '1rem'
+                          }}>
                             $
                           </Typography>
                         )
@@ -2060,17 +2055,9 @@ const PaymentsPage = () => {
                       helperText="Monto final que se pagó efectivamente"
                       sx={{
                         '& .MuiOutlinedInput-root': {
-                          borderRadius: 3,
-                          backgroundColor: alpha(theme.palette.success.main, 0.08),
-                          border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
-                          transition: 'all 0.3s ease',
-                          '&:hover': {
-                            backgroundColor: alpha(theme.palette.success.main, 0.12),
-                            borderColor: theme.palette.success.main
-                          }
-                        },
-                        '& .MuiInputLabel-root': {
-                          fontWeight: 700
+                          borderRadius: 1,
+                          backgroundColor: theme.palette.background.paper,
+                          border: `1px solid ${theme.palette.primary.main}`
                         }
                       }}
                     />
@@ -2080,7 +2067,7 @@ const PaymentsPage = () => {
                   <Stack direction="row" spacing={2}>
                     <TextField
                       name="originalAmount"
-                      label="💵 Monto Original"
+                      label="Monto Original"
                       type="text"
                       required
                       fullWidth
@@ -2089,7 +2076,7 @@ const PaymentsPage = () => {
                       variant="outlined"
                       InputProps={{
                         startAdornment: (
-                          <Typography sx={{ mr: 1, color: 'primary.main', fontWeight: 700, fontSize: '1.1rem' }}>
+                          <Typography sx={{ mr: 1, color: theme.palette.text.secondary, fontWeight: 600 }}>
                             $
                           </Typography>
                         )
@@ -2097,19 +2084,15 @@ const PaymentsPage = () => {
                       helperText="Monto base del compromiso"
                       sx={{
                         '& .MuiOutlinedInput-root': {
-                          borderRadius: 3,
-                          backgroundColor: alpha(theme.palette.primary.main, 0.05),
-                          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
-                        },
-                        '& .MuiInputLabel-root': {
-                          fontWeight: 600
+                          borderRadius: 1,
+                          backgroundColor: theme.palette.background.paper
                         }
                       }}
                     />
 
                     <TextField
                       name="interests"
-                      label="💸 Intereses"
+                      label="Intereses"
                       type="text"
                       fullWidth
                       value={editFormData.interests}
@@ -2139,6 +2122,15 @@ const PaymentsPage = () => {
                       value={editFormData.amount}
                       onChange={handleFormChange}
                       variant="outlined"
+                      InputLabelProps={{
+                        sx: {
+                          backgroundColor: theme.palette.background.paper,
+                          px: 0.5,
+                          '&.Mui-focused': {
+                            backgroundColor: theme.palette.background.paper
+                          }
+                        }
+                      }}
                       InputProps={{
                         startAdornment: (
                           <Typography sx={{ mr: 1, color: 'success.main', fontWeight: 600 }}>
@@ -2250,63 +2242,35 @@ const PaymentsPage = () => {
 
             {/* Columna Derecha - Comprobantes */}
             <Grid item xs={12} md={6}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 2, 
-                mb: 3,
-                p: 2,
-                background: alpha(theme.palette.info.main, 0.08),
-                borderRadius: 2,
-                border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+              <Typography variant="h6" sx={{ 
+                fontWeight: 600, 
+                color: theme.palette.text.primary,
+                mb: 2.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
               }}>
-                <Avatar sx={{ 
-                  bgcolor: 'info.main',
-                  width: 40,
-                  height: 40
-                }}>
-                  📎
-                </Avatar>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: 'info.main' }}>
-                  Comprobantes de Pago
-                </Typography>
-              </Box>
+                📎 Comprobantes de Pago
+              </Typography>
 
               {/* Área de carga de comprobantes */}
               <Paper
                 elevation={0}
                 sx={{
-                  border: `2px dashed ${dragActive ? theme.palette.info.main : alpha(theme.palette.info.main, 0.4)}`,
-                  borderRadius: 4,
+                  border: `2px dashed ${theme.palette.divider}`,
+                  borderRadius: 2,
                   p: 4,
                   textAlign: 'center',
-                  background: dragActive ? 
-                    alpha(theme.palette.info.main, 0.1) : 
-                    alpha(theme.palette.info.main, 0.03),
+                  background: theme.palette.background.paper,
                   cursor: 'pointer',
-                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                  transition: 'all 0.2s ease',
                   minHeight: 300,
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'center',
-                  position: 'relative',
-                  overflow: 'hidden',
                   '&:hover': {
-                    borderColor: theme.palette.info.main,
-                    background: alpha(theme.palette.info.main, 0.06),
-                    transform: 'translateY(-4px)',
-                    boxShadow: `0 12px 40px ${alpha(theme.palette.info.main, 0.2)}`
-                  },
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: `linear-gradient(45deg, transparent, ${alpha(theme.palette.info.main, 0.05)}, transparent)`,
-                    opacity: dragActive ? 1 : 0,
-                    transition: 'opacity 0.3s ease'
+                    borderColor: theme.palette.primary.main,
+                    backgroundColor: alpha(theme.palette.primary.main, 0.02)
                   }
                 }}
                 onClick={() => document.getElementById('receipt-upload-edit').click()}
@@ -2315,48 +2279,27 @@ const PaymentsPage = () => {
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
               >
-                <Box sx={{ position: 'relative', zIndex: 1 }}>
-                  <motion.div
-                    animate={{ 
-                      rotate: dragActive ? [0, 8, -8, 0] : [0, 3, -3, 0],
-                      scale: dragActive ? [1, 1.15, 1] : [1, 1.05, 1]
-                    }}
-                    transition={{ 
-                      duration: dragActive ? 0.8 : 2.5,
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    }}
-                  >
-                    <UploadIcon sx={{ 
-                      fontSize: 72, 
-                      color: dragActive ? 'info.main' : alpha(theme.palette.info.main, 0.7),
-                      mb: 2,
-                      filter: dragActive ? 'drop-shadow(0 0 12px rgba(33, 150, 243, 0.4))' : 'none'
-                    }} />
-                  </motion.div>
-                  
-                  <Typography variant="h5" sx={{ 
-                    fontWeight: 700, 
-                    color: dragActive ? 'info.main' : 'text.primary',
-                    mb: 1,
-                    letterSpacing: -0.5
-                  }}>
-                    {dragActive ? '¡Suelta los archivos aquí!' : 'Subir Comprobantes'}
-                  </Typography>
-                  
-                  <Typography variant="body1" color="text.secondary" sx={{ mb: 2, fontWeight: 500 }}>
-                    Arrastra archivos aquí o haz clic para seleccionar
-                  </Typography>
-                  
-                  <Typography variant="caption" sx={{ 
-                    display: 'block',
-                    color: 'text.secondary',
-                    fontSize: '0.8rem',
-                    fontWeight: 600
-                  }}>
-                    📄 PDF, JPG, PNG • Máximo 10MB por archivo
-                  </Typography>
-                </Box>
+                <UploadIcon sx={{ 
+                  fontSize: 48, 
+                  color: theme.palette.text.secondary,
+                  mb: 2
+                }} />
+                
+                <Typography variant="h6" sx={{ 
+                  fontWeight: 600, 
+                  color: theme.palette.text.primary,
+                  mb: 1
+                }}>
+                  {dragActive ? 'Suelta los archivos aquí' : 'Subir Comprobantes'}
+                </Typography>
+                
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                  Arrastra archivos aquí o haz clic para seleccionar
+                </Typography>
+                
+                <Typography variant="caption" color="text.secondary">
+                  PDF, JPG, PNG • Máximo 10MB por archivo
+                </Typography>
                 
                 <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main', mb: 1 }}>
                   {dragActive ? 'Suelta los archivos aquí' : 'Subir Comprobantes'}
@@ -2478,13 +2421,6 @@ const PaymentsPage = () => {
                           {attachment.slice(-20)}
                         </Typography>
                       </Box>
-                      <IconButton
-                        size="small"
-                        onClick={() => window.open(attachment, '_blank')}
-                        sx={{ color: 'primary.main' }}
-                      >
-                        <ReceiptIcon fontSize="small" />
-                      </IconButton>
                     </Paper>
                   ))}
                 </Box>
@@ -2508,10 +2444,10 @@ const PaymentsPage = () => {
         )}
 
         <DialogActions sx={{ 
-          p: 4, 
+          p: 3, 
           pt: 2, 
           gap: 2,
-          background: alpha(theme.palette.background.paper, 0.8),
+          background: theme.palette.background.paper,
           borderTop: `1px solid ${theme.palette.divider}`
         }}>
           <Button
@@ -2519,19 +2455,9 @@ const PaymentsPage = () => {
             variant="outlined"
             startIcon={<CancelIcon />}
             sx={{ 
-              borderRadius: 3,
-              px: 4,
-              py: 1.5,
-              fontWeight: 600,
-              borderColor: alpha(theme.palette.error.main, 0.5),
-              color: 'error.main',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                borderColor: 'error.main',
-                backgroundColor: alpha(theme.palette.error.main, 0.08),
-                transform: 'translateY(-1px)',
-                boxShadow: `0 4px 12px ${alpha(theme.palette.error.main, 0.25)}`
-              }
+              borderRadius: 1,
+              px: 3,
+              fontWeight: 600
             }}
           >
             Cancelar
@@ -2542,23 +2468,9 @@ const PaymentsPage = () => {
             startIcon={uploadingFile ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
             disabled={!editFormData.concept || !editFormData.amount || !editFormData.method || !editFormData.companyName || uploadingFile}
             sx={{ 
-              borderRadius: 3,
-              px: 4,
-              py: 1.5,
-              fontWeight: 700,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
-                transform: 'translateY(-2px)',
-                boxShadow: '0 8px 25px rgba(102, 126, 234, 0.5)'
-              },
-              '&:disabled': {
-                background: alpha(theme.palette.action.disabled, 0.12),
-                transform: 'none',
-                boxShadow: 'none'
-              }
+              borderRadius: 1,
+              px: 3,
+              fontWeight: 600
             }}
           >
             {uploadingFile ? 
