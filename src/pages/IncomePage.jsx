@@ -23,8 +23,6 @@ import {
   Avatar,
   Divider,
   InputAdornment,
-  Checkbox,
-  FormControlLabel,
   Tooltip,
   List,
   ListItem,
@@ -100,7 +98,6 @@ const IncomePage = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [distributionDialogOpen, setDistributionDialogOpen] = useState(false);
   const [selectedIncome, setSelectedIncome] = useState(null);
   const [incomeToDelete, setIncomeToDelete] = useState(null);
   
@@ -110,7 +107,6 @@ const IncomePage = () => {
   // Estados para distribución por empresas
   const [companies, setCompanies] = useState([]);
   const [personalAccounts, setPersonalAccounts] = useState([]);
-  const [distributions, setDistributions] = useState([]);
   
   // Estados del formulario
   const [formData, setFormData] = useState({
@@ -120,8 +116,7 @@ const IncomePage = () => {
     date: new Date().toISOString().split('T')[0],
     paymentMethod: 'transferencia',
     account: '',
-    bank: '',
-    isClientPaidInFull: false
+    bank: ''
   });
   
   const [saving, setSaving] = useState(false);
@@ -320,28 +315,6 @@ const IncomePage = () => {
     }));
   };
 
-  // Manejar checkbox "al día"
-  const handlePaidInFullChange = (checked) => {
-    setFormData(prev => ({
-      ...prev,
-      isClientPaidInFull: checked
-    }));
-
-    // Si se marca como "al día" y no es una edición, abrir modal de distribución
-    if (checked && !selectedIncome) {
-      // Validar campos requeridos antes de abrir distribución
-      if (!formData.client.trim() || !formData.amount || !formData.date) {
-        showError('Por favor completa Cliente, Monto y Fecha antes de marcar como "al día"');
-        setFormData(prev => ({
-          ...prev,
-          isClientPaidInFull: false
-        }));
-        return;
-      }
-      handleOpenDistributionDialog();
-    }
-  };
-
   // ====================================
   // 📎 FUNCIONES PARA MANEJO DE ARCHIVOS
   // ====================================
@@ -501,8 +474,7 @@ const IncomePage = () => {
       date: new Date().toISOString().split('T')[0],
       paymentMethod: 'transferencia',
       account: '',
-      bank: '',
-      isClientPaidInFull: false
+      bank: ''
     });
     setDialogOpen(true);
   };
@@ -517,8 +489,7 @@ const IncomePage = () => {
       date: income.date ? format(income.date, 'yyyy-MM-dd') : '',
       paymentMethod: income.paymentMethod || 'transferencia',
       account: income.account || '',
-      bank: income.bank || '',
-      isClientPaidInFull: income.isClientPaidInFull || false
+      bank: income.bank || ''
     });
     setDialogOpen(true);
   };
@@ -553,7 +524,6 @@ const IncomePage = () => {
         paymentMethod: formData.paymentMethod,
         account: formData.account.trim(),
         bank: formData.bank.trim(),
-        isClientPaidInFull: formData.isClientPaidInFull || false,
         createdBy: currentUser.uid,
         updatedAt: Timestamp.fromDate(new Date())
       };
@@ -583,32 +553,25 @@ const IncomePage = () => {
           message: 'El ingreso ha sido actualizado correctamente'
         });
       } else {
-        // Crear nuevo (solo si NO está marcado como "al día")
-        if (!formData.isClientPaidInFull) {
-          incomeData.createdAt = Timestamp.fromDate(new Date());
-          const incomeDoc = await addDoc(collection(db, 'incomes'), incomeData);
-          incomeId = incomeDoc.id;
-          
-          // Subir archivos después de crear el documento
-          if (selectedFiles.length > 0) {
-            const uploadedFiles = await uploadFiles(incomeId);
-            if (uploadedFiles.length > 0) {
-              await updateDoc(doc(db, 'incomes', incomeId), {
-                attachments: uploadedFiles
-              });
-            }
+        // Crear nuevo
+        incomeData.createdAt = Timestamp.fromDate(new Date());
+        const incomeDoc = await addDoc(collection(db, 'incomes'), incomeData);
+        incomeId = incomeDoc.id;
+        
+        // Subir archivos después de crear el documento
+        if (selectedFiles.length > 0) {
+          const uploadedFiles = await uploadFiles(incomeId);
+          if (uploadedFiles.length > 0) {
+            await updateDoc(doc(db, 'incomes', incomeId), {
+              attachments: uploadedFiles
+            });
           }
-          
-          showSuccess(selectedFiles.length > 0 
-            ? `Ingreso registrado con ${selectedFiles.length} archivo(s)`
-            : 'El ingreso ha sido registrado correctamente'
-          );
-        } else {
-          // Si está marcado como "al día", el guardado se hace desde el modal de distribución
-          showInfo('Complete la distribución por empresas para finalizar');
-          setSaving(false);
-          return;
         }
+        
+        showSuccess(selectedFiles.length > 0 
+          ? `Ingreso registrado con ${selectedFiles.length} archivo(s)`
+          : 'El ingreso ha sido registrado correctamente'
+        );
       }
 
       setDialogOpen(false);
@@ -617,127 +580,6 @@ const IncomePage = () => {
       showError('Error al guardar el ingreso: ' + error.message);
     } finally {
       setSaving(false);
-    }
-  };
-
-  // Funciones para distribución por empresas
-  const handleOpenDistributionDialog = () => {
-    if (companies.length === 0) {
-      showWarning('Primero debe registrar empresas en el sistema');
-      return;
-    }
-
-    // Inicializar distribuciones vacías para todas las empresas
-    const initialDistributions = companies.map(company => ({
-      companyId: company.id,
-      companyName: company.name,
-      amount: 0
-    }));
-    setDistributions(initialDistributions);
-    setDistributionDialogOpen(true);
-  };
-
-  const handleDistributionChange = (companyId, amount) => {
-    setDistributions(prev =>
-      prev.map(dist =>
-        dist.companyId === companyId
-          ? { ...dist, amount: parseFloat(amount) || 0 }
-          : dist
-      )
-    );
-  };
-
-  const getTotalDistribution = () => {
-    return distributions.reduce((sum, dist) => sum + dist.amount, 0);
-  };
-
-  const handleSaveWithDistribution = async () => {
-    const totalDistribution = getTotalDistribution();
-    const incomeAmount = parseFloat(formData.amount);
-
-    if (totalDistribution !== incomeAmount) {
-      addToast({
-        type: 'error',
-        title: 'Error en distribución',
-        message: `La suma de la distribución ($${totalDistribution.toLocaleString()}) debe ser igual al monto del ingreso ($${incomeAmount.toLocaleString()})`
-      });
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      // Guardar el ingreso
-      const incomeData = {
-        client: formData.client.trim(),
-        amount: parseFloat(formData.amount),
-        description: formData.description.trim(),
-        date: Timestamp.fromDate(new Date(formData.date)),
-        paymentMethod: formData.paymentMethod,
-        account: formData.account.trim(),
-        bank: formData.bank.trim(),
-        isClientPaidInFull: true,
-        createdBy: currentUser.uid,
-        createdAt: Timestamp.fromDate(new Date()),
-        updatedAt: Timestamp.fromDate(new Date())
-      };
-
-      const incomeDoc = await addDoc(collection(db, 'incomes'), incomeData);
-      const incomeId = incomeDoc.id;
-
-      // Subir archivos si hay
-      let uploadedFiles = [];
-      if (selectedFiles.length > 0) {
-        uploadedFiles = await uploadFiles(incomeId);
-        if (uploadedFiles.length > 0) {
-          await updateDoc(doc(db, 'incomes', incomeId), {
-            attachments: uploadedFiles
-          });
-        }
-      }
-
-      // Guardar la distribución
-      const distributionData = {
-        incomeId: incomeId,
-        client: formData.client.trim(),
-        totalAmount: parseFloat(formData.amount),
-        distributions: distributions.filter(dist => dist.amount > 0),
-        createdBy: currentUser.uid,
-        createdAt: Timestamp.fromDate(new Date())
-      };
-
-      await addDoc(collection(db, 'income_distributions'), distributionData);
-
-      addToast({
-        type: 'success',
-        title: 'Ingreso y distribución guardados',
-        message: uploadedFiles.length > 0 
-          ? `Ingreso registrado con distribución y ${uploadedFiles.length} archivo(s)`
-          : 'El ingreso ha sido registrado con su distribución por empresas'
-      });
-
-      setDialogOpen(false);
-      setDistributionDialogOpen(false);
-    } catch (error) {
-      console.error('Error guardando ingreso con distribución:', error);
-      addToast({
-        type: 'error',
-        title: 'Error',
-        message: 'Error al guardar: ' + error.message
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleCloseDistributionDialog = () => {
-    setDistributionDialogOpen(false);
-    // Si el usuario cancela, desmarcar el checkbox
-    if (!selectedIncome) {
-      setFormData(prev => ({
-        ...prev,
-        isClientPaidInFull: false
-      }));
     }
   };
 
@@ -1846,115 +1688,6 @@ const IncomePage = () => {
                   )}
                 </Box>
               </Grid>
-              
-              {/* Checkbox de Cliente al Día - Mejorado */}
-              <Grid item xs={12}>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Box sx={{ 
-                    p: 2, 
-                    borderRadius: 2, 
-                    background: theme.palette.mode === 'dark' 
-                      ? `linear-gradient(135deg, ${primaryColor}10 0%, ${secondaryColor}08 100%)`
-                      : `linear-gradient(135deg, ${primaryColor}05 0%, ${secondaryColor}03 100%)`,
-                    border: `1px solid ${formData.isClientPaidInFull ? primaryColor : 'rgba(0, 0, 0, 0.06)'}`,
-                    boxShadow: formData.isClientPaidInFull 
-                      ? `0 4px 20px ${primaryColor}20`
-                      : theme.palette.mode === 'dark' 
-                        ? '0 4px 20px rgba(0, 0, 0, 0.2)' 
-                        : '0 4px 20px rgba(0, 0, 0, 0.06)',
-                    transition: 'all 0.2s ease',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    '&::before': {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: '2px',
-                      background: formData.isClientPaidInFull 
-                        ? `linear-gradient(90deg, ${primaryColor}, ${secondaryColor})`
-                        : 'transparent',
-                      transition: 'all 0.2s ease'
-                    }
-                  }}>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={formData.isClientPaidInFull}
-                          onChange={(e) => handlePaidInFullChange(e.target.checked)}
-                          disabled={saving}
-                          icon={
-                            <Box sx={{
-                              width: 20,
-                              height: 20,
-                              border: '1px solid',
-                              borderColor: 'divider',
-                              borderRadius: 1,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              transition: 'all 0.2s ease'
-                            }} />
-                          }
-                          checkedIcon={
-                            <Box sx={{
-                              width: 20,
-                              height: 20,
-                              background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})`,
-                              borderRadius: 1,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: 'white',
-                              boxShadow: `0 2px 8px ${primaryColor}30`
-                            }}>
-                              ✓
-                            </Box>
-                          }
-                          sx={{
-                            '&:hover': {
-                              bgcolor: 'transparent',
-                            },
-                            '& .MuiSvgIcon-root': {
-                              fontSize: 28
-                            }
-                          }}
-                        />
-                      }
-                      label={
-                        <Box sx={{ ml: 2 }}>
-                          <Typography variant="h6" sx={{ 
-                            fontWeight: 700, 
-                            color: formData.isClientPaidInFull ? primaryColor : 'text.primary',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1,
-                            mb: 0.5
-                          }}>
-                            {formData.isClientPaidInFull ? '✅' : '💰'} Cliente queda al día con este pago
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                            {formData.isClientPaidInFull 
-                              ? '🎉 Perfecto! Se abrirá un formulario para distribuir el monto entre empresas'
-                              : 'Si marcas esta opción, podrás distribuir el pago entre diferentes empresas'
-                            }
-                          </Typography>
-                        </Box>
-                      }
-                      sx={{ 
-                        margin: 0,
-                        alignItems: 'flex-start',
-                        width: '100%'
-                      }}
-                    />
-                  </Box>
-                </motion.div>
-              </Grid>
             </Grid>
           </Box>
         </DialogContent>
@@ -2176,295 +1909,6 @@ const IncomePage = () => {
             startIcon={<DeleteIcon />}
           >
             Eliminar
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Modal de Distribución por Empresas */}
-      <Dialog
-        open={distributionDialogOpen}
-        onClose={() => !saving && handleCloseDistributionDialog()}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle sx={{ 
-          background: theme.palette.mode === 'dark' 
-            ? `linear-gradient(135deg, ${primaryColor}80 0%, ${secondaryColor}80 50%, ${primaryColor}60 100%)`
-            : `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 50%, ${primaryColor}CC 100%)`,
-          color: 'common.white',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          borderBottom: `1px solid ${theme.palette.divider}`,
-          boxShadow: theme.palette.mode === 'dark'
-            ? '0 4px 20px rgba(0,0,0,0.5)'
-            : `0 4px 20px ${primaryColor}30`,
-          position: 'relative',
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '1px',
-            background: theme.palette.mode === 'dark'
-              ? 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)'
-              : 'linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)'
-          },
-          '& .MuiSvgIcon-root': {
-            fontSize: '1.5rem',
-            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
-          }
-        }}>
-          <BusinessIcon />
-          <Box sx={{ flex: 1 }}>
-            <Typography 
-              variant="h6" 
-              component="div" 
-              sx={{ 
-                fontWeight: 600, 
-                mb: 0.5,
-                textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                letterSpacing: '0.02em'
-              }}
-            >
-              Distribución por Empresas
-            </Typography>
-            <Typography 
-              variant="body2" 
-              sx={{ 
-                opacity: 0.95, 
-                fontWeight: 400,
-                textShadow: '0 1px 2px rgba(0,0,0,0.2)'
-              }}
-            >
-              Cliente: {formData.client}
-            </Typography>
-          </Box>
-        </DialogTitle>
-        <DialogContent dividers sx={{ position: 'relative', minHeight: 400, p: 0 }}>
-          {/* Header fijo con total a distribuir y progreso */}
-          <Box sx={{ 
-            position: 'sticky',
-            top: -1,
-            bgcolor: 'background.paper',
-            zIndex: 10,
-            borderBottom: `1px solid ${theme.palette.divider}`,
-            p: 3,
-            mb: 3,
-            boxShadow: theme.palette.mode === 'dark' 
-              ? '0 2px 8px rgba(0,0,0,0.4)' 
-              : '0 2px 8px rgba(0,0,0,0.1)'
-          }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.5 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                Total a Distribuir: <Chip 
-                  label={`$${parseFloat(formData.amount || 0).toLocaleString()}`} 
-                  color="primary" 
-                  variant="filled" 
-                  size="medium"
-                  sx={{ 
-                    fontWeight: 600, 
-                    fontSize: '0.9rem',
-                    ml: 1
-                  }}
-                />
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                  {companies.length} empresas
-                </Typography>
-                <Chip 
-                  label={getTotalDistribution() === parseFloat(formData.amount || 0) ? "✅ Completo" : `${Math.round((getTotalDistribution() / parseFloat(formData.amount || 1)) * 100)}%`}
-                  color={getTotalDistribution() === parseFloat(formData.amount || 0) ? "success" : "warning"}
-                  variant="outlined"
-                  size="small"
-                  sx={{ fontWeight: 500 }}
-                />
-              </Box>
-            </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.5 }}>
-              Especifica cuánto corresponde a cada empresa. La suma debe ser igual al monto total.
-            </Typography>
-            {/* Barra de progreso visual mejorada */}
-            <Box sx={{ 
-              width: '100%', 
-              bgcolor: theme.palette.mode === 'dark' ? 'grey.800' : 'grey.200', 
-              borderRadius: 2,
-              height: 10,
-              overflow: 'hidden',
-              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)',
-              mb: 1
-            }}>
-              <Box sx={{
-                width: `${Math.min((getTotalDistribution() / parseFloat(formData.amount || 1)) * 100, 100)}%`,
-                height: '100%',
-                bgcolor: getTotalDistribution() === parseFloat(formData.amount || 0) 
-                  ? 'success.main' 
-                  : getTotalDistribution() > parseFloat(formData.amount || 0)
-                    ? 'error.main'
-                    : 'warning.main',
-                transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: getTotalDistribution() > 0 
-                  ? '0 2px 8px rgba(0,0,0,0.2)' 
-                  : 'none'
-              }} />
-            </Box>
-            {/* Indicador numérico del progreso */}
-            <Box sx={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              typography: 'caption',
-              color: 'text.secondary',
-              fontWeight: 500
-            }}>
-              <span>
-                Distribuido: ${getTotalDistribution().toLocaleString()}
-              </span>
-              <span>
-                {getTotalDistribution() === parseFloat(formData.amount || 0) 
-                  ? '✅ Completo' 
-                  : `Falta: $${(parseFloat(formData.amount || 0) - getTotalDistribution()).toLocaleString()}`
-                }
-              </span>
-            </Box>
-          </Box>
-
-          <Box sx={{ px: 3 }}>
-            <Grid container spacing={2}>
-              {companies.map((company) => (
-              <Grid item xs={12} md={6} key={company.id}>
-                <Card sx={{ 
-                  p: 2.5,
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: 2,
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  '&:hover': { 
-                    boxShadow: theme.palette.mode === 'dark' 
-                      ? '0 8px 25px rgba(0,0,0,0.4)' 
-                      : '0 8px 25px rgba(0,0,0,0.15)',
-                    transform: 'translateY(-2px)',
-                    borderColor: 'primary.main'
-                  },
-                  background: theme.palette.mode === 'dark'
-                    ? 'linear-gradient(145deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.05) 100%)'
-                    : 'linear-gradient(145deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%)'
-                }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    {company.logoURL ? (
-                      <Box
-                        sx={{
-                          width: 50,
-                          height: 35,
-                          mr: 2,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          borderRadius: 1,
-                          p: 0.5,
-                          backgroundColor: 'background.paper'
-                        }}
-                      >
-                        <Box
-                          component="img"
-                          src={company.logoURL}
-                          alt={`Logo de ${company.name}`}
-                          sx={{
-                            maxWidth: '100%',
-                            maxHeight: '100%',
-                            objectFit: 'contain'
-                          }}
-                        />
-                      </Box>
-                    ) : (
-                      <Avatar sx={{ 
-                        bgcolor: 'primary.main', 
-                        mr: 2, 
-                        width: 40, 
-                        height: 40,
-                        fontSize: 16,
-                        fontWeight: 'bold'
-                      }}>
-                        {company.name.charAt(0)}
-                      </Avatar>
-                    )}
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                      {company.name}
-                    </Typography>
-                  </Box>
-                  
-                  <TextField
-                    fullWidth
-                    label="Monto para esta empresa"
-                    type="number"
-                    value={distributions.find(d => d.companyId === company.id)?.amount || ''}
-                    onChange={(e) => handleDistributionChange(company.id, e.target.value)}
-                    disabled={saving}
-                    InputProps={{
-                      startAdornment: <InputAdornment position="start">$</InputAdornment>
-                    }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        '&:hover .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'primary.main'
-                        },
-                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                          borderWidth: 2
-                        }
-                      }
-                    }}
-                  />
-                </Card>
-              </Grid>
-            ))}
-            </Grid>
-          </Box>
-
-          {/* Resumen de la distribución */}
-          <Box sx={{ mt: 3, p: 2, mx: 3, bgcolor: 'background.paper', borderRadius: 2, border: `1px solid ${theme.palette.divider}` }}>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={6}>
-                <Typography variant="body1">
-                  <strong>Total Distribuido:</strong>
-                </Typography>
-              </Grid>
-              <Grid item xs={3}>
-                <Chip 
-                  label={`$${getTotalDistribution().toLocaleString()}`} 
-                  color={getTotalDistribution() === parseFloat(formData.amount || 0) ? "success" : "warning"}
-                  variant="filled"
-                />
-              </Grid>
-              <Grid item xs={3}>
-                <Chip 
-                  label={getTotalDistribution() === parseFloat(formData.amount || 0) ? "✅ Correcto" : "⚠️ Ajustar"}
-                  color={getTotalDistribution() === parseFloat(formData.amount || 0) ? "success" : "warning"}
-                  variant="outlined"
-                  size="small"
-                />
-              </Grid>
-            </Grid>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={handleCloseDistributionDialog}
-            disabled={saving}
-            startIcon={<CancelIcon />}
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSaveWithDistribution}
-            disabled={saving || getTotalDistribution() !== parseFloat(formData.amount || 0)}
-            variant="contained"
-            startIcon={saving ? <RefreshIcon className="animate-spin" /> : <SaveIcon />}
-          >
-            {saving ? 'Guardando...' : 'Guardar con Distribución'}
           </Button>
         </DialogActions>
       </Dialog>
