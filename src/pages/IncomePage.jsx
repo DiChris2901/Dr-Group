@@ -30,7 +30,8 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  ListItemSecondaryAction
+  ListItemSecondaryAction,
+  Autocomplete
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -103,8 +104,12 @@ const IncomePage = () => {
   const [selectedIncome, setSelectedIncome] = useState(null);
   const [incomeToDelete, setIncomeToDelete] = useState(null);
   
+  // Estado para autocompletado de clientes
+  const [uniqueClients, setUniqueClients] = useState([]);
+  
   // Estados para distribución por empresas
   const [companies, setCompanies] = useState([]);
+  const [personalAccounts, setPersonalAccounts] = useState([]);
   const [distributions, setDistributions] = useState([]);
   
   // Estados del formulario
@@ -127,16 +132,41 @@ const IncomePage = () => {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
-  // Función para obtener cuentas bancarias de las empresas
+  // Función para obtener cuentas bancarias (empresariales y personales)
   const getBankAccounts = () => {
-    return companies
+    // Cuentas empresariales
+    const businessAccounts = companies
       .filter(company => company.bankAccount && company.bankName)
       .map(company => ({
         id: company.id,
+        type: 'business',
         companyName: company.name,
         bankAccount: company.bankAccount,
-        bankName: company.bankName
+        bankName: company.bankName,
+        displayName: `${company.name} (Empresarial)`
       }));
+
+    // Cuentas personales  
+    const personalAccountsList = personalAccounts.map(account => ({
+      id: account.id,
+      type: 'personal',
+      companyName: account.holderName,
+      bankAccount: account.accountNumber,
+      bankName: account.bankName,
+      displayName: `${account.holderName} (Personal)`
+    }));
+
+    return [...businessAccounts, ...personalAccountsList];
+  };
+
+  const cleanCurrencyInput = (value) => {
+    return value.replace(/[^\d]/g, '');
+  };
+
+  const handleAmountChange = (value) => {
+    const cleanValue = cleanCurrencyInput(value);
+    const numericValue = cleanValue === '' ? '' : parseInt(cleanValue, 10);
+    handleFormChange('amount', numericValue);
   };
 
   // Función para manejar la selección de cuenta bancaria
@@ -180,6 +210,14 @@ const IncomePage = () => {
         });
 
         setIncomes(incomesData);
+        
+        // Extraer clientes únicos para autocompletado
+        const clients = incomesData
+          .map(income => income.client)
+          .filter((client, index, self) => client && client.trim() && self.indexOf(client) === index)
+          .sort();
+        setUniqueClients(clients);
+        
         setLoading(false);
       },
       (error) => {
@@ -216,6 +254,39 @@ const IncomePage = () => {
       },
       (error) => {
         console.error('Error cargando empresas:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentUser]);
+
+  // Cargar cuentas personales desde Firebase
+  useEffect(() => {
+    if (!currentUser?.uid) {
+      setPersonalAccounts([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'personal_accounts'),
+      where('userId', '==', currentUser.uid)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const accounts = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          accounts.push({
+            id: doc.id,
+            ...data
+          });
+        });
+        setPersonalAccounts(accounts);
+      },
+      (error) => {
+        console.error('Error cargando cuentas personales:', error);
       }
     );
 
@@ -1113,36 +1184,49 @@ const IncomePage = () => {
                   
                   <Grid container spacing={2}>
                     <Grid item xs={12} md={6}>
-                      <TextField
+                      <Autocomplete
                         fullWidth
-                        label="Cliente"
+                        freeSolo
+                        options={uniqueClients}
                         value={formData.client}
-                        onChange={(e) => handleFormChange('client', e.target.value)}
+                        onChange={(event, newValue) => {
+                          handleFormChange('client', newValue || '');
+                        }}
+                        onInputChange={(event, newInputValue) => {
+                          handleFormChange('client', newInputValue);
+                        }}
                         disabled={saving}
-                        required
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <PersonIcon sx={{ color: primaryColor }} />
-                            </InputAdornment>
-                          )
-                        }}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1.5,
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              transform: 'translateY(-1px)',
-                              boxShadow: theme.palette.mode === 'dark' 
-                                ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
-                                : '0 4px 12px rgba(0, 0, 0, 0.08)'
-                            },
-                            '&.Mui-focused': {
-                              transform: 'translateY(-1px)',
-                              boxShadow: `0 4px 12px ${primaryColor}20`
-                            }
-                          }
-                        }}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
+                            label="Cliente"
+                            required
+                            InputProps={{
+                              ...params.InputProps,
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <PersonIcon sx={{ color: primaryColor }} />
+                                </InputAdornment>
+                              )
+                            }}
+                            sx={{
+                              '& .MuiOutlinedInput-root': {
+                                borderRadius: 1.5,
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  transform: 'translateY(-1px)',
+                                  boxShadow: theme.palette.mode === 'dark' 
+                                    ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
+                                    : '0 4px 12px rgba(0, 0, 0, 0.08)'
+                                },
+                                '&.Mui-focused': {
+                                  transform: 'translateY(-1px)',
+                                  boxShadow: `0 4px 12px ${primaryColor}20`
+                                }
+                              }
+                            }}
+                          />
+                        )}
                       />
                     </Grid>
                     
@@ -1150,11 +1234,11 @@ const IncomePage = () => {
                       <TextField
                         fullWidth
                         label="Monto"
-                        type="number"
-                        value={formData.amount}
-                        onChange={(e) => handleFormChange('amount', e.target.value)}
+                        value={formData.amount ? formatCurrency(formData.amount) : ''}
+                        onChange={(e) => handleAmountChange(e.target.value)}
                         disabled={saving}
                         required
+                        placeholder="$0"
                         InputProps={{
                           startAdornment: (
                             <InputAdornment position="start">
@@ -1390,19 +1474,35 @@ const IncomePage = () => {
                           </MenuItem>
                           {getBankAccounts().map((account) => (
                             <MenuItem 
-                              key={`${account.id}-${account.bankAccount}`} 
+                              key={`${account.id}-${account.bankAccount}-${account.type}`} 
                               value={account.bankAccount}
                               sx={{ 
                                 display: 'flex', 
                                 flexDirection: 'column', 
                                 alignItems: 'flex-start',
-                                py: 1.5
+                                py: 1.5,
+                                gap: 0.5
                               }}
                             >
-                              <Typography variant="body2" fontWeight="medium">
-                                {account.bankAccount}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                                <Typography variant="body2" fontWeight="medium" sx={{ flex: 1 }}>
+                                  {account.bankAccount}
+                                </Typography>
+                                <Chip 
+                                  label={account.type === 'personal' ? 'Personal' : 'Empresarial'}
+                                  size="small"
+                                  color={account.type === 'personal' ? 'secondary' : 'primary'}
+                                  variant="outlined"
+                                  sx={{ 
+                                    fontSize: '0.7rem', 
+                                    height: 20,
+                                    '& .MuiChip-label': {
+                                      px: 0.8
+                                    }
+                                  }}
+                                />
+                              </Box>
+                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                                 {account.bankName} - {account.companyName}
                               </Typography>
                             </MenuItem>
