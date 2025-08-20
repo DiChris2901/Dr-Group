@@ -84,7 +84,7 @@ import {
 const IncomePage = () => {
   const theme = useTheme();
   const { currentUser } = useAuth();
-  const { addToast } = useToast();
+  const { success: showSuccess, error: showError, warning: showWarning, info: showInfo } = useToast();
   const { settings } = useSettings();
   
   // 🎨 Colores dinámicos del tema (igual que el sidebar)
@@ -331,11 +331,7 @@ const IncomePage = () => {
     if (checked && !selectedIncome) {
       // Validar campos requeridos antes de abrir distribución
       if (!formData.client.trim() || !formData.amount || !formData.date) {
-        addToast({
-          type: 'error',
-          title: 'Campos obligatorios',
-          message: 'Por favor completa Cliente, Monto y Fecha antes de marcar como "al día"'
-        });
+        showError('Por favor completa Cliente, Monto y Fecha antes de marcar como "al día"');
         setFormData(prev => ({
           ...prev,
           isClientPaidInFull: false
@@ -356,21 +352,13 @@ const IncomePage = () => {
       // Validar tipo de archivo (imágenes y PDFs)
       const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
       if (!validTypes.includes(file.type)) {
-        addToast({
-          type: 'error',
-          title: 'Archivo no válido',
-          message: `${file.name}: Solo se permiten imágenes (JPG, PNG, WEBP) y archivos PDF`
-        });
+        showError(`${file.name}: Solo se permiten imágenes (JPG, PNG, WEBP) y archivos PDF`);
         return false;
       }
 
       // Validar tamaño (máximo 10MB)
       if (file.size > 10 * 1024 * 1024) {
-        addToast({
-          type: 'error',
-          title: 'Archivo muy grande',
-          message: `${file.name}: El archivo no puede exceder 10MB`
-        });
+        showError(`${file.name}: El archivo no puede exceder 10MB`);
         return false;
       }
 
@@ -382,11 +370,7 @@ const IncomePage = () => {
   const processFiles = (validFiles) => {
     if (validFiles.length > 0) {
       setSelectedFiles(prev => [...prev, ...validFiles]);
-      addToast({
-        type: 'success',
-        title: 'Archivos agregados',
-        message: `${validFiles.length} archivo(s) agregado(s)`
-      });
+      showSuccess(`${validFiles.length} archivo(s) agregado(s)`);
     }
   };
 
@@ -554,11 +538,7 @@ const IncomePage = () => {
   // Guardar ingreso
   const handleSaveIncome = async () => {
     if (!formData.client.trim() || !formData.amount || !formData.date) {
-      addToast({
-        type: 'error',
-        title: 'Campos obligatorios',
-        message: 'Por favor completa todos los campos requeridos'
-      });
+      showError('Por favor completa todos los campos requeridos');
       return;
     }
 
@@ -619,20 +599,13 @@ const IncomePage = () => {
             }
           }
           
-          addToast({
-            type: 'success',
-            title: 'Ingreso registrado',
-            message: selectedFiles.length > 0 
-              ? `Ingreso registrado con ${selectedFiles.length} archivo(s)`
-              : 'El ingreso ha sido registrado correctamente'
-          });
+          showSuccess(selectedFiles.length > 0 
+            ? `Ingreso registrado con ${selectedFiles.length} archivo(s)`
+            : 'El ingreso ha sido registrado correctamente'
+          );
         } else {
           // Si está marcado como "al día", el guardado se hace desde el modal de distribución
-          addToast({
-            type: 'info',
-            title: 'Distribución requerida',
-            message: 'Complete la distribución por empresas para finalizar'
-          });
+          showInfo('Complete la distribución por empresas para finalizar');
           setSaving(false);
           return;
         }
@@ -641,11 +614,7 @@ const IncomePage = () => {
       setDialogOpen(false);
     } catch (error) {
       console.error('Error guardando ingreso:', error);
-      addToast({
-        type: 'error',
-        title: 'Error',
-        message: 'Error al guardar el ingreso: ' + error.message
-      });
+      showError('Error al guardar el ingreso: ' + error.message);
     } finally {
       setSaving(false);
     }
@@ -654,11 +623,7 @@ const IncomePage = () => {
   // Funciones para distribución por empresas
   const handleOpenDistributionDialog = () => {
     if (companies.length === 0) {
-      addToast({
-        type: 'warning',
-        title: 'No hay empresas',
-        message: 'Primero debe registrar empresas en el sistema'
-      });
+      showWarning('Primero debe registrar empresas en el sistema');
       return;
     }
 
@@ -781,21 +746,31 @@ const IncomePage = () => {
     if (!incomeToDelete) return;
 
     try {
+      // 1. Primero eliminar archivos de Storage si existen
+      if (incomeToDelete.attachments && incomeToDelete.attachments.length > 0) {
+        const deletePromises = incomeToDelete.attachments.map(async (file) => {
+          try {
+            const fileRef = ref(storage, file.path);
+            await deleteObject(fileRef);
+            console.log(`Archivo eliminado: ${file.name}`);
+          } catch (error) {
+            // Si el archivo no existe en Storage, continuamos
+            console.warn(`Error eliminando archivo ${file.name}:`, error);
+          }
+        });
+        
+        await Promise.allSettled(deletePromises);
+      }
+
+      // 2. Luego eliminar el documento de Firestore
       await deleteDoc(doc(db, 'incomes', incomeToDelete.id));
-      addToast({
-        type: 'success',
-        title: 'Ingreso eliminado',
-        message: 'El ingreso ha sido eliminado correctamente'
-      });
+      
+      showSuccess('El ingreso y sus archivos han sido eliminados correctamente');
       setDeleteDialogOpen(false);
       setIncomeToDelete(null);
     } catch (error) {
       console.error('Error eliminando ingreso:', error);
-      addToast({
-        type: 'error',
-        title: 'Error',
-        message: 'Error al eliminar el ingreso: ' + error.message
-      });
+      showError('Error al eliminar el ingreso: ' + error.message);
     }
   };
 
