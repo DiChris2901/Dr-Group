@@ -182,6 +182,18 @@ self.addEventListener('message', async (event) => {
   if (type === 'CLEAR_CACHE') {
     const keys = await cache.keys();
     await Promise.all(keys.map((k) => cache.delete(k)));
+    console.log('🧹 SW: All cache cleared by request');
+    event.waitUntil(Promise.resolve());
+  }
+  
+  if (type === 'CLEAR_COMMITMENTS_CACHE') {
+    const keys = await cache.keys();
+    const commitmentKeys = keys.filter(request => {
+      const url = request.url.toLowerCase();
+      return url.includes('commitments') || url.includes('commitment');
+    });
+    await Promise.all(commitmentKeys.map((k) => cache.delete(k)));
+    console.log(`🧹 SW: Cleared ${commitmentKeys.length} commitment cache entries`);
     event.waitUntil(Promise.resolve());
   }
 

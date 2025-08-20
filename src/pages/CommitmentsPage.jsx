@@ -4,12 +4,11 @@ import {
     Repeat
 } from '@mui/icons-material';
 import {
+    Alert,
     Box,
     Button,
-    Paper,
-    Typography,
-    Alert,
-    CircularProgress
+    CircularProgress,
+    Typography
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -18,14 +17,13 @@ import { useNavigate } from 'react-router-dom';
 import CommitmentsFilters from '../components/commitments/CommitmentsFilters';
 import CommitmentsList from '../components/commitments/CommitmentsList';
 import ExtendCommitmentsModal from '../components/commitments/ExtendCommitmentsModal';
-import { checkCommitmentsForExtension } from '../utils/recurringCommitments';
-import { useSettings } from '../context/SettingsContext';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
+import { useSettings } from '../context/SettingsContext';
 import {
-    shimmerEffect,
     useThemeGradients
 } from '../utils/designSystem.js';
+import { checkCommitmentsForExtension } from '../utils/recurringCommitments';
 
 const CommitmentsPage = () => {
   const theme = useTheme();

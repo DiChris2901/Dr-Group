@@ -606,6 +606,12 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   // ✅ receiptViewerOpen ELIMINADO COMPLETAMENTE
+  
+  // Estados para el visor PDF de facturas
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [invoiceUrl, setInvoiceUrl] = useState(null);
+  const [viewerSize, setViewerSize] = useState('normal'); // 'normal' | 'fullscreen'
+  
   const [companyData, setCompanyData] = useState(null);
   const [loadingCompany, setLoadingCompany] = useState(false);
   
@@ -996,50 +1002,168 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     }
   }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, paginationConfig.itemsPerPage]); // Removed lastVisibleDoc dependency
 
-  // SISTEMA DE PAGINACIÓN SIMPLIFICADO - Una sola función para cargar datos
+  // SISTEMA DE DATOS EN TIEMPO REAL - Solo para filtros, NO para paginación
+  const [allCommitments, setAllCommitments] = useState([]); // Todos los compromisos después de filtros
+  const [filteredTotal, setFilteredTotal] = useState(0); // Total después de filtros
+
   useEffect(() => {
     if (!currentUser) return;
     
-    console.log('🔄 [DEBUG Pagination] useEffect triggered:', {
-      currentPage,
-      debouncedCompanyFilter,
-      debouncedStatusFilter,
-      debouncedSearchTerm,
-      debouncedYearFilter
-    });
+    console.log('🔄 [REAL TIME] Configurando listener en tiempo real...');
     
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        
-        // Recalcular total cuando cambien filtros
-        const total = await getTotalCount();
-        console.log('📊 [DEBUG Pagination] Total compromisos:', total);
-        setTotalCommitments(total);
-        
-        // Cargar página actual
-        console.log('📖 [DEBUG Pagination] Cargando página:', currentPage);
-        await loadCommitmentsPage(currentPage);
-        
-      } catch (error) {
-        console.error('❌ [DEBUG Pagination] Error loading commitments:', error);
-        setError('Error al cargar los compromisos');
-      } finally {
-        setLoading(false);
+    let q = query(collection(db, 'commitments'), orderBy('dueDate', 'desc'));
+
+    // Aplicar filtros básicos en Firestore
+    if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
+      q = query(collection(db, 'commitments'), where('companyId', '==', debouncedCompanyFilter), orderBy('dueDate', 'desc'));
+    }
+    
+    if (debouncedYearFilter && debouncedYearFilter !== 'all') {
+      const startDate = new Date(parseInt(debouncedYearFilter), 0, 1);
+      const endDate = new Date(parseInt(debouncedYearFilter), 11, 31);
+      if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
+        q = query(collection(db, 'commitments'), 
+          where('companyId', '==', debouncedCompanyFilter),
+          where('dueDate', '>=', startDate),
+          where('dueDate', '<=', endDate),
+          orderBy('dueDate', 'desc')
+        );
+      } else {
+        q = query(collection(db, 'commitments'), 
+          where('dueDate', '>=', startDate),
+          where('dueDate', '<=', endDate),
+          orderBy('dueDate', 'desc')
+        );
       }
+    }
+
+    // Configurar listener en tiempo real
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log('🔔 [REAL TIME] Datos actualizados desde Firestore');
+      
+      if (snapshot.empty) {
+        console.log('📄 [REAL TIME] No hay compromisos');
+        setAllCommitments([]);
+        setFilteredTotal(0);
+        setLoading(false);
+        return;
+      }
+
+      const commitmentsData = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        commitmentsData.push({
+          id: doc.id,
+          ...data,
+          dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : new Date(data.dueDate),
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt)
+        });
+      });
+
+      console.log(`📊 [REAL TIME] ${commitmentsData.length} compromisos cargados desde Firestore`);
+
+      // Aplicar filtros locales
+      let filteredCommitments = commitmentsData;
+
+      // Filtro por término de búsqueda
+      if (debouncedSearchTerm) {
+        filteredCommitments = filteredCommitments.filter(
+          commitment =>
+            (commitment.concept && commitment.concept.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.description && commitment.description.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.companyName && commitment.companyName.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.company && commitment.company.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
+        );
+      }
+
+      // Filtro por estado
+      if (debouncedStatusFilter && debouncedStatusFilter !== 'all') {
+        const today = new Date();
+        const threeDaysFromNow = addDays(today, 3);
+
+        filteredCommitments = filteredCommitments.filter(commitment => {
+          const dueDate = commitment.dueDate;
+          
+          switch (debouncedStatusFilter) {
+            case 'overdue':
+              return isBefore(dueDate, today) && !commitment.paid && !commitment.isPaid;
+            case 'due-soon':
+              return isAfter(dueDate, today) && isBefore(dueDate, threeDaysFromNow) && !commitment.paid && !commitment.isPaid;
+            case 'pending':
+              return !commitment.paid && !commitment.isPaid && isAfter(dueDate, threeDaysFromNow);
+            case 'paid':
+              return commitment.paid || commitment.isPaid;
+            default:
+              return true;
+          }
+        });
+      }
+
+      console.log(`🎯 [REAL TIME] ${filteredCommitments.length} compromisos después de filtros`);
+
+      // Guardar todos los compromisos filtrados
+      setAllCommitments(filteredCommitments);
+      setFilteredTotal(filteredCommitments.length);
+      setLoading(false);
+      
+    }, (error) => {
+      console.error('❌ [REAL TIME] Error en listener:', error);
+      setError('Error al cargar los compromisos en tiempo real');
+      setLoading(false);
+    });
+
+    // Limpiar caché cuando se conecte el listener
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_COMMITMENTS_CACHE' });
+      console.log('🧹 [REAL TIME] Cache de compromisos limpiado al iniciar listener');
+    }
+
+    // Cleanup del listener
+    return () => {
+      console.log('🧹 [REAL TIME] Desconectando listener...');
+      unsubscribe();
     };
     
-    loadData();
-  }, [currentUser, debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, currentPage]);
+  }, [currentUser, debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter]); // SIN currentPage
 
-  // Reset página cuando cambien SOLO los filtros (no la página)
+  // EFECTO SEPARADO SOLO PARA PAGINACIÓN - No reinicia listeners
   useEffect(() => {
-    console.log('🔄 [DEBUG Reset] Resetting to page 1 due to filter change');
-    setCurrentPage(1);
-    setLastVisibleDoc(null);
-    setFirstVisibleDoc(null);
-    setPageDocuments({}); // Limpiar cache de páginas
-  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter]);
+    if (allCommitments.length === 0 && !loading) return;
+    
+    console.log(`📖 [PAGINATION] Aplicando paginación para página ${currentPage}`);
+    
+    // Aplicar paginación local a los datos ya filtrados
+    const startIndex = (currentPage - 1) * paginationConfig.itemsPerPage;
+    const endIndex = startIndex + paginationConfig.itemsPerPage;
+    const paginatedCommitments = allCommitments.slice(startIndex, endIndex);
+
+    console.log(`📖 [PAGINATION] Página ${currentPage}: ${paginatedCommitments.length} compromisos (${startIndex}-${endIndex} de ${filteredTotal})`);
+
+    setCommitments(paginatedCommitments);
+    setTotalCommitments(filteredTotal);
+
+    // Notificar al componente padre
+    if (onCommitmentsChange) {
+      onCommitmentsChange(paginatedCommitments);
+    }
+    
+  }, [allCommitments, currentPage, filteredTotal, paginationConfig.itemsPerPage, onCommitmentsChange]);
+
+  // Reset página cuando cambien SOLO los filtros (no la página) - CON DEBOUNCE
+  useEffect(() => {
+    const resetTimer = setTimeout(() => {
+      console.log('🔄 [DEBUG Reset] Resetting to page 1 due to filter change (debounced)');
+      if (currentPage !== 1) { // Solo resetear si no está ya en página 1
+        setCurrentPage(1);
+        setLastVisibleDoc(null);
+        setFirstVisibleDoc(null);
+        setPageDocuments({}); // Limpiar cache de páginas
+      }
+    }, 100); // Pequeño debounce para evitar resets múltiples
+
+    return () => clearTimeout(resetTimer);
+  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter]); // NO incluir currentPage aquí
 
   const getStatusInfo = (commitment) => {
     const today = new Date();
@@ -1165,6 +1289,53 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   // - handleViewReceipt (completamente eliminada)
   // - handleCloseReceiptViewer (completamente eliminada)
 
+  // ✅ FUNCIONES PARA EL VISOR PDF DE FACTURAS
+  const extractInvoiceUrl = (commitment) => {
+    // Prioridad de búsqueda
+    // 1. Campo invoice.url (nuevo formato)
+    if (commitment.invoice?.url) {
+      return commitment.invoice.url;
+    }
+    
+    // 2. Campo invoiceUrl directo (formato antiguo)
+    if (commitment.invoiceUrl) {
+      return commitment.invoiceUrl;
+    }
+    
+    // 3. Buscar en attachments por tipo invoice
+    if (commitment.attachments?.length > 0) {
+      const invoiceAttachment = commitment.attachments.find(att => 
+        att.type === 'invoice' || 
+        att.category === 'invoice' ||
+        (att.name && att.name.toLowerCase().includes('factura'))
+      );
+      if (invoiceAttachment?.url) {
+        return invoiceAttachment.url;
+      }
+    }
+    
+    return null;
+  };
+
+  const handleOpenPdfViewer = (commitment) => {
+    const url = extractInvoiceUrl(commitment);
+    if (url) {
+      setInvoiceUrl(url);
+      setPdfViewerOpen(true);
+      setViewerSize('normal');
+    }
+  };
+
+  const handleClosePdfViewer = () => {
+    setPdfViewerOpen(false);
+    setInvoiceUrl(null);
+    setViewerSize('normal');
+  };
+
+  const toggleViewerSize = () => {
+    setViewerSize(prev => prev === 'normal' ? 'fullscreen' : 'normal');
+  };
+
   const handleCommitmentSaved = async () => {
     console.log('🔄 [DEBUG] handleCommitmentSaved iniciado');
     console.log('🔍 [DEBUG] Compromiso seleccionado antes de actualizar:', selectedCommitment?.id);
@@ -1250,21 +1421,12 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   // El componente CommitmentEditForm manejará el cierre
   // Los datos se actualizarán automáticamente por el listener en tiempo real
 
-  // Funciones de manejo de paginación spectacular - SIMPLIFICADO
+  // Funciones de manejo de paginación spectacular - SIMPLIFICADO SIN RECARGA
   const handlePageChange = async (newPage) => {
-    console.log(`🔄 Cambiando a página ${newPage}`);
+    console.log(`🔄 [PAGINATION] Cambiando a página ${newPage} (sin recarga)`);
     if (newPage !== currentPage && newPage >= 1) {
       setCurrentPage(newPage);
-      // Forzar recarga inmediata
-      try {
-        setLoading(true);
-        await loadCommitmentsPage(newPage);
-      } catch (error) {
-        console.error('Error al cambiar página:', error);
-        setError('Error al cargar la página');
-      } finally {
-        setLoading(false);
-      }
+      // Ya no necesitamos recargar datos, el useEffect de paginación se encarga
     }
   };
 
@@ -2212,14 +2374,19 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       </Typography>
                       {commitment.beneficiary && (
                         <Typography 
-                          variant="caption" 
+                          variant="body2" 
                           sx={{
-                            display: 'block',
-                            color: 'text.secondary',
-                            fontSize: '0.75rem'
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 0.5,
+                            color: 'primary.main',
+                            fontSize: '0.8rem',
+                            fontWeight: 500,
+                            mt: 0.5
                           }}
                         >
-                          Para: {commitment.beneficiary}
+                          <Person sx={{ fontSize: 16 }} />
+                          Proveedor: {commitment.beneficiary}
                         </Typography>
                       )}
                     </Box>
@@ -4045,6 +4212,50 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                   </Button>
                 </motion.div>
                 
+                {/* ✅ BOTÓN VER FACTURA PDF - Solo aparece si hay factura */}
+                {extractInvoiceUrl(selectedCommitment) && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ delay: 0.25, duration: 0.4, type: "spring", stiffness: 100 }}
+                    whileHover={{ scale: 1.03, y: -2 }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <Button 
+                      variant="outlined"
+                      startIcon={<Visibility />}
+                      onClick={() => handleOpenPdfViewer(selectedCommitment)}
+                      sx={{ 
+                        borderRadius: 999,
+                        px: 4,
+                        py: 1.25,
+                        textTransform: 'none',
+                        fontWeight: 700,
+                        fontSize: '0.95rem',
+                        color: 'primary.main',
+                        borderWidth: 2,
+                        borderColor: 'transparent',
+                        background: theme => `
+                          linear-gradient(${alpha(theme.palette.background.paper, 0.95)}, ${alpha(theme.palette.background.paper, 0.95)}) padding-box,
+                          linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main}) border-box
+                        `,
+                        boxShadow: theme => theme.palette.mode === 'dark'
+                          ? '0 6px 18px rgba(25, 118, 210, 0.22)'
+                          : '0 8px 22px rgba(25, 118, 210, 0.24)',
+                        transition: 'all 0.25s ease',
+                        '&:hover': {
+                          transform: 'translateY(-1px)',
+                          boxShadow: theme => theme.palette.mode === 'dark'
+                            ? '0 10px 26px rgba(25, 118, 210, 0.28)'
+                            : '0 12px 30px rgba(25, 118, 210, 0.32)'
+                        }
+                      }}
+                    >
+                      Ver Factura
+                    </Button>
+                  </motion.div>
+                )}
+                
                 <motion.div
                   initial={{ opacity: 0, y: 20, scale: 0.9 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -4104,6 +4315,130 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
       />
 
       {/* ✅ VISOR DE COMPROBANTES DE PAGO ELIMINADO COMPLETAMENTE */}
+
+      {/* ✅ MODAL VISOR PDF DE FACTURAS */}
+      <Dialog
+        open={pdfViewerOpen}
+        onClose={handleClosePdfViewer}
+        maxWidth={viewerSize === 'fullscreen' ? false : 'lg'}
+        fullScreen={viewerSize === 'fullscreen'}
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: viewerSize === 'fullscreen' ? 0 : 4,
+            background: theme.palette.mode === 'dark'
+              ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.98) 0%, rgba(50, 50, 50, 0.95) 100%)'
+              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%)',
+            backdropFilter: 'blur(20px)',
+            boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
+            height: viewerSize === 'fullscreen' ? '100vh' : '90vh'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          p: 3,
+          pb: 2,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <Box display="flex" alignItems="center" gap={2}>
+            <motion.div
+              initial={{ rotate: 0 }}
+              animate={{ rotate: 360 }}
+              transition={{ duration: 0.6, ease: "easeInOut" }}
+            >
+              <Visibility sx={{ fontSize: 28 }} />
+            </motion.div>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              Visualizar Factura
+            </Typography>
+          </Box>
+          
+          <Box display="flex" alignItems="center" gap={1}>
+            <Tooltip title={viewerSize === 'fullscreen' ? 'Ventana normal' : 'Pantalla completa'}>
+              <IconButton
+                onClick={toggleViewerSize}
+                sx={{ 
+                  color: 'white',
+                  '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' }
+                }}
+              >
+                {viewerSize === 'fullscreen' ? 
+                  <Close sx={{ fontSize: 20 }} /> : 
+                  <Business sx={{ fontSize: 20 }} />
+                }
+              </IconButton>
+            </Tooltip>
+            
+            <Tooltip title="Abrir en nueva pestaña">
+              <IconButton
+                component="a"
+                href={invoiceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{ 
+                  color: 'white',
+                  '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' }
+                }}
+              >
+                <GetApp sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+            
+            <IconButton
+              onClick={handleClosePdfViewer}
+              sx={{ 
+                color: 'white',
+                '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' }
+              }}
+            >
+              <Close sx={{ fontSize: 24 }} />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ 
+            flex: 1, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            minHeight: '500px',
+            background: '#f5f5f5'
+          }}>
+            {invoiceUrl && (
+              <>
+                {invoiceUrl.toLowerCase().includes('.pdf') ? (
+                  <iframe
+                    src={invoiceUrl}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      border: 'none',
+                      borderRadius: viewerSize === 'fullscreen' ? 0 : 8
+                    }}
+                    title="Visualizar Factura PDF"
+                  />
+                ) : (
+                  <img 
+                    src={invoiceUrl}
+                    alt="Factura"
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                      objectFit: 'contain',
+                      borderRadius: 8
+                    }}
+                  />
+                )}
+              </>
+            )}
+          </Box>
+        </DialogContent>
+      </Dialog>
 
       {/* Diálogo de confirmación de eliminación */}
       <DeleteConfirmDialog 

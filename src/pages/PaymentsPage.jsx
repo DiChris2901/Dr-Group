@@ -91,7 +91,7 @@ import { PDFDocument } from 'pdf-lib';
 // Hook para cargar pagos desde Firebase
 import { usePayments } from '../hooks/useFirestore';
 // Firebase para manejo de archivos y Firestore
-import { doc, updateDoc, getDoc, deleteDoc, collection, query, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, deleteDoc, collection, query, orderBy, onSnapshot, addDoc, getDocs, where, deleteField } from 'firebase/firestore';
 import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 // Componente temporal para agregar datos de prueba
@@ -943,28 +943,108 @@ const PaymentsPage = () => {
     // Determinar si es Coljuegos para mostrar campos específicos
     const isColjuegos = isColjuegosCommitment(commitment);
     
+    // 🔧 CORRECCIÓN AUTOMÁTICA DESACTIVADA TEMPORALMENTE
+    // (Se puede reactivar más adelante si es necesario)
+    /*
+    let correctedPayment = { ...payment };
+    
+    // Si es un pago de Coljuegos pero los campos específicos están en 0 o undefined
+    if (isColjuegos && (!payment.interesesDerechosExplotacion && !payment.interesesGastosAdministracion) && payment.interests > 0) {
+      console.log('🔧 Detectado pago Coljuegos sin campos separados. Aplicando corrección automática...');
+      
+      // Dividir interests entre derechos y gastos (50/50 como patrón común)
+      const halfInterests = Math.round(payment.interests / 2);
+      correctedPayment = {
+        ...payment,
+        interesesDerechosExplotacion: halfInterests,
+        interesesGastosAdministracion: payment.interests - halfInterests,
+        originalAmount: payment.amount - payment.interests
+      };
+      
+      console.log('✅ Corrección aplicada:', {
+        original: payment.interests,
+        derechos: correctedPayment.interesesDerechosExplotacion,
+        gastos: correctedPayment.interesesGastosAdministracion,
+        originalAmount: correctedPayment.originalAmount
+      });
+    }
+    // Si es Coljuegos pero no tiene interests ni campos separados, calcular desde commitment
+    else if (isColjuegos && !payment.interests && commitment) {
+      console.log('🔧 Detectado pago Coljuegos sin intereses. Calculando desde compromiso...');
+      
+      const totalInterests = payment.amount - (commitment.amount || 0);
+      if (totalInterests > 0) {
+        const halfInterests = Math.round(totalInterests / 2);
+        correctedPayment = {
+          ...payment,
+          interesesDerechosExplotacion: halfInterests,
+          interesesGastosAdministracion: totalInterests - halfInterests,
+          originalAmount: payment.amount - totalInterests,
+          interests: totalInterests
+        };
+        
+        console.log('✅ Intereses calculados desde compromiso:', {
+          commitmentAmount: commitment.amount,
+          paymentAmount: payment.amount,
+          totalInterests: totalInterests,
+          derechos: correctedPayment.interesesDerechosExplotacion,
+          gastos: correctedPayment.interesesGastosAdministracion
+        });
+      }
+    }
+    */
+    
+    // Usar datos originales sin corrección automática
+    let correctedPayment = { ...payment };
+    
     setEditFormData({
-      concept: payment.concept || '',
-      amount: formatCurrency(payment.amount || ''),
-      method: payment.method || '',
-      notes: payment.notes || '',
-      reference: payment.reference || '',
-      companyName: payment.companyName || '',
+      concept: correctedPayment.concept || '',
+      amount: formatCurrency(correctedPayment.amount || ''),
+      method: correctedPayment.method || '',
+      notes: correctedPayment.notes || '',
+      reference: correctedPayment.reference || '',
+      companyName: correctedPayment.companyName || '',
       provider: providerName,
-      interests: isColjuegos ? '' : formatCurrency(payment.interests || ''),
-      interesesDerechosExplotacion: isColjuegos ? formatCurrency(payment.interesesDerechosExplotacion || '') : '',
-      interesesGastosAdministracion: isColjuegos ? formatCurrency(payment.interesesGastosAdministracion || '') : '',
-      originalAmount: formatCurrency(payment.originalAmount || payment.amount || ''),
-      sourceAccount: payment.sourceAccount || '',
-      sourceBank: payment.sourceBank || '',
-      date: formatDateForInput(payment.date),
+      interests: isColjuegos ? '' : formatCurrency(correctedPayment.interests || ''),
+      interesesDerechosExplotacion: isColjuegos ? formatCurrency(correctedPayment.interesesDerechosExplotacion || '') : '',
+      interesesGastosAdministracion: isColjuegos ? formatCurrency(correctedPayment.interesesGastosAdministracion || '') : '',
+      // Para Coljuegos, usar originalAmount corregido si está disponible
+      originalAmount: isColjuegos 
+        ? formatCurrency(correctedPayment.originalAmount || (correctedPayment.amount - (correctedPayment.interesesDerechosExplotacion || 0) - (correctedPayment.interesesGastosAdministracion || 0)))
+        : formatCurrency(correctedPayment.originalAmount || correctedPayment.amount || ''),
+      sourceAccount: correctedPayment.sourceAccount || '',
+      sourceBank: correctedPayment.sourceBank || '',
+      date: formatDateForInput(correctedPayment.date),
       // Calcular 4x1000 inicial
       tax4x1000: calculate4x1000Visual(
-        payment.amount || 0, 
-        payment.method || '', 
-        payment.sourceAccount || ''
+        correctedPayment.amount || 0, 
+        correctedPayment.method || '', 
+        correctedPayment.sourceAccount || ''
       )
     });
+    
+    // 🔄 ACTUALIZACIÓN AUTOMÁTICA DE FIREBASE DESACTIVADA
+    /*
+    if (correctedPayment !== payment) {
+      try {
+        console.log('💾 Aplicando corrección automática a Firebase...');
+        const paymentRef = doc(db, 'payments', payment.id);
+        await updateDoc(paymentRef, {
+          interesesDerechosExplotacion: correctedPayment.interesesDerechosExplotacion || 0,
+          interesesGastosAdministracion: correctedPayment.interesesGastosAdministracion || 0,
+          originalAmount: correctedPayment.originalAmount || correctedPayment.amount,
+          interests: correctedPayment.interests || 0,
+          updatedAt: new Date()
+        });
+        
+        console.log('✅ Pago actualizado automáticamente en Firebase');
+        showNotification('Datos de intereses corregidos automáticamente', 'success');
+      } catch (error) {
+        console.error('❌ Error al actualizar pago:', error);
+        showNotification('Error al corregir datos automáticamente', 'error');
+      }
+    }
+    */
     
     setEditPaymentOpen(true);
   };
@@ -1297,14 +1377,111 @@ const PaymentsPage = () => {
         }
       }
       
-      // 2. Eliminar el documento del pago de Firestore
+      // 2. Buscar y eliminar registros de 4x1000 asociados
+      console.log('🏦 Buscando registros de 4x1000 asociados...');
+      try {
+        // Buscar registros de 4x1000 que coincidan con el concepto y fecha del pago
+        const paymentsQuery = query(
+          collection(db, 'payments'),
+          orderBy('createdAt', 'desc')
+        );
+        
+        const snapshot = await getDocs(paymentsQuery);
+        const tax4x1000Records = [];
+        
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          // Identificar registros de 4x1000 por concepto y fecha similar
+          if (data.concept && data.concept.includes('4x1000') && data.is4x1000Tax === true) {
+            // Verificar si la fecha es del mismo día que el pago original
+            const paymentDate = paymentToDelete.date?.toDate?.() || new Date(paymentToDelete.date);
+            const taxDate = data.date?.toDate?.() || new Date(data.date);
+            
+            const isSameDay = paymentDate.toDateString() === taxDate.toDateString();
+            const isSimilarAmount = Math.abs(data.amount - Math.round((paymentToDelete.amount * 4) / 1000)) < 10;
+            
+            if (isSameDay && isSimilarAmount) {
+              tax4x1000Records.push({ id: doc.id, data });
+            }
+          }
+        });
+        
+        // Eliminar registros de 4x1000 encontrados
+        if (tax4x1000Records.length > 0) {
+          console.log(`💰 Eliminando ${tax4x1000Records.length} registros de 4x1000 asociados...`);
+          for (const record of tax4x1000Records) {
+            await deleteDoc(doc(db, 'payments', record.id));
+            console.log(`✅ 4x1000 eliminado: ${record.data.concept} - $${record.data.amount.toLocaleString()}`);
+          }
+        } else {
+          console.log('ℹ️ No se encontraron registros de 4x1000 asociados');
+        }
+        
+      } catch (error) {
+        console.error('⚠️ Error al eliminar registros de 4x1000:', error);
+        // Continuar aunque falle la eliminación de 4x1000
+      }
+      
+      // 3. Actualizar compromiso relacionado como no pagado
+      if (paymentToDelete.commitmentId) {
+        console.log('🔄 Actualizando compromiso relacionado como no pagado...');
+        try {
+          // Verificar si existen otros pagos para este compromiso (excluyendo 4x1000)
+          const otherPaymentsQuery = query(
+            collection(db, 'payments'),
+            where('commitmentId', '==', paymentToDelete.commitmentId)
+          );
+          
+          const otherPaymentsSnapshot = await getDocs(otherPaymentsQuery);
+          const hasOtherValidPayments = otherPaymentsSnapshot.docs.some(doc => {
+            const data = doc.data();
+            return doc.id !== paymentToDelete.id && !data.is4x1000Tax; // Excluir el que estamos eliminando y los 4x1000
+          });
+          
+          // Si no hay otros pagos válidos, marcar compromiso como no pagado
+          if (!hasOtherValidPayments) {
+            const commitmentRef = doc(db, 'commitments', paymentToDelete.commitmentId);
+            await updateDoc(commitmentRef, {
+              isPaid: false,
+              paid: false,
+              paymentDate: deleteField(),
+              paidAt: deleteField(),
+              paymentAmount: deleteField(),
+              paymentId: deleteField(),
+              interestPaid: deleteField(),
+              paymentMethod: deleteField(),
+              paymentReference: deleteField(),
+              paymentNotes: deleteField(),
+              receiptUrl: deleteField(),
+              receiptUrls: deleteField(),
+              receiptMetadata: deleteField(),
+              updatedAt: new Date()
+            });
+            console.log('✅ Compromiso marcado como no pagado');
+          } else {
+            console.log('ℹ️ El compromiso tiene otros pagos, mantiene estado pagado');
+          }
+          
+        } catch (commitmentError) {
+          console.error('⚠️ Error actualizando estado del compromiso:', commitmentError);
+          // No detener la eliminación del pago por este error
+        }
+      }
+      
+      // 4. Eliminar el documento del pago de Firestore
       const paymentRef = doc(db, 'payments', paymentToDelete.id);
       await deleteDoc(paymentRef);
       
       console.log('✅ Pago eliminado exitosamente');
-      showNotification('Pago eliminado exitosamente', 'success');
+      showNotification('Pago eliminado y compromiso actualizado correctamente', 'success');
       
-      // 3. Cerrar modal y limpiar estado
+      // 6. Limpiar caché de compromisos para forzar actualización
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_COMMITMENTS_CACHE' });
+        console.log('🧹 Cache de compromisos limpiado');
+      }
+      
+      // 7. Cerrar modal y limpiar estado
       setDeletePaymentDialogOpen(false);
       setPaymentToDelete(null);
       handleCloseEditPayment();

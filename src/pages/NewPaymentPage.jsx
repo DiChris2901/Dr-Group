@@ -14,6 +14,7 @@ import {
   MenuItem,
   Divider,
   Alert,
+  AlertTitle,
   InputAdornment,
   Stepper,
   Step,
@@ -27,7 +28,14 @@ import {
   ListItemIcon,
   ListItemText,
   ListItemSecondaryAction,
-  IconButton
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Badge,
+  Tooltip,
+  Collapse
 } from '@mui/material';
 import {
   AttachMoney as MoneyIcon,
@@ -40,7 +48,14 @@ import {
   CloudUpload as UploadIcon,
   AttachFile as AttachIcon,
   Delete as DeleteIcon,
-  InsertDriveFile as FileIcon
+  InsertDriveFile as FileIcon,
+  Visibility as ViewIcon,
+  Description as PdfIcon,
+  Image as ImageIcon,
+  Launch as ExternalLinkIcon,
+  FullscreenExit as MinimizeIcon,
+  Fullscreen as MaximizeIcon,
+  Person as PersonIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
@@ -81,6 +96,36 @@ const NewPaymentPage = () => {
     }
     return 0;
   };
+
+  // 💰 Funciones para formateo de moneda colombiana
+  const formatCurrency = (value) => {
+    if (!value && value !== 0) return '';
+    
+    // Remover todo excepto dígitos
+    const cleanValue = value.toString().replace(/[^\d]/g, '');
+    if (!cleanValue || cleanValue === '0') return '';
+    
+    // Formatear con separadores de miles
+    const numValue = parseInt(cleanValue);
+    if (isNaN(numValue)) return '';
+    
+    return numValue.toLocaleString('es-CO');
+  };
+
+  const parseCurrency = (formattedValue) => {
+    if (!formattedValue) return 0;
+    const cleanValue = formattedValue.toString().replace(/[^\d]/g, '');
+    return parseInt(cleanValue) || 0;
+  };
+
+  const formatCurrencyDisplay = (value) => {
+    if (!value && value !== 0) return '$0';
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0
+    }).format(value);
+  };
   
   // Estado para compromisos pendientes
   const [pendingCommitments, setPendingCommitments] = useState([]);
@@ -117,6 +162,12 @@ const NewPaymentPage = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [dragActive, setDragActive] = useState(false);
+
+  // 📄 Estado para visor PDF de factura del compromiso
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [invoiceUrl, setInvoiceUrl] = useState(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [pdfViewerSize, setPdfViewerSize] = useState('medium'); // small, medium, large
 
   // Cargar compromisos pendientes de pago
   useEffect(() => {
@@ -314,8 +365,8 @@ const NewPaymentPage = () => {
     }).format(amount || 0);
   };
 
-  // Función para calcular y crear registro del 4x1000
-  const create4x1000Record = async (paymentAmount, sourceAccount, sourceBank, companyName, paymentDate) => {
+  // Función para calcular y crear registro del 4x1000 MEJORADA
+  const create4x1000Record = async (paymentAmount, sourceAccount, sourceBank, companyName, paymentDate, parentPaymentId = null) => {
     // Calcular 4x1000: 4 pesos por cada 1000 pesos transferidos
     const tax4x1000 = Math.round((paymentAmount * 4) / 1000);
     
@@ -323,26 +374,42 @@ const NewPaymentPage = () => {
     if (tax4x1000 <= 0) return null;
 
     try {
-      // Crear registro del 4x1000 como un pago adicional
+      // 🔗 REGISTRO DEL 4x1000 CON RELACIÓN MEJORADA
       const tax4x1000Data = {
+        // Información básica del impuesto
         concept: '4x1000 - Impuesto Gravamen Movimientos Financieros',
         amount: tax4x1000,
         originalAmount: tax4x1000,
         method: 'Transferencia',
         notes: `Impuesto 4x1000 generado automáticamente (${formatCurrencyBalance(paymentAmount)} x 0.004)`,
         reference: `4x1000-${Date.now()}`,
+        
+        // Información de la empresa y cuentas
         companyName: companyName,
         sourceAccount: sourceAccount,
         sourceBank: sourceBank,
         date: paymentDate,
+        
+        // 📊 CAMPOS DE RELACIÓN MEJORADOS
+        parentPaymentId: parentPaymentId,           // ID del pago principal que generó este impuesto
+        parentPaymentAmount: paymentAmount,         // Monto base que generó el impuesto
+        taxRate: 0.004,                            // Tasa aplicada (4/1000)
+        taxType: '4x1000',                         // Tipo específico de impuesto
+        
+        // Metadatos técnicos
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
         interests: 0,
         interesesDerechosExplotacion: 0,
         interesesGastosAdministracion: 0,
-        is4x1000Tax: true, // Flag para identificar registros de 4x1000
-        relatedToPayment: true, // Flag para indicar que es un impuesto relacionado
-        tags: ['impuesto', '4x1000', 'automatico']
+        
+        // 🏷️ FLAGS DE IDENTIFICACIÓN MEJORADOS
+        is4x1000Tax: true,                         // Flag principal
+        relatedToPayment: true,                    // Es un impuesto relacionado
+        isAutomaticTax: true,                      // Generado automáticamente
+        category: 'tax',                           // Categoría: impuesto
+        subcategory: 'transaction_tax',            // Subcategoría: impuesto transaccional
+        tags: ['impuesto', '4x1000', 'automatico', 'gmf']
       };
 
       // Agregar a la colección de pagos
@@ -445,6 +512,8 @@ const NewPaymentPage = () => {
         interesesGastosAdministracion: 0,
         finalAmount: 0
       }));
+      // Limpiar URL de factura al deseleccionar compromiso
+      setInvoiceUrl(null);
       return;
     }
 
@@ -462,6 +531,143 @@ const NewPaymentPage = () => {
       interesesGastosAdministracion: 0,
       finalAmount: finalAmount
     }));
+
+    // 📄 Obtener URL de la factura del compromiso
+    extractInvoiceUrl(commitment);
+  };
+
+  // 📄 FUNCIONES DEL VISOR PDF DE FACTURA DEL COMPROMISO
+  
+  // Extraer URL de la factura del compromiso seleccionado
+  const extractInvoiceUrl = (commitment) => {
+    if (!commitment) {
+      setInvoiceUrl(null);
+      return;
+    }
+
+    console.log('🔍 Extrayendo URL de factura para compromiso:', commitment.id);
+    console.log('📄 DATOS COMPLETOS DEL COMPROMISO:', commitment);
+    console.log('📄 Analizando campos de archivos:', {
+      'invoice.url': commitment.invoice?.url,
+      'invoice': commitment.invoice,
+      receiptUrl: commitment.receiptUrl,
+      receiptUrls: commitment.receiptUrls,
+      attachments: commitment.attachments,
+      attachmentUrls: commitment.attachmentUrls,
+      invoiceUrl: commitment.invoiceUrl,
+      fileUrl: commitment.fileUrl,
+      fileUrls: commitment.fileUrls
+    });
+
+    let foundUrl = null;
+
+    // PRIORIDAD 1: invoice.url (campo específico de factura - ESTRUCTURA CORRECTA)
+    if (commitment.invoice && commitment.invoice.url && commitment.invoice.url.trim() !== '') {
+      foundUrl = commitment.invoice.url;
+      console.log('✅ URL de factura encontrada en invoice.url:', foundUrl);
+    }
+    // PRIORIDAD 2: invoiceUrl (campo directo de factura)
+    else if (commitment.invoiceUrl && commitment.invoiceUrl.trim() !== '') {
+      foundUrl = commitment.invoiceUrl;
+      console.log('✅ URL de factura encontrada en invoiceUrl:', foundUrl);
+    }
+    // PRIORIDAD 3: attachments (URLs más frescas)
+    else if (commitment.attachments && commitment.attachments.length > 0) {
+      foundUrl = commitment.attachments[commitment.attachments.length - 1]; // Más reciente
+      console.log('✅ URL de factura encontrada en attachments:', foundUrl);
+    }
+    // PRIORIDAD 4: receiptUrls (múltiples archivos)
+    else if (commitment.receiptUrls && commitment.receiptUrls.length > 0) {
+      foundUrl = commitment.receiptUrls[commitment.receiptUrls.length - 1]; // Más reciente
+      console.log('✅ URL de factura encontrada en receiptUrls:', foundUrl);
+    }
+    // PRIORIDAD 5: receiptUrl (archivo único)
+    else if (commitment.receiptUrl && commitment.receiptUrl.trim() !== '') {
+      foundUrl = commitment.receiptUrl;
+      console.log('✅ URL de factura encontrada en receiptUrl:', foundUrl);
+    }
+    // PRIORIDAD 6: attachmentUrls (legacy)
+    else if (commitment.attachmentUrls && commitment.attachmentUrls.length > 0) {
+      foundUrl = commitment.attachmentUrls[commitment.attachmentUrls.length - 1];
+      console.log('✅ URL de factura encontrada en attachmentUrls:', foundUrl);
+    }
+    // PRIORIDAD 7: fileUrls (otro campo posible)
+    else if (commitment.fileUrls && commitment.fileUrls.length > 0) {
+      foundUrl = commitment.fileUrls[commitment.fileUrls.length - 1];
+      console.log('✅ URL de factura encontrada en fileUrls:', foundUrl);
+    }
+    // PRIORIDAD 8: fileUrl (archivo único)
+    else if (commitment.fileUrl && commitment.fileUrl.trim() !== '') {
+      foundUrl = commitment.fileUrl;
+      console.log('✅ URL de factura encontrada en fileUrl:', foundUrl);
+    }
+
+    if (foundUrl) {
+      // Verificar que la URL sea válida
+      if (foundUrl.includes('firebase') && (foundUrl.includes('googleapis.com') || foundUrl.includes('firebasestorage'))) {
+        setInvoiceUrl(foundUrl);
+        console.log('📄 ✅ URL de factura establecida (Firebase Storage):', foundUrl);
+        console.log('📄 ✅ Nombre del archivo:', commitment.invoice?.fileName || 'Nombre no disponible');
+      } else {
+        setInvoiceUrl(foundUrl);
+        console.log('📄 ✅ URL de factura establecida (otro origen):', foundUrl);
+      }
+    } else {
+      setInvoiceUrl(null);
+      console.log('⚠️ NINGÚN CAMPO DE ARCHIVO ENCONTRADO');
+      console.log('🔍 Estructura del campo invoice:', commitment.invoice);
+      console.log('🔍 Todos los campos disponibles:', Object.keys(commitment));
+      
+      // Debug adicional: buscar cualquier campo que contenga palabras clave
+      Object.keys(commitment).forEach(key => {
+        const value = commitment[key];
+        if (key.toLowerCase().includes('file') || 
+            key.toLowerCase().includes('url') || 
+            key.toLowerCase().includes('attachment') || 
+            key.toLowerCase().includes('receipt') ||
+            key.toLowerCase().includes('invoice') ||
+            key.toLowerCase().includes('document')) {
+          console.log(`🔍 Campo sospechoso encontrado: ${key} =`, value);
+        }
+      });
+    }
+  };
+
+  // Abrir visor PDF
+  const handleOpenPdfViewer = () => {
+    if (invoiceUrl) {
+      setPdfViewerOpen(true);
+      console.log('📄 Abriendo visor PDF con URL:', invoiceUrl);
+    } else {
+      addNotification({
+        type: 'warning',
+        title: 'Sin factura',
+        message: 'Este compromiso no tiene factura adjunta',
+        icon: 'warning'
+      });
+    }
+  };
+
+  // Cerrar visor PDF
+  const handleClosePdfViewer = () => {
+    setPdfViewerOpen(false);
+  };
+
+  // Cambiar tamaño del visor
+  const toggleViewerSize = () => {
+    setPdfViewerSize(prev => {
+      if (prev === 'medium') return 'large';
+      if (prev === 'large') return 'small';
+      return 'medium';
+    });
+  };
+
+  // Abrir PDF en nueva pestaña
+  const handleOpenInNewTab = () => {
+    if (invoiceUrl) {
+      window.open(invoiceUrl, '_blank');
+      console.log('🔗 Abriendo PDF en nueva pestaña:', invoiceUrl);
+    }
   };
 
   const paymentMethods = [
@@ -552,13 +758,26 @@ const NewPaymentPage = () => {
         concept: selectedCommitment.name || selectedCommitment.concept || selectedCommitment.description || 'Sin concepto',
         amount: formData.finalAmount || 0,
         originalAmount: formData.originalAmount || 0,
-        interests: (formData.interests || 0) + (formData.interesesDerechosExplotacion || 0) + (formData.interesesGastosAdministracion || 0),
+        interests: formData.interests || 0,  // Intereses generales (sin Coljuegos)
+        // 🎰 NUEVOS CAMPOS ESPECÍFICOS DE COLJUEGOS
+        interesesDerechosExplotacion: formData.interesesDerechosExplotacion || 0,
+        interesesGastosAdministracion: formData.interesesGastosAdministracion || 0,
         method: formData.method || '',
         reference: formData.reference || '',
         date: Timestamp.fromDate(createLocalDate(formData.date)),
         notes: formData.notes || '',
         sourceAccount: formData.sourceAccount || '',  // NUEVO: cuenta de origen
         sourceBank: formData.sourceBank || '',        // NUEVO: banco de origen
+        
+        // 💳 INFORMACIÓN DEL 4x1000 (REFERENCIAL)
+        tax4x1000Amount: Math.round((formData.finalAmount * 4) / 1000), // Monto calculado
+        includesTax4x1000: formData.finalAmount > 0,                     // Indica si genera 4x1000
+        taxInfo: {
+          rate4x1000: 0.004,                                             // Tasa aplicada
+          base: formData.finalAmount,                                     // Base gravable
+          calculated: Math.round((formData.finalAmount * 4) / 1000)       // Impuesto calculado
+        },
+        
         status: 'completed',
         attachments: uploadedFileUrls || [],
         processedBy: user.uid,
@@ -601,11 +820,19 @@ const NewPaymentPage = () => {
           effectiveSourceAccount,
           effectiveSourceBank,
           paymentData.companyName,
-          paymentData.date
+          paymentData.date,
+          paymentRef.id  // 🔗 PASAR ID DEL PAGO PRINCIPAL
         );
 
         if (tax4x1000Result) {
           console.log('ℹ️ 4x1000 generado automáticamente:', formatCurrencyBalance(tax4x1000Result.amount));
+          
+          // 🔄 ACTUALIZAR EL PAGO PRINCIPAL CON LA REFERENCIA AL 4x1000
+          await updateDoc(paymentRef, {
+            tax4x1000PaymentId: tax4x1000Result.id,    // ID del registro de 4x1000 generado
+            hasTax4x1000: true,                        // Flag indicando que tiene impuesto asociado
+            updatedAt: Timestamp.now()
+          });
         }
       }
       
@@ -653,6 +880,9 @@ const NewPaymentPage = () => {
         reference: '',
         date: new Date().toISOString().split('T')[0],
         notes: '',
+        sourceAccount: '',  // ✅ AGREGAR CAMPOS FALTANTES
+        sourceBank: '',     // ✅ AGREGAR CAMPOS FALTANTES
+        tax4x1000: 0,      // ✅ AGREGAR CAMPOS FALTANTES
         originalAmount: 0,
         interests: 0,
         interesesDerechosExplotacion: 0,
@@ -660,6 +890,9 @@ const NewPaymentPage = () => {
         finalAmount: 0
       });
       setFiles([]);
+      
+      // Limpiar también la URL de la factura
+      setInvoiceUrl(null);
       
       // Opcional: navegar a pagos después de 2 segundos
       setTimeout(() => {
@@ -986,35 +1219,80 @@ const NewPaymentPage = () => {
                   {selectedCommitment && (
                     <>
                       <Grid item xs={12}>
-                        <Divider sx={{ my: 1 }} />
-                        <Typography variant="subtitle2" gutterBottom color="primary">
-                          📋 Detalles del Compromiso Seleccionado
-                          {/* Indicador temporal para depuración */}
-                          {isColjuegosCommitment(selectedCommitment) && (
-                            <Chip 
-                              label="COLJUEGOS DETECTED" 
-                              color="secondary" 
-                              size="small" 
-                              sx={{ ml: 2 }}
-                            />
-                          )}
-                        </Typography>
-                        
-                        {/* Información del compromiso */}
-                        <Box sx={{ mb: 2, p: 2, backgroundColor: theme.palette.grey[50], borderRadius: 1 }}>
-                          <Grid container spacing={2}>
-                            <Grid item xs={12} sm={6}>
-                              <Typography variant="body2" color="text.secondary">
-                                <strong>Concepto:</strong> {selectedCommitment.concept}
-                              </Typography>
-                            </Grid>
-                            <Grid item xs={12} sm={6}>
-                              <Typography variant="body2" color="warning.main">
-                                <strong>Fecha de Vencimiento:</strong> {selectedCommitment.formattedDueDate}
-                              </Typography>
-                            </Grid>
+                        <Card 
+                          variant="outlined"
+                          sx={{ 
+                            mt: 2,
+                            bgcolor: 'background.paper',
+                            borderColor: 'divider',
+                            borderRadius: 2
+                          }}
+                        >
+                          <CardContent sx={{ py: 2 }}>
+                            <Typography variant="subtitle1" sx={{ 
+                              fontWeight: 600,
+                              color: 'text.primary',
+                              mb: 1.5,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1
+                            }}>
+                              <CompanyIcon color="action" fontSize="small" />
+                              {selectedCommitment.companyName}
+                            </Typography>
+                            
+                            <Grid container spacing={2}>
+                              <Grid item xs={12} md={6}>
+                                <Typography variant="body2" color="text.secondary">
+                                  <strong>Concepto:</strong> {selectedCommitment.concept}
+                                </Typography>
+                              </Grid>
+                              
+                              {selectedCommitment.beneficiary && (
+                                <Grid item xs={12} md={6}>
+                                  <Typography variant="body2" color="primary.main" sx={{ 
+                                    fontWeight: 500,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 0.5
+                                  }}>
+                                    <PersonIcon fontSize="small" />
+                                    <strong>Proveedor:</strong> {selectedCommitment.beneficiary}
+                                  </Typography>
+                                </Grid>
+                              )}
+                              
+                              <Grid item xs={12} md={6}>
+                                <Typography variant="body2" color="text.secondary">
+                                  <strong>Vencimiento:</strong> {selectedCommitment.formattedDueDate}
+                                </Typography>
+                              </Grid>
+                            
+                            {/* Botón para ver factura - Solo si existe */}
+                            {invoiceUrl && (
+                              <Grid item xs={12} sx={{ mt: 1 }}>
+                                <Button
+                                  variant="text"
+                                  size="small"
+                                  startIcon={<ViewIcon />}
+                                  onClick={handleOpenPdfViewer}
+                                  sx={{ 
+                                    color: 'primary.main',
+                                    textTransform: 'none',
+                                    fontWeight: 500,
+                                    fontSize: '0.875rem',
+                                    '&:hover': {
+                                      backgroundColor: 'action.hover'
+                                    }
+                                  }}
+                                >
+                                  Ver Factura Original
+                                </Button>
+                              </Grid>
+                            )}
                           </Grid>
-                        </Box>
+                          </CardContent>
+                        </Card>
                       </Grid>
 
                       <Grid item xs={12} sm={4}>
@@ -1030,18 +1308,41 @@ const NewPaymentPage = () => {
                           InputProps={{
                             startAdornment: (
                               <InputAdornment position="start">
-                                <MoneyIcon color="success" />
+                                <MoneyIcon 
+                                  sx={{ 
+                                    color: 'success.main'
+                                  }} 
+                                />
                               </InputAdornment>
                             ),
                           }}
-                          sx={{
-                            '& .MuiInputBase-input': {
-                              fontWeight: 600,
-                              color: 'success.main'
-                            }
-                          }}
                         />
                       </Grid>
+
+                      {/* Alerta de pago tardío al lado del valor original */}
+                      {requiresInterests(selectedCommitment, formData.date) && (
+                        <Grid item xs={12} sm={8}>
+                          <Box sx={{ 
+                            p: 1.5,
+                            bgcolor: 'grey.50',
+                            border: '1px solid',
+                            borderColor: 'grey.300',
+                            borderRadius: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1.5,
+                            height: '56px' // Mismo alto que el TextField
+                          }}>
+                            <InterestIcon color="action" fontSize="small" />
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                              {isColjuegosCommitment(selectedCommitment) 
+                                ? "Pago posterior al vencimiento - Calcular intereses específicos de Coljuegos"
+                                : "Pago posterior al vencimiento - Calcular intereses por mora"
+                              }
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      )}
 
                       {/* Campos de Intereses - Solo cuando la fecha de pago es posterior al vencimiento */}
                       {requiresInterests(selectedCommitment, formData.date) ? (
@@ -1053,79 +1354,111 @@ const NewPaymentPage = () => {
                           })() ? (
                             <>
                               {/* Intereses específicos para Coljuegos */}
-                              <Grid item xs={12}>
-                                <Typography variant="body2" color="info.main" sx={{ mb: 1, fontStyle: 'italic' }}>
-                                  ⚠️ Pago posterior al vencimiento - Se requieren intereses específicos de Coljuegos
-                                </Typography>
-                              </Grid>
-
                               <Grid item xs={12} sm={4}>
                                 <TextField
                                   label="Intereses Derechos de Explotación"
-                                  value={formData.interesesDerechosExplotacion}
+                                  value={formData.interesesDerechosExplotacion > 0 ? formatCurrency(formData.interesesDerechosExplotacion) : ''}
                                   onChange={(e) => {
-                                    const value = parseFloat(e.target.value) || 0;
+                                    const numericValue = parseCurrency(e.target.value);
                                     setFormData(prev => ({
                                       ...prev,
-                                      interesesDerechosExplotacion: value,
-                                      finalAmount: prev.originalAmount + value + prev.interesesGastosAdministracion
+                                      interesesDerechosExplotacion: numericValue,
+                                      finalAmount: prev.originalAmount + numericValue + prev.interesesGastosAdministracion
                                     }));
                                   }}
                                   fullWidth
-                                  type="number"
+                                  placeholder="0"
                                   error={errors.interests && formData.interesesDerechosExplotacion === 0 && formData.interesesGastosAdministracion === 0}
                                   InputProps={{
                                     startAdornment: (
                                       <InputAdornment position="start">
-                                        <InterestIcon color="warning" />
+                                        <InterestIcon 
+                                          sx={{ 
+                                            color: 'warning.main',
+                                            transition: 'color 0.2s ease'
+                                          }} 
+                                        />
+                                        <Typography sx={{ ml: 0.5, color: 'text.secondary', fontWeight: 600 }}>
+                                          $
+                                        </Typography>
                                       </InputAdornment>
                                     ),
                                   }}
                                   sx={{
-                                    '& .MuiInputBase-input': {
-                                      fontWeight: 600,
-                                      color: formData.interesesDerechosExplotacion > 0 ? 'warning.main' : 'text.secondary'
+                                    '& .MuiOutlinedInput-root': {
+                                      '&:hover': {
+                                        '& .MuiOutlinedInput-notchedOutline': {
+                                          borderColor: 'primary.main'
+                                        },
+                                        '& .MuiInputAdornment-root .MuiSvgIcon-root': {
+                                          color: 'primary.main'
+                                        }
+                                      },
+                                      '&.Mui-focused': {
+                                        '& .MuiInputAdornment-root .MuiSvgIcon-root': {
+                                          color: 'primary.main'
+                                        }
+                                      }
                                     }
                                   }}
-                                  helperText="Intereses específicos para derechos de explotación"
+                                  helperText="Para derechos de explotación"
                                 />
                               </Grid>
 
                               <Grid item xs={12} sm={4}>
                                 <TextField
                                   label="Intereses Gastos de Administración"
-                                  value={formData.interesesGastosAdministracion}
+                                  value={formData.interesesGastosAdministracion > 0 ? formatCurrency(formData.interesesGastosAdministracion) : ''}
                                   onChange={(e) => {
-                                    const value = parseFloat(e.target.value) || 0;
+                                    const numericValue = parseCurrency(e.target.value);
                                     setFormData(prev => ({
                                       ...prev,
-                                      interesesGastosAdministracion: value,
-                                      finalAmount: prev.originalAmount + prev.interesesDerechosExplotacion + value
+                                      interesesGastosAdministracion: numericValue,
+                                      finalAmount: prev.originalAmount + prev.interesesDerechosExplotacion + numericValue
                                     }));
                                   }}
                                   fullWidth
-                                  type="number"
+                                  placeholder="0"
                                   error={errors.interests && formData.interesesDerechosExplotacion === 0 && formData.interesesGastosAdministracion === 0}
                                   InputProps={{
                                     startAdornment: (
                                       <InputAdornment position="start">
-                                        <InterestIcon color="error" />
+                                        <InterestIcon 
+                                          sx={{ 
+                                            color: 'error.main',
+                                            transition: 'color 0.2s ease'
+                                          }} 
+                                        />
+                                        <Typography sx={{ ml: 0.5, color: 'text.secondary', fontWeight: 600 }}>
+                                          $
+                                        </Typography>
                                       </InputAdornment>
                                     ),
                                   }}
                                   sx={{
-                                    '& .MuiInputBase-input': {
-                                      fontWeight: 600,
-                                      color: formData.interesesGastosAdministracion > 0 ? 'error.main' : 'text.secondary'
+                                    '& .MuiOutlinedInput-root': {
+                                      '&:hover': {
+                                        '& .MuiOutlinedInput-notchedOutline': {
+                                          borderColor: 'primary.main'
+                                        },
+                                        '& .MuiInputAdornment-root .MuiSvgIcon-root': {
+                                          color: 'primary.main'
+                                        }
+                                      },
+                                      '&.Mui-focused': {
+                                        '& .MuiInputAdornment-root .MuiSvgIcon-root': {
+                                          color: 'primary.main'
+                                        }
+                                      }
                                     }
                                   }}
-                                  helperText="Intereses específicos para gastos de administración"
+                                  helperText="Para gastos de administración"
                                 />
                               </Grid>
 
                               <Grid item xs={12} sm={4}>
                                 <TextField
-                                  label="Total Intereses Coljuegos"
+                                  label="Total Intereses"
                                   value={new Intl.NumberFormat('es-CO', {
                                     style: 'currency',
                                     currency: 'COP',
@@ -1136,15 +1469,13 @@ const NewPaymentPage = () => {
                                   InputProps={{
                                     startAdornment: (
                                       <InputAdornment position="start">
-                                        <InterestIcon color="secondary" />
+                                        <InterestIcon 
+                                          sx={{ 
+                                            color: 'secondary.main'
+                                          }} 
+                                        />
                                       </InputAdornment>
                                     ),
-                                  }}
-                                  sx={{
-                                    '& .MuiInputBase-input': {
-                                      fontWeight: 700,
-                                      color: 'secondary.main'
-                                    }
                                   }}
                                   helperText="Suma de ambos tipos de intereses"
                                 />
@@ -1153,39 +1484,52 @@ const NewPaymentPage = () => {
                           ) : (
                             <>
                               {/* Intereses regulares para otros compromisos */}
-                              <Grid item xs={12}>
-                                <Typography variant="body2" color="warning.main" sx={{ mb: 1, fontStyle: 'italic' }}>
-                                  ⚠️ Pago posterior al vencimiento - Se pueden aplicar intereses por mora
-                                </Typography>
-                              </Grid>
-
                               <Grid item xs={12} sm={6}>
                                 <TextField
                                   label="Intereses por Mora"
-                                  value={formData.interests}
+                                  value={formData.interests > 0 ? formatCurrency(formData.interests) : ''}
                                   onChange={(e) => {
-                                    const interestValue = parseFloat(e.target.value) || 0;
+                                    const numericValue = parseCurrency(e.target.value);
                                     setFormData(prev => ({
                                       ...prev,
-                                      interests: interestValue,
-                                      finalAmount: prev.originalAmount + interestValue
+                                      interests: numericValue,
+                                      finalAmount: prev.originalAmount + numericValue
                                     }));
                                   }}
                                   fullWidth
-                                  type="number"
+                                  placeholder="0"
                                   error={errors.interests && formData.interests === 0}
-                                  helperText={errors.interests && formData.interests === 0 ? "Este campo es requerido para pagos tardíos" : "Ingrese el monto de intereses por mora"}
+                                  helperText={errors.interests && formData.interests === 0 ? "Requerido para pagos tardíos" : "Monto de intereses por mora"}
                                   InputProps={{
                                     startAdornment: (
                                       <InputAdornment position="start">
-                                        <InterestIcon color="warning" />
+                                        <InterestIcon 
+                                          sx={{ 
+                                            color: 'warning.main',
+                                            transition: 'color 0.2s ease'
+                                          }} 
+                                        />
+                                        <Typography sx={{ ml: 0.5, color: 'text.secondary', fontWeight: 600 }}>
+                                          $
+                                        </Typography>
                                       </InputAdornment>
                                     ),
                                   }}
                                   sx={{
-                                    '& .MuiInputBase-input': {
-                                      fontWeight: 600,
-                                      color: formData.interests > 0 ? 'warning.main' : 'text.secondary'
+                                    '& .MuiOutlinedInput-root': {
+                                      '&:hover': {
+                                        '& .MuiOutlinedInput-notchedOutline': {
+                                          borderColor: 'primary.main'
+                                        },
+                                        '& .MuiInputAdornment-root .MuiSvgIcon-root': {
+                                          color: 'primary.main'
+                                        }
+                                      },
+                                      '&.Mui-focused': {
+                                        '& .MuiInputAdornment-root .MuiSvgIcon-root': {
+                                          color: 'primary.main'
+                                        }
+                                      }
                                     }
                                   }}
                                 />
@@ -1201,9 +1545,15 @@ const NewPaymentPage = () => {
                         <>
                           {/* Mensaje cuando no se requieren intereses */}
                           <Grid item xs={12}>
-                            <Alert severity="success" sx={{ mt: 1 }}>
-                              ✅ Pago a tiempo - No se requieren intereses adicionales
-                            </Alert>
+                            <Typography variant="body2" color="success.main" sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 1,
+                              mt: 1,
+                              fontWeight: 500
+                            }}>
+                              ✅ Pago a tiempo - Sin intereses adicionales
+                            </Typography>
                           </Grid>
                         </>
                       )}
@@ -1221,22 +1571,19 @@ const NewPaymentPage = () => {
                           InputProps={{
                             startAdornment: (
                               <InputAdornment position="start">
-                                <MoneyIcon color="error" />
+                                <MoneyIcon 
+                                  sx={{ 
+                                    color: 'primary.main'
+                                  }} 
+                                />
                               </InputAdornment>
                             ),
                           }}
                           sx={{
                             '& .MuiInputBase-input': {
-                              fontWeight: 700,
-                              color: 'error.main',
-                              fontSize: '1.1rem'
-                            },
-                            '& .MuiOutlinedInput-root': {
-                              backgroundColor: theme.palette.error.main + '10',
-                              '& fieldset': {
-                                borderColor: theme.palette.error.main,
-                                borderWidth: 2
-                              }
+                              fontWeight: 600,
+                              color: 'primary.main',
+                              fontSize: '1rem'
                             }
                           }}
                         />
@@ -1257,34 +1604,22 @@ const NewPaymentPage = () => {
                             InputProps={{
                               startAdornment: (
                                 <InputAdornment position="start">
-                                  <ReceiptIcon color="warning" />
+                                  <ReceiptIcon 
+                                    sx={{ 
+                                      color: 'info.main'
+                                    }} 
+                                  />
                                 </InputAdornment>
                               ),
                             }}
-                            sx={{
-                              '& .MuiInputBase-input': {
-                                fontWeight: 600,
-                                color: 'warning.main',
-                                fontSize: '0.95rem'
-                              },
-                              '& .MuiOutlinedInput-root': {
-                                backgroundColor: theme.palette.warning.main + '10',
-                                '& fieldset': {
-                                  borderColor: theme.palette.warning.main,
-                                  borderWidth: 1
-                                }
-                              }
-                            }}
-                            helperText="Se genera automáticamente para transferencias"
+                            helperText="Se registra automáticamente"
                           />
                         </Grid>
                       )}
 
                       <Grid item xs={12}>
-                        <Divider sx={{ my: 2 }} />
-                        <Typography variant="subtitle2" gutterBottom color="primary">
-                          💳 Información del Pago
-                        </Typography>
+                        {/* Espaciador visual */}
+                        <Box sx={{ my: 1 }} />
                       </Grid>
 
                       {/* Campo de cuenta de origen */}
@@ -1296,6 +1631,27 @@ const NewPaymentPage = () => {
                             label="Cuenta de Origen"
                             onChange={(e) => handleSourceAccountSelect(e.target.value)}
                             disabled={loadingCompanies}
+                            startAdornment={
+                              <InputAdornment position="start">
+                                <CompanyIcon 
+                                  sx={{ 
+                                    color: 'success.main',
+                                    transition: 'color 0.2s ease',
+                                    '.MuiOutlinedInput-root:hover &': {
+                                      color: 'primary.main'
+                                    },
+                                    '.MuiOutlinedInput-root.Mui-focused &': {
+                                      color: 'primary.main'
+                                    }
+                                  }} 
+                                />
+                              </InputAdornment>
+                            }
+                            sx={{
+                              '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'primary.main'
+                              }
+                            }}
                           >
                             <MenuItem value="">
                               <em>Seleccionar cuenta de origen</em>
@@ -1335,6 +1691,17 @@ const NewPaymentPage = () => {
                           disabled={true}
                           placeholder="Se autocompleta al seleccionar cuenta"
                           helperText="Se completa automáticamente al seleccionar una cuenta"
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <CompanyIcon 
+                                  sx={{ 
+                                    color: 'success.light'
+                                  }} 
+                                />
+                              </InputAdornment>
+                            ),
+                          }}
                           sx={{
                             '& .MuiOutlinedInput-root': {
                               backgroundColor: theme.palette.action.hover,
@@ -1351,18 +1718,11 @@ const NewPaymentPage = () => {
                         <Grid item xs={12}>
                           <Alert 
                             severity="info" 
-                            sx={{ 
-                              bgcolor: theme.palette.mode === 'dark' ? 'rgba(25, 118, 210, 0.1)' : 'rgba(25, 118, 210, 0.05)',
-                              border: `1px solid rgba(25, 118, 210, 0.2)`,
-                              borderRadius: 2
-                            }}
+                            variant="outlined"
+                            sx={{ mt: 1 }}
                           >
-                            <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
-                              💡 Consejo
-                            </Typography>
-                            <Typography variant="caption">
-                              Para registrar cuentas de origen, primero agrega la información bancaria en la sección de Empresas. 
-                              Allí puedes agregar número de cuenta, banco y certificación bancaria de cada empresa.
+                            <Typography variant="body2">
+                              <strong>💡 Tip:</strong> Para registrar cuentas de origen, agrega la información bancaria en la sección de Empresas.
                             </Typography>
                           </Alert>
                         </Grid>
@@ -1375,6 +1735,27 @@ const NewPaymentPage = () => {
                             value={formData.method}
                             onChange={handleInputChange('method')}
                             label="Método de Pago"
+                            startAdornment={
+                              <InputAdornment position="start">
+                                <ReceiptIcon 
+                                  sx={{ 
+                                    color: 'secondary.main',
+                                    transition: 'color 0.2s ease',
+                                    '.MuiOutlinedInput-root:hover &': {
+                                      color: 'primary.main'
+                                    },
+                                    '.MuiOutlinedInput-root.Mui-focused &': {
+                                      color: 'primary.main'
+                                    }
+                                  }} 
+                                />
+                              </InputAdornment>
+                            }
+                            sx={{
+                              '&:hover .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'primary.main'
+                              }
+                            }}
                           >
                             {paymentMethods.map((method) => (
                               <MenuItem key={method} value={method}>
@@ -1394,6 +1775,35 @@ const NewPaymentPage = () => {
                           error={!!errors.reference}
                           helperText={errors.reference}
                           placeholder="Ej: TRF-2025-001, CHE-12345"
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <AttachIcon 
+                                  sx={{ 
+                                    color: 'info.main',
+                                    transition: 'color 0.2s ease'
+                                  }} 
+                                />
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover': {
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                  borderColor: 'primary.main'
+                                },
+                                '& .MuiInputAdornment-root .MuiSvgIcon-root': {
+                                  color: 'primary.main'
+                                }
+                              },
+                              '&.Mui-focused': {
+                                '& .MuiInputAdornment-root .MuiSvgIcon-root': {
+                                  color: 'primary.main'
+                                }
+                              }
+                            }
+                          }}
                         />
                       </Grid>
 
@@ -1409,6 +1819,35 @@ const NewPaymentPage = () => {
                           InputLabelProps={{
                             shrink: true,
                           }}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <ScheduleIcon 
+                                  sx={{ 
+                                    color: 'warning.main',
+                                    transition: 'color 0.2s ease'
+                                  }} 
+                                />
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover': {
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                  borderColor: 'primary.main'
+                                },
+                                '& .MuiInputAdornment-root .MuiSvgIcon-root': {
+                                  color: 'primary.main'
+                                }
+                              },
+                              '&.Mui-focused': {
+                                '& .MuiInputAdornment-root .MuiSvgIcon-root': {
+                                  color: 'primary.main'
+                                }
+                              }
+                            }
+                          }}
                         />
                       </Grid>
 
@@ -1421,14 +1860,46 @@ const NewPaymentPage = () => {
                           multiline
                           rows={1}
                           placeholder="Notas adicionales sobre el pago..."
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <SaveIcon 
+                                  sx={{ 
+                                    color: 'grey.600',
+                                    transition: 'color 0.2s ease'
+                                  }} 
+                                />
+                              </InputAdornment>
+                            ),
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover': {
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                  borderColor: 'primary.main'
+                                },
+                                '& .MuiInputAdornment-root .MuiSvgIcon-root': {
+                                  color: 'primary.main'
+                                }
+                              },
+                              '&.Mui-focused': {
+                                '& .MuiInputAdornment-root .MuiSvgIcon-root': {
+                                  color: 'primary.main'
+                                }
+                              }
+                            }
+                          }}
                         />
                       </Grid>
 
                       {/* Sección de carga de archivos */}
                       <Grid item xs={12}>
-                        <Divider sx={{ my: 2 }} />
-                        <Typography variant="subtitle2" gutterBottom color="primary">
-                          📎 Comprobantes de Pago
+                        <Typography variant="body1" gutterBottom sx={{ 
+                          fontWeight: 600, 
+                          color: 'text.primary',
+                          mt: 2
+                        }}>
+                          Comprobantes de Pago
                         </Typography>
                       </Grid>
 
@@ -1462,21 +1933,17 @@ const NewPaymentPage = () => {
                             <label htmlFor="file-upload" style={{ cursor: 'pointer', width: '100%', display: 'block' }}>
                               <UploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
                               <Typography variant="h6" gutterBottom>
-                                Arrastra archivos aquí o haz clic para seleccionar
+                                Seleccionar Comprobantes
                               </Typography>
-                              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                                Formatos permitidos: JPG, PNG, PDF (máx. 10MB cada uno)
-                              </Typography>
-                              <Typography variant="caption" color="primary.main" sx={{ fontWeight: 600 }}>
-                                💡 Múltiples archivos se combinarán automáticamente en un solo PDF
+                              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                JPG, PNG, PDF (máx. 10MB c/u) • Múltiples archivos se combinan en PDF
                               </Typography>
                               <Button
                                 variant="outlined"
                                 startIcon={<AttachIcon />}
-                                sx={{ mt: 2 }}
                                 component="span"
                               >
-                                Seleccionar Archivos
+                                Examinar Archivos
                               </Button>
                             </label>
                           </CardContent>
@@ -1486,18 +1953,22 @@ const NewPaymentPage = () => {
                       {/* Lista de archivos seleccionados */}
                       {files.length > 0 && (
                         <Grid item xs={12}>
-                          <Typography variant="subtitle2" gutterBottom>
-                            📋 Archivos Seleccionados ({files.length})
+                          <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
+                            Archivos Seleccionados ({files.length})
                           </Typography>
-                          <List dense>
+                          <List dense sx={{ bgcolor: 'background.paper', borderRadius: 1 }}>
                             {files.map((fileData) => (
-                              <ListItem key={fileData.id}>
-                                <ListItemIcon>
+                              <ListItem key={fileData.id} sx={{ py: 0.5 }}>
+                                <ListItemIcon sx={{ minWidth: 36 }}>
                                   <FileIcon color={fileData.uploaded ? 'success' : 'default'} />
                                 </ListItemIcon>
                                 <ListItemText
-                                  primary={fileData.name}
-                                  secondary={`${Math.round(fileData.size / 1024)} KB - ${fileData.uploaded ? 'Subido' : 'Pendiente'}`}
+                                  primary={
+                                    <Typography variant="body2" noWrap>
+                                      {fileData.name}
+                                    </Typography>
+                                  }
+                                  secondary={`${Math.round(fileData.size / 1024)} KB`}
                                 />
                                 <ListItemSecondaryAction>
                                   <IconButton
@@ -1506,7 +1977,7 @@ const NewPaymentPage = () => {
                                     size="small"
                                     disabled={uploading}
                                   >
-                                    <DeleteIcon />
+                                    <DeleteIcon fontSize="small" />
                                   </IconButton>
                                 </ListItemSecondaryAction>
                               </ListItem>
@@ -1535,146 +2006,120 @@ const NewPaymentPage = () => {
 
           {/* Panel de Resumen */}
           <Grid item xs={12} lg={4}>
-            <Card sx={{ position: 'sticky', top: 20 }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <ReceiptIcon color="secondary" />
-                  Resumen del Pago
+            <Card 
+              sx={{ 
+                position: 'sticky', 
+                top: 20,
+                bgcolor: 'background.paper',
+                boxShadow: theme => theme.shadows[2],
+                border: '1px solid',
+                borderColor: 'divider'
+              }}
+            >
+              <CardContent sx={{ pb: 2 }}>
+                <Typography variant="h6" gutterBottom sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 1,
+                  color: 'text.primary',
+                  fontWeight: 600
+                }}>
+                  <ReceiptIcon color="primary" />
+                  Resumen de Pago
                 </Typography>
                 
                 {selectedCommitment ? (
                   <Box>
-                    <Box sx={{ mb: 2, p: 2, backgroundColor: theme.palette.grey[50], borderRadius: 1 }}>
-                      <Typography variant="subtitle2" color="primary" gutterBottom>
+                    {/* Info del compromiso simplificada */}
+                    <Box sx={{ 
+                      mb: 2, 
+                      p: 1.5, 
+                      bgcolor: 'grey.50', 
+                      borderRadius: 1,
+                      border: '1px solid',
+                      borderColor: 'grey.200'
+                    }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                         {selectedCommitment.companyName}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary">
                         {selectedCommitment.concept}
                       </Typography>
                     </Box>
                     
-                    <Divider sx={{ my: 2 }} />
-                    
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography variant="body2">Valor Original:</Typography>
-                      <Typography variant="body2" color="success.main" fontWeight={600}>
-                        {new Intl.NumberFormat('es-CO', {
-                          style: 'currency',
-                          currency: 'COP',
-                          minimumFractionDigits: 0
-                        }).format(formData.originalAmount)}
-                      </Typography>
-                    </Box>
-                    
-                    {isColjuegosCommitment(selectedCommitment) ? (
-                      <>
-                        {/* Mostrar intereses de Coljuegos separados */}
-                        {formData.interesesDerechosExplotacion > 0 && (
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography variant="body2">Int. Derechos Explotación:</Typography>
-                            <Typography variant="body2" color="warning.main" fontWeight={600}>
-                              +{new Intl.NumberFormat('es-CO', {
-                                style: 'currency',
-                                currency: 'COP',
-                                minimumFractionDigits: 0
-                              }).format(formData.interesesDerechosExplotacion)}
-                            </Typography>
-                          </Box>
-                        )}
-                        
-                        {formData.interesesGastosAdministracion > 0 && (
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography variant="body2">Int. Gastos Administración:</Typography>
-                            <Typography variant="body2" color="error.main" fontWeight={600}>
-                              +{new Intl.NumberFormat('es-CO', {
-                                style: 'currency',
-                                currency: 'COP',
-                                minimumFractionDigits: 0
-                              }).format(formData.interesesGastosAdministracion)}
-                            </Typography>
-                          </Box>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        {/* Mostrar intereses regulares */}
-                        {formData.interests > 0 && (
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                            <Typography variant="body2">Intereses:</Typography>
-                            <Typography variant="body2" color="warning.main" fontWeight={600}>
-                              +{new Intl.NumberFormat('es-CO', {
-                                style: 'currency',
-                                currency: 'COP',
-                                minimumFractionDigits: 0
-                              }).format(formData.interests)}
-                            </Typography>
-                          </Box>
-                        )}
-                      </>
-                    )}
-                    
-                    <Divider sx={{ my: 1 }} />
-                    
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                      <Typography variant="h6">Total a Pagar:</Typography>
-                      <Typography variant="h6" color="error.main">
-                        {new Intl.NumberFormat('es-CO', {
-                          style: 'currency',
-                          currency: 'COP',
-                          minimumFractionDigits: 0
-                        }).format(formData.finalAmount)}
-                      </Typography>
-                    </Box>
-                    
-                    {formData.method && (
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          Método: <strong>{formData.method}</strong>
-                        </Typography>
-                      </Box>
-                    )}
-
-                    {/* Mostrar información del 4x1000 si aplica */}
-                    {(formData.method === 'Transferencia' || formData.method === 'PSE') && formData.sourceAccount && formData.tax4x1000 > 0 && (
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="body2" color="warning.main" sx={{ fontStyle: 'italic' }}>
-                          💳 4x1000 (Automático): <strong>{new Intl.NumberFormat('es-CO', {
+                    {/* Breakdown de costos */}
+                    <Box sx={{ mb: 2 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2">Valor Base:</Typography>
+                        <Typography variant="body2" fontWeight={500}>
+                          {new Intl.NumberFormat('es-CO', {
                             style: 'currency',
                             currency: 'COP',
                             minimumFractionDigits: 0
-                          }).format(formData.tax4x1000)}</strong>
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          Se generará automáticamente como registro separado
+                          }).format(formData.originalAmount)}
                         </Typography>
                       </Box>
+                      
+                      {/* Intereses - Simplificados */}
+                      {(formData.interests > 0 || formData.interesesDerechosExplotacion > 0 || formData.interesesGastosAdministracion > 0) && (
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="body2">Intereses:</Typography>
+                          <Typography variant="body2" color="warning.main" fontWeight={500}>
+                            +{new Intl.NumberFormat('es-CO', {
+                              style: 'currency',
+                              currency: 'COP',
+                              minimumFractionDigits: 0
+                            }).format(
+                              formData.interests + 
+                              formData.interesesDerechosExplotacion + 
+                              formData.interesesGastosAdministracion
+                            )}
+                          </Typography>
+                        </Box>
+                      )}
+                      
+                      <Divider sx={{ my: 1 }} />
+                      
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="h6" color="primary">Total:</Typography>
+                        <Typography variant="h6" color="primary" fontWeight={700}>
+                          {new Intl.NumberFormat('es-CO', {
+                            style: 'currency',
+                            currency: 'COP',
+                            minimumFractionDigits: 0
+                          }).format(formData.finalAmount)}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    
+                    {/* Mostrar información del 4x1000 si aplica */}
+                    {(formData.method === 'Transferencia' || formData.method === 'PSE') && formData.sourceAccount && formData.tax4x1000 > 0 && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                        + 4x1000: {new Intl.NumberFormat('es-CO', {
+                          style: 'currency',
+                          currency: 'COP',
+                          minimumFractionDigits: 0
+                        }).format(formData.tax4x1000)} (registro separado)
+                      </Typography>
                     )}
 
                     {files.length > 0 && (
-                      <Box sx={{ mb: 2 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          Comprobantes: <strong>
-                            {files.length === 1 
-                              ? '1 archivo' 
-                              : `${files.length} archivos → 1 PDF combinado`
-                            }
-                          </strong>
-                        </Typography>
-                        <Typography variant="caption" color={files.every(f => f.uploaded) ? 'success.main' : 'warning.main'}>
-                          {files.every(f => f.uploaded) 
-                            ? '✓ Comprobante listo' 
-                            : files.length > 1 
-                              ? '⚠ Se combinarán al registrar' 
-                              : '⚠ Pendiente de subir'
-                          }
-                        </Typography>
-                      </Box>
+                      <Typography variant="caption" color="success.main" sx={{ display: 'block', mb: 1 }}>
+                        ✓ {files.length === 1 ? '1 comprobante' : `${files.length} comprobantes`}
+                      </Typography>
                     )}
                   </Box>
                 ) : (
-                  <Alert severity="info">
-                    Seleccione un compromiso para ver el resumen del pago
-                  </Alert>
+                  <Box sx={{ 
+                    textAlign: 'center', 
+                    py: 3,
+                    color: 'text.secondary'
+                  }}>
+                    <ReceiptIcon sx={{ fontSize: 48, opacity: 0.3, mb: 1 }} />
+                    <Typography variant="body2">
+                      Seleccione un compromiso para ver el resumen
+                    </Typography>
+                  </Box>
                 )}
               </CardContent>
             </Card>
@@ -1746,6 +2191,165 @@ const NewPaymentPage = () => {
           </Box>
         </Box>
       </form>
+
+      {/* 📄 VISOR PDF DE FACTURA DEL COMPROMISO */}
+      <Dialog
+        open={pdfViewerOpen}
+        onClose={handleClosePdfViewer}
+        maxWidth={pdfViewerSize === 'large' ? 'xl' : pdfViewerSize === 'small' ? 'sm' : 'lg'}
+        fullWidth
+        PaperProps={{
+          sx: {
+            height: pdfViewerSize === 'large' ? '90vh' : pdfViewerSize === 'small' ? '60vh' : '80vh',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            backdropFilter: 'blur(10px)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          color: 'white', 
+          background: 'rgba(0,0,0,0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <PdfIcon />
+            <Typography variant="h6">
+              📄 Factura del Compromiso
+            </Typography>
+            {selectedCommitment && (
+              <Chip 
+                label={selectedCommitment.companyName}
+                size="small"
+                sx={{ 
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  color: 'white'
+                }}
+              />
+            )}
+          </Box>
+          
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Tooltip title="Cambiar tamaño">
+              <IconButton onClick={toggleViewerSize} sx={{ color: 'white' }}>
+                {pdfViewerSize === 'large' ? <MinimizeIcon /> : <MaximizeIcon />}
+              </IconButton>
+            </Tooltip>
+            
+            <Tooltip title="Abrir en nueva pestaña">
+              <IconButton onClick={handleOpenInNewTab} sx={{ color: 'white' }}>
+                <ExternalLinkIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent sx={{ 
+          p: 0, 
+          backgroundColor: '#f5f5f5',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden'
+        }}>
+          {invoiceUrl ? (
+            <Box sx={{ 
+              flex: 1,
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center'
+            }}>
+              {invoiceUrl.includes('.pdf') ? (
+                // Visor PDF
+                <iframe
+                  src={`${invoiceUrl}#toolbar=1&navpanes=1&scrollbar=1`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    border: 'none',
+                    backgroundColor: 'white'
+                  }}
+                  title="Factura del Compromiso"
+                />
+              ) : (
+                // Visor de imagen
+                <Box sx={{ 
+                  width: '100%', 
+                  height: '100%',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  p: 2
+                }}>
+                  <img
+                    src={invoiceUrl}
+                    alt="Factura del Compromiso"
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                      objectFit: 'contain',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                    }}
+                  />
+                </Box>
+              )}
+            </Box>
+          ) : (
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center',
+              height: '100%',
+              flexDirection: 'column',
+              gap: 2
+            }}>
+              <PdfIcon sx={{ fontSize: 64, color: 'text.secondary' }} />
+              <Typography variant="h6" color="text.secondary">
+                No hay factura disponible
+              </Typography>
+              <Typography variant="body2" color="text.secondary" textAlign="center">
+                Este compromiso no tiene factura adjunta
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ 
+          background: 'rgba(0,0,0,0.1)',
+          justifyContent: 'space-between'
+        }}>
+          <Typography variant="body2" sx={{ color: 'white', ml: 1 }}>
+            {selectedCommitment && (
+              <>
+                💼 {selectedCommitment.concept} • 
+                💰 {new Intl.NumberFormat('es-CO', {
+                  style: 'currency',
+                  currency: 'COP',
+                  minimumFractionDigits: 0
+                }).format(selectedCommitment.amount || 0)}
+              </>
+            )}
+          </Typography>
+          
+          <Button 
+            onClick={handleClosePdfViewer}
+            variant="outlined"
+            sx={{ 
+              color: 'white',
+              borderColor: 'white',
+              '&:hover': {
+                backgroundColor: 'rgba(255,255,255,0.1)'
+              }
+            }}
+          >
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

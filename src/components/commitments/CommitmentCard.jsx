@@ -20,7 +20,8 @@ import {
   AttachMoney,
   Business,
   Schedule,
-  Warning
+  Warning,
+  Person
 } from '@mui/icons-material';
 import { format, isAfter, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -167,6 +168,15 @@ const CommitmentCard = ({ commitment, onEdit, onDelete, onPayment }) => {
               {commitment.companyName || commitment.company || 'Sin empresa'}
             </Typography>
           </Box>
+
+          {commitment.beneficiary && (
+            <Box display="flex" alignItems="center" gap={1} mb={2}>
+              <Person fontSize="small" color="primary" />
+              <Typography variant="body2" color="primary.main" sx={{ fontWeight: 500 }}>
+                Proveedor: {commitment.beneficiary}
+              </Typography>
+            </Box>
+          )}
 
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Chip 
