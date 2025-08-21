@@ -85,10 +85,25 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
     });
 
     const total = monthCommitments.length;
-    const completed = monthCommitments.filter(c => c.status === 'completed').length;
+    
+    // Función para determinar si un compromiso está pagado/completado
+    const isCompleted = (commitment) => {
+      return commitment.status === 'completed' || 
+             commitment.status === 'paid' || 
+             commitment.status === 'Pagado' || 
+             commitment.status === 'pagado' || 
+             commitment.status === 'PAGADO' ||
+             commitment.isPaid === true ||
+             commitment.paymentStatus === 'paid' ||
+             commitment.paymentStatus === 'Pagado' ||
+             commitment.paymentStatus === 'pagado' ||
+             commitment.completed === true;
+    };
+    
+    const completed = monthCommitments.filter(c => isCompleted(c)).length;
     const overdue = monthCommitments.filter(c => {
       const dueDate = c.dueDate.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
-      return dueDate < new Date() && c.status !== 'completed';
+      return dueDate < new Date() && !isCompleted(c);
     }).length;
 
     return { total, completed, overdue, pending: total - completed - overdue };
@@ -141,9 +156,24 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
     if (dayCommitments.length === 0) return null;
     
     const now = new Date();
+    
+    // Función para determinar si un compromiso está completado
+    const isCompleted = (commitment) => {
+      return commitment.status === 'completed' || 
+             commitment.status === 'paid' || 
+             commitment.status === 'Pagado' || 
+             commitment.status === 'pagado' || 
+             commitment.status === 'PAGADO' ||
+             commitment.isPaid === true ||
+             commitment.paymentStatus === 'paid' ||
+             commitment.paymentStatus === 'Pagado' ||
+             commitment.paymentStatus === 'pagado' ||
+             commitment.completed === true;
+    };
+    
     const isOverdue = dayCommitments.some(c => {
       const dueDate = c.dueDate.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
-      return dueDate < now && c.status !== 'completed';
+      return dueDate < now && !isCompleted(c);
     });
     
     if (isOverdue) return 'error';

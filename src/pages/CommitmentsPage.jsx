@@ -218,12 +218,12 @@ const CommitmentsPage = () => {
                   variant="contained"
                   startIcon={<Add />}
                   onClick={handleAddCommitment}
-                  size="large"
+                  size="medium"
                   sx={{
-                    py: 1.5,
-                    px: 4,
-                    fontSize: '1.1rem',
-                    fontWeight: 700,
+                    py: 1,
+                    px: 2.5,
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
                     borderRadius: `${settings.theme?.borderRadius || 16}px`,
                     background: 'rgba(255, 255, 255, 0.2)',
                     backdropFilter: 'blur(10px)',
@@ -246,12 +246,12 @@ const CommitmentsPage = () => {
                   variant="outlined"
                   startIcon={<Repeat />}
                   onClick={handleCheckExtensions}
-                  size="large"
+                  size="medium"
                   sx={{
-                    py: 1.5,
-                    px: 3,
-                    fontSize: '1.1rem',
-                    fontWeight: 700,
+                    py: 1,
+                    px: 2.5,
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
                     borderRadius: `${settings.theme?.borderRadius || 16}px`,
                     background: 'rgba(255, 255, 255, 0.1)',
                     backdropFilter: 'blur(10px)',

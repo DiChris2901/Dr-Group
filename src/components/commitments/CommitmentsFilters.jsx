@@ -137,11 +137,14 @@ const CommitmentsFilters = ({
         elevation={0}
         sx={{
           backgroundColor: theme.palette.background.paper,
-          border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
           borderRadius: 1,
           p: 3,
           mb: 4,
-          position: 'relative'
+          position: 'relative',
+          '&:hover': {
+            borderColor: alpha(theme.palette.primary.main, 0.8)
+          }
         }}
       >
         <Box>

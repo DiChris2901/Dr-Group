@@ -14,7 +14,8 @@ import {
   Divider,
   Avatar,
   IconButton,
-  Tooltip
+  Tooltip,
+  alpha
 } from '@mui/material';
 import {
   TrendingUp,
@@ -33,7 +34,6 @@ import {
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useDashboardStats } from '../../hooks/useDashboardStats';
-import { useStorageStats } from '../../hooks/useStorageStats';
 import { useFirestore } from '../../hooks/useFirestore';
 import { fCurrency } from '../../utils/formatNumber';
 import { useNavigate } from 'react-router-dom';
@@ -43,8 +43,22 @@ const WelcomeDashboardSimple = () => {
   const navigate = useNavigate();
   const { currentUser, userProfile } = useAuth();
   const stats = useDashboardStats();
-  const storageStats = useStorageStats();
   const [currentTime] = useState(new Date().getHours());
+  const [lastRefresh, setLastRefresh] = useState(new Date());
+
+  // Actualizar timestamp cada minuto
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLastRefresh(new Date());
+    }, 60000); // Actualiza cada minuto
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleRefresh = () => {
+    setLastRefresh(new Date());
+    window.location.reload();
+  };
 
   const getGreeting = () => {
     if (currentTime < 12) return 'Buenos días';
@@ -101,35 +115,35 @@ const WelcomeDashboardSimple = () => {
     }
   ];
 
-  // Estadísticas rápidas
+  // Estadísticas rápidas con datos reales de Firebase
   const quickStats = [
     {
       title: 'Compromisos Activos',
-      value: stats?.totalCommitments || '0',
+      value: stats?.loading ? '...' : (stats?.activeCommitments || '0'),
       icon: AccountBalance,
       color: '#2196f3',
-      trend: '+12%'
+      trend: stats?.activeCommitments > 0 ? `${stats.activeCommitments} activos de ${stats.totalCommitments} total` : 'Sin compromisos activos'
     },
     {
       title: 'Pendientes de Pago',
-      value: fCurrency(stats?.pendingAmount || 0),
+      value: stats?.loading ? '...' : fCurrency(stats?.pendingAmount || 0),
       icon: AttachMoney,
       color: '#ff9800',
-      trend: '-5%'
+      trend: stats?.pendingCommitments > 0 ? `${stats.pendingCommitments} compromisos` : 'Al día'
     },
     {
       title: 'Empresas Activas',
-      value: stats?.totalCompanies || '0',
+      value: stats?.loading ? '...' : (stats?.totalCompanies || '0'),
       icon: BusinessIcon,
       color: '#4caf50',
-      trend: '+8%'
+      trend: stats?.totalCompanies > 0 ? 'Activo' : 'Inactivo'
     },
     {
       title: 'Alertas Críticas',
-      value: stats?.criticalAlerts || '0',
+      value: stats?.loading ? '...' : (stats?.overDueCommitments || '0'),
       icon: Warning,
       color: '#f44336',
-      trend: '-15%'
+      trend: stats?.overDueCommitments > 0 ? '¡Revisar!' : 'Sin alertas'
     }
   ];
 
@@ -139,60 +153,89 @@ const WelcomeDashboardSimple = () => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <Box sx={{ p: 3 }}>
-        {/* Saludo personalizado */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            mb: 4,
-            p: 3,
-            background: theme.palette.mode === 'dark' 
-              ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95))'
-              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95))',
-            backdropFilter: 'blur(20px)',
-            borderRadius: '16px',
-            border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'}`,
-            boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)'
-          }}>
-            <Avatar sx={{ 
-              mr: 2, 
-              width: 56, 
-              height: 56,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-            }}>
-              <Person />
-            </Avatar>
-            <Box sx={{ flex: 1 }}>
-              <Typography variant="h4" fontWeight="bold" sx={{ 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
-              }}>
-                {getGreeting()}, {userProfile?.displayName || currentUser?.email?.split('@')[0] || 'Usuario'}
+    <Box sx={{ 
+      p: { xs: 2, sm: 3, md: 4 },
+      maxWidth: '1400px',
+      mx: 'auto'
+    }}>
+      {/* 🎨 Header sobrio empresarial */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <Box sx={{
+          background: theme.palette.mode === 'dark' 
+            ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          borderRadius: 1,
+          p: 3,
+          mb: 3,
+          position: 'relative',
+          overflow: 'hidden',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+            : '0 4px 20px rgba(0, 0, 0, 0.08)'
+        }}>
+          <Box display="flex" alignItems="center" justifyContent="space-between">
+            <Box sx={{ position: 'relative', zIndex: 1 }}>
+              <Typography 
+                variant="h5" 
+                component="h1" 
+                sx={{ 
+                  fontWeight: 600,
+                  mb: 0.5,
+                  color: 'white',
+                  fontSize: { xs: '1.4rem', sm: '1.6rem', md: '1.75rem' }
+                }}
+              >
+                📊 {getGreeting()}, {userProfile?.displayName || currentUser?.email?.split('@')[0] || 'Usuario'}
               </Typography>
-              <Typography variant="subtitle1" color="text.secondary">
-                Bienvenido al Centro de Comando Empresarial
+              <Typography 
+                variant="body1" 
+                sx={{ 
+                  fontWeight: 400,
+                  color: 'rgba(255,255,255,0.85)',
+                  mb: 0
+                }}
+              >
+                Centro de Comando Empresarial • Gestión financiera inteligente
               </Typography>
             </Box>
-            <Tooltip title="Actualizar datos">
-              <IconButton sx={{ 
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            
+            {/* Botón sobrio con estado en tiempo real */}
+            <Button
+              variant="contained"
+              startIcon={<Refresh />}
+              onClick={handleRefresh}
+              disabled={stats?.loading}
+              sx={{
+                background: 'rgba(255,255,255,0.1)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: 1,
+                fontWeight: 500,
+                px: 2.5,
+                py: 1,
                 color: 'white',
+                textTransform: 'none',
+                fontSize: '0.875rem',
+                minHeight: 'auto',
                 '&:hover': {
-                  background: 'linear-gradient(135deg, #5a6fd8 0%, #6d4190 100%)',
+                  background: 'rgba(255,255,255,0.2)',
+                  borderColor: 'rgba(255,255,255,0.3)'
+                },
+                '&:disabled': {
+                  background: 'rgba(255,255,255,0.05)',
+                  color: 'rgba(255,255,255,0.5)'
                 }
-              }}>
-                <Refresh />
-              </IconButton>
-            </Tooltip>
+              }}
+            >
+              {stats?.loading ? 'Cargando...' : 'Actualizar'}
+            </Button>
           </Box>
-        </motion.div>
+        </Box>
+      </motion.div>
 
         {/* Estadísticas rápidas */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -205,14 +248,18 @@ const WelcomeDashboardSimple = () => {
               >
                 <Card sx={{
                   background: theme.palette.mode === 'dark' 
-                    ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95))'
-                    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95))',
-                  backdropFilter: 'blur(20px)',
-                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'}`,
-                  boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
+                    ? theme.palette.background.paper
+                    : '#ffffff',
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                  boxShadow: theme.palette.mode === 'dark'
+                    ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+                    : '0 4px 20px rgba(0, 0, 0, 0.08)',
                   '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: '0 12px 40px rgba(31, 38, 135, 0.5)',
+                    transform: 'translateY(-2px)',
+                    boxShadow: theme.palette.mode === 'dark'
+                      ? '0 8px 25px rgba(0, 0, 0, 0.4)'
+                      : '0 8px 25px rgba(0, 0, 0, 0.12)',
+                    borderColor: alpha(theme.palette.primary.main, 0.8)
                   },
                   transition: 'all 0.3s ease'
                 }}>
@@ -220,17 +267,19 @@ const WelcomeDashboardSimple = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <Box>
                         <Typography variant="h4" fontWeight="bold" sx={{ mb: 1 }}>
-                          {stat.value}
+                          {stats?.loading ? (
+                            <CircularProgress size={24} sx={{ color: theme.palette.primary.main }} />
+                          ) : stat.value}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           {stat.title}
                         </Typography>
                       </Box>
                       <Box sx={{ 
-                        background: `${stat.color}20`, 
-                        borderRadius: '50%', 
+                        background: alpha(theme.palette.primary.main, 0.1), 
+                        borderRadius: 2, 
                         p: 1.5,
-                        color: stat.color
+                        color: theme.palette.primary.main
                       }}>
                         <stat.icon />
                       </Box>
@@ -262,10 +311,7 @@ const WelcomeDashboardSimple = () => {
               fontWeight="bold" 
               sx={{ 
                 mb: 2,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
+                color: theme.palette.text.primary
               }}
             >
               Centro de Comando Empresarial
@@ -287,8 +333,10 @@ const WelcomeDashboardSimple = () => {
                     <Card
                       onClick={action.action}
                       sx={{
-                        background: action.gradient,
-                        color: 'white',
+                        background: theme.palette.mode === 'dark' 
+                          ? theme.palette.background.paper
+                          : '#ffffff',
+                        color: theme.palette.text.primary,
                         cursor: 'pointer',
                         height: '200px',
                         display: 'flex',
@@ -296,27 +344,20 @@ const WelcomeDashboardSimple = () => {
                         justifyContent: 'center',
                         alignItems: 'center',
                         textAlign: 'center',
-                        backdropFilter: 'blur(20px)',
-                        border: '1px solid rgba(255,255,255,0.1)',
-                        boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                        boxShadow: theme.palette.mode === 'dark'
+                          ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+                          : '0 4px 20px rgba(0, 0, 0, 0.08)',
                         position: 'relative',
                         overflow: 'hidden',
                         '&:hover': {
-                          boxShadow: '0 12px 40px rgba(31, 38, 135, 0.5)',
+                          boxShadow: theme.palette.mode === 'dark'
+                            ? '0 8px 25px rgba(0, 0, 0, 0.4)'
+                            : '0 8px 25px rgba(0, 0, 0, 0.12)',
+                          borderColor: alpha(theme.palette.primary.main, 0.8),
+                          transform: 'translateY(-2px)'
                         },
-                        '&::before': {
-                          content: '""',
-                          position: 'absolute',
-                          top: 0,
-                          left: '-100%',
-                          width: '100%',
-                          height: '100%',
-                          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                          transition: 'left 0.5s',
-                        },
-                        '&:hover::before': {
-                          left: '100%',
-                        }
+                        transition: 'all 0.3s ease'
                       }}
                     >
                       <CardContent sx={{ 
@@ -327,18 +368,22 @@ const WelcomeDashboardSimple = () => {
                         height: '100%'
                       }}>
                         <Box sx={{ 
-                          background: 'rgba(255,255,255,0.2)', 
-                          borderRadius: '50%', 
+                          background: alpha(theme.palette.primary.main, 0.1), 
+                          borderRadius: 2, 
                           p: 2, 
                           mb: 2,
-                          backdropFilter: 'blur(10px)'
+                          color: theme.palette.primary.main
                         }}>
                           <action.icon sx={{ fontSize: 40 }} />
                         </Box>
-                        <Typography variant="h6" fontWeight="bold" sx={{ mb: 1 }}>
+                        <Typography variant="h6" fontWeight="600" sx={{ mb: 1, color: theme.palette.text.primary }}>
                           {action.title}
                         </Typography>
-                        <Typography variant="body2" sx={{ opacity: 0.9, lineHeight: 1.4 }}>
+                        <Typography variant="body2" sx={{ 
+                          color: theme.palette.text.secondary, 
+                          lineHeight: 1.4,
+                          fontSize: '0.875rem'
+                        }}>
                           {action.description}
                         </Typography>
                       </CardContent>
@@ -348,63 +393,6 @@ const WelcomeDashboardSimple = () => {
               ))}
             </Grid>
           </Box>
-        </motion.div>
-
-        {/* Estado del sistema */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.8 }}
-        >
-          <Card sx={{
-            background: theme.palette.mode === 'dark' 
-              ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95))'
-              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95))',
-            backdropFilter: 'blur(20px)',
-            border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'}`,
-            boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)'
-          }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight="bold" sx={{ mb: 3 }}>
-                Estado del Sistema
-              </Typography>
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ mb: 2 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                      <Typography variant="body2">Uso de Almacenamiento</Typography>
-                      <Typography variant="body2" fontWeight="bold">
-                        {storageStats?.used ? `${Math.round((storageStats.used / storageStats.total) * 100)}%` : '0%'}
-                      </Typography>
-                    </Box>
-                    <LinearProgress 
-                      variant="determinate" 
-                      value={storageStats?.used ? (storageStats.used / storageStats.total) * 100 : 0}
-                      sx={{ height: 8, borderRadius: 4 }}
-                    />
-                  </Box>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Box>
-                      <Typography variant="body2" color="text.secondary">
-                        Última actualización
-                      </Typography>
-                      <Typography variant="body2" fontWeight="bold">
-                        {new Date().toLocaleTimeString()}
-                      </Typography>
-                    </Box>
-                    <Chip 
-                      icon={<CheckCircle />}
-                      label="Sistema Operativo" 
-                      color="success" 
-                      variant="outlined"
-                    />
-                  </Box>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
         </motion.div>
       </Box>
     </motion.div>

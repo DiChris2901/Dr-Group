@@ -42,13 +42,13 @@ import {
   Visibility as VisibilityIcon,
   Save as SaveIcon,
   Cancel as CancelIcon,
+  Clear as ClearIcon,
   AccountBalance as AccountBalanceIcon,
   Receipt as ReceiptIcon,
   TrendingUp as TrendingUpIcon,
   CalendarToday as CalendarIcon,
   Person as PersonIcon,
   Description as DescriptionIcon,
-  Refresh as RefreshIcon,
   AttachFile as AttachFileIcon,
   CloudUpload as CloudUploadIcon,
   Delete as DeleteFileIcon,
@@ -288,16 +288,6 @@ const IncomePage = () => {
 
     return () => unsubscribe();
   }, [currentUser]);
-
-  // Función de refresh manual
-  const [refreshing, setRefreshing] = useState(false);
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    // Los datos se actualizan automáticamente por los listeners de Firebase
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
-  };
 
   // Calcular estadÃ­sticas
   const stats = React.useMemo(() => {
@@ -736,66 +726,25 @@ const IncomePage = () => {
             gap: 1,
             alignItems: 'center'
           }}>
-            <Chip 
-              size="small" 
-              label={`Total ${formatCurrency(stats.total)}`} 
-              sx={{ 
-                fontWeight: 600, 
-                borderRadius: 1,
-                fontSize: '0.7rem',
-                height: 26,
-                bgcolor: 'rgba(255, 255, 255, 0.2)',
-                color: 'white',
-                backdropFilter: 'blur(10px)'
-              }} 
-            />
-            <Chip 
-              size="small" 
-              label={`Este Mes ${formatCurrency(stats.thisMonth)}`} 
-              sx={{ 
-                borderRadius: 1,
-                fontSize: '0.7rem',
-                height: 26,
-                bgcolor: 'rgba(76, 175, 80, 0.3)',
-                color: 'white',
-                backdropFilter: 'blur(10px)'
-              }} 
-            />
-            <Chip 
-              size="small" 
-              label={`${incomes.length} ingresos`} 
-              sx={{ 
-                borderRadius: 1,
-                fontSize: '0.7rem',
-                height: 26,
-                bgcolor: 'rgba(255, 255, 255, 0.15)',
-                color: 'rgba(255, 255, 255, 0.9)',
-                backdropFilter: 'blur(10px)'
-              }} 
-            />
-            
-            {/* Botón de refresh */}
-            <IconButton
+            <Button
+              variant="text"
               size="small"
-              onClick={handleRefresh}
-              disabled={refreshing}
+              onClick={() => window.history.back()}
               sx={{
-                bgcolor: 'rgba(255, 255, 255, 0.15)',
-                color: 'white',
+                color: 'rgba(255, 255, 255, 0.9)',
                 borderRadius: 1,
-                p: 0.5,
+                fontSize: '0.75rem',
+                height: 26,
+                bgcolor: 'rgba(255, 255, 255, 0.15)',
                 backdropFilter: 'blur(10px)',
                 '&:hover': {
-                  bgcolor: 'rgba(255, 255, 255, 0.25)'
+                  bgcolor: 'rgba(255, 255, 255, 0.25)',
+                  borderColor: 'rgba(255, 255, 255, 0.5)',
                 }
               }}
             >
-              {refreshing ? (
-                <CircularProgress size={16} sx={{ color: 'white' }} />
-              ) : (
-                <RefreshIcon fontSize="small" />
-              )}
-            </IconButton>
+              ← Regresar
+            </Button>
           </Box>
         </Box>
       </Paper>
@@ -1199,7 +1148,7 @@ const IncomePage = () => {
           }}>
             <Button
               variant="outlined"
-              startIcon={<RefreshIcon />}
+              startIcon={<ClearIcon />}
               onClick={() => {
                 setFormData({
                   client: '',
@@ -1223,7 +1172,7 @@ const IncomePage = () => {
             </Button>
             <Button
               variant="contained"
-              startIcon={saving ? <RefreshIcon /> : <SaveIcon />}
+              startIcon={saving ? <CircularProgress size={16} /> : <SaveIcon />}
               onClick={handleSaveIncome}
               disabled={saving || !formData.client.trim() || !formData.amount || !formData.date}
               sx={{

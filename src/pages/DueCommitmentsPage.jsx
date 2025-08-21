@@ -994,26 +994,68 @@ const DueCommitmentsPage = () => {
               Gestión proactiva de vencimientos • {overdueCounts.total} compromisos activos
             </Typography>
             
-            {/* Indicadores compactos */}
-            <Box display="flex" gap={2} flexWrap="wrap">
-              <Box display="flex" alignItems="center" gap={0.5}>
-                <Warning sx={{ fontSize: 16, color: 'rgba(255,235,59,0.9)' }} />
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
-                  {overdueCounts.overdue} vencidos
-                </Typography>
-              </Box>
-              <Box display="flex" alignItems="center" gap={0.5}>
-                <Schedule sx={{ fontSize: 16, color: 'rgba(76,175,80,0.9)' }} />
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
-                  {overdueCounts.dueSoon} próximos
-                </Typography>
-              </Box>
-              <Box display="flex" alignItems="center" gap={0.5}>
-                <AttachMoney sx={{ fontSize: 16, color: 'rgba(255,152,0,0.9)' }} />
-                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
-                  {formatCurrency(overdueCounts.totalAmount)}
-                </Typography>
-              </Box>
+            {/* Indicadores compactos con Chips - Diseño sobrio para header */}
+            <Box display="flex" gap={1.5} flexWrap="wrap">
+              <Chip
+                icon={<Warning sx={{ fontSize: 16 }} />}
+                label={`${overdueCounts.overdue} vencidos`}
+                size="small"
+                sx={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  color: 'white',
+                  fontWeight: 500,
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  fontSize: '0.75rem',
+                  height: 28,
+                  '& .MuiChip-icon': {
+                    color: 'rgba(255, 193, 7, 1)'
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                    borderColor: 'rgba(255, 255, 255, 0.35)'
+                  }
+                }}
+              />
+              <Chip
+                icon={<Schedule sx={{ fontSize: 16 }} />}
+                label={`${overdueCounts.dueSoon} próximos`}
+                size="small"
+                sx={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  color: 'white',
+                  fontWeight: 500,
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  fontSize: '0.75rem',
+                  height: 28,
+                  '& .MuiChip-icon': {
+                    color: 'rgba(76, 175, 80, 1)'
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                    borderColor: 'rgba(255, 255, 255, 0.35)'
+                  }
+                }}
+              />
+              <Chip
+                icon={<AttachMoney sx={{ fontSize: 16 }} />}
+                label={formatCurrency(overdueCounts.totalAmount)}
+                size="small"
+                sx={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  color: 'white',
+                  fontWeight: 500,
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  fontSize: '0.75rem',
+                  height: 28,
+                  '& .MuiChip-icon': {
+                    color: 'rgba(255, 152, 0, 1)'
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                    borderColor: 'rgba(255, 255, 255, 0.35)'
+                  }
+                }}
+              />
             </Box>
           </Box>
           
@@ -1025,7 +1067,6 @@ const DueCommitmentsPage = () => {
             disabled={refreshing}
             sx={{
               background: 'rgba(255,255,255,0.1)',
-              backdropFilter: 'blur(10px)',
               border: '1px solid rgba(255,255,255,0.2)',
               borderRadius: 1,
               fontWeight: 500,
@@ -1105,14 +1146,21 @@ const DueCommitmentsPage = () => {
                 sx={{
                   p: 2.5,
                   height: 130,
-                  background: 'white',
-                  borderRadius: 1,
-                  border: '1px solid #f0f0f0',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                  background: theme.palette.mode === 'dark' 
+                    ? alpha(theme.palette.background.paper, 0.7)
+                    : 'white',
+                  borderRadius: 2,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                  boxShadow: theme.palette.mode === 'dark'
+                    ? '0 2px 8px rgba(0,0,0,0.3)'
+                    : '0 2px 8px rgba(0,0,0,0.06)',
                   transition: 'all 0.3s ease',
                   '&:hover': {
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                    boxShadow: theme.palette.mode === 'dark'
+                      ? '0 8px 24px rgba(0,0,0,0.5)'
+                      : '0 8px 24px rgba(0,0,0,0.12)',
                     transform: 'translateY(-2px)',
+                    borderColor: alpha(theme.palette.primary.main, 0.8)
                   }
                 }}
               >
@@ -1127,7 +1175,7 @@ const DueCommitmentsPage = () => {
                       variant="h3" 
                       sx={{ 
                         fontWeight: 600,
-                        color: '#1a1a1a',
+                        color: theme.palette.text.primary,
                         mb: 0.5,
                         fontSize: '1.75rem'
                       }}
@@ -1137,7 +1185,7 @@ const DueCommitmentsPage = () => {
                     <Typography 
                       variant="body2" 
                       sx={{ 
-                        color: '#666',
+                        color: theme.palette.text.secondary,
                         fontWeight: 500,
                         mb: 1.5
                       }}
@@ -1148,7 +1196,9 @@ const DueCommitmentsPage = () => {
                       label={stat.trend}
                       size="small"
                       sx={{
-                        backgroundColor: stat.trendColor === '#4caf50' ? '#e8f5e8' : '#ffebee',
+                        backgroundColor: stat.trendColor === '#4caf50' 
+                          ? (theme.palette.mode === 'dark' ? alpha('#4caf50', 0.2) : '#e8f5e8')
+                          : (theme.palette.mode === 'dark' ? alpha('#f44336', 0.2) : '#ffebee'),
                         color: stat.trendColor,
                         fontWeight: 600,
                         fontSize: '0.75rem',
@@ -1162,7 +1212,9 @@ const DueCommitmentsPage = () => {
                       width: 44,
                       height: 44,
                       borderRadius: 1,
-                      backgroundColor: stat.iconBg,
+                      backgroundColor: theme.palette.mode === 'dark'
+                        ? alpha(stat.iconColor, 0.15)
+                        : stat.iconBg,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center'
@@ -1189,10 +1241,14 @@ const DueCommitmentsPage = () => {
             sx={{
               p: 2.5,
               mb: 3,
-              borderRadius: 1,
-              border: `1px solid ${theme.palette.divider}`,
-              background: 'white',
-              borderLeft: `4px solid ${theme.palette.error.main}`
+              borderRadius: 2,
+              border: `1px solid ${alpha(theme.palette.error.main, 0.6)}`,
+              background: theme.palette.mode === 'dark' 
+                ? alpha(theme.palette.background.paper, 0.8)
+                : 'white',
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 2px 8px rgba(0,0,0,0.3)'
+                : '0 2px 8px rgba(0,0,0,0.06)'
             }}
           >
             <Stack direction="row" alignItems="center" spacing={2}>
@@ -1221,10 +1277,14 @@ const DueCommitmentsPage = () => {
           sx={{
             p: 2.5,
             mb: 3,
-            borderRadius: 1,
-            border: `1px solid #f0f0f0`,
-            background: 'white',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
+            borderRadius: 2,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+            background: theme.palette.mode === 'dark' 
+              ? alpha(theme.palette.background.paper, 0.8)
+              : 'white',
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 2px 8px rgba(0,0,0,0.3)'
+              : '0 2px 8px rgba(0,0,0,0.06)'
           }}
         >
           <Stack direction="column" spacing={2.5}>
@@ -1232,10 +1292,10 @@ const DueCommitmentsPage = () => {
             <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap" justifyContent="space-between">
               {/* Filtro por Prioridad */}
               <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap">
-                <FilterList sx={{ color: '#666', fontSize: 20 }} />
+                <FilterList sx={{ color: theme.palette.text.secondary, fontSize: 20 }} />
                 <Typography variant="subtitle2" sx={{ 
                   fontWeight: 600,
-                  color: '#333',
+                  color: theme.palette.text.primary,
                   fontSize: '0.875rem',
                   minWidth: 'fit-content'
                 }}>
@@ -1257,13 +1317,19 @@ const DueCommitmentsPage = () => {
                         fontSize: '0.75rem',
                         height: 32,
                         backgroundColor: priorityFilter === filter ? theme.palette.primary.main : 'transparent',
-                        color: priorityFilter === filter ? 'white' : '#666',
-                        border: `1px solid ${priorityFilter === filter ? theme.palette.primary.main : '#e0e0e0'}`,
+                        color: priorityFilter === filter ? 'white' : theme.palette.text.secondary,
+                        border: `1px solid ${priorityFilter === filter ? theme.palette.primary.main : (theme.palette.mode === 'dark' ? alpha(theme.palette.divider, 0.3) : '#e0e0e0')}`,
                         transition: 'all 0.2s ease',
                         '&:hover': {
-                          backgroundColor: priorityFilter === filter ? theme.palette.primary.dark : '#f5f5f5',
-                          borderColor: priorityFilter === filter ? theme.palette.primary.dark : '#d0d0d0',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                          backgroundColor: priorityFilter === filter 
+                            ? theme.palette.primary.dark 
+                            : (theme.palette.mode === 'dark' ? alpha(theme.palette.text.primary, 0.05) : '#f5f5f5'),
+                          borderColor: priorityFilter === filter 
+                            ? theme.palette.primary.dark 
+                            : (theme.palette.mode === 'dark' ? alpha(theme.palette.divider, 0.5) : '#d0d0d0'),
+                          boxShadow: theme.palette.mode === 'dark' 
+                            ? '0 2px 8px rgba(255,255,255,0.1)' 
+                            : '0 2px 8px rgba(0,0,0,0.1)'
                         }
                       }}
                     />
@@ -1273,10 +1339,10 @@ const DueCommitmentsPage = () => {
 
               {/* Filtro por Empresa */}
               <Stack direction="row" alignItems="center" spacing={2.5}>
-                <Business sx={{ color: '#666', fontSize: 20 }} />
+                <Business sx={{ color: theme.palette.text.secondary, fontSize: 20 }} />
                 <Typography variant="subtitle2" sx={{ 
                   fontWeight: 600,
-                  color: '#333',
+                  color: theme.palette.text.primary,
                   fontSize: '0.875rem',
                   minWidth: 'fit-content'
                 }}>
@@ -1291,10 +1357,10 @@ const DueCommitmentsPage = () => {
                       height: 32,
                       fontSize: '0.75rem',
                       fontWeight: 500,
-                      border: `1px solid #e0e0e0`,
+                      border: `1px solid ${theme.palette.mode === 'dark' ? alpha(theme.palette.divider, 0.3) : '#e0e0e0'}`,
                       '&:hover': {
-                        borderColor: '#d0d0d0',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                        borderColor: theme.palette.mode === 'dark' ? alpha(theme.palette.divider, 0.5) : '#d0d0d0',
+                        boxShadow: theme.palette.mode === 'dark' ? '0 2px 8px rgba(255,255,255,0.1)' : '0 2px 8px rgba(0,0,0,0.1)'
                       },
                       '&.Mui-focused': {
                         borderColor: theme.palette.primary.main,
@@ -1303,11 +1369,11 @@ const DueCommitmentsPage = () => {
                     },
                     '& .MuiSelect-select': {
                       padding: '6px 24px',
-                      color: '#666'
+                      color: theme.palette.text.secondary
                     },
                     '& .MuiInputLabel-root': {
                       fontSize: '0.75rem',
-                      color: '#666',
+                      color: theme.palette.text.secondary,
                       fontWeight: 500,
                       transform: 'translate(24px, 8px) scale(1)',
                       '&.Mui-focused, &.MuiFormLabel-filled': {
@@ -1317,7 +1383,7 @@ const DueCommitmentsPage = () => {
                       }
                     },
                     '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#e0e0e0'
+                      borderColor: theme.palette.mode === 'dark' ? alpha(theme.palette.divider, 0.3) : '#e0e0e0'
                     },
                     '& fieldset': {
                       borderRadius: 1
@@ -1334,14 +1400,14 @@ const DueCommitmentsPage = () => {
                         sx: {
                           borderRadius: 1,
                           boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-                          border: '1px solid #f0f0f0',
+                          border: theme.palette.mode === 'dark' ? `1px solid ${alpha(theme.palette.divider, 0.3)}` : '1px solid #f0f0f0',
                           mt: 0.5,
                           '& .MuiMenuItem-root': {
                             fontSize: '0.75rem',
                             fontWeight: 500,
                             padding: '8px 16px',
                             '&:hover': {
-                              backgroundColor: '#f5f5f5'
+                              backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.text.primary, 0.05) : '#f5f5f5'
                             },
                             '&.Mui-selected': {
                               backgroundColor: alpha(theme.palette.primary.main, 0.08),
@@ -1357,7 +1423,7 @@ const DueCommitmentsPage = () => {
                   >
                     <MenuItem value="all">
                       <Stack direction="row" alignItems="center" spacing={1}>
-                        <Business sx={{ fontSize: 16, color: '#666' }} />
+                        <Business sx={{ fontSize: 16, color: theme.palette.text.secondary }} />
                         <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
                           Todas las empresas
                         </Typography>
@@ -1390,10 +1456,15 @@ const DueCommitmentsPage = () => {
         <Paper 
           elevation={0}
           sx={{
-            borderRadius: 1,
+            borderRadius: 2,
             overflow: 'hidden',
-            border: `1px solid ${theme.palette.divider}`,
-            background: 'white'
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+            background: theme.palette.mode === 'dark' 
+              ? alpha(theme.palette.background.paper, 0.8)
+              : 'white',
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 2px 8px rgba(0,0,0,0.3)'
+              : '0 2px 8px rgba(0,0,0,0.06)'
           }}
         >
           {/* Grid Layout igual que CommitmentsList */}
@@ -1404,26 +1475,26 @@ const DueCommitmentsPage = () => {
               gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 0.8fr',
               gap: 2,
               p: 2.5,
-              bgcolor: 'white',
-              borderBottom: `1px solid #f0f0f0`,
+              bgcolor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.5) : 'white',
+              borderBottom: theme.palette.mode === 'dark' ? `1px solid ${alpha(theme.palette.divider, 0.3)}` : `1px solid #f0f0f0`,
               alignItems: 'center'
             }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: '#1a1a1a' }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: theme.palette.text.primary }}>
                 Estado
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: '#1a1a1a' }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: theme.palette.text.primary }}>
                 Compromiso
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: '#1a1a1a' }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: theme.palette.text.primary }}>
                 Empresa
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: '#1a1a1a', textAlign: 'center' }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: theme.palette.text.primary, textAlign: 'center' }}>
                 Monto
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: '#1a1a1a', textAlign: 'center' }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: theme.palette.text.primary, textAlign: 'center' }}>
                 Vencimiento
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: '#1a1a1a', textAlign: 'center' }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: theme.palette.text.primary, textAlign: 'center' }}>
                 Acciones
               </Typography>
             </Box>
@@ -1643,11 +1714,11 @@ const DueCommitmentsPage = () => {
                 sx={{
                   p: 2,
                   borderRadius: 2,
-                  border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                   background: theme.palette.mode === 'dark'
                     ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.8) 0%, rgba(50, 50, 50, 0.6) 100%)'
                     : 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.8) 100%)',
-                  backdropFilter: 'blur(10px)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 2
@@ -1703,9 +1774,14 @@ const DueCommitmentsPage = () => {
             sx={{
               p: 8,
               textAlign: 'center',
-              borderRadius: 1,
-              border: `1px solid ${theme.palette.divider}`,
-              background: 'white'
+              borderRadius: 2,
+              border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
+              background: theme.palette.mode === 'dark' 
+                ? alpha(theme.palette.background.paper, 0.8)
+                : 'white',
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 2px 8px rgba(0,0,0,0.3)'
+                : '0 2px 8px rgba(0,0,0,0.06)'
             }}
           >
             <CheckCircle sx={{ fontSize: 64, color: theme.palette.success.main, mb: 2 }} />
@@ -1735,29 +1811,15 @@ const DueCommitmentsPage = () => {
         PaperProps={{
           sx: {
             borderRadius: 4,
-            backdropFilter: 'blur(20px)',
             background: theme.palette.mode === 'dark'
-              ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
+              ? theme.palette.background.paper
               : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
-            boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
-            border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 8px 32px rgba(0, 0, 0, 0.5)'
+              : '0 8px 32px rgba(31, 38, 135, 0.37)',
+            border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.2 : 0.1)}`,
             overflow: 'hidden',
-            position: 'relative',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: '-100%',
-              width: '100%',
-              height: '100%',
-              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
-              animation: 'shimmer 3s infinite',
-              zIndex: 1
-            },
-            '& @keyframes shimmer': {
-              '0%': { transform: 'translateX(-100%)' },
-              '100%': { transform: 'translateX(100%)' }
-            }
+            position: 'relative'
           }
         }}
       >
@@ -1839,20 +1901,9 @@ const DueCommitmentsPage = () => {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          backdropFilter: 'blur(10px)',
                           border: '1px solid rgba(255, 255, 255, 0.3)',
                           position: 'relative',
-                          overflow: 'hidden',
-                          '&::before': {
-                            content: '""',
-                            position: 'absolute',
-                            top: 0,
-                            left: '-100%',
-                            width: '100%',
-                            height: '100%',
-                            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
-                            animation: 'shimmer 2s infinite'
-                          }
+                          overflow: 'hidden'
                         }}
                       >
                         {companyData?.logoURL ? (
@@ -1865,8 +1916,12 @@ const DueCommitmentsPage = () => {
                               height: 40,
                               borderRadius: 2,
                               objectFit: 'contain',
-                              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                              border: '1px solid rgba(255, 255, 255, 0.3)',
+                              backgroundColor: theme.palette.mode === 'dark' 
+                                ? alpha(theme.palette.background.paper, 0.9)
+                                : 'rgba(255, 255, 255, 0.9)',
+                              border: theme.palette.mode === 'dark'
+                                ? `1px solid ${alpha(theme.palette.divider, 0.3)}`
+                                : '1px solid rgba(255, 255, 255, 0.3)',
                               zIndex: 1
                             }}
                           />
@@ -1966,7 +2021,6 @@ const DueCommitmentsPage = () => {
                             bgcolor: 'rgba(255, 255, 255, 0.2)',
                             color: 'white',
                             fontWeight: 600,
-                            backdropFilter: 'blur(10px)',
                             border: '1px solid rgba(255, 255, 255, 0.3)',
                             '& .MuiChip-icon': {
                               color: 'white'
@@ -1985,7 +2039,6 @@ const DueCommitmentsPage = () => {
                           onClick={handleCloseViewDialog}
                           sx={{
                             background: 'rgba(255, 255, 255, 0.2)',
-                            backdropFilter: 'blur(10px)',
                             border: '1px solid rgba(255, 255, 255, 0.3)',
                             color: 'white',
                             '&:hover': {
@@ -2015,11 +2068,14 @@ const DueCommitmentsPage = () => {
                     <Card
                       sx={{
                         p: 3,
-                        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.secondary.main, 0.05)})`,
+                        background: theme.palette.mode === 'dark'
+                          ? alpha(theme.palette.background.paper, 0.9)
+                          : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.secondary.main, 0.05)})`,
                         border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
                         borderRadius: 3,
-                        backdropFilter: 'blur(10px)',
-                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                        boxShadow: theme.palette.mode === 'dark'
+                          ? '0 4px 20px rgba(0,0,0,0.2)'
+                          : '0 4px 20px rgba(0,0,0,0.08)',
                         position: 'relative',
                         overflow: 'hidden'
                       }}
@@ -2082,29 +2138,15 @@ const DueCommitmentsPage = () => {
                       sx={{
                         p: 3,
                         background: theme.palette.mode === 'dark'
-                          ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.8) 0%, rgba(50, 50, 50, 0.6) 100%)'
+                          ? alpha(theme.palette.background.paper, 0.9)
                           : 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.6) 100%)',
                         border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
                         borderRadius: 4,
-                        backdropFilter: 'blur(20px)',
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+                        boxShadow: theme.palette.mode === 'dark'
+                          ? '0 8px 32px rgba(0,0,0,0.25)'
+                          : '0 8px 32px rgba(0,0,0,0.12)',
                         position: 'relative',
                         overflow: 'hidden',
-                        '&::before': {
-                          content: '""',
-                          position: 'absolute',
-                          top: 0,
-                          left: '-100%',
-                          width: '100%',
-                          height: '100%',
-                          background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-                          animation: 'shimmer 3s infinite',
-                          zIndex: 1
-                        },
-                        '& @keyframes shimmer': {
-                          '0%': { transform: 'translateX(-100%)' },
-                          '100%': { transform: 'translateX(100%)' }
-                        }
                       }}
                     >
                       <Box sx={{ position: 'relative', zIndex: 2 }}>
@@ -2266,7 +2308,9 @@ const DueCommitmentsPage = () => {
                                         height: 24,
                                         borderRadius: 1,
                                         objectFit: 'contain',
-                                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                        backgroundColor: theme.palette.mode === 'dark' 
+                                          ? alpha(theme.palette.background.paper, 0.9)
+                                          : 'rgba(255, 255, 255, 0.9)',
                                         border: `1px solid ${alpha(theme.palette.divider, 0.2)}`
                                       }}
                                     />
@@ -2398,12 +2442,10 @@ const DueCommitmentsPage = () => {
               sx={{ 
                 p: 4,
                 pb: 6,
-                background: `
-                  linear-gradient(135deg, rgba(248, 250, 252, 0.95) 0%, rgba(241, 245, 249, 0.9) 100%),
-                  linear-gradient(225deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.6) 100%)
-                `,
-                borderTop: '1px solid rgba(0, 0, 0, 0.08)',
-                backdropFilter: 'blur(20px) saturate(180%)',
+                bgcolor: theme.palette.mode === 'dark' 
+                  ? alpha(theme.palette.background.paper, 0.8)
+                  : alpha(theme.palette.background.paper, 0.95),
+                borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
                 position: 'relative',
                 '&::before': {
                   content: '""',
@@ -2413,7 +2455,7 @@ const DueCommitmentsPage = () => {
                   transform: 'translateX(-50%)',
                   width: '60%',
                   height: 1,
-                  background: 'linear-gradient(90deg, transparent 0%, rgba(0, 0, 0, 0.1) 50%, transparent 100%)'
+                  background: `linear-gradient(90deg, transparent 0%, ${alpha(theme.palette.divider, 0.2)} 50%, transparent 100%)`
                 }
               }}
             >
@@ -2460,6 +2502,15 @@ const DueCommitmentsPage = () => {
                   <Button 
                     variant="outlined"
                     startIcon={<Share />}
+                    onClick={() => {
+                      // Implement share functionality
+                      if (navigator.share) {
+                        navigator.share({
+                          title: `Compromiso: ${selectedCommitment?.description}`,
+                          text: `Vence el ${format(selectedCommitment?.dueDate?.toDate(), 'dd/MM/yyyy')} - $${selectedCommitment?.amount?.toLocaleString()}`
+                        });
+                      }
+                    }}
                     sx={{ 
                       borderRadius: 3.5,
                       px: 4,
@@ -2470,12 +2521,15 @@ const DueCommitmentsPage = () => {
                       borderColor: 'primary.main',
                       color: 'primary.main',
                       borderWidth: '2px',
+                      bgcolor: theme.palette.mode === 'dark' ? 'transparent' : 'white',
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&:hover': {
-                        bgcolor: 'rgba(25, 118, 210, 0.08)',
+                        bgcolor: theme.palette.mode === 'dark' 
+                          ? alpha(theme.palette.primary.main, 0.12)
+                          : 'rgba(25, 118, 210, 0.08)',
                         borderColor: 'primary.dark',
                         transform: 'translateY(-2px)',
-                        boxShadow: '0 6px 20px rgba(25, 118, 210, 0.25)'
+                        boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.25)}`
                       }
                     }}
                   >
@@ -2501,25 +2555,16 @@ const DueCommitmentsPage = () => {
                       textTransform: 'none',
                       fontWeight: 700,
                       fontSize: '0.95rem',
-                      background: `
-                        linear-gradient(135deg, #667eea 0%, #764ba2 100%),
-                        radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.2) 0%, transparent 60%)
-                      `,
-                      boxShadow: `
-                        0 8px 25px rgba(102, 126, 234, 0.35),
-                        0 3px 12px rgba(102, 126, 234, 0.25),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.2)
-                      `,
+                      bgcolor: 'primary.main',
+                      color: 'primary.contrastText',
+                      boxShadow: theme.palette.mode === 'dark' 
+                        ? `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`
+                        : `0 8px 25px ${alpha(theme.palette.primary.main, 0.35)}`,
                       '&:hover': {
-                        background: `
-                          linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%),
-                          radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.25) 0%, transparent 60%)
-                        `,
-                        boxShadow: `
-                          0 12px 35px rgba(102, 126, 234, 0.45),
-                          0 5px 20px rgba(102, 126, 234, 0.3),
-                          inset 0 1px 0 rgba(255, 255, 255, 0.3)
-                        `,
+                        bgcolor: 'primary.dark',
+                        boxShadow: theme.palette.mode === 'dark' 
+                          ? `0 6px 18px ${alpha(theme.palette.primary.main, 0.4)}`
+                          : `0 12px 35px ${alpha(theme.palette.primary.main, 0.45)}`,
                         transform: 'translateY(-2px)'
                       }
                     }}
@@ -2662,7 +2707,6 @@ const PaymentFormDialog = ({ open, commitment, onSuccess, onCancel }) => {
       PaperProps={{
         sx: {
           borderRadius: 4,
-          backdropFilter: 'blur(20px)',
           background: theme.palette.mode === 'dark'
             ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
             : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
@@ -2689,7 +2733,7 @@ const PaymentFormDialog = ({ open, commitment, onSuccess, onCancel }) => {
             right: 16,
             top: 16,
             color: 'white',
-            '&:hover': { backgroundColor: alpha('#fff', 0.1) }
+            '&:hover': { backgroundColor: alpha(theme.palette.common.white, 0.1) }
           }}
         >
           <Close />
@@ -2704,7 +2748,9 @@ const PaymentFormDialog = ({ open, commitment, onSuccess, onCancel }) => {
             sx={{
               width: 60,
               height: 60,
-              backgroundColor: alpha('#fff', 0.2),
+              backgroundColor: theme.palette.mode === 'dark'
+                ? alpha(theme.palette.common.black, 0.2)
+                : alpha(theme.palette.common.white, 0.2),
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',

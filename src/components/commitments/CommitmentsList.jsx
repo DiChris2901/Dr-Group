@@ -516,8 +516,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         p: 3,
         backgroundColor: darkColors.cardBackground,
         borderRadius: '1px 1px 0 0',
-        border: `1px solid ${darkColors.cardBorder}`,
-        borderBottom: `2px solid ${darkColors.cardBorder}`,
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+        borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.6)}`,
         position: 'sticky',
         top: 0,
         zIndex: 10,
@@ -1910,7 +1910,14 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <Card sx={{ textAlign: 'center', py: 4 }}>
+        <Card sx={{ 
+          textAlign: 'center', 
+          py: 4,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+          '&:hover': {
+            borderColor: alpha(theme.palette.primary.main, 0.8)
+          }
+        }}>
           <CardContent>
             <AccountBalance sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
             <Typography variant="h6" color={darkColors.textSecondary} gutterBottom>
@@ -2304,10 +2311,13 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
           sx={{
-            border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             borderRadius: 1,
             overflow: 'hidden',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+            '&:hover': {
+              borderColor: alpha(theme.palette.primary.main, 0.8)
+            }
           }}
         >
           {/* Header mejorado DS 3.0 */}
@@ -2601,7 +2611,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         position: 'relative',
                         overflow: 'hidden',
                         background: darkColors.cardBackground,
-                        border: `1px solid ${darkColors.cardBorder}`,
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                         borderRadius: 2,
                         transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                         '&::before': {
@@ -2618,6 +2628,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                         '&:hover': {
                           transform: 'translateY(-4px)',
                           boxShadow: `0 8px 24px ${darkColors.shadowColor}`,
+                          borderColor: alpha(theme.palette.primary.main, 0.8),
                           '&::before': {
                             left: '100%'
                           }
@@ -2916,12 +2927,13 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
                       position: 'relative',
                       overflow: 'hidden',
                       background: darkColors.cardBackground,
-                      border: `1px solid ${darkColors.cardBorder}`,
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                       borderRadius: 2,
                       transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                       '&:hover': {
                         transform: 'translateY(-4px)',
-                        boxShadow: `0 8px 24px ${darkColors.shadowColor}`
+                        boxShadow: `0 8px 24px ${darkColors.shadowColor}`,
+                        borderColor: alpha(theme.palette.primary.main, 0.8)
                       }
                     }}
                   >
@@ -4458,11 +4470,14 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         >
           <Card sx={{
             background: darkColors.cardBackground,
-            border: `1px solid ${darkColors.cardBorder}`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             borderRadius: 1,
             boxShadow: `0 2px 8px ${darkColors.shadowColor}`,
             position: 'relative',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            '&:hover': {
+              borderColor: alpha(theme.palette.primary.main, 0.8)
+            }
           }}>
             <Box sx={{ p: 2.5 }}>
               {/* Información mejorada */}

@@ -78,8 +78,7 @@ import {
   Edit,
   Delete,
   CloudUpload,
-  DragHandle as DragIcon,
-  Refresh as RefreshIcon
+  DragHandle as DragIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -1935,53 +1934,6 @@ const PaymentsPage = () => {
                     backdropFilter: 'blur(10px)'
                   }} 
                 />
-                
-                {/* Botón de refresh */}
-                <IconButton
-                  size="small"
-                  onClick={handleRefresh}
-                  disabled={refreshing}
-                  sx={{
-                    bgcolor: 'rgba(255, 255, 255, 0.15)',
-                    color: 'white',
-                    borderRadius: 1,
-                    p: 0.5,
-                    backdropFilter: 'blur(10px)',
-                    '&:hover': {
-                      bgcolor: 'rgba(255, 255, 255, 0.25)'
-                    }
-                  }}
-                >
-                  {refreshing ? (
-                    <CircularProgress size={16} sx={{ color: 'white' }} />
-                  ) : (
-                    <RefreshIcon fontSize="small" />
-                  )}
-                </IconButton>
-
-                {/* Botón de nuevo */}
-                <Button 
-                  size="small" 
-                  variant="contained" 
-                  startIcon={<AddIcon />} 
-                  onClick={() => navigate('/payments/new')} 
-                  sx={{ 
-                    textTransform: 'none', 
-                    fontWeight: 600, 
-                    borderRadius: 1,
-                    fontSize: '0.75rem',
-                    height: 32,
-                    px: 2,
-                    bgcolor: 'rgba(255, 255, 255, 0.2)',
-                    color: 'white',
-                    backdropFilter: 'blur(10px)',
-                    '&:hover': {
-                      bgcolor: 'rgba(255, 255, 255, 0.3)'
-                    }
-                  }}
-                >
-                  Nuevo
-                </Button>
               </Box>
             </Box>
           </Paper>          {/* KPIs COMPACTOS */}
@@ -2001,13 +1953,14 @@ const PaymentsPage = () => {
             }].map(card => (
               <Grid item xs={12} sm={6} md={4} lg={2} key={card.label}>
                 <Card sx={{ 
-                  borderRadius: 1, 
-                  border: '1px solid', 
-                  borderColor: 'divider',
+                  borderRadius: 2, 
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                   '&:hover': { 
-                    borderColor: 'primary.main',
-                    transform: 'translateY(-1px)',
-                    transition: 'all 0.2s'
+                    borderColor: alpha(theme.palette.primary.main, 0.8),
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                   }
                 }}>
                   <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
@@ -2048,13 +2001,13 @@ const PaymentsPage = () => {
           <motion.div {...fadeUp}>
             <Paper sx={{ 
               p: 1.5, 
-              borderRadius: 1, 
+              borderRadius: 2, 
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
               display:'flex', 
               flexWrap:'wrap', 
               gap: 1.5, 
-              alignItems:'center', 
-              border: '1px solid', 
-              borderColor: 'divider' 
+              alignItems:'center'
             }}>
               <Box sx={{ 
                 flex:1, 
@@ -2064,9 +2017,8 @@ const PaymentsPage = () => {
                 gap: 1, 
                 px: 1.5, 
                 py: 0.5, 
-                borderRadius: 0.5, 
-                border:'1px solid', 
-                borderColor: 'divider', 
+                borderRadius: 1, 
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`, 
                 backgroundColor: 'background.default' 
               }}>
                 <SearchIcon fontSize="small" sx={{ color:'text.secondary', fontSize: 18 }} />
@@ -2139,8 +2091,8 @@ const PaymentsPage = () => {
           {/* TABLA ESTILO COMMITMENTS LIST */}
           <motion.div {...fadeUp}>
             <Box sx={{
-              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-              borderRadius: 1,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+              borderRadius: 2,
               overflow: 'hidden',
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
             }}>
@@ -2446,9 +2398,9 @@ const PaymentsPage = () => {
               py: 1.5,
               mt: 2,
               backgroundColor: alpha(theme.palette.background.paper, 0.95),
-              borderRadius: 1,
-              border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)'
+              borderRadius: 2,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
             }}>
               {/* Info de paginación y controles adicionales */}
               <Stack 
@@ -2709,7 +2661,8 @@ const PaymentsPage = () => {
             borderRadius: 2,
             background: theme.palette.background.paper,
             minHeight: '70vh',
-            boxShadow: theme.shadows[8]
+            boxShadow: theme.shadows[8],
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
           }
         }}
       >
@@ -3424,8 +3377,8 @@ const PaymentsPage = () => {
                 <Paper
                   elevation={0}
                   sx={{
-                    border: `1px dashed ${theme.palette.divider}`,
-                    borderRadius: 1.5,
+                    border: `1px dashed ${alpha(theme.palette.primary.main, 0.6)}`,
+                    borderRadius: 2,
                     p: 2.5,
                     textAlign: 'center',
                     background: theme.palette.background.paper,
@@ -3436,7 +3389,7 @@ const PaymentsPage = () => {
                     flexDirection: 'column',
                     justifyContent: 'center',
                     '&:hover': {
-                      borderColor: theme.palette.primary.main,
+                      borderColor: alpha(theme.palette.primary.main, 0.8),
                       backgroundColor: alpha(theme.palette.primary.main, 0.02),
                       transform: 'translateY(-1px)',
                       boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
@@ -3724,6 +3677,7 @@ const PaymentsPage = () => {
           sx: {
             borderRadius: 2,
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+            border: `1px solid ${alpha(theme.palette.error.main, 0.6)}`
           }
         }}
       >
@@ -3836,7 +3790,7 @@ const PaymentsPage = () => {
             minWidth: 200,
             borderRadius: 2,
             boxShadow: theme.shadows[8],
-            border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
           }
         }}
         TransitionComponent={Fade}
@@ -3900,7 +3854,8 @@ const PaymentsPage = () => {
         PaperProps={{
           sx: {
             borderRadius: 3,
-            overflow: 'hidden'
+            overflow: 'hidden',
+            border: `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`
           }
         }}
         TransitionComponent={Slide}

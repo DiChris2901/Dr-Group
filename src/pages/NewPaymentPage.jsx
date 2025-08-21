@@ -1230,7 +1230,13 @@ const NewPaymentPage = () => {
       </Paper>
 
       {/* Progress Stepper */}
-      <Paper sx={{ p: 3, mb: 3 }}>
+      <Paper sx={{ 
+        p: 3, 
+        mb: 3,
+        borderRadius: 2,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+      }}>
         <Stepper activeStep={selectedCommitment ? 1 : 0} alternativeLabel>
           {steps.map((label) => (
             <Step key={label}>
@@ -1244,7 +1250,11 @@ const NewPaymentPage = () => {
         <Grid container spacing={3}>
           {/* Información Principal */}
           <Grid item xs={12} lg={8}>
-            <Card>
+            <Card sx={{
+              borderRadius: 2,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+            }}>
               <CardContent>
                 <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <ScheduleIcon color="primary" />
@@ -1337,8 +1347,9 @@ const NewPaymentPage = () => {
                           sx={{ 
                             mt: 2,
                             bgcolor: 'background.paper',
-                            borderColor: 'divider',
-                            borderRadius: 2
+                            borderRadius: 2,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`
                           }}
                         >
                           <CardContent sx={{ py: 2 }}>
@@ -2020,13 +2031,15 @@ const NewPaymentPage = () => {
                         {/* Zona de drag & drop */}
                         <Card 
                           sx={{ 
-                            border: dragActive ? '2px dashed #1976d2' : '2px dashed #ccc',
+                            border: dragActive ? `2px dashed ${theme.palette.primary.main}` : `2px dashed ${alpha(theme.palette.primary.main, 0.6)}`,
                             backgroundColor: dragActive ? 'action.hover' : 'background.paper',
                             cursor: 'pointer',
                             transition: 'all 0.3s ease',
+                            borderRadius: 2,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                             '&:hover': {
                               backgroundColor: 'action.hover',
-                              borderColor: 'primary.main'
+                              borderColor: alpha(theme.palette.primary.main, 0.8)
                             }
                           }}
                           onDragEnter={handleDrag}
@@ -2069,7 +2082,12 @@ const NewPaymentPage = () => {
                           <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
                             Archivos Seleccionados ({files.length})
                           </Typography>
-                          <List dense sx={{ bgcolor: 'background.paper', borderRadius: 1 }}>
+                          <List dense sx={{ 
+                            bgcolor: 'background.paper', 
+                            borderRadius: 2,
+                            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                          }}>
                             {files.map((fileData) => (
                               <ListItem key={fileData.id} sx={{ py: 0.5 }}>
                                 <ListItemIcon sx={{ minWidth: 36 }}>
@@ -2124,9 +2142,9 @@ const NewPaymentPage = () => {
                 position: 'sticky', 
                 top: 20,
                 bgcolor: 'background.paper',
-                boxShadow: theme => theme.shadows[2],
-                border: '1px solid',
-                borderColor: 'divider'
+                borderRadius: 2,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                border: `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`
               }}
             >
               <CardContent sx={{ pb: 2 }}>
