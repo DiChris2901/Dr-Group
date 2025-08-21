@@ -50,7 +50,7 @@ export const useCommitments = (filters = {}) => {
     );
 
     return unsubscribe;
-  }, [filters]);
+  }, [filters.company, filters.status]); // Solo dependencias específicas
 
   const addCommitment = async (commitmentData) => {
     try {
@@ -229,7 +229,7 @@ export const usePayments = (filters = {}) => {
     );
 
     return unsubscribe;
-  }, [filters]);
+  }, [filters.company, filters.status]); // Solo dependencias específicas
 
   const addPayment = async (paymentData) => {
     try {

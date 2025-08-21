@@ -32,8 +32,7 @@ import {
   DialogContent,
   DialogActions,
   useTheme,
-  alpha,
-  styled
+  alpha
 } from '@mui/material';
 import {
   AccountBalance as AccountBalanceIcon,
@@ -72,46 +71,9 @@ import {
   updateDoc,
   doc
 } from 'firebase/firestore';
-import { motion, AnimatePresence } from 'framer-motion';
 import AccountMovementsModal from '../components/modals/AccountMovementsModal';
 import PersonalAccountModal from '../components/modals/PersonalAccountModal';
 import { fCurrency } from '../utils/formatUtils';
-
-// Styled components con tema spectacular
-const StyledCard = styled(Card)(({ theme, accountType }) => ({
-  background: theme.palette.background.paper,
-  border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-  borderRadius: 8,
-  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-  position: 'relative',
-  overflow: 'hidden',
-  '&:hover': {
-    transform: 'translateY(-1px)',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-    borderColor: alpha(theme.palette.primary.main, 0.2)
-  }
-}));
-
-const StyledTabs = styled(Tabs)(({ theme }) => ({
-  '& .MuiTabs-flexContainer': {
-    gap: theme.spacing(1)
-  },
-  '& .MuiTab-root': {
-    borderRadius: theme.spacing(1),
-    minHeight: 48,
-    textTransform: 'none',
-    fontWeight: 600,
-    transition: 'all 0.3s ease',
-    '&:hover': {
-      backgroundColor: alpha(theme.palette.primary.main, 0.1)
-    }
-  },
-  '& .Mui-selected': {
-    backgroundColor: alpha(theme.palette.primary.main, 0.15),
-    color: theme.palette.primary.main
-  }
-}));
 
 function TabPanel({ children, value, index, ...other }) {
   return (
@@ -121,18 +83,9 @@ function TabPanel({ children, value, index, ...other }) {
       {...other}
     >
       {value === index && (
-        <AnimatePresence mode="wait">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Box sx={{ pt: 3 }}>
-              {children}
-            </Box>
-          </motion.div>
-        </AnimatePresence>
+        <Box sx={{ pt: 3 }}>
+          {children}
+        </Box>
       )}
     </div>
   );
@@ -492,24 +445,41 @@ const BankAccountsPage = () => {
   const bankAccounts = getBankAccounts();
 
   return (
-    <Box sx={{ p: 3, position: 'relative', minHeight: '100vh' }}>
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={3}>
+    <Box sx={{ 
+      p: { xs: 2, sm: 3, md: 4 },
+      maxWidth: '1400px',
+      mx: 'auto'
+    }}>
+      {/* Header sobrio */}
+      <Box sx={{ 
+        mb: 6,
+        textAlign: 'left'
+      }}>
+        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
           <Box>
-            <Typography variant="h4" fontWeight={600} color="text.primary">
-              Cuentas Bancarias
+            <Typography 
+              variant="h4" 
+              component="h1" 
+              sx={{ 
+                fontWeight: 600,
+                mb: 1,
+                color: 'text.primary'
+              }}
+            >
+              🏦 Cuentas Bancarias
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography 
+              variant="body1" 
+              color="text.secondary"
+              sx={{ 
+                fontWeight: 400
+              }}
+            >
               {companies.length + personalAccounts.length} cuentas activas
             </Typography>
           </Box>
           
-          {/* Botón para agregar cuentas */}
+          {/* Botón sobrio para agregar cuentas */}
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -521,279 +491,261 @@ const BankAccountsPage = () => {
               }
             }}
             sx={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
-              borderRadius: 2,
+              borderRadius: 1,
+              fontWeight: 600,
               px: 3,
               py: 1,
-              textTransform: 'none',
-              fontWeight: 600,
-              '&:hover': {
-                background: 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
-                boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)',
-                transform: 'translateY(-1px)',
-              },
-              transition: 'all 0.3s ease'
+              textTransform: 'none'
             }}
           >
             {tabValue === 0 ? 'Agregar Empresa' : 'Agregar Cuenta Personal'}
           </Button>
         </Box>
-      </motion.div>
+      </Box>
 
-      {/* Resumen General */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
+      {/* Resumen sobrio */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        {[
+          {
+            title: 'Ingresos',
+            value: fCurrency(incomes.reduce((sum, income) => sum + (income.amount || 0), 0)),
+            icon: <TrendingUpIcon />,
+            color: theme.palette.success.main
+          },
+          {
+            title: 'Pagos',
+            value: fCurrency(payments.filter(p => !p.is4x1000Tax).reduce((sum, payment) => sum + (payment.amount || 0), 0)),
+            icon: <TrendingDownIcon />,
+            color: theme.palette.error.main
+          },
+          {
+            title: 'Balance',
+            value: fCurrency(
+              incomes.reduce((sum, income) => sum + (income.amount || 0), 0) -
+              payments.reduce((sum, payment) => sum + (payment.amount || 0), 0)
+            ),
+            icon: <AccountBalanceIcon />,
+            color: (incomes.reduce((sum, income) => sum + (income.amount || 0), 0) -
+              payments.reduce((sum, payment) => sum + (payment.amount || 0), 0)) >= 0 
+              ? theme.palette.success.main : theme.palette.error.main
+          },
+          {
+            title: 'Cuentas',
+            value: companies.length + personalAccounts.length,
+            icon: <BusinessIcon />,
+            color: theme.palette.primary.main
+          }
+        ].map((stat, index) => (
+          <Grid item xs={12} sm={6} md={3} key={index}>
+            <Card sx={{
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              transition: 'box-shadow 0.2s ease',
+              '&:hover': {
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              }
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                  <Box sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    backgroundColor: `${stat.color}15`,
+                    color: stat.color
+                  }}>
+                    {React.cloneElement(stat.icon, { sx: { fontSize: 24 } })}
+                  </Box>
+                  <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                    {typeof stat.value === 'string' ? stat.value : stat.value.toLocaleString()}
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  {stat.title}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* Tabs sobrios */}
+      <Tabs
+        value={tabValue}
+        onChange={handleTabChange}
+        sx={{ 
+          mb: 3,
+          '& .MuiTab-root': {
+            borderRadius: 1,
+            minHeight: 48,
+            textTransform: 'none',
+            fontWeight: 600,
+            color: 'text.primary',
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              backgroundColor: alpha(theme.palette.primary.main, 0.1),
+              color: 'primary.main'
+            },
+            '&.Mui-selected': {
+              backgroundColor: 'primary.main',
+              color: 'primary.contrastText'
+            }
+          }
+        }}
       >
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid item xs={6} md={3}>
-            <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Ingresos
-              </Typography>
-              <Typography variant="h6" fontWeight={600} color="success.main">
-                {fCurrency(incomes.reduce((sum, income) => sum + (income.amount || 0), 0))}
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Pagos
-              </Typography>
-              <Typography variant="h6" fontWeight={600} color="error.main">
-                {fCurrency(payments.filter(p => !p.is4x1000Tax).reduce((sum, payment) => sum + (payment.amount || 0), 0))}
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Balance
-              </Typography>
-              <Typography 
-                variant="h6" 
-                fontWeight={600}
-                sx={{ 
-                  color: (incomes.reduce((sum, income) => sum + (income.amount || 0), 0) -
-                  payments.reduce((sum, payment) => sum + (payment.amount || 0), 0)) >= 0 
-                  ? 'success.main' : 'error.main'
-                }}
-              >
-                {fCurrency(
-                  incomes.reduce((sum, income) => sum + (income.amount || 0), 0) -
-                  payments.reduce((sum, payment) => sum + (payment.amount || 0), 0)
-                )}
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Cuentas
-              </Typography>
-              <Typography variant="h6" fontWeight={600} color="primary.main">
-                {companies.length + personalAccounts.length}
-              </Typography>
-            </Paper>
-          </Grid>
-        </Grid>
-      </motion.div>
+        <Tab
+          icon={<BusinessIcon />}
+          label={`Empresariales (${companies.length})`}
+          iconPosition="start"
+        />
+        <Tab
+          icon={<PersonIcon />}
+          label={`Personales (${personalAccounts.length})`}
+          iconPosition="start"
+        />
+      </Tabs>
 
-      {/* Tabs */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        <StyledTabs
-          value={tabValue}
-          onChange={handleTabChange}
-          sx={{ mb: 3 }}
-        >
-          <Tab
-            icon={<BusinessIcon />}
-            label={`Empresariales (${companies.length})`}
-            iconPosition="start"
-          />
-          <Tab
-            icon={<PersonIcon />}
-            label={`Personales (${personalAccounts.length})`}
-            iconPosition="start"
-          />
-        </StyledTabs>
-      </motion.div>
-
-      {/* Contenido de los tabs */}
+      {/* Contenido sobrio de los tabs */}
       <TabPanel value={tabValue} index={0}>
         {companies.length > 0 ? (
           <Grid container spacing={3}>
-            {companies.map((company, index) => {
-              const balance = calculateAccountBalance(company.bankAccount);
-              return (
-                <Grid item xs={12} sm={6} md={4} key={company.id}>
-                  <motion.div
-                    layout
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                    whileHover={{ y: -2 }}
-                  >
-                    <StyledCard accountType="business">
-                      <CardContent sx={{ p: 1.5 }}>
-                        {/* Header con icono y menú */}
-                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Box
-                              sx={{
-                                width: 28,
-                                height: 28,
-                                borderRadius: 1,
-                                bgcolor: alpha(theme.palette.grey[500], 0.1),
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}
-                            >
-                              <BusinessIcon sx={{ color: 'grey.600', fontSize: 16 }} />
-                            </Box>
-                            <Box>
-                              <Typography variant="subtitle2" fontWeight={600} sx={{ fontSize: '0.875rem', lineHeight: 1.2 }}>
-                                {company.bankName}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                                {company.name}
-                              </Typography>
-                            </Box>
-                          </Box>
-                          <IconButton
-                            size="small"
-                            onClick={(e) => handleMenuOpen(e, company)}
-                            sx={{
-                              color: 'text.secondary',
-                              width: 20,
-                              height: 20,
-                              '&:hover': { bgcolor: alpha(theme.palette.action.hover, 0.08) }
-                            }}
-                          >
-                            <MoreVertIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        </Box>
-
-                        {/* Balance principal */}
-                        <Box mb={1.5}>
-                          <Typography 
-                            variant="h5" 
-                            fontWeight={700}
-                            sx={{ 
-                              color: balance.balance >= 0 ? 'success.main' : 'error.main',
-                              fontSize: '1.5rem',
-                              lineHeight: 1.1
-                            }}
-                          >
-                            {fCurrency(balance.balance)}
-                          </Typography>
-                          
-                          {/* Chip de estado - más sutil */}
-                          <Chip
-                            label={balance.balance >= 0 ? 'Positivo' : 'Negativo'}
-                            size="small"
-                            variant="filled"
-                            sx={{ 
-                              mt: 0.5, 
-                              fontSize: '0.7rem', 
-                              height: 20,
-                              bgcolor: balance.balance >= 0 ? alpha(theme.palette.success.main, 0.1) : alpha(theme.palette.error.main, 0.1),
-                              color: balance.balance >= 0 ? 'success.main' : 'error.main',
-                              border: 'none'
-                            }}
-                          />
-                        </Box>
-
-                        {/* Información de cuenta */}
-                        <Box 
-                          sx={{ 
-                            p: 1, 
-                            bgcolor: alpha(theme.palette.grey[100], 0.5),
+            {companies.map((company) => {
+                const balance = calculateAccountBalance(company.bankAccount);
+                return (
+                  <Grid item xs={12} sm={6} md={4} key={company.id}>
+                  <Card sx={{
+                    borderRadius: 2,
+                    border: `1px solid ${theme.palette.divider}`,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                    transition: 'box-shadow 0.2s ease',
+                    '&:hover': {
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    }
+                  }}>
+                    <CardContent sx={{ p: 3 }}>
+                      {/* Header sobrio */}
+                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                        <Box display="flex" alignItems="center" gap={1.5}>
+                          <Box sx={{
+                            p: 1,
                             borderRadius: 1,
-                            mb: 1.5
+                            backgroundColor: `${theme.palette.primary.main}15`,
+                            color: 'primary.main'
+                          }}>
+                            <BusinessIcon sx={{ fontSize: 20 }} />
+                          </Box>
+                          <Box>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                              {company.bankName}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {company.name}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => handleMenuOpen(e, company)}
+                          sx={{ borderRadius: 1 }}
+                        >
+                          <MoreVertIcon />
+                        </IconButton>
+                      </Box>
+
+                      {/* Balance */}
+                      <Box mb={2}>
+                        <Typography 
+                          variant="h4" 
+                          sx={{ 
+                            fontWeight: 600,
+                            color: balance.balance >= 0 ? 'success.main' : 'error.main',
+                            mb: 1
                           }}
                         >
-                          <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem' }}>
-                            Número de Cuenta
-                          </Typography>
-                          <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.8rem', color: 'text.primary' }}>
-                            {company.bankAccount}
-                          </Typography>
-                        </Box>
+                          {fCurrency(balance.balance)}
+                        </Typography>
+                        <Chip
+                          label={balance.balance >= 0 ? 'Positivo' : 'Negativo'}
+                          size="small"
+                          color={balance.balance >= 0 ? 'success' : 'error'}
+                          variant="outlined"
+                        />
+                      </Box>
 
-                        {/* Resumen de movimientos - más neutro */}
-                        <Grid container spacing={0.5}>
-                          <Grid item xs={4}>
-                            <Box textAlign="center">
-                              <Typography variant="caption" color="text.primary" fontWeight={600} fontSize="0.7rem">
-                                {fCurrency(balance.incomes)}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" display="block" fontSize="0.6rem">
-                                Ingresos
-                              </Typography>
-                            </Box>
-                          </Grid>
-                          <Grid item xs={4}>
-                            <Box textAlign="center">
-                              <Typography variant="caption" color="text.primary" fontWeight={600} fontSize="0.7rem">
-                                {fCurrency(balance.payments)}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" display="block" fontSize="0.6rem">
-                                Pagos
-                              </Typography>
-                            </Box>
-                          </Grid>
-                          <Grid item xs={4}>
-                            <Box textAlign="center">
-                              <Typography variant="caption" color="text.primary" fontWeight={600} fontSize="0.7rem">
-                                {fCurrency(balance.tax4x1000)}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" display="block" fontSize="0.6rem">
-                                4x1000
-                              </Typography>
-                            </Box>
-                          </Grid>
-                        </Grid>
+                      {/* Información de cuenta */}
+                      <Box sx={{ 
+                        p: 2, 
+                        backgroundColor: 'grey.50',
+                        borderRadius: 1,
+                        mb: 2
+                      }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Número de Cuenta
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {company.bankAccount}
+                        </Typography>
+                      </Box>
 
-                        {/* Botón de certificación - más discreto */}
-                        {company.bankCertificationURL && (
-                          <Box mt={1.5}>
-                            <Button
-                              fullWidth
-                              size="small"
-                              startIcon={<PictureAsPdfIcon />}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedPdfUrl(company.bankCertificationURL);
-                                setSelectedAccountName(`${company.bankName} - ${company.name}`);
-                                setPdfModalOpen(true);
-                              }}
-                              sx={{
-                                fontSize: '0.7rem',
-                                height: 28,
-                                textTransform: 'none',
-                                bgcolor: alpha(theme.palette.grey[500], 0.08),
-                                color: 'text.primary',
-                                '&:hover': {
-                                  bgcolor: alpha(theme.palette.grey[500], 0.12)
-                                }
-                              }}
-                            >
-                              Ver Certificación
-                            </Button>
+                      {/* Resumen de movimientos */}
+                      <Grid container spacing={1}>
+                        <Grid item xs={4}>
+                          <Box textAlign="center">
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
+                              {fCurrency(balance.incomes)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Ingresos
+                            </Typography>
                           </Box>
-                        )}
-                      </CardContent>
-                    </StyledCard>
-                  </motion.div>
+                        </Grid>
+                        <Grid item xs={4}>
+                          <Box textAlign="center">
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: 'error.main' }}>
+                              {fCurrency(balance.payments)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Pagos
+                            </Typography>
+                          </Box>
+                        </Grid>
+                        <Grid item xs={4}>
+                          <Box textAlign="center">
+                            <Typography variant="body2" sx={{ fontWeight: 600, color: 'warning.main' }}>
+                              {fCurrency(balance.tax4x1000)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              4x1000
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      </Grid>
+
+                      {/* Botón de certificación */}
+                      {company.bankCertificationURL && (
+                        <Box mt={2}>
+                          <Button
+                            fullWidth
+                            size="small"
+                            startIcon={<PictureAsPdfIcon />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedPdfUrl(company.bankCertificationURL);
+                              setSelectedAccountName(`${company.bankName} - ${company.name}`);
+                              setPdfModalOpen(true);
+                            }}
+                            sx={{
+                              borderRadius: 1,
+                              fontWeight: 500,
+                              textTransform: 'none'
+                            }}
+                          >
+                            Ver Certificación
+                          </Button>
+                        </Box>
+                      )}
+                    </CardContent>
+                  </Card>
                 </Grid>
               );
             })}
@@ -814,141 +766,107 @@ const BankAccountsPage = () => {
       <TabPanel value={tabValue} index={1}>
         {personalAccounts.length > 0 ? (
           <Grid container spacing={3}>
-            {personalAccounts.map((account, index) => (
+            {personalAccounts.map((account) => (
               <Grid item xs={12} sm={6} md={4} key={account.id}>
-                <motion.div
-                  layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  whileHover={{ y: -2 }}
-                >
-                  <StyledCard accountType="personal">
-                    <CardContent sx={{ p: 1.5 }}>
-                      {/* Header con icono y menú */}
-                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Box
-                            sx={{
-                              width: 28,
-                              height: 28,
-                              borderRadius: 1,
-                              bgcolor: alpha(theme.palette.grey[500], 0.1),
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                          >
-                            <PersonIcon sx={{ color: 'grey.600', fontSize: 16 }} />
-                          </Box>
-                          <Box>
-                            <Typography variant="subtitle2" fontWeight={600} sx={{ fontSize: '0.875rem', lineHeight: 1.2 }}>
-                              {account.bank}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                              {account.accountType || 'Cuenta Personal'}
-                            </Typography>
-                          </Box>
-                        </Box>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => handleMenuOpen(e, account)}
-                          sx={{
-                            color: 'text.secondary',
-                            width: 20,
-                            height: 20,
-                            '&:hover': { bgcolor: alpha(theme.palette.action.hover, 0.08) }
-                          }}
-                        >
-                          <MoreVertIcon sx={{ fontSize: 16 }} />
-                        </IconButton>
-                      </Box>
-
-                      {/* Balance principal */}
-                      <Box mb={1.5}>
-                        <Typography 
-                          variant="h5" 
-                          fontWeight={700}
-                          sx={{ 
-                            color: (account.currentBalance || 0) >= 0 ? 'success.main' : 'error.main',
-                            fontSize: '1.5rem',
-                            lineHeight: 1.1
-                          }}
-                        >
-                          {fCurrency(account.currentBalance || 0)}
-                        </Typography>
-                        
-                        {/* Chip de tipo - más sutil */}
-                        <Chip
-                          label="Personal"
-                          size="small"
-                          variant="filled"
-                          sx={{ 
-                            mt: 0.5, 
-                            fontSize: '0.7rem', 
-                            height: 20,
-                            bgcolor: alpha(theme.palette.grey[500], 0.1),
-                            color: 'text.primary',
-                            border: 'none'
-                          }}
-                        />
-                      </Box>
-
-                      {/* Información de cuenta */}
-                      <Box 
-                        sx={{ 
-                          p: 1, 
-                          bgcolor: alpha(theme.palette.grey[100], 0.5),
+                <Card sx={{
+                  borderRadius: 2,
+                  border: `1px solid ${theme.palette.divider}`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  transition: 'box-shadow 0.2s ease',
+                  '&:hover': {
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  }
+                }}>
+                  <CardContent sx={{ p: 3 }}>
+                    {/* Header sobrio */}
+                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                      <Box display="flex" alignItems="center" gap={1.5}>
+                        <Box sx={{
+                          p: 1,
                           borderRadius: 1,
-                          mb: 1.5
+                          backgroundColor: `${theme.palette.secondary.main}15`,
+                          color: 'secondary.main'
+                        }}>
+                          <PersonIcon sx={{ fontSize: 20 }} />
+                        </Box>
+                        <Box>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                            {account.bank}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {account.accountType || 'Cuenta Personal'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => handleMenuOpen(e, account)}
+                        sx={{ borderRadius: 1 }}
+                      >
+                        <MoreVertIcon />
+                      </IconButton>
+                    </Box>
+
+                    {/* Balance */}
+                    <Box mb={2}>
+                      <Typography 
+                        variant="h4" 
+                        sx={{ 
+                          fontWeight: 600,
+                          color: (account.currentBalance || 0) >= 0 ? 'success.main' : 'error.main',
+                          mb: 1
                         }}
                       >
-                        <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem' }}>
-                          Número de Cuenta
-                        </Typography>
-                        <Typography variant="body2" fontWeight={500} sx={{ fontSize: '0.8rem', color: 'text.primary' }}>
-                          {account.accountNumber}
-                        </Typography>
-                      </Box>
+                        {fCurrency(account.currentBalance || 0)}
+                      </Typography>
+                      <Chip
+                        label="Personal"
+                        size="small"
+                        color="secondary"
+                        variant="outlined"
+                      />
+                    </Box>
 
-                      {/* Información adicional */}
-                      <Box textAlign="center" mb={1.5}>
-                        <Typography variant="caption" color="text.secondary" fontSize="0.7rem">
-                          Cuenta personal activa
-                        </Typography>
-                      </Box>
+                    {/* Información de cuenta */}
+                    <Box sx={{ 
+                      p: 2, 
+                      backgroundColor: 'grey.50',
+                      borderRadius: 1,
+                      mb: 2
+                    }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Número de Cuenta
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {account.accountNumber}
+                      </Typography>
+                    </Box>
 
-                      {/* Botón de certificación - más discreto */}
-                      {account.bankCertificationURL && (
-                        <Box>
-                          <Button
-                            fullWidth
-                            size="small"
-                            startIcon={<PictureAsPdfIcon />}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedPdfUrl(account.bankCertificationURL);
-                              setSelectedAccountName(`${account.bank} - ${account.accountType || 'Cuenta Personal'}`);
-                              setPdfModalOpen(true);
-                            }}
-                            sx={{
-                              fontSize: '0.7rem',
-                              height: 28,
-                              textTransform: 'none',
-                              bgcolor: alpha(theme.palette.grey[500], 0.08),
-                              color: 'text.primary',
-                              '&:hover': {
-                                bgcolor: alpha(theme.palette.grey[500], 0.12)
-                              }
-                            }}
-                          >
-                            Ver Certificación
-                          </Button>
-                        </Box>
-                      )}
-                    </CardContent>
-                  </StyledCard>
-                </motion.div>
+                    {/* Botón de certificación */}
+                    {account.bankCertificationURL && (
+                      <Box mt={2}>
+                        <Button
+                          fullWidth
+                          size="small"
+                          startIcon={<PictureAsPdfIcon />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedPdfUrl(account.bankCertificationURL);
+                            setSelectedAccountName(`${account.bank} - ${account.accountType || 'Cuenta Personal'}`);
+                            setPdfModalOpen(true);
+                          }}
+                          sx={{
+                            borderRadius: 1,
+                            fontWeight: 500,
+                            textTransform: 'none'
+                          }}
+                        >
+                          Ver Certificación
+                        </Button>
+                      </Box>
+                    )}
+                  </CardContent>
+                </Card>
               </Grid>
             ))}
           </Grid>
@@ -958,28 +876,9 @@ const BankAccountsPage = () => {
             <Typography variant="h6" color="text.secondary" gutterBottom>
               No hay cuentas personales registradas
             </Typography>
-            <Typography variant="body2" color="text.secondary" mb={3}>
-              Usa el botón + en la esquina inferior derecha para agregar tu primera cuenta personal
+            <Typography variant="body2" color="text.secondary">
+              Usa el botón "Agregar Cuenta Personal" para crear tu primera cuenta
             </Typography>
-            <Box
-              sx={{
-                position: 'fixed',
-                bottom: 24,
-                right: 24,
-                width: 56,
-                height: 56,
-                borderRadius: '50%',
-                border: '2px dashed',
-                borderColor: 'primary.main',
-                animation: 'pulse 2s infinite',
-                pointerEvents: 'none',
-                '@keyframes pulse': {
-                  '0%': { opacity: 1, transform: 'scale(1)' },
-                  '50%': { opacity: 0.5, transform: 'scale(1.1)' },
-                  '100%': { opacity: 1, transform: 'scale(1)' }
-                }
-              }}
-            />
           </Box>
         )}
       </TabPanel>

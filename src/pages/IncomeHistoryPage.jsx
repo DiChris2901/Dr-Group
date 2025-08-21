@@ -30,7 +30,6 @@ import {
 import {
   Search as SearchIcon,
   FilterList as FilterIcon,
-  GetApp as ExportIcon,
   AttachMoney as AttachMoneyIcon,
   AccountBalance as AccountBalanceIcon,
   CalendarToday as CalendarIcon,
@@ -41,7 +40,6 @@ import {
   Visibility as VisibilityIcon,
   Clear as ClearIcon
 } from '@mui/icons-material';
-import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
 import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -51,9 +49,7 @@ import {
   collection,
   query,
   orderBy,
-  onSnapshot,
-  where,
-  Timestamp
+  onSnapshot
 } from 'firebase/firestore';
 
 const IncomeHistoryPage = () => {
@@ -72,10 +68,13 @@ const IncomeHistoryPage = () => {
   const [dateRangeFilter, setDateRangeFilter] = useState('all');
   const [customDateFrom, setCustomDateFrom] = useState('');
   const [customDateTo, setCustomDateTo] = useState('');
+  const [amountRangeFilter, setAmountRangeFilter] = useState({ min: '', max: '' });
+  const [bankFilter, setBankFilter] = useState('all');
   
-  // Estados para paginación
+  // Estados para paginación optimizada
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+  const [uniqueBanks, setUniqueBanks] = useState([]);
 
   // Cargar ingresos desde Firebase
   useEffect(() => {
@@ -104,6 +103,14 @@ const IncomeHistoryPage = () => {
         });
 
         setIncomes(incomesData);
+        
+        // Extraer bancos únicos para filtros
+        const banks = [...new Set(incomesData
+          .map(income => income.bank)
+          .filter(bank => bank && bank.trim())
+        )].sort();
+        setUniqueBanks(banks);
+        
         setLoading(false);
       },
       (error) => {
@@ -116,23 +123,39 @@ const IncomeHistoryPage = () => {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Aplicar filtros
+  // Aplicar filtros optimizado
   useEffect(() => {
     let filtered = [...incomes];
 
     // Filtro por búsqueda
     if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(income =>
-        income.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (income.description && income.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (income.account && income.account.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (income.bank && income.bank.toLowerCase().includes(searchTerm.toLowerCase()))
+        income.client.toLowerCase().includes(searchLower) ||
+        (income.description && income.description.toLowerCase().includes(searchLower)) ||
+        (income.account && income.account.toLowerCase().includes(searchLower)) ||
+        (income.bank && income.bank.toLowerCase().includes(searchLower))
       );
     }
 
     // Filtro por método de pago
     if (paymentMethodFilter !== 'all') {
       filtered = filtered.filter(income => income.paymentMethod === paymentMethodFilter);
+    }
+
+    // Filtro por banco
+    if (bankFilter !== 'all') {
+      filtered = filtered.filter(income => income.bank === bankFilter);
+    }
+
+    // Filtro por rango de montos
+    if (amountRangeFilter.min !== '' || amountRangeFilter.max !== '') {
+      filtered = filtered.filter(income => {
+        const amount = income.amount || 0;
+        const min = amountRangeFilter.min !== '' ? parseFloat(amountRangeFilter.min) : 0;
+        const max = amountRangeFilter.max !== '' ? parseFloat(amountRangeFilter.max) : Infinity;
+        return amount >= min && amount <= max;
+      });
     }
 
     // Filtro por rango de fechas
@@ -179,7 +202,7 @@ const IncomeHistoryPage = () => {
 
     setFilteredIncomes(filtered);
     setCurrentPage(1); // Reset página al filtrar
-  }, [incomes, searchTerm, paymentMethodFilter, dateRangeFilter, customDateFrom, customDateTo]);
+  }, [incomes, searchTerm, paymentMethodFilter, bankFilter, amountRangeFilter, dateRangeFilter, customDateFrom, customDateTo]);
 
   // Calcular estadísticas de los ingresos filtrados
   const stats = React.useMemo(() => {
@@ -199,16 +222,23 @@ const IncomeHistoryPage = () => {
     };
   }, [filteredIncomes]);
 
-  // Calcular datos paginados
+  // Calcular datos paginados con mejor performance
   const totalPages = Math.ceil(filteredIncomes.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedIncomes = filteredIncomes.slice(startIndex, endIndex);
+  const paginatedIncomes = React.useMemo(() => {
+    return filteredIncomes.slice(startIndex, endIndex);
+  }, [filteredIncomes, startIndex, endIndex]);
+
+  // Opciones de paginación para alto volumen
+  const itemsPerPageOptions = [10, 25, 50, 100, 250];
 
   // Limpiar filtros
   const clearFilters = () => {
     setSearchTerm('');
     setPaymentMethodFilter('all');
+    setBankFilter('all');
+    setAmountRangeFilter({ min: '', max: '' });
     setDateRangeFilter('all');
     setCustomDateFrom('');
     setCustomDateTo('');
@@ -233,12 +263,6 @@ const IncomeHistoryPage = () => {
     return colors[method] || 'default';
   };
 
-  const exportData = () => {
-    // Implementar exportación a CSV/Excel
-    console.log('Exportando datos del histórico...');
-    // TODO: Implementar exportación real
-  };
-
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -256,99 +280,112 @@ const IncomeHistoryPage = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-        <Box>
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 700, mb: 1 }}>
-            📈 Histórico de Consignaciones
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Consulta y analiza todos los pagos recibidos
-          </Typography>
-        </Box>
-        <Button
-          variant="outlined"
-          startIcon={<ExportIcon />}
-          onClick={exportData}
-          sx={{ borderRadius: 2 }}
+    <Box sx={{ 
+      p: { xs: 2, sm: 3, md: 4 },
+      maxWidth: '1400px',
+      mx: 'auto'
+    }}>
+      {/* Header sobrio */}
+      <Box sx={{ 
+        mb: 6,
+        textAlign: 'left'
+      }}>
+        <Typography 
+          variant="h4" 
+          component="h1" 
+          sx={{ 
+            fontWeight: 600,
+            mb: 1,
+            color: 'text.primary'
+          }}
         >
-          Exportar
-        </Button>
+          📈 Histórico de Consignaciones
+        </Typography>
+        <Typography 
+          variant="body1" 
+          color="text.secondary"
+          sx={{ 
+            fontWeight: 400
+          }}
+        >
+          Consulta y analiza todos los pagos recibidos
+        </Typography>
       </Box>
 
-      {/* Estadísticas resumidas */}
+      {/* Estadísticas sobrias */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {[
           {
             title: 'Total Registros',
             value: stats.total,
             icon: <ReceiptIcon />,
-            color: '#2196f3'
+            color: theme.palette.primary.main
           },
           {
             title: 'Monto Total',
             value: formatCurrency(stats.totalAmount),
             icon: <AttachMoneyIcon />,
-            color: '#4caf50'
+            color: theme.palette.success.main
           },
           {
-            title: 'Promedio',
+            title: 'Promedio por Ingreso',
             value: formatCurrency(stats.averageAmount),
             icon: <TrendingUpIcon />,
-            color: '#ff9800'
+            color: theme.palette.warning.main
+          },
+          {
+            title: 'Página Actual',
+            value: `${currentPage} de ${totalPages}`,
+            icon: <BusinessIcon />,
+            color: theme.palette.info.main
           }
         ].map((stat, index) => (
-          <Grid item xs={12} sm={4} key={index}>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-            >
-              <Card sx={{
-                background: `linear-gradient(135deg, ${stat.color}15 0%, ${stat.color}05 100%)`,
-                border: `1px solid ${stat.color}30`,
-                borderRadius: 3
-              }}>
-                <CardContent>
-                  <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <Box>
-                      <Typography variant="h5" sx={{ fontWeight: 700, color: stat.color }}>
-                        {stat.value}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {stat.title}
-                      </Typography>
-                    </Box>
-                    <Avatar sx={{ bgcolor: stat.color, width: 48, height: 48 }}>
-                      {stat.icon}
-                    </Avatar>
+          <Grid item xs={12} sm={6} md={3} key={index}>
+            <Card sx={{
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              transition: 'box-shadow 0.2s ease',
+              '&:hover': {
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              }
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                  <Box sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    backgroundColor: `${stat.color}15`,
+                    color: stat.color
+                  }}>
+                    {React.cloneElement(stat.icon, { sx: { fontSize: 24 } })}
                   </Box>
-                </CardContent>
-              </Card>
-            </motion.div>
+                  <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                    {typeof stat.value === 'string' ? stat.value : stat.value.toLocaleString()}
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  {stat.title}
+                </Typography>
+              </CardContent>
+            </Card>
           </Grid>
         ))}
       </Grid>
 
-      {/* Filtros */}
-      <Card sx={{ mb: 4, borderRadius: 3 }}>
+      {/* Panel de filtros sobrio */}
+      <Card sx={{ 
+        borderRadius: 2, 
+        mb: 4,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        border: `1px solid ${theme.palette.divider}`
+      }}>
         <CardContent>
           <Box display="flex" alignItems="center" gap={1} mb={3}>
-            <FilterIcon color="primary" />
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Filtros de Búsqueda
+            <FilterIcon sx={{ color: 'primary.main' }} />
+            <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
+              Filtros Avanzados
             </Typography>
-            {(searchTerm || paymentMethodFilter !== 'all' || dateRangeFilter !== 'all') && (
-              <Button
-                size="small"
-                onClick={clearFilters}
-                startIcon={<ClearIcon />}
-                sx={{ ml: 'auto' }}
-              >
-                Limpiar Filtros
-              </Button>
-            )}
           </Box>
 
           <Grid container spacing={3}>
@@ -363,21 +400,35 @@ const IncomeHistoryPage = () => {
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <SearchIcon />
+                      <SearchIcon sx={{ color: 'primary.main' }} />
                     </InputAdornment>
                   )
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1,
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'primary.main'
+                    }
+                  }
                 }}
               />
             </Grid>
 
             {/* Filtro por método de pago */}
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={2.25}>
               <FormControl fullWidth>
                 <InputLabel>Método de Pago</InputLabel>
                 <Select
                   value={paymentMethodFilter}
                   onChange={(e) => setPaymentMethodFilter(e.target.value)}
                   label="Método de Pago"
+                  sx={{
+                    borderRadius: 1,
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'success.main'
+                    }
+                  }}
                 >
                   <MenuItem value="all">Todos</MenuItem>
                   <MenuItem value="transferencia">Transferencia</MenuItem>
@@ -387,14 +438,43 @@ const IncomeHistoryPage = () => {
               </FormControl>
             </Grid>
 
-            {/* Filtro por rango de fechas */}
-            <Grid item xs={12} md={3}>
+            {/* Filtro por banco */}
+            <Grid item xs={12} md={2.25}>
+              <FormControl fullWidth>
+                <InputLabel>Banco</InputLabel>
+                <Select
+                  value={bankFilter}
+                  onChange={(e) => setBankFilter(e.target.value)}
+                  label="Banco"
+                  sx={{
+                    borderRadius: 1,
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'info.main'
+                    }
+                  }}
+                >
+                  <MenuItem value="all">Todos</MenuItem>
+                  {uniqueBanks.map((bank) => (
+                    <MenuItem key={bank} value={bank}>{bank}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            {/* Filtro por período */}
+            <Grid item xs={12} md={2.25}>
               <FormControl fullWidth>
                 <InputLabel>Período</InputLabel>
                 <Select
                   value={dateRangeFilter}
                   onChange={(e) => setDateRangeFilter(e.target.value)}
                   label="Período"
+                  sx={{
+                    borderRadius: 1,
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'warning.main'
+                    }
+                  }}
                 >
                   <MenuItem value="all">Todos</MenuItem>
                   <MenuItem value="today">Hoy</MenuItem>
@@ -406,10 +486,70 @@ const IncomeHistoryPage = () => {
               </FormControl>
             </Grid>
 
+            {/* Botón limpiar filtros */}
+            <Grid item xs={12} md={2.25}>
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<ClearIcon />}
+                onClick={clearFilters}
+                sx={{ 
+                  height: '56px',
+                  borderRadius: 1,
+                  fontWeight: 500
+                }}
+              >
+                Limpiar
+              </Button>
+            </Grid>
+
+            {/* Filtros de monto */}
+            <Grid item xs={12} md={6}>
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <TextField
+                  label="Monto mínimo"
+                  type="number"
+                  value={amountRangeFilter.min}
+                  onChange={(e) => setAmountRangeFilter(prev => ({ ...prev, min: e.target.value }))}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">$</InputAdornment>
+                  }}
+                  sx={{ 
+                    flex: 1,
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1,
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'success.main'
+                      }
+                    }
+                  }}
+                />
+                <Typography variant="body2" color="text.secondary">a</Typography>
+                <TextField
+                  label="Monto máximo"
+                  type="number"
+                  value={amountRangeFilter.max}
+                  onChange={(e) => setAmountRangeFilter(prev => ({ ...prev, max: e.target.value }))}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">$</InputAdornment>
+                  }}
+                  sx={{ 
+                    flex: 1,
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1,
+                      '&:hover .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'success.main'
+                      }
+                    }
+                  }}
+                />
+              </Box>
+            </Grid>
+
             {/* Fechas personalizadas */}
             {dateRangeFilter === 'custom' && (
               <>
-                <Grid item xs={12} md={1.5}>
+                <Grid item xs={12} md={3}>
                   <TextField
                     fullWidth
                     label="Desde"
@@ -417,9 +557,17 @@ const IncomeHistoryPage = () => {
                     value={customDateFrom}
                     onChange={(e) => setCustomDateFrom(e.target.value)}
                     InputLabelProps={{ shrink: true }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1,
+                        '&:hover .MuiOutlinedInput-notchedOutline': {
+                          borderColor: 'info.main'
+                        }
+                      }
+                    }}
                   />
                 </Grid>
-                <Grid item xs={12} md={1.5}>
+                <Grid item xs={12} md={3}>
                   <TextField
                     fullWidth
                     label="Hasta"
@@ -427,6 +575,14 @@ const IncomeHistoryPage = () => {
                     value={customDateTo}
                     onChange={(e) => setCustomDateTo(e.target.value)}
                     InputLabelProps={{ shrink: true }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1,
+                        '&:hover .MuiOutlinedInput-notchedOutline': {
+                          borderColor: 'info.main'
+                        }
+                      }
+                    }}
                   />
                 </Grid>
               </>
@@ -435,35 +591,58 @@ const IncomeHistoryPage = () => {
         </CardContent>
       </Card>
 
-      {/* Tabla de resultados */}
-      <Card sx={{ borderRadius: 3 }}>
+      {/* Tabla de resultados sobria */}
+      <Card sx={{ 
+        borderRadius: 2,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        border: `1px solid ${theme.palette.divider}`
+      }}>
         <CardContent sx={{ p: 0 }}>
-          <Box sx={{ p: 3, pb: 0 }}>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Resultados: {filteredIncomes.length} ingresos encontrados
+          {/* Header con controles de paginación */}
+          <Box sx={{ p: 3, borderBottom: `1px solid ${theme.palette.divider}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
+              Resultados: {stats.total} ingresos encontrados
             </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Registros por página:
+              </Typography>
+              <Select
+                size="small"
+                value={itemsPerPage}
+                onChange={(e) => {
+                  setItemsPerPage(e.target.value);
+                  setCurrentPage(1);
+                }}
+                sx={{
+                  borderRadius: 1
+                }}
+              >
+                {itemsPerPageOptions.map(option => (
+                  <MenuItem key={option} value={option}>{option}</MenuItem>
+                ))}
+              </Select>
+            </Box>
           </Box>
 
           <TableContainer>
             <Table>
               <TableHead>
-                <TableRow>
+                <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50' }}>
                   <TableCell sx={{ fontWeight: 600 }}>Cliente</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Monto</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Fecha</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Método</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Cuenta</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Banco</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Al Día</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Acciones</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {paginatedIncomes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                       <Box>
-                        <AttachMoneyIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
                         <Typography variant="h6" color="text.secondary">
                           No se encontraron ingresos
                         </Typography>
@@ -479,13 +658,13 @@ const IncomeHistoryPage = () => {
                       key={income.id}
                       sx={{
                         '&:hover': { backgroundColor: theme.palette.action.hover },
-                        '&:nth-of-type(odd)': { backgroundColor: theme.palette.action.hover + '40' }
+                        transition: 'background-color 0.2s ease'
                       }}
                     >
                       <TableCell>
                         <Box display="flex" alignItems="center" gap={1}>
                           <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-                            <PersonIcon />
+                            <PersonIcon sx={{ fontSize: 18 }} />
                           </Avatar>
                           <Box>
                             <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -523,17 +702,19 @@ const IncomeHistoryPage = () => {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          label={income.isClientPaidInFull ? "✅ Al día" : "⏳ Parcial"}
-                          size="small"
-                          color={income.isClientPaidInFull ? "success" : "warning"}
-                          variant="outlined"
-                        />
-                      </TableCell>
-                      <TableCell>
                         <Tooltip title="Ver detalles">
-                          <IconButton size="small" color="primary">
-                            <VisibilityIcon />
+                          <IconButton 
+                            size="small" 
+                            color="primary"
+                            sx={{
+                              borderRadius: 1,
+                              '&:hover': {
+                                backgroundColor: 'primary.main',
+                                color: 'primary.contrastText'
+                              }
+                            }}
+                          >
+                            <VisibilityIcon sx={{ fontSize: 18 }} />
                           </IconButton>
                         </Tooltip>
                       </TableCell>
@@ -544,9 +725,12 @@ const IncomeHistoryPage = () => {
             </Table>
           </TableContainer>
 
-          {/* Paginación */}
+          {/* Paginación sobria */}
           {totalPages > 1 && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 3, borderTop: `1px solid ${theme.palette.divider}` }}>
+              <Typography variant="body2" color="text.secondary">
+                Mostrando {startIndex + 1} a {Math.min(endIndex, filteredIncomes.length)} de {filteredIncomes.length} registros
+              </Typography>
               <Pagination
                 count={totalPages}
                 page={currentPage}
@@ -556,6 +740,14 @@ const IncomeHistoryPage = () => {
                 shape="rounded"
                 showFirstButton
                 showLastButton
+                siblingCount={1}
+                boundaryCount={1}
+                sx={{
+                  '& .MuiPaginationItem-root': {
+                    borderRadius: 1,
+                    fontWeight: 500
+                  }
+                }}
               />
             </Box>
           )}
@@ -565,10 +757,10 @@ const IncomeHistoryPage = () => {
       {/* Información adicional */}
       <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="body2" color="text.secondary">
-          Mostrando {paginatedIncomes.length} de {filteredIncomes.length} registros
+          Última actualización: {new Date().toLocaleString('es-CO')}
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Total mostrado: {formatCurrency(stats.totalAmount)}
+          Total procesado: {formatCurrency(stats.totalAmount)}
         </Typography>
       </Box>
     </Box>

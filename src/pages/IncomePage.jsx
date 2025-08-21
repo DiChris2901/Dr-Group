@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -85,7 +85,7 @@ const IncomePage = () => {
   const { success: showSuccess, error: showError, warning: showWarning, info: showInfo } = useToast();
   const { settings } = useSettings();
   
-  // 🎨 Colores dinámicos del tema (igual que el sidebar)
+  // ðŸŽ¨ Colores dinÃ¡micos del tema (igual que el sidebar)
   const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;
   const secondaryColor = settings?.theme?.secondaryColor || theme.palette.secondary.main;
   
@@ -94,8 +94,7 @@ const IncomePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Estados para el modal de agregar/editar
-  const [dialogOpen, setDialogOpen] = useState(false);
+  // Estados para diÃ¡logos de visualizaciÃ³n y eliminaciÃ³n (mantener solo los necesarios)
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedIncome, setSelectedIncome] = useState(null);
@@ -104,7 +103,7 @@ const IncomePage = () => {
   // Estado para autocompletado de clientes
   const [uniqueClients, setUniqueClients] = useState([]);
   
-  // Estados para distribución por empresas
+  // Estados para distribuciÃ³n por empresas
   const [companies, setCompanies] = useState([]);
   const [personalAccounts, setPersonalAccounts] = useState([]);
   
@@ -127,7 +126,7 @@ const IncomePage = () => {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
-  // Función para obtener cuentas bancarias (empresariales y personales)
+  // FunciÃ³n para obtener cuentas bancarias (empresariales y personales)
   const getBankAccounts = () => {
     // Cuentas empresariales
     const businessAccounts = companies
@@ -164,7 +163,7 @@ const IncomePage = () => {
     handleFormChange('amount', numericValue);
   };
 
-  // Función para manejar la selección de cuenta bancaria
+  // FunciÃ³n para manejar la selecciÃ³n de cuenta bancaria
   const handleBankAccountSelect = (selectedAccount) => {
     if (selectedAccount) {
       const accountInfo = getBankAccounts().find(acc => acc.bankAccount === selectedAccount);
@@ -206,7 +205,7 @@ const IncomePage = () => {
 
         setIncomes(incomesData);
         
-        // Extraer clientes únicos para autocompletado
+        // Extraer clientes Ãºnicos para autocompletado
         const clients = incomesData
           .map(income => income.client)
           .filter((client, index, self) => client && client.trim() && self.indexOf(client) === index)
@@ -288,7 +287,7 @@ const IncomePage = () => {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Calcular estadísticas
+  // Calcular estadÃ­sticas
   const stats = React.useMemo(() => {
     const totalAmount = incomes.reduce((sum, income) => sum + (income.amount || 0), 0);
     const thisMonth = incomes.filter(income => {
@@ -316,20 +315,20 @@ const IncomePage = () => {
   };
 
   // ====================================
-  // 📎 FUNCIONES PARA MANEJO DE ARCHIVOS
+  // ðŸ“Ž FUNCIONES PARA MANEJO DE ARCHIVOS
   // ====================================
 
   // Validar archivos (reutilizable para drag y click)
   const validateFiles = (files) => {
     return files.filter(file => {
-      // Validar tipo de archivo (imágenes y PDFs)
+      // Validar tipo de archivo (imÃ¡genes y PDFs)
       const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
       if (!validTypes.includes(file.type)) {
-        showError(`${file.name}: Solo se permiten imágenes (JPG, PNG, WEBP) y archivos PDF`);
+        showError(`${file.name}: Solo se permiten imÃ¡genes (JPG, PNG, WEBP) y archivos PDF`);
         return false;
       }
 
-      // Validar tamaño (máximo 10MB)
+      // Validar tamaÃ±o (mÃ¡ximo 10MB)
       if (file.size > 10 * 1024 * 1024) {
         showError(`${file.name}: El archivo no puede exceder 10MB`);
         return false;
@@ -363,7 +362,7 @@ const IncomePage = () => {
   };
 
   // ====================================
-  // 🖱️ FUNCIONES DRAG AND DROP
+  // ðŸ–±ï¸ FUNCIONES DRAG AND DROP
   // ====================================
 
   // Manejar drag over
@@ -377,7 +376,7 @@ const IncomePage = () => {
   const handleDragLeave = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    // Solo quitar dragOver si realmente salimos del área
+    // Solo quitar dragOver si realmente salimos del Ã¡rea
     if (!e.currentTarget.contains(e.relatedTarget)) {
       setDragOver(false);
     }
@@ -461,25 +460,7 @@ const IncomePage = () => {
     }
   };
 
-  // Abrir modal para agregar ingreso
-  const handleAddIncome = () => {
-    setSelectedIncome(null);
-    setSelectedFiles([]);
-    setUploadProgress({});
-    setDragOver(false);
-    setFormData({
-      client: '',
-      amount: '',
-      description: '',
-      date: new Date().toISOString().split('T')[0],
-      paymentMethod: 'transferencia',
-      account: '',
-      bank: ''
-    });
-    setDialogOpen(true);
-  };
-
-  // Abrir modal para editar ingreso
+  // FunciÃ³n para editar ingreso (llenar formulario inline)
   const handleEditIncome = (income) => {
     setSelectedIncome(income);
     setFormData({
@@ -491,7 +472,10 @@ const IncomePage = () => {
       account: income.account || '',
       bank: income.bank || ''
     });
-    setDialogOpen(true);
+    // Reset other form states
+    setSelectedFiles([]);
+    setUploadProgress({});
+    setDragOver(false);
   };
 
   // Ver detalles del ingreso
@@ -500,7 +484,7 @@ const IncomePage = () => {
     setViewDialogOpen(true);
   };
 
-  // Confirmar eliminación
+  // Confirmar eliminaciÃ³n
   const handleDeleteIncome = (income) => {
     setIncomeToDelete(income);
     setDeleteDialogOpen(true);
@@ -558,7 +542,7 @@ const IncomePage = () => {
         const incomeDoc = await addDoc(collection(db, 'incomes'), incomeData);
         incomeId = incomeDoc.id;
         
-        // Subir archivos después de crear el documento
+        // Subir archivos despuÃ©s de crear el documento
         if (selectedFiles.length > 0) {
           const uploadedFiles = await uploadFiles(incomeId);
           if (uploadedFiles.length > 0) {
@@ -574,7 +558,20 @@ const IncomePage = () => {
         );
       }
 
-      setDialogOpen(false);
+      // Limpiar formulario despuÃ©s de guardar
+      setSelectedIncome(null);
+      setFormData({
+        client: '',
+        amount: '',
+        description: '',
+        date: new Date().toISOString().split('T')[0],
+        paymentMethod: 'transferencia',
+        account: '',
+        bank: ''
+      });
+      setSelectedFiles([]);
+      setUploadProgress({});
+      setDragOver(false);
     } catch (error) {
       console.error('Error guardando ingreso:', error);
       showError('Error al guardar el ingreso: ' + error.message);
@@ -662,1105 +659,477 @@ const IncomePage = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-        <Box>
-          <Typography variant="h4" component="h1" sx={{ fontWeight: 700, mb: 1 }}>
-            💰 Gestión de Ingresos
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Registra y gestiona todos los pagos recibidos de clientes
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleAddIncome}
-          sx={{
-            borderRadius: 2,
-            px: 3,
-            py: 1.5,
-            background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
-            '&:hover': {
-              background: 'linear-gradient(135deg, #45a049 0%, #388e3c 100%)'
-            }
+    <Box sx={{ 
+      p: { xs: 2, sm: 3, md: 4 },
+      maxWidth: '1400px',
+      mx: 'auto'
+    }}>
+      {/* Header sobrio */}
+      <Box sx={{ 
+        mb: 6,
+        textAlign: 'left'
+      }}>
+        <Typography 
+          variant="h4" 
+          component="h1" 
+          sx={{ 
+            fontWeight: 600,
+            mb: 1,
+            color: 'text.primary'
           }}
         >
-          Registrar Ingreso
-        </Button>
+          💰 Gestión de Ingresos
+        </Typography>
+        <Typography 
+          variant="body1" 
+          color="text.secondary"
+          sx={{ 
+            fontWeight: 400
+          }}
+        >
+          Registra y gestiona todos los pagos recibidos de tus clientes
+        </Typography>
       </Box>
 
-      {/* Estadísticas */}
+      {/* Estadísticas sobrias */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {[
           {
             title: 'Total Ingresos',
             value: stats.total,
             icon: <ReceiptIcon />,
-            color: '#2196f3'
+            color: theme.palette.primary.main
           },
           {
             title: 'Monto Total',
             value: formatCurrency(stats.totalAmount),
             icon: <AttachMoneyIcon />,
-            color: '#4caf50'
+            color: theme.palette.success.main
           },
           {
             title: 'Este Mes',
             value: stats.monthlyTotal,
             icon: <CalendarIcon />,
-            color: '#ff9800'
+            color: theme.palette.info.main
           },
           {
             title: 'Monto Mensual',
             value: formatCurrency(stats.monthlyAmount),
             icon: <TrendingUpIcon />,
-            color: '#9c27b0'
+            color: theme.palette.warning.main
           }
         ].map((stat, index) => (
           <Grid item xs={12} sm={6} md={3} key={index}>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-            >
-              <Card sx={{
-                background: `linear-gradient(135deg, ${stat.color}15 0%, ${stat.color}05 100%)`,
-                border: `1px solid ${stat.color}30`,
-                borderRadius: 3
-              }}>
-                <CardContent>
-                  <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <Box>
-                      <Typography variant="h4" sx={{ fontWeight: 700, color: stat.color }}>
-                        {stat.value}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {stat.title}
-                      </Typography>
-                    </Box>
-                    <Avatar sx={{ bgcolor: stat.color, width: 56, height: 56 }}>
-                      {stat.icon}
-                    </Avatar>
+            <Card sx={{
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              transition: 'box-shadow 0.2s ease',
+              '&:hover': {
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              }
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                  <Box sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    backgroundColor: `${stat.color}15`,
+                    color: stat.color
+                  }}>
+                    {React.cloneElement(stat.icon, { sx: { fontSize: 24 } })}
                   </Box>
-                </CardContent>
-              </Card>
-            </motion.div>
+                  <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                    {typeof stat.value === 'string' ? stat.value : stat.value.toLocaleString()}
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  {stat.title}
+                </Typography>
+              </CardContent>
+            </Card>
           </Grid>
         ))}
       </Grid>
 
-      {/* Lista de ingresos */}
-      {incomes.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Paper
-            elevation={0}
-            sx={{
-              p: 8,
-              textAlign: 'center',
-              borderRadius: 3,
-              border: `2px dashed ${theme.palette.divider}`,
-              backgroundColor: theme.palette.background.default
-            }}
-          >
-            <AttachMoneyIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-              No hay ingresos registrados
-            </Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-              Comienza registrando tu primer ingreso de cliente
-            </Typography>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleAddIncome}
-              sx={{
-                borderRadius: 2,
-                background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)'
-              }}
-            >
-              Registrar Primer Ingreso
-            </Button>
-          </Paper>
-        </motion.div>
-      ) : (
-        <Grid container spacing={3}>
-          <AnimatePresence>
-            {incomes.map((income, index) => (
-              <Grid item xs={12} md={6} lg={4} key={income.id}>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                >
-                  <Card
-                    sx={{
-                      borderRadius: 3,
-                      border: `1px solid ${theme.palette.divider}`,
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        transform: 'translateY(-4px)',
-                        boxShadow: theme.shadows[8]
-                      }
-                    }}
-                  >
-                    <CardContent>
-                      {/* Header con cliente y monto */}
-                      <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32 }}>
-                            {getCategoryIcon(income.category)}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                              {income.client}
-                            </Typography>
-                            {income.company && (
-                              <Typography variant="caption" color="text.secondary">
-                                {income.company}
-                              </Typography>
-                            )}
-                          </Box>
-                        </Box>
-                        <Typography variant="h6" sx={{ fontWeight: 700, color: 'success.main' }}>
-                          {formatCurrency(income.amount)}
-                        </Typography>
-                      </Box>
-
-                      {/* Descripción */}
-                      {income.description && (
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                          {income.description}
-                        </Typography>
-                      )}
-
-                      {/* Detalles */}
-                      <Box sx={{ mb: 2 }}>
-                        <Box display="flex" alignItems="center" gap={1} mb={1}>
-                          <CalendarIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                          <Typography variant="body2" color="text.secondary">
-                            {format(income.date, 'dd MMM yyyy', { locale: es })}
-                          </Typography>
-                        </Box>
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <AccountBalanceIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                          <Chip
-                            label={income.paymentMethod}
-                            size="small"
-                            color={getPaymentMethodColor(income.paymentMethod)}
-                            variant="outlined"
-                          />
-                        </Box>
-                      </Box>
-
-                      <Divider sx={{ my: 2 }} />
-
-                      {/* Acciones */}
-                      <Box display="flex" justifyContent="flex-end" gap={1}>
-                        <Tooltip title="Ver detalles">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleViewIncome(income)}
-                            sx={{ color: 'primary.main' }}
-                          >
-                            <VisibilityIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Editar">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleEditIncome(income)}
-                            sx={{ color: 'warning.main' }}
-                          >
-                            <EditIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Eliminar">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDeleteIncome(income)}
-                            sx={{ color: 'error.main' }}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              </Grid>
-            ))}
-          </AnimatePresence>
-        </Grid>
-      )}
-
-      {/* Dialog para agregar/editar */}
-      <Dialog
-        open={dialogOpen}
-        onClose={() => !saving && setDialogOpen(false)}
-        maxWidth="lg"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            background: theme.palette.mode === 'dark' 
-              ? 'linear-gradient(145deg, rgba(30, 30, 30, 0.95) 0%, rgba(20, 20, 20, 0.98) 100%)'
-              : 'linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%)',
-            backdropFilter: 'blur(20px)',
-            boxShadow: theme.palette.mode === 'dark'
-              ? '0 24px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05)'
-              : '0 24px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05)',
-            overflow: 'hidden'
-          }
-        }}
-      >
-        <DialogTitle sx={{ 
-          background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
-          color: 'common.white',
-          py: 3,
-          position: 'relative',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'linear-gradient(45deg, rgba(255,255,255,0.1) 0%, transparent 100%)',
-            pointerEvents: 'none'
-          }
-        }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, position: 'relative', zIndex: 1 }}>
-            <Box sx={{
-              p: 1.5,
-              borderRadius: 2,
-              background: 'rgba(255, 255, 255, 0.15)',
-              backdropFilter: 'blur(10px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)'
+      {/* Formulario sobrio */}
+      <Card sx={{ 
+        borderRadius: 2,
+        mb: 4,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        border: `1px solid ${theme.palette.divider}`,
+        background: theme.palette.background.paper
+      }}>
+        <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+          {/* Header del formulario sobrio */}
+          <Box sx={{ 
+            mb: 4,
+            pb: 3,
+            borderBottom: `1px solid ${theme.palette.divider}`
+          }}>
+            <Typography variant="h5" sx={{ 
+              fontWeight: 600, 
+              mb: 1,
+              color: 'text.primary',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
             }}>
-              {selectedIncome ? <EditIcon /> : <AddIcon />}
-            </Box>
-            <Box>
-              <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5, textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}>
-                {selectedIncome ? '✏️ Editar Ingreso' : '✨ Registrar Nuevo Ingreso'}
-              </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.9, textShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
-                {selectedIncome ? 'Modifica los detalles del ingreso' : 'Complete la información del nuevo pago recibido'}
-              </Typography>
-            </Box>
+              <AddIcon sx={{ fontSize: 24, color: 'primary.main' }} />
+              Registrar Nuevo Ingreso
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Completa la información del pago recibido
+            </Typography>
           </Box>
-        </DialogTitle>
-        
-        <DialogContent sx={{ p: 2.5, position: 'relative' }}>
-          {/* Decorative background elements */}
-          <Box sx={{
-            position: 'absolute',
-            top: -30,
-            right: -30,
-            width: 120,
-            height: 120,
-            borderRadius: '50%',
-            background: `linear-gradient(135deg, ${primaryColor}06, ${secondaryColor}03)`,
-            filter: 'blur(30px)',
-            pointerEvents: 'none',
-            zIndex: 0
-          }} />
-          
-          <Box sx={{ position: 'relative', zIndex: 1 }}>
-            <Grid container spacing={2.5} sx={{ mt: 0.5 }}>
-              {/* Información Principal */}
-              <Grid item xs={12}>
-                <Box sx={{ 
-                  p: 2, 
-                  borderRadius: 2, 
-                  background: theme.palette.mode === 'dark' 
-                    ? 'linear-gradient(145deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.05) 100%)'
-                    : 'linear-gradient(145deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.9) 100%)',
-                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
-                  boxShadow: theme.palette.mode === 'dark' 
-                    ? '0 4px 20px rgba(0, 0, 0, 0.2)' 
-                    : '0 4px 20px rgba(0, 0, 0, 0.06)',
-                  mb: 1.5
-                }}>
-                  <Typography variant="subtitle1" sx={{ 
-                    mb: 2, 
-                    fontWeight: 600, 
-                    color: primaryColor,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <PersonIcon sx={{ fontSize: 20 }} /> Información Principal
-                  </Typography>
-                  
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} md={6}>
-                      <Autocomplete
-                        fullWidth
-                        freeSolo
-                        options={uniqueClients}
-                        value={formData.client}
-                        onChange={(event, newValue) => {
-                          handleFormChange('client', newValue || '');
-                        }}
-                        onInputChange={(event, newInputValue) => {
-                          handleFormChange('client', newInputValue);
-                        }}
-                        disabled={saving}
-                        renderInput={(params) => (
-                          <TextField
-                            {...params}
-                            label="Cliente"
-                            required
-                            InputProps={{
-                              ...params.InputProps,
-                              startAdornment: (
-                                <InputAdornment position="start">
-                                  <PersonIcon sx={{ color: primaryColor }} />
-                                </InputAdornment>
-                              )
-                            }}
-                            sx={{
-                              '& .MuiOutlinedInput-root': {
-                                borderRadius: 1.5,
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                  transform: 'translateY(-1px)',
-                                  boxShadow: theme.palette.mode === 'dark' 
-                                    ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
-                                    : '0 4px 12px rgba(0, 0, 0, 0.08)'
-                                },
-                                '&.Mui-focused': {
-                                  transform: 'translateY(-1px)',
-                                  boxShadow: `0 4px 12px ${primaryColor}20`
-                                }
-                              }
-                            }}
-                          />
-                        )}
-                      />
-                    </Grid>
-                    
-                    <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        label="Monto"
-                        value={formData.amount ? formatCurrency(formData.amount) : ''}
-                        onChange={(e) => handleAmountChange(e.target.value)}
-                        disabled={saving}
-                        required
-                        placeholder="$0"
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <AttachMoneyIcon sx={{ color: '#4caf50' }} />
-                            </InputAdornment>
-                          )
-                        }}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1.5,
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              transform: 'translateY(-1px)',
-                              boxShadow: theme.palette.mode === 'dark' 
-                                ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
-                                : '0 4px 12px rgba(0, 0, 0, 0.08)'
-                            },
-                            '&.Mui-focused': {
-                              transform: 'translateY(-1px)',
-                              boxShadow: '0 4px 12px rgba(76, 175, 80, 0.2)'
-                            }
-                          }
-                        }}
-                      />
-                    </Grid>
-                    
-                    <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        label="Fecha"
-                        type="date"
-                        value={formData.date}
-                        onChange={(e) => handleFormChange('date', e.target.value)}
-                        disabled={saving}
-                        required
-                        InputLabelProps={{ shrink: true }}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <CalendarIcon sx={{ color: '#ff9800' }} />
-                            </InputAdornment>
-                          )
-                        }}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 2,
-                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            '&:hover': {
-                              transform: 'translateY(-2px)',
-                              boxShadow: theme.palette.mode === 'dark' 
-                                ? '0 8px 25px rgba(0, 0, 0, 0.4)' 
-                                : '0 8px 25px rgba(0, 0, 0, 0.1)'
-                            },
-                            '&.Mui-focused': {
-                              transform: 'translateY(-2px)',
-                              boxShadow: '0 8px 25px rgba(255, 152, 0, 0.3)'
-                            }
-                          }
-                        }}
-                      />
-                    </Grid>
-                    
-                    <Grid item xs={12} md={6}>
-                      <FormControl fullWidth>
-                        <InputLabel>Método de Pago</InputLabel>
-                        <Select
-                          value={formData.paymentMethod}
-                          onChange={(e) => handleFormChange('paymentMethod', e.target.value)}
-                          disabled={saving}
-                          label="Método de Pago"
-                          startAdornment={
-                            <InputAdornment position="start">
-                              <AccountBalanceIcon sx={{ color: '#2196f3' }} />
-                            </InputAdornment>
-                          }
-                          sx={{
-                            borderRadius: 2,
-                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                            '&:hover': {
-                              transform: 'translateY(-2px)',
-                              boxShadow: theme.palette.mode === 'dark' 
-                                ? '0 8px 25px rgba(0, 0, 0, 0.4)' 
-                                : '0 8px 25px rgba(0, 0, 0, 0.1)'
-                            },
-                            '&.Mui-focused': {
-                              transform: 'translateY(-2px)',
-                              boxShadow: '0 8px 25px rgba(33, 150, 243, 0.3)'
-                            }
-                          }}
-                        >
-                          <MenuItem value="transferencia">
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <AccountBalanceIcon sx={{ fontSize: 18, color: '#2196f3' }} />
-                              Transferencia
-                            </Box>
-                          </MenuItem>
-                          <MenuItem value="consignacion">
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <ReceiptIcon sx={{ fontSize: 18, color: '#ff9800' }} />
-                              Consignación
-                            </Box>
-                          </MenuItem>
-                          <MenuItem value="efectivo">
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <AttachMoneyIcon sx={{ fontSize: 18, color: '#4caf50' }} />
-                              Efectivo
-                            </Box>
-                          </MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                  </Grid>
-                </Box>
-              </Grid>
 
-              {/* Descripción */}
-              <Grid item xs={12}>
-                <Box sx={{ 
-                  p: 2, 
-                  borderRadius: 2, 
-                  background: theme.palette.mode === 'dark' 
-                    ? 'linear-gradient(145deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.05) 100%)'
-                    : 'linear-gradient(145deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.9) 100%)',
-                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
-                  boxShadow: theme.palette.mode === 'dark' 
-                    ? '0 4px 20px rgba(0, 0, 0, 0.2)' 
-                    : '0 4px 20px rgba(0, 0, 0, 0.06)',
-                  mb: 1.5
-                }}>
-                  <Typography variant="subtitle1" sx={{ 
-                    mb: 2, 
-                    fontWeight: 600, 
-                    color: secondaryColor,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <DescriptionIcon sx={{ fontSize: 20 }} /> Descripción
-                  </Typography>
-                  
+          {/* Formulario */}
+          <Grid container spacing={3}>
+            {/* Cliente */}
+            <Grid item xs={12} md={6}>
+              <Autocomplete
+                freeSolo
+                options={uniqueClients}
+                value={formData.client}
+                onChange={(event, newValue) => {
+                  handleFormChange('client', newValue || '');
+                }}
+                onInputChange={(event, newInputValue) => {
+                  handleFormChange('client', newInputValue);
+                }}
+                renderInput={(params) => (
                   <TextField
+                    {...params}
                     fullWidth
-                    label="Descripción del ingreso"
-                    multiline
-                    rows={3}
-                    value={formData.description}
-                    onChange={(e) => handleFormChange('description', e.target.value)}
+                    required
+                    label="Cliente"
                     disabled={saving}
-                    placeholder="Describe los detalles del pago..."
+                    placeholder="Nombre del cliente"
                     InputProps={{
+                      ...params.InputProps,
                       startAdornment: (
-                        <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 1.5 }}>
-                          <DescriptionIcon sx={{ color: secondaryColor, fontSize: 20 }} />
+                        <InputAdornment position="start">
+                          <PersonIcon sx={{ color: 'primary.main' }} />
                         </InputAdornment>
                       )
                     }}
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1.5,
-                        transition: 'all 0.2s ease',
-                        '&:hover': {
-                          transform: 'translateY(-1px)',
-                          boxShadow: theme.palette.mode === 'dark' 
-                            ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
-                            : '0 4px 12px rgba(0, 0, 0, 0.08)'
-                        },
-                        '&.Mui-focused': {
-                          transform: 'translateY(-1px)',
-                          boxShadow: `0 4px 12px ${secondaryColor}20`
+                        borderRadius: 1,
+                        '&:hover .MuiOutlinedInput-notchedOutline': {
+                          borderColor: 'primary.main'
                         }
                       }
                     }}
                   />
-                </Box>
-              </Grid>
+                )}
+              />
+            </Grid>
 
-              {/* Información Bancaria */}
-              <Grid item xs={12}>
-                <Box sx={{ 
-                  p: 2, 
-                  borderRadius: 2, 
-                  background: theme.palette.mode === 'dark' 
-                    ? 'linear-gradient(145deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.05) 100%)'
-                    : 'linear-gradient(145deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.9) 100%)',
-                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
-                  boxShadow: theme.palette.mode === 'dark' 
-                    ? '0 4px 20px rgba(0, 0, 0, 0.2)' 
-                    : '0 4px 20px rgba(0, 0, 0, 0.06)',
-                  mb: 1.5
-                }}>
-                  <Typography variant="subtitle1" sx={{ 
-                    mb: 2, 
-                    fontWeight: 600, 
-                    color: '#9c27b0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <AccountBalanceIcon sx={{ fontSize: 20 }} /> Información Bancaria
-                  </Typography>
-                  
-                  <Grid container spacing={2}>
-                    <Grid item xs={12} md={6}>
-                      <FormControl fullWidth>
-                        <InputLabel>Número de Cuenta</InputLabel>
-                        <Select
-                          value={formData.account}
-                          label="Número de Cuenta"
-                          onChange={(e) => handleBankAccountSelect(e.target.value)}
-                          disabled={saving}
-                          startAdornment={
-                            <InputAdornment position="start">
-                              <AccountBalanceIcon sx={{ color: '#9c27b0', fontSize: 18 }} />
-                            </InputAdornment>
-                          }
-                          sx={{
-                            borderRadius: 1.5,
-                            transition: 'all 0.2s ease',
-                            '&:hover': {
-                              transform: 'translateY(-1px)',
-                              boxShadow: theme.palette.mode === 'dark' 
-                                ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
-                                : '0 4px 12px rgba(0, 0, 0, 0.08)'
-                            },
-                            '&.Mui-focused': {
-                              transform: 'translateY(-1px)',
-                              boxShadow: '0 4px 12px rgba(156, 39, 176, 0.2)'
-                            }
-                          }}
-                        >
-                          <MenuItem value="">
-                            <em>Seleccionar cuenta bancaria</em>
-                          </MenuItem>
-                          {getBankAccounts().map((account) => (
-                            <MenuItem 
-                              key={`${account.id}-${account.bankAccount}-${account.type}`} 
-                              value={account.bankAccount}
-                              sx={{ 
-                                display: 'flex', 
-                                flexDirection: 'column', 
-                                alignItems: 'flex-start',
-                                py: 1.5,
-                                gap: 0.5
-                              }}
-                            >
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                                <Typography variant="body2" fontWeight="medium" sx={{ flex: 1 }}>
-                                  {account.bankAccount}
-                                </Typography>
-                                <Chip 
-                                  label={account.type === 'personal' ? 'Personal' : 'Empresarial'}
-                                  size="small"
-                                  color={account.type === 'personal' ? 'secondary' : 'primary'}
-                                  variant="outlined"
-                                  sx={{ 
-                                    fontSize: '0.7rem', 
-                                    height: 20,
-                                    '& .MuiChip-label': {
-                                      px: 0.8
-                                    }
-                                  }}
-                                />
-                              </Box>
-                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                                {account.bankName} - {account.companyName}
-                              </Typography>
-                            </MenuItem>
-                          ))}
-                          {getBankAccounts().length === 0 && (
-                            <MenuItem disabled>
-                              <Typography variant="body2" color="text.secondary">
-                                No hay cuentas bancarias registradas en las empresas
-                              </Typography>
-                            </MenuItem>
-                          )}
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                    
-                    <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        label="Banco"
-                        value={formData.bank}
-                        onChange={(e) => handleFormChange('bank', e.target.value)}
-                        disabled={true} // Siempre deshabilitado porque se autocompleta
-                        placeholder="Se autocompletará al seleccionar una cuenta"
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <BusinessIcon sx={{ color: '#9c27b0', fontSize: 18 }} />
-                            </InputAdornment>
-                          )
-                        }}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1.5,
-                            transition: 'all 0.2s ease',
-                            backgroundColor: theme.palette.action.hover,
-                            '&:hover': {
-                              transform: 'translateY(-1px)',
-                              boxShadow: theme.palette.mode === 'dark' 
-                                ? '0 4px 12px rgba(0, 0, 0, 0.3)' 
-                                : '0 4px 12px rgba(0, 0, 0, 0.08)'
-                            }
-                          },
-                          '& .MuiInputLabel-root.Mui-disabled': {
-                            color: theme.palette.text.secondary
-                          }
-                        }}
-                      />
-                    </Grid>
-                  </Grid>
-                  
-                  {/* Mensaje informativo sobre cuentas bancarias */}
-                  {getBankAccounts().length === 0 && (
-                    <Box 
-                      sx={{ 
-                        mt: 2, 
-                        p: 2, 
-                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(156, 39, 176, 0.1)' : 'rgba(156, 39, 176, 0.05)',
-                        borderRadius: 2,
-                        border: `1px solid rgba(156, 39, 176, 0.2)`
-                      }}
-                    >
-                      <Typography variant="body2" sx={{ color: '#9c27b0', fontWeight: 500, mb: 0.5 }}>
-                        💡 Consejo
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Para tener cuentas bancarias disponibles, primero regístralas en la sección de Empresas. 
-                        Allí puedes agregar el número de cuenta, banco y certificación bancaria de cada empresa.
-                      </Typography>
-                    </Box>
-                  )}
-                </Box>
-              </Grid>
+            {/* Monto */}
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                required
+                label="Monto"
+                value={formData.amount ? formData.amount.toLocaleString() : ''}
+                onChange={(e) => handleAmountChange(e.target.value)}
+                disabled={saving}
+                placeholder="0"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <AttachMoneyIcon sx={{ color: 'success.main' }} />
+                    </InputAdornment>
+                  )
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1,
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'success.main'
+                    }
+                  }
+                }}
+              />
+            </Grid>
 
-              {/* Sección de archivos adjuntos con Drag & Drop */}
-              <Grid item xs={12}>
-                <Box sx={{ 
-                  p: 2, 
-                  borderRadius: 2, 
-                  background: theme.palette.mode === 'dark' 
-                    ? 'linear-gradient(145deg, rgba(76, 175, 80, 0.03) 0%, rgba(67, 160, 71, 0.05) 100%)'
-                    : 'linear-gradient(145deg, rgba(232, 245, 233, 0.6) 0%, rgba(220, 237, 200, 0.7) 100%)',
-                  border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(76, 175, 80, 0.1)' : 'rgba(76, 175, 80, 0.2)'}`,
-                  boxShadow: theme.palette.mode === 'dark' 
-                    ? '0 4px 20px rgba(0, 0, 0, 0.2)' 
-                    : '0 4px 20px rgba(76, 175, 80, 0.1)',
-                }}>
-                  <Typography variant="subtitle1" sx={{ 
-                    mb: 2, 
-                    fontWeight: 600, 
-                    color: '#4caf50',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <CloudUploadIcon sx={{ fontSize: 20 }} /> Comprobantes de Pago
-                  </Typography>
-                  
-                  {/* Zona de Drag & Drop mejorada */}
-                  <Box
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
+            {/* DescripciÃ³n */}
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="DescripciÃ³n"
+                value={formData.description}
+                onChange={(e) => handleFormChange('description', e.target.value)}
+                disabled={saving}
+                placeholder="DescripciÃ³n del ingreso (opcional)"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 2 }}>
+                      <DescriptionIcon sx={{ color: 'info.main' }} />
+                    </InputAdornment>
+                  )
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1,
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'info.main'
+                    }
+                  }
+                }}
+              />
+            </Grid>
+
+            {/* Fecha */}
+            <Grid item xs={12} md={4}>
+              <TextField
+                fullWidth
+                required
+                type="date"
+                label="Fecha"
+                value={formData.date}
+                onChange={(e) => handleFormChange('date', e.target.value)}
+                disabled={saving}
+                InputLabelProps={{ shrink: true }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <CalendarIcon sx={{ color: 'warning.main' }} />
+                    </InputAdornment>
+                  )
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1,
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'warning.main'
+                    }
+                  }
+                }}
+              />
+            </Grid>
+
+            {/* MÃ©todo de pago */}
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth required>
+                <InputLabel>MÃ©todo de Pago</InputLabel>
+                <Select
+                  value={formData.paymentMethod}
+                  onChange={(e) => handleFormChange('paymentMethod', e.target.value)}
+                  disabled={saving}
+                  label="MÃ©todo de Pago"
+                  startAdornment={
+                    <InputAdornment position="start">
+                      <AccountBalanceIcon sx={{ color: '#2196f3' }} />
+                    </InputAdornment>
+                  }
+                  sx={{
+                    borderRadius: 1,
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#2196f3'
+                    }
+                  }}
+                >
+                  <MenuItem value="transferencia">Transferencia</MenuItem>
+                  <MenuItem value="consignacion">ConsignaciÃ³n</MenuItem>
+                  <MenuItem value="efectivo">Efectivo</MenuItem>
+                  <MenuItem value="cheque">Cheque</MenuItem>
+                  <MenuItem value="tarjeta">Tarjeta</MenuItem>
+                  <MenuItem value="otro">Otro</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
+            {/* Cuenta bancaria */}
+            <Grid item xs={12} md={4}>
+              <Autocomplete
+                options={getBankAccounts()}
+                getOptionLabel={(option) => option.displayName || ''}
+                value={getBankAccounts().find(acc => acc.bankAccount === formData.account) || null}
+                onChange={(event, newValue) => handleBankAccountSelect(newValue?.bankAccount || '')}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Cuenta Bancaria"
+                    disabled={saving}
+                    placeholder="Seleccionar cuenta"
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <AccountBalanceIcon sx={{ color: '#9c27b0' }} />
+                        </InputAdornment>
+                      )
+                    }}
                     sx={{
-                      border: dragOver 
-                        ? `2px dashed #4caf50` 
-                        : `1px dashed rgba(76, 175, 80, 0.3)`,
-                      borderRadius: 2,
-                      p: 2.5,
-                      textAlign: 'center',
-                      backgroundColor: dragOver 
-                        ? 'rgba(76, 175, 80, 0.08)' 
-                        : 'rgba(76, 175, 80, 0.03)',
-                      transition: 'all 0.2s ease',
-                      cursor: 'pointer',
-                      position: 'relative',
-                      overflow: 'hidden',
-                      '&:hover': {
-                        borderColor: '#4caf50',
-                        backgroundColor: 'rgba(76, 175, 80, 0.06)',
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 4px 12px rgba(76, 175, 80, 0.15)'
-                      },
-                      '&::before': {
-                        content: '""',
-                        position: 'absolute',
-                        top: -30,
-                        left: -30,
-                        width: 60,
-                        height: 60,
-                        borderRadius: '50%',
-                        background: 'radial-gradient(circle, rgba(76, 175, 80, 0.08) 0%, transparent 70%)',
-                        opacity: dragOver ? 1 : 0,
-                        transition: 'opacity 0.2s ease',
-                        pointerEvents: 'none'
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1,
+                        '&:hover .MuiOutlinedInput-notchedOutline': {
+                          borderColor: '#9c27b0'
+                        }
                       }
                     }}
-                  >
-                    <input
-                      type="file"
-                      multiple
-                      accept="image/*,.pdf"
-                      onChange={handleFileSelect}
-                      style={{ display: 'none' }}
-                      id="file-upload"
-                    />
-                    
-                    <motion.div
-                      animate={dragOver ? { scale: 1.05, rotate: [0, 2, -2, 0] } : { scale: 1 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <CloudUploadIcon 
-                        sx={{ 
-                          fontSize: 48, 
-                          color: dragOver ? '#4caf50' : 'rgba(76, 175, 80, 0.6)',
-                          mb: 1.5,
-                          transition: 'all 0.2s ease',
-                          filter: dragOver ? 'drop-shadow(0 2px 8px rgba(76, 175, 80, 0.3))' : 'none'
-                        }} 
-                      />
-                    </motion.div>
-                    
-                    <Typography 
-                      variant="h6" 
-                      sx={{ 
-                        mb: 0.5, 
-                        color: dragOver ? '#4caf50' : '#388e3c',
-                        fontWeight: 600,
-                        textShadow: dragOver ? '0 1px 4px rgba(76, 175, 80, 0.2)' : 'none'
-                      }}
-                    >
-                      {dragOver ? '¡Suelta los archivos aquí!' : '✨ Arrastra archivos aquí'}
-                    </Typography>
-                    
-                    <Typography variant="body1" color="text.secondary" sx={{ mb: 3, fontWeight: 500 }}>
-                      o haz click para seleccionar desde tu dispositivo
-                    </Typography>
-                    
-                    <label htmlFor="file-upload">
-                      <Button
-                        variant={dragOver ? 'contained' : 'outlined'}
-                        component="span"
-                        size="large"
-                        startIcon={<AttachFileIcon />}
-                        disabled={saving || uploading}
-                        sx={{
-                          borderRadius: 3,
-                          px: 4,
-                          py: 1.5,
-                          fontWeight: 600,
-                          textTransform: 'none',
-                          fontSize: '1.1rem',
-                          background: dragOver 
-                            ? 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)'
-                            : 'transparent',
-                          borderColor: '#4caf50',
-                          color: dragOver ? 'white' : '#4caf50',
-                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                          '&:hover': {
-                            background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
-                            color: 'white',
-                            transform: 'translateY(-2px)',
-                            boxShadow: '0 8px 25px rgba(76, 175, 80, 0.4)'
-                          }
-                        }}
-                      >
-                        {dragOver ? 'Procesar Archivos' : 'Seleccionar Archivos'}
-                      </Button>
-                    </label>
-                    
-                    <Typography variant="caption" sx={{ 
-                      display: 'block', 
-                      mt: 2, 
-                      color: 'text.secondary',
-                      fontWeight: 500
-                    }}>
-                      📄 Imágenes (JPG, PNG, WEBP) y PDF • Máximo 10MB por archivo
-                    </Typography>
-                  </Box>
-
-                  {/* Lista de archivos seleccionados mejorada */}
-                  {selectedFiles.length > 0 && (
-                    <Box sx={{ mt: 3 }}>
-                      <Typography variant="subtitle1" sx={{ 
-                        mb: 2, 
-                        fontWeight: 700,
-                        color: '#4caf50',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1
-                      }}>
-                        <ReceiptIcon /> Archivos Seleccionados ({selectedFiles.length})
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <AccountBalanceIcon sx={{ color: '#9c27b0', fontSize: 18 }} />
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {option.companyName}
                       </Typography>
-                      <List sx={{ 
-                        bgcolor: 'background.paper', 
-                        borderRadius: 2,
-                        border: `1px solid ${theme.palette.divider}`,
-                        overflow: 'hidden'
-                      }}>
-                        {selectedFiles.map((file, index) => (
-                          <motion.div
-                            key={index}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.3, delay: index * 0.1 }}
-                          >
-                            <ListItem 
-                              sx={{ 
-                                borderBottom: index < selectedFiles.length - 1 ? `1px solid ${theme.palette.divider}` : 'none',
-                                transition: 'all 0.3s ease',
-                                '&:hover': {
-                                  bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(76, 175, 80, 0.05)',
-                                  transform: 'translateX(4px)'
-                                }
-                              }}
-                            >
-                              <ListItemIcon>
-                                <Box sx={{
-                                  p: 1,
-                                  borderRadius: 2,
-                                  bgcolor: file.type === 'application/pdf' ? 'error.light' : 'primary.light',
-                                  color: 'white'
-                                }}>
-                                  {file.type === 'application/pdf' ? 
-                                    <DescriptionIcon /> : 
-                                    <AttachFileIcon />
-                                  }
-                                </Box>
-                              </ListItemIcon>
-                              <ListItemText
-                                primary={
-                                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                                    {file.name}
-                                  </Typography>
-                                }
-                                secondary={
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                                    <Chip 
-                                      label={`${(file.size / 1024 / 1024).toFixed(2)} MB`}
-                                      size="small"
-                                      color="primary"
-                                      variant="outlined"
-                                    />
-                                    <Chip 
-                                      label={file.type === 'application/pdf' ? 'PDF' : 'Imagen'}
-                                      size="small"
-                                      color={file.type === 'application/pdf' ? 'error' : 'success'}
-                                      variant="filled"
-                                    />
-                                  </Box>
-                                }
-                              />
-                              {uploadProgress[index] && (
-                                <Box sx={{ mr: 2, minWidth: 80, textAlign: 'center' }}>
-                                  <Typography variant="caption" color="primary" sx={{ fontWeight: 700 }}>
-                                    {Math.round(uploadProgress[index])}%
-                                  </Typography>
-                                  <Box sx={{ 
-                                    width: '100%', 
-                                    height: 4, 
-                                    bgcolor: 'grey.200', 
-                                    borderRadius: 2, 
-                                    overflow: 'hidden',
-                                    mt: 0.5
-                                  }}>
-                                    <Box sx={{
-                                      width: `${uploadProgress[index]}%`,
-                                      height: '100%',
-                                      bgcolor: 'primary.main',
-                                      transition: 'width 0.3s ease'
-                                    }} />
-                                  </Box>
-                                </Box>
-                              )}
-                              <ListItemSecondaryAction>
-                                <Tooltip title="Eliminar archivo">
-                                  <IconButton
-                                    edge="end"
-                                    onClick={() => handleRemoveFile(index)}
-                                    disabled={uploading}
-                                    sx={{
-                                      color: 'error.main',
-                                      '&:hover': {
-                                        bgcolor: 'error.light',
-                                        color: 'error.contrastText',
-                                        transform: 'scale(1.1)'
-                                      },
-                                      transition: 'all 0.3s ease'
-                                    }}
-                                  >
-                                    <DeleteFileIcon />
-                                  </IconButton>
-                                </Tooltip>
-                              </ListItemSecondaryAction>
-                            </ListItem>
-                          </motion.div>
-                        ))}
-                      </List>
+                      <Typography variant="caption" color="text.secondary">
+                        {option.bankName} - {option.bankAccount}
+                      </Typography>
                     </Box>
-                  )}
+                  </Box>
+                )}
+              />
+            </Grid>
+          </Grid>
 
-                  {uploading && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                    >
-                      <Alert 
-                        severity="info" 
-                        sx={{ 
-                          mt: 2,
-                          borderRadius: 2,
-                          '& .MuiAlert-icon': {
-                            fontSize: 24
-                          }
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                            📤 Subiendo archivos...
+          {/* Sección de archivos sobria */}
+          <Box sx={{ mt: 4 }}>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                fontWeight: 600, 
+                mb: 2, 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1,
+                color: 'text.primary'
+              }}
+            >
+              <AttachFileIcon sx={{ fontSize: 20 }} />
+              Archivos y Comprobantes
+            </Typography>
+            
+            <Paper
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              sx={{
+                p: 3,
+                border: `2px dashed ${dragOver ? theme.palette.primary.main : theme.palette.divider}`,
+                borderRadius: 1,
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'border-color 0.2s ease',
+                background: theme.palette.background.paper,
+                '&:hover': {
+                  borderColor: theme.palette.primary.main
+                }
+              }}
+              onClick={() => document.getElementById('file-input').click()}
+            >
+              <input
+                type="file"
+                id="file-input"
+                multiple
+                accept="image/*,.pdf"
+                style={{ display: 'none' }}
+                onChange={handleFileSelect}
+              />
+              
+              <CloudUploadIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+              
+              <Typography variant="body1" sx={{ mb: 1, fontWeight: 500 }}>
+                {dragOver ? 'Suelta los archivos aquí' : 'Arrastra archivos o haz clic para seleccionar'}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Imágenes (JPG, PNG, WEBP) y archivos PDF hasta 10MB
+              </Typography>
+            </Paper>
+
+            {/* Lista de archivos seleccionados */}
+            {selectedFiles.length > 0 && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Archivos seleccionados ({selectedFiles.length})
+                </Typography>
+                <Grid container spacing={2}>
+                  {selectedFiles.map((file, index) => (
+                    <Grid item xs={12} sm={6} md={4} key={index}>
+                      <Paper sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <AttachFileIcon color="primary" />
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                            {file.name}
                           </Typography>
-                          <Typography variant="body2">
-                            Por favor espere mientras procesamos sus documentos
+                          <Typography variant="caption" color="text.secondary">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
                           </Typography>
                         </Box>
-                      </Alert>
-                    </motion.div>
-                  )}
-                </Box>
-              </Grid>
-            </Grid>
+                        <IconButton 
+                          size="small" 
+                          color="error"
+                          onClick={() => handleRemoveFile(index)}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Paper>
+                    </Grid>
+                  ))}
+                </Grid>
+              </Box>
+            )}
           </Box>
-        </DialogContent>
-        
-        <DialogActions sx={{ 
-          p: 2, 
-          gap: 1.5,
-          background: theme.palette.mode === 'dark' 
-            ? 'linear-gradient(145deg, rgba(30, 30, 30, 0.6) 0%, rgba(20, 20, 20, 0.8) 100%)'
-            : 'linear-gradient(145deg, rgba(248, 250, 252, 0.6) 0%, rgba(255, 255, 255, 0.8) 100%)',
-          backdropFilter: 'blur(15px)',
-          borderTop: `1px solid ${theme.palette.divider}`
-        }}>
-          <Button
-            onClick={() => setDialogOpen(false)}
-            disabled={saving}
-            variant="outlined"
-            size="medium"
-            startIcon={<CancelIcon sx={{ fontSize: 18 }} />}
-            sx={{
-              borderRadius: 1.5,
-              px: 3,
-              py: 1,
-              fontWeight: 500,
-              textTransform: 'none',
-              borderColor: 'error.main',
-              color: 'error.main',
-              transition: 'all 0.2s ease',
-              '&:hover': {
-                borderColor: 'error.dark',
-                backgroundColor: 'error.light',
-                color: 'error.contrastText',
-                transform: 'translateY(-1px)',
-                boxShadow: '0 4px 12px rgba(244, 67, 54, 0.2)'
-              }
-            }}
-          >
-            Cancelar
-          </Button>
-          <Button
-            onClick={handleSaveIncome}
-            disabled={saving}
-            variant="contained"
-            size="medium"
-            startIcon={saving ? (
-              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
-                <RefreshIcon sx={{ fontSize: 18 }} />
-              </motion.div>
-            ) : <SaveIcon sx={{ fontSize: 18 }} />}
-            sx={{
-              borderRadius: 1.5,
-              px: 3,
-              py: 1,
-              fontWeight: 600,
-              textTransform: 'none',
-              fontSize: '1rem',
-              background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
-              transition: 'all 0.2s ease',
-              '&:hover': {
-                background: `linear-gradient(135deg, ${primaryColor}DD 0%, ${secondaryColor}DD 100%)`,
-                transform: 'translateY(-1px)',
-                boxShadow: `0 4px 20px ${primaryColor}30`
-              },
-              '&:disabled': {
-                background: theme.palette.action.disabled,
-                color: theme.palette.action.disabled,
-              }
-            }}
-          >
-            {saving ? 'Guardando...' : (selectedIncome ? 'Actualizar Ingreso' : 'Guardar Ingreso')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+
+          {/* Botones de acción sobrios */}
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end',
+            gap: 2, 
+            mt: 4,
+            pt: 3,
+            borderTop: `1px solid ${theme.palette.divider}`
+          }}>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={() => {
+                setFormData({
+                  client: '',
+                  amount: '',
+                  description: '',
+                  date: new Date().toISOString().split('T')[0],
+                  paymentMethod: 'transferencia',
+                  account: '',
+                  bank: ''
+                });
+                setSelectedFiles([]);
+                setSelectedIncome(null);
+              }}
+              disabled={saving}
+              sx={{ 
+                borderRadius: 1,
+                fontWeight: 500
+              }}
+            >
+              Limpiar
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={saving ? <RefreshIcon /> : <SaveIcon />}
+              onClick={handleSaveIncome}
+              disabled={saving || !formData.client.trim() || !formData.amount || !formData.date}
+              sx={{
+                borderRadius: 1,
+                fontWeight: 600,
+                '&:disabled': {
+                  background: theme.palette.action.disabled
+                }
+              }}
+            >
+              {saving ? 'Guardando...' : (selectedIncome ? 'Actualizar Ingreso' : 'Registrar Ingreso')}
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
 
       {/* Dialog para ver detalles */}
       <Dialog
@@ -1772,103 +1141,46 @@ const IncomePage = () => {
         <DialogTitle>
           Detalles del Ingreso
         </DialogTitle>
-        <DialogContent dividers>
+        <DialogContent>
           {selectedIncome && (
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Cliente
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                Cliente: {selectedIncome.client}
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                Monto: {formatCurrency(selectedIncome.amount)}
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                Fecha: {format(selectedIncome.date, 'dd/MM/yyyy')}
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                Método de Pago: {selectedIncome.paymentMethod}
+              </Typography>
+              {selectedIncome.description && (
+                <Typography variant="body1" gutterBottom>
+                  Descripción: {selectedIncome.description}
                 </Typography>
-                <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                  {selectedIncome.client}
-                </Typography>
-              </Grid>
-              {selectedIncome.company && (
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Empresa
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                    {selectedIncome.company}
-                  </Typography>
-                </Grid>
               )}
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Monto
-                </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: 'success.main' }}>
-                  {formatCurrency(selectedIncome.amount)}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Fecha
-                </Typography>
-                <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                  {format(selectedIncome.date, 'dd MMM yyyy', { locale: es })}
-                </Typography>
-              </Grid>
-              <Grid item xs={12}>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Descripción
-                </Typography>
-                <Typography variant="body1">
-                  {selectedIncome.description || 'Sin descripción'}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Método de Pago
-                </Typography>
-                <Chip
-                  label={selectedIncome.paymentMethod}
-                  color={getPaymentMethodColor(selectedIncome.paymentMethod)}
-                  variant="outlined"
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Categoría
-                </Typography>
-                <Box display="flex" alignItems="center" gap={1}>
-                  {getCategoryIcon(selectedIncome.category)}
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                    {selectedIncome.category}
+              {selectedIncome.attachments && selectedIncome.attachments.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle1" gutterBottom>
+                    Archivos adjuntos:
                   </Typography>
+                  {selectedIncome.attachments.map((file, index) => (
+                    <Box key={index} sx={{ mb: 1 }}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<AttachFileIcon />}
+                        onClick={() => window.open(file.url, '_blank')}
+                      >
+                        {file.name}
+                      </Button>
+                    </Box>
+                  ))}
                 </Box>
-              </Grid>
-              {selectedIncome.account && (
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Número de Cuenta
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                    {selectedIncome.account}
-                  </Typography>
-                </Grid>
               )}
-              {selectedIncome.bank && (
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Banco
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                    {selectedIncome.bank}
-                  </Typography>
-                </Grid>
-              )}
-              {selectedIncome.reference && (
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Referencia
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                    {selectedIncome.reference}
-                  </Typography>
-                </Grid>
-              )}
-            </Grid>
+            </Box>
           )}
         </DialogContent>
         <DialogActions>
@@ -1878,36 +1190,30 @@ const IncomePage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog de confirmación para eliminar */}
+      {/* Dialog para confirmar eliminación */}
       <Dialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
       >
-        <DialogTitle>Confirmar eliminación</DialogTitle>
+        <DialogTitle>Confirmar Eliminación</DialogTitle>
         <DialogContent>
           <Typography>
-            ¿Estás seguro de que deseas eliminar este ingreso? Esta acción no se puede deshacer.
+            ¿Estás seguro de que deseas eliminar este ingreso?
+            {incomeToDelete && (
+              <>
+                <br />
+                <strong>Cliente:</strong> {incomeToDelete.client}
+                <br />
+                <strong>Monto:</strong> {formatCurrency(incomeToDelete.amount)}
+              </>
+            )}
           </Typography>
-          {incomeToDelete && (
-            <Box sx={{ mt: 2, p: 2, bgcolor: 'error.light', borderRadius: 1 }}>
-              <Typography variant="body2">
-                <strong>Cliente:</strong> {incomeToDelete.client}<br />
-                <strong>Monto:</strong> {formatCurrency(incomeToDelete.amount)}<br />
-                <strong>Fecha:</strong> {format(incomeToDelete.date, 'dd MMM yyyy', { locale: es })}
-              </Typography>
-            </Box>
-          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>
             Cancelar
           </Button>
-          <Button
-            onClick={confirmDelete}
-            color="error"
-            variant="contained"
-            startIcon={<DeleteIcon />}
-          >
+          <Button onClick={confirmDelete} color="error" variant="contained">
             Eliminar
           </Button>
         </DialogActions>
@@ -1917,3 +1223,4 @@ const IncomePage = () => {
 };
 
 export default IncomePage;
+

@@ -18,7 +18,8 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  TablePagination
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { useCommitments } from '../../hooks/useFirestore';
@@ -30,7 +31,6 @@ import {
   AttachMoney,
   Assignment
 } from '@mui/icons-material';
-import { motion } from 'framer-motion';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 // Comentamos DatePicker temporalmente para evitar errores
 // import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -40,22 +40,27 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 
 const ReportsPeriodPage = () => {
   const theme = useTheme();
-  const isDarkMode = theme.palette.mode === 'dark';
   
   const [startDate, setStartDate] = useState(new Date(2025, 0, 1)); // 1 enero 2025
   const [endDate, setEndDate] = useState(new Date(2025, 6, 31)); // 31 julio 2025
   const [periodType, setPeriodType] = useState('monthly');
   const [comparisonMode, setComparisonMode] = useState('previous');
+  
+  // Estados para paginación
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Conectar con Firebase para obtener compromisos reales
   const { commitments, loading } = useCommitments();
+
+  // Memoizar fecha actual para evitar recálculos constantes
+  const currentDate = useMemo(() => new Date(), []);
 
   // Calcular datos mensuales desde Firebase
   const monthlyData = useMemo(() => {
     if (!commitments) return [];
     
     const months = [];
-    const currentDate = new Date();
     
     // Generar últimos 12 meses
     for (let i = 11; i >= 0; i--) {
@@ -85,14 +90,13 @@ const ReportsPeriodPage = () => {
     }
     
     return months;
-  }, [commitments]);
+  }, [commitments, currentDate]);
 
   // Calcular datos semanales desde Firebase
   const weeklyData = useMemo(() => {
     if (!commitments) return [];
     
     const weeks = [];
-    const currentDate = new Date();
     
     // Generar últimas 8 semanas
     for (let i = 7; i >= 0; i--) {
@@ -116,17 +120,17 @@ const ReportsPeriodPage = () => {
     }
     
     return weeks;
-  }, [commitments]);
+  }, [commitments, currentDate]);
 
   const currentData = periodType === 'weekly' ? weeklyData : monthlyData;
 
-  const formatCurrency = (amount) => {
+  const formatCurrency = useMemo(() => (amount) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
       currency: 'MXN',
       minimumFractionDigits: 0
-    }).format(amount);
-  };
+    }).format(amount || 0);
+  }, []);
 
   const getTotalStats = () => {
     return currentData.reduce((acc, item) => ({
@@ -158,60 +162,95 @@ const ReportsPeriodPage = () => {
     return ((lastPeriod.amount - previousPeriod.amount) / previousPeriod.amount * 100).toFixed(1);
   };
 
+  // Funciones para manejar paginación
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  // Calcular datos paginados
+  const paginatedData = useMemo(() => {
+    const startIndex = page * rowsPerPage;
+    return currentData.slice(startIndex, startIndex + rowsPerPage);
+  }, [currentData, page, rowsPerPage]);
+
   return (
-    // <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
-      <Box sx={{ p: 3 }}>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-            <Typography variant="h6" color="text.secondary">
-              Cargando datos de períodos...
-            </Typography>
-          </Box>
-        ) : (
+    <Box sx={{ 
+      p: { xs: 2, sm: 3, md: 4 },
+      maxWidth: '1400px',
+      mx: 'auto'
+    }}>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+          <Typography variant="h6" color="text.secondary">
+            Cargando datos de períodos...
+          </Typography>
+        </Box>
+      ) : (
           <>
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Box sx={{ mb: 4 }}>
-            <Typography 
-              variant="h4" 
-              sx={{ 
-                fontWeight: 700,
-                background: isDarkMode 
-                  ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                  : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-                backgroundClip: 'text',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                mb: 1
+        {/* Header sobrio */}
+        <Box sx={{ 
+          mb: 6,
+          textAlign: 'left'
+        }}>
+          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+            <Box>
+              <Typography 
+                variant="h4" 
+                component="h1"
+                sx={{ 
+                  fontWeight: 600,
+                  mb: 1,
+                  color: 'text.primary'
+                }}
+              >
+                📅 Reportes por Período
+              </Typography>
+              <Typography 
+                variant="body1" 
+                color="text.secondary"
+                sx={{ 
+                  fontWeight: 400
+                }}
+              >
+                Análisis temporal de compromisos financieros
+              </Typography>
+            </Box>
+            
+            <Button
+              variant="contained"
+              startIcon={<GetApp />}
+              onClick={exportReport}
+              sx={{
+                borderRadius: 1,
+                fontWeight: 600,
+                px: 3,
+                py: 1,
+                textTransform: 'none'
               }}
             >
-              📅 Reportes por Período
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Análisis temporal de compromisos financieros
-            </Typography>
+              Exportar Reporte
+            </Button>
           </Box>
-        </motion.div>
+        </Box>
 
-        {/* Filters */}
+        {/* Filtros sobrios */}
         <Card sx={{ 
-          mb: 3, 
-          borderRadius: 4,
-          background: isDarkMode 
-            ? 'rgba(255, 255, 255, 0.1)' 
-            : 'rgba(255, 255, 255, 0.9)',
-          backdropFilter: 'blur(20px)',
-          border: isDarkMode 
-            ? '1px solid rgba(255, 255, 255, 0.2)' 
-            : '1px solid rgba(0, 0, 0, 0.1)'
+          mb: 4,
+          borderRadius: 2,
+          border: `1px solid ${theme.palette.divider}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
         }}>
-          <CardContent>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={2}>
+          <CardContent sx={{ p: 3 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+              Filtros de Período
+            </Typography>
+            <Grid container spacing={3} alignItems="center">
+              <Grid item xs={12} md={3}>
                 <TextField
                   fullWidth
                   label="Fecha Inicio"
@@ -220,10 +259,15 @@ const ReportsPeriodPage = () => {
                   InputLabelProps={{
                     shrink: true,
                   }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1
+                    }
+                  }}
                 />
               </Grid>
               
-              <Grid item xs={12} md={2}>
+              <Grid item xs={12} md={3}>
                 <TextField
                   fullWidth
                   label="Fecha Fin"
@@ -232,16 +276,24 @@ const ReportsPeriodPage = () => {
                   InputLabelProps={{
                     shrink: true,
                   }}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1
+                    }
+                  }}
                 />
               </Grid>
 
-              <Grid item xs={12} md={2}>
+              <Grid item xs={12} md={3}>
                 <FormControl fullWidth>
                   <InputLabel>Período</InputLabel>
                   <Select
                     value={periodType}
                     onChange={(e) => setPeriodType(e.target.value)}
                     label="Período"
+                    sx={{
+                      borderRadius: 1
+                    }}
                   >
                     <MenuItem value="daily">Diario</MenuItem>
                     <MenuItem value="weekly">Semanal</MenuItem>
@@ -258,6 +310,9 @@ const ReportsPeriodPage = () => {
                     value={comparisonMode}
                     onChange={(e) => setComparisonMode(e.target.value)}
                     label="Comparar con"
+                    sx={{
+                      borderRadius: 1
+                    }}
                   >
                     <MenuItem value="previous">Período anterior</MenuItem>
                     <MenuItem value="year">Mismo período año anterior</MenuItem>
@@ -265,229 +320,200 @@ const ReportsPeriodPage = () => {
                   </Select>
                 </FormControl>
               </Grid>
-
-              <Grid item xs={12} md={3}>
-                <Button
-                  fullWidth
-                  variant="contained"
-                  startIcon={<GetApp />}
-                  onClick={exportReport}
-                  sx={{
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    borderRadius: 4,
-                    '&:hover': {
-                      background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)'
-                    }
-                  }}
-                >
-                  Exportar
-                </Button>
-              </Grid>
             </Grid>
           </CardContent>
         </Card>
 
-        {/* Summary Cards */}
+        {/* Tarjetas de resumen sobrias */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {[
             { 
               label: 'Monto Total', 
               value: formatCurrency(stats.totalAmount), 
-              color: '#4caf50',
+              color: theme.palette.success.main,
               icon: AttachMoney,
               growth: getGrowthRate()
             },
             { 
               label: 'Total Compromisos', 
               value: stats.totalCommitments, 
-              color: '#667eea',
+              color: theme.palette.primary.main,
               icon: Assignment,
               growth: '+12'
             },
             { 
               label: 'Tasa Completado', 
               value: `${Math.round((stats.totalCompleted / stats.totalCommitments) * 100)}%`, 
-              color: '#f093fb',
+              color: theme.palette.info.main,
               icon: TrendingUp,
               growth: '+5.2'
             },
             { 
               label: 'Ticket Promedio', 
               value: formatCurrency(stats.totalAmount / stats.totalCommitments), 
-              color: '#ff9800',
+              color: theme.palette.warning.main,
               icon: CalendarMonth,
               growth: '-2.1'
             }
           ].map((stat, index) => (
             <Grid item xs={12} sm={6} md={3} key={index}>
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-              >
-                <Card sx={{
-                  background: `linear-gradient(135deg, ${stat.color}15 0%, ${stat.color}05 100%)`,
-                  border: `1px solid ${stat.color}30`,
-                  borderRadius: 4,
-                  backdropFilter: 'blur(20px)'
-                }}>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                      <stat.icon sx={{ color: stat.color, fontSize: 32 }} />
-                      <Chip 
-                        label={`${stat.growth > 0 ? '+' : ''}${stat.growth}%`}
-                        size="small"
-                        color={stat.growth > 0 ? 'success' : 'error'}
-                        icon={<TrendingUp />}
-                      />
+              <Card sx={{
+                borderRadius: 2,
+                border: `1px solid ${theme.palette.divider}`,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                transition: 'box-shadow 0.2s ease',
+                '&:hover': {
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                }
+              }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                    <Box sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      backgroundColor: `${stat.color}15`,
+                      color: stat.color
+                    }}>
+                      <stat.icon sx={{ fontSize: 24 }} />
                     </Box>
-                    <Typography variant="h4" sx={{ fontWeight: 700, color: stat.color }}>
-                      {stat.value}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {stat.label}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </motion.div>
+                    <Chip 
+                      label={`${stat.growth > 0 ? '+' : ''}${stat.growth}%`}
+                      size="small"
+                      color={stat.growth > 0 ? 'success' : 'error'}
+                      variant="outlined"
+                      sx={{ borderRadius: 1 }}
+                    />
+                  </Box>
+                  <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary', mb: 1 }}>
+                    {stat.value}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                    {stat.label}
+                  </Typography>
+                </CardContent>
+              </Card>
             </Grid>
           ))}
         </Grid>
 
-        {/* Charts */}
+        {/* Gráficos sobrios */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
-          {/* Trend Chart */}
+          {/* Gráfico de tendencias */}
           <Grid item xs={12} md={8}>
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <Card sx={{
-                borderRadius: 4,
-                background: isDarkMode 
-                  ? 'rgba(255, 255, 255, 0.1)' 
-                  : 'rgba(255, 255, 255, 0.9)',
-                backdropFilter: 'blur(20px)',
-                border: isDarkMode 
-                  ? '1px solid rgba(255, 255, 255, 0.2)' 
-                  : '1px solid rgba(0, 0, 0, 0.1)',
-                height: '400px'
-              }}>
-                <CardContent>
-                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-                    Tendencia de Montos ({periodType === 'monthly' ? 'Mensual' : 'Semanal'})
-                  </Typography>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <AreaChart data={currentData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="period" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => formatCurrency(value)} />
-                      <Legend />
-                      <Area 
-                        type="monotone" 
-                        dataKey="amount" 
-                        stroke="#667eea" 
-                        fill="url(#colorAmount)"
-                        strokeWidth={3}
-                        name="Monto"
-                      />
-                      <defs>
-                        <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#667eea" stopOpacity={0.3}/>
-                          <stop offset="95%" stopColor="#667eea" stopOpacity={0.05}/>
-                        </linearGradient>
-                      </defs>
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </motion.div>
+            <Card sx={{
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              height: '400px'
+            }}>
+              <CardContent sx={{ p: 3, height: '100%' }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+                  Tendencia de Montos ({periodType === 'monthly' ? 'Mensual' : 'Semanal'})
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart 
+                    key={`area-chart-${periodType}`}
+                    data={currentData}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
+                    <XAxis dataKey="period" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => formatCurrency(value)} />
+                    <Legend />
+                    <Area 
+                      type="monotone" 
+                      dataKey="amount" 
+                      stroke={theme.palette.primary.main}
+                      fill={theme.palette.primary.main}
+                      fillOpacity={0.1}
+                      strokeWidth={2}
+                      name="Monto"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
           </Grid>
 
-          {/* Commitments Chart */}
+          {/* Gráfico de compromisos */}
           <Grid item xs={12} md={4}>
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <Card sx={{
-                borderRadius: 4,
-                background: isDarkMode 
-                  ? 'rgba(255, 255, 255, 0.1)' 
-                  : 'rgba(255, 255, 255, 0.9)',
-                backdropFilter: 'blur(20px)',
-                border: isDarkMode 
-                  ? '1px solid rgba(255, 255, 255, 0.2)' 
-                  : '1px solid rgba(0, 0, 0, 0.1)',
-                height: '400px'
-              }}>
-                <CardContent>
-                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-                    Compromisos por Período
-                  </Typography>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <LineChart data={currentData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="period" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Line 
-                        type="monotone" 
-                        dataKey="commitments" 
-                        stroke="#f093fb" 
-                        strokeWidth={3}
-                        dot={{ fill: '#f093fb', strokeWidth: 2, r: 6 }}
-                        name="Compromisos"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </motion.div>
+            <Card sx={{
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              height: '400px'
+            }}>
+              <CardContent sx={{ p: 3, height: '100%' }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+                  Compromisos por Período
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart 
+                    key={`line-chart-${periodType}`}
+                    data={currentData}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
+                    <XAxis dataKey="period" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line 
+                      type="monotone" 
+                      dataKey="commitments" 
+                      stroke={theme.palette.secondary.main}
+                      strokeWidth={2}
+                      dot={{ fill: theme.palette.secondary.main, strokeWidth: 2, r: 4 }}
+                      name="Compromisos"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
           </Grid>
         </Grid>
 
-        {/* Detailed Table */}
+        {/* Tabla detallada sobria */}
         <Card sx={{ 
-          borderRadius: 4,
-          background: isDarkMode 
-            ? 'rgba(255, 255, 255, 0.1)' 
-            : 'rgba(255, 255, 255, 0.9)',
-          backdropFilter: 'blur(20px)',
-          border: isDarkMode 
-            ? '1px solid rgba(255, 255, 255, 0.2)' 
-            : '1px solid rgba(0, 0, 0, 0.1)'
+          borderRadius: 2,
+          border: `1px solid ${theme.palette.divider}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
         }}>
-          <CardContent>
+          <CardContent sx={{ p: 3 }}>
             <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
               Detalle por Período
             </Typography>
-            <TableContainer component={Paper} sx={{ backgroundColor: 'transparent' }}>
+            <TableContainer component={Paper} sx={{ 
+              backgroundColor: 'transparent',
+              boxShadow: 'none'
+            }}>
               <Table>
                 <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 600 }}>Período</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Monto</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Compromisos</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Completados</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Pendientes</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Vencidos</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>Ticket Promedio</TableCell>
+                  <TableRow sx={{ 
+                    backgroundColor: theme.palette.grey[50],
+                    '& th': { 
+                      fontWeight: 600,
+                      color: 'text.primary'
+                    }
+                  }}>
+                    <TableCell>Período</TableCell>
+                    <TableCell>Monto</TableCell>
+                    <TableCell>Compromisos</TableCell>
+                    <TableCell>Completados</TableCell>
+                    <TableCell>Pendientes</TableCell>
+                    <TableCell>Vencidos</TableCell>
+                    <TableCell>Ticket Promedio</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {currentData.map((row, index) => (
-                    <motion.tr
+                  {paginatedData.map((row, index) => (
+                    <TableRow
                       key={row.period}
-                      component={TableRow}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.05 }}
-                      sx={{ '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)' } }}
+                      sx={{ 
+                        '&:hover': { 
+                          backgroundColor: theme.palette.action.hover 
+                        },
+                        transition: 'background-color 0.2s ease'
+                      }}
                     >
                       <TableCell>
                         <Typography sx={{ fontWeight: 600 }}>
@@ -495,16 +521,18 @@ const ReportsPeriodPage = () => {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography sx={{ fontWeight: 600, color: '#4caf50' }}>
+                        <Typography sx={{ fontWeight: 600, color: 'success.main' }}>
                           {formatCurrency(row.amount)}
                         </Typography>
                       </TableCell>
-                      <TableCell>{row.commitments}</TableCell>
+                      <TableCell sx={{ color: 'text.primary' }}>{row.commitments}</TableCell>
                       <TableCell>
                         <Chip 
                           label={row.completed || 0}
                           color="success"
                           size="small"
+                          variant="outlined"
+                          sx={{ borderRadius: 1 }}
                         />
                       </TableCell>
                       <TableCell>
@@ -512,6 +540,8 @@ const ReportsPeriodPage = () => {
                           label={row.pending || 0}
                           color="warning"
                           size="small"
+                          variant="outlined"
+                          sx={{ borderRadius: 1 }}
                         />
                       </TableCell>
                       <TableCell>
@@ -519,16 +549,48 @@ const ReportsPeriodPage = () => {
                           label={row.overdue || 0}
                           color="error"
                           size="small"
+                          variant="outlined"
+                          sx={{ borderRadius: 1 }}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ color: 'text.primary' }}>
                         {formatCurrency(row.avgTicket || (row.amount / row.commitments))}
                       </TableCell>
-                    </motion.tr>
+                    </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </TableContainer>
+            
+            <TablePagination
+              component="div"
+              count={currentData.length}
+              page={page}
+              onPageChange={handleChangePage}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              rowsPerPageOptions={[5, 10, 25, 50]}
+              labelRowsPerPage="Registros por página:"
+              labelDisplayedRows={({ from, to, count }) =>
+                `${from}-${to} de ${count !== -1 ? count : `más de ${to}`}`
+              }
+              sx={{
+                borderTop: 1,
+                borderColor: 'divider',
+                mt: 0,
+                '& .MuiTablePagination-toolbar': {
+                  padding: '8px 16px',
+                  minHeight: '52px'
+                },
+                '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+                  fontSize: '0.875rem',
+                  color: theme.palette.text.secondary
+                },
+                '& .MuiSelect-select': {
+                  fontSize: '0.875rem'
+                }
+              }}
+            />
           </CardContent>
         </Card>
           </>

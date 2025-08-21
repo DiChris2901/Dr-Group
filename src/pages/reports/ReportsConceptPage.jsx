@@ -24,6 +24,7 @@ import {
   Tabs,
   Tab
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import {
   Category,
   Search,
@@ -37,11 +38,11 @@ import {
   Build,
   Group
 } from '@mui/icons-material';
-import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useCommitments } from '../../hooks/useFirestore';
 
 const ReportsConceptPage = () => {
+  const theme = useTheme();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [timeRange, setTimeRange] = useState('last6months');
@@ -156,26 +157,36 @@ const ReportsConceptPage = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const chartData = filteredConcepts.map(concept => ({
+  const chartData = filteredConcepts.map((concept, index) => ({
     name: concept.name.substring(0, 15) + (concept.name.length > 15 ? '...' : ''),
     amount: concept.totalAmount,
     commitments: concept.commitments,
-    color: concept.color
+    color: index < 4 ? [
+      theme.palette.primary.main,
+      theme.palette.secondary.main, 
+      theme.palette.success.main,
+      theme.palette.warning.main
+    ][index] : theme.palette.grey[400]
   }));
 
-  const pieData = filteredConcepts.map(concept => ({
+  const pieData = filteredConcepts.map((concept, index) => ({
     name: concept.name,
     value: concept.totalAmount,
-    color: concept.color
+    color: index < 4 ? [
+      theme.palette.primary.main,
+      theme.palette.secondary.main, 
+      theme.palette.success.main,
+      theme.palette.warning.main
+    ][index] : theme.palette.grey[400]
   }));
 
-  const formatCurrency = (amount) => {
+  const formatCurrency = useMemo(() => (amount) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
       currency: 'MXN',
       minimumFractionDigits: 0
-    }).format(amount);
-  };
+    }).format(amount || 0);
+  }, []);
 
   const getTotalStats = () => {
     return filteredConcepts.reduce((acc, concept) => ({
@@ -201,7 +212,11 @@ const ReportsConceptPage = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ 
+      p: { xs: 2, sm: 3, md: 4 },
+      maxWidth: '1400px',
+      mx: 'auto'
+    }}>
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
           <Typography variant="h6" color="text.secondary">
@@ -210,43 +225,66 @@ const ReportsConceptPage = () => {
         </Box>
       ) : (
         <>
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <Box sx={{ mb: 4 }}>
-          <Typography 
-            variant="h4" 
-            sx={{ 
-              fontWeight: 700,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              mb: 1
+      {/* Header sobrio */}
+      <Box sx={{ 
+        mb: 6,
+        textAlign: 'left'
+      }}>
+        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+          <Box>
+            <Typography 
+              variant="h4" 
+              component="h1" 
+              sx={{ 
+                fontWeight: 600,
+                mb: 1,
+                color: 'text.primary'
+              }}
+            >
+              🏷️ Reportes por Concepto
+            </Typography>
+            <Typography 
+              variant="body1" 
+              color="text.secondary"
+              sx={{ 
+                fontWeight: 400
+              }}
+            >
+              Análisis de {filteredConcepts.length} conceptos agrupados automáticamente
+            </Typography>
+          </Box>
+          
+          {/* Botón de exportar sobrio */}
+          <Button
+            variant="contained"
+            startIcon={<GetApp />}
+            onClick={exportReport}
+            sx={{
+              borderRadius: 1,
+              fontWeight: 600,
+              px: 3,
+              py: 1,
+              textTransform: 'none'
             }}
           >
-            🏷️ Reportes por Concepto
-          </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Análisis de compromisos agrupados por tipo de concepto
-          </Typography>
+            Exportar Reporte
+          </Button>
         </Box>
-      </motion.div>
+      </Box>
 
-      {/* Filters */}
+      {/* Filtros sobrios */}
       <Card sx={{ 
-        mb: 3, 
-        borderRadius: 4,
-        background: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.2)'
+        mb: 4, 
+        borderRadius: 2,
+        border: `1px solid ${theme.palette.divider}`,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
       }}>
-        <CardContent>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={3}>
+        <CardContent sx={{ p: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+            Filtros de Análisis
+          </Typography>
+          <Grid container spacing={3} alignItems="center">
+            <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
                 placeholder="Buscar concepto..."
@@ -259,16 +297,24 @@ const ReportsConceptPage = () => {
                     </InputAdornment>
                   ),
                 }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
+                  }
+                }}
               />
             </Grid>
             
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={4}>
               <FormControl fullWidth>
                 <InputLabel>Categoría</InputLabel>
                 <Select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   label="Categoría"
+                  sx={{
+                    borderRadius: 1
+                  }}
                 >
                   {categories.map((category) => (
                     <MenuItem key={category.id} value={category.id}>
@@ -282,13 +328,16 @@ const ReportsConceptPage = () => {
               </FormControl>
             </Grid>
 
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={4}>
               <FormControl fullWidth>
                 <InputLabel>Período</InputLabel>
                 <Select
                   value={timeRange}
                   onChange={(e) => setTimeRange(e.target.value)}
                   label="Período"
+                  sx={{
+                    borderRadius: 1
+                  }}
                 >
                   <MenuItem value="last3months">Últimos 3 meses</MenuItem>
                   <MenuItem value="last6months">Últimos 6 meses</MenuItem>
@@ -297,91 +346,95 @@ const ReportsConceptPage = () => {
                 </Select>
               </FormControl>
             </Grid>
-
-            <Grid item xs={12} md={3}>
-              <Button
-                fullWidth
-                variant="contained"
-                startIcon={<GetApp />}
-                onClick={exportReport}
-                sx={{
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  borderRadius: 4,
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)'
-                  }
-                }}
-              >
-                Exportar
-              </Button>
-            </Grid>
           </Grid>
         </CardContent>
       </Card>
 
-      {/* Summary Cards */}
+      {/* Resumen sobrio */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {[
           { 
             label: 'Conceptos Activos', 
             value: filteredConcepts.length, 
-            color: '#667eea',
+            color: theme.palette.primary.main,
             icon: Category
           },
           { 
             label: 'Monto Total', 
             value: formatCurrency(stats.totalAmount), 
-            color: '#4caf50',
+            color: theme.palette.success.main,
             icon: AttachMoney
           },
           { 
             label: 'Total Compromisos', 
             value: stats.totalCommitments, 
-            color: '#f093fb',
+            color: theme.palette.info.main,
             icon: Assignment
           },
           { 
             label: 'Ticket Promedio', 
             value: formatCurrency(stats.totalAmount / stats.totalCommitments || 0), 
-            color: '#ff9800',
+            color: theme.palette.warning.main,
             icon: TrendingUp
           }
         ].map((stat, index) => (
           <Grid item xs={12} sm={6} md={3} key={index}>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-            >
-              <Card sx={{
-                background: `linear-gradient(135deg, ${stat.color}15 0%, ${stat.color}05 100%)`,
-                border: `1px solid ${stat.color}30`,
-                borderRadius: 4,
-                backdropFilter: 'blur(20px)'
-              }}>
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                    <stat.icon sx={{ color: stat.color, fontSize: 32 }} />
+            <Card sx={{
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              transition: 'box-shadow 0.2s ease',
+              '&:hover': {
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              }
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                  <Box sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    backgroundColor: `${stat.color}15`,
+                    color: stat.color
+                  }}>
+                    <stat.icon sx={{ fontSize: 24 }} />
                   </Box>
-                  <Typography variant="h4" sx={{ fontWeight: 700, color: stat.color }}>
-                    {stat.value}
+                  <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                    {typeof stat.value === 'string' ? stat.value : stat.value.toLocaleString()}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {stat.label}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </motion.div>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  {stat.label}
+                </Typography>
+              </CardContent>
+            </Card>
           </Grid>
         ))}
       </Grid>
 
-      {/* Charts Section */}
+      {/* Sección de gráficos sobria */}
       <Box sx={{ mb: 4 }}>
         <Tabs 
           value={tabValue} 
           onChange={(e, newValue) => setTabValue(newValue)}
-          sx={{ mb: 2 }}
+          sx={{ 
+            mb: 3,
+            '& .MuiTab-root': {
+              borderRadius: 1,
+              minHeight: 48,
+              textTransform: 'none',
+              fontWeight: 600,
+              color: 'text.primary',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                backgroundColor: `${theme.palette.primary.main}10`,
+                color: 'primary.main'
+              },
+              '&.Mui-selected': {
+                backgroundColor: 'primary.main',
+                color: 'primary.contrastText'
+              }
+            }
+          }}
         >
           <Tab label="Distribución por Monto" />
           <Tab label="Distribución por Cantidad" />
@@ -389,65 +442,56 @@ const ReportsConceptPage = () => {
 
         <Grid container spacing={3}>
           <Grid item xs={12} md={8}>
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <Card sx={{
-                borderRadius: 4,
-                background: 'rgba(255, 255, 255, 0.1)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                height: '400px'
-              }}>
-                <CardContent>
-                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-                    {tabValue === 0 ? 'Montos por Concepto' : 'Cantidad de Compromisos por Concepto'}
-                  </Typography>
-                  <ResponsiveContainer width="100%" height={320}>
-                    <BarChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip 
-                        formatter={(value, name) => [
-                          tabValue === 0 ? formatCurrency(value) : value,
-                          tabValue === 0 ? 'Monto' : 'Compromisos'
-                        ]}
-                      />
-                      <Legend />
-                      <Bar 
-                        dataKey={tabValue === 0 ? 'amount' : 'commitments'} 
-                        fill="#667eea"
-                        name={tabValue === 0 ? 'Monto' : 'Compromisos'}
-                      />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-            </motion.div>
+            <Card sx={{
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              height: '400px'
+            }}>
+              <CardContent sx={{ p: 3, height: '100%' }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+                  {tabValue === 0 ? 'Montos por Concepto' : 'Cantidad de Compromisos por Concepto'}
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart 
+                    key={`bar-chart-${tabValue}`}
+                    data={chartData}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value, name) => [
+                        tabValue === 0 ? formatCurrency(value) : value,
+                        tabValue === 0 ? 'Monto' : 'Compromisos'
+                      ]}
+                    />
+                    <Legend />
+                    <Bar 
+                      dataKey={tabValue === 0 ? 'amount' : 'commitments'} 
+                      fill={theme.palette.primary.main}
+                      name={tabValue === 0 ? 'Monto' : 'Compromisos'}
+                      radius={[2, 2, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
           </Grid>
 
           <Grid item xs={12} md={4}>
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <Card sx={{
-                borderRadius: 4,
-                background: 'rgba(255, 255, 255, 0.1)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                height: '400px'
-              }}>
-                <CardContent>
-                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-                    Distribución de Montos
-                  </Typography>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <PieChart>
+            <Card sx={{
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              height: '400px'
+            }}>
+              <CardContent sx={{ p: 3, height: '100%' }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+                  Distribución de Montos
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart key={`pie-chart-${tabValue}`}>
                       <Pie
                         data={pieData}
                         cx="50%"
@@ -467,45 +511,53 @@ const ReportsConceptPage = () => {
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
-            </motion.div>
           </Grid>
         </Grid>
       </Box>
 
-      {/* Concepts Table */}
+      {/* Tabla de conceptos sobria */}
       <Card sx={{ 
-        borderRadius: 4,
-        background: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 255, 255, 0.2)'
+        borderRadius: 2,
+        border: `1px solid ${theme.palette.divider}`,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
       }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
-            Detalle por Concepto
-          </Typography>
-          <TableContainer component={Paper} sx={{ backgroundColor: 'transparent' }}>
+        <CardContent sx={{ p: 0 }}>
+          <Box sx={{ p: 3, borderBottom: `1px solid ${theme.palette.divider}` }}>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Detalle por Concepto ({filteredConcepts.length})
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Análisis detallado de compromisos agrupados automáticamente por concepto
+            </Typography>
+          </Box>
+          <TableContainer component={Paper} sx={{ 
+            backgroundColor: 'transparent',
+            boxShadow: 'none',
+            borderRadius: 0
+          }}>
             <Table>
               <TableHead>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 600 }}>Concepto</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Monto Total</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Compromisos</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Completados</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Pendientes</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Vencidos</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Promedio</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Crecimiento</TableCell>
+                <TableRow sx={{ backgroundColor: 'grey.50' }}>
+                  <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Concepto</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Monto Total</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Compromisos</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Completados</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Pendientes</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Vencidos</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Promedio</TableCell>
+                  <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Crecimiento</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {filteredConcepts.map((concept, index) => (
-                  <motion.tr
+                  <TableRow
                     key={concept.id}
-                    component={TableRow}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.05 }}
-                    sx={{ '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.05)' } }}
+                    sx={{ 
+                      '&:hover': { 
+                        backgroundColor: theme.palette.action.hover 
+                      },
+                      transition: 'background-color 0.2s ease'
+                    }}
                   >
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -566,7 +618,7 @@ const ReportsConceptPage = () => {
                         </Typography>
                       </Box>
                     </TableCell>
-                  </motion.tr>
+                  </TableRow>
                 ))}
               </TableBody>
             </Table>

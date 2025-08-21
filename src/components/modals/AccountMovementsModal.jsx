@@ -40,7 +40,6 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { motion, AnimatePresence } from 'framer-motion';
 
 const AccountMovementsModal = ({ 
   open, 
@@ -115,30 +114,31 @@ const AccountMovementsModal = ({
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 3,
-          background: theme.palette.mode === 'dark' 
-            ? 'linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(51, 65, 85, 0.95))'
-            : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95))',
-          backdropFilter: 'blur(20px)',
-          border: `1px solid ${theme.palette.divider}`,
-          boxShadow: theme.shadows[24],
+          borderRadius: 2,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+          border: `1px solid ${theme.palette.divider}`
         }
       }}
     >
-      {/* Header */}
+      {/* Header sobrio */}
       <DialogTitle sx={{ 
-        pb: 0, 
+        pb: 2, 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'space-between',
-        background: `linear-gradient(135deg, ${theme.palette.primary.main}15 0%, ${theme.palette.secondary.main}15 100%)`
+        borderBottom: `1px solid ${theme.palette.divider}`
       }}>
         <Box display="flex" alignItems="center" gap={2}>
-          <Avatar sx={{ bgcolor: 'primary.main' }}>
+          <Box sx={{
+            p: 1.5,
+            borderRadius: 2,
+            backgroundColor: `${theme.palette.primary.main}15`,
+            color: 'primary.main'
+          }}>
             <AccountBalanceIcon />
-          </Avatar>
+          </Box>
           <Box>
-            <Typography variant="h6" fontWeight="bold">
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
               {account.companyName}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -146,21 +146,33 @@ const AccountMovementsModal = ({
             </Typography>
           </Box>
         </Box>
-        <IconButton onClick={onClose} size="small">
+        <IconButton 
+          onClick={onClose} 
+          size="small"
+          sx={{ borderRadius: 1 }}
+        >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
 
       <DialogContent sx={{ pt: 3 }}>
-        {/* Resumen de Balance con mejor espaciado */}
-        <Grid container spacing={2} sx={{ mb: 4, mt: 1 }}>
+        {/* Resumen de balance sobrio */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={3}>
-            <Card sx={{ background: `linear-gradient(135deg, ${theme.palette.success.main}20 0%, ${theme.palette.success.main}10 100%)` }}>
-              <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
-                <Typography variant="body2" color="success.main" fontWeight="bold">
+            <Card sx={{ 
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            }}>
+              <CardContent sx={{ textAlign: 'center', p: 2 }}>
+                <Typography variant="h6" sx={{ 
+                  color: 'success.main',
+                  fontWeight: 600,
+                  mb: 0.5
+                }}>
                   {formatCurrency(balance.incomes)}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="body2" color="text.secondary">
                   Ingresos ({balance.incomesCount})
                 </Typography>
               </CardContent>
@@ -168,12 +180,20 @@ const AccountMovementsModal = ({
           </Grid>
           
           <Grid item xs={12} sm={3}>
-            <Card sx={{ background: `linear-gradient(135deg, ${theme.palette.error.main}20 0%, ${theme.palette.error.main}10 100%)` }}>
-              <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
-                <Typography variant="body2" color="error.main" fontWeight="bold">
+            <Card sx={{ 
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            }}>
+              <CardContent sx={{ textAlign: 'center', p: 2 }}>
+                <Typography variant="h6" sx={{ 
+                  color: 'error.main',
+                  fontWeight: 600,
+                  mb: 0.5
+                }}>
                   {formatCurrency(balance.payments)}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="body2" color="text.secondary">
                   Pagos ({balance.paymentsCount})
                 </Typography>
               </CardContent>
@@ -181,12 +201,20 @@ const AccountMovementsModal = ({
           </Grid>
 
           <Grid item xs={12} sm={3}>
-            <Card sx={{ background: `linear-gradient(135deg, ${theme.palette.warning.main}20 0%, ${theme.palette.warning.main}10 100%)` }}>
-              <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
-                <Typography variant="body2" color="warning.main" fontWeight="bold">
+            <Card sx={{ 
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            }}>
+              <CardContent sx={{ textAlign: 'center', p: 2 }}>
+                <Typography variant="h6" sx={{ 
+                  color: 'warning.main',
+                  fontWeight: 600,
+                  mb: 0.5
+                }}>
                   {formatCurrency(balance.tax4x1000)}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="body2" color="text.secondary">
                   4x1000 ({balance.tax4x1000Count})
                 </Typography>
               </CardContent>
@@ -194,16 +222,20 @@ const AccountMovementsModal = ({
           </Grid>
           
           <Grid item xs={12} sm={3}>
-            <Card sx={{ background: `linear-gradient(135deg, ${theme.palette.primary.main}20 0%, ${theme.palette.primary.main}10 100%)` }}>
-              <CardContent sx={{ textAlign: 'center', py: 1.5 }}>
-                <Typography 
-                  variant="body2" 
-                  color={getBalanceColor(balance.balance)} 
-                  fontWeight="bold"
-                >
+            <Card sx={{ 
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.divider}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            }}>
+              <CardContent sx={{ textAlign: 'center', p: 2 }}>
+                <Typography variant="h6" sx={{ 
+                  color: getBalanceColor(balance.balance),
+                  fontWeight: 600,
+                  mb: 0.5
+                }}>
                   {formatCurrency(balance.balance)}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="body2" color="text.secondary">
                   Balance Final
                 </Typography>
               </CardContent>
@@ -211,7 +243,7 @@ const AccountMovementsModal = ({
           </Grid>
         </Grid>
 
-        {/* Filtros y Búsqueda */}
+        {/* Filtros sobrios */}
         <Box display="flex" gap={2} mb={3} flexWrap="wrap">
           <TextField
             size="small"
@@ -221,11 +253,16 @@ const AccountMovementsModal = ({
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <SearchIcon />
+                  <SearchIcon color="action" />
                 </InputAdornment>
               ),
             }}
-            sx={{ minWidth: 250 }}
+            sx={{ 
+              minWidth: 250,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 1
+              }
+            }}
           />
           
           <Box display="flex" gap={1}>
@@ -242,14 +279,23 @@ const AccountMovementsModal = ({
                 color={filterType === filter.value ? filter.color : 'default'}
                 onClick={() => setFilterType(filter.value)}
                 size="small"
+                sx={{
+                  borderRadius: 1,
+                  fontWeight: 500,
+                  '&:hover': {
+                    backgroundColor: filterType === filter.value 
+                      ? undefined 
+                      : `${theme.palette[filter.color]?.main || theme.palette.action.hover}15`
+                  }
+                }}
               />
             ))}
           </Box>
         </Box>
 
-        {/* Lista de Movimientos */}
+        {/* Lista sobria de movimientos */}
         {filteredMovements.length === 0 ? (
-          <Alert severity="info">
+          <Alert severity="info" sx={{ borderRadius: 1 }}>
             {searchTerm || filterType !== 'all' 
               ? 'No se encontraron movimientos con los filtros aplicados.'
               : 'No hay movimientos registrados para esta cuenta.'}
@@ -257,118 +303,147 @@ const AccountMovementsModal = ({
         ) : (
           <>
             <List sx={{ maxHeight: 400, overflow: 'auto' }}>
-              <AnimatePresence>
-                {paginatedMovements.map((movement, index) => (
-                  <motion.div
-                    key={`${movement.type}-${movement.id}-${index}`}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    transition={{ duration: 0.2, delay: index * 0.05 }}
-                  >
-                    <ListItem 
-                      sx={{ 
-                        border: `1px solid ${theme.palette.divider}`,
-                        borderRadius: 1.5,
-                        mb: 1,
-                        py: 1.5,
-                        px: 2,
-                        '&:hover': {
-                          backgroundColor: theme.palette.action.hover
-                        }
-                      }}
-                    >
-                      {/* Diseño horizontal optimizado */}
-                      <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 2 }}>
-                        {/* Icono */}
-                        <Box sx={{ flexShrink: 0 }}>
-                          {movement.type === 'income' ? (
-                            <TrendingUpIcon color="success" sx={{ fontSize: 20 }} />
-                          ) : movement.type === '4x1000' ? (
-                            <ReceiptIcon color="warning" sx={{ fontSize: 20 }} />
-                          ) : (
-                            <TrendingDownIcon color="error" sx={{ fontSize: 20 }} />
-                          )}
-                        </Box>
+              {paginatedMovements.map((movement, index) => (
+                <ListItem 
+                  key={`${movement.type}-${movement.id}-${index}`}
+                  sx={{ 
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 1,
+                    mb: 1,
+                    py: 2,
+                    px: 2,
+                    transition: 'background-color 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover
+                    }
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 2 }}>
+                    {/* Icono sobrio */}
+                    <Box sx={{ 
+                      flexShrink: 0,
+                      p: 1,
+                      borderRadius: 1,
+                      backgroundColor: movement.type === 'income' 
+                        ? `${theme.palette.success.main}15`
+                        : movement.type === '4x1000' 
+                        ? `${theme.palette.warning.main}15`
+                        : `${theme.palette.error.main}15`
+                    }}>
+                      {movement.type === 'income' ? (
+                        <TrendingUpIcon 
+                          sx={{ 
+                            fontSize: 20, 
+                            color: 'success.main'
+                          }} 
+                        />
+                      ) : movement.type === '4x1000' ? (
+                        <ReceiptIcon 
+                          sx={{ 
+                            fontSize: 20, 
+                            color: 'warning.main'
+                          }} 
+                        />
+                      ) : (
+                        <TrendingDownIcon 
+                          sx={{ 
+                            fontSize: 20, 
+                            color: 'error.main'
+                          }} 
+                        />
+                      )}
+                    </Box>
 
-                        {/* Contenido principal */}
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
-                            <Typography 
-                              variant="body2" 
-                              fontWeight="600"
-                              sx={{ 
-                                color: 'text.primary',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                maxWidth: '60%'
-                              }}
-                            >
-                              {movement.type === 'income' 
-                                ? movement.client || movement.concept
-                                : movement.type === '4x1000'
-                                ? 'Impuesto 4x1000'
-                                : movement.concept || 'Pago'
-                              }
-                            </Typography>
-                            
-                            {/* Monto destacado */}
-                            <Typography 
-                              variant="h6" 
-                              sx={{
-                                color: movement.type === 'income' ? 'success.main' : movement.type === '4x1000' ? 'warning.main' : 'error.main',
-                                fontWeight: 700,
-                                fontSize: '1rem'
-                              }}
-                            >
-                              {movement.type === 'income' ? '+' : '-'}{formatCurrency(movement.amount)}
-                            </Typography>
-                          </Box>
-
-                          {/* Línea de detalles secundarios */}
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                            <Typography variant="caption" color="text.secondary">
-                              {format(movement.date, 'dd/MMM/yyyy HH:mm', { locale: es })}
-                            </Typography>
-                            
-                            {movement.type === '4x1000' && (
-                              <Chip 
-                                label="Automático" 
-                                size="small" 
-                                color="warning" 
-                                variant="outlined" 
-                                sx={{ height: 18, fontSize: '0.65rem', '& .MuiChip-label': { px: 1 } }} 
-                              />
-                            )}
-                            
-                            {movement.notes && (
-                              <Typography 
-                                variant="caption" 
-                                color="text.secondary"
-                                sx={{ 
-                                  fontStyle: 'italic',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap',
-                                  maxWidth: '200px'
-                                }}
-                              >
-                                • {movement.notes}
-                              </Typography>
-                            )}
-                          </Box>
-                        </Box>
+                    {/* Contenido principal */}
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography 
+                          variant="body1" 
+                          sx={{ 
+                            fontWeight: 600,
+                            color: 'text.primary',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            maxWidth: '60%'
+                          }}
+                        >
+                          {movement.type === 'income' 
+                            ? movement.client || movement.concept
+                            : movement.type === '4x1000'
+                            ? 'Impuesto 4x1000'
+                            : movement.concept || 'Pago'
+                          }
+                        </Typography>
+                        
+                        {/* Monto */}
+                        <Typography 
+                          variant="h6" 
+                          sx={{
+                            color: movement.type === 'income' 
+                              ? 'success.main' 
+                              : movement.type === '4x1000' 
+                              ? 'warning.main' 
+                              : 'error.main',
+                            fontWeight: 600
+                          }}
+                        >
+                          {movement.type === 'income' ? '+' : '-'}{formatCurrency(movement.amount)}
+                        </Typography>
                       </Box>
-                    </ListItem>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+
+                      {/* Detalles secundarios */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          {format(movement.date, 'dd/MMM/yyyy HH:mm', { locale: es })}
+                        </Typography>
+                        
+                        {movement.type === '4x1000' && (
+                          <Chip 
+                            label="Automático" 
+                            size="small" 
+                            color="warning" 
+                            variant="outlined" 
+                            sx={{ 
+                              height: 20, 
+                              fontSize: '0.7rem',
+                              borderRadius: 0.5
+                            }} 
+                          />
+                        )}
+                        
+                        {movement.notes && (
+                          <Typography 
+                            variant="body2" 
+                            color="text.secondary"
+                            sx={{ 
+                              fontStyle: 'italic',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              maxWidth: '200px'
+                            }}
+                          >
+                            • {movement.notes}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  </Box>
+                </ListItem>
+              ))}
             </List>
 
-            {/* Paginación */}
-            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="caption" color="text.secondary">
+            {/* Paginación sobria */}
+            <Box sx={{ 
+              mt: 3, 
+              pt: 2,
+              borderTop: `1px solid ${theme.palette.divider}`,
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center' 
+            }}>
+              <Typography variant="body2" color="text.secondary">
                 Mostrando {page * rowsPerPage + 1}-{Math.min((page + 1) * rowsPerPage, totalMovements)} de {totalMovements} movimientos
               </Typography>
               
@@ -385,10 +460,13 @@ const AccountMovementsModal = ({
                 size="small"
                 sx={{
                   '& .MuiTablePagination-toolbar': {
-                    minHeight: 40
+                    minHeight: 48,
+                    paddingLeft: 2,
+                    paddingRight: 0
                   },
                   '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
-                    fontSize: '0.75rem'
+                    fontSize: '0.875rem',
+                    color: 'text.secondary'
                   }
                 }}
               />
@@ -397,8 +475,22 @@ const AccountMovementsModal = ({
         )}
       </DialogContent>
 
-      <DialogActions sx={{ p: 2 }}>
-        <Button onClick={onClose} variant="outlined">
+      {/* Actions sobrias */}
+      <DialogActions sx={{ 
+        p: 3, 
+        borderTop: `1px solid ${theme.palette.divider}`,
+        gap: 1
+      }}>
+        <Button 
+          onClick={onClose} 
+          variant="outlined"
+          sx={{
+            borderRadius: 1,
+            fontWeight: 600,
+            px: 4,
+            textTransform: 'none'
+          }}
+        >
           Cerrar
         </Button>
       </DialogActions>
