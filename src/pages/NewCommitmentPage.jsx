@@ -21,8 +21,6 @@ import {
   FormControlLabel,
   Checkbox,
   Autocomplete,
-  Fab,
-  Tooltip,
   Switch,
   IconButton,
   LinearProgress
@@ -39,7 +37,6 @@ import {
   Person as PersonIcon,
   Payment as PaymentIcon,
   Schedule as ScheduleIcon,
-  Settings as SettingsIcon,
   Tune as TuneIcon,
   Repeat as RepeatIcon,
   Timeline as TimelineIcon,
@@ -67,7 +64,6 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useSettings } from '../context/SettingsContext';
-import ConfigurationCompatibilityAnalyzer from '../components/settings/ConfigurationCompatibilityAnalyzer';
 
 const NewCommitmentPage = () => {
   const { currentUser } = useAuth();
@@ -86,9 +82,6 @@ const NewCommitmentPage = () => {
   const [providersSuggestions, setProvidersSuggestions] = useState([]);
   const [conceptsSuggestions, setConceptsSuggestions] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(true);
-  
-  // Estado para el analizador de compatibilidad
-  const [showCompatibilityAnalyzer, setShowCompatibilityAnalyzer] = useState(false);
 
   // Obtener empresa preseleccionada desde la navegación
   const preselectedCompany = location.state?.preselectedCompany;
@@ -2435,44 +2428,6 @@ const NewCommitmentPage = () => {
             </Alert>
           </motion.div>
         </motion.div>
-
-        {/* Floating Action Button para Analizador de Compatibilidad */}
-        <Tooltip 
-          title="Analizar Compatibilidad de Configuraciones"
-          placement="left"
-        >
-          <Fab
-            onClick={() => setShowCompatibilityAnalyzer(true)}
-            sx={{
-              position: 'fixed',
-              bottom: 32,
-              right: 32,
-              background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
-              color: 'white',
-              zIndex: 1000,
-              transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
-              '&:hover': animationsEnabled ? {
-                transform: 'scale(1.05)',
-                boxShadow: theme.palette.mode === 'dark' 
-                  ? '0 6px 20px rgba(0, 0, 0, 0.3)' 
-                  : '0 6px 20px rgba(0, 0, 0, 0.2)',
-              } : {},
-              boxShadow: theme.palette.mode === 'dark' 
-                ? '0 4px 12px rgba(0, 0, 0, 0.2)' 
-                : '0 4px 12px rgba(0, 0, 0, 0.1)',
-            }}
-          >
-            <SettingsIcon sx={{ fontSize: 24 }} />
-          </Fab>
-        </Tooltip>
-
-        {/* Analizador de Compatibilidad de Configuraciones */}
-        <ConfigurationCompatibilityAnalyzer
-          pageName="NewCommitmentPage"
-          pageUrl="http://localhost:5173/commitments/new"
-          isOpen={showCompatibilityAnalyzer}
-          onClose={() => setShowCompatibilityAnalyzer(false)}
-        />
       </Box>
     );
   };

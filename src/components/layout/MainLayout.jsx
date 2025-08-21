@@ -24,8 +24,7 @@ import { useSettings } from '../../context/SettingsContext';
 import { useNotificationSystem } from '../../hooks/useNotificationSystem';
 import Sidebar from './Sidebar';
 import DashboardHeader from '../dashboard/DashboardHeader';
-import FloatingSearchButton from '../common/FloatingSearchButton';
-import { AdvancedSettingsDrawer, SettingsButton } from '../settings';
+import { AdvancedSettingsDrawer } from '../settings';
 
 const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
   const navigate = useNavigate();
@@ -317,14 +316,6 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
       </Box>
 
       {/* Botón flotante de búsqueda */}
-      <FloatingSearchButton 
-        sidebarHoverExpanded={sidebarHoverExpanded}
-        currentSidebarWidth={currentSidebarWidth}
-      />
-
-      {/* Botón flotante de configuración profesional */}
-      <SettingsButton onClick={() => setSettingsOpen(true)} />
-      
       {/* Drawer de configuración avanzada */}
       <AdvancedSettingsDrawer 
         open={settingsOpen} 
