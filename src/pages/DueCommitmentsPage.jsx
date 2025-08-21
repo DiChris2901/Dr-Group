@@ -1323,7 +1323,7 @@ const DueCommitmentsPage = () => {
                         '&:hover': {
                           backgroundColor: priorityFilter === filter 
                             ? theme.palette.primary.dark 
-                            : (theme.palette.mode === 'dark' ? alpha(theme.palette.text.primary, 0.05) : '#f5f5f5'),
+                            : (theme.palette.mode === 'dark' ? alpha(theme.palette.text.primary, 0.05) : 'white'),
                           borderColor: priorityFilter === filter 
                             ? theme.palette.primary.dark 
                             : (theme.palette.mode === 'dark' ? alpha(theme.palette.divider, 0.5) : '#d0d0d0'),
@@ -1407,7 +1407,7 @@ const DueCommitmentsPage = () => {
                             fontWeight: 500,
                             padding: '8px 16px',
                             '&:hover': {
-                              backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.text.primary, 0.05) : '#f5f5f5'
+                              backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.text.primary, 0.05) : 'white'
                             },
                             '&.Mui-selected': {
                               backgroundColor: alpha(theme.palette.primary.main, 0.08),
@@ -1803,20 +1803,39 @@ const DueCommitmentsPage = () => {
         maxWidth="md"
         fullWidth
         sx={{
+          '& .MuiDialog-container': {
+            backgroundColor: 'transparent !important',
+          },
+          '& .MuiBackdrop-root': {
+            backgroundColor: 'rgba(0, 0, 0, 0.5) !important',
+          },
           '& .MuiDialog-paper': {
             margin: '24px',
             maxHeight: 'calc(100vh - 48px)',
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? theme.palette.background.paper 
+              : '#ffffff !important',
+          },
+          '& .MuiDialogContent-root': {
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? theme.palette.background.paper 
+              : '#ffffff !important',
+          },
+          '& .MuiDialogActions-root': {
+            backgroundColor: theme.palette.mode === 'dark' 
+              ? theme.palette.background.paper + ' !important'
+              : '#ffffff !important',
           }
         }}
         PaperProps={{
           sx: {
-            borderRadius: 4,
+            borderRadius: 2,
             background: theme.palette.mode === 'dark'
-              ? theme.palette.background.paper
-              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+              ? theme.palette.background.paper + ' !important'
+              : '#ffffff !important',
             boxShadow: theme.palette.mode === 'dark'
               ? '0 8px 32px rgba(0, 0, 0, 0.5)'
-              : '0 8px 32px rgba(31, 38, 135, 0.37)',
+              : '0 8px 32px rgba(0, 0, 0, 0.1)',
             border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.2 : 0.1)}`,
             overflow: 'hidden',
             position: 'relative'
@@ -1836,24 +1855,14 @@ const DueCommitmentsPage = () => {
             style={{ position: 'relative', zIndex: 2 }}
           >
             {/* Header Premium con Gradiente Dinámico */}
-            <motion.div
-              initial={{ opacity: 0, y: -30, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ 
-                type: "spring", 
-                damping: 20, 
-                stiffness: 100,
-                delay: 0.1 
-              }}
-            >
-              <Box
-                sx={{
-                  background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                  color: 'white',
-                  p: 3,
-                  borderRadius: '16px 16px 0 0',
-                  position: 'relative',
-                  overflow: 'hidden',
+            <Box
+              sx={{
+                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                color: 'white',
+                p: 3,
+                borderRadius: '8px 8px 0 0',
+                position: 'relative',
+                overflow: 'hidden',
                   '&::before': {
                     content: '""',
                     position: 'absolute',
@@ -1885,27 +1894,20 @@ const DueCommitmentsPage = () => {
                 <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ position: 'relative', zIndex: 2 }}>
                   <Box display="flex" alignItems="center" gap={2.5}>
                     {/* Logo de empresa */}
-                    <motion.div
-                      initial={{ scale: 0.8, rotate: -15 }}
-                      animate={{ scale: 1, rotate: 0 }}
-                      transition={{ delay: 0.2, duration: 0.6, type: "spring", bounce: 0.4 }}
-                      whileHover={{ scale: 1.05, rotate: 5 }}
-                      whileTap={{ scale: 0.95 }}
+                    <Box
+                      sx={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: 2.5,
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '1px solid rgba(255, 255, 255, 0.3)',
+                        position: 'relative',
+                        overflow: 'hidden'
+                      }}
                     >
-                      <Box
-                        sx={{
-                          width: 56,
-                          height: 56,
-                          borderRadius: 2.5,
-                          background: 'rgba(255, 255, 255, 0.2)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          border: '1px solid rgba(255, 255, 255, 0.3)',
-                          position: 'relative',
-                          overflow: 'hidden'
-                        }}
-                      >
                         {companyData?.logoURL ? (
                           <Box
                             component="img"
@@ -1929,18 +1931,12 @@ const DueCommitmentsPage = () => {
                           <Business sx={{ fontSize: 28, color: 'white', zIndex: 1 }} />
                         )}
                       </Box>
-                    </motion.div>
                     
                     {/* Información compacta del compromiso */}
                     <Box>
-                      <motion.div
-                        initial={{ x: -30, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 0.3, duration: 0.5 }}
-                      >
-                        <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.3, textShadow: '0 2px 4px rgba(0,0,0,0.3)', fontSize: '1.25rem' }}>
-                          {selectedCommitment?.concept || selectedCommitment?.description || selectedCommitment?.title || 'Sin concepto'}
-                        </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.3, textShadow: '0 2px 4px rgba(0,0,0,0.3)', fontSize: '1.25rem' }}>
+                        {selectedCommitment?.concept || selectedCommitment?.description || selectedCommitment?.title || 'Sin concepto'}
+                      </Typography>
                         <Box display="flex" alignItems="center" gap={2}>
                           <Typography 
                             variant="h5" 
@@ -1996,135 +1992,100 @@ const DueCommitmentsPage = () => {
                             })()}
                           </Typography>
                         </Box>
-                      </motion.div>
                     </Box>
                   </Box>
 
                   {/* Lado derecho: Estado + Botón cerrar */}
-                  <motion.div
-                    initial={{ x: 30, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    transition={{ delay: 0.4, duration: 0.5 }}
-                  >
-                    <Box display="flex" alignItems="center" gap={2}>
-                      {/* Estado del compromiso */}
-                      <motion.div
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ type: "spring", bounce: 0.5 }}
-                      >
-                        <Chip
-                          icon={getStatusInfo(selectedCommitment, theme).icon}
-                          label={getStatusInfo(selectedCommitment, theme).label}
-                          size="medium"
-                          sx={{ 
-                            bgcolor: 'rgba(255, 255, 255, 0.2)',
-                            color: 'white',
-                            fontWeight: 600,
-                            border: '1px solid rgba(255, 255, 255, 0.3)',
-                            '& .MuiChip-icon': {
-                              color: 'white'
-                            }
-                          }}
-                        />
-                      </motion.div>
+                  <Box display="flex" alignItems="center" gap={2}>
+                    {/* Estado del compromiso */}
+                    <Chip
+                      icon={getStatusInfo(selectedCommitment, theme).icon}
+                      label={getStatusInfo(selectedCommitment, theme).label}
+                      size="medium"
+                      sx={{ 
+                        bgcolor: 'rgba(255, 255, 255, 0.2)',
+                        color: 'white',
+                        fontWeight: 600,
+                        border: '1px solid rgba(255, 255, 255, 0.3)',
+                        '& .MuiChip-icon': {
+                          color: 'white'
+                        }
+                      }}
+                    />
 
-                      {/* Botón de cerrar */}
-                      <motion.div
-                        initial={{ x: 20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 0.6, duration: 0.5 }}
-                      >
-                        <IconButton
-                          onClick={handleCloseViewDialog}
-                          sx={{
-                            background: 'rgba(255, 255, 255, 0.2)',
-                            border: '1px solid rgba(255, 255, 255, 0.3)',
-                            color: 'white',
-                            '&:hover': {
-                              background: 'rgba(255, 255, 255, 0.3)',
-                              transform: 'scale(1.1)'
-                            }
-                          }}
-                        >
-                          <Close />
-                        </IconButton>
-                      </motion.div>
-                    </Box>
-                  </motion.div>
-                </Box>
-              </Box>
-            </motion.div>
-            
-            <DialogContent sx={{ p: 4 }}>
-              <Grid container spacing={4}>
-                {/* Fecha de Vencimiento - Diseño consistente */}
-                <Grid item xs={12}>
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 15 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ delay: 0.2, duration: 0.5, type: "spring", stiffness: 120 }}
-                  >
-                    <Card
+                    {/* Botón de cerrar */}
+                    <IconButton
+                      onClick={handleCloseViewDialog}
                       sx={{
-                        p: 3,
-                        background: theme.palette.mode === 'dark'
-                          ? alpha(theme.palette.background.paper, 0.9)
-                          : `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.secondary.main, 0.05)})`,
-                        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                        borderRadius: 3,
-                        boxShadow: theme.palette.mode === 'dark'
-                          ? '0 4px 20px rgba(0,0,0,0.2)'
-                          : '0 4px 20px rgba(0,0,0,0.08)',
-                        position: 'relative',
-                        overflow: 'hidden'
+                        background: 'rgba(255, 255, 255, 0.2)',
+                        border: '1px solid rgba(255, 255, 255, 0.3)',
+                        color: 'white',
+                        '&:hover': {
+                          background: 'rgba(255, 255, 255, 0.3)',
+                          transform: 'scale(1.1)'
+                        }
                       }}
                     >
-                      <Box display="flex" alignItems="center" gap={2.5}>
-                        <motion.div
-                          initial={{ scale: 0.8, opacity: 0 }}
-                          animate={{ scale: 1, opacity: 1 }}
-                          transition={{ delay: 0.3, duration: 0.5, type: "spring" }}
-                          whileHover={{ scale: 1.05 }}
-                        >
-                          <Box
-                            sx={{
-                              width: 56,
-                              height: 56,
-                              borderRadius: 2.5,
-                              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                            }}
-                          >
-                            <CalendarToday sx={{ color: 'white', fontSize: 28 }} />
-                          </Box>
-                        </motion.div>
-                        
-                        <Box flex={1}>
-                          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
-                            Fecha de Vencimiento
-                          </Typography>
-                          <Typography variant="h6" sx={{ 
-                            fontWeight: 600, 
-                            color: 'text.primary',
-                            textTransform: 'capitalize',
-                            mb: 0.2
-                          }}>
-                            {formatSafeDate(selectedCommitment.dueDate, 'EEEE')}
-                          </Typography>
-                          <Typography variant="body1" sx={{ 
-                            fontWeight: 500,
-                            color: 'text.secondary'
-                          }}>
-                            {formatSafeDate(selectedCommitment.dueDate, 'dd \'de\' MMMM \'de\' yyyy')}
-                          </Typography>
-                        </Box>
+                      <Close />
+                    </IconButton>
+                  </Box>
+                </Box>
+              </Box>
+            
+            <DialogContent sx={{ 
+              p: 4, 
+              bgcolor: theme.palette.mode === 'dark' 
+                ? theme.palette.background.paper 
+                : '#ffffff' 
+            }}>
+              <Grid container spacing={4}>
+                {/* Fecha de Vencimiento - Diseño sobrio */}
+                <Grid item xs={12}>
+                  <Card
+                    sx={{
+                      p: 2.5,
+                      bgcolor: 'background.paper',
+                      border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                      borderRadius: 3,
+                      boxShadow: 'none',
+                    }}
+                  >
+                    <Box display="flex" alignItems="center" gap={2}>
+                      <Box
+                        sx={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: 2,
+                          bgcolor: alpha(theme.palette.primary.main, 0.1),
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <CalendarToday sx={{ color: 'primary.main', fontSize: 24 }} />
                       </Box>
-                    </Card>
-                  </motion.div>
+                      
+                      <Box flex={1}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
+                          Fecha de Vencimiento
+                        </Typography>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600, 
+                          color: 'text.primary',
+                          textTransform: 'capitalize',
+                          mb: 0.2
+                        }}>
+                          {formatSafeDate(selectedCommitment.dueDate, 'EEEE')}
+                        </Typography>
+                        <Typography variant="body2" sx={{ 
+                          fontWeight: 500,
+                          color: 'text.secondary'
+                        }}>
+                          {formatSafeDate(selectedCommitment.dueDate, 'dd \'de\' MMMM \'de\' yyyy')}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Card>
                 </Grid>
 
                 {/* Información Adicional COMPLETA */}
@@ -2136,298 +2097,270 @@ const DueCommitmentsPage = () => {
                   >
                     <Card
                       sx={{
-                        p: 3,
-                        background: theme.palette.mode === 'dark'
-                          ? alpha(theme.palette.background.paper, 0.9)
-                          : 'linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.6) 100%)',
-                        border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
-                        borderRadius: 4,
-                        boxShadow: theme.palette.mode === 'dark'
-                          ? '0 8px 32px rgba(0,0,0,0.25)'
-                          : '0 8px 32px rgba(0,0,0,0.12)',
-                        position: 'relative',
-                        overflow: 'hidden',
+                        p: 2.5,
+                        bgcolor: 'background.paper',
+                        border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                        borderRadius: 3,
+                        boxShadow: 'none',
                       }}
                     >
                       <Box sx={{ position: 'relative', zIndex: 2 }}>
                         <Typography variant="h6" sx={{ 
-                          fontWeight: 700, 
-                          mb: 3, 
-                          color: 'primary.main',
+                          fontWeight: 600, 
+                          mb: 2, 
+                          color: 'text.primary',
                           display: 'flex',
                           alignItems: 'center',
                           gap: 1
                         }}>
-                          <Info sx={{ fontSize: 24 }} />
+                          <Info sx={{ fontSize: 20, color: 'primary.main' }} />
                           Información Adicional
                         </Typography>
                         
-                        <Grid container spacing={3}>
+                        <Grid container spacing={2}>
                           {/* Primera fila: Beneficiario y Método de Pago */}
                           <Grid item xs={12} md={6}>
-                            <motion.div
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.4, duration: 0.3 }}
-                            >
-                              <Box sx={{
-                                p: 2.5,
-                                background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.08)}, ${alpha(theme.palette.info.light, 0.04)})`,
-                                borderRadius: 3,
-                                border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`,
-                                position: 'relative',
-                                overflow: 'hidden'
-                              }}>
-                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                                  <Person sx={{ color: 'info.main', fontSize: 20 }} />
-                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'info.main' }}>
-                                    Beneficiario
-                                  </Typography>
-                                </Box>
-                                <Typography variant="body1" sx={{ 
-                                  fontWeight: 500,
-                                  color: 'text.primary',
-                                  fontStyle: selectedCommitment.beneficiary ? 'normal' : 'italic',
-                                  opacity: selectedCommitment.beneficiary ? 1 : 0.7
-                                }}>
-                                  {selectedCommitment.beneficiary || 'No especificado'}
+                            <Box sx={{
+                              p: 2,
+                              bgcolor: 'background.paper',
+                              borderRadius: 2,
+                              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                              '&:hover': {
+                                transform: 'translateY(-1px)',
+                                boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`
+                              },
+                              transition: 'all 0.3s ease'
+                            }}>
+                              <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                <Person sx={{ color: 'primary.main', fontSize: 20 }} />
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                                  Beneficiario
                                 </Typography>
                               </Box>
-                            </motion.div>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 500,
+                                color: 'text.primary',
+                                fontStyle: selectedCommitment.beneficiary ? 'normal' : 'italic',
+                                opacity: selectedCommitment.beneficiary ? 1 : 0.7
+                              }}>
+                                {selectedCommitment.beneficiary || 'No especificado'}
+                              </Typography>
+                            </Box>
                           </Grid>
 
                           <Grid item xs={12} md={6}>
-                            <motion.div
-                              initial={{ opacity: 0, x: 20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.45, duration: 0.3 }}
-                            >
-                              <Box sx={{
-                                p: 2.5,
-                                background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.08)}, ${alpha(theme.palette.success.light, 0.04)})`,
-                                borderRadius: 3,
-                                border: `1px solid ${alpha(theme.palette.success.main, 0.15)}`,
-                                position: 'relative',
-                                overflow: 'hidden'
-                              }}>
-                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                                  <Payment sx={{ color: 'success.main', fontSize: 20 }} />
-                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'success.main' }}>
-                                    Método de Pago
-                                  </Typography>
-                                </Box>
-                                <Typography variant="body1" sx={{ 
-                                  fontWeight: 500,
-                                  color: 'text.primary'
-                                }}>
-                                  {(() => {
-                                    switch(selectedCommitment.paymentMethod) {
-                                      case 'transfer': return '🏦 Transferencia';
-                                      case 'cash': return '💵 Efectivo';
-                                      case 'pse': return '💳 PSE';
-                                      case 'check': return '📝 Cheque';
-                                      case 'card': return '💳 Tarjeta';
-                                      default: return '🏦 Transferencia';
-                                    }
-                                  })()}
+                            <Box sx={{
+                              p: 2,
+                              bgcolor: 'background.paper',
+                              borderRadius: 2,
+                              border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                              '&:hover': {
+                                transform: 'translateY(-1px)',
+                                boxShadow: `0 4px 12px ${alpha(theme.palette.secondary.main, 0.15)}`
+                              },
+                              transition: 'all 0.3s ease'
+                            }}>
+                              <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                <Payment sx={{ color: 'secondary.main', fontSize: 20 }} />
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'secondary.main' }}>
+                                  Método de Pago
                                 </Typography>
                               </Box>
-                            </motion.div>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 500,
+                                color: 'text.primary'
+                              }}>
+                                {(() => {
+                                  switch(selectedCommitment.paymentMethod) {
+                                    case 'transfer': return 'Transferencia';
+                                    case 'cash': return 'Efectivo';
+                                    case 'pse': return 'PSE';
+                                    case 'check': return 'Cheque';
+                                    case 'card': return 'Tarjeta';
+                                    default: return 'Transferencia';
+                                  }
+                                })()}
+                              </Typography>
+                            </Box>
                           </Grid>
 
                           {/* Segunda fila: Periodicidad y Empresa */}
                           <Grid item xs={12} md={6}>
-                            <motion.div
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.5, duration: 0.3 }}
-                            >
-                              <Box sx={{
-                                p: 2.5,
-                                background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.08)}, ${alpha(theme.palette.warning.light, 0.04)})`,
-                                borderRadius: 3,
-                                border: `1px solid ${alpha(theme.palette.warning.main, 0.15)}`,
-                                position: 'relative',
-                                overflow: 'hidden'
-                              }}>
-                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                                  <Schedule sx={{ color: 'warning.main', fontSize: 20 }} />
-                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'warning.main' }}>
-                                    Periodicidad
-                                  </Typography>
-                                </Box>
-                                <Typography variant="body1" sx={{ 
-                                  fontWeight: 500,
-                                  color: 'text.primary'
-                                }}>
-                                  {(() => {
-                                    switch(selectedCommitment.periodicity) {
-                                      case 'unique': return '🔄 Pago único';
-                                      case 'monthly': return '📅 Mensual';
-                                      case 'bimonthly': return '📅 Bimestral';
-                                      case 'quarterly': return '📅 Trimestral';
-                                      case 'fourmonthly': return '📅 Cuatrimestral';
-                                      case 'biannual': return '📅 Semestral';
-                                      case 'annual': return '📅 Anual';
-                                      default: return '📅 Mensual';
-                                    }
-                                  })()}
+                            <Box sx={{
+                              p: 2,
+                              bgcolor: 'background.paper',
+                              borderRadius: 2,
+                              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                              '&:hover': {
+                                transform: 'translateY(-1px)',
+                                boxShadow: `0 4px 12px ${alpha(theme.palette.info.main, 0.15)}`
+                              },
+                              transition: 'all 0.3s ease'
+                            }}>
+                              <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                <Schedule sx={{ color: 'info.main', fontSize: 20 }} />
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'info.main' }}>
+                                  Periodicidad
                                 </Typography>
                               </Box>
-                            </motion.div>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 500,
+                                color: 'text.primary'
+                              }}>
+                                {(() => {
+                                  switch(selectedCommitment.periodicity) {
+                                    case 'unique': return 'Pago único';
+                                    case 'monthly': return 'Mensual';
+                                    case 'bimonthly': return 'Bimestral';
+                                    case 'quarterly': return 'Trimestral';
+                                    case 'fourmonthly': return 'Cuatrimestral';
+                                    case 'biannual': return 'Semestral';
+                                    case 'annual': return 'Anual';
+                                    default: return 'Mensual';
+                                  }
+                                })()}
+                              </Typography>
+                            </Box>
                           </Grid>
 
                           <Grid item xs={12} md={6}>
-                            <motion.div
-                              initial={{ opacity: 0, x: 20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.55, duration: 0.3 }}
-                            >
-                              <Box sx={{
-                                p: 2.5,
-                                background: `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.08)}, ${alpha(theme.palette.secondary.light, 0.04)})`,
-                                borderRadius: 3,
-                                border: `1px solid ${alpha(theme.palette.secondary.main, 0.15)}`,
-                                position: 'relative',
-                                overflow: 'hidden'
-                              }}>
-                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                                  <Business sx={{ color: 'secondary.main', fontSize: 20 }} />
-                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'secondary.main' }}>
-                                    Empresa
-                                  </Typography>
-                                </Box>
-                                <Box display="flex" alignItems="center" gap={1.5}>
-                                  {companyData?.logoURL ? (
-                                    <Box
-                                      component="img"
-                                      src={companyData.logoURL}
-                                      alt={`Logo de ${companyData.name}`}
-                                      sx={{
-                                        width: 24,
-                                        height: 24,
-                                        borderRadius: 1,
-                                        objectFit: 'contain',
-                                        backgroundColor: theme.palette.mode === 'dark' 
-                                          ? alpha(theme.palette.background.paper, 0.9)
-                                          : 'rgba(255, 255, 255, 0.9)',
-                                        border: `1px solid ${alpha(theme.palette.divider, 0.2)}`
-                                      }}
-                                    />
-                                  ) : (
-                                    <Business sx={{ fontSize: 20, color: 'text.secondary' }} />
-                                  )}
-                                  <Typography variant="body1" sx={{ 
-                                    fontWeight: 500,
-                                    color: 'text.primary'
-                                  }}>
-                                    {companyData?.name || selectedCommitment.company || 'Empresa no especificada'}
-                                  </Typography>
-                                </Box>
+                            <Box sx={{
+                              p: 2,
+                              bgcolor: 'background.paper',
+                              borderRadius: 2,
+                              border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+                              '&:hover': {
+                                transform: 'translateY(-1px)',
+                                boxShadow: `0 4px 12px ${alpha(theme.palette.success.main, 0.15)}`
+                              },
+                              transition: 'all 0.3s ease'
+                            }}>
+                              <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                <Business sx={{ color: 'success.main', fontSize: 20 }} />
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'success.main' }}>
+                                  Empresa
+                                </Typography>
                               </Box>
-                            </motion.div>
+                              <Box display="flex" alignItems="center" gap={1}>
+                                {companyData?.logoURL ? (
+                                  <Box
+                                    component="img"
+                                    src={companyData.logoURL}
+                                    alt={`Logo de ${companyData.name}`}
+                                    sx={{
+                                      width: 20,
+                                      height: 20,
+                                      borderRadius: 1,
+                                      objectFit: 'contain',
+                                      backgroundColor: theme.palette.mode === 'dark' 
+                                        ? alpha(theme.palette.background.paper, 0.9)
+                                        : 'rgba(255, 255, 255, 0.9)',
+                                    }}
+                                  />
+                                ) : (
+                                  <Business sx={{ fontSize: 18, color: 'text.secondary' }} />
+                                )}
+                                <Typography variant="body2" sx={{ 
+                                  fontWeight: 500,
+                                  color: 'text.primary'
+                                }}>
+                                  {companyData?.name || selectedCommitment.company || 'Empresa no especificada'}
+                                </Typography>
+                              </Box>
+                            </Box>
                           </Grid>
 
                           {/* Tercera fila: Observaciones (full width) */}
                           <Grid item xs={12}>
-                            <motion.div
-                              initial={{ opacity: 0, y: 15 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: 0.6, duration: 0.3 }}
-                            >
-                              <Box sx={{
-                                p: 2.5,
-                                background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.06)}, ${alpha(theme.palette.primary.light, 0.03)})`,
-                                borderRadius: 3,
-                                border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-                                position: 'relative',
-                                overflow: 'hidden'
-                              }}>
-                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                                  <Notes sx={{ color: 'primary.main', fontSize: 20 }} />
-                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'primary.main' }}>
-                                    Observaciones
-                                  </Typography>
-                                </Box>
-                                <Typography variant="body1" sx={{ 
-                                  fontWeight: 400,
-                                  lineHeight: 1.6,
-                                  color: 'text.primary',
-                                  fontStyle: selectedCommitment.observations ? 'normal' : 'italic',
-                                  opacity: selectedCommitment.observations ? 1 : 0.7
-                                }}>
-                                  {selectedCommitment.observations || 'Sin observaciones adicionales'}
+                            <Box sx={{
+                              p: 2,
+                              bgcolor: 'background.paper',
+                              borderRadius: 2,
+                              border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                              '&:hover': {
+                                transform: 'translateY(-1px)',
+                                boxShadow: `0 4px 12px ${alpha(theme.palette.warning.main, 0.15)}`
+                              },
+                              transition: 'all 0.3s ease'
+                            }}>
+                              <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                <Notes sx={{ color: 'warning.main', fontSize: 20 }} />
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'warning.main' }}>
+                                  Observaciones
                                 </Typography>
                               </Box>
-                            </motion.div>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 400,
+                                lineHeight: 1.5,
+                                color: 'text.primary',
+                                fontStyle: selectedCommitment.observations ? 'normal' : 'italic',
+                                opacity: selectedCommitment.observations ? 1 : 0.7
+                              }}>
+                                {selectedCommitment.observations || 'Sin observaciones adicionales'}
+                              </Typography>
+                            </Box>
                           </Grid>
 
                           {/* Cuarta fila: Fechas del sistema */}
                           <Grid item xs={12} md={6}>
-                            <motion.div
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.65, duration: 0.3 }}
-                            >
-                              <Box sx={{
-                                p: 2.5,
-                                background: `linear-gradient(135deg, ${alpha(theme.palette.grey[500], 0.08)}, ${alpha(theme.palette.grey[400], 0.04)})`,
-                                borderRadius: 3,
-                                border: `1px solid ${alpha(theme.palette.grey[500], 0.15)}`,
-                                position: 'relative',
-                                overflow: 'hidden'
-                              }}>
-                                <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                                  <History sx={{ color: 'text.secondary', fontSize: 20 }} />
-                                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.secondary' }}>
-                                    Fecha de Creación
-                                  </Typography>
-                                </Box>
-                                <Typography variant="body1" sx={{ 
-                                  fontWeight: 500,
-                                  color: 'text.primary'
-                                }}>
-                                  {selectedCommitment.createdAt && safeToDate(selectedCommitment.createdAt)
-                                    ? formatSafeDate(selectedCommitment.createdAt, "dd 'de' MMMM 'de' yyyy")
-                                    : 'No disponible'
-                                  }
+                            <Box sx={{
+                              p: 2,
+                              bgcolor: 'background.paper',
+                              borderRadius: 2,
+                              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                              transition: 'all 0.3s ease-in-out',
+                              '&:hover': {
+                                transform: 'translateY(-2px)',
+                                boxShadow: `0 4px 12px ${alpha(theme.palette.info.main, 0.15)}`,
+                              }
+                            }}>
+                              <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                <History sx={{ color: theme.palette.info.main, fontSize: 20 }} />
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: theme.palette.info.main }}>
+                                  Fecha de Creación
                                 </Typography>
                               </Box>
-                            </motion.div>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 500,
+                                color: 'text.primary'
+                              }}>
+                                {selectedCommitment.createdAt && safeToDate(selectedCommitment.createdAt)
+                                  ? formatSafeDate(selectedCommitment.createdAt, "dd 'de' MMMM 'de' yyyy")
+                                  : 'No disponible'
+                                }
+                              </Typography>
+                            </Box>
                           </Grid>
 
                           {selectedCommitment.updatedAt && (
                             <Grid item xs={12} md={6}>
-                              <motion.div
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: 0.7, duration: 0.3 }}
-                              >
-                                <Box sx={{
-                                  p: 2.5,
-                                  background: `linear-gradient(135deg, ${alpha(theme.palette.grey[600], 0.08)}, ${alpha(theme.palette.grey[500], 0.04)})`,
-                                  borderRadius: 3,
-                                  border: `1px solid ${alpha(theme.palette.grey[600], 0.15)}`,
-                                  position: 'relative',
-                                  overflow: 'hidden'
-                                }}>
-                                  <Box display="flex" alignItems="center" gap={1.5} mb={1}>
-                                    <Edit sx={{ color: 'text.secondary', fontSize: 20 }} />
-                                    <Typography variant="subtitle1" sx={{ fontWeight: 600, color: 'text.secondary' }}>
-                                      Última Modificación
-                                    </Typography>
-                                  </Box>
-                                  <Typography variant="body1" sx={{ 
-                                    fontWeight: 500,
-                                    color: 'text.primary'
-                                  }}>
-                                    {selectedCommitment.updatedAt && safeToDate(selectedCommitment.updatedAt)
-                                      ? formatSafeDate(selectedCommitment.updatedAt, "dd 'de' MMMM 'de' yyyy")
-                                      : 'No disponible'
-                                    }
+                              <Box sx={{
+                                p: 2,
+                                bgcolor: 'background.paper',
+                                borderRadius: 2,
+                                border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                                transition: 'all 0.3s ease-in-out',
+                                '&:hover': {
+                                  transform: 'translateY(-2px)',
+                                  boxShadow: `0 4px 12px ${alpha(theme.palette.secondary.main, 0.15)}`,
+                                }
+                              }}>
+                                <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                  <Edit sx={{ color: theme.palette.secondary.main, fontSize: 20 }} />
+                                  <Typography variant="subtitle2" sx={{ fontWeight: 600, color: theme.palette.secondary.main }}>
+                                    Última Modificación
                                   </Typography>
                                 </Box>
-                              </motion.div>
+                                <Typography variant="body2" sx={{ 
+                                  fontWeight: 500,
+                                  color: 'text.primary'
+                                }}>
+                                  {selectedCommitment.updatedAt && safeToDate(selectedCommitment.updatedAt)
+                                    ? formatSafeDate(selectedCommitment.updatedAt, "dd 'de' MMMM 'de' yyyy")
+                                    : 'No disponible'
+                                  }
+                                </Typography>
+                              </Box>
                             </Grid>
                           )}
                         </Grid>
@@ -2438,25 +2371,23 @@ const DueCommitmentsPage = () => {
               </Grid>
             </DialogContent>
             
-            <DialogActions 
-              sx={{ 
+            <DialogActions
+              sx={{
                 p: 4,
                 pb: 6,
-                bgcolor: theme.palette.mode === 'dark' 
-                  ? alpha(theme.palette.background.paper, 0.8)
-                  : alpha(theme.palette.background.paper, 0.95),
-                borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                // Fondo blanco puro (o mismo paper en dark) sin transparencias ni gradientes
+                backgroundColor: theme.palette.mode === 'dark'
+                  ? theme.palette.background.paper + ' !important'
+                  : '#ffffff !important',
+                // Borde superior sutil (se puede quitar si también genera sombra gris)
+                borderTop: theme.palette.mode === 'dark'
+                  ? `1px solid ${alpha(theme.palette.divider, 0.3)}`
+                  : '1px solid #ffffff',
                 position: 'relative',
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  top: 0,
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: '60%',
-                  height: 1,
-                  background: `linear-gradient(90deg, transparent 0%, ${alpha(theme.palette.divider, 0.2)} 50%, transparent 100%)`
-                }
+                boxShadow: 'none',
+                // Eliminamos pseudo-elemento que creaba degradado y efecto gris
+                '&::before': { display: 'none' },
+                '&::after': { display: 'none' }
               }}
             >
               <motion.div
@@ -2496,51 +2427,6 @@ const DueCommitmentsPage = () => {
                   initial={{ opacity: 0, y: 20, scale: 0.9 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   transition={{ delay: 0.2, duration: 0.4, type: "spring", stiffness: 100 }}
-                  whileHover={{ scale: 1.03, y: -2 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <Button 
-                    variant="outlined"
-                    startIcon={<Share />}
-                    onClick={() => {
-                      // Implement share functionality
-                      if (navigator.share) {
-                        navigator.share({
-                          title: `Compromiso: ${selectedCommitment?.description}`,
-                          text: `Vence el ${format(selectedCommitment?.dueDate?.toDate(), 'dd/MM/yyyy')} - $${selectedCommitment?.amount?.toLocaleString()}`
-                        });
-                      }
-                    }}
-                    sx={{ 
-                      borderRadius: 3.5,
-                      px: 4,
-                      py: 1.5,
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      fontSize: '0.95rem',
-                      borderColor: 'primary.main',
-                      color: 'primary.main',
-                      borderWidth: '2px',
-                      bgcolor: theme.palette.mode === 'dark' ? 'transparent' : 'white',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '&:hover': {
-                        bgcolor: theme.palette.mode === 'dark' 
-                          ? alpha(theme.palette.primary.main, 0.12)
-                          : 'rgba(25, 118, 210, 0.08)',
-                        borderColor: 'primary.dark',
-                        transform: 'translateY(-2px)',
-                        boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.25)}`
-                      }
-                    }}
-                  >
-                    Compartir
-                  </Button>
-                </motion.div>
-                
-                <motion.div
-                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ delay: 0.3, duration: 0.4, type: "spring", stiffness: 100 }}
                   whileHover={{ scale: 1.03, y: -2 }}
                   whileTap={{ scale: 0.97 }}
                 >
@@ -2704,14 +2590,39 @@ const PaymentFormDialog = ({ open, commitment, onSuccess, onCancel }) => {
       onClose={onCancel}
       maxWidth="sm"
       fullWidth
+      sx={{
+        '& .MuiDialog-container': {
+          backgroundColor: 'transparent !important',
+        },
+        '& .MuiBackdrop-root': {
+          backgroundColor: 'rgba(0, 0, 0, 0.5) !important',
+        },
+        '& .MuiDialog-paper': {
+          backgroundColor: theme.palette.mode === 'dark' 
+            ? theme.palette.background.paper + ' !important'
+            : '#ffffff !important',
+        },
+        '& .MuiDialogContent-root': {
+          backgroundColor: theme.palette.mode === 'dark' 
+            ? theme.palette.background.paper + ' !important'
+            : '#ffffff !important',
+        },
+        '& .MuiDialogActions-root': {
+          backgroundColor: theme.palette.mode === 'dark' 
+            ? theme.palette.background.paper + ' !important'
+            : '#ffffff !important',
+        }
+      }}
       PaperProps={{
         sx: {
           borderRadius: 4,
           background: theme.palette.mode === 'dark'
-            ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
-            : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
-          boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
-          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+            ? theme.palette.background.paper + ' !important'
+            : '#ffffff !important',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 8px 32px rgba(0, 0, 0, 0.5)'
+            : '0 8px 32px rgba(0, 0, 0, 0.1)',
+          border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.2 : 0.1)}`,
           overflow: 'hidden',
         }
       }}
