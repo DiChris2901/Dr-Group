@@ -90,7 +90,7 @@ boxShadow: '0 4px 12px rgba(102,126,234,0.2)'
 2. **Información contextual** más rica
 3. **Controles adicionales** (salto rápido, items por página)
 4. **Mejor responsive** en mobile
-5. **Animaciones suaves** DS 3.0
+5. **Animaciones suaves** - Diseño Sobrio
 
 ### **Resultado Esperado:**
 - Paginador más **profesional** y **moderno**

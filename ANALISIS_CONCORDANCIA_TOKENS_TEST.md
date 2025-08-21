@@ -139,7 +139,7 @@ La página de design system test (`http://localhost:5174/design-system-test`) y 
 
 #### 10. **👥 DATA DISPLAY**
 **Estado: ✅ IMPLEMENTADO**  
-- **En página test**: Avatares, listas empresariales con tokens DS 3.0
+- **En página test**: Avatares, listas empresariales con tokens de Diseño Sobrio
 - **En tokens**: `dataDisplay.js` con `avatarTokens`, `listTokens`, etc.
 - **Verificación**: ✅ Tokens de data display completos
 
@@ -147,7 +147,7 @@ La página de design system test (`http://localhost:5174/design-system-test`) y 
 **Estado: ✅ PERFECTAMENTE IMPLEMENTADO**
 - **En página test**: Skeletons con gradientes spectacular, spinners empresariales
 - **En tokens**: `loading.js` con `skeletonTokens`, gradientes empresariales
-- **Verificación**: ✅ Sistema de carga premium con DS 3.0
+- **Verificación**: ✅ Sistema de carga premium con Diseño Sobrio
 
 #### 12. **🎬 ANIMATIONS**  
 **Estado: ✅ PERFECTAMENTE IMPLEMENTADO**

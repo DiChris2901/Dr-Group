@@ -1,4 +1,4 @@
-// FormulariosShowcase.jsx - Design System 3.0 - MODELOS DE FORMULARIOS PROFESIONALES
+// FormulariosShowcase.jsx - Diseño Sobrio - MODELOS DE FORMULARIOS PROFESIONALES
 import React, { useState } from 'react';
 import {
   Grid,
@@ -103,7 +103,7 @@ const FormulariosShowcase = ({ gradients, shadows }) => {
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             <strong>Inspirado en tu login:</strong> Efectos spectaculares, glassmorphism, gradientes 
-            y animaciones. Design System 3.0 aplicado con identidad corporativa DR Group 
+            y animaciones. Diseño Sobrio aplicado con identidad corporativa DR Group 
             manteniendo el estilo profesional empresarial.
           </Typography>
         </Box>
@@ -596,7 +596,7 @@ const FormulariosShowcase = ({ gradients, shadows }) => {
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             <strong>Inspirado en tu 2FA:</strong> Verificación de doble factor con efectos 
-            spectacular. Códigos OTP, autenticación empresarial y Design System 3.0 
+            spectacular. Códigos OTP, autenticación empresarial y Diseño Sobrio 
             aplicado con máxima seguridad visual.
           </Typography>
         </Box>

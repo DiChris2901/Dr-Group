@@ -43,8 +43,7 @@ import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
 import FinancialKPIsPage from './pages/FinancialKPIsPage';
 import LiquidationProcessorPage from './pages/LiquidationProcessorPage';
 
-// Design System Test Page
-import DesignSystemTestPage from './pages/DesignSystemTestPage';
+// Design System Template Page
 import DesignSystemTemplatePage from './pages/DesignSystemTemplatePage';
 
 // Hook de autenticación
@@ -238,14 +237,6 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Mi Perfil" breadcrumbs={['Perfil']}>
             <ProfilePage />
-          </MainLayout>
-        }
-      />
-      <Route 
-        path="/design-system-test" 
-        element={
-          <MainLayout title="Design System 3.0" breadcrumbs={['Desarrollo', 'Design System']}>
-            <DesignSystemTestPage />
           </MainLayout>
         }
       />

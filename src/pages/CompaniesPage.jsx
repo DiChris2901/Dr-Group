@@ -1318,7 +1318,6 @@ const CompaniesPage = () => {
                           <Box 
                             sx={{ 
                               display: 'flex', 
-                              alignItems: 'center', 
                               gap: 2,
                               flexDirection: { xs: 'column', sm: 'row' },
                               alignItems: { xs: 'stretch', sm: 'center' }

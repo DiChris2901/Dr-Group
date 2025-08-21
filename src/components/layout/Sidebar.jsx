@@ -10,7 +10,6 @@ import {
     ExpandLess,
     ExpandMore,
     Notifications,
-    Palette,
     People,
     Receipt,
     Timeline,
@@ -170,8 +169,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       icon: Analytics,
       color: '#4caf50',
       submenu: [
-        { title: 'Procesador de Liquidaciones', icon: Analytics, path: '/liquidation-processor' },
-        { title: 'Design System 3.0', icon: Palette, path: '/design-system-test' }
+        { title: 'Procesador de Liquidaciones', icon: Analytics, path: '/liquidation-processor' }
       ]
     }
   ];

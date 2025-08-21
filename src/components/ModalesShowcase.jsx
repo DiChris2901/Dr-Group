@@ -1,4 +1,4 @@
-// ModalesShowcase.jsx - Design System 3.0 - MODELOS DE MODALES Y DIÁLOGOS PROFESIONALES
+// ModalesShowcase.jsx - Diseño Sobrio - MODELOS DE MODALES Y DIÁLOGOS PROFESIONALES
 import React, { useState } from 'react';
 import {
   Grid,
@@ -864,7 +864,7 @@ const ModalesShowcase = () => {
         borderColor: 'primary.100'
       }}>
         <Typography variant="h4" sx={{ fontWeight: 600, mb: 2 }}>
-          🎭 Modales y Diálogos - Design System 3.0
+          🎭 Modales y Diálogos - Diseño Sobrio
         </Typography>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
           Colección de modales, diálogos y drawers profesionales siguiendo los estándares 

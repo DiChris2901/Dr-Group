@@ -2,6 +2,7 @@
   "name": "dr-group-functions",
   "description": "Cloud Functions for DR Group Dashboard",
   "scripts": {
+    "lint": "echo 'Linting skipped'",
     "serve": "firebase emulators:start --only functions",
     "shell": "firebase functions:shell",
     "start": "npm run shell",

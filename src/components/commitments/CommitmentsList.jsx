@@ -1932,7 +1932,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
     <Box>
       {/* Contenido principal según modo de vista */}
       {viewMode === 'list' ? (
-        // Vista Lista Spectacular - Design System Premium v3.0
+        // Vista Lista Sobria - Diseño Empresarial
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -4448,7 +4448,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
         onCancel={cancelDelete}
       />
 
-      {/* Paginación Spectacular - Design System Premium v3.0 */}
+      {/* Paginación Sobria - Diseño Empresarial */}
       {!loading && commitments.length > 0 && (
         <motion.div
           initial={animationsEnabled ? { opacity: 0, y: 30 } : { opacity: 1, y: 0 }}

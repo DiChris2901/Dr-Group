@@ -11,7 +11,8 @@ import {
   ListItemIcon,
   Grid,
   Avatar,
-  LinearProgress
+  LinearProgress,
+  alpha
 } from '@mui/material';
 import {
   MoreVert,
@@ -125,15 +126,42 @@ const CommitmentCard = ({ commitment, onEdit, onDelete, onPayment }) => {
 
           <Grid container spacing={2} mb={2}>
             <Grid item xs={6}>
-              <Box display="flex" alignItems="center" gap={1} mb={1}>
-                <AttachMoney fontSize="small" color="primary" />
-                <Typography variant="body2" color="text.secondary">
-                  Monto
+              <Box 
+                sx={{
+                  p: 1.5,
+                  borderRadius: 1,
+                  backgroundColor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.02)
+                  }
+                }}
+              >
+                <Box display="flex" alignItems="center" gap={1} mb={1}>
+                  <AttachMoney fontSize="small" color="primary" />
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary"
+                    sx={{ fontWeight: 500 }}
+                  >
+                    Monto
+                  </Typography>
+                </Box>
+                <Typography 
+                  variant="h6" 
+                  color="primary.main" 
+                  sx={{ 
+                    fontWeight: 600,
+                    fontSize: '1.1rem',
+                    letterSpacing: '-0.02em'
+                  }}
+                >
+                  {formatCurrency(commitment.amount)}
                 </Typography>
               </Box>
-              <Typography variant="h6" color="primary.main" sx={{ fontWeight: 600 }}>
-                {formatCurrency(commitment.amount)}
-              </Typography>
             </Grid>
 
             <Grid item xs={6}>

@@ -1,5 +1,5 @@
 /**
- * 🧾 Design System 3.0 - Formularios Unificados TOKENIZADOS
+ * 🧾 Diseño Sobrio - Formularios Unificados TOKENIZADOS
  * Página consolidada usando tokens DS 3.0 completos
  */
 import React, { useState, useRef, useEffect } from 'react';

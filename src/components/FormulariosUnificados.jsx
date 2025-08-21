@@ -1,5 +1,5 @@
 /**
- * 📋 Design System 3.0 - Formularios Unificados  
+ * 📋 Diseño Sobrio - Formularios Unificados  
  * Página consolidada de todos los formularios usando tokens existentes
  * RESTRICCIÓN: Solo sx locales, sin modificar tokens
  */
