@@ -211,17 +211,24 @@ export const AuthProvider = ({ children }) => {
   // Función para actualizar el perfil del usuario
   const updateUserProfile = async (updates) => {
     try {
+      console.log('🚀 AuthContext - updateUserProfile iniciado');
+      console.log('📊 AuthContext - Updates recibidos:', updates);
+      console.log('👤 AuthContext - CurrentUser:', { uid: currentUser?.uid, email: currentUser?.email });
+      
       if (!currentUser) {
+        console.error('❌ AuthContext - No hay usuario autenticado');
         throw new Error('No hay usuario autenticado');
       }
 
       const userDocRef = doc(db, 'users', currentUser.uid);
+      console.log('📄 AuthContext - Referencia de documento:', userDocRef.path);
       
       // Verificar si el documento existe, si no, crearlo
+      console.log('🔍 AuthContext - Verificando si documento existe...');
       const userDoc = await getDoc(userDocRef);
       
       if (!userDoc.exists()) {
-        console.log('📝 Documento de usuario no existe, creándolo...');
+        console.log('📝 AuthContext - Documento de usuario no existe, creándolo...');
         // Crear documento base del usuario
         const baseUserData = {
           uid: currentUser.uid,
@@ -249,25 +256,44 @@ export const AuthProvider = ({ children }) => {
         };
         
         await setDoc(userDocRef, baseUserData);
-        console.log('✅ Documento de usuario creado exitosamente');
+        console.log('✅ AuthContext - Documento de usuario creado exitosamente');
+      } else {
+        console.log('✅ AuthContext - Documento existe, datos actuales:', userDoc.data());
       }
       
-      // Actualizar en Firestore
-      await updateDoc(userDocRef, {
+      // Preparar datos de actualización
+      const updateData = {
         ...updates,
         updatedAt: new Date()
-      });
+      };
+      console.log('📝 AuthContext - Datos a actualizar en Firestore:', updateData);
+      
+      // Actualizar en Firestore
+      console.log('💾 AuthContext - Actualizando documento en Firestore...');
+      await updateDoc(userDocRef, updateData);
+      console.log('✅ AuthContext - Documento actualizado exitosamente en Firestore');
 
       // Actualizar estado local
-      setUserProfile(prev => ({
-        ...prev,
-        ...updates,
-        updatedAt: new Date()
-      }));
+      console.log('🔄 AuthContext - Actualizando estado local...');
+      setUserProfile(prev => {
+        const newProfile = {
+          ...prev,
+          ...updates,
+          updatedAt: new Date()
+        };
+        console.log('📊 AuthContext - Nuevo estado userProfile:', newProfile);
+        return newProfile;
+      });
 
+      console.log('🎉 AuthContext - updateUserProfile completado exitosamente');
       return true;
     } catch (error) {
-      console.error('Error actualizando perfil:', error);
+      console.error('❌ AuthContext - Error actualizando perfil:', error);
+      console.error('❌ AuthContext - Error details:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      });
       throw error;
     }
   };
