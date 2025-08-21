@@ -5,14 +5,15 @@ import {
   CardContent,
   Typography,
   Grid,
-  Chip,
   LinearProgress,
   Avatar,
   List,
   ListItem,
   ListItemAvatar,
   ListItemText,
-  Divider
+  Divider,
+  Paper,
+  alpha
 } from '@mui/material';
 import {
   TrendingUp,
@@ -131,32 +132,70 @@ const ReportsSummaryPage = () => {
         </Box>
       ) : (
         <>
-      {/* Header sobrio */}
-      <Box sx={{ 
-        mb: 6,
-        textAlign: 'left'
-      }}>
-        <Typography 
-          variant="h4" 
-          component="h1" 
-          sx={{ 
-            fontWeight: 600,
-            mb: 1,
-            color: 'text.primary'
-          }}
-        >
-          📊 Resumen Ejecutivo
-        </Typography>
-        <Typography 
-          variant="body1" 
-          color="text.secondary"
-          sx={{ 
-            fontWeight: 400
-          }}
-        >
-          Vista general de todos los compromisos financieros
-        </Typography>
-      </Box>
+      {/* HEADER GRADIENT SOBRIO */}
+      <Paper 
+        sx={{ 
+          background: theme.palette.mode === 'dark' 
+            ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          borderRadius: 1,
+          overflow: 'hidden',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+            : '0 4px 20px rgba(0, 0, 0, 0.08)',
+          mb: 4
+        }}
+      >
+        <Box sx={{ 
+          p: 3, 
+          display: 'flex', 
+          flexDirection: { xs: 'column', md: 'row' }, 
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', md: 'center' },
+          gap: 2,
+          position: 'relative',
+          zIndex: 1
+        }}>
+          {/* Información principal */}
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="overline" sx={{ 
+              fontWeight: 600, 
+              fontSize: '0.7rem', 
+              color: 'rgba(255, 255, 255, 0.8)',
+              letterSpacing: 1.2
+            }}>
+              REPORTES • RESUMEN EJECUTIVO
+            </Typography>
+            <Typography variant="h4" sx={{ 
+              fontWeight: 700, 
+              mt: 0.5, 
+              mb: 0.5,
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}>
+              📊 Resumen Ejecutivo
+            </Typography>
+            <Typography variant="body1" sx={{ 
+              color: 'rgba(255, 255, 255, 0.9)'
+            }}>
+              Vista general de todos los compromisos financieros
+            </Typography>
+          </Box>
+
+          {/* Indicadores y acciones */}
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: { xs: 'row', md: 'row' },
+            flexWrap: 'wrap',
+            gap: 1,
+            alignItems: 'center'
+          }}>
+            {/* Header limpio sin chips ni refresh */}
+          </Box>
+        </Box>
+      </Paper>
 
       {/* KPI Cards sobrias */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
@@ -197,7 +236,7 @@ const ReportsSummaryPage = () => {
           <Grid item xs={12} sm={6} md={3} key={index}>
             <Card sx={{
               borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
               transition: 'box-shadow 0.2s ease',
               '&:hover': {
@@ -214,13 +253,19 @@ const ReportsSummaryPage = () => {
                   }}>
                     <kpi.icon sx={{ fontSize: 24 }} />
                   </Box>
-                  <Chip 
-                    label={kpi.trend}
-                    size="small"
-                    icon={kpi.trend.includes('+') ? <TrendingUp /> : <TrendingDown />}
-                    color={kpi.trend.includes('+') ? 'success' : 'error'}
-                    variant="outlined"
-                  />
+                  <Typography 
+                    variant="body2"
+                    sx={{ 
+                      fontWeight: 600,
+                      color: kpi.trend.includes('+') ? 'success.main' : 'error.main',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5
+                    }}
+                  >
+                    {kpi.trend.includes('+') ? <TrendingUp sx={{ fontSize: 16 }} /> : <TrendingDown sx={{ fontSize: 16 }} />}
+                    {kpi.trend}
+                  </Typography>
                 </Box>
                 <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary', mb: 1 }}>
                   {kpi.value}
@@ -240,7 +285,7 @@ const ReportsSummaryPage = () => {
         <Grid item xs={12} md={6}>
           <Card sx={{
             borderRadius: 2,
-            border: `1px solid ${theme.palette.divider}`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             transition: 'box-shadow 0.2s ease',
             '&:hover': {
@@ -279,7 +324,7 @@ const ReportsSummaryPage = () => {
         <Grid item xs={12} md={6}>
           <Card sx={{
             borderRadius: 2,
-            border: `1px solid ${theme.palette.divider}`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             transition: 'box-shadow 0.2s ease',
             '&:hover': {
@@ -317,7 +362,7 @@ const ReportsSummaryPage = () => {
         <Grid item xs={12} md={8}>
           <Card sx={{
             borderRadius: 2,
-            border: `1px solid ${theme.palette.divider}`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             transition: 'box-shadow 0.2s ease',
             '&:hover': {
@@ -350,13 +395,19 @@ const ReportsSummaryPage = () => {
                               <Typography sx={{ fontWeight: 600, color: 'success.main' }}>
                                 {formatCurrency(company.amount)}
                               </Typography>
-                              <Chip 
-                                label={`${company.growth > 0 ? '+' : ''}${company.growth}%`}
-                                size="small"
-                                color={company.growth > 0 ? 'success' : 'error'}
-                                variant="outlined"
-                                icon={company.growth > 0 ? <TrendingUp /> : <TrendingDown />}
-                              />
+                              <Typography 
+                                variant="body2"
+                                sx={{ 
+                                  fontWeight: 600,
+                                  color: company.growth > 0 ? 'success.main' : 'error.main',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 0.5
+                                }}
+                              >
+                                {company.growth > 0 ? <TrendingUp sx={{ fontSize: 16 }} /> : <TrendingDown sx={{ fontSize: 16 }} />}
+                                {`${company.growth > 0 ? '+' : ''}${company.growth}%`}
+                              </Typography>
                             </Box>
                           </Box>
                         }
@@ -375,7 +426,7 @@ const ReportsSummaryPage = () => {
         <Grid item xs={12} md={4}>
           <Card sx={{
             borderRadius: 2,
-            border: `1px solid ${theme.palette.divider}`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             transition: 'box-shadow 0.2s ease',
             '&:hover': {

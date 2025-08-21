@@ -14,8 +14,19 @@ El **Diseño Sobrio** es un sistema visual minimalista y elegante implementado c
 borderRadius: 1                    // 8px - Bordes sutilmente redondeados
 borderRadius: 2                    // 16px - Para containers principales
 
-// Bordes divisores
+// Bordes divisores tradicionales
 border: `1px solid ${theme.palette.divider}`
+
+// ⭐ NUEVO: Bordes dinámicos con color del tema (Agosto 2025)
+border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`  // Borde principal
+border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`  // Para elementos success
+border: `1px solid ${alpha(theme.palette.error.main, 0.6)}`    // Para elementos error
+border: `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`// Para elementos secondary
+
+// Hover states para bordes dinámicos
+'&:hover': {
+  borderColor: alpha(theme.palette.primary.main, 0.8)  // Intensifica en hover
+}
 ```
 
 ### 2. **Sombras Minimalistas**
@@ -55,9 +66,45 @@ textTransform: 'none'  // Texto natural, sin mayúsculas forzadas
 
 ### 6. **Headers con Gradiente Controlado**
 ```scss
-// Único elemento con gradiente (header cards)
-background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`
-color: 'white'
+// Header gradient sobrio simplificado (Patrón estándar 2025)
+background: theme.palette.mode === 'dark' 
+  ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+  : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+borderRadius: 1,
+overflow: 'hidden',
+boxShadow: theme.palette.mode === 'dark'
+  ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+  : '0 4px 20px rgba(0, 0, 0, 0.08)',
+
+// Estructura estándar del header
+<Paper sx={headerStyles}>
+  <Box sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+    <Typography variant="overline" sx={{
+      fontWeight: 600, 
+      fontSize: '0.7rem', 
+      color: 'rgba(255, 255, 255, 0.8)',
+      letterSpacing: 1.2
+    }}>
+      SECCIÓN • DESCRIPCIÓN
+    </Typography>
+    <Typography variant="h4" sx={{
+      fontWeight: 700, 
+      color: 'white',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 1
+    }}>
+      🎯 Título Principal
+    </Typography>
+    <Typography variant="body1" sx={{ 
+      color: 'rgba(255, 255, 255, 0.9)'
+    }}>
+      Descripción de la sección
+    </Typography>
+  </Box>
+</Paper>
+
+// SIN chips de información ni refresh icons (simplificado)
 ```
 
 ### 7. **Espaciado Consistente**
@@ -95,6 +142,66 @@ gap: 2       // 16px gap entre elementos
 - Diseño plano con borde sutil
 - Sin animaciones excesivas
 - Colores del theme palette standard
+
+---
+
+---
+
+## 🆕 **ACTUALIZACIONES AGOSTO 2025** - *Nuevas Implementaciones*
+
+### **✅ Sistema de Bordes Dinámicos**
+**Fecha:** Agosto 21, 2025  
+**Implementado en:** UserManagementPage, ReportsConceptPage
+
+**Características:**
+- Bordes con color del tema y transparencia `alpha(color, 0.6)`
+- Adaptación automática a modo claro/oscuro
+- Hover effects que intensifican a `alpha(color, 0.8)`
+- Consistencia visual en toda la aplicación
+
+**Páginas actualizadas:**
+- ✅ `UserManagementPage.jsx` - Tabla y tarjetas con bordes dinámicos
+- ✅ `ReportsConceptPage.jsx` - Todos los cards con bordes dinámicos
+
+### **✅ Headers Gradient Simplificados**
+**Fecha:** Agosto 21, 2025  
+**Implementado en:** Múltiples páginas
+
+**Patrón estándar implementado:**
+- Sin refresh icons
+- Sin chips de información
+- Estructura limpia con overline, título y descripción
+- Adaptación automática al tema
+
+**Páginas actualizadas:**
+- ✅ `PaymentsPage.jsx`
+- ✅ `NewPaymentPage.jsx`  
+- ✅ `IncomePage.jsx`
+- ✅ `IncomeHistoryPage.jsx`
+- ✅ `BankAccountsPage.jsx`
+- ✅ `CompaniesPage.jsx`
+- ✅ `ReportsSummaryPage.jsx`
+- ✅ `ReportsCompanyPage.jsx`
+- ✅ `ReportsPeriodPage.jsx`
+- ✅ `ReportsConceptPage.jsx`
+- ✅ `UserManagementPage.jsx`
+
+### **🎯 Código de Referencia para Bordes Dinámicos**
+```jsx
+// Para aplicar borde dinámico estándar (opacidad 0.6)
+border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+
+// Variaciones por color:
+// - primary.main (azul) - Para elementos principales
+// - success.main (verde) - Para elementos positivos/activos  
+// - error.main (rojo) - Para elementos críticos/admin
+// - secondary.main (púrpura) - Para elementos secundarios
+
+// Con hover effect:
+'&:hover': {
+  borderColor: alpha(theme.palette.primary.main, 0.8)
+}
+```
 
 ---
 
@@ -637,7 +744,58 @@ textShadow: '0 2px 4px rgba(0,0,0,0.2)'
 // Header sobrio con ícono contenido
 <Box sx={{
   width: 48,
-  height: 48,
+    height: 48,
+```
+
+---
+
+## 🚀 **GUÍA RÁPIDA DE APLICACIÓN**
+
+### **Para aplicar Header Gradient Sobrio:**
+```jsx
+// Estructura estándar - copiar y personalizar
+<Paper sx={{ 
+  background: theme.palette.mode === 'dark' 
+    ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+    : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+  borderRadius: 1,
+  overflow: 'hidden',
+  boxShadow: theme.palette.mode === 'dark'
+    ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+    : '0 4px 20px rgba(0, 0, 0, 0.08)',
+  mb: 6
+}}>
+  <Box sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+    <Typography variant="overline">SECCIÓN • DESCRIPCIÓN</Typography>
+    <Typography variant="h4">🎯 Título</Typography>
+    <Typography variant="body1">Descripción</Typography>
+  </Box>
+</Paper>
+```
+
+### **Para aplicar Borde Dinámico:**
+```jsx
+// Borde estándar (opacidad 0.6)
+border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+
+// Pedir el borde: "Dale un borde dinámico" o "Aplica el borde con color del tema"
+```
+
+### **Solicitudes de Implementación Típicas:**
+1. **"Aplica diseño sobrio"** → Cambiar a bordes sutiles, sombras mínimas, sin efectos excesivos
+2. **"Dale un header gradient"** → Aplicar el patrón estándar sin chips ni refresh
+3. **"Dale un borde dinámico"** → Aplicar `alpha(color, 0.6)` con adaptación al tema
+4. **"Aplica el mismo borde que usuarios"** → Usar la referencia de UserManagementPage
+
+### **Estados del Sistema (Agosto 2025):**
+- ✅ **Headers**: 11 páginas actualizadas con gradient sobrio
+- ✅ **Bordes**: 2 páginas con sistema dinámico implementado
+- ⏳ **Pendiente**: Expandir bordes dinámicos a más páginas según necesidad
+
+---
+
+*Última actualización: Agosto 21, 2025*
+*Documento mantiene registro completo de implementaciones sobrias vs spectacular*
   borderRadius: 2,
   backgroundColor: theme.palette.success.main,
   display: 'flex',
@@ -744,3 +902,133 @@ El modal ahora presenta:
 - ✅ Interacciones suaves y profesionales
 - ✅ Mejor legibilidad y accesibilidad
 - ✅ Estilo empresarial confiable
+
+---
+
+## 🆕 ACTUALIZACIONES RECIENTES - Agosto 2025
+
+### 🎨 Bordes Dinámicos con Color del Tema
+**Implementado en:** UserManagementPage, ReportsConceptPage, BankAccountsPage
+
+#### Características del Borde Dinámico:
+```jsx
+// Patrón estándar para bordes dinámicos
+border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+
+// Variaciones por tipo de elemento:
+primary.main    // Para elementos principales (tablas, containers)
+success.main    // Para elementos de éxito (usuarios activos)
+error.main      // Para elementos de error/admin (administradores)
+secondary.main  // Para elementos secundarios (gerentes)
+
+// Estados hover con intensidad aumentada:
+'&:hover': {
+  borderColor: alpha(theme.palette.primary.main, 0.8)  // De 0.6 a 0.8
+}
+```
+
+#### Ventajas del Sistema de Bordes Dinámicos:
+- **Adaptación automática:** Cambia según tema claro/oscuro
+- **Consistencia visual:** Mismo patrón en todas las páginas
+- **Sutileza profesional:** Visible pero no invasivo
+- **Feedback visual:** Hover states para mejor UX
+- **Colores contextuales:** Cada elemento mantiene su significado
+
+#### Cómo Solicitar Este Borde:
+```
+"Dale un borde dinámico a [elemento]"
+"Agrega un borde con color del tema"
+"Pon un borde que cambie con el tema"
+"Aplica un borde sutil con el color primario"
+```
+
+### 🎯 Headers Gradient Simplificados
+**Implementado en:** 8+ páginas principales del sistema
+
+#### Patrón Estándar de Header Sobrio:
+```jsx
+// Estructura completa del header
+<Paper sx={{ 
+  background: theme.palette.mode === 'dark' 
+    ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+    : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+  borderRadius: 1,
+  overflow: 'hidden',
+  boxShadow: theme.palette.mode === 'dark'
+    ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+    : '0 4px 20px rgba(0, 0, 0, 0.08)',
+  mb: 6
+}}>
+  <Box sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+    <Typography variant="overline" sx={{ 
+      fontWeight: 600, 
+      fontSize: '0.7rem', 
+      color: 'rgba(255, 255, 255, 0.8)',
+      letterSpacing: 1.2
+    }}>
+      SECCIÓN • DESCRIPCIÓN
+    </Typography>
+    <Typography variant="h4" sx={{ 
+      fontWeight: 700, 
+      mt: 0.5, 
+      mb: 0.5,
+      color: 'white',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 1
+    }}>
+      🎯 Título Principal
+    </Typography>
+    <Typography variant="body1" sx={{ 
+      color: 'rgba(255, 255, 255, 0.9)'
+    }}>
+      Descripción de la sección
+    </Typography>
+  </Box>
+</Paper>
+```
+
+#### Características del Header Simplificado:
+- **Sin chips informativos:** Eliminados para mayor limpieza
+- **Sin botón refresh:** Reducción de elementos distractores  
+- **Gradient adaptable:** Se ajusta al tema automáticamente
+- **Tipografía consistente:** Mismo patrón en todas las páginas
+- **Estructura tripartita:** Overline + Título + Descripción
+
+#### Páginas con Header Implementado:
+1. ✅ PaymentsPage - Estadísticas de pagos
+2. ✅ NewPaymentPage - Navegación y progreso  
+3. ✅ IncomePage - Métricas de ingresos
+4. ✅ IncomeHistoryPage - Análisis histórico
+5. ✅ BankAccountsPage - Balance financiero
+6. ✅ CompaniesPage - Gestión empresarial
+7. ✅ ReportsSummaryPage - Dashboard ejecutivo
+8. ✅ ReportsCompanyPage - Reportes por empresa
+9. ✅ ReportsPeriodPage - Análisis temporal
+10. ✅ ReportsConceptPage - Análisis por concepto
+11. ✅ UserManagementPage - Gestión de usuarios
+
+### 📋 Guía Rápida para Desarrolladores
+
+#### Para Aplicar Borde Dinámico:
+```jsx
+// Borde principal (0.6 opacidad - visible pero sutil)
+border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+
+// Borde hover (0.8 opacidad - más visible)
+borderColor: alpha(theme.palette.primary.main, 0.8)
+```
+
+#### Para Aplicar Header Sobrio:
+1. Importar: `useTheme, alpha` de MUI
+2. Usar estructura estándar de Paper + Box
+3. Aplicar gradiente adaptable al tema
+4. Estructura de contenido: overline + h4 + body1
+
+#### Valores de Opacidad Recomendados:
+- **0.4**: Muy sutil, apenas visible
+- **0.6**: Sutil pero claramente visible ⭐ RECOMENDADO
+- **0.8**: Hover states, más prominente
+- **1.0**: Color sólido completo (evitar)
+
+---

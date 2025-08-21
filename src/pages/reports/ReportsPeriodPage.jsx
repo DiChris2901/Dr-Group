@@ -19,9 +19,10 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  TablePagination
+  TablePagination,
+  useTheme,
+  alpha
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { useCommitments } from '../../hooks/useFirestore';
 import {
   DateRange,
@@ -192,57 +193,57 @@ const ReportsPeriodPage = () => {
         </Box>
       ) : (
           <>
-        {/* Header sobrio */}
-        <Box sx={{ 
-          mb: 6,
-          textAlign: 'left'
-        }}>
-          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-            <Box>
-              <Typography 
-                variant="h4" 
-                component="h1"
-                sx={{ 
-                  fontWeight: 600,
-                  mb: 1,
-                  color: 'text.primary'
-                }}
-              >
-                📅 Reportes por Período
-              </Typography>
-              <Typography 
-                variant="body1" 
-                color="text.secondary"
-                sx={{ 
-                  fontWeight: 400
-                }}
-              >
-                Análisis temporal de compromisos financieros
-              </Typography>
-            </Box>
-            
-            <Button
-              variant="contained"
-              startIcon={<GetApp />}
-              onClick={exportReport}
-              sx={{
-                borderRadius: 1,
-                fontWeight: 600,
-                px: 3,
-                py: 1,
-                textTransform: 'none'
-              }}
-            >
-              Exportar Reporte
-            </Button>
+        {/* HEADER GRADIENT SOBRIO SIMPLIFICADO */}
+        <Paper 
+          sx={{ 
+            background: theme.palette.mode === 'dark' 
+              ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+              : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+            borderRadius: 1,
+            overflow: 'hidden',
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            mb: 6
+          }}
+        >
+          <Box sx={{ 
+            p: 3, 
+            position: 'relative',
+            zIndex: 1
+          }}>
+            <Typography variant="overline" sx={{ 
+              fontWeight: 600, 
+              fontSize: '0.7rem', 
+              color: 'rgba(255, 255, 255, 0.8)',
+              letterSpacing: 1.2
+            }}>
+              REPORTES • ANÁLISIS TEMPORAL
+            </Typography>
+            <Typography variant="h4" sx={{ 
+              fontWeight: 700, 
+              mt: 0.5, 
+              mb: 0.5,
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}>
+              📅 Reportes por Período
+            </Typography>
+            <Typography variant="body1" sx={{ 
+              color: 'rgba(255, 255, 255, 0.9)'
+            }}>
+              Análisis temporal de compromisos financieros
+            </Typography>
           </Box>
-        </Box>
+        </Paper>
 
         {/* Filtros sobrios */}
         <Card sx={{ 
           mb: 4,
           borderRadius: 2,
-          border: `1px solid ${theme.palette.divider}`,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
         }}>
           <CardContent sx={{ p: 3 }}>
@@ -324,6 +325,24 @@ const ReportsPeriodPage = () => {
           </CardContent>
         </Card>
 
+        {/* Botón de exportar */}
+        <Box sx={{ mb: 4, display: 'flex', justifyContent: 'flex-end' }}>
+          <Button
+            variant="contained"
+            startIcon={<GetApp />}
+            onClick={exportReport}
+            sx={{
+              borderRadius: 1,
+              fontWeight: 600,
+              px: 3,
+              py: 1,
+              textTransform: 'none'
+            }}
+          >
+            Exportar Reporte
+          </Button>
+        </Box>
+
         {/* Tarjetas de resumen sobrias */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {[
@@ -359,7 +378,7 @@ const ReportsPeriodPage = () => {
             <Grid item xs={12} sm={6} md={3} key={index}>
               <Card sx={{
                 borderRadius: 2,
-                border: `1px solid ${theme.palette.divider}`,
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                 transition: 'box-shadow 0.2s ease',
                 '&:hover': {
@@ -402,7 +421,7 @@ const ReportsPeriodPage = () => {
           <Grid item xs={12} md={8}>
             <Card sx={{
               borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
               height: '400px'
             }}>
@@ -439,7 +458,7 @@ const ReportsPeriodPage = () => {
           <Grid item xs={12} md={4}>
             <Card sx={{
               borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
               height: '400px'
             }}>
@@ -475,7 +494,7 @@ const ReportsPeriodPage = () => {
         {/* Tabla detallada sobria */}
         <Card sx={{ 
           borderRadius: 2,
-          border: `1px solid ${theme.palette.divider}`,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
         }}>
           <CardContent sx={{ p: 3 }}>

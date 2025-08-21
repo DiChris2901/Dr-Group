@@ -18,9 +18,10 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Chip,
   Avatar,
-  InputAdornment
+  InputAdornment,
+  alpha,
+  CircularProgress
 } from '@mui/material';
 import {
   Business,
@@ -102,6 +103,22 @@ const ReportsCompanyPage = () => {
     (selectedCompany === 'all' || company.id === selectedCompany)
   );
 
+  // Estadísticas globales para el header
+  const globalStats = useMemo(() => {
+    const totalAmount = companies.reduce((sum, company) => sum + company.totalAmount, 0);
+    const totalCommitments = companies.reduce((sum, company) => sum + company.commitments, 0);
+    const totalCompleted = companies.reduce((sum, company) => sum + company.completed, 0);
+    const totalPending = companies.reduce((sum, company) => sum + company.pending, 0);
+    
+    return {
+      totalAmount,
+      totalCommitments,
+      totalCompleted,
+      totalPending,
+      totalCompanies: companies.length
+    };
+  }, [companies]);
+
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
@@ -120,7 +137,11 @@ const ReportsCompanyPage = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ 
+      p: { xs: 2, sm: 3, md: 4 },
+      maxWidth: '1400px',
+      mx: 'auto'
+    }}>
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
           <Typography variant="h6" color="text.secondary">
@@ -129,38 +150,76 @@ const ReportsCompanyPage = () => {
         </Box>
       ) : (
         <>
-      {/* Header sobrio */}
-      <Box sx={{ 
-        mb: 6,
-        textAlign: 'left'
-      }}>
-        <Typography 
-          variant="h4" 
-          component="h1" 
-          sx={{ 
-            fontWeight: 600,
-            mb: 1,
-            color: 'text.primary'
-          }}
-        >
-          🏢 Reportes por Empresa
-        </Typography>
-        <Typography 
-          variant="body1" 
-          color="text.secondary"
-          sx={{ 
-            fontWeight: 400
-          }}
-        >
-          Análisis detallado del desempeño por empresa
-        </Typography>
-      </Box>
+      {/* HEADER GRADIENT SOBRIO */}
+      <Paper 
+        sx={{ 
+          background: theme.palette.mode === 'dark' 
+            ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          borderRadius: 1,
+          overflow: 'hidden',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+            : '0 4px 20px rgba(0, 0, 0, 0.08)',
+          mb: 4
+        }}
+      >
+        <Box sx={{ 
+          p: 3, 
+          display: 'flex', 
+          flexDirection: { xs: 'column', md: 'row' }, 
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', md: 'center' },
+          gap: 2,
+          position: 'relative',
+          zIndex: 1
+        }}>
+          {/* Información principal */}
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="overline" sx={{ 
+              fontWeight: 600, 
+              fontSize: '0.7rem', 
+              color: 'rgba(255, 255, 255, 0.8)',
+              letterSpacing: 1.2
+            }}>
+              REPORTES • POR EMPRESA
+            </Typography>
+            <Typography variant="h4" sx={{ 
+              fontWeight: 700, 
+              mt: 0.5, 
+              mb: 0.5,
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}>
+              🏢 Reportes por Empresa
+            </Typography>
+            <Typography variant="body1" sx={{ 
+              color: 'rgba(255, 255, 255, 0.9)'
+            }}>
+              Análisis detallado del desempeño por empresa
+            </Typography>
+          </Box>
+
+          {/* Indicadores y acciones */}
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: { xs: 'row', md: 'row' },
+            flexWrap: 'wrap',
+            gap: 1,
+            alignItems: 'center'
+          }}>
+            {/* Header limpio sin chips ni refresh */}
+          </Box>
+        </Box>
+      </Paper>
 
       {/* Filtros sobrios */}
       <Card sx={{ 
         mb: 4, 
         borderRadius: 2,
-        border: `1px solid ${theme.palette.divider}`,
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
         transition: 'box-shadow 0.2s ease',
         '&:hover': {
@@ -294,7 +353,7 @@ const ReportsCompanyPage = () => {
           <Grid item xs={12} sm={6} md={3} key={index}>
             <Card sx={{
               borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
               transition: 'box-shadow 0.2s ease',
               '&:hover': {
@@ -328,7 +387,7 @@ const ReportsCompanyPage = () => {
       <Card sx={{
         mb: 4,
         borderRadius: 2,
-        border: `1px solid ${theme.palette.divider}`,
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
         transition: 'box-shadow 0.2s ease',
         '&:hover': {
@@ -358,7 +417,7 @@ const ReportsCompanyPage = () => {
       {/* Tabla de empresas sobria */}
       <Card sx={{ 
         borderRadius: 2,
-        border: `1px solid ${theme.palette.divider}`,
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
         transition: 'box-shadow 0.2s ease',
         '&:hover': {
@@ -416,28 +475,19 @@ const ReportsCompanyPage = () => {
                     </TableCell>
                     <TableCell sx={{ color: 'text.primary' }}>{company.commitments}</TableCell>
                     <TableCell>
-                      <Chip 
-                        label={company.completed}
-                        color="success"
-                        size="small"
-                        variant="outlined"
-                      />
+                      <Typography sx={{ fontWeight: 600, color: 'success.main' }}>
+                        {company.completed}
+                      </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip 
-                        label={company.pending}
-                        color="warning"
-                        size="small"
-                        variant="outlined"
-                      />
+                      <Typography sx={{ fontWeight: 600, color: 'warning.main' }}>
+                        {company.pending}
+                      </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip 
-                        label={company.overdue}
-                        color="error"
-                        size="small"
-                        variant="outlined"
-                      />
+                      <Typography sx={{ fontWeight: 600, color: 'error.main' }}>
+                        {company.overdue}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       {formatCurrency(company.avgAmount)}

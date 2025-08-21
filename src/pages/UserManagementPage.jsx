@@ -31,7 +31,9 @@ import {
   Avatar,
   Tooltip,
   Switch,
-  Divider
+  Divider,
+  useTheme,
+  alpha
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -50,7 +52,6 @@ import {
   VisibilityOff as VisibilityOffIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useTheme } from '@mui/material/styles';
 
 // Firebase imports
 import { 
@@ -718,34 +719,83 @@ const UserManagementPage = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header con botón de acción */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-            Gestión de Usuarios
-          </Typography>
-          <Typography variant="body1" color="textSecondary">
-            Administra usuarios, roles y permisos del sistema
-          </Typography>
+    <Box sx={{ 
+      p: { xs: 2, sm: 3, md: 4 },
+      maxWidth: '1400px',
+      mx: 'auto'
+    }}>
+      {/* HEADER GRADIENT SOBRIO SIMPLIFICADO */}
+      <Paper 
+        sx={{ 
+          background: theme.palette.mode === 'dark' 
+            ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          borderRadius: 1,
+          overflow: 'hidden',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+            : '0 4px 20px rgba(0, 0, 0, 0.08)',
+          mb: 6
+        }}
+      >
+        <Box sx={{ 
+          p: 3, 
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          position: 'relative',
+          zIndex: 1
+        }}>
+          <Box>
+            <Typography variant="overline" sx={{ 
+              fontWeight: 600, 
+              fontSize: '0.7rem', 
+              color: 'rgba(255, 255, 255, 0.8)',
+              letterSpacing: 1.2
+            }}>
+              ADMINISTRACIÓN • GESTIÓN DE USUARIOS
+            </Typography>
+            <Typography variant="h4" sx={{ 
+              fontWeight: 700, 
+              mt: 0.5, 
+              mb: 0.5,
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}>
+              👥 Gestión de Usuarios
+            </Typography>
+            <Typography variant="body1" sx={{ 
+              color: 'rgba(255, 255, 255, 0.9)'
+            }}>
+              Administra usuarios, roles y permisos del sistema
+            </Typography>
+          </Box>
+          
+          <Button
+            variant="contained"
+            startIcon={<PersonAddIcon />}
+            onClick={() => handleOpenModal()}
+            sx={{
+              bgcolor: 'rgba(255, 255, 255, 0.15)',
+              color: 'white',
+              borderRadius: 1,
+              fontWeight: 600,
+              px: 3,
+              py: 1.5,
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              '&:hover': {
+                bgcolor: 'rgba(255, 255, 255, 0.25)',
+                transform: 'translateY(-1px)'
+              }
+            }}
+          >
+            Nuevo Usuario
+          </Button>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<PersonAddIcon />}
-          onClick={() => handleOpenModal()}
-          sx={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            px: 3,
-            py: 1.5,
-            borderRadius: 3,
-            '&:hover': {
-              background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
-            }
-          }}
-        >
-          Nuevo Usuario
-        </Button>
-      </Box>
+      </Paper>
 
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
@@ -753,55 +803,142 @@ const UserManagementPage = () => {
         </Alert>
       )}
 
-      {/* Estadísticas rápidas */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      {/* Estadísticas sobrias con bordes dinámicos */}
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ 
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white'
+            borderRadius: 2,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.2)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 8px 30px rgba(0, 0, 0, 0.3)'
+                : '0 8px 30px rgba(0, 0, 0, 0.12)',
+              borderColor: alpha(theme.palette.primary.main, 0.8)
+            }
           }}>
-            <CardContent>
-              <Typography variant="h6">Total Usuarios</Typography>
-              <Typography variant="h3" sx={{ fontWeight: 700 }}>
+            <CardContent sx={{ textAlign: 'center', p: 3 }}>
+              <Typography variant="overline" sx={{ 
+                fontWeight: 600,
+                color: theme.palette.primary.main,
+                letterSpacing: 1.2
+              }}>
+                TOTAL USUARIOS
+              </Typography>
+              <Typography variant="h3" sx={{ 
+                fontWeight: 700,
+                color: theme.palette.text.primary,
+                mt: 1
+              }}>
                 {users.length}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
+        
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ 
-            background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
-            color: 'white'
+            borderRadius: 2,
+            border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.2)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 8px 30px rgba(0, 0, 0, 0.3)'
+                : '0 8px 30px rgba(0, 0, 0, 0.12)',
+              borderColor: alpha(theme.palette.success.main, 0.8)
+            }
           }}>
-            <CardContent>
-              <Typography variant="h6">Activos</Typography>
-              <Typography variant="h3" sx={{ fontWeight: 700 }}>
+            <CardContent sx={{ textAlign: 'center', p: 3 }}>
+              <Typography variant="overline" sx={{ 
+                fontWeight: 600,
+                color: theme.palette.success.main,
+                letterSpacing: 1.2
+              }}>
+                USUARIOS ACTIVOS
+              </Typography>
+              <Typography variant="h3" sx={{ 
+                fontWeight: 700,
+                color: theme.palette.text.primary,
+                mt: 1
+              }}>
                 {users.filter(u => u.isActive !== false).length}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
+        
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ 
-            background: 'linear-gradient(135deg, #dc3545 0%, #fd7e14 100%)',
-            color: 'white'
+            borderRadius: 2,
+            border: `1px solid ${alpha(theme.palette.error.main, 0.6)}`,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.2)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 8px 30px rgba(0, 0, 0, 0.3)'
+                : '0 8px 30px rgba(0, 0, 0, 0.12)',
+              borderColor: alpha(theme.palette.error.main, 0.8)
+            }
           }}>
-            <CardContent>
-              <Typography variant="h6">Administradores</Typography>
-              <Typography variant="h3" sx={{ fontWeight: 700 }}>
+            <CardContent sx={{ textAlign: 'center', p: 3 }}>
+              <Typography variant="overline" sx={{ 
+                fontWeight: 600,
+                color: theme.palette.error.main,
+                letterSpacing: 1.2
+              }}>
+                ADMINISTRADORES
+              </Typography>
+              <Typography variant="h3" sx={{ 
+                fontWeight: 700,
+                color: theme.palette.text.primary,
+                mt: 1
+              }}>
                 {users.filter(u => u.role === 'ADMIN').length}
               </Typography>
             </CardContent>
           </Card>
         </Grid>
+        
         <Grid item xs={12} sm={6} md={3}>
           <Card sx={{ 
-            background: 'linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%)',
-            color: 'white'
+            borderRadius: 2,
+            border: `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.2)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 8px 30px rgba(0, 0, 0, 0.3)'
+                : '0 8px 30px rgba(0, 0, 0, 0.12)',
+              borderColor: alpha(theme.palette.secondary.main, 0.8)
+            }
           }}>
-            <CardContent>
-              <Typography variant="h6">Gerentes</Typography>
-              <Typography variant="h3" sx={{ fontWeight: 700 }}>
+            <CardContent sx={{ textAlign: 'center', p: 3 }}>
+              <Typography variant="overline" sx={{ 
+                fontWeight: 600,
+                color: theme.palette.secondary.main,
+                letterSpacing: 1.2
+              }}>
+                GERENTES
+              </Typography>
+              <Typography variant="h3" sx={{ 
+                fontWeight: 700,
+                color: theme.palette.text.primary,
+                mt: 1
+              }}>
                 {users.filter(u => u.role === 'MANAGER').length}
               </Typography>
             </CardContent>
@@ -809,8 +946,15 @@ const UserManagementPage = () => {
         </Grid>
       </Grid>
 
-      {/* Tabla de usuarios */}
-      <Card sx={{ borderRadius: 3, boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)' }}>
+      {/* Tabla de usuarios con diseño sobrio */}
+      <Card sx={{ 
+        borderRadius: 2,
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+        boxShadow: theme.palette.mode === 'dark'
+          ? '0 4px 20px rgba(0, 0, 0, 0.2)'
+          : '0 4px 20px rgba(0, 0, 0, 0.08)',
+        overflow: 'hidden'
+      }}>
         <CardContent>
           <TableContainer>
             <Table>
