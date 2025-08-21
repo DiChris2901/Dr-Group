@@ -12,8 +12,8 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import CommitmentsFilters from '../components/commitments/CommitmentsFilters';
 import CommitmentsList from '../components/commitments/CommitmentsList';
 import ExtendCommitmentsModal from '../components/commitments/ExtendCommitmentsModal';
@@ -28,6 +28,7 @@ import { checkCommitmentsForExtension } from '../utils/recurringCommitments';
 const CommitmentsPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const gradients = useThemeGradients();
   const { settings } = useSettings();
   const { currentUser, loading: authLoading } = useAuth();
@@ -39,6 +40,15 @@ const CommitmentsPage = () => {
   const [commitmentsData, setCommitmentsData] = useState([]);
   const [extendModalOpen, setExtendModalOpen] = useState(false);
   const [commitmentsToExtend, setCommitmentsToExtend] = useState(null);
+
+  // 🔍 Efecto para leer parámetros de búsqueda de la URL
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const searchFromUrl = searchParams.get('search');
+    if (searchFromUrl) {
+      setSearchTerm(decodeURIComponent(searchFromUrl));
+    }
+  }, [location.search]);
 
   const handleSearchChange = (value) => {
     setSearchTerm(value);

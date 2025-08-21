@@ -8,24 +8,31 @@ import {
     Notifications as NotificationsIcon,
     Person as PersonIcon,
     Settings as SettingsIcon,
-    Storage as StorageIcon
+    Storage as StorageIcon,
+    Search as SearchIcon
 } from '@mui/icons-material';
 import {
     Badge,
     Box,
     Divider,
     IconButton,
+    InputAdornment,
     ListItemIcon,
     ListItemText,
     Menu,
     MenuItem,
+    TextField,
     Tooltip,
     Typography,
-    alpha
+    alpha,
+    Autocomplete,
+    Paper
 } from '@mui/material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { collection, query, limit, getDocs, where } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
 import { useSettings } from '../../context/SettingsContext';
@@ -70,6 +77,9 @@ const DashboardHeader = ({ onOpenSettings }) => {
   const [commitmentStatusAnchor, setCommitmentStatusAnchor] = useState(null);
   const [storageAnchor, setStorageAnchor] = useState(null);
   const [searchValue, setSearchValue] = useState('');
+  const [searchSuggestions, setSearchSuggestions] = useState([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   // User profile data from Firebase Auth y Firestore
   const userProfile = {
@@ -143,6 +153,191 @@ const DashboardHeader = ({ onOpenSettings }) => {
   const handleProfileMenuClose = () => {
     setProfileMenuAnchor(null);
   };
+
+  // 🔍 Handler para búsqueda global
+  const handleSearchSubmit = (event) => {
+    if (event.key === 'Enter' && searchValue.trim()) {
+      performGlobalSearch(searchValue.trim());
+    }
+  };
+
+  // 🔍 Función para realizar búsqueda global inteligente
+  const performGlobalSearch = (searchTerm) => {
+    // Navegar a la página de búsqueda global
+    navigate(`/search?q=${encodeURIComponent(searchTerm)}`);
+    setSearchOpen(false);
+    setSearchValue('');
+  };
+
+  // 🔍 Función para obtener sugerencias de búsqueda global
+  const fetchSearchSuggestions = async (searchTerm) => {
+    if (!searchTerm || searchTerm.length < 2) {
+      setSearchSuggestions([]);
+      return;
+    }
+
+    setLoadingSuggestions(true);
+    try {
+      const suggestions = new Map(); // Usar Map para almacenar tipo y ruta
+      const searchLower = searchTerm.toLowerCase();
+      
+      // 1️⃣ Buscar en compromisos
+      const commitmentsQuery = query(
+        collection(db, 'commitments'),
+        limit(15)
+      );
+      
+      const commitmentsSnapshot = await getDocs(commitmentsQuery);
+      commitmentsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        
+        if (data.concept && data.concept.toLowerCase().includes(searchLower)) {
+          suggestions.set(`📋 ${data.concept}`, {
+            type: 'commitment',
+            path: '/commitments',
+            query: `?search=${encodeURIComponent(data.concept)}`
+          });
+        }
+        
+        if (data.beneficiary && data.beneficiary.toLowerCase().includes(searchLower)) {
+          suggestions.set(`👤 ${data.beneficiary}`, {
+            type: 'commitment',
+            path: '/commitments',
+            query: `?search=${encodeURIComponent(data.beneficiary)}`
+          });
+        }
+        
+        if (data.companyName && data.companyName.toLowerCase().includes(searchLower)) {
+          suggestions.set(`🏢 ${data.companyName}`, {
+            type: 'commitment',
+            path: '/commitments',
+            query: `?search=${encodeURIComponent(data.companyName)}`
+          });
+        }
+      });
+
+      // 2️⃣ Buscar en empresas
+      const companiesQuery = query(
+        collection(db, 'companies'),
+        limit(10)
+      );
+      
+      const companiesSnapshot = await getDocs(companiesQuery);
+      companiesSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.name && data.name.toLowerCase().includes(searchLower)) {
+          suggestions.set(`🏢 ${data.name}`, {
+            type: 'company',
+            path: '/companies',
+            query: `?search=${encodeURIComponent(data.name)}`
+          });
+        }
+      });
+
+      // 3️⃣ Buscar en pagos
+      const paymentsQuery = query(
+        collection(db, 'payments'),
+        limit(10)
+      );
+      
+      const paymentsSnapshot = await getDocs(paymentsQuery);
+      paymentsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.concept && data.concept.toLowerCase().includes(searchLower)) {
+          suggestions.set(`💰 ${data.concept}`, {
+            type: 'payment',
+            path: '/payments',
+            query: `?search=${encodeURIComponent(data.concept)}`
+          });
+        }
+      });
+
+      // 4️⃣ Buscar en usuarios
+      const usersQuery = query(
+        collection(db, 'users'),
+        limit(8)
+      );
+      
+      const usersSnapshot = await getDocs(usersQuery);
+      usersSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.displayName && data.displayName.toLowerCase().includes(searchLower)) {
+          suggestions.set(`👥 ${data.displayName}`, {
+            type: 'user',
+            path: '/users',
+            query: `?search=${encodeURIComponent(data.displayName)}`
+          });
+        }
+        if (data.email && data.email.toLowerCase().includes(searchLower)) {
+          suggestions.set(`📧 ${data.email}`, {
+            type: 'user',
+            path: '/users',
+            query: `?search=${encodeURIComponent(data.email)}`
+          });
+        }
+      });
+
+      // 5️⃣ Agregar páginas del sistema que coincidan
+      const systemPages = [
+        { name: 'Dashboard', path: '/', keywords: ['dashboard', 'inicio', 'principal', 'resumen'] },
+        { name: 'Compromisos', path: '/commitments', keywords: ['compromiso', 'obligacion', 'pago', 'deuda'] },
+        { name: 'Pagos', path: '/payments', keywords: ['pago', 'abono', 'transferencia', 'consignacion'] },
+        { name: 'Empresas', path: '/companies', keywords: ['empresa', 'compania', 'negocio'] },
+        { name: 'Usuarios', path: '/users', keywords: ['usuario', 'persona', 'empleado'] },
+        { name: 'Reportes', path: '/reports', keywords: ['reporte', 'informe', 'estadistica'] },
+        { name: 'Centro de Alertas', path: '/alerts-center', keywords: ['alerta', 'notificacion', 'aviso'] },
+        { name: 'KPIs Financieros', path: '/financial-kpis', keywords: ['kpi', 'indicador', 'metrica', 'financiero'] },
+        { name: 'Dashboard Ejecutivo', path: '/executive-dashboard', keywords: ['ejecutivo', 'gerencia', 'directivo'] },
+        { name: 'Compromisos Vencidos', path: '/due-commitments', keywords: ['vencido', 'atrasado', 'moroso'] },
+        { name: 'Perfil', path: '/profile', keywords: ['perfil', 'usuario', 'configuracion'] },
+        { name: 'Configuración', path: '/settings', keywords: ['configuracion', 'ajuste', 'preferencia'] }
+      ];
+
+      systemPages.forEach(page => {
+        const pageNameMatch = page.name.toLowerCase().includes(searchLower);
+        const keywordMatch = page.keywords.some(keyword => 
+          keyword.toLowerCase().includes(searchLower) || 
+          searchLower.includes(keyword.toLowerCase())
+        );
+        
+        if (pageNameMatch || keywordMatch) {
+          suggestions.set(`📄 ${page.name}`, {
+            type: 'page',
+            path: page.path,
+            query: ''
+          });
+        }
+      });
+      
+      // Convertir Map a Array y limitar a 12 sugerencias
+      const suggestionsArray = Array.from(suggestions.keys()).slice(0, 12);
+      setSearchSuggestions(suggestionsArray.map(key => ({
+        label: key,
+        ...suggestions.get(key)
+      })));
+      
+    } catch (error) {
+      console.error('Error fetching search suggestions:', error);
+      setSearchSuggestions([]);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  // 🔍 useEffect para obtener sugerencias con debounce
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchValue.trim()) {
+        fetchSearchSuggestions(searchValue.trim());
+        setSearchOpen(true);
+      } else {
+        setSearchSuggestions([]);
+        setSearchOpen(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchValue]);
 
   const handleNotificationsOpen = (event) => {
     // 🔊 Sonido condicional en notificaciones
@@ -243,13 +438,184 @@ const DashboardHeader = ({ onOpenSettings }) => {
       display: 'flex', 
       alignItems: 'center', 
       width: '100%', 
-      justifyContent: 'flex-end',
       // 📐 Altura dinámica según modo compacto
       height: compactMode ? 60 : 72,
       py: compactMode ? 1 : 1.5,
+      px: 2,
     }}>
-      {/* Controles del lado derecho */}
+      {/* Área izquierda - espacio para balance */}
+      <Box sx={{ flex: 1 }}>
+        {/* Espacio vacío para balancear la búsqueda en el centro */}
+      </Box>
+
+      {/* Área central para barra de búsqueda */}
       <Box sx={{ 
+        flex: '0 0 auto',
+        display: 'flex', 
+        justifyContent: 'center',
+        minWidth: 240, // Más pequeño y compacto
+        maxWidth: 320, // Más pequeño como en la imagen
+        position: 'relative',
+      }}>
+        <Autocomplete
+          freeSolo
+          open={searchOpen && searchSuggestions.length > 0}
+          onOpen={() => {
+            if (searchSuggestions.length > 0) {
+              setSearchOpen(true);
+            }
+          }}
+          onClose={() => setSearchOpen(false)}
+          inputValue={searchValue}
+          onInputChange={(event, newValue, reason) => {
+            if (reason === 'input') {
+              setSearchValue(newValue);
+            }
+          }}
+          onChange={(event, newValue) => {
+            if (newValue) {
+              // Manejar navegación basada en el tipo de resultado
+              if (typeof newValue === 'object' && newValue.path) {
+                if (newValue.type === 'page') {
+                  navigate(newValue.path);
+                } else {
+                  navigate(`/search?q=${encodeURIComponent(newValue.label.replace(/^[📋👤🏢💰👥📧📄]\s/, ''))}`);
+                }
+              } else {
+                // Fallback para búsqueda general
+                navigate(`/search?q=${encodeURIComponent(newValue)}`);
+              }
+              setSearchOpen(false);
+              setSearchValue('');
+            }
+          }}
+          options={searchSuggestions}
+          loading={loadingSuggestions}
+          getOptionLabel={(option) => typeof option === 'object' ? option.label : option}
+          renderOption={(props, option) => {
+            const { key, ...otherProps } = props;
+            return (
+              <Box 
+                component="li" 
+                key={key}
+                {...otherProps}
+                sx={{ 
+                  px: 2, 
+                  py: 1.5,
+                  borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                  '&:last-child': {
+                    borderBottom: 'none'
+                  },
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                  }
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                  <Typography variant="body2" sx={{ 
+                    flex: 1,
+                    fontSize: '0.875rem',
+                    color: theme.palette.text.primary
+                  }}>
+                    {typeof option === 'object' ? option.label : option}
+                  </Typography>
+                  {typeof option === 'object' && (
+                    <Typography variant="caption" sx={{ 
+                      color: theme.palette.text.secondary,
+                      ml: 1,
+                      fontSize: '0.75rem',
+                      textTransform: 'capitalize'
+                    }}>
+                      {option.type === 'commitment' && 'Compromiso'}
+                      {option.type === 'company' && 'Empresa'}
+                      {option.type === 'payment' && 'Pago'}
+                      {option.type === 'user' && 'Usuario'}
+                      {option.type === 'page' && 'Página'}
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+            );
+          }}
+          noOptionsText={loadingSuggestions ? "Buscando..." : "No hay sugerencias"}
+          loadingText="Buscando..."
+          PaperComponent={({ children, ...other }) => (
+            <Paper
+              {...other}
+              sx={{
+                borderRadius: '12px',
+                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                boxShadow: theme.palette.mode === 'dark'
+                  ? '0 8px 32px rgba(0,0,0,0.3)'
+                  : '0 8px 32px rgba(0,0,0,0.1)',
+                mt: 1,
+              }}
+            >
+              {children}
+            </Paper>
+          )}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              size="small"
+              placeholder="Buscar"
+              onKeyDown={handleSearchSubmit}
+              InputProps={{
+                ...params.InputProps,
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon sx={{ 
+                      color: theme.palette.text.secondary,
+                      fontSize: 20 
+                    }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{
+                width: '100%',
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '24px', // Bordes más redondeados como en la imagen
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? alpha(theme.palette.background.paper, 0.9)
+                    : '#ffffff',
+                  height: '40px', // Altura específica
+                  border: 'none',
+                  '& fieldset': {
+                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                    borderRadius: '24px',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: alpha(theme.palette.divider, 0.3),
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: alpha(theme.palette.primary.main, 0.3),
+                    borderWidth: '1px',
+                    boxShadow: 'none', // Sin sombras para mantener limpio
+                  },
+                },
+                '& .MuiInputBase-input': {
+                  fontSize: '0.875rem',
+                  fontWeight: 400,
+                  padding: '8px 4px', // Padding más pequeño
+                  '&::placeholder': {
+                    color: theme.palette.text.secondary,
+                    opacity: 0.6,
+                    fontWeight: 400,
+                  },
+                },
+                '& .MuiInputAdornment-root': {
+                  marginRight: '8px',
+                },
+              }}
+            />
+          )}
+          sx={{ width: '100%' }}
+        />
+      </Box>
+
+      {/* Área derecha - controles de usuario */}
+      <Box sx={{ 
+        flex: 1,
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'flex-end',

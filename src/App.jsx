@@ -22,6 +22,7 @@ import CommitmentsPage from './pages/CommitmentsPage';
 import CompaniesPage from './pages/CompaniesPage';
 import DataPage from './pages/DataPage';
 import DueCommitmentsPage from './pages/DueCommitmentsPage';
+import GlobalSearchPage from './pages/GlobalSearchPage';
 import NewCommitmentPage from './pages/NewCommitmentPage';
 import NewPaymentPage from './pages/NewPaymentPage';
 import PaymentsPage from './pages/PaymentsPage';
@@ -73,6 +74,14 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Centro de Análisis de Datos" breadcrumbs={['DATA']}>
             <DataPage />
+          </MainLayout>
+        }
+      />
+      <Route 
+        path="/search" 
+        element={
+          <MainLayout title="Búsqueda Global" breadcrumbs={['Búsqueda']}>
+            <GlobalSearchPage />
           </MainLayout>
         }
       />

@@ -281,6 +281,105 @@ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.8)}`
 
 ---
 
+## 🔍 **MÓDULO DE BÚSQUEDA**
+
+### **✅ GlobalSearchPage.jsx** - *Implementación Parcial (85%)*
+**Ubicación:** `src/pages/GlobalSearchPage.jsx`  
+**URL:** `http://localhost:5173/search`
+
+**Características implementadas:**
+
+#### **Header de Búsqueda - Diseño Spectacular Controlado**
+```jsx
+// Header principal con gradiente completo
+<Box sx={{
+  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 1.0)}, ${alpha(theme.palette.secondary.main, 1.0)})`,
+  color: 'white',
+  p: 4,
+  borderRadius: '8px',                    // Esquinas sutiles (reducido de 16px)
+  position: 'relative',
+  overflow: 'hidden',
+  mb: 4,
+  // Efectos decorativos mantenidos
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    background: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.15) 0%, transparent 50%)'
+  },
+  '&::after': {
+    content: '""',
+    position: 'absolute',
+    borderRadius: '50%',
+    background: 'rgba(255, 255, 255, 0.1)',
+    animation: 'float 6s ease-in-out infinite'
+  }
+}}>
+```
+
+#### **Tipografía del Header**
+```jsx
+// Título principal
+<Typography variant="h4" sx={{ 
+  fontWeight: 700,
+  fontSize: { xs: '1.75rem', sm: '2.125rem' },
+  textShadow: '0 2px 4px rgba(0,0,0,0.1)',
+  mb: 0.5
+}}>
+  Resultados de Búsqueda
+</Typography>
+
+// Subtítulo
+<Typography variant="h6" sx={{ 
+  opacity: 0.9,
+  fontWeight: 400,
+  fontSize: '1.1rem'
+}}>
+  Mostrando resultados para: <strong>"{searchTerm}"</strong>
+</Typography>
+```
+
+#### **Modales de Detalle - Diseño Sobrio Completo**
+- **Modal de Compromiso**: Header transparente, tipografía sobria, campos con labels en mayúsculas
+- **Modal de Empresa**: Diseño completamente sobrio con cards sutiles y información estructurada
+
+**Elementos específicos del Modal Sobrio:**
+```jsx
+// Header del modal (sobrio)
+<DialogTitle sx={{ 
+  pb: 2, 
+  pt: 3,
+  px: 3,
+  background: 'transparent',
+  borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+}}>
+
+// Labels de información (estilo sobrio)
+<Typography variant="subtitle2" sx={{ 
+  color: theme.palette.text.secondary,
+  fontSize: '0.75rem',
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  fontWeight: 500,
+  mb: 1
+}}>
+
+// Cards de información
+<Box sx={{ 
+  p: 2, 
+  border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+  borderRadius: 1,
+  backgroundColor: alpha(theme.palette.background.default, 0.5)
+}}>
+```
+
+#### **Tablas de Resultados**
+- Diseño sobrio con bordes sutiles
+- Hover effects discretos
+- Paginación integrada con estilos consistentes
+- Botones de acción minimalistas
+
+---
+
 ## 🎯 Filosofía del Diseño Sobrio
 
 ### **Principios Fundamentales:**
