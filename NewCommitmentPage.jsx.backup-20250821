@@ -1730,21 +1730,9 @@ const NewCommitmentPage = () => {
                               severity="info" 
                               icon={<BusinessIcon />}
                               sx={{
-                                border: 'none',
-                                background: theme.palette.mode === 'dark' 
-                                  ? theme.palette.background.paper
-                                  : '#ffffff',
-                                boxShadow: 'none',
-                                borderRadius: 1,
-                                '& .MuiAlert-icon': {
-                                  color: theme.palette.primary.main,
-                                },
-                                transition: 'all 0.2s ease-in-out',
-                                '&:hover': {
-                                  background: theme.palette.mode === 'dark' 
-                                    ? alpha(theme.palette.background.paper, 0.8)
-                                    : '#f8f9fa',
-                                }
+                                backgroundColor: alpha(theme.palette.info.main, 0.1),
+                                border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                                borderRadius: `${borderRadius}px`
                               }}
                             >
                               <Typography variant="body2" fontWeight={500}>
@@ -2378,7 +2366,17 @@ const NewCommitmentPage = () => {
         >
           <motion.div
             animate={animationsEnabled ? { 
-              boxShadow: 'none' // Sin sombras de color
+              boxShadow: [
+                theme.palette.mode === 'dark' 
+                  ? `0 4px 12px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.2)` 
+                  : `0 4px 12px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.1)`,
+                theme.palette.mode === 'dark' 
+                  ? `0 8px 20px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.3)` 
+                  : `0 8px 20px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.2)`,
+                theme.palette.mode === 'dark' 
+                  ? `0 4px 12px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.2)` 
+                  : `0 4px 12px rgba(${primaryColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16)).join(', ')}, 0.1)`
+              ]
             } : {}}
             transition={animationsEnabled ? { 
               duration: 2,
@@ -2391,43 +2389,60 @@ const NewCommitmentPage = () => {
               severity="info" 
               sx={{ 
                 mt: 3, 
-                borderRadius: 1,
-                border: 'none',
+                borderRadius: `${borderRadius}px`,
+                border: `1px solid ${theme.palette.info.main}`,
                 background: theme.palette.mode === 'dark' 
-                  ? theme.palette.background.paper
-                  : '#ffffff',
-                boxShadow: 'none',
+                  ? 'rgba(33, 150, 243, 0.1)' 
+                  : 'rgba(33, 150, 243, 0.05)',
+                position: 'relative',
+                overflow: 'hidden',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: '-100%',
+                  width: '100%',
+                  height: '100%',
+                  background: 'linear-gradient(90deg, transparent, rgba(33, 150, 243, 0.1), transparent)',
+                  animation: animationsEnabled ? 'shimmer 3s infinite' : 'none',
+                },
+                '@keyframes shimmer': {
+                  '0%': { left: '-100%' },
+                  '100%': { left: '100%' }
+                },
                 '& .MuiAlert-icon': {
-                  display: 'none', // Ocultar ícono predeterminado
+                  alignItems: 'center',
+                  fontSize: fontSize * 2,
+                  animation: animationsEnabled ? 'pulse 2s infinite' : 'none',
+                },
+                '@keyframes pulse': {
+                  '0%, 100%': { transform: 'scale(1)' },
+                  '50%': { transform: 'scale(1.1)' }
                 },
                 '& .MuiAlert-message': {
-                  fontSize: `${fontSize}px`,
-                  padding: 0,
+                  fontSize: `${fontSize + 1}px`,
+                  position: 'relative',
+                  zIndex: 1
                 },
-                padding: 2,
-                transition: 'all 0.2s ease-in-out',
-                '&:hover': {
-                  background: theme.palette.mode === 'dark' 
-                    ? alpha(theme.palette.background.paper, 0.8)
-                    : '#f8f9fa',
-                }
+                transition: animationsEnabled ? 'all 0.3s ease-in-out' : 'none',
+                '&:hover': animationsEnabled ? {
+                  transform: 'translateY(-2px)',
+                  borderColor: theme.palette.info.dark,
+                } : {}
               }}
             >
-              <Typography variant="body2" sx={{ 
-                fontWeight: 400,
-                color: theme.palette.text.secondary,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
-              }}>
-                <Box component="span" sx={{ 
-                  fontSize: '16px',
-                  opacity: 0.7
-                }}>
-                  ℹ️
-                </Box>
-                <Box component="span" sx={{ fontWeight: 500, color: theme.palette.text.primary }}>
-                  Nota:
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                <motion.span
+                  animate={{ rotate: [0, 10, -10, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                  style={{ display: 'inline-block' }}
+                >
+                  <Box component="span" sx={{ fontWeight: 700, color: theme.palette.info.main, fontSize: '1.2em' }}>
+                    💡
+                  </Box>
+                </motion.span>
+                <Box component="span" sx={{ fontWeight: 700, color: theme.palette.info.main, ml: 1 }}>
+                  Tip:
                 </Box>
                 {' '}Los compromisos mensuales, trimestrales y anuales se renovarán automáticamente 
                 según la frecuencia seleccionada. Los compromisos únicos no se renovarán.
@@ -2452,17 +2467,22 @@ const NewCommitmentPage = () => {
               zIndex: 1000,
               transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
               '&:hover': animationsEnabled ? {
-                transform: 'scale(1.05)',
+                transform: 'scale(1.1) rotate(15deg)',
                 boxShadow: theme.palette.mode === 'dark' 
-                  ? '0 6px 20px rgba(0, 0, 0, 0.3)' 
-                  : '0 6px 20px rgba(0, 0, 0, 0.2)',
+                  ? '0 12px 30px rgba(0, 0, 0, 0.4)' 
+                  : '0 12px 30px rgba(0, 0, 0, 0.25)',
               } : {},
               boxShadow: theme.palette.mode === 'dark' 
-                ? '0 4px 12px rgba(0, 0, 0, 0.2)' 
-                : '0 4px 12px rgba(0, 0, 0, 0.1)',
+                ? '0 8px 25px rgba(0, 0, 0, 0.3)' 
+                : '0 8px 25px rgba(0, 0, 0, 0.15)',
             }}
           >
-            <SettingsIcon sx={{ fontSize: 24 }} />
+            <motion.div
+              animate={animationsEnabled ? { rotate: [0, 10, -10, 0] } : {}}
+              transition={{ duration: 2, repeat: Infinity, repeatDelay: 5 }}
+            >
+              <SettingsIcon sx={{ fontSize: 28 }} />
+            </motion.div>
           </Fab>
         </Tooltip>
 
