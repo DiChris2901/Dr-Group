@@ -1176,13 +1176,13 @@ const NewCommitmentPage = () => {
                         border: `1px solid ${theme.palette.divider}`,
                         borderRadius: `${borderRadius}px`,
                         background: theme.palette.mode === 'dark' 
-                          ? 'rgba(255, 255, 255, 0.03)' 
-                          : 'rgba(0, 0, 0, 0.02)',
+                          ? theme.palette.background.paper
+                          : '#ffffff',
                         transition: animationsEnabled ? 'all 0.3s ease-in-out' : 'none',
                         '&:hover': animationsEnabled ? {
                           background: theme.palette.mode === 'dark' 
-                            ? 'rgba(255, 255, 255, 0.05)' 
-                            : 'rgba(0, 0, 0, 0.04)',
+                            ? alpha(theme.palette.background.paper, 0.8)
+                            : '#f8f9fa',
                           borderColor: primaryColor,
                           transform: 'translateY(-1px)'
                         } : {}
@@ -1269,13 +1269,13 @@ const NewCommitmentPage = () => {
                       border: `1px solid ${theme.palette.divider}`,
                       borderRadius: `${borderRadius}px`,
                       background: theme.palette.mode === 'dark' 
-                        ? 'rgba(255, 255, 255, 0.03)' 
-                        : 'rgba(0, 0, 0, 0.02)',
+                        ? theme.palette.background.paper
+                        : '#ffffff',
                       transition: animationsEnabled ? 'all 0.3s ease-in-out' : 'none',
                       '&:hover': animationsEnabled ? {
                         background: theme.palette.mode === 'dark' 
-                          ? 'rgba(255, 255, 255, 0.05)' 
-                          : 'rgba(0, 0, 0, 0.04)',
+                          ? alpha(theme.palette.background.paper, 0.8)
+                          : '#f8f9fa',
                         borderColor: primaryColor,
                         transform: 'translateY(-1px)'
                       } : {}
