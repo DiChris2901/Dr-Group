@@ -841,7 +841,11 @@ const CompaniesPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <Card sx={{ textAlign: 'center', py: 6 }}>
+          <Card sx={{ 
+            textAlign: 'center', 
+            py: 6,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+          }}>
             <CardContent>
               <BusinessIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
               <Typography variant="h6" color="text.secondary" gutterBottom>
@@ -874,6 +878,7 @@ const CompaniesPage = () => {
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                     transition: 'transform 0.2s ease-in-out',
                     '&:hover': {
                       transform: 'translateY(-4px)',
@@ -927,8 +932,6 @@ const CompaniesPage = () => {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            border: '1px solid',
-                            borderColor: 'divider',
                             borderRadius: 1,
                             p: 0.5,
                             backgroundColor: 'background.paper'
@@ -1011,7 +1014,7 @@ const CompaniesPage = () => {
                       company.platforms?.houndoc?.link || 
                       company.platforms?.dian?.link || 
                       company.platforms?.supersalud?.link) && (
-                      <Box sx={{ mt: 2, pt: 1.5, borderTop: '1px solid', borderColor: 'divider' }}>
+                      <Box sx={{ mt: 2, pt: 1.5, borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.6)}` }}>
                         <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block', fontWeight: 'medium' }}>
                           Accesos Rápidos:
                         </Typography>
@@ -1172,7 +1175,7 @@ const CompaniesPage = () => {
                   sx={{ 
                     mb: 1.5,
                     backgroundColor: theme.palette.background.paper,
-                    border: `1px solid ${theme.palette.divider}`,
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                     boxShadow: 1,
                   }}
                 >
@@ -1249,7 +1252,7 @@ const CompaniesPage = () => {
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              border: `1px solid ${theme.palette.divider}`,
+                              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                               borderRadius: 1.5,
                               p: 0.5,
                               backgroundColor: theme.palette.background.paper,
@@ -1933,7 +1936,7 @@ const CompaniesPage = () => {
           backgroundColor: theme.palette.mode === 'dark' 
             ? theme.palette.grey[900] 
             : theme.palette.grey[50],
-          borderTop: `1px solid ${theme.palette.divider}`
+          borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
         }}>
           <Button 
             onClick={handleCloseDialogs} 
@@ -2021,7 +2024,7 @@ const CompaniesPage = () => {
                       height: 'auto',
                       objectFit: 'contain',
                       border: '1px solid',
-                      borderColor: 'divider',
+                      borderColor: alpha(theme.palette.primary.main, 0.6),
                       borderRadius: 2,
                       p: 1,
                       backgroundColor: 'background.paper',
