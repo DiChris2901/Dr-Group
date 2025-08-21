@@ -831,7 +831,7 @@ const IncomePage = () => {
           <Grid item xs={12} sm={6} md={3} key={index}>
             <Card sx={{
               borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
               transition: 'box-shadow 0.2s ease',
               '&:hover': {
@@ -866,7 +866,7 @@ const IncomePage = () => {
         borderRadius: 2,
         mb: 4,
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        border: `1px solid ${theme.palette.divider}`,
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
         background: theme.palette.background.paper
       }}>
         <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
@@ -874,7 +874,7 @@ const IncomePage = () => {
           <Box sx={{ 
             mb: 4,
             pb: 3,
-            borderBottom: `1px solid ${theme.palette.divider}`
+            borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
           }}>
             <Typography variant="h5" sx={{ 
               fontWeight: 600, 
@@ -1123,7 +1123,7 @@ const IncomePage = () => {
               onDrop={handleDrop}
               sx={{
                 p: 3,
-                border: `2px dashed ${dragOver ? theme.palette.primary.main : theme.palette.divider}`,
+                border: `2px dashed ${dragOver ? theme.palette.primary.main : alpha(theme.palette.primary.main, 0.6)}`,
                 borderRadius: 1,
                 textAlign: 'center',
                 cursor: 'pointer',
@@ -1195,7 +1195,7 @@ const IncomePage = () => {
             gap: 2, 
             mt: 4,
             pt: 3,
-            borderTop: `1px solid ${theme.palette.divider}`
+            borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
           }}>
             <Button
               variant="outlined"

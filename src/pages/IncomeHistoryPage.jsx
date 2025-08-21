@@ -481,7 +481,7 @@ const IncomeHistoryPage = () => {
           <Grid item xs={12} sm={6} md={3} key={index}>
             <Card sx={{
               borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
               transition: 'box-shadow 0.2s ease',
               '&:hover': {
@@ -516,7 +516,7 @@ const IncomeHistoryPage = () => {
         borderRadius: 2, 
         mb: 4,
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        border: `1px solid ${theme.palette.divider}`
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
       }}>
         <CardContent>
           <Box display="flex" alignItems="center" gap={1} mb={3}>
@@ -733,11 +733,11 @@ const IncomeHistoryPage = () => {
       <Card sx={{ 
         borderRadius: 2,
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        border: `1px solid ${theme.palette.divider}`
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
       }}>
         <CardContent sx={{ p: 0 }}>
           {/* Header con controles de paginación */}
-          <Box sx={{ p: 3, borderBottom: `1px solid ${theme.palette.divider}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ p: 3, borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
               Resultados: {stats.total} ingresos encontrados
             </Typography>
@@ -865,7 +865,7 @@ const IncomeHistoryPage = () => {
 
           {/* Paginación sobria */}
           {totalPages > 1 && (
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 3, borderTop: `1px solid ${theme.palette.divider}` }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 3, borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.6)}` }}>
               <Typography variant="body2" color="text.secondary">
                 Mostrando {startIndex + 1} a {Math.min(endIndex, filteredIncomes.length)} de {filteredIncomes.length} registros
               </Typography>
