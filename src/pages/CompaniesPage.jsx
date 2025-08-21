@@ -27,7 +27,8 @@ import {
   Divider,
   CircularProgress,
   Alert,
-  Fab
+  Fab,
+  alpha
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -49,7 +50,8 @@ import {
   Security as SecurityIcon,
   AccountBalance as AccountBalanceIcon,
   Description as DescriptionIcon,
-  Receipt as ReceiptIcon
+  Receipt as ReceiptIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -124,6 +126,16 @@ const CompaniesPage = () => {
     return theme.palette.mode === 'dark' 
       ? theme.palette[colorName]?.dark || theme.palette[colorName]?.main 
       : theme.palette[colorName]?.main;
+  };
+
+  // Función de refresh manual
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    // Los datos se actualizan automáticamente por los listeners de Firebase
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
   };
 
   // Cargar empresas desde Firebase
@@ -681,31 +693,146 @@ const CompaniesPage = () => {
   }
 
   return (
-    <Box>
-      {/* Header con botón de agregar */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box>
-          <Typography variant="h4" component="h1">
-            Gestión de Empresas
-          </Typography>
-          <Box display="flex" alignItems="center" gap={1} mt={0.5}>
-            <BusinessIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
-            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+    <Box sx={{ 
+      p: { xs: 2, sm: 3, md: 4 },
+      maxWidth: '1400px',
+      mx: 'auto'
+    }}>
+      {/* HEADER GRADIENT SOBRIO */}
+      <Paper 
+        sx={{ 
+          background: theme.palette.mode === 'dark' 
+            ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          borderRadius: 1,
+          overflow: 'hidden',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+            : '0 4px 20px rgba(0, 0, 0, 0.08)',
+          mb: 4
+        }}
+      >
+        <Box sx={{ 
+          p: 3, 
+          display: 'flex', 
+          flexDirection: { xs: 'column', md: 'row' }, 
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', md: 'center' },
+          gap: 2,
+          position: 'relative',
+          zIndex: 1
+        }}>
+          {/* Información principal */}
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="overline" sx={{ 
+              fontWeight: 600, 
+              fontSize: '0.7rem', 
+              color: 'rgba(255, 255, 255, 0.8)',
+              letterSpacing: 1.2
+            }}>
+              ADMINISTRACIÓN • EMPRESAS
+            </Typography>
+            <Typography variant="h4" sx={{ 
+              fontWeight: 700, 
+              mt: 0.5, 
+              mb: 0.5,
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}>
+              <BusinessIcon /> Gestión de Empresas
+            </Typography>
+            <Typography variant="body1" sx={{ 
+              color: 'rgba(255, 255, 255, 0.9)'
+            }}>
               {companies.length} {companies.length === 1 ? 'empresa registrada' : 'empresas registradas'}
             </Typography>
           </Box>
+
+          {/* Indicadores y acciones */}
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: { xs: 'row', md: 'row' },
+            flexWrap: 'wrap',
+            gap: 1,
+            alignItems: 'center'
+          }}>
+            <Chip 
+              size="small" 
+              label={`${companies.length} empresas`} 
+              sx={{ 
+                fontWeight: 600, 
+                borderRadius: 1,
+                fontSize: '0.7rem',
+                height: 26,
+                bgcolor: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                backdropFilter: 'blur(10px)'
+              }} 
+            />
+            <Chip 
+              size="small" 
+              label={`${companies.filter(c => c.bankAccount).length} con cuentas`} 
+              sx={{ 
+                borderRadius: 1,
+                fontSize: '0.7rem',
+                height: 26,
+                bgcolor: 'rgba(76, 175, 80, 0.3)',
+                color: 'white',
+                backdropFilter: 'blur(10px)'
+              }} 
+            />
+            
+            {/* Botón de refresh */}
+            <IconButton
+              size="small"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              sx={{
+                bgcolor: 'rgba(255, 255, 255, 0.15)',
+                color: 'white',
+                borderRadius: 1,
+                p: 0.5,
+                backdropFilter: 'blur(10px)',
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.25)'
+                }
+              }}
+            >
+              {refreshing ? (
+                <CircularProgress size={16} sx={{ color: 'white' }} />
+              ) : (
+                <RefreshIcon fontSize="small" />
+              )}
+            </IconButton>
+
+            {/* Botón de nueva empresa */}
+            <Button
+              size="small"
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleAddCompany}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: 1,
+                fontSize: '0.75rem',
+                height: 32,
+                px: 2,
+                bgcolor: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                backdropFilter: 'blur(10px)',
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.3)'
+                }
+              }}
+            >
+              Nueva Empresa
+            </Button>
+          </Box>
         </Box>
-        <Box display="flex" gap={1}>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={handleAddCompany}
-            sx={{ borderRadius: 2 }}
-          >
-            Nueva Empresa
-          </Button>
-        </Box>
-      </Box>
+      </Paper>
 
       {/* Lista de empresas */}
       {companies.length === 0 ? (

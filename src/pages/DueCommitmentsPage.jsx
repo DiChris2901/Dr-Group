@@ -955,53 +955,99 @@ const DueCommitmentsPage = () => {
       maxWidth: '1400px',
       mx: 'auto'
     }}>
-      {/* Header sobrio */}
-      <Box sx={{ 
-        mb: 6,
-        textAlign: 'left'
+      {/* 🎨 Header sobrio que se adapta al tema */}
+      <Box sx={{
+        background: theme.palette.mode === 'dark' 
+          ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+          : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+        borderRadius: 1,
+        p: 3,
+        mb: 3,
+        position: 'relative',
+        overflow: 'hidden',
+        boxShadow: theme.palette.mode === 'dark'
+          ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+          : '0 4px 20px rgba(0, 0, 0, 0.08)'
       }}>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-          <Box>
+        <Box display="flex" alignItems="center" justifyContent="space-between">
+          <Box sx={{ position: 'relative', zIndex: 1 }}>
             <Typography 
-              variant="h4" 
+              variant="h5" 
               component="h1" 
               sx={{ 
                 fontWeight: 600,
-                mb: 1,
-                color: 'text.primary'
+                mb: 0.5,
+                color: 'white',
+                fontSize: { xs: '1.4rem', sm: '1.6rem', md: '1.75rem' }
               }}
             >
               ⚠️ Compromisos Próximos a Vencer
             </Typography>
             <Typography 
               variant="body1" 
-              color="text.secondary"
               sx={{ 
-                fontWeight: 400
+                fontWeight: 400,
+                color: 'rgba(255,255,255,0.85)',
+                mb: 1.5
               }}
             >
               Gestión proactiva de vencimientos • {overdueCounts.total} compromisos activos
             </Typography>
+            
+            {/* Indicadores compactos */}
+            <Box display="flex" gap={2} flexWrap="wrap">
+              <Box display="flex" alignItems="center" gap={0.5}>
+                <Warning sx={{ fontSize: 16, color: 'rgba(255,235,59,0.9)' }} />
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
+                  {overdueCounts.overdue} vencidos
+                </Typography>
+              </Box>
+              <Box display="flex" alignItems="center" gap={0.5}>
+                <Schedule sx={{ fontSize: 16, color: 'rgba(76,175,80,0.9)' }} />
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
+                  {overdueCounts.dueSoon} próximos
+                </Typography>
+              </Box>
+              <Box display="flex" alignItems="center" gap={0.5}>
+                <AttachMoney sx={{ fontSize: 16, color: 'rgba(255,152,0,0.9)' }} />
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
+                  {formatCurrency(overdueCounts.totalAmount)}
+                </Typography>
+              </Box>
+            </Box>
           </Box>
           
           {/* Botón sobrio */}
-          <Box display="flex" gap={1}>
-            <Button
-              variant="contained"
-              startIcon={refreshing ? <LinearProgress size={16} /> : <Refresh />}
-              onClick={handleRefresh}
-              disabled={refreshing}
-              sx={{
-                borderRadius: 1,
-                fontWeight: 600,
-                px: 3,
-                py: 1,
-                textTransform: 'none'
-              }}
-            >
-              {refreshing ? 'Actualizando...' : 'Actualizar'}
-            </Button>
-          </Box>
+          <Button
+            variant="contained"
+            startIcon={refreshing ? <LinearProgress size={16} /> : <Refresh />}
+            onClick={handleRefresh}
+            disabled={refreshing}
+            sx={{
+              background: 'rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: 1,
+              fontWeight: 500,
+              px: 2.5,
+              py: 1,
+              color: 'white',
+              textTransform: 'none',
+              fontSize: '0.875rem',
+              minHeight: 'auto',
+              '&:hover': {
+                background: 'rgba(255,255,255,0.2)',
+                borderColor: 'rgba(255,255,255,0.3)'
+              },
+              '&:disabled': {
+                background: 'rgba(255,255,255,0.05)',
+                color: 'rgba(255,255,255,0.5)',
+                borderColor: 'rgba(255,255,255,0.1)'
+              }
+            }}
+          >
+            {refreshing ? 'Actualizando...' : 'Actualizar'}
+          </Button>
         </Box>
       </Box>
 

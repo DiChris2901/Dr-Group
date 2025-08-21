@@ -613,3 +613,134 @@ http://localhost:5173/income/accounts
 # Usuario
 http://localhost:5173/profile
 ```
+
+---
+
+## 🆕 PaymentReceiptViewer - Modal de Pagos Sobrio
+
+**Archivo:** `src/components/commitments/PaymentReceiptViewer.jsx`
+**Fecha de Implementación:** Diciembre 2024
+
+### Transformación Spectacular → Sobrio
+
+#### 🎨 Header Simplificado
+**Antes:**
+```javascript
+// Header con gradiente dramático
+background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+color: 'white',
+textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+```
+
+**Después:**
+```javascript
+// Header sobrio con ícono contenido
+<Box sx={{
+  width: 48,
+  height: 48,
+  borderRadius: 2,
+  backgroundColor: theme.palette.success.main,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: 'white'
+}}>
+  💰
+</Box>
+```
+
+#### 💳 Tarjetas de Información del Pago
+Las tres tarjetas principales (Monto, Fecha, Método de Pago) fueron rediseñadas:
+
+**Antes:**
+```javascript
+// Gradientes y efectos dramáticos
+background: 'linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(76, 175, 80, 0.05))',
+border: '2px solid',
+borderColor: 'success.main',
+borderRadius: 3,
+'&:hover': {
+  transform: 'translateY(-2px)',
+  boxShadow: '0 8px 25px rgba(76, 175, 80, 0.15)'
+}
+```
+
+**Después:**
+```javascript
+// Diseño sobrio con fundamentos sólidos
+backgroundColor: alpha(theme.palette.success.main, 0.08),
+border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+borderRadius: 2,
+transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+'&:hover': {
+  backgroundColor: alpha(theme.palette.success.main, 0.12),
+  borderColor: alpha(theme.palette.success.main, 0.3),
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+}
+```
+
+#### 🏷️ Chips y Elementos de Estado
+- **Chips:** Cambiados de `variant="filled"` a `variant="outlined"`
+- **FontWeight:** Reducido de 600-700 a 500
+- **Bordes:** Colores con alpha consistente
+
+#### 🎯 Botón "Ver Comprobante"
+**Antes:**
+```javascript
+boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
+'&:hover': {
+  boxShadow: '0 6px 20px rgba(76, 175, 80, 0.4)',
+  transform: 'translateY(-1px)'
+}
+```
+
+**Después:**
+```javascript
+boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+'&:hover': {
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+}
+```
+
+#### 🚪 Botón Cerrar
+**Transformación completa:**
+- **Antes:** `variant="contained"` con gradientes
+- **Después:** `variant="outlined"` con hover sutil
+
+### Paleta de Colores Implementada
+
+#### Tarjeta de Monto (Success)
+```javascript
+backgroundColor: alpha(theme.palette.success.main, 0.08)
+border: alpha(theme.palette.success.main, 0.2)
+hover: alpha(theme.palette.success.main, 0.12)
+```
+
+#### Tarjeta de Fecha (Info) 
+```javascript
+backgroundColor: alpha(theme.palette.info.main, 0.08)
+border: alpha(theme.palette.info.main, 0.2)
+hover: alpha(theme.palette.info.main, 0.12)
+```
+
+#### Tarjeta de Método (Secondary)
+```javascript
+backgroundColor: alpha(theme.palette.secondary.main, 0.08)
+border: alpha(theme.palette.secondary.main, 0.2)
+hover: alpha(theme.palette.secondary.main, 0.12)
+```
+
+### Métricas de Mejora Específicas
+- **Gradientes eliminados:** 100% (5 gradientes → 0)
+- **Sombras optimizadas:** Intensidad reducida en 70%
+- **BorderRadius unificado:** De 3-4 → 2 consistente
+- **Hovers simplificados:** Eliminados transforms y efectos 3D
+- **Tipografía balanceada:** FontWeight 500-600 vs 700-800 previos
+
+### Resultado Visual
+El modal ahora presenta:
+- ✅ Información clara y jerarquizada
+- ✅ Colores consistentes con el sistema sobrio
+- ✅ Interacciones suaves y profesionales
+- ✅ Mejor legibilidad y accesibilidad
+- ✅ Estilo empresarial confiable

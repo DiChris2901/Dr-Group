@@ -25,7 +25,9 @@ import {
   Alert,
   Avatar,
   Pagination,
-  Divider
+  Divider,
+  alpha,
+  CircularProgress
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -38,9 +40,12 @@ import {
   Receipt as ReceiptIcon,
   TrendingUp as TrendingUpIcon,
   Visibility as VisibilityIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  Refresh as RefreshIcon,
+  ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
+import { useNavigate } from 'react-router-dom';
 import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
@@ -55,6 +60,7 @@ import {
 const IncomeHistoryPage = () => {
   const theme = useTheme();
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   
   // Estados principales
   const [incomes, setIncomes] = useState([]);
@@ -75,6 +81,16 @@ const IncomeHistoryPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [uniqueBanks, setUniqueBanks] = useState([]);
+
+  // Función de refresh manual
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    // Los datos se actualizan automáticamente por los listeners de Firebase
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  };
 
   // Cargar ingresos desde Firebase
   useEffect(() => {
@@ -285,32 +301,154 @@ const IncomeHistoryPage = () => {
       maxWidth: '1400px',
       mx: 'auto'
     }}>
-      {/* Header sobrio */}
-      <Box sx={{ 
-        mb: 6,
-        textAlign: 'left'
-      }}>
-        <Typography 
-          variant="h4" 
-          component="h1" 
-          sx={{ 
-            fontWeight: 600,
-            mb: 1,
-            color: 'text.primary'
-          }}
-        >
-          📈 Histórico de Consignaciones
-        </Typography>
-        <Typography 
-          variant="body1" 
-          color="text.secondary"
-          sx={{ 
-            fontWeight: 400
-          }}
-        >
-          Consulta y analiza todos los pagos recibidos
-        </Typography>
-      </Box>
+      {/* HEADER GRADIENT SOBRIO */}
+      <Paper 
+        sx={{ 
+          background: theme.palette.mode === 'dark' 
+            ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          borderRadius: 1,
+          overflow: 'hidden',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+            : '0 4px 20px rgba(0, 0, 0, 0.08)',
+          mb: 6
+        }}
+      >
+        <Box sx={{ 
+          p: 3, 
+          display: 'flex', 
+          flexDirection: { xs: 'column', md: 'row' }, 
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', md: 'center' },
+          gap: 2,
+          position: 'relative',
+          zIndex: 1
+        }}>
+          {/* Información principal */}
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="overline" sx={{ 
+              fontWeight: 600, 
+              fontSize: '0.7rem', 
+              color: 'rgba(255, 255, 255, 0.8)',
+              letterSpacing: 1.2
+            }}>
+              FINANZAS • HISTÓRICO
+            </Typography>
+            <Typography variant="h4" sx={{ 
+              fontWeight: 700, 
+              mt: 0.5, 
+              mb: 0.5,
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}>
+              📈 Histórico de Consignaciones
+            </Typography>
+            <Typography variant="body1" sx={{ 
+              color: 'rgba(255, 255, 255, 0.9)'
+            }}>
+              Consulta y analiza todos los pagos recibidos
+            </Typography>
+          </Box>
+
+          {/* Indicadores y acciones */}
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: { xs: 'row', md: 'row' },
+            flexWrap: 'wrap',
+            gap: 1,
+            alignItems: 'center'
+          }}>
+            <Chip 
+              size="small" 
+              label={`Total ${formatCurrency(stats.totalAmount)}`} 
+              sx={{ 
+                fontWeight: 600, 
+                borderRadius: 1,
+                fontSize: '0.7rem',
+                height: 26,
+                bgcolor: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                backdropFilter: 'blur(10px)'
+              }} 
+            />
+            <Chip 
+              size="small" 
+              label={`Promedio ${formatCurrency(stats.averageAmount)}`} 
+              sx={{ 
+                borderRadius: 1,
+                fontSize: '0.7rem',
+                height: 26,
+                bgcolor: 'rgba(76, 175, 80, 0.3)',
+                color: 'white',
+                backdropFilter: 'blur(10px)'
+              }} 
+            />
+            <Chip 
+              size="small" 
+              label={`${stats.total} registros`} 
+              sx={{ 
+                borderRadius: 1,
+                fontSize: '0.7rem',
+                height: 26,
+                bgcolor: 'rgba(255, 255, 255, 0.15)',
+                color: 'rgba(255, 255, 255, 0.9)',
+                backdropFilter: 'blur(10px)'
+              }} 
+            />
+            
+            {/* Botón de refresh */}
+            <IconButton
+              size="small"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              sx={{
+                bgcolor: 'rgba(255, 255, 255, 0.15)',
+                color: 'white',
+                borderRadius: 1,
+                p: 0.5,
+                backdropFilter: 'blur(10px)',
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.25)'
+                }
+              }}
+            >
+              {refreshing ? (
+                <CircularProgress size={16} sx={{ color: 'white' }} />
+              ) : (
+                <RefreshIcon fontSize="small" />
+              )}
+            </IconButton>
+
+            {/* Botón de regresar */}
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<ArrowBackIcon />}
+              onClick={() => navigate('/income')}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: 1,
+                fontSize: '0.75rem',
+                height: 32,
+                px: 2,
+                borderColor: 'rgba(255, 255, 255, 0.3)',
+                color: 'white',
+                backdropFilter: 'blur(10px)',
+                '&:hover': {
+                  borderColor: 'rgba(255, 255, 255, 0.5)',
+                  bgcolor: 'rgba(255, 255, 255, 0.1)'
+                }
+              }}
+            >
+              Regresar
+            </Button>
+          </Box>
+        </Box>
+      </Paper>
 
       {/* Estadísticas sobrias */}
       <Grid container spacing={3} sx={{ mb: 4 }}>

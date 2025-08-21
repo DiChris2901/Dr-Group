@@ -32,7 +32,8 @@ import {
   DialogContent,
   DialogActions,
   useTheme,
-  alpha
+  alpha,
+  CircularProgress
 } from '@mui/material';
 import {
   AccountBalance as AccountBalanceIcon,
@@ -53,7 +54,8 @@ import {
   PictureAsPdf as PictureAsPdfIcon,
   Close as CloseIcon,
   CalendarToday as CalendarIcon,
-  Receipt as ReceiptIcon
+  Receipt as ReceiptIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -225,6 +227,30 @@ const BankAccountsPage = () => {
 
     return () => unsubscribe();
   }, [currentUser?.uid]);
+
+  // Función de refresh manual
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    // Los datos se actualizan automáticamente por los listeners de Firebase
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  };
+
+  // Calcular estadísticas globales para el header
+  const stats = React.useMemo(() => {
+    const totalIncomes = incomes.reduce((sum, income) => sum + (income.amount || 0), 0);
+    const totalPayments = payments.filter(p => !p.is4x1000Tax).reduce((sum, payment) => sum + (payment.amount || 0), 0);
+    const totalBalance = totalIncomes - totalPayments;
+    
+    return {
+      totalAccounts: companies.length + personalAccounts.length,
+      totalIncomes,
+      totalPayments,
+      totalBalance
+    };
+  }, [incomes, payments, companies.length, personalAccounts.length]);
 
   // Obtener cuentas bancarias únicas
   const getBankAccounts = () => {
@@ -450,35 +476,135 @@ const BankAccountsPage = () => {
       maxWidth: '1400px',
       mx: 'auto'
     }}>
-      {/* Header sobrio */}
-      <Box sx={{ 
-        mb: 6,
-        textAlign: 'left'
-      }}>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-          <Box>
-            <Typography 
-              variant="h4" 
-              component="h1" 
-              sx={{ 
-                fontWeight: 600,
-                mb: 1,
-                color: 'text.primary'
-              }}
-            >
+      {/* HEADER GRADIENT SOBRIO */}
+      <Paper 
+        sx={{ 
+          background: theme.palette.mode === 'dark' 
+            ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          borderRadius: 1,
+          overflow: 'hidden',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+            : '0 4px 20px rgba(0, 0, 0, 0.08)',
+          mb: 6
+        }}
+      >
+        <Box sx={{ 
+          p: 3, 
+          display: 'flex', 
+          flexDirection: { xs: 'column', md: 'row' }, 
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', md: 'center' },
+          gap: 2,
+          position: 'relative',
+          zIndex: 1
+        }}>
+          {/* Información principal */}
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="overline" sx={{ 
+              fontWeight: 600, 
+              fontSize: '0.7rem', 
+              color: 'rgba(255, 255, 255, 0.8)',
+              letterSpacing: 1.2
+            }}>
+              FINANZAS • CUENTAS BANCARIAS
+            </Typography>
+            <Typography variant="h4" sx={{ 
+              fontWeight: 700, 
+              mt: 0.5, 
+              mb: 0.5,
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}>
               🏦 Cuentas Bancarias
             </Typography>
-            <Typography 
-              variant="body1" 
-              color="text.secondary"
-              sx={{ 
-                fontWeight: 400
-              }}
-            >
-              {companies.length + personalAccounts.length} cuentas activas
+            <Typography variant="body1" sx={{ 
+              color: 'rgba(255, 255, 255, 0.9)'
+            }}>
+              {stats.totalAccounts} cuentas activas
             </Typography>
           </Box>
-          
+
+          {/* Indicadores y acciones */}
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: { xs: 'row', md: 'row' },
+            flexWrap: 'wrap',
+            gap: 1,
+            alignItems: 'center'
+          }}>
+            <Chip 
+              size="small" 
+              label={`Balance ${fCurrency(stats.totalBalance)}`} 
+              sx={{ 
+                fontWeight: 600, 
+                borderRadius: 1,
+                fontSize: '0.7rem',
+                height: 26,
+                bgcolor: stats.totalBalance >= 0 
+                  ? 'rgba(76, 175, 80, 0.3)' 
+                  : 'rgba(244, 67, 54, 0.3)',
+                color: 'white',
+                backdropFilter: 'blur(10px)'
+              }} 
+            />
+            <Chip 
+              size="small" 
+              label={`Ingresos ${fCurrency(stats.totalIncomes)}`} 
+              sx={{ 
+                borderRadius: 1,
+                fontSize: '0.7rem',
+                height: 26,
+                bgcolor: 'rgba(33, 150, 243, 0.3)',
+                color: 'white',
+                backdropFilter: 'blur(10px)'
+              }} 
+            />
+            <Chip 
+              size="small" 
+              label={`${stats.totalAccounts} cuentas`} 
+              sx={{ 
+                borderRadius: 1,
+                fontSize: '0.7rem',
+                height: 26,
+                bgcolor: 'rgba(255, 255, 255, 0.15)',
+                color: 'rgba(255, 255, 255, 0.9)',
+                backdropFilter: 'blur(10px)'
+              }} 
+            />
+            
+            {/* Botón de refresh */}
+            <IconButton
+              size="small"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              sx={{
+                bgcolor: 'rgba(255, 255, 255, 0.15)',
+                color: 'white',
+                borderRadius: 1,
+                p: 0.5,
+                backdropFilter: 'blur(10px)',
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.25)'
+                }
+              }}
+            >
+              {refreshing ? (
+                <CircularProgress size={16} sx={{ color: 'white' }} />
+              ) : (
+                <RefreshIcon fontSize="small" />
+              )}
+            </IconButton>
+          </Box>
+        </Box>
+      </Paper>
+
+      {/* Controles y Tabs */}
+      <Box sx={{ mb: 3 }}>
+        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
           {/* Botón sobrio para agregar cuentas */}
           <Button
             variant="contained"

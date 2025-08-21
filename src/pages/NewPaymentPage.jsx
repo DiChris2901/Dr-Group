@@ -35,7 +35,8 @@ import {
   DialogActions,
   Badge,
   Tooltip,
-  Collapse
+  Collapse,
+  alpha
 } from '@mui/material';
 import {
   AttachMoney as MoneyIcon,
@@ -55,7 +56,9 @@ import {
   Launch as ExternalLinkIcon,
   FullscreenExit as MinimizeIcon,
   Fullscreen as MaximizeIcon,
-  Person as PersonIcon
+  Person as PersonIcon,
+  Refresh as RefreshIcon,
+  ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
@@ -168,6 +171,17 @@ const NewPaymentPage = () => {
   const [invoiceUrl, setInvoiceUrl] = useState(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [pdfViewerSize, setPdfViewerSize] = useState('medium'); // small, medium, large
+
+  // Función de refresh manual
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadPendingCommitments();
+    await loadCompanies();
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 500);
+  };
 
   // Cargar compromisos pendientes de pago
   useEffect(() => {
@@ -1106,15 +1120,114 @@ const NewPaymentPage = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" gutterBottom sx={{ fontWeight: 700 }}>
-          💳 Registrar Pago de Compromiso
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          Seleccione un compromiso pendiente y registre su pago
-        </Typography>
-      </Box>
+      {/* HEADER GRADIENT SOBRIO */}
+      <Paper 
+        sx={{ 
+          background: theme.palette.mode === 'dark' 
+            ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          borderRadius: 1,
+          overflow: 'hidden',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+            : '0 4px 20px rgba(0, 0, 0, 0.08)',
+          mb: 3
+        }}
+      >
+        <Box sx={{ 
+          p: 3, 
+          display: 'flex', 
+          flexDirection: { xs: 'column', md: 'row' }, 
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', md: 'center' },
+          gap: 2,
+          position: 'relative',
+          zIndex: 1
+        }}>
+          {/* Información principal */}
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="overline" sx={{ 
+              fontWeight: 600, 
+              fontSize: '0.7rem', 
+              color: 'rgba(255, 255, 255, 0.8)',
+              letterSpacing: 1.2
+            }}>
+              FINANZAS • NUEVO PAGO
+            </Typography>
+            <Typography variant="h4" sx={{ 
+              fontWeight: 700, 
+              mt: 0.5, 
+              mb: 0.5,
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}>
+              💳 Registrar Pago de Compromiso
+            </Typography>
+            <Typography variant="body1" sx={{ 
+              color: 'rgba(255, 255, 255, 0.9)'
+            }}>
+              Seleccione un compromiso pendiente y registre su pago
+            </Typography>
+          </Box>
+
+          {/* Acciones */}
+          <Box sx={{ 
+            display: 'flex', 
+            gap: 1,
+            alignItems: 'center'
+          }}>
+            {/* Botón de refresh */}
+            <IconButton
+              size="small"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              sx={{
+                bgcolor: 'rgba(255, 255, 255, 0.15)',
+                color: 'white',
+                borderRadius: 1,
+                p: 0.5,
+                backdropFilter: 'blur(10px)',
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.25)'
+                }
+              }}
+            >
+              {refreshing ? (
+                <CircularProgress size={16} sx={{ color: 'white' }} />
+              ) : (
+                <RefreshIcon fontSize="small" />
+              )}
+            </IconButton>
+
+            {/* Botón de regresar */}
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<ArrowBackIcon />}
+              onClick={() => navigate('/payments')}
+              sx={{
+                textTransform: 'none',
+                fontWeight: 600,
+                borderRadius: 1,
+                fontSize: '0.75rem',
+                height: 32,
+                px: 2,
+                borderColor: 'rgba(255, 255, 255, 0.3)',
+                color: 'white',
+                backdropFilter: 'blur(10px)',
+                '&:hover': {
+                  borderColor: 'rgba(255, 255, 255, 0.5)',
+                  bgcolor: 'rgba(255, 255, 255, 0.1)'
+                }
+              }}
+            >
+              Regresar
+            </Button>
+          </Box>
+        </Box>
+      </Paper>
 
       {/* Progress Stepper */}
       <Paper sx={{ p: 3, mb: 3 }}>

@@ -78,7 +78,8 @@ import {
   Edit,
   Delete,
   CloudUpload,
-  DragHandle as DragIcon
+  DragHandle as DragIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -338,6 +339,16 @@ const PaymentsPage = () => {
   // Cargar pagos reales desde Firebase
   const { payments: firebasePayments, loading, error } = usePayments({ status: statusFilter !== 'all' ? statusFilter : undefined });
 
+  // Función de refresh manual
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    // Simulamos un delay breve para dar feedback visual
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  };
+
   // Usar solo datos reales de Firebase
   const payments = firebasePayments;
 
@@ -566,6 +577,11 @@ const PaymentsPage = () => {
     console.log('📄 Abriendo visor para pago:', payment);
     setSelectedPayment(payment);
     setReceiptViewerOpen(true);
+  };
+
+  // Alias semánticamente más correcto para ver información del pago
+  const handleViewPayment = (payment) => {
+    handleViewReceipt(payment);
   };
 
   const handleCloseReceiptViewer = () => {
@@ -1194,7 +1210,10 @@ const PaymentsPage = () => {
       interests: '',
       interesesDerechosExplotacion: '',
       interesesGastosAdministracion: '',
-      originalAmount: ''
+      originalAmount: '',
+      sourceAccount: '',
+      sourceBank: '',
+      tax4x1000: 0
     });
   };
 
@@ -1808,78 +1827,164 @@ const PaymentsPage = () => {
       {/* Contenido principal - solo se muestra si no hay loading ni error */}
       {!loading && !error && (
         <>
-          {/* HEADER COMPACTO */}
-          <motion.div {...fadeUp}>
-            <Paper sx={{ p: 2, borderRadius: 1, border: '1px solid', borderColor: 'divider', background: 'background.paper' }}>
-              <Box sx={{ display:'flex', flexDirection:{ xs:'column', md:'row' }, justifyContent:'space-between', alignItems:{ md:'center' }, gap: 1.5 }}>
-                <Box sx={{ flex:1 }}>
-                  <Typography variant="overline" sx={{ fontWeight:600, fontSize: '0.7rem', color:'text.secondary' }}>FINANZAS • PAGOS</Typography>
-                  <Typography variant="h6" sx={{ fontWeight:700, mt: 0.5, mb: 0.5 }}>Gestión de Pagos</Typography>
-                  <Typography variant="caption" sx={{ color:'text.secondary' }}>Administra pagos y transacciones corporativas</Typography>
-                </Box>
-                <Box sx={{ display:'flex', flexWrap:'wrap', gap: 0.8, alignItems:'center' }}>
-                  <Chip 
-                    size="small" 
-                    label={`Total $${totalAmount.toLocaleString()}`} 
-                    sx={{ 
-                      fontWeight: 600, 
-                      borderRadius: 0.5,
-                      fontSize: '0.7rem',
-                      height: 24
-                    }} 
-                  />
-                  <Chip 
-                    size="small" 
-                    label={`Comp $${completedAmount.toLocaleString()}`} 
-                    color="success" 
-                    variant="outlined" 
-                    sx={{ 
-                      borderRadius: 0.5,
-                      fontSize: '0.7rem',
-                      height: 24
-                    }} 
-                  />
-                  <Chip 
-                    size="small" 
-                    label={`Pend $${pendingAmount.toLocaleString()}`} 
-                    color="warning" 
-                    variant="outlined" 
-                    sx={{ 
-                      borderRadius: 0.5,
-                      fontSize: '0.7rem',
-                      height: 24
-                    }} 
-                  />
-                  <Chip 
-                    size="small" 
-                    label={`${filteredPayments.length} pagos`} 
-                    variant="outlined" 
-                    sx={{ 
-                      borderRadius: 0.5,
-                      fontSize: '0.7rem',
-                      height: 24
-                    }} 
-                  />
-                  <Button 
-                    size="small" 
-                    variant="contained" 
-                    startIcon={<AddIcon />} 
-                    onClick={()=>navigate('/payments/new')} 
-                    sx={{ 
-                      textTransform:'none', 
-                      fontWeight: 600, 
-                      borderRadius: 0.5,
-                      fontSize: '0.75rem',
-                      height: 28,
-                      px: 1.5
-                    }}
-                  >
-                    Nuevo
-                  </Button>
-                </Box>
+          {/* HEADER GRADIENT SOBRIO */}
+          <Paper 
+            sx={{ 
+              background: theme.palette.mode === 'dark' 
+                ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+                : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+              borderRadius: 1,
+              overflow: 'hidden',
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+                : '0 4px 20px rgba(0, 0, 0, 0.08)',
+              height: 120
+            }}
+          >
+            <Box sx={{ 
+              p: 2.5, 
+              display: 'flex', 
+              flexDirection: { xs: 'column', md: 'row' }, 
+              justifyContent: 'space-between',
+              alignItems: { xs: 'flex-start', md: 'center' },
+              gap: 2,
+              height: '100%',
+              position: 'relative',
+              zIndex: 1
+            }}>
+              {/* Información principal */}
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="overline" sx={{ 
+                  fontWeight: 600, 
+                  fontSize: '0.7rem', 
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  letterSpacing: 1.2
+                }}>
+                  FINANZAS • PAGOS
+                </Typography>
+                <Typography variant="h5" sx={{ 
+                  fontWeight: 700, 
+                  mt: 0.5, 
+                  mb: 0.5,
+                  color: 'white'
+                }}>
+                  Gestión de Pagos
+                </Typography>
+                <Typography variant="body2" sx={{ 
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  fontSize: '0.85rem'
+                }}>
+                  Administra pagos y transacciones corporativas
+                </Typography>
               </Box>
-            </Paper>
-          </motion.div>          {/* KPIs COMPACTOS */}
+
+              {/* Indicadores y acciones */}
+              <Box sx={{ 
+                display: 'flex', 
+                flexDirection: { xs: 'row', md: 'row' },
+                flexWrap: 'wrap',
+                gap: 1,
+                alignItems: 'center'
+              }}>
+                <Chip 
+                  size="small" 
+                  label={`Total $${totalAmount.toLocaleString()}`} 
+                  sx={{ 
+                    fontWeight: 600, 
+                    borderRadius: 1,
+                    fontSize: '0.7rem',
+                    height: 26,
+                    bgcolor: 'rgba(255, 255, 255, 0.2)',
+                    color: 'white',
+                    backdropFilter: 'blur(10px)'
+                  }} 
+                />
+                <Chip 
+                  size="small" 
+                  label={`Comp $${completedAmount.toLocaleString()}`} 
+                  sx={{ 
+                    borderRadius: 1,
+                    fontSize: '0.7rem',
+                    height: 26,
+                    bgcolor: 'rgba(76, 175, 80, 0.3)',
+                    color: 'white',
+                    backdropFilter: 'blur(10px)'
+                  }} 
+                />
+                <Chip 
+                  size="small" 
+                  label={`Pend $${pendingAmount.toLocaleString()}`} 
+                  sx={{ 
+                    borderRadius: 1,
+                    fontSize: '0.7rem',
+                    height: 26,
+                    bgcolor: 'rgba(255, 152, 0, 0.3)',
+                    color: 'white',
+                    backdropFilter: 'blur(10px)'
+                  }} 
+                />
+                <Chip 
+                  size="small" 
+                  label={`${filteredPayments.length} pagos`} 
+                  sx={{ 
+                    borderRadius: 1,
+                    fontSize: '0.7rem',
+                    height: 26,
+                    bgcolor: 'rgba(255, 255, 255, 0.15)',
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    backdropFilter: 'blur(10px)'
+                  }} 
+                />
+                
+                {/* Botón de refresh */}
+                <IconButton
+                  size="small"
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  sx={{
+                    bgcolor: 'rgba(255, 255, 255, 0.15)',
+                    color: 'white',
+                    borderRadius: 1,
+                    p: 0.5,
+                    backdropFilter: 'blur(10px)',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.25)'
+                    }
+                  }}
+                >
+                  {refreshing ? (
+                    <CircularProgress size={16} sx={{ color: 'white' }} />
+                  ) : (
+                    <RefreshIcon fontSize="small" />
+                  )}
+                </IconButton>
+
+                {/* Botón de nuevo */}
+                <Button 
+                  size="small" 
+                  variant="contained" 
+                  startIcon={<AddIcon />} 
+                  onClick={() => navigate('/payments/new')} 
+                  sx={{ 
+                    textTransform: 'none', 
+                    fontWeight: 600, 
+                    borderRadius: 1,
+                    fontSize: '0.75rem',
+                    height: 32,
+                    px: 2,
+                    bgcolor: 'rgba(255, 255, 255, 0.2)',
+                    color: 'white',
+                    backdropFilter: 'blur(10px)',
+                    '&:hover': {
+                      bgcolor: 'rgba(255, 255, 255, 0.3)'
+                    }
+                  }}
+                >
+                  Nuevo
+                </Button>
+              </Box>
+            </Box>
+          </Paper>          {/* KPIs COMPACTOS */}
           <Grid container spacing={1.5}>
             {[{
               label:'Total Procesado', value:`$${totalAmount.toLocaleString()}`, icon:<MoneyIcon />, color: theme.palette.primary.main
@@ -2278,21 +2383,19 @@ const PaymentsPage = () => {
                       gap: 0.5,
                       justifyContent: 'center'
                     }}>
-                      {/* Botón principal de ver comprobante - siempre visible si hay attachments */}
-                      {(payment.attachments?.length > 0) && (
-                        <Tooltip title="Ver comprobante" arrow>
-                          <IconButton
-                            size="small"
-                            onClick={() => handleViewReceipt(payment)}
-                            sx={{ 
-                              color: 'primary.main',
-                              '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.1) }
-                            }}
-                          >
-                            <Visibility fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
+                      {/* Botón principal de ver pago - siempre visible */}
+                      <Tooltip title="Ver pago" arrow>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleViewPayment(payment)}
+                          sx={{ 
+                            color: 'primary.main',
+                            '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.1) }
+                          }}
+                        >
+                          <Visibility fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                       
                       {/* Menú contextual para más acciones */}
                       <Tooltip title="Más opciones" arrow>
@@ -3072,7 +3175,7 @@ const PaymentsPage = () => {
                   <InputLabel>Método de Pago</InputLabel>
                   <Select
                     name="method"
-                    value={editFormData.method}
+                    value={editFormData.method || ''}
                     onChange={handleFormChange}
                     label="Método de Pago"
                     sx={{
@@ -3127,7 +3230,7 @@ const PaymentsPage = () => {
                   <Select
                     labelId="source-account-label"
                     name="sourceAccount"
-                    value={editFormData.sourceAccount}
+                    value={editFormData.sourceAccount || ''}
                     onChange={handleSourceAccountSelect}
                     label="Cuenta Bancaria de Origen"
                     displayEmpty
