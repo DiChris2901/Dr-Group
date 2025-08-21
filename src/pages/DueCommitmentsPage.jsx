@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -81,16 +81,6 @@ import { db, storage } from '../config/firebase';
 // Componentes de compromisos
 import CommitmentEditForm from '../components/commitments/CommitmentEditForm';
 import PaymentReceiptViewer from '../components/commitments/PaymentReceiptViewer';
-
-// Design System v2.1 utilities
-import {
-  animationVariants,
-  useThemeGradients,
-  shimmerEffect
-} from '../utils/designSystem.js';
-
-// Styled components para animaciones CSS
-import { styled } from '@mui/material/styles';
 
 // Función para obtener colores de status (copiada de CommitmentsList)
 const getStatusColor = (status, theme) => {
@@ -465,25 +455,6 @@ const getStatusInfo = (commitment, theme) => {
   };
 };
 
-const StyledContainer = styled(Box)(({ theme }) => ({
-  '@keyframes shimmer': {
-    '0%': { left: '-100%' },
-    '100%': { left: '100%' }
-  },
-  '@keyframes pulse': {
-    '0%, 100%': { 
-      boxShadow: `0 0 0 0 ${theme.palette.error.main}40` 
-    },
-    '50%': { 
-      boxShadow: `0 0 0 10px ${theme.palette.error.main}00` 
-    }
-  },
-  '@keyframes spin': {
-    '0%': { transform: 'rotate(0deg)' },
-    '100%': { transform: 'rotate(360deg)' }
-  }
-}));
-
 // Helper function para manejar fechas de Firebase de manera segura
 const safeToDate = (timestamp) => {
   if (!timestamp) return null;
@@ -530,7 +501,6 @@ const getCommitmentStatus = (commitment) => {
 
 const DueCommitmentsPage = () => {
   const theme = useTheme();
-  const gradients = useThemeGradients();
   const { settings } = useSettings();
   const { userProfile, currentUser } = useAuth();
   const { addNotification } = useNotifications();
@@ -573,9 +543,15 @@ const DueCommitmentsPage = () => {
     }).format(amount);
   };
 
+  // Función local para filtrar compromisos por prioridad
+  const filterCommitmentsByPriority = (priority) => {
+    if (priority === 'all') return commitments;
+    return commitments.filter(commitment => commitment.priority === priority);
+  };
+
   useEffect(() => {
     // Filtrar compromisos según prioridad y empresa usando datos reales
-    let filtered = getCommitmentsByPriority(priorityFilter);
+    let filtered = filterCommitmentsByPriority(priorityFilter);
     
     // Excluir compromisos pagados (esta es una página de compromisos próximos a vencer)
     filtered = filtered.filter(commitment => 
@@ -592,7 +568,7 @@ const DueCommitmentsPage = () => {
     
     // Reset to first page when filters change
     setCurrentPage(1);
-  }, [priorityFilter, companyFilter, commitments, getCommitmentsByPriority]);
+  }, [priorityFilter, companyFilter, commitments]);
 
   // Calculate paginated data
   const totalPages = Math.ceil(filteredCommitments.length / itemsPerPage);
@@ -605,8 +581,8 @@ const DueCommitmentsPage = () => {
     setCurrentPage(page);
   };
 
-  // Calculate stats only for non-paid commitments (due commitments)
-  const calculateDueCommitmentsStats = () => {
+  // Calculate stats only for non-paid commitments (due commitments) - Memoized
+  const dueCommitmentsStats = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -645,9 +621,7 @@ const DueCommitmentsPage = () => {
       totalAmount,
       overdueAmount
     };
-  };
-
-  const dueCommitmentsStats = calculateDueCommitmentsStats();
+  }, [commitments]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -931,14 +905,15 @@ const DueCommitmentsPage = () => {
   };
 
   // Obtener empresas únicas para el filtro
-  const getUniqueCompanies = () => {
+  // Get unique companies - Memoized
+  const uniqueCompanies = useMemo(() => {
     const companies = commitments
       .map(commitment => commitment.company)
       .filter(company => company && company.trim() !== '')
       .filter((company, index, arr) => arr.indexOf(company) === index)
       .sort();
     return companies;
-  };
+  }, [commitments]);
 
   const overdueCounts = {
     total: dueCommitmentsStats.total,
@@ -953,154 +928,84 @@ const DueCommitmentsPage = () => {
 
   if (loading) {
     return (
-      <StyledContainer>
+      <Box sx={{ 
+        p: { xs: 2, sm: 3, md: 4 },
+        maxWidth: '1400px',
+        mx: 'auto'
+      }}>
         <Box sx={{ textAlign: 'center', py: 8 }}>
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, type: "spring", bounce: 0.3 }}
-          >
-            <LinearProgress 
-              sx={{ 
-                mb: 2, 
-                borderRadius: 3,
-                height: 8,
-                background: gradients.paper,
-                '& .MuiLinearProgress-bar': {
-                  background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`
-                }
-              }} 
-            />
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Cargando compromisos próximos a vencer...
-            </Typography>
-          </motion.div>
+          <LinearProgress 
+            sx={{ 
+              mb: 2, 
+              borderRadius: 1,
+              height: 4
+            }} 
+          />
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Cargando compromisos próximos a vencer...
+          </Typography>
         </Box>
-      </StyledContainer>
+      </Box>
     );
   }
 
   return (
-    <StyledContainer>
-      {/* Header Premium con Gradiente Dinámico */}
-      <motion.div
-        initial={settings.theme?.animations ? { opacity: 0, y: -20 } : {}}
-        animate={settings.theme?.animations ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-        transition={settings.theme?.animations ? { duration: 0.6, type: "spring" } : { duration: 0 }}
-      >
-        <Box
-          sx={{
-            background: `linear-gradient(135deg, ${settings.theme?.primaryColor || '#667eea'} 0%, ${settings.theme?.secondaryColor || '#764ba2'} 100%)`,
-            borderRadius: `${settings.theme?.borderRadius || 16}px`,
-            p: settings.theme?.compactMode ? 3 : 4,
-            mb: 3,
-            color: 'white',
-            position: 'relative',
-            overflow: 'hidden',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(255, 255, 255, 0.1)',
-              borderRadius: `${settings.theme?.borderRadius || 16}px`,
-              zIndex: 0,
-            }
-          }}
-        >
-          <Box sx={{ position: 'relative', zIndex: 1 }}>
-            <Box display="flex" alignItems="center" justifyContent="space-between">
-              <Box display="flex" alignItems="center" gap={2}>
-                <Box
-                  sx={{
-                    p: 1.5,
-                    bgcolor: 'rgba(255, 255, 255, 0.2)',
-                    borderRadius: `${(settings.theme?.borderRadius || 16) / 2}px`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <NotificationImportant sx={{ fontSize: (settings.theme?.fontSize || 16) * 2.3, color: 'white' }} />
-                </Box>
-                <Box>
-                  <Typography 
-                    variant="h4" 
-                    fontWeight="700" 
-                    sx={{ 
-                      color: 'white', 
-                      mb: 0.5,
-                      fontSize: settings.theme?.fontSize ? `${settings.theme.fontSize + 8}px` : '2rem',
-                      fontFamily: settings.theme?.fontFamily || 'inherit'
-                    }}
-                  >
-                    Compromisos Próximos a Vencer
-                  </Typography>
-                  <Typography 
-                    variant="subtitle1" 
-                    sx={{ 
-                      color: 'rgba(255, 255, 255, 0.9)',
-                      fontSize: settings.theme?.fontSize ? `${settings.theme.fontSize + 2}px` : '1.125rem',
-                      fontFamily: settings.theme?.fontFamily || 'inherit'
-                    }}
-                  >
-                    Gestión proactiva de vencimientos financieros con alertas inteligentes y control total
-                  </Typography>
-                </Box>
-              </Box>
-              
-              {/* Botones de Acción */}
-              <Box display="flex" gap={2}>
-                {/* Botón Actualizar */}
-                <motion.div
-                  initial={settings.theme?.animations ? { x: 20, opacity: 0 } : {}}
-                  animate={settings.theme?.animations ? { x: 0, opacity: 1 } : { x: 0, opacity: 1 }}
-                  transition={settings.theme?.animations ? { delay: 0.2, duration: 0.5 } : { duration: 0 }}
-                  whileHover={settings.theme?.animations ? { scale: 1.05 } : {}}
-                  whileTap={settings.theme?.animations ? { scale: 0.95 } : {}}
-                >
-                  <Button
-                    variant="outlined"
-                    startIcon={<Refresh />}
-                    onClick={handleRefresh}
-                    disabled={refreshing}
-                    size={settings.theme?.compactMode ? "medium" : "large"}
-                    sx={{
-                      py: settings.theme?.compactMode ? 1 : 1.5,
-                      px: settings.theme?.compactMode ? 2.5 : 3.5,
-                      fontSize: settings.theme?.fontSize ? `${settings.theme.fontSize * 1}px` : '1rem',
-                      fontWeight: 600,
-                      fontFamily: settings.theme?.fontFamily || 'inherit',
-                      borderRadius: `${settings.theme?.borderRadius || 16}px`,
-                      border: '2px solid rgba(255, 255, 255, 0.5)',
-                      color: 'white',
-                      textTransform: 'none',
-                      backdropFilter: 'blur(10px)',
-                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '&:hover': {
-                        background: 'rgba(255, 255, 255, 0.15)',
-                        borderColor: 'rgba(255, 255, 255, 0.8)',
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 6px 20px rgba(0, 0, 0, 0.3)'
-                      },
-                      '&:disabled': {
-                        opacity: 0.6,
-                        cursor: 'not-allowed'
-                      }
-                    }}
-                  >
-                    {refreshing ? 'Actualizando...' : 'Actualizar'}
-                  </Button>
-                </motion.div>
-              </Box>
-            </Box>
+    <Box sx={{ 
+      p: { xs: 2, sm: 3, md: 4 },
+      maxWidth: '1400px',
+      mx: 'auto'
+    }}>
+      {/* Header sobrio */}
+      <Box sx={{ 
+        mb: 6,
+        textAlign: 'left'
+      }}>
+        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+          <Box>
+            <Typography 
+              variant="h4" 
+              component="h1" 
+              sx={{ 
+                fontWeight: 600,
+                mb: 1,
+                color: 'text.primary'
+              }}
+            >
+              ⚠️ Compromisos Próximos a Vencer
+            </Typography>
+            <Typography 
+              variant="body1" 
+              color="text.secondary"
+              sx={{ 
+                fontWeight: 400
+              }}
+            >
+              Gestión proactiva de vencimientos • {overdueCounts.total} compromisos activos
+            </Typography>
+          </Box>
+          
+          {/* Botón sobrio */}
+          <Box display="flex" gap={1}>
+            <Button
+              variant="contained"
+              startIcon={refreshing ? <LinearProgress size={16} /> : <Refresh />}
+              onClick={handleRefresh}
+              disabled={refreshing}
+              sx={{
+                borderRadius: 1,
+                fontWeight: 600,
+                px: 3,
+                py: 1,
+                textTransform: 'none'
+              }}
+            >
+              {refreshing ? 'Actualizando...' : 'Actualizar'}
+            </Button>
           </Box>
         </Box>
-      </motion.div>
+      </Box>
 
-      {/* Cards de Resumen - Estilo Dashboard Limpio */}
+      {/* Cards de Resumen - Estilo sobrio */}
       <Grid container spacing={3} mb={4}>
         {[
           {
@@ -1412,7 +1317,7 @@ const DueCommitmentsPage = () => {
                         </Typography>
                       </Stack>
                     </MenuItem>
-                    {getUniqueCompanies().map((company) => (
+                    {uniqueCompanies.map((company) => (
                       <MenuItem key={company} value={company}>
                         <Stack direction="row" alignItems="center" spacing={1}>
                           <Business sx={{ fontSize: 16, color: theme.palette.primary.main }} />
@@ -1442,7 +1347,7 @@ const DueCommitmentsPage = () => {
             borderRadius: 1,
             overflow: 'hidden',
             border: `1px solid ${theme.palette.divider}`,
-            background: gradients.paper
+            background: 'white'
           }}
         >
           {/* Grid Layout igual que CommitmentsList */}
@@ -1754,7 +1659,7 @@ const DueCommitmentsPage = () => {
               textAlign: 'center',
               borderRadius: 1,
               border: `1px solid ${theme.palette.divider}`,
-              background: gradients.paper
+              background: 'white'
             }}
           >
             <CheckCircle sx={{ fontSize: 64, color: theme.palette.success.main, mb: 2 }} />
@@ -2008,8 +1913,8 @@ const DueCommitmentsPage = () => {
                         transition={{ type: "spring", bounce: 0.5 }}
                       >
                         <Chip
-                          icon={getStatusInfo(selectedCommitment).icon}
-                          label={getStatusInfo(selectedCommitment).label}
+                          icon={getStatusInfo(selectedCommitment, theme).icon}
+                          label={getStatusInfo(selectedCommitment, theme).label}
                           size="medium"
                           sx={{ 
                             bgcolor: 'rgba(255, 255, 255, 0.2)',
@@ -2604,14 +2509,13 @@ const DueCommitmentsPage = () => {
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
       />
-    </StyledContainer>
+    </Box>
   );
 };
 
 // Componente para Formulario de Pago - Basado en el diseño spectacular
 const PaymentFormDialog = ({ open, commitment, onSuccess, onCancel }) => {
   const theme = useTheme();
-  const gradients = useThemeGradients();
   const [formData, setFormData] = useState({
     baseAmount: 0,
     interestAmount: 0,
@@ -2725,7 +2629,7 @@ const PaymentFormDialog = ({ open, commitment, onSuccess, onCancel }) => {
       {/* Header con gradiente spectacular */}
       <Box
         sx={{
-          background: gradients.primary,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
           color: 'white',
           p: 3,
           textAlign: 'center',
@@ -2994,7 +2898,7 @@ const PaymentFormDialog = ({ open, commitment, onSuccess, onCancel }) => {
             px: 4,
             py: 1.5,
             fontWeight: 700,
-            background: gradients.success,
+            background: `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})`,
             '&:hover': {
               background: `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
               transform: 'translateY(-2px)',
