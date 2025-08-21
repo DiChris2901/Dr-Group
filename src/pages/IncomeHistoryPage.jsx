@@ -18,7 +18,6 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Chip,
   IconButton,
   Tooltip,
   InputAdornment,
@@ -41,7 +40,6 @@ import {
   TrendingUp as TrendingUpIcon,
   Visibility as VisibilityIcon,
   Clear as ClearIcon,
-  Refresh as RefreshIcon,
   ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
@@ -81,16 +79,6 @@ const IncomeHistoryPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [uniqueBanks, setUniqueBanks] = useState([]);
-
-  // Función de refresh manual
-  const [refreshing, setRefreshing] = useState(false);
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    // Los datos se actualizan automáticamente por los listeners de Firebase
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
-  };
 
   // Cargar ingresos desde Firebase
   useEffect(() => {
@@ -361,67 +349,6 @@ const IncomeHistoryPage = () => {
             gap: 1,
             alignItems: 'center'
           }}>
-            <Chip 
-              size="small" 
-              label={`Total ${formatCurrency(stats.totalAmount)}`} 
-              sx={{ 
-                fontWeight: 600, 
-                borderRadius: 1,
-                fontSize: '0.7rem',
-                height: 26,
-                bgcolor: 'rgba(255, 255, 255, 0.2)',
-                color: 'white',
-                backdropFilter: 'blur(10px)'
-              }} 
-            />
-            <Chip 
-              size="small" 
-              label={`Promedio ${formatCurrency(stats.averageAmount)}`} 
-              sx={{ 
-                borderRadius: 1,
-                fontSize: '0.7rem',
-                height: 26,
-                bgcolor: 'rgba(76, 175, 80, 0.3)',
-                color: 'white',
-                backdropFilter: 'blur(10px)'
-              }} 
-            />
-            <Chip 
-              size="small" 
-              label={`${stats.total} registros`} 
-              sx={{ 
-                borderRadius: 1,
-                fontSize: '0.7rem',
-                height: 26,
-                bgcolor: 'rgba(255, 255, 255, 0.15)',
-                color: 'rgba(255, 255, 255, 0.9)',
-                backdropFilter: 'blur(10px)'
-              }} 
-            />
-            
-            {/* Botón de refresh */}
-            <IconButton
-              size="small"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              sx={{
-                bgcolor: 'rgba(255, 255, 255, 0.15)',
-                color: 'white',
-                borderRadius: 1,
-                p: 0.5,
-                backdropFilter: 'blur(10px)',
-                '&:hover': {
-                  bgcolor: 'rgba(255, 255, 255, 0.25)'
-                }
-              }}
-            >
-              {refreshing ? (
-                <CircularProgress size={16} sx={{ color: 'white' }} />
-              ) : (
-                <RefreshIcon fontSize="small" />
-              )}
-            </IconButton>
-
             {/* Botón de regresar */}
             <Button
               size="small"
@@ -764,24 +691,60 @@ const IncomeHistoryPage = () => {
           </Box>
 
           <TableContainer>
-            <Table>
+            <Table sx={{
+              '& .MuiTableCell-root': {
+                borderColor: `${theme.palette.divider}`,
+                borderBottom: `1px solid ${theme.palette.divider}`
+              },
+              '& .MuiTableHead-root': {
+                '& .MuiTableRow-root': {
+                  backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+                  '& .MuiTableCell-root': {
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                    paddingY: 2,
+                    borderBottom: `1px solid ${theme.palette.divider}`,
+                    borderColor: `${theme.palette.divider}`
+                  }
+                }
+              },
+              '& .MuiTableBody-root': {
+                '& .MuiTableRow-root': {
+                  '&:hover': { 
+                    backgroundColor: theme.palette.action.hover,
+                    transition: 'background-color 0.2s ease'
+                  },
+                  '&:last-child': {
+                    '& .MuiTableCell-root': {
+                      borderBottom: 'none'
+                    }
+                  },
+                  '& .MuiTableCell-root': {
+                    paddingY: 1.8,
+                    fontSize: '0.85rem',
+                    borderColor: `${theme.palette.divider}`,
+                    borderBottom: `1px solid ${theme.palette.divider}`
+                  }
+                }
+              }
+            }}>
               <TableHead>
-                <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50' }}>
-                  <TableCell sx={{ fontWeight: 600 }}>Cliente</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Monto</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Fecha</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Método</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Cuenta</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Banco</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>Acciones</TableCell>
+                <TableRow>
+                  <TableCell>Cliente</TableCell>
+                  <TableCell>Monto</TableCell>
+                  <TableCell>Fecha</TableCell>
+                  <TableCell>Método</TableCell>
+                  <TableCell>Cuenta</TableCell>
+                  <TableCell>Banco</TableCell>
+                  <TableCell align="center">Acciones</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {paginatedIncomes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                    <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
                       <Box>
-                        <Typography variant="h6" color="text.secondary">
+                        <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
                           No se encontraron ingresos
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -792,23 +755,15 @@ const IncomeHistoryPage = () => {
                   </TableRow>
                 ) : (
                   paginatedIncomes.map((income, index) => (
-                    <TableRow
-                      key={income.id}
-                      sx={{
-                        '&:hover': { backgroundColor: theme.palette.action.hover },
-                        transition: 'background-color 0.2s ease'
-                      }}
-                    >
+                    <TableRow key={income.id}>
                       <TableCell>
                         <Box display="flex" alignItems="center" gap={1}>
                           <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
                             <PersonIcon sx={{ fontSize: 18 }} />
                           </Avatar>
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              {income.client}
-                            </Typography>
-                          </Box>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {income.client}
+                          </Typography>
                         </Box>
                       </TableCell>
                       <TableCell>
@@ -827,19 +782,20 @@ const IncomeHistoryPage = () => {
                           size="small"
                           color={getPaymentMethodColor(income.paymentMethod)}
                           variant="outlined"
+                          sx={{ fontSize: '0.75rem', height: 24 }}
                         />
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2">
+                        <Typography variant="body2" color="text.secondary">
                           {income.account || '-'}
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2">
+                        <Typography variant="body2" color="text.secondary">
                           {income.bank || '-'}
                         </Typography>
                       </TableCell>
-                      <TableCell>
+                      <TableCell align="center">
                         <Tooltip title="Ver detalles">
                           <IconButton 
                             size="small" 

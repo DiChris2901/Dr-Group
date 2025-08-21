@@ -573,7 +573,7 @@ const BankAccountsPage = () => {
           <Grid item xs={12} sm={6} md={3} key={index}>
             <Card sx={{
               borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
               transition: 'box-shadow 0.2s ease',
               '&:hover': {
@@ -621,8 +621,8 @@ const BankAccountsPage = () => {
               color: 'primary.main'
             },
             '&.Mui-selected': {
-              backgroundColor: 'primary.main',
-              color: 'primary.contrastText'
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+              color: 'white'
             }
           }
         }}
@@ -649,7 +649,7 @@ const BankAccountsPage = () => {
                   <Grid item xs={12} sm={6} md={4} key={company.id}>
                   <Card sx={{
                     borderRadius: 2,
-                    border: `1px solid ${theme.palette.divider}`,
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                     boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                     transition: 'box-shadow 0.2s ease',
                     '&:hover': {
@@ -804,7 +804,7 @@ const BankAccountsPage = () => {
               <Grid item xs={12} sm={6} md={4} key={account.id}>
                 <Card sx={{
                   borderRadius: 2,
-                  border: `1px solid ${theme.palette.divider}`,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                   transition: 'box-shadow 0.2s ease',
                   '&:hover': {
@@ -980,7 +980,7 @@ const BankAccountsPage = () => {
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center',
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+          borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
           pb: 2
         }}>
           <Box display="flex" alignItems="center" gap={1.5}>
@@ -1029,7 +1029,7 @@ const BankAccountsPage = () => {
         </DialogContent>
         
         <DialogActions sx={{ 
-          borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+          borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
           px: 3, 
           py: 2 
         }}>

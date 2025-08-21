@@ -480,10 +480,39 @@ borderBottom: `1px solid ${alpha(theme.palette.divider, 0.8)}`
 ```
 
 #### **Tablas de Resultados**
-- Diseño sobrio con bordes sutiles
+- Diseño sobrio con bordes sutiles y neutros
+- Solo el borde exterior usa color dinámico del tema
+- Bordes internos (celdas, filas) usan color 'divider' neutro
 - Hover effects discretos
 - Paginación integrada con estilos consistentes
 - Botones de acción minimalistas
+
+#### **⚠️ IMPORTANTE: Bordes de Tablas**
+```jsx
+// ✅ CORRECTO: Borde exterior dinámico, internos neutros
+<Card sx={{ border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}` }}>
+  <Table sx={{
+    '& .MuiTableCell-root': {
+      borderColor: 'divider'  // Todas las celdas con color neutro
+    },
+    '& .MuiTableHead-root .MuiTableRow-root': {
+      borderBottom: `1px solid ${theme.palette.divider}`  // Header con borde neutro
+    }
+  }}>
+    <TableHead>
+      <TableRow sx={{ 
+        bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+        borderBottom: `1px solid ${theme.palette.divider}`  // Explícito
+      }}>
+        <TableCell sx={{ borderColor: 'divider' }}>...</TableCell>
+      </TableRow>
+    </TableHead>
+  </Table>
+</Card>
+
+// ❌ INCORRECTO: Bordes internos con colores dinámicos
+borderColor: alpha(theme.palette.primary.main, 0.6)  // Solo para bordes exteriores
+```
 
 ---
 
@@ -1025,10 +1054,144 @@ borderColor: alpha(theme.palette.primary.main, 0.8)
 3. Aplicar gradiente adaptable al tema
 4. Estructura de contenido: overline + h4 + body1
 
+#### Para Bordes de Tablas:
+```jsx
+// ✅ CORRECTO: Solo borde exterior con color dinámico, internos neutros
+<Card sx={{ border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}` }}>
+  <Table sx={{
+    '& .MuiTableCell-root': {
+      borderColor: 'divider'  // Bordes internos neutros
+    },
+    '& .MuiTableHead-root .MuiTableRow-root': {
+      borderBottom: `1px solid ${theme.palette.divider}`  // Header neutro
+    }
+  }}>
+    <TableHead>
+      <TableRow sx={{ 
+        borderBottom: `1px solid ${theme.palette.divider}`  // Explícito
+      }}>
+        <TableCell sx={{ borderColor: 'divider' }}>...</TableCell>
+      </TableRow>
+    </TableHead>
+    <TableBody>
+      <TableCell sx={{ borderColor: 'divider' }}>...</TableCell>
+    </TableBody>
+  </Table>
+</Card>
+
+// ❌ INCORRECTO: Aplicar colores dinámicos a bordes internos
+<TableCell sx={{ borderColor: alpha(theme.palette.primary.main, 0.6) }}>
+```
+
+#### Regla de Oro para Bordes:
+- **Borde exterior** (Card/Container): Color dinámico con alpha 0.6
+- **Bordes internos** (TableCell, Dividers): Color 'divider' neutro
+- **Hover states**: Intensificar solo el borde exterior (alpha 0.8)
+
 #### Valores de Opacidad Recomendados:
 - **0.4**: Muy sutil, apenas visible
 - **0.6**: Sutil pero claramente visible ⭐ RECOMENDADO
 - **0.8**: Hover states, más prominente
 - **1.0**: Color sólido completo (evitar)
+
+### 📝 Registro de Cambios Recientes
+
+#### **21 Agosto 2025 - IMPLEMENTACIÓN CORRECTA DISEÑO SOBRIO EN TABLAS**
+- **Problema identificado**: Tabla personalizada con Box no seguía patrones establecidos del sistema
+- **Solución final implementada**: 
+  - Restauré componentes Table/TableCell de MUI con estilos sobrios apropiados
+  - Aplicé todos los bordes usando `theme.palette.divider` únicamente
+  - Implementé espaciado, tipografía y colores según tokens documentados
+  - Mantuve consistencia visual con demás páginas del sistema
+- **Archivos afectados**: `src/pages/IncomeHistoryPage.jsx`
+- **Resultado**: Tabla sobria perfectamente integrada con el sistema de diseño
+
+#### **Patrón Final Implementado - Tabla Sobria Estándar**
+```jsx
+// ✅ SOLUCIÓN FINAL - Table de MUI con estilos sobrios completos
+<Card sx={{ 
+  borderRadius: 2,
+  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`  // Solo borde exterior dinámico
+}}>
+  <TableContainer>
+    <Table sx={{
+      '& .MuiTableCell-root': {
+        borderColor: `${theme.palette.divider}`,  // Todos los bordes neutros
+        borderBottom: `1px solid ${theme.palette.divider}`
+      },
+      '& .MuiTableHead-root': {
+        '& .MuiTableRow-root': {
+          backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+          '& .MuiTableCell-root': {
+            fontWeight: 600,
+            fontSize: '0.875rem',
+            paddingY: 2,
+            borderColor: `${theme.palette.divider}`
+          }
+        }
+      },
+      '& .MuiTableBody-root': {
+        '& .MuiTableRow-root': {
+          '&:hover': { backgroundColor: theme.palette.action.hover },
+          '&:last-child .MuiTableCell-root': { borderBottom: 'none' },
+          '& .MuiTableCell-root': {
+            paddingY: 1.8,
+            fontSize: '0.85rem',
+            borderColor: `${theme.palette.divider}`
+          }
+        }
+      }
+    }}>
+```
+
+#### **Nueva Arquitectura de Tablas Sobrias - PATRÓN ESTÁNDAR**
+```jsx
+// ✅ PATRÓN RECOMENDADO - Table de MUI con estilos sobrios apropiados
+<Card sx={{ 
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,  // Borde exterior dinámico
+  borderRadius: 2,
+  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+}}>
+  <TableContainer>
+    <Table sx={{
+      '& .MuiTableCell-root': {
+        borderColor: `${theme.palette.divider}`,  // Bordes neutros
+        borderBottom: `1px solid ${theme.palette.divider}`
+      },
+      '& .MuiTableHead-root .MuiTableRow-root': {
+        backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+        '& .MuiTableCell-root': {
+          fontWeight: 600,
+          fontSize: '0.875rem',
+          paddingY: 2
+        }
+      },
+      '& .MuiTableBody-root .MuiTableRow-root': {
+        '&:hover': { backgroundColor: theme.palette.action.hover },
+        '&:last-child .MuiTableCell-root': { borderBottom: 'none' },
+        '& .MuiTableCell-root': {
+          paddingY: 1.8,
+          fontSize: '0.85rem'
+        }
+      }
+    }}>
+      <TableHead>
+        <TableRow>
+          <TableCell>Columna</TableCell>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        <TableRow>
+          <TableCell>Dato</TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
+  </TableContainer>
+</Card>
+
+// ❌ EVITAR: Box personalizado (no mantiene consistencia visual del sistema)
+<Box sx={{ display: 'flex' }}>...</Box>
+```
 
 ---
