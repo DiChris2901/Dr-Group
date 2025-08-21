@@ -47,9 +47,7 @@ class TokenValidator {
     this.validatedFiles = 0;
     this.allowedDesignTokensPaths = [
       // Archivos de tema y tokens pueden usar/definir designTokens
-      path.join('src', 'theme') + path.sep,
-      // Página sandbox de diseño
-      path.join('src', 'pages', 'DesignSystemTemplatePage.jsx')
+      path.join('src', 'theme') + path.sep
     ];
     this.selfPath = path.join('src', 'utils', 'tokenValidator.js');
     

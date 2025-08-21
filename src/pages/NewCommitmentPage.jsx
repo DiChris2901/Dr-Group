@@ -1535,32 +1535,29 @@ const NewCommitmentPage = () => {
                               }
                             }
                           }}
-                          helperText={
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                                NIT, CC, CE o documento de identificación
-                              </Typography>
-                              {formData.beneficiaryNit && (
-                                <Chip
-                                  size="small"
-                                  icon={formData.beneficiaryNit.includes('-') ? 
-                                    <BusinessIcon sx={{ fontSize: 12 }} /> : 
-                                    <PersonIcon sx={{ fontSize: 12 }} />
-                                  }
-                                  label={formData.beneficiaryNit.includes('-') ? 'NIT' : 'ID'}
-                                  sx={{
-                                    height: 16,
-                                    fontSize: '0.65rem',
-                                    '& .MuiChip-label': { px: 0.5 },
-                                    '& .MuiChip-icon': { fontSize: 10 }
-                                  }}
-                                  color={formData.beneficiaryNit.includes('-') ? 'primary' : 'secondary'}
-                                  variant="outlined"
-                                />
-                              )}
-                            </Box>
-                          }
+                          helperText="NIT, CC, CE o documento de identificación"
                         />
+                        {/* Indicador de tipo de documento */}
+                        {formData.beneficiaryNit && (
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 1 }}>
+                            <Chip
+                              size="small"
+                              icon={formData.beneficiaryNit.includes('-') ? 
+                                <BusinessIcon sx={{ fontSize: 12 }} /> : 
+                                <PersonIcon sx={{ fontSize: 12 }} />
+                              }
+                              label={formData.beneficiaryNit.includes('-') ? 'NIT Empresa' : 'ID Persona'}
+                              sx={{
+                                height: 20,
+                                fontSize: '0.7rem',
+                                '& .MuiChip-label': { px: 1 },
+                                '& .MuiChip-icon': { fontSize: 10 }
+                              }}
+                              color={formData.beneficiaryNit.includes('-') ? 'primary' : 'secondary'}
+                              variant="outlined"
+                            />
+                          </Box>
+                        )}
                       </Grid>
 
                       {/* Sección 3: Concepto y Número de Factura */}

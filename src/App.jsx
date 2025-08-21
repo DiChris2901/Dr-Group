@@ -43,9 +43,6 @@ import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
 import FinancialKPIsPage from './pages/FinancialKPIsPage';
 import LiquidationProcessorPage from './pages/LiquidationProcessorPage';
 
-// Design System Template Page
-import DesignSystemTemplatePage from './pages/DesignSystemTemplatePage';
-
 // Hook de autenticación
 import { useAuth } from './context/AuthContext';
 
@@ -237,14 +234,6 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Mi Perfil" breadcrumbs={['Perfil']}>
             <ProfilePage />
-          </MainLayout>
-        }
-      />
-      <Route 
-        path="/design-system-template" 
-        element={
-          <MainLayout title="DS Template" breadcrumbs={['Desarrollo', 'DS Template']}>
-            <DesignSystemTemplatePage />
           </MainLayout>
         }
       />
