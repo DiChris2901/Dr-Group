@@ -17,16 +17,34 @@ import {
   CircularProgress,
   Tabs,
   Tab,
-  LinearProgress
+  LinearProgress,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  FormControl,
+  FormLabel,
+  Card,
+  CardContent,
+  Divider
 } from '@mui/material';
 import {
   CompareArrows as CompareIcon,
   CheckCircle as CheckIcon,
   Warning as WarningIcon,
   Visibility as PreviewIcon,
-  GetApp as DownloadIcon
+  GetApp as DownloadIcon,
+  Security as ConservativeIcon,
+  Balance as BalancedIcon,
+  Speed as AggressiveIcon,
+  Settings as SettingsIcon
 } from '@mui/icons-material';
-import { drGroupCompressor } from '../../utils/pdfCompressor';
+import { 
+  EnterprisePDFCompressor,
+  CONSERVATIVE_COMPRESSION, 
+  BALANCED_COMPRESSION, 
+  AGGRESSIVE_COMPRESSION 
+} from '../../utils/pdfCompressor';
+import { testPDFCompression } from '../../utils/pdfTestCompression';
 
 const PDFCompressionPreview = ({ 
   open, 
@@ -39,23 +57,91 @@ const PDFCompressionPreview = ({
   const [compressionResult, setCompressionResult] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
   const [error, setError] = useState(null);
+  const [compressionLevel, setCompressionLevel] = useState('balanced'); // conservative, balanced, aggressive
+  const [showLevelSelector, setShowLevelSelector] = useState(true);
 
   // Ejecutar compresión cuando se abre el diálogo
   React.useEffect(() => {
-    if (open && file && !compressionResult) {
+    if (open && file && !compressionResult && !showLevelSelector) {
       compressFile();
+    } else if (!open || !file) {
+      // Limpiar resultado cuando se cierra el modal o no hay archivo
+      setCompressionResult(null);
+      setError(null);
+      setLoading(false);
+      setShowLevelSelector(true);
     }
-  }, [open, file]);
+  }, [open, file, showLevelSelector]);
+
+  // Limpiar y recomprimir cuando cambie el archivo o nivel
+  React.useEffect(() => {
+    if (file) {
+      console.log('🔄 Nuevo archivo detectado, limpiando compresión anterior:', file.name);
+      setCompressionResult(null);
+      setError(null);
+      setLoading(false);
+      setShowLevelSelector(true);
+    }
+  }, [file?.name, file?.size, file?.lastModified]);
+
+  // Recomprimir cuando cambie el nivel de compresión
+  const handleCompressionLevelChange = (level) => {
+    setCompressionLevel(level);
+    if (compressionResult) {
+      console.log('🔄 Cambiando nivel de compresión a:', level);
+      setCompressionResult(null);
+      setShowLevelSelector(false);
+      // La compresión se ejecutará automáticamente
+    }
+  };
 
   const compressFile = async () => {
+    if (!file) {
+      console.warn('⚠️ No hay archivo para comprimir');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
     try {
       console.log('🔄 Iniciando compresión de vista previa...');
-      const result = await drGroupCompressor.compressPDF(file);
-      setCompressionResult(result);
+      console.log('📄 Archivo:', {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        lastModified: file.lastModified
+      });
+      console.log('⚙️ Nivel de compresión:', compressionLevel);
+      
+      // Seleccionar configuración según el nivel elegido
+      let config;
+      switch (compressionLevel) {
+        case 'conservative':
+          config = CONSERVATIVE_COMPRESSION;
+          break;
+        case 'aggressive':
+          config = AGGRESSIVE_COMPRESSION;
+          break;
+        default:
+          config = BALANCED_COMPRESSION;
+      }
+      
+      // Crear compresor con la configuración seleccionada
+      const compressor = new EnterprisePDFCompressor(config);
+      const result = await compressor.compressPDF(file);
+      
       console.log('✅ Vista previa de compresión generada:', result.stats);
+      console.log('📊 Estadísticas completas:', {
+        originalSize: result.stats.originalSize,
+        compressedSize: result.stats.compressedSize,
+        reduction: result.stats.reduction,
+        reductionPercent: result.stats.reductionPercent,
+        saved: result.stats.saved
+      });
+      
+      setCompressionResult(result);
+      setShowLevelSelector(false); // Ocultar selector después de comprimir
     } catch (err) {
       console.error('❌ Error en vista previa:', err);
       setError(err.message);
@@ -77,9 +163,13 @@ const PDFCompressionPreview = ({
   };
 
   const handleClose = () => {
+    console.log('🔄 Cerrando modal de compresión, limpiando estados');
     setCompressionResult(null);
     setError(null);
     setActiveTab(0);
+    setLoading(false);
+    setShowLevelSelector(true);
+    setCompressionLevel('balanced');
     onClose();
   };
 
@@ -108,6 +198,34 @@ const PDFCompressionPreview = ({
     return `Optimizado ${stats.reductionPercent} manteniendo legibilidad`;
   };
 
+  // Configuraciones de niveles de compresión
+  const compressionLevels = {
+    conservative: {
+      icon: ConservativeIcon,
+      title: 'Conservativa',
+      subtitle: 'Máxima calidad',
+      description: 'Compresión mínima, ideal para documentos importantes',
+      color: 'success',
+      reduction: '10-30%'
+    },
+    balanced: {
+      icon: BalancedIcon,
+      title: 'Balanceada',
+      subtitle: 'Recomendada',
+      description: 'Balance perfecto entre calidad y tamaño para uso general',
+      color: 'primary',
+      reduction: '30-60%'
+    },
+    aggressive: {
+      icon: AggressiveIcon,
+      title: 'Agresiva',
+      subtitle: 'Máximo ahorro',
+      description: 'Compresión alta, perfecta para PDFs del navegador',
+      color: 'warning',
+      reduction: '50-80%'
+    }
+  };
+
   return (
     <Dialog 
       open={open} 
@@ -133,6 +251,115 @@ const PDFCompressionPreview = ({
       </DialogTitle>
 
       <DialogContent sx={{ p: 3 }}>
+        {/* Selector de Nivel de Compresión */}
+        {showLevelSelector && !loading && !error && (
+          <Box sx={{ mb: 4 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+              <SettingsIcon sx={{ mr: 1, color: 'primary.main' }} />
+              <Typography variant="h6">
+                Selecciona el nivel de compresión
+              </Typography>
+            </Box>
+            
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Para PDFs generados desde navegador (como facturas, reportes), recomendamos compresión <strong>Agresiva</strong>.
+              Para documentos escaneados o imágenes, usa <strong>Conservativa</strong>.
+            </Typography>
+
+            <Grid container spacing={2}>
+              {Object.entries(compressionLevels).map(([level, config]) => {
+                const Icon = config.icon;
+                const isSelected = compressionLevel === level;
+                
+                return (
+                  <Grid item xs={12} md={4} key={level}>
+                    <Card
+                      sx={{
+                        cursor: 'pointer',
+                        border: isSelected ? `2px solid` : '1px solid',
+                        borderColor: isSelected ? `${config.color}.main` : 'divider',
+                        bgcolor: isSelected ? `${config.color}.50` : 'background.paper',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          borderColor: `${config.color}.main`,
+                          bgcolor: `${config.color}.50`,
+                          transform: 'translateY(-2px)',
+                          boxShadow: 3
+                        }
+                      }}
+                      onClick={() => setCompressionLevel(level)}
+                    >
+                      <CardContent sx={{ textAlign: 'center', py: 3 }}>
+                        <Icon 
+                          sx={{ 
+                            fontSize: 40, 
+                            color: isSelected ? `${config.color}.main` : 'text.secondary',
+                            mb: 1 
+                          }} 
+                        />
+                        <Typography variant="h6" fontWeight={600}>
+                          {config.title}
+                        </Typography>
+                        <Chip 
+                          label={config.subtitle}
+                          size="small"
+                          color={config.color}
+                          sx={{ mb: 1 }}
+                        />
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                          {config.description}
+                        </Typography>
+                        <Typography variant="caption" fontWeight={600} color={`${config.color}.main`}>
+                          Reducción estimada: {config.reduction}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                );
+              })}
+            </Grid>
+            
+            <Box sx={{ mt: 3, textAlign: 'center' }}>
+              <Button
+                variant="contained"
+                size="large"
+                onClick={() => setShowLevelSelector(false)}
+                startIcon={<CompareIcon />}
+                sx={{
+                  minWidth: 200,
+                  py: 1.5,
+                  mr: 2
+                }}
+              >
+                Comprimir con {compressionLevels[compressionLevel].title}
+              </Button>
+              
+              <Button
+                variant="outlined"
+                size="large"
+                onClick={async () => {
+                  console.log('🧪 Ejecutando test directo...');
+                  try {
+                    const testResult = await testPDFCompression(file);
+                    console.log('🧪 RESULTADOS DEL TEST:', testResult);
+                    alert(`Test completado!\nOriginal: ${(testResult.original / 1024 / 1024).toFixed(2)} MB\nBásico: ${(testResult.basic / 1024 / 1024).toFixed(2)} MB\nCon streams: ${(testResult.withStreams / 1024 / 1024).toFixed(2)} MB\nLimpio: ${(testResult.cleaned / 1024 / 1024).toFixed(2)} MB\n\nVe la consola para más detalles.`);
+                  } catch (error) {
+                    console.error('❌ Error en test:', error);
+                    alert('Error en test: ' + error.message);
+                  }
+                }}
+                startIcon={<SettingsIcon />}
+                sx={{
+                  minWidth: 150,
+                  py: 1.5
+                }}
+              >
+                Test Directo
+              </Button>
+            </Box>
+          </Box>
+        )}
+
         {loading && (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
             <CircularProgress size={60} sx={{ mb: 2 }} />
@@ -154,8 +381,18 @@ const PDFCompressionPreview = ({
           </Alert>
         )}
 
-        {compressionResult && (
+        {compressionResult && file && (
           <Box>
+            {/* DEBUG INFO */}
+            {process.env.NODE_ENV === 'development' && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                <Typography variant="caption">
+                  DEBUG: {file.name} - Original: {formatFileSize(file.size)} - 
+                  Comprimido: {formatFileSize(compressionResult.stats.compressedSize)}
+                </Typography>
+              </Alert>
+            )}
+
             {/* Resumen de Compresión */}
             <Paper elevation={2} sx={{ p: 3, mb: 3, background: 'rgba(255,255,255,0.9)' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -182,7 +419,7 @@ const PDFCompressionPreview = ({
                       📄 ARCHIVO ORIGINAL
                     </Typography>
                     <Typography variant="h4" color="primary" sx={{ my: 1 }}>
-                      {formatFileSize(compressionResult.stats.originalSize)}
+                      {formatFileSize(file.size)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       {file.name}
@@ -221,6 +458,21 @@ const PDFCompressionPreview = ({
                 </Grid>
               </Grid>
             </Paper>
+
+            {/* Opción para cambiar nivel de compresión */}
+            <Box sx={{ mt: 3, textAlign: 'center' }}>
+              <Button
+                variant="outlined"
+                onClick={() => setShowLevelSelector(true)}
+                startIcon={<SettingsIcon />}
+                color="primary"
+              >
+                Cambiar nivel de compresión
+              </Button>
+              <Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'text.secondary' }}>
+                Nivel actual: {compressionLevels[compressionLevel].title}
+              </Typography>
+            </Box>
 
             {/* Garantías de Legibilidad */}
             <Paper elevation={1} sx={{ p: 3, background: 'rgba(255,255,255,0.7)' }}>
