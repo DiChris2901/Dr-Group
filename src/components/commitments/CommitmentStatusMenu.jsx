@@ -93,18 +93,54 @@ const CommitmentStatusMenu = ({ anchorEl, open, onClose }) => {
       const amount = parseFloat(commitment.amount) || 0;
       stats.totalAmount += amount;
 
+      // 🐛 DEBUG: Log para verificar estructura de datos
+      if (stats.total < 3) { // Solo los primeros 3 para no saturar la consola
+        console.log('🔍 DEBUG Compromiso:', {
+          id: commitment.id,
+          status: commitment.status,
+          paymentStatus: commitment.paymentStatus,
+          paid: commitment.paid,
+          isPaid: commitment.isPaid,
+          concept: commitment.concept,
+          dueDate: dueDate.toISOString(),
+          isOverdue: dueDate < new Date(),
+          willBeClassifiedAs: (() => {
+            const isCompleted = commitment.status === 'completed' || commitment.status === 'paid';
+            const isPaidByPaymentStatus = commitment.paymentStatus === 'paid' || commitment.paymentStatus === 'Pagado' || commitment.paymentStatus === 'pagado';
+            const isPaidByFlag = commitment.paid === true || commitment.isPaid === true;
+            
+            if (isCompleted || isPaidByPaymentStatus || isPaidByFlag) return 'COMPLETADOS';
+            else if (dueDate < new Date()) return 'VENCIDOS';
+            else if (dueDate <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)) return 'PRÓXIMOS';
+            else return 'AL DÍA';
+          })()
+        });
+      }
+
       // Compromisos de este mes
       if (dueDate.getMonth() === now.getMonth() && dueDate.getFullYear() === now.getFullYear()) {
         stats.thisMonth++;
       }
 
-      if (commitment.status === 'completed') {
+      // ✅ LÓGICA CORREGIDA: Verificar TODOS los posibles estados de pago
+      const isCompleted = commitment.status === 'completed' || commitment.status === 'paid';
+      const isPaidByPaymentStatus = commitment.paymentStatus === 'paid' || commitment.paymentStatus === 'Pagado' || commitment.paymentStatus === 'pagado';
+      const isPaidByFlag = commitment.paid === true || commitment.isPaid === true;
+      
+      // Si está marcado como pagado por cualquier método, va a completados
+      if (isCompleted || isPaidByPaymentStatus || isPaidByFlag) {
         stats.completed++;
-      } else if (dueDate < now) {
+      } 
+      // Si no está pagado y ya venció, va a vencidos
+      else if (dueDate < now) {
         stats.overdue++;
-      } else if (dueDate <= nextWeek) {
+      } 
+      // Si no está pagado y vence pronto, va a próximos
+      else if (dueDate <= nextWeek) {
         stats.upcoming++;
-      } else {
+      } 
+      // Si no está pagado pero está lejos la fecha, va a al día
+      else {
         stats.onTrack++;
       }
     });

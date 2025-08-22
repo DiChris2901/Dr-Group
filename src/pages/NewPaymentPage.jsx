@@ -275,13 +275,36 @@ const NewPaymentPage = () => {
     try {
       setLoadingCommitments(true);
       
-      // Consultar todos los compromisos
+      // ✅ NUEVA LÓGICA: mes anterior + actual + siguiente
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth(); // 0-11
+      
+      // Inicio del mes anterior
+      const startOfPreviousMonth = new Date(currentYear, currentMonth - 1, 1);
+      // Inicio del mes después del siguiente (límite superior)
+      const startOfTwoMonthsLater = new Date(currentYear, currentMonth + 2, 1);
+      
+      console.log('📅 NUEVA LÓGICA - Filtrando compromisos: mes anterior + actual + siguiente:', {
+        startOfPreviousMonth: startOfPreviousMonth.toISOString(),
+        startOfTwoMonthsLater: startOfTwoMonthsLater.toISOString(),
+        previousMonth: currentMonth,      // mes anterior (human-readable)
+        currentMonth: currentMonth + 1,   // mes actual (human-readable) 
+        nextMonth: currentMonth + 2,      // mes siguiente (human-readable)
+        currentYear
+      });
+      
+      // Consultar compromisos del rango: mes anterior + actual + siguiente
       const commitmentsQuery = query(
-        collection(db, 'commitments')
+        collection(db, 'commitments'),
+        where('dueDate', '>=', startOfPreviousMonth),
+        where('dueDate', '<', startOfTwoMonthsLater)
       );
       
       const snapshot = await getDocs(commitmentsQuery);
       const commitments = [];
+      
+      console.log(`📊 Compromisos encontrados en rango (anterior+actual+siguiente): ${snapshot.size}`);
       
       // También consultar todos los pagos para verificar cuáles compromisos ya tienen pago
       const paymentsQuery = query(
@@ -304,13 +327,30 @@ const NewPaymentPage = () => {
       snapshot.forEach((doc) => {
         const data = doc.data();
         
-        // Filtrar solo compromisos pendientes o vencidos Y que NO tengan pagos registrados Y que no estén marcados como pagados
+        // ✅ LÓGICA MEJORADA: Verificar TODOS los posibles estados de pago
         const status = data.status || 'pending';
-        const isPaid = data.paid === true || data.isPaid === true || status === 'paid';
+        const isPaidByStatus = status === 'paid' || status === 'completed';
+        const isPaidByFlag = data.paid === true || data.isPaid === true;
+        const isPaidByPaymentStatus = data.paymentStatus === 'paid' || data.paymentStatus === 'Pagado' || data.paymentStatus === 'pagado';
         const hasPayment = commitmentsWithPayments.has(doc.id);
         
-        if ((status === 'pending' || status === 'overdue') && !hasPayment && !isPaid) {
-          console.log('📄 Compromiso sin pago encontrado:', doc.id, data);
+        // Cualquier indicador de que está pagado
+        const isAlreadyPaid = isPaidByStatus || isPaidByFlag || isPaidByPaymentStatus || hasPayment;
+        
+        // 🐛 DEBUG: Log detallado para cada compromiso
+        console.log(`🔍 Analizando compromiso "${data.companyName} - ${data.concept}":`, {
+          id: doc.id,
+          status: data.status,
+          paid: data.paid,
+          isPaid: data.isPaid,
+          paymentStatus: data.paymentStatus,
+          hasPayment,
+          isAlreadyPaid,
+          willBeIncluded: !isAlreadyPaid && (status === 'pending' || status === 'overdue')
+        });
+        
+        if ((status === 'pending' || status === 'overdue') && !isAlreadyPaid) {
+          console.log('✅ Compromiso SIN pago agregado:', doc.id, `"${data.companyName} - ${data.concept}"`);
           commitments.push({
             id: doc.id,
             ...data,
@@ -323,8 +363,11 @@ const NewPaymentPage = () => {
               minimumFractionDigits: 0
             }).format(data.amount || 0)
           });
-        } else if (hasPayment || isPaid) {
-          console.log('🚫 Compromiso omitido (ya pagado):', doc.id, data.concept, { hasPayment, isPaid, status });
+        } else {
+          console.log('🚫 Compromiso OMITIDO (ya pagado o no pendiente):', doc.id, `"${data.companyName} - ${data.concept}"`, {
+            reason: isAlreadyPaid ? 'YA PAGADO' : 'NO PENDIENTE',
+            status
+          });
         }
       });
       
