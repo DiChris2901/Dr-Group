@@ -80,7 +80,44 @@ const PaymentReceiptViewer = ({
     receiptUrl: commitment.receiptUrl || (commitment.receiptUrls && commitment.receiptUrls.length > 0 ? commitment.receiptUrls[0] : null)
   } : null;
 
-  // Logging para debug
+  // Función para convertir número de cuenta a nombre descriptivo
+  const getAccountDisplayName = (commitment) => {
+    // Primero buscar nombres descriptivos directos
+    const descriptiveName = commitment?.accountDisplayName || 
+                           commitment?.paymentAccountDisplayName || 
+                           commitment?.bankAccountDisplayName ||
+                           commitment?.accountDescription ||
+                           commitment?.paymentDescription ||
+                           commitment?.bankDescription ||
+                           commitment?.accountName ||
+                           commitment?.paymentAccountName;
+    
+    if (descriptiveName && !descriptiveName.match(/^\d+$/)) {
+      // Solo retornar si no es un número puro
+      return descriptiveName;
+    }
+    
+    // Solo mapeo directo y exacto, sin suposiciones automáticas
+    const accountMapping = {
+      // Agregar mapeos específicos solo cuando sean confirmados
+      // '019544766': 'BBVA DiverGames',  // Comentado hasta confirmar
+      // '777': 'Davivienda Juegos 777', // Comentado hasta confirmar
+    };
+    
+    // Buscar en diferentes campos de cuenta
+    const accountNumber = commitment?.paymentAccount || 
+                         commitment?.bankAccount || 
+                         commitment?.sourceAccount || 
+                         commitment?.account;
+    
+    if (accountNumber && accountMapping[accountNumber]) {
+      return accountMapping[accountNumber];
+    }
+    
+    // NO hacer suposiciones automáticas por patrones
+    // Retornar null si no hay nombre descriptivo explícito
+    return null;
+  };
   console.log('🔍 PaymentReceiptViewer - Props recibidas:', {
     open,
     commitment,
@@ -88,6 +125,17 @@ const PaymentReceiptViewer = ({
     receiptMetadata
   });
   console.log('🔍 PaymentReceiptViewer - Payment extraído:', payment);
+  console.log('🏦 PaymentReceiptViewer - Account Info Debug:', {
+    accountDisplayName: getAccountDisplayName(commitment),
+    rawAccountData: {
+      accountName: commitment?.accountName,
+      paymentAccount: commitment?.paymentAccount,
+      bankAccount: commitment?.bankAccount,
+      sourceAccount: commitment?.sourceAccount,
+      account: commitment?.account,
+    },
+    allCommitmentKeys: Object.keys(commitment || {})
+  });
 
   // Validación de fecha de pago
   const validPaymentDate = payment?.paidAt?.toDate?.() || payment?.paidAt || new Date();
@@ -519,6 +567,34 @@ const PaymentReceiptViewer = ({
                       </Box>
                     </Grid>
                   )}
+
+                  {/* Cuenta de Origen del Pago */}
+                  {getAccountDisplayName(commitment) && (
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                          Cuenta de Pago
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {getAccountDisplayName(commitment)}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  )}
+
+                  {/* Banco/Entidad Financiera */}
+                  {(commitment?.bankName || commitment?.paymentBank || commitment?.bank || commitment?.financialEntity) && (
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                          Entidad Financiera
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {commitment?.bankName || commitment?.paymentBank || commitment?.bank || commitment?.financialEntity}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  )}
                 </Grid>
 
                 {/* SECCIÓN DE MONTOS Y DETALLES - SIEMPRE VISIBLE CON DEBUG */}
@@ -634,9 +710,9 @@ const PaymentReceiptViewer = ({
                             <Grid item xs={12} sm={6}>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                  📈 Intereses Derechos:
+                                  Intereses Derechos
                                 </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'warning.main' }}>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
                                   {fCurrency(commitment?.interesesDerechosExplotacion || 0)}
                                 </Typography>
                               </Box>
@@ -646,9 +722,9 @@ const PaymentReceiptViewer = ({
                             <Grid item xs={12} sm={6}>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                  📈 Intereses Gastos:
+                                  Intereses Gastos
                                 </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'warning.main' }}>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
                                   {fCurrency(commitment?.interesesGastosAdministracion || 0)}
                                 </Typography>
                               </Box>
@@ -668,9 +744,9 @@ const PaymentReceiptViewer = ({
                             <Grid item xs={12} sm={6}>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                  📊 Monto Base:
+                                  Monto Base
                                 </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'info.main' }}>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
                                   {fCurrency(commitment?.originalAmount || commitment?.amount || 0)}
                                 </Typography>
                               </Box>
@@ -680,9 +756,9 @@ const PaymentReceiptViewer = ({
                             <Grid item xs={12} sm={6}>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                  💸 Intereses:
+                                  Intereses
                                 </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'warning.main' }}>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
                                   {fCurrency(commitment?.interests || 0)}
                                 </Typography>
                               </Box>
@@ -720,107 +796,6 @@ const PaymentReceiptViewer = ({
                         </Typography>
                       </Box>
                     </Grid>
-                  </Grid>
-                </Box>
-                <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.2)}` }}>
-                  <Typography variant="overline" color="primary.main" sx={{ fontWeight: 700, mb: 2, display: 'block' }}>
-                    💰 Desglose del Pago
-                  </Typography>
-                  
-                  <Grid container spacing={2}>
-                    {/* PARA COLJUEGOS */}
-                    {(commitment?.provider?.toLowerCase().includes('coljuegos') || 
-                      commitment?.beneficiary?.toLowerCase().includes('coljuegos') ||
-                      payment.companyName?.toLowerCase().includes('coljuegos')) ? (
-                      <>
-                        {/* Derechos de Explotación Base */}
-                        {(payment.derechosExplotacion || commitment?.derechosExplotacion) && (
-                          <Grid item xs={12} sm={6}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                🎯 Derechos Explotación:
-                              </Typography>
-                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
-                                {fCurrency(payment.derechosExplotacion || commitment?.derechosExplotacion || 0)}
-                              </Typography>
-                            </Box>
-                          </Grid>
-                        )}
-
-                        {/* Gastos de Administración Base */}
-                        {(payment.gastosAdministracion || commitment?.gastosAdministracion) && (
-                          <Grid item xs={12} sm={6}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                📋 Gastos Administración:
-                              </Typography>
-                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
-                                {fCurrency(payment.gastosAdministracion || commitment?.gastosAdministracion || 0)}
-                              </Typography>
-                            </Box>
-                          </Grid>
-                        )}
-
-                        {/* Intereses de Derechos de Explotación */}
-                        {(payment.interesesDerechosExplotacion && payment.interesesDerechosExplotacion > 0) && (
-                          <Grid item xs={12} sm={6}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                � Intereses Derechos:
-                              </Typography>
-                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'warning.main' }}>
-                                {fCurrency(payment.interesesDerechosExplotacion)}
-                              </Typography>
-                            </Box>
-                          </Grid>
-                        )}
-
-                        {/* Intereses de Gastos de Administración */}
-                        {(payment.interesesGastosAdministracion && payment.interesesGastosAdministracion > 0) && (
-                          <Grid item xs={12} sm={6}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                📈 Intereses Gastos:
-                              </Typography>
-                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'warning.main' }}>
-                                {fCurrency(payment.interesesGastosAdministracion)}
-                              </Typography>
-                            </Box>
-                          </Grid>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        {/* PARA OTROS PAGOS (NO COLJUEGOS) */}
-                        {/* Impuestos */}
-                        {(payment.originalAmount && payment.originalAmount > 0) && (
-                          <Grid item xs={12} sm={6}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                � Impuestos:
-                              </Typography>
-                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'info.main' }}>
-                                {fCurrency(payment.originalAmount)}
-                              </Typography>
-                            </Box>
-                          </Grid>
-                        )}
-
-                        {/* Intereses generales */}
-                        {(payment.interests && payment.interests > 0) && (
-                          <Grid item xs={12} sm={6}>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                💸 Intereses:
-                              </Typography>
-                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'warning.main' }}>
-                                {fCurrency(payment.interests)}
-                              </Typography>
-                            </Box>
-                          </Grid>
-                        )}
-                      </>
-                    )}
                   </Grid>
                 </Box>
               </Paper>
@@ -896,7 +871,7 @@ const PaymentReceiptViewer = ({
               </motion.div>
             )}
 
-            {/* ✅ Botón Cerrar */}
+            {/* Botón Cerrar */}
             <Box display="flex" justifyContent="center" mt={4}>
               <Button
                 variant="contained"
@@ -911,7 +886,7 @@ const PaymentReceiptViewer = ({
                   fontWeight: 600
                 }}
               >
-                ✅ Cerrar
+                Cerrar
               </Button>
             </Box>
           </DialogContent>
