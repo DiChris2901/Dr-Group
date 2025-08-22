@@ -2687,7 +2687,20 @@ const PaymentsPage = () => {
           paymentMethod: selectedPayment.method,
           paymentNotes: selectedPayment.notes,
           receiptUrl: selectedPayment.attachments && selectedPayment.attachments.length > 0 ? selectedPayment.attachments[0] : null,
-          receiptUrls: selectedPayment.attachments || []
+          receiptUrls: selectedPayment.attachments || [],
+          // INFORMACIÓN ADICIONAL DEL PAGO
+          provider: selectedPayment.provider,
+          beneficiary: selectedPayment.beneficiary,
+          reference: selectedPayment.reference,
+          sourceAccount: selectedPayment.sourceAccount,
+          sourceBank: selectedPayment.sourceBank,
+          // CAMPOS ESPECÍFICOS DE COLJUEGOS
+          originalAmount: selectedPayment.originalAmount,
+          interests: selectedPayment.interests,
+          interesesDerechosExplotacion: selectedPayment.interesesDerechosExplotacion,
+          interesesGastosAdministracion: selectedPayment.interesesGastosAdministracion,
+          derechosExplotacion: selectedPayment.derechosExplotacion,
+          gastosAdministracion: selectedPayment.gastosAdministracion
         } : null}
       />
 

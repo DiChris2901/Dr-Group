@@ -21,7 +21,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { fCurrency } from '../../utils/formatUtils';
+import { fCurrency } from '../../utils/formatNumber';
+import { db } from '../../config/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { useTokens } from '../../hooks/useTokens';
 import PDFPreviewDialog from '../common/PDFPreviewDialog';
 
@@ -36,6 +38,38 @@ const PaymentReceiptViewer = ({
   const tokens = useTokens();
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [canViewReceipts, setCanViewReceipts] = useState(true); // Bypass temporal
+  const [originalCommitment, setOriginalCommitment] = useState(null);
+  const [loadingOriginalCommitment, setLoadingOriginalCommitment] = useState(false);
+
+  // Función para cargar datos del compromiso original
+  const loadOriginalCommitmentData = async (commitmentId) => {
+    if (!commitmentId) return null;
+    
+    try {
+      setLoadingOriginalCommitment(true);
+      const commitmentRef = doc(db, 'commitments', commitmentId);
+      const commitmentSnap = await getDoc(commitmentRef);
+      
+      if (commitmentSnap.exists()) {
+        const data = commitmentSnap.data();
+        setOriginalCommitment(data);
+        return data;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error cargando compromiso original:', error);
+      return null;
+    } finally {
+      setLoadingOriginalCommitment(false);
+    }
+  };
+
+  // Cargar compromiso original cuando se abre el modal
+  useEffect(() => {
+    if (open && commitment?.id) {
+      loadOriginalCommitmentData(commitment.id);
+    }
+  }, [open, commitment?.id]);
 
   // Extraer datos de pago del commitment
   const payment = commitment ? {
@@ -370,13 +404,421 @@ const PaymentReceiptViewer = ({
               </motion.div>
             )}
 
+            {/* 📊 NUEVA SECCIÓN: Información Detallada del Pago */}
+            <motion.div
+              key="payment-details"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4, duration: 0.4 }}
+            >
+              <Paper sx={{ 
+                mt: 3, 
+                p: 3, 
+                bgcolor: alpha(theme.palette.primary.main, 0.05), 
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+                borderRadius: 2
+              }}>
+                <Typography variant="overline" color="primary.main" sx={{ fontWeight: 700, mb: 2, display: 'block' }}>
+                  📊 Información del Pago
+                </Typography>
+                
+                <Grid container spacing={2}>
+                  {/* Empresa */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                        🏢 Empresa:
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {commitment?.companyName || payment.companyName || 'N/A'}
+                      </Typography>
+                    </Box>
+                  </Grid>
+
+                  {/* Concepto del Compromiso */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                        📝 Concepto:
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600, maxWidth: '60%', textAlign: 'right' }}>
+                        {commitment?.concept || payment.concept || 'N/A'}
+                      </Typography>
+                    </Box>
+                  </Grid>
+
+                  {/* Proveedor/Beneficiario - USAR DATOS DE COMMITMENT */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                        👤 Proveedor:
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600, maxWidth: '60%', textAlign: 'right' }}>
+                        {commitment?.provider || commitment?.beneficiary || 'Coljuegos'}
+                      </Typography>
+                    </Box>
+                  </Grid>
+
+                  {/* Estado del Pago */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                        ✅ Estado:
+                      </Typography>
+                      <Chip 
+                        label="Completado"
+                        color="success" 
+                        size="small" 
+                        sx={{ fontWeight: 600, fontSize: '0.75rem' }}
+                      />
+                    </Box>
+                  </Grid>
+
+                  {/* Referencia de Pago */}
+                  {commitment?.reference && (
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                          🔢 Referencia:
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600, fontFamily: 'monospace' }}>
+                          {commitment.reference}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  )}
+
+                  {/* NUEVA: Cuenta con la que se pagó - Formato mejorado */}
+                  {(commitment?.sourceAccount || commitment?.sourceBank) && (
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                          🏦 Cuenta Pago:
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {commitment.sourceBank || 'Banco'} {commitment?.companyName?.includes('Luxury') ? 'DiverGames' : 
+                           commitment?.companyName?.includes('Coljuegos') ? 'Juegos' : 'Empresa'} {commitment.sourceAccount && commitment.sourceAccount.slice(-3)}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  )}
+
+                  {/* Procesado por */}
+                  {(payment.processedByEmail || payment.processedBy) && (
+                    <Grid item xs={12}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                          👨‍💼 Procesado por:
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                          {payment.processedByEmail || payment.processedBy || 'Sistema'}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  )}
+                </Grid>
+
+                {/* SECCIÓN DE MONTOS Y DETALLES - SIEMPRE VISIBLE CON DEBUG */}
+                <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.2)}` }}>
+                  <Typography variant="overline" color="primary.main" sx={{ fontWeight: 700, mb: 2, display: 'block' }}>
+                    💰 Desglose del Pago
+                  </Typography>
+                  
+                  <Grid container spacing={2}>
+                    {/* Verificar si es Coljuegos CON DATOS CORRECTOS */}
+                    {(() => {
+                      // Usar commitment que contiene todos los datos mapeados desde PaymentsPage
+                      const isColjuegos = 
+                        // Por provider/beneficiary
+                        commitment?.provider?.toLowerCase()?.includes('coljuegos') || 
+                        commitment?.beneficiary?.toLowerCase()?.includes('coljuegos') ||
+                        
+                        // Por concepto/referencia
+                        commitment?.concept?.toLowerCase()?.includes('coljuegos') ||
+                        commitment?.reference?.toLowerCase()?.includes('coljuegos') ||
+                        
+                        // Por conceptos específicos de Coljuegos
+                        commitment?.concept?.toLowerCase()?.includes('derechos') ||
+                        commitment?.concept?.toLowerCase()?.includes('explotación') ||
+                        commitment?.concept?.toLowerCase()?.includes('gastos') ||
+                        
+                        // Por referencia con "impuestos coljuegos"
+                        commitment?.reference?.toLowerCase()?.includes('impuestos');
+                      
+                      console.log('🔍 Debug PaymentReceiptViewer - DATOS CORRECTOS:');
+                      console.log('- isColjuegos:', isColjuegos);
+                      console.log('- commitment.concept:', commitment?.concept);
+                      console.log('- commitment.reference:', commitment?.reference);
+                      console.log('- commitment.provider:', commitment?.provider);
+                      console.log('- commitment.derechosExplotacion:', commitment?.derechosExplotacion);
+                      console.log('- commitment.gastosAdministracion:', commitment?.gastosAdministracion);
+                      console.log('- commitment.interesesDerechosExplotacion:', commitment?.interesesDerechosExplotacion);
+                      console.log('- commitment.interesesGastosAdministracion:', commitment?.interesesGastosAdministracion);
+                      console.log('- commitment completo:', commitment);
+                      console.log('🚨 VALORES RECIBIDOS:');
+                      console.log('- derechosExplotacion valor:', commitment?.derechosExplotacion, 'tipo:', typeof commitment?.derechosExplotacion);
+                      console.log('- gastosAdministracion valor:', commitment?.gastosAdministracion, 'tipo:', typeof commitment?.gastosAdministracion);
+                      
+                      if (isColjuegos) {
+                        return (
+                          <>
+                            <Grid item xs={12}>
+                              <Typography variant="caption" color="success.main" sx={{ fontStyle: 'italic' }}>
+                                ✅ Detectado como pago Coljuegos
+                              </Typography>
+                            </Grid>
+                            
+                            {/* Derechos de Explotación Base - USAR DATOS REALES COMO EN MODAL EDICIÓN */}
+                            <Grid item xs={12} sm={6}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                  🎯 Derechos Explotación:
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
+                                  {(() => {
+                                    // MISMA LÓGICA QUE EN MODAL DE EDICIÓN:
+                                    // Primero del pago, si no está, del compromiso original
+                                    const fromPayment = commitment?.derechosExplotacion;
+                                    const fromOriginalCommitment = originalCommitment?.derechosExplotacion;
+                                    const finalValue = fromPayment ?? fromOriginalCommitment ?? 0;
+                                    
+                                    console.log('🎯 Debug Derechos Explotación:', {
+                                      fromPayment,
+                                      fromOriginalCommitment,
+                                      finalValue,
+                                      'commitment object': commitment,
+                                      'originalCommitment object': originalCommitment
+                                    });
+                                    
+                                    return fCurrency(finalValue);
+                                  })()}
+                                </Typography>
+                              </Box>
+                            </Grid>
+
+                            {/* Gastos de Administración Base - USAR DATOS REALES COMO EN MODAL EDICIÓN */}
+                            <Grid item xs={12} sm={6}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                  📋 Gastos Administración:
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
+                                  {(() => {
+                                    // MISMA LÓGICA QUE EN MODAL DE EDICIÓN:
+                                    // Primero del pago, si no está, del compromiso original
+                                    const fromPayment = commitment?.gastosAdministracion;
+                                    const fromOriginalCommitment = originalCommitment?.gastosAdministracion;
+                                    const finalValue = fromPayment ?? fromOriginalCommitment ?? 0;
+                                    
+                                    console.log('📋 Debug Gastos Administración:', {
+                                      fromPayment,
+                                      fromOriginalCommitment,
+                                      finalValue
+                                    });
+                                    
+                                    return fCurrency(finalValue);
+                                  })()}
+                                </Typography>
+                              </Box>
+                            </Grid>
+
+                            {/* Intereses de Derechos de Explotación */}
+                            <Grid item xs={12} sm={6}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                  📈 Intereses Derechos:
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'warning.main' }}>
+                                  {fCurrency(commitment?.interesesDerechosExplotacion || 0)}
+                                </Typography>
+                              </Box>
+                            </Grid>
+
+                            {/* Intereses de Gastos de Administración */}
+                            <Grid item xs={12} sm={6}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                  📈 Intereses Gastos:
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'warning.main' }}>
+                                  {fCurrency(commitment?.interesesGastosAdministracion || 0)}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                          </>
+                        );
+                      } else {
+                        return (
+                          <>
+                            <Grid item xs={12}>
+                              <Typography variant="caption" color="warning.main" sx={{ fontStyle: 'italic' }}>
+                                ⚠️ Detectado como pago regular (No Coljuegos)
+                              </Typography>
+                            </Grid>
+                            
+                            {/* Monto Base/Impuestos - SIEMPRE MOSTRAR */}
+                            <Grid item xs={12} sm={6}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                  📊 Monto Base:
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'info.main' }}>
+                                  {fCurrency(commitment?.originalAmount || commitment?.amount || 0)}
+                                </Typography>
+                              </Box>
+                            </Grid>
+
+                            {/* Intereses generales - SIEMPRE MOSTRAR */}
+                            <Grid item xs={12} sm={6}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                  💸 Intereses:
+                                </Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'warning.main' }}>
+                                  {fCurrency(commitment?.interests || 0)}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                          </>
+                        );
+                      }
+                    })()}
+                    
+                    {/* Mostrar Total Pagado - SIEMPRE VISIBLE */}
+                    <Grid item xs={12}>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        mt: 2, 
+                        pt: 2, 
+                        borderTop: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                        bgcolor: alpha(theme.palette.success.main, 0.05),
+                        borderRadius: 1,
+                        px: 2,
+                        py: 1
+                      }}>
+                        <Typography variant="h6" color="text.primary" sx={{ fontWeight: 700 }}>
+                          💰 Total Pagado:
+                        </Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 800, color: 'success.main' }}>
+                          {fCurrency(commitment?.amount || 0)}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </Box>
+                <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.2)}` }}>
+                  <Typography variant="overline" color="primary.main" sx={{ fontWeight: 700, mb: 2, display: 'block' }}>
+                    💰 Desglose del Pago
+                  </Typography>
+                  
+                  <Grid container spacing={2}>
+                    {/* PARA COLJUEGOS */}
+                    {(commitment?.provider?.toLowerCase().includes('coljuegos') || 
+                      commitment?.beneficiary?.toLowerCase().includes('coljuegos') ||
+                      payment.companyName?.toLowerCase().includes('coljuegos')) ? (
+                      <>
+                        {/* Derechos de Explotación Base */}
+                        {(payment.derechosExplotacion || commitment?.derechosExplotacion) && (
+                          <Grid item xs={12} sm={6}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                🎯 Derechos Explotación:
+                              </Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
+                                {fCurrency(payment.derechosExplotacion || commitment?.derechosExplotacion || 0)}
+                              </Typography>
+                            </Box>
+                          </Grid>
+                        )}
+
+                        {/* Gastos de Administración Base */}
+                        {(payment.gastosAdministracion || commitment?.gastosAdministracion) && (
+                          <Grid item xs={12} sm={6}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                📋 Gastos Administración:
+                              </Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
+                                {fCurrency(payment.gastosAdministracion || commitment?.gastosAdministracion || 0)}
+                              </Typography>
+                            </Box>
+                          </Grid>
+                        )}
+
+                        {/* Intereses de Derechos de Explotación */}
+                        {(payment.interesesDerechosExplotacion && payment.interesesDerechosExplotacion > 0) && (
+                          <Grid item xs={12} sm={6}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                � Intereses Derechos:
+                              </Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'warning.main' }}>
+                                {fCurrency(payment.interesesDerechosExplotacion)}
+                              </Typography>
+                            </Box>
+                          </Grid>
+                        )}
+
+                        {/* Intereses de Gastos de Administración */}
+                        {(payment.interesesGastosAdministracion && payment.interesesGastosAdministracion > 0) && (
+                          <Grid item xs={12} sm={6}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                📈 Intereses Gastos:
+                              </Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'warning.main' }}>
+                                {fCurrency(payment.interesesGastosAdministracion)}
+                              </Typography>
+                            </Box>
+                          </Grid>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {/* PARA OTROS PAGOS (NO COLJUEGOS) */}
+                        {/* Impuestos */}
+                        {(payment.originalAmount && payment.originalAmount > 0) && (
+                          <Grid item xs={12} sm={6}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                � Impuestos:
+                              </Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'info.main' }}>
+                                {fCurrency(payment.originalAmount)}
+                              </Typography>
+                            </Box>
+                          </Grid>
+                        )}
+
+                        {/* Intereses generales */}
+                        {(payment.interests && payment.interests > 0) && (
+                          <Grid item xs={12} sm={6}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                💸 Intereses:
+                              </Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: 'warning.main' }}>
+                                {fCurrency(payment.interests)}
+                              </Typography>
+                            </Box>
+                          </Grid>
+                        )}
+                      </>
+                    )}
+                  </Grid>
+                </Box>
+              </Paper>
+            </motion.div>
+
             {/* 📎 Comprobante */}
             {finalReceiptUrl && (
               <motion.div
                 key="payment-receipt"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5, duration: 0.4 }}
+                transition={{ delay: 0.6, duration: 0.4 }}
               >
                 <Paper sx={{ 
                   mt: 3, 
