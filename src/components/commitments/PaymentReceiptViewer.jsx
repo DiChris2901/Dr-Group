@@ -335,14 +335,14 @@ const PaymentReceiptViewer = ({
                     sx={{
                       p: 2,
                       borderRadius: 2,
-                      backgroundColor: alpha(theme.palette.success.main, 0.08),
+                      backgroundColor: 'white',
                       border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
                       height: 100,
                       display: 'flex',
                       alignItems: 'center',
                       transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&:hover': {
-                        backgroundColor: alpha(theme.palette.success.main, 0.12),
+                        backgroundColor: alpha(theme.palette.success.main, 0.05),
                         borderColor: alpha(theme.palette.success.main, 0.3),
                         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
                       }
@@ -399,14 +399,14 @@ const PaymentReceiptViewer = ({
                     sx={{
                       p: 2,
                       borderRadius: 2,
-                      backgroundColor: alpha(theme.palette.info.main, 0.08),
+                      backgroundColor: 'white',
                       border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
                       height: 100,
                       display: 'flex',
                       alignItems: 'center',
                       transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&:hover': {
-                        backgroundColor: alpha(theme.palette.info.main, 0.12),
+                        backgroundColor: alpha(theme.palette.info.main, 0.05),
                         borderColor: alpha(theme.palette.info.main, 0.3),
                         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
                       }
@@ -463,14 +463,14 @@ const PaymentReceiptViewer = ({
                     sx={{
                       p: 2,
                       borderRadius: 2,
-                      backgroundColor: alpha(theme.palette.secondary.main, 0.08),
+                      backgroundColor: 'white',
                       border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
                       height: 100,
                       display: 'flex',
                       alignItems: 'center',
                       transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&:hover': {
-                        backgroundColor: alpha(theme.palette.secondary.main, 0.12),
+                        backgroundColor: alpha(theme.palette.secondary.main, 0.05),
                         borderColor: alpha(theme.palette.secondary.main, 0.3),
                         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
                       }
@@ -528,11 +528,11 @@ const PaymentReceiptViewer = ({
                   mt: 3, 
                   p: 2.5, 
                   borderRadius: 2,
-                  backgroundColor: alpha(theme.palette.info.main, 0.08),
+                  backgroundColor: 'white',
                   border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
                   transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                   '&:hover': {
-                    backgroundColor: alpha(theme.palette.info.main, 0.12),
+                    backgroundColor: alpha(theme.palette.info.main, 0.05),
                     borderColor: alpha(theme.palette.info.main, 0.3),
                     boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
                   }
@@ -583,32 +583,62 @@ const PaymentReceiptViewer = ({
               <Paper sx={{ 
                 mt: 3, 
                 p: 3, 
-                borderRadius: 1,
-                border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                transition: 'all 0.2s ease',
+                borderRadius: 2,
+                backgroundColor: 'white',
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 '&:hover': {
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                  borderColor: alpha(theme.palette.primary.main, 0.8)
+                  backgroundColor: alpha(theme.palette.primary.main, 0.02),
+                  borderColor: alpha(theme.palette.primary.main, 0.25),
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
                 }
               }}>
-                <Typography variant="h6" sx={{ 
-                  color: theme.palette.text.primary, 
-                  fontWeight: 600, 
-                  mb: 3,
-                  fontSize: '1rem'
-                }}>
-                  Información del Pago
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                  <Box sx={{
+                    width: 42,
+                    height: 42,
+                    borderRadius: 2,
+                    backgroundColor: theme.palette.primary.main,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontSize: '1.3rem'
+                  }}>
+                    📊
+                  </Box>
+                  <Typography variant="h6" sx={{ 
+                    color: 'primary.main', 
+                    fontWeight: 600, 
+                    fontSize: '1.1rem',
+                    flex: 1
+                  }}>
+                    Información del Pago
+                  </Typography>
+                </Box>
                 
                 <Grid container spacing={2}>
                   {/* Empresa */}
                   <Grid item xs={12} sm={6}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      mb: 1,
+                      p: 1.2,
+                      borderRadius: 1.5,
+                      backgroundColor: alpha(theme.palette.grey[500], 0.04),
+                      border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        backgroundColor: alpha(theme.palette.grey[500], 0.08),
+                        borderColor: alpha(theme.palette.grey[500], 0.2)
+                      }
+                    }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                         Empresa
                       </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 400, color: 'text.primary', fontSize: '0.85rem' }}>
                         {commitment?.companyName || payment.companyName || 'N/A'}
                       </Typography>
                     </Box>
@@ -616,11 +646,25 @@ const PaymentReceiptViewer = ({
 
                   {/* Concepto del Compromiso */}
                   <Grid item xs={12} sm={6}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      mb: 1,
+                      p: 1.2,
+                      borderRadius: 1.5,
+                      backgroundColor: alpha(theme.palette.grey[500], 0.04),
+                      border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        backgroundColor: alpha(theme.palette.grey[500], 0.08),
+                        borderColor: alpha(theme.palette.grey[500], 0.2)
+                      }
+                    }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                         Concepto
                       </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, maxWidth: '60%', textAlign: 'right' }}>
+                      <Typography variant="body2" sx={{ fontWeight: 400, maxWidth: '60%', textAlign: 'right', color: 'text.primary', fontSize: '0.85rem' }}>
                         {commitment?.concept || payment.concept || 'N/A'}
                       </Typography>
                     </Box>
@@ -629,11 +673,20 @@ const PaymentReceiptViewer = ({
                   {/* Referencia de Pago */}
                   {commitment?.reference && (
                     <Grid item xs={12} sm={6}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        mb: 1,
+                        p: 1.2,
+                        borderRadius: 1.5,
+                        backgroundColor: 'white',
+                        border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`
+                      }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                           Referencia
                         </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600, fontFamily: 'monospace' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary', fontSize: '0.85rem' }}>
                           {commitment.reference}
                         </Typography>
                       </Box>
@@ -643,11 +696,25 @@ const PaymentReceiptViewer = ({
                   {/* Cuenta de Origen del Pago */}
                   {getAccountDisplayName(commitment) && (
                     <Grid item xs={12} sm={6}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        mb: 1,
+                        p: 1.2,
+                        borderRadius: 1.5,
+                        backgroundColor: alpha(theme.palette.grey[500], 0.04),
+                        border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`,
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.grey[500], 0.08),
+                          borderColor: alpha(theme.palette.grey[500], 0.2)
+                        }
+                      }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                           Cuenta de Pago
                         </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 400, color: 'text.primary', fontSize: '0.85rem' }}>
                           {getAccountDisplayName(commitment)}
                         </Typography>
                       </Box>
@@ -657,11 +724,25 @@ const PaymentReceiptViewer = ({
                   {/* Banco/Entidad Financiera */}
                   {(commitment?.bankName || commitment?.paymentBank || commitment?.bank || commitment?.financialEntity) && (
                     <Grid item xs={12} sm={6}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center', 
+                        mb: 1,
+                        p: 1.2,
+                        borderRadius: 1.5,
+                        backgroundColor: alpha(theme.palette.grey[500], 0.04),
+                        border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`,
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.grey[500], 0.08),
+                          borderColor: alpha(theme.palette.grey[500], 0.2)
+                        }
+                      }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                           Entidad Financiera
                         </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 400, color: 'text.primary', fontSize: '0.85rem' }}>
                           {commitment?.bankName || commitment?.paymentBank || commitment?.bank || commitment?.financialEntity}
                         </Typography>
                       </Box>
@@ -670,15 +751,30 @@ const PaymentReceiptViewer = ({
                 </Grid>
 
                 {/* SECCIÓN DE MONTOS Y DETALLES - SIEMPRE VISIBLE CON DEBUG */}
-                <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.2)}` }}>
-                  <Typography variant="h6" sx={{ 
-                    color: theme.palette.text.primary, 
-                    fontWeight: 600, 
-                    mb: 3,
-                    fontSize: '1rem'
-                  }}>
-                    Desglose del Pago
-                  </Typography>
+                <Box sx={{ mt: 3, pt: 3, borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.2)}` }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                    <Box sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 1.5,
+                      backgroundColor: alpha(theme.palette.secondary.main, 0.15),
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'secondary.main',
+                      fontSize: '1.1rem'
+                    }}>
+                      💰
+                    </Box>
+                    <Typography variant="h6" sx={{ 
+                      color: 'secondary.main', 
+                      fontWeight: 600, 
+                      fontSize: '1.1rem',
+                      flex: 1
+                    }}>
+                      Desglose del Pago
+                    </Typography>
+                  </Box>
                   
                   <Grid container spacing={2}>
                     {/* Verificar si es Coljuegos CON DATOS CORRECTOS */}
@@ -715,31 +811,53 @@ const PaymentReceiptViewer = ({
                       console.log('- derechosExplotacion valor:', commitment?.derechosExplotacion, 'tipo:', typeof commitment?.derechosExplotacion);
                       console.log('- gastosAdministracion valor:', commitment?.gastosAdministracion, 'tipo:', typeof commitment?.gastosAdministracion);
                       
+                      // 🔍 DEBUG PAYMENT DATA TAMBIÉN
+                      console.log('💰 PAYMENT DATA DEBUG (commitment object):');
+                      console.log('- commitment.interesesDerechosExplotacion:', commitment?.interesesDerechosExplotacion);
+                      console.log('- commitment.interesesGastosAdministracion:', commitment?.interesesGastosAdministracion);
+                      console.log('- commitment.interests (total):', commitment?.interests);
+                      console.log('- commitment.amount:', commitment?.amount);
+                      console.log('- commitment completo:', commitment);
+                      
+                      // 🔍 DEBUG ORIGINALCOMMITMENT DATA
+                      console.log('📋 ORIGINAL COMMITMENT DATA DEBUG:');
+                      console.log('- originalCommitment.interesesDerechosExplotacion:', originalCommitment?.interesesDerechosExplotacion);
+                      console.log('- originalCommitment.interesesGastosAdministracion:', originalCommitment?.interesesGastosAdministracion);
+                      console.log('- originalCommitment completo:', originalCommitment);
+                      
                       if (isColjuegos) {
                         return (
                           <>
-                            <Grid item xs={12}>
-                              <Typography variant="caption" color="success.main" sx={{ fontStyle: 'italic' }}>
-                                ✅ Detectado como pago Coljuegos
-                              </Typography>
-                            </Grid>
-                            
                             {/* Derechos de Explotación Base - USAR DATOS REALES COMO EN MODAL EDICIÓN */}
                             <Grid item xs={12} sm={6}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                              <Box sx={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center', 
+                                mb: 1,
+                                p: 1.2,
+                                borderRadius: 1.5,
+                                backgroundColor: alpha(theme.palette.success.main, 0.06),
+                                border: `1px solid ${alpha(theme.palette.success.main, 0.15)}`,
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  backgroundColor: alpha(theme.palette.success.main, 0.1),
+                                  borderColor: alpha(theme.palette.success.main, 0.25)
+                                }
+                              }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                                   Derechos Explotación
                                 </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+                                <Typography variant="body2" sx={{ fontWeight: 500, color: 'success.main', fontSize: '0.9rem' }}>
                                   {(() => {
-                                    // MISMA LÓGICA QUE EN MODAL DE EDICIÓN:
-                                    // Primero del pago, si no está, del compromiso original
-                                    const fromPayment = commitment?.derechosExplotacion;
+                                    // ✅ BUSCAR DATOS EN COMMITMENT PRIMERO (que contiene datos del pago)
+                                    // Luego en originalCommitment como fallback
+                                    const fromCommitment = commitment?.derechosExplotacion;
                                     const fromOriginalCommitment = originalCommitment?.derechosExplotacion;
-                                    const finalValue = fromPayment ?? fromOriginalCommitment ?? 0;
+                                    const finalValue = fromCommitment ?? fromOriginalCommitment ?? 0;
                                     
                                     console.log('🎯 Debug Derechos Explotación:', {
-                                      fromPayment,
+                                      fromCommitment,
                                       fromOriginalCommitment,
                                       finalValue,
                                       'commitment object': commitment,
@@ -754,20 +872,34 @@ const PaymentReceiptViewer = ({
 
                             {/* Gastos de Administración Base - USAR DATOS REALES COMO EN MODAL EDICIÓN */}
                             <Grid item xs={12} sm={6}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                              <Box sx={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center', 
+                                mb: 1,
+                                p: 1.2,
+                                borderRadius: 1.5,
+                                backgroundColor: alpha(theme.palette.info.main, 0.06),
+                                border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`,
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  backgroundColor: alpha(theme.palette.info.main, 0.1),
+                                  borderColor: alpha(theme.palette.info.main, 0.25)
+                                }
+                              }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                                   Gastos Administración
                                 </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+                                <Typography variant="body2" sx={{ fontWeight: 500, color: 'info.main', fontSize: '0.9rem' }}>
                                   {(() => {
-                                    // MISMA LÓGICA QUE EN MODAL DE EDICIÓN:
-                                    // Primero del pago, si no está, del compromiso original
-                                    const fromPayment = commitment?.gastosAdministracion;
+                                    // ✅ BUSCAR DATOS EN COMMITMENT PRIMERO (que contiene datos del pago)
+                                    // Luego en originalCommitment como fallback
+                                    const fromCommitment = commitment?.gastosAdministracion;
                                     const fromOriginalCommitment = originalCommitment?.gastosAdministracion;
-                                    const finalValue = fromPayment ?? fromOriginalCommitment ?? 0;
+                                    const finalValue = fromCommitment ?? fromOriginalCommitment ?? 0;
                                     
                                     console.log('📋 Debug Gastos Administración:', {
-                                      fromPayment,
+                                      fromCommitment,
                                       fromOriginalCommitment,
                                       finalValue
                                     });
@@ -780,24 +912,80 @@ const PaymentReceiptViewer = ({
 
                             {/* Intereses de Derechos de Explotación */}
                             <Grid item xs={12} sm={6}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                              <Box sx={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center', 
+                                mb: 1,
+                                p: 1.2,
+                                borderRadius: 1.5,
+                                backgroundColor: alpha(theme.palette.warning.main, 0.06),
+                                border: `1px solid ${alpha(theme.palette.warning.main, 0.15)}`,
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                                  borderColor: alpha(theme.palette.warning.main, 0.25)
+                                }
+                              }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                                   Intereses Derechos
                                 </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
-                                  {fCurrency(commitment?.interesesDerechosExplotacion || 0)}
+                                <Typography variant="body2" sx={{ fontWeight: 500, color: 'warning.main', fontSize: '0.9rem' }}>
+                                  {(() => {
+                                    // ✅ BUSCAR INTERESES EN COMMITMENT - NO EN PAYMENT
+                                    const fromCommitment = commitment?.interesesDerechosExplotacion;
+                                    const fromOriginalCommitment = originalCommitment?.interesesDerechosExplotacion;
+                                    const finalValue = fromCommitment ?? fromOriginalCommitment ?? 0;
+                                    
+                                    console.log('🎯 Debug Intereses Derechos:', {
+                                      fromCommitment,
+                                      fromOriginalCommitment,
+                                      finalValue,
+                                      'commitment object': commitment,
+                                      'originalCommitment object': originalCommitment
+                                    });
+                                    
+                                    return fCurrency(finalValue);
+                                  })()}
                                 </Typography>
                               </Box>
                             </Grid>
 
                             {/* Intereses de Gastos de Administración */}
                             <Grid item xs={12} sm={6}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                              <Box sx={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center', 
+                                mb: 1,
+                                p: 1.2,
+                                borderRadius: 1.5,
+                                backgroundColor: alpha(theme.palette.secondary.main, 0.06),
+                                border: `1px solid ${alpha(theme.palette.secondary.main, 0.15)}`,
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  backgroundColor: alpha(theme.palette.secondary.main, 0.1),
+                                  borderColor: alpha(theme.palette.secondary.main, 0.25)
+                                }
+                              }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                                   Intereses Gastos
                                 </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
-                                  {fCurrency(commitment?.interesesGastosAdministracion || 0)}
+                                <Typography variant="body2" sx={{ fontWeight: 500, color: 'secondary.main', fontSize: '0.9rem' }}>
+                                  {(() => {
+                                    // ✅ BUSCAR INTERESES EN COMMITMENT - NO EN PAYMENT
+                                    const fromCommitment = commitment?.interesesGastosAdministracion;
+                                    const fromOriginalCommitment = originalCommitment?.interesesGastosAdministracion;
+                                    const finalValue = fromCommitment ?? fromOriginalCommitment ?? 0;
+                                    
+                                    console.log('� Debug Intereses Gastos:', {
+                                      fromCommitment,
+                                      fromOriginalCommitment,
+                                      finalValue
+                                    });
+                                    
+                                    return fCurrency(finalValue);
+                                  })()}
                                 </Typography>
                               </Box>
                             </Grid>
@@ -806,19 +994,27 @@ const PaymentReceiptViewer = ({
                       } else {
                         return (
                           <>
-                            <Grid item xs={12}>
-                              <Typography variant="caption" color="warning.main" sx={{ fontStyle: 'italic' }}>
-                                ⚠️ Detectado como pago regular (No Coljuegos)
-                              </Typography>
-                            </Grid>
-                            
                             {/* Monto Base/Impuestos - SIEMPRE MOSTRAR */}
                             <Grid item xs={12} sm={6}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                              <Box sx={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center', 
+                                mb: 1,
+                                p: 1.2,
+                                borderRadius: 1.5,
+                                backgroundColor: alpha(theme.palette.primary.main, 0.06),
+                                border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                  borderColor: alpha(theme.palette.primary.main, 0.25)
+                                }
+                              }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                                   Monto Base
                                 </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+                                <Typography variant="body2" sx={{ fontWeight: 500, color: 'primary.main', fontSize: '0.9rem' }}>
                                   {fCurrency(commitment?.originalAmount || commitment?.amount || 0)}
                                 </Typography>
                               </Box>
@@ -826,11 +1022,25 @@ const PaymentReceiptViewer = ({
 
                             {/* Intereses generales - SIEMPRE MOSTRAR */}
                             <Grid item xs={12} sm={6}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                              <Box sx={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center', 
+                                mb: 1,
+                                p: 1.2,
+                                borderRadius: 1.5,
+                                backgroundColor: alpha(theme.palette.error.main, 0.06),
+                                border: `1px solid ${alpha(theme.palette.error.main, 0.15)}`,
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  backgroundColor: alpha(theme.palette.error.main, 0.1),
+                                  borderColor: alpha(theme.palette.error.main, 0.25)
+                                }
+                              }}>
+                                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                                   Intereses
                                 </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
+                                <Typography variant="body2" sx={{ fontWeight: 500, color: 'error.main', fontSize: '0.9rem' }}>
                                   {fCurrency(commitment?.interests || 0)}
                                 </Typography>
                               </Box>
@@ -844,25 +1054,47 @@ const PaymentReceiptViewer = ({
                     <Grid item xs={12}>
                       <Box sx={{ 
                         display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center', 
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
                         mt: 2, 
                         pt: 2, 
-                        borderTop: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
-                        bgcolor: alpha(theme.palette.success.main, 0.05),
-                        borderRadius: 1,
-                        px: 2,
-                        py: 1
+                        borderTop: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                        backgroundColor: alpha(theme.palette.success.main, 0.08),
+                        borderRadius: 2,
+                        px: 2.5,
+                        py: 1.8,
+                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.success.main, 0.12),
+                          boxShadow: '0 4px 12px rgba(76, 175, 80, 0.15)'
+                        }
                       }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Box sx={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 2,
+                            backgroundColor: theme.palette.success.main,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'white',
+                            fontSize: '1.1rem'
+                          }}>
+                            💵
+                          </Box>
+                          <Typography variant="h6" sx={{ 
+                            fontWeight: 600,
+                            color: 'success.main',
+                            fontSize: '1rem'
+                          }}>
+                            Total Pagado
+                          </Typography>
+                        </Box>
                         <Typography variant="h6" sx={{ 
-                          fontWeight: 600,
-                          color: theme.palette.text.primary
-                        }}>
-                          Total Pagado
-                        </Typography>
-                        <Typography variant="h5" sx={{ 
                           fontWeight: 600, 
-                          color: theme.palette.text.primary
+                          color: 'success.main',
+                          fontSize: '1.1rem'
                         }}>
                           {fCurrency(commitment?.amount || 0)}
                         </Typography>
@@ -883,29 +1115,45 @@ const PaymentReceiptViewer = ({
               >
                 <Paper sx={{ 
                   mt: 3, 
-                  p: 4, 
-                  borderRadius: 1,
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  p: 3, 
+                  borderRadius: 2,
+                  backgroundColor: 'white',
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
                   textAlign: 'center',
-                  transition: 'all 0.2s ease',
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                   '&:hover': {
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    borderColor: alpha(theme.palette.primary.main, 0.8)
+                    backgroundColor: alpha(theme.palette.primary.main, 0.02),
+                    borderColor: alpha(theme.palette.primary.main, 0.3),
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
                   }
                 }}>
-                  <Typography variant="h6" sx={{ 
-                    color: theme.palette.text.primary, 
-                    fontWeight: 600, 
-                    mb: 2,
-                    fontSize: '1rem'
-                  }}>
-                    Comprobante de Pago
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, mb: 2 }}>
+                    <Box sx={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 2,
+                      backgroundColor: theme.palette.primary.main,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'white',
+                      fontSize: '1.1rem'
+                    }}>
+                      📎
+                    </Box>
+                    <Typography variant="h6" sx={{ 
+                      color: 'primary.main', 
+                      fontWeight: 600, 
+                      fontSize: '1.1rem'
+                    }}>
+                      Comprobante de Pago
+                    </Typography>
+                  </Box>
                   <Typography variant="body1" sx={{ 
-                    mb: 3, 
+                    mb: 2.5, 
                     fontWeight: 400,
-                    color: theme.palette.text.primary
+                    color: 'text.secondary',
+                    fontSize: '0.9rem'
                   }}>
                     {receiptMetadata?.name || 'comprobante.pdf'}
                     {receiptMetadata?.size && (
@@ -915,7 +1163,10 @@ const PaymentReceiptViewer = ({
                         sx={{ 
                           ml: 1,
                           fontWeight: 500,
-                          border: `1px solid ${theme.palette.divider}`
+                          fontSize: '0.75rem',
+                          height: 24,
+                          backgroundColor: alpha(theme.palette.grey[500], 0.1),
+                          border: `1px solid ${alpha(theme.palette.grey[500], 0.2)}`
                         }}
                       />
                     )}
@@ -926,14 +1177,19 @@ const PaymentReceiptViewer = ({
                     startIcon={<Visibility />}
                     onClick={() => setPreviewDialogOpen(true)}
                     sx={{
-                      borderRadius: 1,
-                      px: 3,
-                      py: 1.5,
-                      fontWeight: 600,
+                      borderRadius: 2,
+                      px: 2.5,
+                      py: 1.2,
+                      fontWeight: 500,
                       textTransform: 'none',
-                      boxShadow: 2,
+                      fontSize: '0.9rem',
+                      boxShadow: 'none',
+                      transition: 'none',
                       '&:hover': {
-                        boxShadow: 4
+                        boxShadow: 'none',
+                        transform: 'none',
+                        backgroundColor: 'primary.main',
+                        backgroundImage: 'none'
                       }
                     }}
                   >
