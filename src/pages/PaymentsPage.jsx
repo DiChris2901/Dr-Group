@@ -1025,8 +1025,9 @@ const PaymentsPage = () => {
       interests: isColjuegos ? '' : formatCurrency(correctedPayment.interests ?? 0),
       interesesDerechosExplotacion: isColjuegos ? formatCurrency(correctedPayment.interesesDerechosExplotacion ?? 0) : '',
       interesesGastosAdministracion: isColjuegos ? formatCurrency(correctedPayment.interesesGastosAdministracion ?? 0) : '',
-      derechosExplotacion: isColjuegos ? formatCurrency(correctedPayment.derechosExplotacion ?? 0) : '',
-      gastosAdministracion: isColjuegos ? formatCurrency(correctedPayment.gastosAdministracion ?? 0) : '',
+      // CARGAR VALORES BASE: primero del pago, si no están, del compromiso
+      derechosExplotacion: isColjuegos ? formatCurrency(correctedPayment.derechosExplotacion ?? commitment?.derechosExplotacion ?? 0) : '',
+      gastosAdministracion: isColjuegos ? formatCurrency(correctedPayment.gastosAdministracion ?? commitment?.gastosAdministracion ?? 0) : '',
       // Para Coljuegos, usar originalAmount corregido si está disponible
       originalAmount: isColjuegos 
         ? formatCurrency(correctedPayment.originalAmount ?? (correctedPayment.amount - (correctedPayment.interesesDerechosExplotacion ?? 0) - (correctedPayment.interesesGastosAdministracion ?? 0)))
@@ -1040,6 +1041,36 @@ const PaymentsPage = () => {
         correctedPayment.method || '', 
         correctedPayment.sourceAccount || ''
       )
+    });
+
+    console.log('🔍 Debug - Datos cargados en el modal de edición:', {
+      isColjuegos,
+      payment: correctedPayment,
+      commitment: commitment,
+      'RAW derechosExplotacion (PAGO)': correctedPayment.derechosExplotacion,
+      'RAW gastosAdministracion (PAGO)': correctedPayment.gastosAdministracion,
+      'RAW derechosExplotacion (COMPROMISO)': commitment?.derechosExplotacion,
+      'RAW gastosAdministracion (COMPROMISO)': commitment?.gastosAdministracion,
+      'RAW interesesDerechosExplotacion': correctedPayment.interesesDerechosExplotacion,
+      'RAW interesesGastosAdministracion': correctedPayment.interesesGastosAdministracion,
+      'TYPEOF derechosExplotacion': typeof correctedPayment.derechosExplotacion,
+      'TYPEOF gastosAdministracion': typeof correctedPayment.gastosAdministracion,
+      'IS UNDEFINED derechosExplotacion': correctedPayment.derechosExplotacion === undefined,
+      'IS NULL derechosExplotacion': correctedPayment.derechosExplotacion === null,
+      'IS ZERO derechosExplotacion': correctedPayment.derechosExplotacion === 0,
+      'IS UNDEFINED gastosAdministracion': correctedPayment.gastosAdministracion === undefined,
+      'IS NULL gastosAdministracion': correctedPayment.gastosAdministracion === null,
+      'IS ZERO gastosAdministracion': correctedPayment.gastosAdministracion === 0,
+      'FINAL VALUES USED': {
+        derechosExplotacion: correctedPayment.derechosExplotacion ?? commitment?.derechosExplotacion ?? 0,
+        gastosAdministracion: correctedPayment.gastosAdministracion ?? commitment?.gastosAdministracion ?? 0
+      },
+      formData: {
+        derechosExplotacion: isColjuegos ? formatCurrency(correctedPayment.derechosExplotacion ?? commitment?.derechosExplotacion ?? 0) : '',
+        gastosAdministracion: isColjuegos ? formatCurrency(correctedPayment.gastosAdministracion ?? commitment?.gastosAdministracion ?? 0) : '',
+        'FORMATTED derechosExplotacion': formatCurrency(correctedPayment.derechosExplotacion ?? commitment?.derechosExplotacion ?? 0),
+        'FORMATTED gastosAdministracion': formatCurrency(correctedPayment.gastosAdministracion ?? commitment?.gastosAdministracion ?? 0)
+      }
     });
     
     // 🔄 ACTUALIZACIÓN AUTOMÁTICA DE FIREBASE DESACTIVADA
@@ -1253,11 +1284,14 @@ const PaymentsPage = () => {
       if (isColjuegos) {
         updateData.interesesDerechosExplotacion = parseFloat(cleanCurrency(editFormData.interesesDerechosExplotacion)) || 0;
         updateData.interesesGastosAdministracion = parseFloat(cleanCurrency(editFormData.interesesGastosAdministracion)) || 0;
+        updateData.derechosExplotacion = parseFloat(cleanCurrency(editFormData.derechosExplotacion)) || 0;
+        updateData.gastosAdministracion = parseFloat(cleanCurrency(editFormData.gastosAdministracion)) || 0;
         updateData.interests = updateData.interesesDerechosExplotacion + updateData.interesesGastosAdministracion;
       } else {
         updateData.interests = parseFloat(cleanCurrency(editFormData.interests)) || 0;
         updateData.interesesDerechosExplotacion = 0;
         updateData.interesesGastosAdministracion = 0;
+        // No agregar campos específicos de Coljuegos para otros compromisos
       }
 
       // =====================================================
@@ -1530,9 +1564,12 @@ const PaymentsPage = () => {
 
   // Función para formatear números con separadores de miles
   const formatCurrency = (value) => {
-    if (!value) return '';
-    // Remover todos los caracteres no numéricos
+    if (value === null || value === undefined || value === '') return '';
+    // Convertir a string y remover todos los caracteres no numéricos
     const cleanValue = value.toString().replace(/[^\d]/g, '');
+    // Si después de limpiar no hay dígitos o es '0', manejar caso especial
+    if (!cleanValue) return '';
+    if (cleanValue === '0') return '0';
     // Aplicar formato con puntos separadores de miles
     return cleanValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   };

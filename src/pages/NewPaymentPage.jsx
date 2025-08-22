@@ -154,6 +154,8 @@ const NewPaymentPage = () => {
     // Campos específicos para Coljuegos
     interesesDerechosExplotacion: 0,
     interesesGastosAdministracion: 0,
+    derechosExplotacion: 0,        // NUEVO: monto base derechos
+    gastosAdministracion: 0,       // NUEVO: monto base gastos
     finalAmount: 0
   });
 
@@ -524,6 +526,8 @@ const NewPaymentPage = () => {
         interests: 0,
         interesesDerechosExplotacion: 0,
         interesesGastosAdministracion: 0,
+        derechosExplotacion: 0,
+        gastosAdministracion: 0,
         finalAmount: 0
       }));
       // Limpiar URL de factura al deseleccionar compromiso
@@ -543,6 +547,9 @@ const NewPaymentPage = () => {
       interests: 0,
       interesesDerechosExplotacion: 0,
       interesesGastosAdministracion: 0,
+      // CARGAR VALORES BASE DESDE EL COMPROMISO
+      derechosExplotacion: commitment.derechosExplotacion || 0,
+      gastosAdministracion: commitment.gastosAdministracion || 0,
       finalAmount: finalAmount
     }));
 
@@ -776,6 +783,8 @@ const NewPaymentPage = () => {
         // 🎰 NUEVOS CAMPOS ESPECÍFICOS DE COLJUEGOS
         interesesDerechosExplotacion: formData.interesesDerechosExplotacion || 0,
         interesesGastosAdministracion: formData.interesesGastosAdministracion || 0,
+        derechosExplotacion: formData.derechosExplotacion || 0,        // NUEVO: monto base derechos
+        gastosAdministracion: formData.gastosAdministracion || 0,      // NUEVO: monto base gastos
         method: formData.method || '',
         reference: formData.reference || '',
         date: Timestamp.fromDate(createLocalDate(formData.date)),
