@@ -211,8 +211,8 @@ const PaymentReceiptViewer = ({
             exit: "exit",
             transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
             sx: {
-              borderRadius: 3,
-              background: tokens.getSurface('primary'),
+              borderRadius: 1,
+              background: 'white',
               backdropFilter: 'blur(24px)',
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
               border: `1px solid ${tokens.getBorder('soft')}`,
@@ -220,33 +220,60 @@ const PaymentReceiptViewer = ({
             }
           }}
         >
-          {/* 🎨 Header con gradiente */}
-          <DialogTitle sx={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            p: 3,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between'
-          }}>
-            <Box display="flex" alignItems="center" gap={2}>
-              <CheckCircle sx={{ fontSize: 28 }} />
-              <Box>
-                <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-                  💰 Comprobante de Pago
+          {/* � Header Sobrio Corporativo */}
+          <DialogTitle>
+            <Paper sx={{ 
+              background: theme.palette.mode === 'dark' 
+                ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+                : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+              borderRadius: 1,
+              overflow: 'hidden',
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+                : '0 4px 20px rgba(0, 0, 0, 0.08)'
+            }}>
+              <Box sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+                <Typography variant="overline" sx={{
+                  fontWeight: 600, 
+                  fontSize: '0.7rem', 
+                  color: 'rgba(255, 255, 255, 0.8)',
+                  letterSpacing: 1.2
+                }}>
+                  FINANZAS • COMPROBANTE
                 </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                <Typography variant="h4" sx={{
+                  fontWeight: 700, 
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}>
+                  📄 Comprobante de Pago
+                </Typography>
+                <Typography variant="body1" sx={{ 
+                  color: 'rgba(255, 255, 255, 0.9)'
+                }}>
                   Detalles de la transacción
                 </Typography>
               </Box>
-            </Box>
-            <IconButton onClick={onClose} sx={{ color: 'white' }}>
-              <Close />
-            </IconButton>
+            </Paper>
           </DialogTitle>
 
-          <DialogContent sx={{ p: 4 }}>
-            {/* 🎯 Grid Principal - Información del Pago */}
+          <DialogContent sx={{ 
+            p: { xs: 2, sm: 3, md: 4 },
+            bgcolor: 'white',
+            '&::-webkit-scrollbar': {
+              width: 6,
+            },
+            '&::-webkit-scrollbar-track': {
+              background: alpha(theme.palette.divider, 0.1),
+            },
+            '&::-webkit-scrollbar-thumb': {
+              background: alpha(theme.palette.action.active, 0.2),
+              borderRadius: 3,
+            },
+          }}>
+            {/* 📊 Tarjetas de Información Principal - Diseño Sobrio */}
             <Grid container spacing={3}>
               {/* 💰 Monto Pagado */}
               <Grid item xs={12} md={4}>
@@ -260,37 +287,36 @@ const PaymentReceiptViewer = ({
                     sx={{
                       p: 3,
                       textAlign: 'center',
-                      background: 'linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(76, 175, 80, 0.05))',
-                      border: '2px solid',
-                      borderColor: 'success.main',
-                      borderRadius: 3,
-                      height: 150,
+                      borderRadius: 1,
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                      height: 140,
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'center',
-                      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                      transition: 'all 0.2s ease',
                       '&:hover': {
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 8px 25px rgba(76, 175, 80, 0.15)'
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        borderColor: alpha(theme.palette.primary.main, 0.8)
                       }
                     }}
                   >
-                    <Typography variant="overline" color="success.main" sx={{ fontWeight: 700, mb: 1 }}>
-                      💰 Monto Pagado
+                    <Typography variant="overline" sx={{ 
+                      fontWeight: 500, 
+                      mb: 2,
+                      color: theme.palette.text.secondary,
+                      fontSize: '0.75rem',
+                      letterSpacing: 0.5
+                    }}>
+                      Monto Pagado
                     </Typography>
-                    <Typography variant="h4" sx={{ 
-                      fontWeight: 800, 
-                      color: 'success.main',
-                      mb: 1
+                    <Typography variant="h5" sx={{ 
+                      fontWeight: 600,
+                      color: theme.palette.text.primary,
+                      fontSize: '1.5rem'
                     }}>
                       {fCurrency(payment.amount)}
                     </Typography>
-                    <Chip 
-                      label="✅ Confirmado" 
-                      color="success" 
-                      variant="filled"
-                      sx={{ fontWeight: 600, fontSize: '0.75rem' }}
-                    />
                   </Paper>
                 </motion.div>
               </Grid>
@@ -307,29 +333,35 @@ const PaymentReceiptViewer = ({
                     sx={{
                       p: 3,
                       textAlign: 'center',
-                      background: 'linear-gradient(135deg, rgba(33, 150, 243, 0.1), rgba(33, 150, 243, 0.05))',
-                      border: '2px solid',
-                      borderColor: 'info.main',
-                      borderRadius: 3,
-                      height: 150,
+                      borderRadius: 1,
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                      height: 140,
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'center',
-                      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                      transition: 'all 0.2s ease',
                       '&:hover': {
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 8px 25px rgba(33, 150, 243, 0.15)'
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        borderColor: alpha(theme.palette.primary.main, 0.8)
                       }
                     }}
                   >
-                    <Typography variant="overline" color="info.main" sx={{ fontWeight: 700, mb: 1 }}>
-                      📅 Fecha de Pago
+                    <Typography variant="overline" sx={{ 
+                      fontWeight: 500, 
+                      mb: 2,
+                      color: theme.palette.text.secondary,
+                      fontSize: '0.75rem',
+                      letterSpacing: 0.5
+                    }}>
+                      Fecha de Pago
                     </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 700, color: 'info.main', mb: 1 }}>
+                    <Typography variant="h5" sx={{ 
+                      fontWeight: 600, 
+                      color: theme.palette.text.primary, 
+                      fontSize: '1.5rem'
+                    }}>
                       {format(validPaymentDate, 'dd/MM/yyyy', { locale: es })}
-                    </Typography>
-                    <Typography variant="body2" color="info.dark" sx={{ fontWeight: 600 }}>
-                      {format(validPaymentDate, 'HH:mm', { locale: es })} hrs
                     </Typography>
                   </Paper>
                 </motion.div>
@@ -347,33 +379,36 @@ const PaymentReceiptViewer = ({
                     sx={{
                       p: 3,
                       textAlign: 'center',
-                      background: 'linear-gradient(135deg, rgba(156, 39, 176, 0.1), rgba(156, 39, 176, 0.05))',
-                      border: '2px solid',
-                      borderColor: 'secondary.main',
-                      borderRadius: 3,
-                      height: 150,
+                      borderRadius: 1,
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                      height: 140,
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'center',
-                      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                      transition: 'all 0.2s ease',
                       '&:hover': {
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 8px 25px rgba(156, 39, 176, 0.15)'
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        borderColor: alpha(theme.palette.primary.main, 0.8)
                       }
                     }}
                   >
-                    <Typography variant="overline" color="secondary.main" sx={{ fontWeight: 700, mb: 1 }}>
-                      💳 Método de Pago
+                    <Typography variant="overline" sx={{ 
+                      fontWeight: 500, 
+                      mb: 2,
+                      color: theme.palette.text.secondary,
+                      fontSize: '0.75rem',
+                      letterSpacing: 0.5
+                    }}>
+                      Método de Pago
                     </Typography>
-                    <Typography variant="h6" sx={{ fontWeight: 700, color: 'secondary.main', mb: 1 }}>
+                    <Typography variant="h5" sx={{ 
+                      fontWeight: 600, 
+                      color: theme.palette.text.primary, 
+                      fontSize: '1.5rem'
+                    }}>
                       {payment.paymentMethod || 'Transferencia'}
                     </Typography>
-                    <Chip 
-                      label="Procesado" 
-                      color="secondary" 
-                      variant="outlined"
-                      sx={{ fontWeight: 600, fontSize: '0.75rem' }}
-                    />
                   </Paper>
                 </motion.div>
               </Grid>
@@ -390,14 +425,28 @@ const PaymentReceiptViewer = ({
                 <Paper sx={{ 
                   mt: 3, 
                   p: 3, 
-                  bgcolor: alpha(theme.palette.info.main, 0.05), 
-                  border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`,
-                  borderRadius: 2
+                  borderRadius: 1,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    borderColor: alpha(theme.palette.primary.main, 0.8)
+                  }
                 }}>
-                  <Typography variant="overline" color="info.main" sx={{ fontWeight: 700, mb: 2, display: 'block' }}>
-                    📝 Notas Adicionales
+                  <Typography variant="h6" sx={{ 
+                    color: theme.palette.text.primary, 
+                    fontWeight: 600, 
+                    mb: 2,
+                    fontSize: '1rem'
+                  }}>
+                    Notas Adicionales
                   </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500, lineHeight: 1.6 }}>
+                  <Typography variant="body1" sx={{ 
+                    fontWeight: 400, 
+                    lineHeight: 1.6,
+                    color: theme.palette.text.primary
+                  }}>
                     {payment.notes}
                   </Typography>
                 </Paper>
@@ -414,20 +463,30 @@ const PaymentReceiptViewer = ({
               <Paper sx={{ 
                 mt: 3, 
                 p: 3, 
-                bgcolor: alpha(theme.palette.primary.main, 0.05), 
-                border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
-                borderRadius: 2
+                borderRadius: 1,
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                  borderColor: alpha(theme.palette.primary.main, 0.8)
+                }
               }}>
-                <Typography variant="overline" color="primary.main" sx={{ fontWeight: 700, mb: 2, display: 'block' }}>
-                  📊 Información del Pago
+                <Typography variant="h6" sx={{ 
+                  color: theme.palette.text.primary, 
+                  fontWeight: 600, 
+                  mb: 3,
+                  fontSize: '1rem'
+                }}>
+                  Información del Pago
                 </Typography>
                 
                 <Grid container spacing={2}>
                   {/* Empresa */}
                   <Grid item xs={12} sm={6}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                        🏢 Empresa:
+                        Empresa
                       </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {commitment?.companyName || payment.companyName || 'N/A'}
@@ -437,9 +496,9 @@ const PaymentReceiptViewer = ({
 
                   {/* Concepto del Compromiso */}
                   <Grid item xs={12} sm={6}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                        📝 Concepto:
+                        Concepto
                       </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 600, maxWidth: '60%', textAlign: 'right' }}>
                         {commitment?.concept || payment.concept || 'N/A'}
@@ -447,71 +506,15 @@ const PaymentReceiptViewer = ({
                     </Box>
                   </Grid>
 
-                  {/* Proveedor/Beneficiario - USAR DATOS DE COMMITMENT */}
-                  <Grid item xs={12} sm={6}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                        👤 Proveedor:
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600, maxWidth: '60%', textAlign: 'right' }}>
-                        {commitment?.provider || commitment?.beneficiary || 'Coljuegos'}
-                      </Typography>
-                    </Box>
-                  </Grid>
-
-                  {/* Estado del Pago */}
-                  <Grid item xs={12} sm={6}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                        ✅ Estado:
-                      </Typography>
-                      <Chip 
-                        label="Completado"
-                        color="success" 
-                        size="small" 
-                        sx={{ fontWeight: 600, fontSize: '0.75rem' }}
-                      />
-                    </Box>
-                  </Grid>
-
                   {/* Referencia de Pago */}
                   {commitment?.reference && (
                     <Grid item xs={12} sm={6}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                          🔢 Referencia:
+                          Referencia
                         </Typography>
                         <Typography variant="body2" sx={{ fontWeight: 600, fontFamily: 'monospace' }}>
                           {commitment.reference}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  )}
-
-                  {/* NUEVA: Cuenta con la que se pagó - Formato mejorado */}
-                  {(commitment?.sourceAccount || commitment?.sourceBank) && (
-                    <Grid item xs={12} sm={6}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                          🏦 Cuenta Pago:
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {commitment.sourceBank || 'Banco'} {commitment?.companyName?.includes('Luxury') ? 'DiverGames' : 
-                           commitment?.companyName?.includes('Coljuegos') ? 'Juegos' : 'Empresa'} {commitment.sourceAccount && commitment.sourceAccount.slice(-3)}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  )}
-
-                  {/* Procesado por */}
-                  {(payment.processedByEmail || payment.processedBy) && (
-                    <Grid item xs={12}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                          👨‍💼 Procesado por:
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                          {payment.processedByEmail || payment.processedBy || 'Sistema'}
                         </Typography>
                       </Box>
                     </Grid>
@@ -520,8 +523,13 @@ const PaymentReceiptViewer = ({
 
                 {/* SECCIÓN DE MONTOS Y DETALLES - SIEMPRE VISIBLE CON DEBUG */}
                 <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.2)}` }}>
-                  <Typography variant="overline" color="primary.main" sx={{ fontWeight: 700, mb: 2, display: 'block' }}>
-                    💰 Desglose del Pago
+                  <Typography variant="h6" sx={{ 
+                    color: theme.palette.text.primary, 
+                    fontWeight: 600, 
+                    mb: 3,
+                    fontSize: '1rem'
+                  }}>
+                    Desglose del Pago
                   </Typography>
                   
                   <Grid container spacing={2}>
@@ -572,9 +580,9 @@ const PaymentReceiptViewer = ({
                             <Grid item xs={12} sm={6}>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                  🎯 Derechos Explotación:
+                                  Derechos Explotación
                                 </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
                                   {(() => {
                                     // MISMA LÓGICA QUE EN MODAL DE EDICIÓN:
                                     // Primero del pago, si no está, del compromiso original
@@ -600,9 +608,9 @@ const PaymentReceiptViewer = ({
                             <Grid item xs={12} sm={6}>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                                  📋 Gastos Administración:
+                                  Gastos Administración
                                 </Typography>
-                                <Typography variant="body2" sx={{ fontWeight: 600, color: 'success.main' }}>
+                                <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.text.primary }}>
                                   {(() => {
                                     // MISMA LÓGICA QUE EN MODAL DE EDICIÓN:
                                     // Primero del pago, si no está, del compromiso original
@@ -698,10 +706,16 @@ const PaymentReceiptViewer = ({
                         px: 2,
                         py: 1
                       }}>
-                        <Typography variant="h6" color="text.primary" sx={{ fontWeight: 700 }}>
-                          💰 Total Pagado:
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600,
+                          color: theme.palette.text.primary
+                        }}>
+                          Total Pagado
                         </Typography>
-                        <Typography variant="h5" sx={{ fontWeight: 800, color: 'success.main' }}>
+                        <Typography variant="h5" sx={{ 
+                          fontWeight: 600, 
+                          color: theme.palette.text.primary
+                        }}>
                           {fCurrency(commitment?.amount || 0)}
                         </Typography>
                       </Box>
@@ -823,15 +837,29 @@ const PaymentReceiptViewer = ({
                 <Paper sx={{ 
                   mt: 3, 
                   p: 4, 
-                  bgcolor: alpha(theme.palette.success.main, 0.05), 
-                  border: `2px solid ${alpha(theme.palette.success.main, 0.15)}`,
-                  borderRadius: 3,
-                  textAlign: 'center'
+                  borderRadius: 1,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  textAlign: 'center',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                    borderColor: alpha(theme.palette.primary.main, 0.8)
+                  }
                 }}>
-                  <Typography variant="h6" color="success.main" sx={{ fontWeight: 700, mb: 2 }}>
-                    📎 Comprobante Disponible
+                  <Typography variant="h6" sx={{ 
+                    color: theme.palette.text.primary, 
+                    fontWeight: 600, 
+                    mb: 2,
+                    fontSize: '1rem'
+                  }}>
+                    Comprobante de Pago
                   </Typography>
-                  <Typography variant="body1" sx={{ mb: 3, fontWeight: 500 }}>
+                  <Typography variant="body1" sx={{ 
+                    mb: 3, 
+                    fontWeight: 400,
+                    color: theme.palette.text.primary
+                  }}>
                     {receiptMetadata?.name || 'comprobante.pdf'}
                     {receiptMetadata?.size && (
                       <Chip 
@@ -839,28 +867,26 @@ const PaymentReceiptViewer = ({
                         size="small"
                         sx={{ 
                           ml: 1,
-                          bgcolor: alpha(theme.palette.success.main, 0.1),
-                          color: 'success.dark',
-                          fontWeight: 600
+                          fontWeight: 500,
+                          border: `1px solid ${theme.palette.divider}`
                         }}
                       />
                     )}
                   </Typography>
                   <Button
                     variant="contained"
-                    color="success"
+                    color="primary"
                     startIcon={<Visibility />}
                     onClick={() => setPreviewDialogOpen(true)}
                     sx={{
-                      borderRadius: 2,
+                      borderRadius: 1,
                       px: 3,
                       py: 1.5,
                       fontWeight: 600,
                       textTransform: 'none',
-                      boxShadow: '0 4px 12px rgba(76, 175, 80, 0.3)',
+                      boxShadow: 2,
                       '&:hover': {
-                        boxShadow: '0 6px 20px rgba(76, 175, 80, 0.4)',
-                        transform: 'translateY(-1px)'
+                        boxShadow: 4
                       }
                     }}
                   >
@@ -870,7 +896,7 @@ const PaymentReceiptViewer = ({
               </motion.div>
             )}
 
-            {/* 🚀 Botón Cerrar */}
+            {/* ✅ Botón Cerrar */}
             <Box display="flex" justifyContent="center" mt={4}>
               <Button
                 variant="contained"
@@ -878,18 +904,11 @@ const PaymentReceiptViewer = ({
                 size="large"
                 onClick={onClose}
                 sx={{
-                  borderRadius: 3,
+                  borderRadius: 1,
                   px: 4,
                   py: 1.5,
                   textTransform: 'none',
-                  fontWeight: 700,
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  boxShadow: '0 8px 25px rgba(102, 126, 234, 0.35)',
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
-                    boxShadow: '0 12px 35px rgba(102, 126, 234, 0.45)',
-                    transform: 'translateY(-2px)'
-                  }
+                  fontWeight: 600
                 }}
               >
                 ✅ Cerrar
