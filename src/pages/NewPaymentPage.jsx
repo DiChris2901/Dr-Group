@@ -36,7 +36,20 @@ import {
   Badge,
   Tooltip,
   Collapse,
-  alpha
+  alpha,
+  Checkbox,
+  FormControlLabel,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tabs,
+  Tab,
+  Stepper as InstallmentStepper,
+  Step as InstallmentStep,
+  StepLabel as InstallmentStepLabel
 } from '@mui/material';
 import {
   AttachMoney as MoneyIcon,
@@ -58,7 +71,13 @@ import {
   Fullscreen as MaximizeIcon,
   Person as PersonIcon,
   Refresh as RefreshIcon,
-  ArrowBack as ArrowBackIcon
+  ArrowBack as ArrowBackIcon,
+  AccountBalance as InstallmentIcon,
+  DateRange as DateRangeIcon,
+  Payment as PaymentIcon,
+  Timeline as TimelineIcon,
+  CheckCircle as CheckCircleIcon,
+  RadioButtonUnchecked as PendingIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
@@ -132,6 +151,171 @@ const NewPaymentPage = () => {
       minimumFractionDigits: 0
     }).format(value);
   };
+
+  // 💳 FUNCIONES PARA SISTEMA DE CUOTAS
+  const generateInstallmentPlan = (totalAmount, numberOfInstallments, startDate = new Date()) => {
+    if (numberOfInstallments < 2 || numberOfInstallments > 6) {
+      return [];
+    }
+
+    const installmentAmount = Math.round(totalAmount / numberOfInstallments);
+    const remainder = totalAmount - (installmentAmount * numberOfInstallments);
+    const installments = [];
+
+    for (let i = 0; i < numberOfInstallments; i++) {
+      const installmentDate = new Date(startDate);
+      installmentDate.setMonth(startDate.getMonth() + i);
+      
+      // La primera cuota incluye cualquier residuo de la división
+      const amount = i === 0 ? installmentAmount + remainder : installmentAmount;
+      
+      installments.push({
+        installmentNumber: i + 1,
+        amount: amount,
+        dueDate: installmentDate,
+        status: 'pending',
+        paymentId: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    }
+
+    return installments;
+  };
+
+  const handleInstallmentToggle = (checked) => {
+    setUseInstallments(checked);
+    if (checked && formData.finalAmount > 0) {
+      const preview = generateInstallmentPlan(
+        formData.finalAmount, 
+        installmentPlan.numberOfInstallments,
+        createLocalDate(formData.date)
+      );
+      setInstallmentPreview(preview);
+    } else {
+      setInstallmentPreview([]);
+    }
+  };
+
+  const handleInstallmentNumberChange = (numberOfInstallments) => {
+    setInstallmentPlan(prev => ({ ...prev, numberOfInstallments }));
+    
+    if (useInstallments && formData.finalAmount > 0) {
+      const preview = generateInstallmentPlan(
+        formData.finalAmount, 
+        numberOfInstallments,
+        createLocalDate(formData.date)
+      );
+      setInstallmentPreview(preview);
+    }
+  };
+
+  const openInstallmentModal = () => {
+    if (!formData.finalAmount || formData.finalAmount <= 0) {
+      addNotification({
+        type: 'warning',
+        title: 'Monto requerido',
+        message: 'Debe ingresar el monto del pago antes de configurar las cuotas',
+        icon: 'warning'
+      });
+      return;
+    }
+
+    const preview = generateInstallmentPlan(
+      formData.finalAmount, 
+      installmentPlan.numberOfInstallments,
+      createLocalDate(formData.date)
+    );
+    setInstallmentPreview(preview);
+    setInstallmentModalOpen(true);
+  };
+
+  const confirmInstallmentPlan = () => {
+    setInstallmentPlan(prev => ({ 
+      ...prev, 
+      installments: installmentPreview 
+    }));
+    setInstallmentModalOpen(false);
+    
+    addNotification({
+      type: 'success',
+      title: 'Plan de cuotas confirmado',
+      message: `Se creará un plan de ${installmentPreview.length} cuotas mensuales`,
+      icon: 'success'
+    });
+  };
+
+  // 💳 FUNCIÓN PARA CREAR CUOTAS EN FIREBASE
+  const createInstallments = async (parentPaymentId, installments, basePaymentData) => {
+    const createdInstallments = [];
+    
+    try {
+      for (let i = 0; i < installments.length; i++) {
+        const installment = installments[i];
+        
+        const installmentData = {
+          // Datos heredados del pago principal
+          commitmentId: basePaymentData.commitmentId,
+          companyName: basePaymentData.companyName,
+          concept: `${basePaymentData.concept} - Cuota ${installment.installmentNumber}/${installments.length}`,
+          
+          // Datos específicos de la cuota
+          amount: installment.amount,
+          originalAmount: installment.amount, // Para cuotas, original = amount
+          interests: 0, // Las cuotas no generan intereses adicionales
+          method: basePaymentData.method,
+          reference: `${basePaymentData.reference}-C${installment.installmentNumber}`,
+          date: Timestamp.fromDate(installment.dueDate),
+          notes: `Cuota ${installment.installmentNumber} de ${installments.length} - ${basePaymentData.notes || ''}`,
+          sourceAccount: basePaymentData.sourceAccount,
+          sourceBank: basePaymentData.sourceBank,
+          
+          // Campos específicos de cuotas
+          isInstallment: true,
+          parentPaymentId: parentPaymentId,
+          installmentNumber: installment.installmentNumber,
+          totalInstallments: installments.length,
+          installmentStatus: i === 0 ? 'paid' : 'pending', // Solo la primera cuota se marca como pagada
+          
+          // 4x1000 solo para la primera cuota (que se paga inmediatamente)
+          tax4x1000Amount: i === 0 ? Math.round((installment.amount * 4) / 1000) : 0,
+          includesTax4x1000: i === 0 && installment.amount > 0,
+          taxInfo: i === 0 ? {
+            rate4x1000: 0.004,
+            base: installment.amount,
+            calculated: Math.round((installment.amount * 4) / 1000)
+          } : null,
+          
+          status: i === 0 ? 'completed' : 'pending',
+          attachments: i === 0 ? basePaymentData.attachments : [], // Solo la primera cuota tiene archivos
+          processedBy: basePaymentData.processedBy,
+          processedByEmail: basePaymentData.processedByEmail,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+          
+          // Programación de cuotas
+          scheduledDate: Timestamp.fromDate(installment.dueDate),
+          dueDate: Timestamp.fromDate(installment.dueDate),
+          paymentDate: i === 0 ? Timestamp.now() : null // Solo la primera cuota tiene fecha de pago
+        };
+        
+        console.log(`💳 Creando cuota ${installment.installmentNumber}:`, installmentData);
+        const installmentRef = await addDoc(collection(db, 'payments'), installmentData);
+        
+        createdInstallments.push({
+          id: installmentRef.id,
+          ...installmentData
+        });
+        
+        console.log(`✅ Cuota ${installment.installmentNumber} creada con ID:`, installmentRef.id);
+      }
+      
+      return createdInstallments;
+    } catch (error) {
+      console.error('❌ Error creando cuotas:', error);
+      throw error;
+    }
+  };
   
   // Estado para compromisos pendientes
   const [pendingCommitments, setPendingCommitments] = useState([]);
@@ -185,6 +369,17 @@ const NewPaymentPage = () => {
 
   // Función de refresh manual
   const [refreshing, setRefreshing] = useState(false);
+  
+  // 💳 ESTADOS PARA SISTEMA DE CUOTAS
+  const [installmentModalOpen, setInstallmentModalOpen] = useState(false);
+  const [useInstallments, setUseInstallments] = useState(false);
+  const [installmentPlan, setInstallmentPlan] = useState({
+    numberOfInstallments: 2,
+    installments: []
+  });
+  const [installmentPreview, setInstallmentPreview] = useState([]);
+  const [savingInstallments, setSavingInstallments] = useState(false);
+  
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadPendingCommitments();
@@ -237,6 +432,18 @@ const NewPaymentPage = () => {
       }));
     }
   }, [formData.finalAmount, formData.method, formData.sourceAccount]);
+
+  // 💳 useEffect para recalcular cuotas cuando cambie el monto o fecha
+  useEffect(() => {
+    if (useInstallments && formData.finalAmount > 0) {
+      const preview = generateInstallmentPlan(
+        formData.finalAmount,
+        installmentPlan.numberOfInstallments,
+        createLocalDate(formData.date)
+      );
+      setInstallmentPreview(preview);
+    }
+  }, [useInstallments, formData.finalAmount, formData.date, installmentPlan.numberOfInstallments]);
 
   // Cargar cuentas personales desde Firebase
   useEffect(() => {
@@ -984,13 +1191,71 @@ const NewPaymentPage = () => {
       
       console.log('✅ Compromiso actualizado como pagado');
       
+      // =====================================================
+      // 💳 PROCESAMIENTO DE CUOTAS (SI APLICA)
+      // =====================================================
+      let installmentsCreated = [];
+      let finalPaymentMessage = `Pago de $${formData.finalAmount.toLocaleString()} registrado para ${selectedCommitment.companyName}`;
+      
+      if (useInstallments && installmentPlan.installments.length > 1) {
+        setSavingInstallments(true);
+        
+        try {
+          console.log('💳 Iniciando creación de plan de cuotas...');
+          console.log('📋 Plan de cuotas:', installmentPlan.installments);
+          
+          // Crear todas las cuotas basadas en el pago principal
+          installmentsCreated = await createInstallments(
+            paymentRef.id, 
+            installmentPlan.installments, 
+            paymentData
+          );
+          
+          console.log(`✅ ${installmentsCreated.length} cuotas creadas exitosamente`);
+          
+          // Actualizar el pago principal con información de cuotas
+          await updateDoc(paymentRef, {
+            hasInstallments: true,
+            totalInstallments: installmentPlan.installments.length,
+            installmentIds: installmentsCreated.map(inst => inst.id),
+            isParentPayment: true,
+            installmentPlan: {
+              total: formData.finalAmount,
+              numberOfInstallments: installmentPlan.installments.length,
+              createdAt: Timestamp.now()
+            }
+          });
+          
+          // Actualizar mensaje de éxito
+          const paidInstallments = installmentsCreated.filter(inst => inst.status === 'completed').length;
+          const pendingInstallments = installmentsCreated.length - paidInstallments;
+          
+          finalPaymentMessage = `Pago dividido en ${installmentsCreated.length} cuotas. ` +
+            `Cuota 1 pagada (${formatCurrencyDisplay(installmentsCreated[0].amount)}). ` +
+            `${pendingInstallments} cuotas pendientes.`;
+          
+        } catch (installmentError) {
+          console.error('❌ Error creando cuotas:', installmentError);
+          
+          // Notificar el error de cuotas pero continuar con el pago principal
+          addNotification({
+            type: 'warning',
+            title: 'Pago registrado con advertencia',
+            message: `El pago se registró correctamente, pero hubo un error al crear las cuotas: ${installmentError.message}`,
+            icon: 'warning'
+          });
+        } finally {
+          setSavingInstallments(false);
+        }
+      }
+      
       // Recargar la lista de compromisos para quitar el que acaba de ser pagado
       await loadPendingCommitments();
       
       addNotification({
         type: 'success',
         title: 'Pago registrado exitosamente',
-        message: `Pago de $${formData.finalAmount.toLocaleString()} registrado para ${selectedCommitment.companyName}`,
+        message: finalPaymentMessage,
         icon: 'success'
       });
       
@@ -1012,6 +1277,15 @@ const NewPaymentPage = () => {
         finalAmount: 0
       });
       setFiles([]);
+      
+      // 💳 LIMPIAR ESTADO DE CUOTAS
+      setUseInstallments(false);
+      setInstallmentPlan({
+        numberOfInstallments: 2,
+        installments: []
+      });
+      setInstallmentPreview([]);
+      setInstallmentModalOpen(false);
       
       // Limpiar también la URL de la factura
       setInvoiceUrl(null);
@@ -1904,6 +2178,111 @@ const NewPaymentPage = () => {
                         <Box sx={{ my: 1 }} />
                       </Grid>
 
+                      {/* 💳 SECCIÓN DE CUOTAS */}
+                      {formData.finalAmount > 0 && (
+                        <>
+                          <Grid item xs={12}>
+                            <Box
+                              sx={{
+                                p: 2,
+                                borderRadius: 2,
+                                bgcolor: alpha(theme.palette.primary.main, 0.05),
+                                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                                transition: 'all 0.3s ease'
+                              }}
+                            >
+                              <FormControlLabel
+                                control={
+                                  <Checkbox
+                                    checked={useInstallments}
+                                    onChange={(e) => handleInstallmentToggle(e.target.checked)}
+                                    color="primary"
+                                    icon={<PendingIcon />}
+                                    checkedIcon={<InstallmentIcon />}
+                                  />
+                                }
+                                label={
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography variant="subtitle1" fontWeight={600}>
+                                      Dividir en cuotas mensuales
+                                    </Typography>
+                                    <Chip
+                                      size="small"
+                                      label="Nuevo"
+                                      color="primary"
+                                      variant="outlined"
+                                    />
+                                  </Box>
+                                }
+                              />
+                              
+                              <Typography variant="body2" color="text.secondary" sx={{ ml: 4 }}>
+                                Divide el pago en 2-6 cuotas mensuales programadas
+                              </Typography>
+
+                              {useInstallments && (
+                                <Collapse in={useInstallments}>
+                                  <Box sx={{ mt: 2, ml: 4 }}>
+                                    <Grid container spacing={2} alignItems="center">
+                                      <Grid item xs={12} sm={4}>
+                                        <FormControl fullWidth size="small">
+                                          <InputLabel>Número de cuotas</InputLabel>
+                                          <Select
+                                            value={installmentPlan.numberOfInstallments}
+                                            label="Número de cuotas"
+                                            onChange={(e) => handleInstallmentNumberChange(e.target.value)}
+                                          >
+                                            {[2, 3, 4, 5, 6].map(num => (
+                                              <MenuItem key={num} value={num}>
+                                                {num} cuotas
+                                              </MenuItem>
+                                            ))}
+                                          </Select>
+                                        </FormControl>
+                                      </Grid>
+                                      
+                                      <Grid item xs={12} sm={4}>
+                                        <Button
+                                          variant="outlined"
+                                          startIcon={<TimelineIcon />}
+                                          onClick={openInstallmentModal}
+                                          size="small"
+                                          fullWidth
+                                        >
+                                          Ver cronograma
+                                        </Button>
+                                      </Grid>
+
+                                      {installmentPreview.length > 0 && (
+                                        <Grid item xs={12}>
+                                          <Box
+                                            sx={{
+                                              mt: 1,
+                                              p: 2,
+                                              bgcolor: alpha(theme.palette.success.main, 0.05),
+                                              border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+                                              borderRadius: 1
+                                            }}
+                                          >
+                                            <Typography variant="body2" color="success.main" fontWeight={600}>
+                                              ✅ Plan confirmado: {installmentPreview.length} cuotas de{' '}
+                                              {formatCurrencyDisplay(installmentPreview[0]?.amount || 0)} aprox.
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                                              Primera cuota se paga inmediatamente, las demás quedan programadas mensualmente
+                                            </Typography>
+                                          </Box>
+                                        </Grid>
+                                      )}
+                                    </Grid>
+                                  </Box>
+                                </Collapse>
+                              )}
+                            </Box>
+                          </Grid>
+                        </>
+                      )}
+
                       {/* Campo de cuenta de origen */}
                       <Grid item xs={12} sm={6}>
                         <FormControl fullWidth error={!!errors.sourceAccount}>
@@ -2449,7 +2828,10 @@ const NewPaymentPage = () => {
               }}
             >
               {isSubmitting ? (
-                <CircularProgress size={20} />
+                <>
+                  <CircularProgress size={20} />
+                  {savingInstallments ? ' Creando cuotas...' : ''}
+                </>
               ) : uploading ? (
                 <>
                   <CircularProgress size={16} sx={{ mr: 1 }} />
@@ -2457,8 +2839,17 @@ const NewPaymentPage = () => {
                 </>
               ) : (
                 <>
-                  <SaveIcon sx={{ mr: 1 }} />
-                  Registrar Pago
+                  {useInstallments && installmentPreview.length > 0 ? (
+                    <>
+                      <InstallmentIcon sx={{ mr: 1 }} />
+                      Crear {installmentPreview.length} Cuotas
+                    </>
+                  ) : (
+                    <>
+                      <SaveIcon sx={{ mr: 1 }} />
+                      Registrar Pago
+                    </>
+                  )}
                 </>
               )}
             </Button>
@@ -2653,6 +3044,156 @@ const NewPaymentPage = () => {
         onAccept={handleCompressionAccept}
         onReject={handleCompressionReject}
       />
+
+      {/* 💳 MODAL DE CRONOGRAMA DE CUOTAS */}
+      <Dialog
+        open={installmentModalOpen}
+        onClose={() => setInstallmentModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            backdropFilter: 'blur(10px)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          color: 'white', 
+          background: 'rgba(0,0,0,0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2
+        }}>
+          <InstallmentIcon />
+          <Typography variant="h6">
+            Cronograma de Cuotas
+          </Typography>
+          <Chip 
+            label={`${installmentPreview.length} cuotas`}
+            size="small"
+            sx={{ 
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              color: 'white'
+            }}
+          />
+        </DialogTitle>
+
+        <DialogContent sx={{ 
+          background: 'rgba(255,255,255,0.95)',
+          p: 3
+        }}>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              📊 Resumen del Plan
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <Box sx={{ p: 2, bgcolor: 'primary.main', color: 'white', borderRadius: 1, textAlign: 'center' }}>
+                  <Typography variant="body2">Total a dividir</Typography>
+                  <Typography variant="h6" fontWeight="bold">
+                    {formatCurrencyDisplay(formData.finalAmount)}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={6}>
+                <Box sx={{ p: 2, bgcolor: 'success.main', color: 'white', borderRadius: 1, textAlign: 'center' }}>
+                  <Typography variant="body2">Pago inmediato</Typography>
+                  <Typography variant="h6" fontWeight="bold">
+                    {formatCurrencyDisplay(installmentPreview[0]?.amount || 0)}
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </Box>
+
+          <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
+            📅 Calendario de Pagos
+          </Typography>
+          
+          <TableContainer component={Paper} sx={{ mt: 2, borderRadius: 2 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: 'grey.100' }}>
+                  <TableCell><strong>Cuota</strong></TableCell>
+                  <TableCell><strong>Monto</strong></TableCell>
+                  <TableCell><strong>Fecha de vencimiento</strong></TableCell>
+                  <TableCell><strong>Estado</strong></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {installmentPreview.map((installment, index) => (
+                  <TableRow key={index} sx={{ 
+                    bgcolor: index === 0 ? alpha(theme.palette.success.main, 0.1) : 'inherit'
+                  }}>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {index === 0 ? <PaymentIcon color="success" /> : <DateRangeIcon />}
+                        #{installment.installmentNumber}
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography fontWeight={index === 0 ? 'bold' : 'normal'}>
+                        {formatCurrencyDisplay(installment.amount)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      {format(installment.dueDate, 'dd/MM/yyyy', { locale: es })}
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        icon={index === 0 ? <CheckCircleIcon /> : <PendingIcon />}
+                        label={index === 0 ? 'Se paga ahora' : 'Programada'}
+                        color={index === 0 ? 'success' : 'warning'}
+                        variant={index === 0 ? 'filled' : 'outlined'}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          <Alert 
+            severity="info" 
+            sx={{ mt: 3 }}
+            icon={<InstallmentIcon />}
+          >
+            <Typography variant="body2">
+              <strong>💡 ¿Cómo funciona?</strong><br/>
+              • La primera cuota se paga inmediatamente al crear el registro<br/>
+              • Las cuotas restantes quedan programadas para los siguientes meses<br/>
+              • Recibirás notificaciones cuando se acerque cada fecha de vencimiento<br/>
+              • Cada cuota se maneja como un pago independiente
+            </Typography>
+          </Alert>
+        </DialogContent>
+
+        <DialogActions sx={{ 
+          background: 'rgba(255,255,255,0.9)', 
+          p: 2,
+          gap: 1
+        }}>
+          <Button 
+            onClick={() => setInstallmentModalOpen(false)}
+            color="inherit"
+            startIcon={<CancelIcon />}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={confirmInstallmentPlan}
+            variant="contained"
+            color="primary"
+            startIcon={<CheckCircleIcon />}
+          >
+            Confirmar Plan
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
