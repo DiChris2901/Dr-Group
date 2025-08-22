@@ -288,6 +288,8 @@ const PaymentsPage = () => {
     interests: '',
     interesesDerechosExplotacion: '',
     interesesGastosAdministracion: '',
+    derechosExplotacion: '',
+    gastosAdministracion: '',
     originalAmount: '',
     sourceAccount: '',  // NUEVO: cuenta de origen
     sourceBank: '',     // NUEVO: banco de origen
@@ -1020,13 +1022,15 @@ const PaymentsPage = () => {
       reference: correctedPayment.reference || '',
       companyName: correctedPayment.companyName || '',
       provider: providerName,
-      interests: isColjuegos ? '' : formatCurrency(correctedPayment.interests || ''),
-      interesesDerechosExplotacion: isColjuegos ? formatCurrency(correctedPayment.interesesDerechosExplotacion || '') : '',
-      interesesGastosAdministracion: isColjuegos ? formatCurrency(correctedPayment.interesesGastosAdministracion || '') : '',
+      interests: isColjuegos ? '' : formatCurrency(correctedPayment.interests ?? 0),
+      interesesDerechosExplotacion: isColjuegos ? formatCurrency(correctedPayment.interesesDerechosExplotacion ?? 0) : '',
+      interesesGastosAdministracion: isColjuegos ? formatCurrency(correctedPayment.interesesGastosAdministracion ?? 0) : '',
+      derechosExplotacion: isColjuegos ? formatCurrency(correctedPayment.derechosExplotacion ?? 0) : '',
+      gastosAdministracion: isColjuegos ? formatCurrency(correctedPayment.gastosAdministracion ?? 0) : '',
       // Para Coljuegos, usar originalAmount corregido si está disponible
       originalAmount: isColjuegos 
-        ? formatCurrency(correctedPayment.originalAmount || (correctedPayment.amount - (correctedPayment.interesesDerechosExplotacion || 0) - (correctedPayment.interesesGastosAdministracion || 0)))
-        : formatCurrency(correctedPayment.originalAmount || correctedPayment.amount || ''),
+        ? formatCurrency(correctedPayment.originalAmount ?? (correctedPayment.amount - (correctedPayment.interesesDerechosExplotacion ?? 0) - (correctedPayment.interesesGastosAdministracion ?? 0)))
+        : formatCurrency(correctedPayment.originalAmount ?? correctedPayment.amount ?? 0),
       sourceAccount: correctedPayment.sourceAccount || '',
       sourceBank: correctedPayment.sourceBank || '',
       date: formatDateForInput(correctedPayment.date),
@@ -2857,7 +2861,7 @@ const PaymentsPage = () => {
                 
                 {/* Montos - Layout dinámico según tipo de compromiso */}
                 {isColjuegosCommitment(commitmentData) ? (
-                  // Layout para Coljuegos (4 campos)
+                  // Layout para Coljuegos (6 campos completos)
                   <>
                     <TextField
                       name="originalAmount"
@@ -2898,10 +2902,72 @@ const PaymentsPage = () => {
                       }}
                     />
 
+                    {/* Montos Base de Coljuegos */}
+                    <Stack direction="row" spacing={2}>
+                      <TextField
+                        name="derechosExplotacion"
+                        label="Derechos de Explotación (Base)"
+                        type="text"
+                        fullWidth
+                        value={editFormData.derechosExplotacion || ''}
+                        onChange={handleFormChange}
+                        variant="outlined"
+                        InputProps={{
+                          startAdornment: (
+                            <Typography sx={{ 
+                              mr: 1, 
+                              color: theme.palette.info.main, 
+                              fontWeight: 600,
+                              fontSize: '1rem'
+                            }}>
+                              $
+                            </Typography>
+                          )
+                        }}
+                        helperText="Monto base derechos de explotación"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1,
+                            backgroundColor: theme.palette.background.paper
+                          }
+                        }}
+                      />
+
+                      <TextField
+                        name="gastosAdministracion"
+                        label="Gastos de Administración (Base)"
+                        type="text"
+                        fullWidth
+                        value={editFormData.gastosAdministracion || ''}
+                        onChange={handleFormChange}
+                        variant="outlined"
+                        InputProps={{
+                          startAdornment: (
+                            <Typography sx={{ 
+                              mr: 1, 
+                              color: theme.palette.info.main, 
+                              fontWeight: 600,
+                              fontSize: '1rem'
+                            }}>
+                              $
+                            </Typography>
+                          )
+                        }}
+                        helperText="Monto base gastos administrativos"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1,
+                            backgroundColor: theme.palette.background.paper
+                          }
+                        }}
+                      />
+                    </Stack>
+
+                    {/* Intereses Específicos de Coljuegos */}
                     <Stack direction="row" spacing={2}>
                       <TextField
                         name="interesesDerechosExplotacion"
-                        label="Derechos de Explotación"
+                        label="Intereses Derechos de Explotación"
                         type="text"
                         fullWidth
                         value={editFormData.interesesDerechosExplotacion}
@@ -2911,7 +2977,7 @@ const PaymentsPage = () => {
                           startAdornment: (
                             <Typography sx={{ 
                               mr: 1, 
-                              color: theme.palette.text.secondary, 
+                              color: theme.palette.warning.main, 
                               fontWeight: 600,
                               fontSize: '1rem'
                             }}>
@@ -2919,7 +2985,7 @@ const PaymentsPage = () => {
                             </Typography>
                           )
                         }}
-                        helperText="Intereses por derechos"
+                        helperText="Intereses por derechos de explotación"
                         sx={{
                           '& .MuiOutlinedInput-root': {
                             borderRadius: 1,
@@ -2930,7 +2996,7 @@ const PaymentsPage = () => {
 
                       <TextField
                         name="interesesGastosAdministracion"
-                        label="Gastos de Administración"
+                        label="Intereses Gastos de Administración"
                         type="text"
                         fullWidth
                         value={editFormData.interesesGastosAdministracion}
@@ -2940,7 +3006,7 @@ const PaymentsPage = () => {
                           startAdornment: (
                             <Typography sx={{ 
                               mr: 1, 
-                              color: theme.palette.text.secondary, 
+                              color: theme.palette.warning.main, 
                               fontWeight: 600,
                               fontSize: '1rem'
                             }}>
@@ -2948,7 +3014,7 @@ const PaymentsPage = () => {
                             </Typography>
                           )
                         }}
-                        helperText="Gastos administrativos"
+                        helperText="Intereses por gastos administrativos"
                         sx={{
                           '& .MuiOutlinedInput-root': {
                             borderRadius: 1,
@@ -2980,7 +3046,7 @@ const PaymentsPage = () => {
                         startAdornment: (
                           <Typography sx={{ 
                             mr: 1, 
-                            color: theme.palette.text.secondary, 
+                            color: theme.palette.success.main, 
                             fontWeight: 600,
                             fontSize: '1rem'
                           }}>
@@ -2993,14 +3059,14 @@ const PaymentsPage = () => {
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 1,
                           backgroundColor: theme.palette.background.paper,
-                          border: `1px solid ${theme.palette.primary.main}`
+                          border: `1px solid ${theme.palette.success.main}`
                         }
                       }}
                     />
                   </>
                 ) : (
                   // Layout para compromisos normales (3 campos)
-                  <Stack direction="row" spacing={2}>
+                  <>
                     <TextField
                       name="originalAmount"
                       label="Monto Original"
@@ -3044,7 +3110,8 @@ const PaymentsPage = () => {
                       helperText="Intereses aplicados"
                       sx={{
                         '& .MuiOutlinedInput-root': {
-                          borderRadius: 2
+                          borderRadius: 1,
+                          backgroundColor: theme.palette.background.paper
                         }
                       }}
                     />
@@ -3077,50 +3144,13 @@ const PaymentsPage = () => {
                       helperText="Monto final pagado"
                       sx={{
                         '& .MuiOutlinedInput-root': {
-                          borderRadius: 2
+                          borderRadius: 1,
+                          backgroundColor: theme.palette.background.paper,
+                          border: `1px solid ${theme.palette.success.main}`
                         }
                       }}
                     />
-                    
-                    {/* Campo visual del 4x1000 - Visible cuando hay monto válido */}
-                    {editFormData.amount && editFormData.amount > 0 && (
-                      <TextField
-                        label="4x1000 (Automático)"
-                        value={new Intl.NumberFormat('es-CO', {
-                          style: 'currency',
-                          currency: 'COP',
-                          minimumFractionDigits: 0
-                        }).format(editFormData.tax4x1000)}
-                        fullWidth
-                        disabled
-                        variant="outlined"
-                        InputLabelProps={{
-                          sx: {
-                            backgroundColor: theme.palette.background.paper,
-                            px: 0.5
-                          }
-                        }}
-                        InputProps={{
-                          startAdornment: (
-                            <Typography sx={{ mr: 1, color: 'warning.main', fontWeight: 600 }}>
-                              🏦
-                            </Typography>
-                          )
-                        }}
-                        helperText="Se genera automáticamente como registro separado"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 2,
-                            backgroundColor: theme.palette.warning.main + '10',
-                            '& fieldset': {
-                              borderColor: theme.palette.warning.main,
-                              borderWidth: 1
-                            }
-                          }
-                        }}
-                      />
-                    )}
-                  </Stack>
+                  </>
                 )}
                 
                 {/* Método de Pago */}

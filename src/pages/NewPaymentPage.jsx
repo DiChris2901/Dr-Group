@@ -1285,6 +1285,7 @@ const NewPaymentPage = () => {
                               : "Seleccione un compromiso pendiente..."
                           }
                           fullWidth
+                          required
                           helperText={
                             pendingCommitments.length === 0 && !loadingCommitments
                               ? "Solo se muestran compromisos pendientes que aún no tienen pagos registrados"
@@ -1337,7 +1338,7 @@ const NewPaymentPage = () => {
                     />
                   </Grid>
 
-                  {/* Información del Compromiso Seleccionado (si existe) */}
+                  {/* Información del Compromiso Seleccionado */}
                   {selectedCommitment && (
                     <>
                       <Grid item xs={12}>
@@ -1418,7 +1419,6 @@ const NewPaymentPage = () => {
                         </Card>
                       </Grid>
 
-                      {/* El valor original ahora se muestra siempre, pero se edita solo si no hay compromiso */}
                       <Grid item xs={12} sm={4}>
                         <TextField
                           label="Valor Original"
@@ -1428,16 +1428,7 @@ const NewPaymentPage = () => {
                             minimumFractionDigits: 0
                           }).format(formData.originalAmount)}
                           fullWidth
-                          disabled={!!selectedCommitment}
-                          onChange={(e) => {
-                            if (selectedCommitment) return; // bloquea edición si existe compromiso
-                            const numericValue = parseCurrency(e.target.value);
-                            setFormData(prev => ({
-                              ...prev,
-                              originalAmount: numericValue,
-                              finalAmount: numericValue + prev.interests + prev.interesesDerechosExplotacion + prev.interesesGastosAdministracion
-                            }));
-                          }}
+                          disabled
                           InputProps={{
                             startAdornment: (
                               <InputAdornment position="start">
@@ -1449,12 +1440,11 @@ const NewPaymentPage = () => {
                               </InputAdornment>
                             ),
                           }}
-                          helperText={!selectedCommitment ? 'Editable cuando no hay compromiso asociado' : ''}
                         />
                       </Grid>
 
-                      {/* Alerta de pago tardío */}
-                      {selectedCommitment && requiresInterests(selectedCommitment, formData.date) && (
+                      {/* Alerta de pago tardío al lado del valor original */}
+                      {requiresInterests(selectedCommitment, formData.date) && (
                         <Grid item xs={12} sm={8}>
                           <Box sx={{ 
                             p: 1.5,
@@ -1479,7 +1469,7 @@ const NewPaymentPage = () => {
                       )}
 
                       {/* Campos de Intereses - Solo cuando la fecha de pago es posterior al vencimiento */}
-                      {selectedCommitment ? (requiresInterests(selectedCommitment, formData.date) ? (
+                      {requiresInterests(selectedCommitment, formData.date) ? (
                         <>
                           {(() => {
                             const isColj = isColjuegosCommitment(selectedCommitment);
@@ -1677,7 +1667,7 @@ const NewPaymentPage = () => {
                         </>
                       ) : (
                         <>
-                          {/* Mensaje cuando no se requieren intereses (solo si hay compromiso) */}
+                          {/* Mensaje cuando no se requieren intereses */}
                           <Grid item xs={12}>
                             <Typography variant="body2" color="success.main" sx={{ 
                               display: 'flex', 
@@ -1690,7 +1680,7 @@ const NewPaymentPage = () => {
                             </Typography>
                           </Grid>
                         </>
-                      )) : null}
+                      )}
 
                       <Grid item xs={12} sm={4}>
                         <TextField
@@ -2138,44 +2128,6 @@ const NewPaymentPage = () => {
                           </Box>
                         </Grid>
                       )}
-                    </>
-                  )}
-                  {!selectedCommitment && (
-                    <Grid item xs={12}>
-                      <Alert severity="info" variant="outlined" sx={{ mt: 2 }}>
-                        Puedes registrar un pago sin asociarlo a un compromiso. Selecciona uno para precargar valores automáticamente.
-                      </Alert>
-                    </Grid>
-                  )}
-                  {/* Cuando no hay compromiso seleccionado aún, mostramos las secciones del formulario igual */}
-                  {!selectedCommitment && (
-                    <>
-                      {/* Sección de intereses simple cuando no hay compromiso (permite cálculo manual) */}
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          label="Intereses (opcional)"
-                          value={formData.interests > 0 ? formatCurrency(formData.interests) : ''}
-                          onChange={(e) => {
-                            const numericValue = parseCurrency(e.target.value);
-                            setFormData(prev => ({
-                              ...prev,
-                              interests: numericValue,
-                              finalAmount: prev.originalAmount + numericValue
-                            }));
-                          }}
-                          fullWidth
-                          placeholder="0"
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <InterestIcon sx={{ color: 'warning.main' }} />
-                                <Typography sx={{ ml: 0.5, color: 'text.secondary', fontWeight: 600 }}>$</Typography>
-                              </InputAdornment>
-                            ),
-                          }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6} />
                     </>
                   )}
                 </Grid>
