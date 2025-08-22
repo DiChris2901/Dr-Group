@@ -973,10 +973,10 @@ const NewPaymentPage = () => {
       // Limpiar también la URL de la factura
       setInvoiceUrl(null);
       
-      // Opcional: navegar a pagos después de 2 segundos
-      setTimeout(() => {
-        navigate('/payments');
-      }, 2000);
+      // ✅ DESHABILITADO: No navegar automáticamente después de registrar pago
+      // setTimeout(() => {
+      //   navigate('/payments');
+      // }, 2000);
     } catch (error) {
       console.error('Error guardando pago:', error);
       addNotification({

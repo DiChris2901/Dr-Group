@@ -34,6 +34,16 @@ const PaymentReceiptViewer = ({
   receiptUrl,
   receiptMetadata 
 }) => {
+  // 🔍 DEBUG INICIAL: Ver qué datos están llegando al modal
+  console.log('🚀 PaymentReceiptViewer PROPS RECEIVED:', {
+    open,
+    commitment,
+    'commitment is null': commitment === null,
+    'commitment is undefined': commitment === undefined,
+    'commitment exists': !!commitment,
+    'commitment keys': commitment ? Object.keys(commitment) : 'No commitment'
+  });
+
   const theme = useTheme();
   const tokens = useTokens();
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
@@ -339,13 +349,7 @@ const PaymentReceiptViewer = ({
                       border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
                       height: 100,
                       display: 'flex',
-                      alignItems: 'center',
-                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '&:hover': {
-                        backgroundColor: alpha(theme.palette.success.main, 0.05),
-                        borderColor: alpha(theme.palette.success.main, 0.3),
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                      }
+                      alignItems: 'center'
                     }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
@@ -403,13 +407,7 @@ const PaymentReceiptViewer = ({
                       border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
                       height: 100,
                       display: 'flex',
-                      alignItems: 'center',
-                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '&:hover': {
-                        backgroundColor: alpha(theme.palette.info.main, 0.05),
-                        borderColor: alpha(theme.palette.info.main, 0.3),
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                      }
+                      alignItems: 'center'
                     }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
@@ -467,13 +465,7 @@ const PaymentReceiptViewer = ({
                       border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
                       height: 100,
                       display: 'flex',
-                      alignItems: 'center',
-                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                      '&:hover': {
-                        backgroundColor: alpha(theme.palette.secondary.main, 0.05),
-                        borderColor: alpha(theme.palette.secondary.main, 0.3),
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                      }
+                      alignItems: 'center'
                     }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
@@ -529,13 +521,7 @@ const PaymentReceiptViewer = ({
                   p: 2.5, 
                   borderRadius: 2,
                   backgroundColor: 'white',
-                  border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
-                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                  '&:hover': {
-                    backgroundColor: alpha(theme.palette.info.main, 0.05),
-                    borderColor: alpha(theme.palette.info.main, 0.3),
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                  }
+                  border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
                 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                     <Box sx={{
@@ -586,12 +572,6 @@ const PaymentReceiptViewer = ({
                 borderRadius: 2,
                 backgroundColor: 'white',
                 border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                '&:hover': {
-                  backgroundColor: alpha(theme.palette.primary.main, 0.02),
-                  borderColor: alpha(theme.palette.primary.main, 0.25),
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                }
               }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                   <Box sx={{
@@ -628,12 +608,7 @@ const PaymentReceiptViewer = ({
                       p: 1.2,
                       borderRadius: 1.5,
                       backgroundColor: alpha(theme.palette.grey[500], 0.04),
-                      border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`,
-                      transition: 'all 0.2s ease',
-                      '&:hover': {
-                        backgroundColor: alpha(theme.palette.grey[500], 0.08),
-                        borderColor: alpha(theme.palette.grey[500], 0.2)
-                      }
+                      border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`
                     }}>
                       <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                         Empresa
@@ -654,12 +629,7 @@ const PaymentReceiptViewer = ({
                       p: 1.2,
                       borderRadius: 1.5,
                       backgroundColor: alpha(theme.palette.grey[500], 0.04),
-                      border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`,
-                      transition: 'all 0.2s ease',
-                      '&:hover': {
-                        backgroundColor: alpha(theme.palette.grey[500], 0.08),
-                        borderColor: alpha(theme.palette.grey[500], 0.2)
-                      }
+                      border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`
                     }}>
                       <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                         Concepto
@@ -704,12 +674,7 @@ const PaymentReceiptViewer = ({
                         p: 1.2,
                         borderRadius: 1.5,
                         backgroundColor: alpha(theme.palette.grey[500], 0.04),
-                        border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`,
-                        transition: 'all 0.2s ease',
-                        '&:hover': {
-                          backgroundColor: alpha(theme.palette.grey[500], 0.08),
-                          borderColor: alpha(theme.palette.grey[500], 0.2)
-                        }
+                        border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`
                       }}>
                         <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                           Cuenta de Pago
@@ -721,33 +686,54 @@ const PaymentReceiptViewer = ({
                     </Grid>
                   )}
 
-                  {/* Banco/Entidad Financiera */}
-                  {(commitment?.bankName || commitment?.paymentBank || commitment?.bank || commitment?.financialEntity) && (
-                    <Grid item xs={12} sm={6}>
-                      <Box sx={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center', 
-                        mb: 1,
-                        p: 1.2,
-                        borderRadius: 1.5,
-                        backgroundColor: alpha(theme.palette.grey[500], 0.04),
-                        border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`,
-                        transition: 'all 0.2s ease',
-                        '&:hover': {
-                          backgroundColor: alpha(theme.palette.grey[500], 0.08),
-                          borderColor: alpha(theme.palette.grey[500], 0.2)
-                        }
-                      }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
-                          Entidad Financiera
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 400, color: 'text.primary', fontSize: '0.85rem' }}>
-                          {commitment?.bankName || commitment?.paymentBank || commitment?.bank || commitment?.financialEntity}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  )}
+                  {/* Proveedor/Beneficiario */}
+                  {(() => {
+                    // 🔍 DEBUG COMPLETO: Ver toda la estructura del objeto commitment
+                    console.log('🔍 FULL COMMITMENT OBJECT:', commitment);
+                    console.log('🔍 COMMITMENT KEYS:', Object.keys(commitment || {}));
+                    
+                    // Buscar todos los campos posibles que podrían contener el beneficiario
+                    const possibleFields = {
+                      beneficiary: commitment?.beneficiary,
+                      provider: commitment?.provider,
+                      companyName: commitment?.companyName,
+                      concept: commitment?.concept,
+                      reference: commitment?.reference,
+                      paymentNotes: commitment?.paymentNotes,
+                      sourceBank: commitment?.sourceBank
+                    };
+                    
+                    console.log('🔍 ALL POSSIBLE BENEFICIARY FIELDS:', possibleFields);
+                    
+                    const hasBeneficiary = commitment?.beneficiary;
+                    
+                    console.log('🏢 FINAL DEBUG BENEFICIARY: ', {
+                      'commitment?.beneficiary': hasBeneficiary,
+                      'should show field': !!hasBeneficiary
+                    });
+                    
+                    return hasBeneficiary ? (
+                      <Grid item xs={12} sm={6}>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center', 
+                          mb: 1,
+                          p: 1.2,
+                          borderRadius: 1.5,
+                          backgroundColor: 'white',
+                          border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`
+                        }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
+                            Proveedor/Beneficiario
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary', fontSize: '0.85rem' }}>
+                            {commitment.beneficiary}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    ) : null;
+                  })()}
                 </Grid>
 
                 {/* SECCIÓN DE MONTOS Y DETALLES - SIEMPRE VISIBLE CON DEBUG */}
@@ -779,37 +765,24 @@ const PaymentReceiptViewer = ({
                   <Grid container spacing={2}>
                     {/* Verificar si es Coljuegos CON DATOS CORRECTOS */}
                     {(() => {
-                      // Usar commitment que contiene todos los datos mapeados desde PaymentsPage
-                      const isColjuegos = 
-                        // Por provider/beneficiary
-                        commitment?.provider?.toLowerCase()?.includes('coljuegos') || 
-                        commitment?.beneficiary?.toLowerCase()?.includes('coljuegos') ||
-                        
-                        // Por concepto/referencia
-                        commitment?.concept?.toLowerCase()?.includes('coljuegos') ||
-                        commitment?.reference?.toLowerCase()?.includes('coljuegos') ||
-                        
-                        // Por conceptos específicos de Coljuegos
-                        commitment?.concept?.toLowerCase()?.includes('derechos') ||
-                        commitment?.concept?.toLowerCase()?.includes('explotación') ||
-                        commitment?.concept?.toLowerCase()?.includes('gastos') ||
-                        
-                        // Por referencia con "impuestos coljuegos"
-                        commitment?.reference?.toLowerCase()?.includes('impuestos');
+                      // ✅ LÓGICA BASADA EN DATOS REALES, NO EN TEXTO
+                      // Si tiene datos específicos de Coljuegos, mostrar campos de Coljuegos
+                      const hasDerechosExplotacion = (commitment?.derechosExplotacion ?? 0) > 0;
+                      const hasGastosAdministracion = (commitment?.gastosAdministracion ?? 0) > 0;
+                      const hasInteresesDerechos = (commitment?.interesesDerechosExplotacion ?? 0) > 0;
+                      const hasInteresesGastos = (commitment?.interesesGastosAdministracion ?? 0) > 0;
                       
-                      console.log('🔍 Debug PaymentReceiptViewer - DATOS CORRECTOS:');
-                      console.log('- isColjuegos:', isColjuegos);
+                      // Es Coljuegos si tiene CUALQUIER dato específico de Coljuegos
+                      const isColjuegos = hasDerechosExplotacion || hasGastosAdministracion || hasInteresesDerechos || hasInteresesGastos;
+                      
+                      console.log('🔍 Debug PaymentReceiptViewer - LÓGICA BASADA EN DATOS:');
+                      console.log('- hasDerechosExplotacion:', hasDerechosExplotacion, `(${commitment?.derechosExplotacion})`);
+                      console.log('- hasGastosAdministracion:', hasGastosAdministracion, `(${commitment?.gastosAdministracion})`);
+                      console.log('- hasInteresesDerechos:', hasInteresesDerechos, `(${commitment?.interesesDerechosExplotacion})`);
+                      console.log('- hasInteresesGastos:', hasInteresesGastos, `(${commitment?.interesesGastosAdministracion})`);
+                      console.log('- isColjuegos (FINAL):', isColjuegos);
                       console.log('- commitment.concept:', commitment?.concept);
                       console.log('- commitment.reference:', commitment?.reference);
-                      console.log('- commitment.provider:', commitment?.provider);
-                      console.log('- commitment.derechosExplotacion:', commitment?.derechosExplotacion);
-                      console.log('- commitment.gastosAdministracion:', commitment?.gastosAdministracion);
-                      console.log('- commitment.interesesDerechosExplotacion:', commitment?.interesesDerechosExplotacion);
-                      console.log('- commitment.interesesGastosAdministracion:', commitment?.interesesGastosAdministracion);
-                      console.log('- commitment completo:', commitment);
-                      console.log('🚨 VALORES RECIBIDOS:');
-                      console.log('- derechosExplotacion valor:', commitment?.derechosExplotacion, 'tipo:', typeof commitment?.derechosExplotacion);
-                      console.log('- gastosAdministracion valor:', commitment?.gastosAdministracion, 'tipo:', typeof commitment?.gastosAdministracion);
                       
                       // 🔍 DEBUG PAYMENT DATA TAMBIÉN
                       console.log('💰 PAYMENT DATA DEBUG (commitment object):');
@@ -838,12 +811,7 @@ const PaymentReceiptViewer = ({
                                 p: 1.2,
                                 borderRadius: 1.5,
                                 backgroundColor: alpha(theme.palette.success.main, 0.06),
-                                border: `1px solid ${alpha(theme.palette.success.main, 0.15)}`,
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                  backgroundColor: alpha(theme.palette.success.main, 0.1),
-                                  borderColor: alpha(theme.palette.success.main, 0.25)
-                                }
+                                border: `1px solid ${alpha(theme.palette.success.main, 0.15)}`
                               }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                                   Derechos Explotación
@@ -880,12 +848,7 @@ const PaymentReceiptViewer = ({
                                 p: 1.2,
                                 borderRadius: 1.5,
                                 backgroundColor: alpha(theme.palette.info.main, 0.06),
-                                border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`,
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                  backgroundColor: alpha(theme.palette.info.main, 0.1),
-                                  borderColor: alpha(theme.palette.info.main, 0.25)
-                                }
+                                border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`
                               }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                                   Gastos Administración
@@ -920,12 +883,7 @@ const PaymentReceiptViewer = ({
                                 p: 1.2,
                                 borderRadius: 1.5,
                                 backgroundColor: alpha(theme.palette.warning.main, 0.06),
-                                border: `1px solid ${alpha(theme.palette.warning.main, 0.15)}`,
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                  backgroundColor: alpha(theme.palette.warning.main, 0.1),
-                                  borderColor: alpha(theme.palette.warning.main, 0.25)
-                                }
+                                border: `1px solid ${alpha(theme.palette.warning.main, 0.15)}`
                               }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                                   Intereses Derechos
@@ -961,12 +919,7 @@ const PaymentReceiptViewer = ({
                                 p: 1.2,
                                 borderRadius: 1.5,
                                 backgroundColor: alpha(theme.palette.secondary.main, 0.06),
-                                border: `1px solid ${alpha(theme.palette.secondary.main, 0.15)}`,
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                  backgroundColor: alpha(theme.palette.secondary.main, 0.1),
-                                  borderColor: alpha(theme.palette.secondary.main, 0.25)
-                                }
+                                border: `1px solid ${alpha(theme.palette.secondary.main, 0.15)}`
                               }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                                   Intereses Gastos
@@ -1004,12 +957,7 @@ const PaymentReceiptViewer = ({
                                 p: 1.2,
                                 borderRadius: 1.5,
                                 backgroundColor: alpha(theme.palette.primary.main, 0.06),
-                                border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                  backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                                  borderColor: alpha(theme.palette.primary.main, 0.25)
-                                }
+                                border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`
                               }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                                   Monto Base
@@ -1030,12 +978,7 @@ const PaymentReceiptViewer = ({
                                 p: 1.2,
                                 borderRadius: 1.5,
                                 backgroundColor: alpha(theme.palette.error.main, 0.06),
-                                border: `1px solid ${alpha(theme.palette.error.main, 0.15)}`,
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                  backgroundColor: alpha(theme.palette.error.main, 0.1),
-                                  borderColor: alpha(theme.palette.error.main, 0.25)
-                                }
+                                border: `1px solid ${alpha(theme.palette.error.main, 0.15)}`
                               }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                                   Intereses
@@ -1059,15 +1002,10 @@ const PaymentReceiptViewer = ({
                         mt: 2, 
                         pt: 2, 
                         borderTop: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
-                        backgroundColor: alpha(theme.palette.success.main, 0.08),
+                        backgroundColor: 'white',
                         borderRadius: 2,
                         px: 2.5,
-                        py: 1.8,
-                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                        '&:hover': {
-                          backgroundColor: alpha(theme.palette.success.main, 0.12),
-                          boxShadow: '0 4px 12px rgba(76, 175, 80, 0.15)'
-                        }
+                        py: 1.8
                       }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                           <Box sx={{
@@ -1119,13 +1057,7 @@ const PaymentReceiptViewer = ({
                   borderRadius: 2,
                   backgroundColor: 'white',
                   border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                  textAlign: 'center',
-                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                  '&:hover': {
-                    backgroundColor: alpha(theme.palette.primary.main, 0.02),
-                    borderColor: alpha(theme.palette.primary.main, 0.3),
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
-                  }
+                  textAlign: 'center'
                 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, mb: 2 }}>
                     <Box sx={{
@@ -1183,14 +1115,7 @@ const PaymentReceiptViewer = ({
                       fontWeight: 500,
                       textTransform: 'none',
                       fontSize: '0.9rem',
-                      boxShadow: 'none',
-                      transition: 'none',
-                      '&:hover': {
-                        boxShadow: 'none',
-                        transform: 'none',
-                        backgroundColor: 'primary.main',
-                        backgroundImage: 'none'
-                      }
+                      boxShadow: 'none'
                     }}
                   >
                     Ver Comprobante
@@ -1235,3 +1160,4 @@ const PaymentReceiptViewer = ({
 };
 
 export default PaymentReceiptViewer;
+

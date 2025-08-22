@@ -34,10 +34,14 @@ const CommitmentsFilters = ({
   onCompanyChange, 
   onStatusChange,
   onYearChange,
+  onApplyFilters,
+  onClearFilters,
   searchTerm = '',
   companyFilter = 'all',
   statusFilter = 'all',
-  yearFilter = 'all'
+  yearFilter = 'all',
+  hasFiltersChanged = false,
+  filtersApplied = false
 }) => {
   const { currentUser } = useAuth();
   const theme = useTheme();
@@ -485,6 +489,77 @@ const CommitmentsFilters = ({
               </Box>
             </motion.div>
           )}
+
+          {/* ✅ BOTONES DE ACCIÓN PARA FILTROS */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.3 }}
+          >
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'center',
+              gap: 2,
+              mt: 3,
+              pt: 3,
+              borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+            }}>
+              <Button
+                variant="contained"
+                startIcon={<FilterList />}
+                onClick={onApplyFilters}
+                disabled={!hasFiltersChanged && filtersApplied}
+                sx={{
+                  minWidth: 160,
+                  py: 1.5,
+                  px: 3,
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  background: hasFiltersChanged || !filtersApplied 
+                    ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
+                    : theme.palette.action.disabled,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                  '&:hover': {
+                    background: hasFiltersChanged || !filtersApplied 
+                      ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+                      : theme.palette.action.disabled,
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 6px 16px rgba(0,0,0,0.2)'
+                  }
+                }}
+              >
+                {filtersApplied && !hasFiltersChanged ? 'Filtros Aplicados' : 'Aplicar Filtros'}
+              </Button>
+
+              <Button
+                variant="outlined"
+                startIcon={<Clear />}
+                onClick={onClearFilters}
+                disabled={!filtersApplied && !hasFiltersChanged}
+                sx={{
+                  minWidth: 140,
+                  py: 1.5,
+                  px: 3,
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  borderColor: alpha(theme.palette.error.main, 0.5),
+                  color: theme.palette.error.main,
+                  backgroundColor: alpha(theme.palette.error.main, 0.05),
+                  '&:hover': {
+                    borderColor: theme.palette.error.main,
+                    backgroundColor: alpha(theme.palette.error.main, 0.1),
+                    transform: 'translateY(-1px)'
+                  }
+                }}
+              >
+                Limpiar Filtros
+              </Button>
+            </Box>
+          </motion.div>
         </Box>
       </Paper>
     </motion.div>

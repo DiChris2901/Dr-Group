@@ -40,6 +40,15 @@ const CommitmentsPage = () => {
   const [commitmentsData, setCommitmentsData] = useState([]);
   const [extendModalOpen, setExtendModalOpen] = useState(false);
   const [commitmentsToExtend, setCommitmentsToExtend] = useState(null);
+  
+  // ✅ NUEVOS ESTADOS PARA SISTEMA DE FILTROS
+  const [appliedFilters, setAppliedFilters] = useState({
+    searchTerm: '',
+    companyFilter: 'all',
+    statusFilter: 'all',
+    yearFilter: 'all'
+  });
+  const [filtersApplied, setFiltersApplied] = useState(false);
 
   // 🔍 Efecto para leer parámetros de búsqueda de la URL
   useEffect(() => {
@@ -68,6 +77,40 @@ const CommitmentsPage = () => {
 
   const handleCommitmentsDataChange = (newCommitmentsData) => {
     setCommitmentsData(newCommitmentsData);
+  };
+
+  // ✅ NUEVAS FUNCIONES PARA SISTEMA DE FILTROS
+  const handleApplyFilters = () => {
+    setAppliedFilters({
+      searchTerm,
+      companyFilter,
+      statusFilter,
+      yearFilter
+    });
+    setFiltersApplied(true);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setCompanyFilter('all');
+    setStatusFilter('all');
+    setYearFilter('all');
+    setAppliedFilters({
+      searchTerm: '',
+      companyFilter: 'all',
+      statusFilter: 'all',
+      yearFilter: 'all'
+    });
+    setFiltersApplied(false);
+  };
+
+  const hasFiltersChanged = () => {
+    return (
+      appliedFilters.searchTerm !== searchTerm ||
+      appliedFilters.companyFilter !== companyFilter ||
+      appliedFilters.statusFilter !== statusFilter ||
+      appliedFilters.yearFilter !== yearFilter
+    );
   };
 
   const handleAddCommitment = () => {
@@ -272,7 +315,7 @@ const CommitmentsPage = () => {
         </Box>
   </div>
 
-      {/* Filtros */}
+      {/* Filtros con botones de acción */}
       <CommitmentsFilters
         searchTerm={searchTerm}
         companyFilter={companyFilter}
@@ -282,16 +325,22 @@ const CommitmentsPage = () => {
         onCompanyChange={handleCompanyChange}
         onStatusChange={handleStatusChange}
         onYearChange={handleYearChange}
+        onApplyFilters={handleApplyFilters}
+        onClearFilters={handleClearFilters}
+        hasFiltersChanged={hasFiltersChanged()}
+        filtersApplied={filtersApplied}
       />
 
-      {/* Lista de compromisos */}
+      {/* Lista de compromisos con control condicional */}
       <CommitmentsList
-        searchTerm={searchTerm}
-        companyFilter={companyFilter}
-        statusFilter={statusFilter}
-        yearFilter={yearFilter}
+        searchTerm={appliedFilters.searchTerm}
+        companyFilter={appliedFilters.companyFilter}
+        statusFilter={appliedFilters.statusFilter}
+        yearFilter={appliedFilters.yearFilter}
         viewMode={settings.dashboard?.layout?.viewMode || 'cards'}
         onCommitmentsChange={handleCommitmentsDataChange}
+        shouldLoadData={filtersApplied}
+        showEmptyState={!filtersApplied}
       />
 
       {/* Modal de Extensión de Compromisos */}

@@ -1145,6 +1145,10 @@ const NewCommitmentPage = () => {
             duration: 10000 // Mayor duración para información detallada
           });
         }
+        
+        // 🧹 Limpiar formulario después del éxito
+        resetForm();
+        
       } else {
         // Guardar compromiso único
         await addDoc(collection(db, 'commitments'), commitmentData);
@@ -1175,10 +1179,13 @@ const NewCommitmentPage = () => {
             duration: 8000
           });
         }
+        
+        // 🧹 Limpiar formulario después del éxito
+        resetForm();
       }
 
-      // Navegar de vuelta a la lista de compromisos
-      navigate('/commitments');
+      // ✅ DESHABILITADO: No navegar automáticamente después de guardar
+      // navigate('/commitments');
     } catch (error) {
       console.error('Error saving commitment:', error);
       addNotification({
@@ -1196,6 +1203,53 @@ const NewCommitmentPage = () => {
   // Cancelar y volver
   const handleCancel = () => {
     navigate('/commitments');
+  };
+
+  // 🧹 Función para limpiar el formulario después de guardar
+  const resetForm = () => {
+    setFormData({
+      companyId: preselectedCompany?.id || '',
+      companyName: preselectedCompany?.name || '',
+      month: new Date().getMonth() + 1, // Mes actual (1-12)
+      year: new Date().getFullYear(), // Año actual
+      dueDate: null, // Fecha de vencimiento específica
+      periodicity: 'monthly', // unique, monthly, bimonthly, quarterly, fourmonthly, biannual, annual
+      beneficiary: '',
+      beneficiaryNit: '', // 🆔 NIT o identificación del beneficiario
+      concept: '',
+      baseAmount: '', // 💰 Valor base (antes era 'amount')
+      // 🎮 Campos específicos de Coljuegos
+      derechosExplotacion: '', // Derechos de Explotación
+      gastosAdministracion: '', // Gastos de Administración
+      iva: '', // 📊 IVA
+      retefuente: '', // 📉 Retención en la fuente
+      ica: '', // 🏙️ ICA
+      discount: '', // 🏷️ Descuento
+      invoiceNumber: '', // 🧾 Número de Factura
+      hasTaxes: false, // ✅ Mostrar/ocultar impuestos y descuentos
+      totalAmount: '', // 💵 Total calculado
+      paymentMethod: 'transfer', // transfer, check, cash, debit, credit
+      observations: '',
+      deferredPayment: false,
+      status: 'pending', // pending, paid, overdue
+      // 🔄 Solo contador para compromisos recurrentes (automático según periodicidad)
+      recurringCount: getDefaultRecurringCount('monthly'), // Valor dinámico basado en periodicidad inicial
+      // 📄 Campos para facturas (múltiples archivos)
+      invoiceFiles: [],
+      invoiceURLs: [],
+      invoiceFileNames: []
+    });
+    
+    // También limpiar archivos subidos
+    setUploadProgress(0);
+    setUploadingFile(false);
+    
+    // Limpiar archivos de compresión si están abiertos
+    setCompressionPreviewOpen(false);
+    setPendingPDFFile(null);
+    
+    // Limpiar archivos drag & drop si están activos
+    setIsDragOver(false);
   };
 
   // Opciones para los selects

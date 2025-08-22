@@ -14,7 +14,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  CircularProgress,
   Alert,
   List,
   ListItem,
@@ -58,7 +57,8 @@ import {
   FirstPage,
   LastPage,
   NavigateBefore,
-  NavigateNext
+  NavigateNext,
+  FilterList
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO, isAfter, isBefore, addDays, differenceInDays, differenceInHours } from 'date-fns';
@@ -471,7 +471,16 @@ const TimeProgress = ({ dueDate, createdAt, isPaid }) => {
   return null;
 };
 
-const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, viewMode = 'cards', onCommitmentsChange }) => {
+const CommitmentsList = ({ 
+  companyFilter, 
+  statusFilter, 
+  searchTerm, 
+  yearFilter, 
+  viewMode = 'cards', 
+  onCommitmentsChange,
+  shouldLoadData = true,
+  showEmptyState = false
+}) => {
   const { currentUser } = useAuth();
   const { addNotification, addAlert } = useNotifications();
   const { settings } = useSettings();
@@ -1007,7 +1016,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
   const [filteredTotal, setFilteredTotal] = useState(0); // Total después de filtros
 
   useEffect(() => {
-    if (!currentUser) return;
+    // ✅ Solo cargar datos si shouldLoadData es true
+    if (!currentUser || !shouldLoadData) return;
     
     console.log('🔄 [REAL TIME] Configurando listener en tiempo real...');
     
@@ -1125,7 +1135,7 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
       unsubscribe();
     };
     
-  }, [currentUser, debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter]); // SIN currentPage
+  }, [currentUser, debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, shouldLoadData]); // ✅ Agregado shouldLoadData
 
   // EFECTO SEPARADO SOLO PARA PAGINACIÓN - No reinicia listeners
   useEffect(() => {
@@ -1889,9 +1899,62 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-        <CircularProgress />
-      </Box>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+      >
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '200px',
+          textAlign: 'center',
+          py: 4,
+          px: 3,
+          backgroundColor: alpha(theme.palette.background.paper, 0.3),
+          borderRadius: 2,
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          backdropFilter: 'blur(10px)'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            {/* Icono compacto */}
+            <Box sx={{
+              width: 48,
+              height: 48,
+              borderRadius: '50%',
+              backgroundColor: alpha(theme.palette.primary.main, 0.08),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <FilterList sx={{ 
+                fontSize: 24, 
+                color: theme.palette.primary.main,
+                opacity: 0.8
+              }} />
+            </Box>
+            
+            {/* Texto sobrio */}
+            <Box sx={{ textAlign: 'left' }}>
+              <Typography variant="body1" sx={{ 
+                fontWeight: 500, 
+                color: theme.palette.text.primary,
+                mb: 0.5
+              }}>
+                Aplique filtros para mostrar compromisos
+              </Typography>
+              
+              <Typography variant="body2" sx={{ 
+                color: theme.palette.text.secondary,
+                opacity: 0.8
+              }}>
+                Configure los filtros y presione "Aplicar Filtros"
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      </motion.div>
     );
   }
 
@@ -1937,6 +2000,87 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
 
   return (
     <Box>
+      {/* ✅ ESTADO VACÍO CUANDO NO HAY FILTROS APLICADOS */}
+      {showEmptyState && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <Box sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '400px',
+            textAlign: 'center',
+            p: 4,
+            backgroundColor: alpha(theme.palette.background.paper, 0.4),
+            borderRadius: 3,
+            border: `2px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            {/* Efecto de fondo */}
+            <Box sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: `radial-gradient(circle at 30% 40%, ${alpha(theme.palette.primary.main, 0.05)} 0%, transparent 50%), 
+                          radial-gradient(circle at 70% 80%, ${alpha(theme.palette.secondary.main, 0.05)} 0%, transparent 50%)`,
+              pointerEvents: 'none'
+            }} />
+            
+            {/* Icono principal */}
+            <Box sx={{
+              width: 120,
+              height: 120,
+              borderRadius: '50%',
+              backgroundColor: alpha(theme.palette.primary.main, 0.1),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mb: 3,
+              position: 'relative',
+              zIndex: 1
+            }}>
+              <FilterList sx={{ 
+                fontSize: 60, 
+                color: theme.palette.primary.main,
+                opacity: 0.7
+              }} />
+            </Box>
+            
+            {/* Texto principal */}
+            <Typography variant="h5" sx={{ 
+              fontWeight: 600, 
+              color: theme.palette.text.primary,
+              mb: 2,
+              position: 'relative',
+              zIndex: 1
+            }}>
+              Seleccione filtros para mostrar compromisos
+            </Typography>
+            
+            <Typography variant="body1" sx={{ 
+              color: theme.palette.text.secondary,
+              maxWidth: 500,
+              lineHeight: 1.6,
+              position: 'relative',
+              zIndex: 1
+            }}>
+              Configure los filtros de búsqueda (empresa, estado, año, etc.) y haga clic en 
+              <strong> "Aplicar Filtros" </strong> para cargar y visualizar los compromisos.
+            </Typography>
+          </Box>
+        </motion.div>
+      )}
+
+      {/* ✅ CONTENIDO PRINCIPAL - SOLO SI HAY FILTROS APLICADOS */}
+      {!showEmptyState && (
+        <>
       {/* Contenido principal según modo de vista */}
       {viewMode === 'list' ? (
         // Vista Lista Sobria - Diseño Empresarial
@@ -4733,6 +4877,8 @@ const CommitmentsList = ({ companyFilter, statusFilter, searchTerm, yearFilter, 
             </Box>
           </Card>
         </motion.div>
+      )}
+        </>
       )}
     </Box>
   );
