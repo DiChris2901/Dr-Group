@@ -696,7 +696,7 @@ const CommitmentEditForm = ({
   };
 
   return (
-    <Dialog
+  <Dialog
       open={open}
       onClose={handleClose}
       maxWidth="md"
@@ -714,18 +714,8 @@ const CommitmentEditForm = ({
           }
         }
       }}
-    >
-        <motion.div
-          initial={{ opacity: 0, y: 30, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ 
-            type: "spring", 
-            damping: 25, 
-            stiffness: 120,
-            duration: 0.6 
-          }}
-          style={{ position: 'relative', zIndex: 2 }}
-        >
+  >
+    <div style={{ position: 'relative', zIndex: 2 }}>
           {/* Header sobrio con gradiente mantenido */}
           <Box sx={{
             p: 3,
@@ -1399,7 +1389,7 @@ const CommitmentEditForm = ({
               {saving ? 'Guardando...' : 'Guardar Cambios'}
             </Button>
           </DialogActions>
-        </motion.div>
+  </div>
       
     </Dialog>
   );

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -55,12 +56,10 @@ import {
   Refresh,
   Flag,
   MoreHoriz,
-  Close,
   Person,
   Info,
   Notes,
   History,
-  AttachFile,
   Share
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -140,7 +139,7 @@ const StatusChipDS3 = ({ status, showTooltip = false, theme }) => {
       whileTap={{ scale: 0.98 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
     >
-      <Chip 
+  <Chip 
         icon={status.icon}
         label={status.label}
         size="small"
@@ -174,7 +173,7 @@ const StatusChipDS3 = ({ status, showTooltip = false, theme }) => {
           }
         }}
       />
-    </motion.div>
+  </motion.div>
   );
 
   return showTooltip ? (
@@ -531,8 +530,7 @@ const DueCommitmentsPage = () => {
   const [companyData, setCompanyData] = useState(null);
   
   // Estados para formulario de pago
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [commitmentToPay, setCommitmentToPay] = useState(null);
+  // Eliminado: estados de modal de pago (se redirige a /payments/new)
 
   const formatCurrency = (amount) => {
     if (!amount) return '$0';
@@ -773,61 +771,12 @@ const DueCommitmentsPage = () => {
     refreshCommitments(); // Refrescar la lista después de editar
   };
 
-  // Funciones para manejar pagos
+  // Acción de pago ahora redirige a la página de nuevo pago
+  const navigate = useNavigate();
   const handlePayCommitment = (commitment) => {
-    setCommitmentToPay(commitment);
-    setPaymentDialogOpen(true);
-  };
-
-  const handleClosePaymentDialog = () => {
-    setPaymentDialogOpen(false);
-    setCommitmentToPay(null);
-  };
-
-  const handlePaymentSuccess = async (paymentData) => {
-    try {
-      if (!commitmentToPay) return;
-
-      // Actualizar el compromiso como pagado en Firebase
-      const commitmentRef = doc(db, 'commitments', commitmentToPay.id);
-      await updateDoc(commitmentRef, {
-        isPaid: true,
-        paid: true,
-        paymentDate: new Date(),
-        paymentAmount: paymentData.totalAmount,
-        interestPaid: paymentData.interestAmount || 0,
-        receiptUrl: paymentData.receiptUrl || null,
-        paymentMethod: paymentData.paymentMethod || 'efectivo',
-        paymentNotes: paymentData.notes || '',
-        updatedAt: new Date()
-      });
-
-      // Mostrar notificación de éxito
-      addNotification({
-        type: 'success',
-        title: '💰 Pago Registrado',
-        message: `El pago de ${new Intl.NumberFormat('es-CO', {
-          style: 'currency',
-          currency: 'COP'
-        }).format(paymentData.totalAmount)} ha sido registrado correctamente`,
-        duration: 5000
-      });
-
-      // Cerrar el diálogo
-      handleClosePaymentDialog();
-      
-      // Refrescar los datos
-      refreshCommitments();
-
-    } catch (error) {
-      console.error('❌ Error al registrar pago:', error);
-      addNotification({
-        type: 'error',
-        title: '❌ Error al Registrar Pago',
-        message: `No se pudo registrar el pago: ${error.message}`,
-        duration: 8000
-      });
-    }
+    if (!commitment) return;
+    // Se puede pasar el ID por query param para que la página de pago precargue datos
+    navigate(`/payments/new?commitmentId=${commitment.id}`);
   };
 
   const getPriorityColor = (priority) => {
@@ -1059,26 +1008,26 @@ const DueCommitmentsPage = () => {
             </Box>
           </Box>
           
-          {/* Botón sobrio */}
+          { /* Bloque corregido: se mantiene sólo el botón de actualizar existente */ }
+          {refreshing ? ' ' : ''}
           <Button
-            variant="contained"
-            startIcon={refreshing ? <LinearProgress size={16} /> : <Refresh />}
             onClick={handleRefresh}
             disabled={refreshing}
+            variant="outlined"
             sx={{
-              background: 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              borderRadius: 1,
-              fontWeight: 500,
-              px: 2.5,
-              py: 1,
-              color: 'white',
-              textTransform: 'none',
+              borderRadius: 3,
+              px: 3,
+              py: 1.2,
+              fontWeight: 600,
               fontSize: '0.875rem',
               minHeight: 'auto',
+              borderColor: 'rgba(255,255,255,0.3)',
+              color: '#fff',
+              background: 'rgba(255,255,255,0.15)',
+              backdropFilter: 'blur(6px)',
               '&:hover': {
-                background: 'rgba(255,255,255,0.2)',
-                borderColor: 'rgba(255,255,255,0.3)'
+                background: 'rgba(255,255,255,0.25)',
+                borderColor: 'rgba(255,255,255,0.4)'
               },
               '&:disabled': {
                 background: 'rgba(255,255,255,0.05)',
@@ -1136,11 +1085,7 @@ const DueCommitmentsPage = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ 
-                duration: 0.4, 
-                delay: index * 0.1,
-                ease: "easeOut"
-              }}
+              transition={{ duration: 0.4, delay: index * 0.1, ease: 'easeOut' }}
             >
               <Card
                 sx={{
@@ -1305,8 +1250,8 @@ const DueCommitmentsPage = () => {
                   <motion.div
                     key={filter}
                     whileHover={{ scale: 1.02, y: -1 }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={{ type: "spring", bounce: 0.3, duration: 0.2 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: 'spring', bounce: 0.3, duration: 0.25 }}
                   >
                     <Chip
                       label={filter === 'all' ? 'Todas' : filter.charAt(0).toUpperCase() + filter.slice(1)}
@@ -1513,11 +1458,7 @@ const DueCommitmentsPage = () => {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ duration: 0.3, delay: index * 0.05 }}
-                    whileHover={{ 
-                      backgroundColor: alpha(theme.palette.primary.main, 0.02),
-                      boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.08)}`,
-                      transition: { duration: 0.25 }
-                    }}
+                    whileHover={{ backgroundColor: alpha(theme.palette.primary.main, 0.02) }}
                   >
                     <Box sx={{
                       display: 'grid',
@@ -1764,11 +1705,7 @@ const DueCommitmentsPage = () => {
 
       {/* Empty State */}
       {filteredCommitments.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.7 }}
-        >
+        <Box>
           <Paper
             elevation={0}
             sx={{
@@ -1792,7 +1729,7 @@ const DueCommitmentsPage = () => {
               No hay compromisos que coincidan con los filtros seleccionados.
             </Typography>
           </Paper>
-        </motion.div>
+        </Box>
       )}
       
       {/* Modales y Dialogs */}
@@ -1843,17 +1780,7 @@ const DueCommitmentsPage = () => {
         }}
       >
         {selectedCommitment && (
-          <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ 
-              type: "spring", 
-              damping: 25, 
-              stiffness: 120,
-              duration: 0.6 
-            }}
-            style={{ position: 'relative', zIndex: 2 }}
-          >
+          <div style={{ position: 'relative', zIndex: 2 }}>
             {/* Header Premium con Gradiente Dinámico */}
             <Box
               sx={{
@@ -2020,13 +1947,15 @@ const DueCommitmentsPage = () => {
                         background: 'rgba(255, 255, 255, 0.2)',
                         border: '1px solid rgba(255, 255, 255, 0.3)',
                         color: 'white',
+                        fontWeight: 700,
+                        fontSize: '1.1rem',
                         '&:hover': {
                           background: 'rgba(255, 255, 255, 0.3)',
                           transform: 'scale(1.1)'
                         }
                       }}
                     >
-                      <Close />
+                      ×
                     </IconButton>
                   </Box>
                 </Box>
@@ -2090,11 +2019,7 @@ const DueCommitmentsPage = () => {
 
                 {/* Información Adicional COMPLETA */}
                 <Grid item xs={12}>
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3, duration: 0.4 }}
-                  >
+                  <Box>
                     <Card
                       sx={{
                         p: 2.5,
@@ -2366,7 +2291,7 @@ const DueCommitmentsPage = () => {
                         </Grid>
                       </Box>
                     </Card>
-                  </motion.div>
+                  </Box>
                 </Grid>
               </Grid>
             </DialogContent>
@@ -2390,13 +2315,7 @@ const DueCommitmentsPage = () => {
                 '&::after': { display: 'none' }
               }}
             >
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1, duration: 0.4, type: "spring" }}
-                whileHover={{ scale: 1.03, y: -2 }}
-                whileTap={{ scale: 0.97 }}
-              >
+              <Box>
                 <Button 
                   onClick={handleCloseViewDialog}
                   variant="outlined"
@@ -2420,16 +2339,10 @@ const DueCommitmentsPage = () => {
                 >
                   Cerrar
                 </Button>
-              </motion.div>
+              </Box>
               
               <Box display="flex" gap={2.5}>
-                <motion.div
-                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ delay: 0.2, duration: 0.4, type: "spring", stiffness: 100 }}
-                  whileHover={{ scale: 1.03, y: -2 }}
-                  whileTap={{ scale: 0.97 }}
-                >
+                <Box>
                   <Button 
                     variant="contained"
                     startIcon={<Edit />}
@@ -2457,10 +2370,10 @@ const DueCommitmentsPage = () => {
                   >
                     Editar
                   </Button>
-                </motion.div>
+                </Box>
               </Box>
             </DialogActions>
-          </motion.div>
+          </div>
         )}
       </Dialog>
       
@@ -2472,13 +2385,7 @@ const DueCommitmentsPage = () => {
         onSaved={handleCommitmentSaved}
       />
       
-      {/* Diálogo de Formulario de Pago */}
-      <PaymentFormDialog
-        open={paymentDialogOpen}
-        commitment={commitmentToPay}
-        onSuccess={handlePaymentSuccess}
-        onCancel={handleClosePaymentDialog}
-      />
+  {/* Eliminado modal de pago: ahora se redirige directamente */}
       
       <DeleteConfirmDialog 
         open={deleteDialogOpen}
@@ -2490,453 +2397,7 @@ const DueCommitmentsPage = () => {
   );
 };
 
-// Componente para Formulario de Pago - Basado en el diseño spectacular
-const PaymentFormDialog = ({ open, commitment, onSuccess, onCancel }) => {
-  const theme = useTheme();
-  const [formData, setFormData] = useState({
-    baseAmount: 0,
-    interestAmount: 0,
-    totalAmount: 0,
-    notes: '',
-    receiptFile: null,
-    receiptUrl: '',
-    paymentMethod: 'efectivo'
-  });
-  const [uploading, setUploading] = useState(false);
-
-  // Inicializar datos cuando se abre el diálogo
-  useEffect(() => {
-    if (open && commitment) {
-      const baseAmount = commitment.amount || 0;
-      setFormData({
-        baseAmount: baseAmount,
-        interestAmount: 0,
-        totalAmount: baseAmount,
-        notes: '',
-        receiptFile: null,
-        receiptUrl: '',
-        paymentMethod: 'efectivo'
-      });
-    }
-  }, [open, commitment]);
-
-  const handleInterestChange = (value) => {
-    const interestAmount = parseFloat(value) || 0;
-    const newTotal = formData.baseAmount + interestAmount;
-    setFormData(prev => ({
-      ...prev,
-      interestAmount,
-      totalAmount: newTotal
-    }));
-  };
-
-  const handleFileSelect = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setFormData(prev => ({ ...prev, receiptFile: file }));
-    }
-  };
-
-  const uploadReceiptFile = async (file) => {
-    if (!file) return null;
-    
-    try {
-      setUploading(true);
-      const timestamp = Date.now();
-      const fileName = `receipts/${commitment.id}_${timestamp}_${file.name}`;
-      const storageRef = ref(storage, fileName);
-      
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
-      
-      return downloadURL;
-    } catch (error) {
-      console.error('Error uploading receipt:', error);
-      throw error;
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleConfirmPayment = async () => {
-    try {
-      let receiptUrl = '';
-      
-      // Subir comprobante si se seleccionó
-      if (formData.receiptFile) {
-        receiptUrl = await uploadReceiptFile(formData.receiptFile);
-      }
-
-      const paymentData = {
-        totalAmount: formData.totalAmount,
-        interestAmount: formData.interestAmount,
-        baseAmount: formData.baseAmount,
-        receiptUrl,
-        notes: formData.notes,
-        paymentMethod: formData.paymentMethod
-      };
-
-      await onSuccess(paymentData);
-    } catch (error) {
-      console.error('Error processing payment:', error);
-    }
-  };
-
-  if (!commitment) return null;
-
-  return (
-    <Dialog
-      open={open}
-      onClose={onCancel}
-      maxWidth="sm"
-      fullWidth
-      sx={{
-        '& .MuiDialog-container': {
-          backgroundColor: 'transparent !important',
-        },
-        '& .MuiBackdrop-root': {
-          backgroundColor: 'rgba(0, 0, 0, 0.5) !important',
-        },
-        '& .MuiDialog-paper': {
-          backgroundColor: theme.palette.mode === 'dark' 
-            ? theme.palette.background.paper + ' !important'
-            : '#ffffff !important',
-        },
-        '& .MuiDialogContent-root': {
-          backgroundColor: theme.palette.mode === 'dark' 
-            ? theme.palette.background.paper + ' !important'
-            : '#ffffff !important',
-        },
-        '& .MuiDialogActions-root': {
-          backgroundColor: theme.palette.mode === 'dark' 
-            ? theme.palette.background.paper + ' !important'
-            : '#ffffff !important',
-        }
-      }}
-      PaperProps={{
-        sx: {
-          borderRadius: 4,
-          background: theme.palette.mode === 'dark'
-            ? theme.palette.background.paper + ' !important'
-            : '#ffffff !important',
-          boxShadow: theme.palette.mode === 'dark'
-            ? '0 8px 32px rgba(0, 0, 0, 0.5)'
-            : '0 8px 32px rgba(0, 0, 0, 0.1)',
-          border: `1px solid ${alpha(theme.palette.divider, theme.palette.mode === 'dark' ? 0.2 : 0.1)}`,
-          overflow: 'hidden',
-        }
-      }}
-    >
-      {/* Header con gradiente spectacular */}
-      <Box
-        sx={{
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-          color: 'white',
-          p: 3,
-          textAlign: 'center',
-          position: 'relative'
-        }}
-      >
-        <IconButton
-          onClick={onCancel}
-          sx={{
-            position: 'absolute',
-            right: 16,
-            top: 16,
-            color: 'white',
-            '&:hover': { backgroundColor: alpha(theme.palette.common.white, 0.1) }
-          }}
-        >
-          <Close />
-        </IconButton>
-        
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", duration: 0.6 }}
-        >
-          <Box
-            sx={{
-              width: 60,
-              height: 60,
-              backgroundColor: theme.palette.mode === 'dark'
-                ? alpha(theme.palette.common.black, 0.2)
-                : alpha(theme.palette.common.white, 0.2),
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              mx: 'auto',
-              mb: 2
-            }}
-          >
-            <CheckCircle sx={{ fontSize: 32, color: 'white' }} />
-          </Box>
-        </motion.div>
-        
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
-          Marcar como Pagado
-        </Typography>
-        <Typography variant="body2" sx={{ opacity: 0.9 }}>
-          {commitment.concept || 'Retención en la Fuente'}
-        </Typography>
-      </Box>
-
-      <DialogContent sx={{ p: 3 }}>
-        {/* Monto del Compromiso */}
-        <Box
-          sx={{
-            background: alpha(theme.palette.primary.main, 0.05),
-            borderRadius: 3,
-            p: 3,
-            mb: 3,
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
-          }}
-        >
-          <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 2 }}>
-            <Box
-              sx={{
-                backgroundColor: alpha(theme.palette.primary.main, 0.1),
-                borderRadius: 2,
-                p: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <Business sx={{ color: theme.palette.primary.main, fontSize: 20 }} />
-            </Box>
-            <Typography variant="subtitle2" color="text.secondary">
-              Monto del Compromiso
-            </Typography>
-          </Stack>
-          
-          <Typography
-            variant="h4"
-            sx={{
-              fontWeight: 800,
-              color: theme.palette.primary.main,
-              textAlign: 'center'
-            }}
-          >
-            $ {formData.baseAmount.toLocaleString()}
-          </Typography>
-        </Box>
-
-        {/* Intereses Adicionales */}
-        <Box sx={{ mb: 3 }}>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-            <TrendingUp sx={{ color: theme.palette.warning.main, fontSize: 20 }} />
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              ¿Pagaste intereses adicionales?
-            </Typography>
-          </Stack>
-          
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Intereses (opcional)
-          </Typography>
-          
-          <Box
-            sx={{
-              position: 'relative',
-              '& input': {
-                fontSize: '1.2rem',
-                fontWeight: 600,
-                pl: 3
-              }
-            }}
-          >
-            <Typography
-              variant="h6"
-              sx={{
-                position: 'absolute',
-                left: 12,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: theme.palette.text.secondary,
-                zIndex: 1,
-                fontWeight: 600
-              }}
-            >
-              $
-            </Typography>
-            <input
-              type="number"
-              placeholder="0"
-              value={formData.interestAmount}
-              onChange={(e) => handleInterestChange(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '16px 12px 16px 32px',
-                border: `2px solid ${alpha(theme.palette.divider, 0.3)}`,
-                borderRadius: '12px',
-                fontSize: '1.1rem',
-                backgroundColor: theme.palette.background.paper,
-                color: theme.palette.text.primary,
-                outline: 'none',
-                transition: 'all 0.3s ease',
-              }}
-              onFocus={(e) => {
-                e.target.style.borderColor = theme.palette.primary.main;
-                e.target.style.boxShadow = `0 0 0 3px ${alpha(theme.palette.primary.main, 0.1)}`;
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = alpha(theme.palette.divider, 0.3);
-                e.target.style.boxShadow = 'none';
-              }}
-            />
-          </Box>
-          
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Ingresa cualquier interés adicional que hayas pagado
-          </Typography>
-        </Box>
-
-        {/* Total a Pagar */}
-        <Box
-          sx={{
-            background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.light, 0.05)} 100%)`,
-            borderRadius: 3,
-            p: 3,
-            mb: 3,
-            border: `2px solid ${alpha(theme.palette.success.main, 0.2)}`,
-            textAlign: 'center'
-          }}
-        >
-          <Stack direction="row" alignItems="center" justifyContent="center" spacing={1} sx={{ mb: 1 }}>
-            <TrendingUp sx={{ color: theme.palette.success.main, fontSize: 20 }} />
-            <Typography variant="subtitle2" color="text.secondary">
-              Total a Pagar
-            </Typography>
-          </Stack>
-          
-          <Typography
-            variant="h3"
-            sx={{
-              fontWeight: 900,
-              color: theme.palette.success.main,
-              fontSize: '2.5rem'
-            }}
-          >
-            $ {formData.totalAmount.toLocaleString()}
-          </Typography>
-        </Box>
-
-        {/* Comprobante de Pago */}
-        <Box sx={{ mb: 3 }}>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-            <AttachFile sx={{ color: theme.palette.info.main, fontSize: 20 }} />
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              Comprobante de Pago
-            </Typography>
-          </Stack>
-          
-          <Box
-            sx={{
-              border: `2px dashed ${alpha(theme.palette.primary.main, 0.3)}`,
-              borderRadius: 3,
-              p: 4,
-              textAlign: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                borderColor: theme.palette.primary.main,
-                backgroundColor: alpha(theme.palette.primary.main, 0.02)
-              }
-            }}
-            onClick={() => document.getElementById('receipt-upload').click()}
-          >
-            <input
-              id="receipt-upload"
-              type="file"
-              accept="image/*,.pdf"
-              onChange={handleFileSelect}
-              style={{ display: 'none' }}
-            />
-            
-            <AttachFile sx={{ fontSize: 48, color: theme.palette.primary.main, mb: 2 }} />
-            <Typography variant="h6" sx={{ fontWeight: 600, color: theme.palette.primary.main, mb: 1 }}>
-              Seleccionar Archivo
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Arrastra aquí tu comprobante o haz clic para seleccionar
-            </Typography>
-            
-            {formData.receiptFile && (
-              <Typography variant="body2" sx={{ mt: 2, color: theme.palette.success.main, fontWeight: 600 }}>
-                ✓ {formData.receiptFile.name}
-              </Typography>
-            )}
-          </Box>
-        </Box>
-      </DialogContent>
-
-      {/* Botones de Acción */}
-      <DialogActions sx={{ p: 3, gap: 2 }}>
-        <Button
-          onClick={onCancel}
-          variant="outlined"
-          sx={{
-            borderRadius: 3,
-            px: 4,
-            py: 1.5,
-            fontWeight: 600,
-            borderColor: alpha(theme.palette.text.secondary, 0.3),
-            color: theme.palette.text.secondary,
-            '&:hover': {
-              borderColor: theme.palette.text.primary,
-              backgroundColor: alpha(theme.palette.text.primary, 0.05)
-            }
-          }}
-        >
-          Cancelar
-        </Button>
-        
-        <Button
-          onClick={handleConfirmPayment}
-          variant="contained"
-          disabled={uploading}
-          sx={{
-            borderRadius: 3,
-            px: 4,
-            py: 1.5,
-            fontWeight: 700,
-            background: `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})`,
-            '&:hover': {
-              background: `linear-gradient(135deg, ${theme.palette.success.dark} 0%, ${theme.palette.success.main} 100%)`,
-              transform: 'translateY(-2px)',
-              boxShadow: `0 8px 25px ${alpha(theme.palette.success.main, 0.4)}`
-            },
-            '&:disabled': {
-              background: alpha(theme.palette.action.disabled, 0.12)
-            }
-          }}
-        >
-          {uploading ? (
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Box
-                sx={{
-                  width: 16,
-                  height: 16,
-                  border: '2px solid',
-                  borderColor: `${alpha('#fff', 0.3)} ${alpha('#fff', 0.3)} ${alpha('#fff', 0.3)} transparent`,
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite'
-                }}
-              />
-              <span>Subiendo...</span>
-            </Stack>
-          ) : (
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <CheckCircle sx={{ fontSize: 18 }} />
-              <span>Confirmar Pago</span>
-            </Stack>
-          )}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-};
+// Eliminado componente PaymentFormDialog (lógica movida a página dedicada)
 
 // Componente para Confirmar Eliminación
 const DeleteConfirmDialog = ({ open, commitment, onConfirm, onCancel }) => {

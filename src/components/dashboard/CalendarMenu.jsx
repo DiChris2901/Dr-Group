@@ -25,6 +25,8 @@ import {
   Error as ErrorIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 import { useFirestore } from '../../hooks/useFirestore';
 import { fCurrency } from '../../utils/formatNumber';
 import { useSettings } from '../../context/SettingsContext';
@@ -52,6 +54,7 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [hoveredDate, setHoveredDate] = useState(null);
   const { data: commitments = [], loading } = useFirestore('commitments');
+  const [companyCache, setCompanyCache] = useState({});
   const theme = useTheme();
   const { settings } = useSettings();
 
@@ -62,15 +65,41 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
   const animationsEnabled = settings?.theme?.animations !== false;
 
   // Obtener compromisos reales del mes actual
+  const normalizeDate = (value) => {
+    if (!value) return null;
+    try {
+      // Firestore Timestamp
+      if (value.toDate) return value.toDate();
+      // ISO string
+      if (typeof value === 'string') {
+        const d = new Date(value);
+        if (!isNaN(d.getTime())) return d;
+      }
+      // Number (ms)
+      if (typeof value === 'number') {
+        const d = new Date(value);
+        if (!isNaN(d.getTime())) return d;
+      }
+      return new Date(value);
+    } catch {
+      return null;
+    }
+  };
+
+  // Normalizar a medianoche local basado en componentes UTC para evitar desfase por zona horaria
+  const toLocalMidnightFromUTC = (d) => new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+
   const getCommitmentsForDate = (date) => {
     if (!commitments.length) return [];
     
-    const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     
     return commitments.filter(commitment => {
-      if (!commitment.dueDate) return false;
-      const dueDate = commitment.dueDate.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate);
-      const commitmentDate = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+  if (!commitment.dueDate) return false;
+  const dueDate = normalizeDate(commitment.dueDate);
+  if (!dueDate) return false;
+  // Usamos componentes UTC para casos donde dueDate viene en UTC (Timestamp) y se corre un día atrás al renderizar
+  const commitmentDate = toLocalMidnightFromUTC(dueDate);
       return commitmentDate.getTime() === targetDate.getTime();
     });
   };
@@ -78,10 +107,12 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
   // Obtener estadísticas del mes
   const getMonthStats = () => {
     const monthCommitments = commitments.filter(commitment => {
-      if (!commitment.dueDate) return false;
-      const dueDate = commitment.dueDate.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate);
-      return dueDate.getMonth() === selectedMonth.getMonth() && 
-             dueDate.getFullYear() === selectedMonth.getFullYear();
+  if (!commitment.dueDate) return false;
+  const dueDate = normalizeDate(commitment.dueDate);
+  if (!dueDate) return false;
+  const mid = toLocalMidnightFromUTC(dueDate);
+  return mid.getMonth() === selectedMonth.getMonth() && 
+     mid.getFullYear() === selectedMonth.getFullYear();
     });
 
     const total = monthCommitments.length;
@@ -102,8 +133,11 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
     
     const completed = monthCommitments.filter(c => isCompleted(c)).length;
     const overdue = monthCommitments.filter(c => {
-      const dueDate = c.dueDate.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
-      return dueDate < new Date() && !isCompleted(c);
+      const dueDate = normalizeDate(c.dueDate);
+      if (!dueDate) return false;
+      const cmp = toLocalMidnightFromUTC(dueDate);
+      const todayMid = toLocalMidnightFromUTC(new Date());
+      return cmp < todayMid && !isCompleted(c);
     }).length;
 
     return { total, completed, overdue, pending: total - completed - overdue };
@@ -155,7 +189,8 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
     const dayCommitments = getCommitmentsForDate(date);
     if (dayCommitments.length === 0) return null;
     
-    const now = new Date();
+  const now = new Date();
+  const todayMid = toLocalMidnightFromUTC(now);
     
     // Función para determinar si un compromiso está completado
     const isCompleted = (commitment) => {
@@ -172,8 +207,9 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
     };
     
     const isOverdue = dayCommitments.some(c => {
-      const dueDate = c.dueDate.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
-      return dueDate < now && !isCompleted(c);
+      const dueDate = normalizeDate(c.dueDate);
+      if (!dueDate) return false;
+      return toLocalMidnightFromUTC(dueDate) < todayMid && !isCompleted(c);
     });
     
     if (isOverdue) return 'error';
@@ -481,7 +517,8 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
             {getCommitmentsForDate(selectedDate).length > 0 ? (
               <List sx={{ py: 0, '& .MuiListItem-root': { py: 0.25 } }}>
                 {getCommitmentsForDate(selectedDate).slice(0, 3).map((commitment, index) => {
-                  const priority = commitment.dueDate.toDate() < new Date() && commitment.status !== 'completed' ? 'error' :
+                  const dueDateNorm = normalizeDate(commitment.dueDate);
+                  const priority = dueDateNorm && toLocalMidnightFromUTC(dueDateNorm) < toLocalMidnightFromUTC(new Date()) && commitment.status !== 'completed' ? 'error' :
                                  commitment.priority === 'high' ? 'warning' : 
                                  commitment.status === 'completed' ? 'success' : 'info';
                   
@@ -502,8 +539,8 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
                         {getStatusIcon()}
                       </ListItemIcon>
                       <ListItemText 
-                        primary={commitment.description}
-                        secondary={`${fCurrency(commitment.amount || 0)} • ${commitment.company || 'Sin empresa'}`}
+                        primary={commitment.description || commitment.concept || 'Sin concepto'}
+                        secondary={`${fCurrency(commitment.amount || 0)} • ${(commitment.companyName || commitment.company || companyCache[commitment.companyId]?.name || 'Sin empresa')}`}
                         primaryTypographyProps={{
                           variant: 'body2',
                           sx: { 

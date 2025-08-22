@@ -11,7 +11,7 @@ import {
     Typography
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { motion } from 'framer-motion';
+// Eliminada animación de entrada (se removió framer-motion para el header)
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import CommitmentsFilters from '../components/commitments/CommitmentsFilters';
@@ -155,11 +155,7 @@ const CommitmentsPage = () => {
   return (
     <Box sx={{ position: 'relative', minHeight: '100vh' }}>
       {/* Header Premium con Gradiente Dinámico */}
-      <motion.div
-        initial={settings.theme?.animations ? { opacity: 0, y: -20 } : {}}
-        animate={settings.theme?.animations ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
-        transition={settings.theme?.animations ? { duration: 0.6, type: "spring" } : { duration: 0 }}
-      >
+  <div>
         <Box
           sx={{
             background: `linear-gradient(135deg, ${settings.theme?.primaryColor || '#667eea'} 0%, ${settings.theme?.secondaryColor || '#764ba2'} 100%)`,
@@ -274,7 +270,7 @@ const CommitmentsPage = () => {
             </Box>
           </Box>
         </Box>
-      </motion.div>
+  </div>
 
       {/* Filtros */}
       <CommitmentsFilters
