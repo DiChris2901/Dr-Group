@@ -48,6 +48,53 @@ html, body {
 
 /* Forzar posición fija del sidebar */
 .MuiDrawer-root .MuiDrawer-paper {
+  position: fixed;
+}
+
+/* ⚡ MODO EMPRESARIAL RÁPIDO - Transiciones Básicas Optimizadas */
+
+/* Solo transiciones esenciales para UX (botones, hover states) */
+.MuiButton-root {
+  transition: background-color 0.2s ease !important;
+}
+
+.MuiIconButton-root {
+  transition: background-color 0.15s ease, transform 0.15s ease !important;
+}
+
+.MuiIconButton-root:hover {
+  transform: scale(1.05) !important;
+}
+
+/* Cards con hover sutil */
+.MuiCard-root {
+  transition: box-shadow 0.2s ease !important;
+}
+
+.MuiCard-root:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+}
+
+/* Input focus states */
+.MuiTextField-root .MuiOutlinedInput-root {
+  transition: border-color 0.2s ease !important;
+}
+
+/* Disable todas las animaciones complejas */
+.MuiCollapse-root,
+.MuiSlide-root,
+.MuiFade-root {
+  transition: none !important;
+}
+
+/* Disable framer-motion animations globalmente */
+[data-framer-motion] {
+  transform: none !important;
+  opacity: 1 !important;
+  transition: none !important;
+}
+
+.MuiDrawer-root .MuiDrawer-paper {
   position: fixed !important;
   z-index: 1200 !important;
 }

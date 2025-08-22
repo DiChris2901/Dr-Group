@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /
+
+# Bloquear todos los bots y crawlers
+# Esta es una aplicación empresarial privada

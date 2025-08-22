@@ -23,7 +23,8 @@ import {
   Autocomplete,
   Switch,
   IconButton,
-  LinearProgress
+  LinearProgress,
+  Stack
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -64,6 +65,9 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useSettings } from '../context/SettingsContext';
+// 🗜️ IMPORTAR SISTEMA DE COMPRESIÓN
+import PDFCompressionPreview from '../components/common/PDFCompressionPreview';
+import { drGroupCompressor } from '../utils/pdfCompressor';
 
 const NewCommitmentPage = () => {
   const { currentUser } = useAuth();
@@ -189,15 +193,20 @@ const NewCommitmentPage = () => {
     status: 'pending', // pending, paid, overdue
     // 🔄 Solo contador para compromisos recurrentes (automático según periodicidad)
     recurringCount: getDefaultRecurringCount('monthly'), // Valor dinámico basado en periodicidad inicial
-    // 📄 Campo para factura
-    invoiceFile: null,
-    invoiceURL: null,
-    invoiceFileName: null
+    // 📄 Campos para facturas (múltiples archivos)
+    invoiceFiles: [],
+    invoiceURLs: [],
+    invoiceFileNames: []
   });
 
   // Estados para subida de archivo
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  
+  // 🗜️ ESTADO PARA COMPRESIÓN DE PDFs
+  const [compressionPreviewOpen, setCompressionPreviewOpen] = useState(false);
+  const [pendingPDFFile, setPendingPDFFile] = useState(null);
+  const [compressionEnabled, setCompressionEnabled] = useState(true);
 
   // 💰 Funciones para formateo de moneda colombiana
   const formatNumberWithCommas = (value) => {
@@ -575,135 +584,216 @@ const NewCommitmentPage = () => {
       observations: '',
       deferredPayment: false,
       status: 'pending',
-      invoiceFile: null,
-      invoiceURL: null,
-      invoiceFileName: null
+      invoiceFiles: [],
+      invoiceURLs: [],
+      invoiceFileNames: []
     });
     setUploadProgress(0);
   };
 
   // 📄 Funciones para manejo de archivos
   const handleFileSelect = (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
+    const files = Array.from(event.target.files);
+    if (files.length === 0) return;
 
-    // Validar tipo de archivo
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      addNotification({
-        type: 'error',
-        title: 'Tipo de archivo no válido',
-        message: 'Solo se permiten archivos PDF o imágenes (JPG, PNG, WebP)',
-        icon: 'error',
-        color: 'error'
-      });
-      return;
-    }
+    // Procesar cada archivo individualmente
+    files.forEach(file => {
+      // Validar tipo de archivo
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        addNotification({
+          type: 'error',
+          title: 'Tipo de archivo no válido',
+          message: `"${file.name}" - Solo se permiten archivos PDF o imágenes (JPG, PNG, WebP)`,
+          icon: 'error',
+          color: 'error'
+        });
+        return;
+      }
 
-    // Validar tamaño (máximo 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      addNotification({
-        type: 'error',
-        title: 'Archivo muy grande',
-        message: 'El archivo no puede superar los 10MB',
-        icon: 'error',
-        color: 'error'
-      });
-      return;
-    }
+      // Validar tamaño (máximo 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        addNotification({
+          type: 'error',
+          title: 'Archivo muy grande',
+          message: `"${file.name}" no puede superar los 10MB`,
+          icon: 'error',
+          color: 'error'
+        });
+        return;
+      }
 
+      // Verificar si ya existe un archivo con el mismo nombre
+      const existsInFiles = formData.invoiceFileNames.some(name => name === file.name);
+      if (existsInFiles) {
+        addNotification({
+          type: 'warning',
+          title: 'Archivo duplicado',
+          message: `"${file.name}" ya está en la lista`,
+          icon: 'warning',
+          color: 'warning'
+        });
+        return;
+      }
+
+      // 🗜️ VERIFICAR SI ES PDF Y NECESITA COMPRESIÓN
+      if (file.type === 'application/pdf' && compressionEnabled && file.size > 100 * 1024) { // PDFs > 100KB
+        setPendingPDFFile(file);
+        setCompressionPreviewOpen(true);
+      } else {
+        // Archivo no-PDF o PDF pequeño
+        processSelectedFile(file);
+      }
+    });
+
+    // Limpiar input
+    event.target.value = '';
+  };
+
+  // 🗜️ PROCESAR ARCHIVO SELECCIONADO (CON O SIN COMPRESIÓN)
+  const processSelectedFile = (file, compressionStats = null) => {
     setFormData(prev => ({
       ...prev,
-      invoiceFile: file,
-      invoiceFileName: file.name
+      invoiceFiles: [...prev.invoiceFiles, file],
+      invoiceFileNames: [...prev.invoiceFileNames, file.name],
+      compressionStats: compressionStats
     }));
+
+    const message = compressionStats 
+      ? `Archivo "${file.name}" optimizado (${compressionStats.reductionPercent} reducido)`
+      : `Archivo "${file.name}" agregado a la lista`;
 
     addNotification({
       type: 'success',
-      title: 'Archivo seleccionado',
-      message: `Archivo "${file.name}" listo para subir`,
+      title: 'Archivo agregado',
+      message: message,
       icon: 'success',
       color: 'success'
     });
   };
 
-  const uploadInvoiceFile = async (file) => {
-    if (!file) return null;
+  // 🗜️ MANEJAR RESULTADO DE COMPRESIÓN
+  const handleCompressionAccept = (compressionResult) => {
+    const compressedFile = new File([compressionResult.compressed], pendingPDFFile.name, {
+      type: 'application/pdf'
+    });
+    
+    processSelectedFile(compressedFile, compressionResult.stats);
+    setPendingPDFFile(null);
+    
+    addNotification({
+      type: 'success',
+      title: 'Factura Optimizada',
+      message: `PDF comprimido exitosamente (${compressionResult.stats.reductionPercent} reducido)`,
+      icon: 'success'
+    });
+  };
+
+  const handleCompressionReject = () => {
+    processSelectedFile(pendingPDFFile);
+    setPendingPDFFile(null);
+    
+    addNotification({
+      type: 'info',
+      title: 'Original Mantenido',
+      message: 'Se usará la factura original sin comprimir',
+      icon: 'info'
+    });
+  };
+
+  const uploadInvoiceFiles = async (files) => {
+    if (!files || files.length === 0) return [];
 
     setUploadingFile(true);
     setUploadProgress(0);
+    const uploadResults = [];
+    const totalFiles = files.length;
 
     try {
-      // Generar nombre único para el archivo
-      const timestamp = new Date().getTime();
-      const extension = file.name.split('.').pop();
-      const fileName = `invoices/${timestamp}_${Math.random().toString(36).substr(2, 9)}.${extension}`;
-      
-      // Crear referencia en Firebase Storage
-      const storageRef = ref(storage, fileName);
-      
-      // Simular progreso de subida (Firebase no proporciona progreso real para uploadBytes)
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => Math.min(prev + 10, 90));
-      }, 200);
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const fileProgress = (i / totalFiles) * 90; // 90% para subidas, 10% buffer
 
-      // Subir archivo
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      
-      clearInterval(progressInterval);
+        // Generar nombre único para el archivo
+        const timestamp = new Date().getTime();
+        const extension = file.name.split('.').pop();
+        const fileName = `invoices/${timestamp}_${Math.random().toString(36).substr(2, 9)}.${extension}`;
+        
+        // Crear referencia en Firebase Storage
+        const storageRef = ref(storage, fileName);
+        
+        // Actualizar progreso por archivo
+        setUploadProgress(Math.floor(fileProgress));
+
+        // Subir archivo individual
+        const snapshot = await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        
+        uploadResults.push({
+          fileName: file.name,
+          downloadURL: downloadURL,
+          size: file.size,
+          type: file.type
+        });
+
+        // Notificación por archivo subido
+        addNotification({
+          type: 'success',
+          title: 'Archivo subido',
+          message: `"${file.name}" subido correctamente (${i + 1}/${totalFiles})`,
+          icon: 'success',
+          color: 'success'
+        });
+      }
+
       setUploadProgress(100);
-      
-      addNotification({
-        type: 'success',
-        title: 'Factura subida exitosamente',
-        message: `El archivo "${file.name}" se subió correctamente`,
-        icon: 'success',
-        color: 'success'
-      });
+      setTimeout(() => {
+        setUploadingFile(false);
+        setUploadProgress(0);
+      }, 500);
 
-      return {
-        url: downloadURL,
-        fileName: file.name,
-        storagePath: fileName
-      };
+      return uploadResults;
 
     } catch (error) {
-      console.error('Error uploading file:', error);
+      console.error('Error uploading files:', error);
+      setUploadingFile(false);
+      setUploadProgress(0);
+      
       addNotification({
         type: 'error',
-        title: 'Error al subir archivo',
-        message: 'No se pudo subir la factura. Inténtalo de nuevo.',
+        title: 'Error al subir archivos',
+        message: 'No se pudieron subir algunos archivos. Inténtalo de nuevo.',
         icon: 'error',
         color: 'error'
       });
-      return null;
-    } finally {
-      setUploadingFile(false);
-      setUploadProgress(0);
+      return [];
     }
   };
 
-  const removeInvoiceFile = async () => {
+  // Eliminar archivo individual por índice
+  const removeInvoiceFile = async (index) => {
     try {
+      const fileToRemove = formData.invoiceFileNames[index];
+      const urlToRemove = formData.invoiceURLs[index];
+
       // Si hay un archivo ya subido, eliminarlo de Storage
-      if (formData.invoiceURL) {
-        const storageRef = ref(storage, formData.invoiceURL);
+      if (urlToRemove) {
+        const storageRef = ref(storage, urlToRemove);
         await deleteObject(storageRef);
       }
       
       setFormData(prev => ({
         ...prev,
-        invoiceFile: null,
-        invoiceURL: null,
-        invoiceFileName: null
+        invoiceFiles: prev.invoiceFiles.filter((_, i) => i !== index),
+        invoiceURLs: prev.invoiceURLs.filter((_, i) => i !== index),
+        invoiceFileNames: prev.invoiceFileNames.filter((_, i) => i !== index)
       }));
 
       addNotification({
         type: 'info',
         title: 'Archivo eliminado',
-        message: 'La factura fue eliminada',
+        message: `"${fileToRemove}" fue eliminado de la lista`,
         icon: 'info',
         color: 'info'
       });
@@ -713,6 +803,43 @@ const NewCommitmentPage = () => {
         type: 'warning',
         title: 'Archivo eliminado localmente',
         message: 'El archivo fue eliminado del formulario',
+        icon: 'warning',
+        color: 'warning'
+      });
+    }
+  };
+
+  // Eliminar todos los archivos
+  const removeAllInvoiceFiles = async () => {
+    try {
+      // Eliminar archivos de Storage si existen URLs
+      for (const url of formData.invoiceURLs) {
+        if (url) {
+          const storageRef = ref(storage, url);
+          await deleteObject(storageRef);
+        }
+      }
+      
+      setFormData(prev => ({
+        ...prev,
+        invoiceFiles: [],
+        invoiceURLs: [],
+        invoiceFileNames: []
+      }));
+
+      addNotification({
+        type: 'info',
+        title: 'Archivos eliminados',
+        message: 'Todos los archivos fueron eliminados',
+        icon: 'info',
+        color: 'info'
+      });
+    } catch (error) {
+      console.error('Error removing all files:', error);
+      addNotification({
+        type: 'warning',
+        title: 'Archivos eliminados localmente',
+        message: 'Los archivos fueron eliminados del formulario',
         icon: 'warning',
         color: 'warning'
       });
@@ -807,23 +934,102 @@ const NewCommitmentPage = () => {
     return true;
   };
 
+  // 🔍 FUNCIÓN PARA IDENTIFICAR CAMPOS FALTANTES
+  const getMissingFields = () => {
+    const missingFields = [];
+
+    if (!formData.companyId) missingFields.push('Empresa');
+    if (!formData.month) missingFields.push('Mes');
+    if (!formData.periodicity) missingFields.push('Periodicidad');
+    if (!formData.beneficiary?.trim()) missingFields.push('Beneficiario');
+    if (!formData.concept?.trim()) missingFields.push('Concepto');
+    
+    // Validación de montos según tipo de compromiso
+    if (isColjuegosCommitment()) {
+      if (!parseFloat(parseFormattedNumber(formData.derechosExplotacion))) {
+        missingFields.push('Derechos de Explotación');
+      }
+      if (!parseFloat(parseFormattedNumber(formData.gastosAdministracion))) {
+        missingFields.push('Gastos de Administración');
+      }
+    } else {
+      if (!parseFloat(parseFormattedNumber(formData.baseAmount))) {
+        missingFields.push('Valor Base');
+      }
+    }
+
+    if (!formData.paymentMethod) missingFields.push('Método de Pago');
+    if (!formData.dueDate) missingFields.push('Fecha de Vencimiento');
+
+    return missingFields;
+  };
+
+  // 🚨 MOSTRAR ALERTA DE CAMPOS FALTANTES
+  const showMissingFieldsAlert = () => {
+    const missingFields = getMissingFields();
+    
+    if (missingFields.length === 0) return;
+
+    const message = missingFields.length === 1 
+      ? `Falta completar: ${missingFields[0]}`
+      : `Faltan completar: ${missingFields.slice(0, -1).join(', ')} y ${missingFields[missingFields.length - 1]}`;
+
+    addNotification({
+      type: 'warning',
+      title: '⚠️ Campos obligatorios faltantes',
+      message: message,
+      icon: 'warning',
+      color: 'warning',
+      autoHideDuration: 6000
+    });
+  };
+
+  // 🎯 MANEJAR CLICK DEL BOTÓN DE GUARDAR
+  const handleSaveButtonClick = () => {
+    const missingFields = getMissingFields();
+    
+    if (missingFields.length > 0) {
+      // Mostrar campos faltantes
+      showMissingFieldsAlert();
+      return;
+    }
+    
+    // Si todo está completo, proceder a guardar
+    handleSaveCommitment();
+  };
+
+  // 📝 GENERAR TEXTO DINÁMICO DEL BOTÓN
+  const getButtonText = () => {
+    if (saving) return 'Guardando...';
+    
+    const missingFields = getMissingFields();
+    if (missingFields.length === 0) {
+      return 'Guardar Compromiso';
+    } else if (missingFields.length === 1) {
+      return `Falta: ${missingFields[0]}`;
+    } else {
+      return `Faltan ${missingFields.length} campos`;
+    }
+  };
+
   // Guardar compromiso
   const handleSaveCommitment = async () => {
     if (!validateForm()) return;
 
     setSaving(true);
     try {
-      // 📄 Subir archivo de factura si existe
-      let invoiceData = null;
-      if (formData.invoiceFile) {
-        const uploadResult = await uploadInvoiceFile(formData.invoiceFile);
-        if (uploadResult) {
-          invoiceData = {
-            url: uploadResult.url,
-            fileName: uploadResult.fileName,
-            storagePath: uploadResult.storagePath,
-            uploadedAt: serverTimestamp()
-          };
+      // 📄 Subir archivos de facturas si existen
+      let invoicesData = [];
+      if (formData.invoiceFiles && formData.invoiceFiles.length > 0) {
+        const uploadResults = await uploadInvoiceFiles(formData.invoiceFiles);
+        if (uploadResults && uploadResults.length > 0) {
+          invoicesData = uploadResults.map(result => ({
+            url: result.downloadURL,
+            fileName: result.fileName,
+            size: result.size,
+            type: result.type,
+            uploadedAt: new Date() // Usar Date() normal en lugar de serverTimestamp() en arrays
+          }));
         }
       }
 
@@ -844,14 +1050,14 @@ const NewCommitmentPage = () => {
         createdBy: currentUser.uid,
         updatedAt: serverTimestamp(),
         updatedBy: currentUser.uid,
-        // Agregar datos de factura si existe
-        invoice: invoiceData
+        // Agregar datos de facturas si existen (múltiples)
+        invoices: invoicesData
       };
 
       // Limpiar campos de archivo del objeto que se guarda en Firestore
-      delete commitmentData.invoiceFile;
-      delete commitmentData.invoiceURL;
-      delete commitmentData.invoiceFileName;
+      delete commitmentData.invoiceFiles;
+      delete commitmentData.invoiceURLs;
+      delete commitmentData.invoiceFileNames;
 
       // 🏢 Auto-guardar proveedor si no existe
       if (formData.beneficiary && formData.beneficiary.trim()) {
@@ -2052,12 +2258,12 @@ const NewCommitmentPage = () => {
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                             <AttachFileIcon sx={{ color: theme.palette.text.secondary, fontSize: 20 }} />
                             <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontWeight: 500 }}>
-                              Factura (opcional):
+                              Facturas (opcional):
                             </Typography>
                           </Box>
 
                           <Box sx={{ mt: 1.5 }}>
-                            {!formData.invoiceFile && !formData.invoiceFileName ? (
+                            {formData.invoiceFiles.length === 0 ? (
                               <Box
                                 onDragOver={handleDragOver}
                                 onDragLeave={handleDragLeave}
@@ -2086,6 +2292,7 @@ const NewCommitmentPage = () => {
                               >
                                 <input
                                   type="file"
+                                  multiple
                                   hidden
                                   accept=".pdf,.jpg,.jpeg,.png,.webp"
                                   onChange={handleFileSelect}
@@ -2108,7 +2315,7 @@ const NewCommitmentPage = () => {
                                     fontWeight: 500
                                   }}
                                 >
-                                  {isDragOver ? 'Soltar aquí' : 'Seleccionar'}
+                                  {isDragOver ? 'Soltar archivos aquí' : 'Seleccionar archivos'}
                                 </Typography>
                               </Box>
                             ) : (
@@ -2117,55 +2324,93 @@ const NewCommitmentPage = () => {
                                 animate={{ opacity: 1, scale: 1 }}
                                 transition={{ duration: 0.2 }}
                               >
-                                <Box
-                                  sx={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 1.5,
-                                    p: 1.5,
-                                    border: `1px solid ${alpha(primaryColor, 0.2)}`,
-                                    borderRadius: 2,
-                                    background: alpha(primaryColor, 0.03),
-                                    maxWidth: 400
-                                  }}
-                                >
-                                  <FileIcon sx={{ color: primaryColor, fontSize: 20 }} />
-                                  
-                                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                                    <Typography 
-                                      variant="body2" 
-                                      sx={{ 
-                                        fontWeight: 500,
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                        fontSize: '0.875rem'
-                                      }}
-                                    >
-                                      {formData.invoiceFileName}
+                                <Box sx={{ maxWidth: 500 }}>
+                                  {/* Header con contador */}
+                                  <Box sx={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'space-between',
+                                    mb: 1.5 
+                                  }}>
+                                    <Typography variant="body2" sx={{ 
+                                      fontWeight: 600,
+                                      color: primaryColor,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 1
+                                    }}>
+                                      <FileIcon sx={{ fontSize: 18 }} />
+                                      {formData.invoiceFiles.length} archivo{formData.invoiceFiles.length !== 1 ? 's' : ''} adjunto{formData.invoiceFiles.length !== 1 ? 's' : ''}
                                     </Typography>
                                     
-                                    {formData.invoiceFile && (
-                                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                                        {(formData.invoiceFile.size / 1024 / 1024).toFixed(1)} MB
-                                      </Typography>
+                                    {formData.invoiceFiles.length > 1 && (
+                                      <Button
+                                        variant="outlined"
+                                        color="error"
+                                        size="small"
+                                        onClick={removeAllInvoiceFiles}
+                                        disabled={saving || uploadingFile}
+                                        startIcon={<DeleteIcon />}
+                                        sx={{ minWidth: 'auto', px: 1 }}
+                                      >
+                                        Eliminar todos
+                                      </Button>
                                     )}
                                   </Box>
 
-                                  <IconButton
-                                    onClick={removeInvoiceFile}
-                                    disabled={saving || uploadingFile}
-                                    size="small"
-                                    sx={{
-                                      color: theme.palette.text.secondary,
-                                      '&:hover': {
-                                        color: theme.palette.error.main,
-                                        backgroundColor: alpha(theme.palette.error.main, 0.1)
-                                      }
-                                    }}
-                                  >
-                                    <DeleteIcon fontSize="small" />
-                                  </IconButton>
+                                  {/* Lista de archivos */}
+                                  <Stack spacing={1}>
+                                    {formData.invoiceFiles.map((file, index) => (
+                                      <Box
+                                        key={index}
+                                        sx={{
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: 1.5,
+                                          p: 1.5,
+                                          border: `1px solid ${alpha(primaryColor, 0.2)}`,
+                                          borderRadius: 2,
+                                          background: alpha(primaryColor, 0.03),
+                                        }}
+                                      >
+                                        <FileIcon sx={{ color: primaryColor, fontSize: 20 }} />
+                                        
+                                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                                          <Typography 
+                                            variant="body2" 
+                                            sx={{ 
+                                              fontWeight: 500,
+                                              overflow: 'hidden',
+                                              textOverflow: 'ellipsis',
+                                              whiteSpace: 'nowrap',
+                                              fontSize: '0.875rem'
+                                            }}
+                                          >
+                                            {formData.invoiceFileNames[index]}
+                                          </Typography>
+                                          
+                                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                            {(file.size / 1024 / 1024).toFixed(1)} MB
+                                          </Typography>
+                                        </Box>
+
+                                        <IconButton
+                                          onClick={() => removeInvoiceFile(index)}
+                                          disabled={saving || uploadingFile}
+                                          size="small"
+                                          sx={{
+                                            color: theme.palette.text.secondary,
+                                            '&:hover': {
+                                              color: theme.palette.error.main,
+                                              backgroundColor: alpha(theme.palette.error.main, 0.1)
+                                            }
+                                          }}
+                                        >
+                                          <DeleteIcon fontSize="small" />
+                                        </IconButton>
+                                      </Box>
+                                    ))}
+                                  </Stack>
                                 </Box>
 
                                 {uploadingFile && (
@@ -2288,27 +2533,16 @@ const NewCommitmentPage = () => {
                       <Button
                         variant="contained"
                         startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <SaveIcon />}
-                        onClick={handleSaveCommitment}
-                        disabled={
-                          saving ||
-                          !formData.companyId ||
-                          !formData.month ||
-                          !formData.periodicity ||
-                          !formData.beneficiary?.trim() ||
-                          !formData.concept?.trim() ||
-                          !(isColjuegosCommitment() 
-                            ? (parseFloat(formData.derechosExplotacion) > 0 && parseFloat(formData.gastosAdministracion) > 0)
-                            : parseFloat(formData.baseAmount) > 0
-                          ) ||
-                          !formData.paymentMethod ||
-                          !formData.dueDate
-                        }
+                        onClick={handleSaveButtonClick}
+                        disabled={saving}
                         sx={{ 
                           borderRadius: 2,
                           px: 3,
                           py: 1.5,
                           minWidth: 180,
-                          background: getGradientBackground(),
+                          background: getMissingFields().length > 0 && !saving 
+                            ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)' // Naranja cuando faltan campos
+                            : getGradientBackground(),
                           fontWeight: 600,
                           textTransform: 'none',
                           fontSize: `${fontSize + 2}px`,
@@ -2347,7 +2581,7 @@ const NewCommitmentPage = () => {
                           transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'
                         }}
                       >
-                        {saving ? 'Guardando...' : 'Guardar Compromiso'}
+                        {getButtonText()}
                       </Button>
                     </motion.div>
                   </Box>
@@ -2429,6 +2663,15 @@ const NewCommitmentPage = () => {
             </Alert>
           </motion.div>
         </motion.div>
+
+        {/* 🗜️ DIÁLOGO DE VISTA PREVIA DE COMPRESIÓN */}
+        <PDFCompressionPreview
+          open={compressionPreviewOpen}
+          onClose={() => setCompressionPreviewOpen(false)}
+          file={pendingPDFFile}
+          onAccept={handleCompressionAccept}
+          onReject={handleCompressionReject}
+        />
       </Box>
     );
   };

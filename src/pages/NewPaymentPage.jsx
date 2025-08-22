@@ -64,12 +64,15 @@ import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationsContext';
 import { useAuth } from '../context/AuthContext';
-import { collection, query, where, getDocs, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy } from 'firebase/firestore';
 import { db, storage } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { PDFDocument } from 'pdf-lib';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+// 🗜️ IMPORTAR SISTEMA DE COMPRESIÓN
+import PDFCompressionPreview from '../components/common/PDFCompressionPreview';
+import { drGroupCompressor } from '../utils/pdfCompressor';
 
 const NewPaymentPage = () => {
   const theme = useTheme();
@@ -138,6 +141,7 @@ const NewPaymentPage = () => {
   // Estado para empresas y cuentas bancarias
   const [companies, setCompanies] = useState([]);
   const [loadingCompanies, setLoadingCompanies] = useState(true);
+  const [personalAccounts, setPersonalAccounts] = useState([]);
   
   const [formData, setFormData] = useState({
     commitmentId: '',
@@ -167,6 +171,11 @@ const NewPaymentPage = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [dragActive, setDragActive] = useState(false);
+  
+  // 🗜️ ESTADO PARA COMPRESIÓN DE PDFs
+  const [compressionPreviewOpen, setCompressionPreviewOpen] = useState(false);
+  const [pendingPDFFile, setPendingPDFFile] = useState(null);
+  const [compressionEnabled, setCompressionEnabled] = useState(true); // Compresión habilitada por defecto
 
   // 📄 Estado para visor PDF de factura del compromiso
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
@@ -228,6 +237,39 @@ const NewPaymentPage = () => {
       }));
     }
   }, [formData.finalAmount, formData.method, formData.sourceAccount]);
+
+  // Cargar cuentas personales desde Firebase
+  useEffect(() => {
+    if (!user?.uid) {
+      setPersonalAccounts([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'personal_accounts'),
+      where('userId', '==', user.uid)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const accounts = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          accounts.push({
+            id: doc.id,
+            ...data
+          });
+        });
+        setPersonalAccounts(accounts);
+      },
+      (error) => {
+        console.error('Error cargando cuentas personales:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
 
   const loadPendingCommitments = async () => {
     try {
@@ -339,17 +381,31 @@ const NewPaymentPage = () => {
     }
   };
 
-  // Obtener cuentas bancarias disponibles
+  // Obtener cuentas bancarias disponibles (empresariales y personales)
   const getBankAccounts = () => {
-    return companies
+    // Cuentas empresariales
+    const businessAccounts = companies
       .filter(company => company.bankAccount && company.bankName)
       .map(company => ({
         id: company.id,
+        type: 'business',
         companyName: company.name,
         bankAccount: company.bankAccount,
         bankName: company.bankName,
         displayText: `${company.bankAccount} - ${company.bankName} (${company.name})`
       }));
+
+    // Cuentas personales  
+    const personalAccountsList = personalAccounts.map(account => ({
+      id: account.id,
+      type: 'personal',
+      companyName: account.holderName,
+      bankAccount: account.accountNumber, // Mapear accountNumber a bankAccount para consistencia
+      bankName: account.bankName,
+      displayText: `${account.accountNumber} - ${account.bankName} (${account.holderName})`
+    }));
+
+    return [...businessAccounts, ...personalAccountsList];
   };
 
   // Manejar selección de cuenta bancaria
@@ -964,7 +1020,7 @@ const NewPaymentPage = () => {
   };
 
   const handleFiles = (newFiles) => {
-    // Filtrar solo archivos de imagen y PDF
+    // Filtrar archivos válidos
     const validFiles = newFiles.filter(file => {
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
       return validTypes.includes(file.type) && file.size <= 10 * 1024 * 1024; // 10MB max
@@ -979,15 +1035,65 @@ const NewPaymentPage = () => {
       });
     }
 
-    setFiles(prev => [...prev, ...validFiles.map(file => ({
+    // 🗜️ PROCESAR CADA ARCHIVO (COMPRIMIR PDFs SI ES NECESARIO)
+    validFiles.forEach(file => {
+      if (file.type === 'application/pdf' && compressionEnabled && file.size > 100 * 1024) { // Solo comprimir PDFs > 100KB
+        // Mostrar vista previa de compresión para PDFs grandes
+        setPendingPDFFile(file);
+        setCompressionPreviewOpen(true);
+      } else {
+        // Agregar archivos no-PDF o PDFs pequeños directamente
+        addFileToList(file);
+      }
+    });
+  };
+
+  // 🗜️ MANEJAR RESULTADO DE COMPRESIÓN
+  const handleCompressionAccept = (compressionResult) => {
+    console.log('✅ Compresión aceptada:', compressionResult.stats);
+    
+    // Convertir el blob comprimido a File objeto
+    const compressedFile = new File([compressionResult.compressed], pendingPDFFile.name, {
+      type: 'application/pdf'
+    });
+    
+    addFileToList(compressedFile, compressionResult.stats);
+    setPendingPDFFile(null);
+    
+    addNotification({
+      type: 'success',
+      title: 'PDF Optimizado',
+      message: `Archivo comprimido exitosamente (${compressionResult.stats.reductionPercent} reducido)`,
+      icon: 'success'
+    });
+  };
+
+  const handleCompressionReject = () => {
+    console.log('❌ Compresión rechazada, usando original');
+    addFileToList(pendingPDFFile);
+    setPendingPDFFile(null);
+    
+    addNotification({
+      type: 'info',
+      title: 'Original Mantenido',
+      message: 'Se usará el archivo original sin comprimir',
+      icon: 'info'
+    });
+  };
+
+  // Función auxiliar para agregar archivos a la lista
+  const addFileToList = (file, compressionStats = null) => {
+    setFiles(prev => [...prev, {
       file,
       id: Date.now() + Math.random(),
       name: file.name,
       size: file.size,
       type: file.type,
       uploaded: false,
-      url: null
-    }))]);
+      url: null,
+      compressed: !!compressionStats,
+      compressionStats: compressionStats
+    }]);
   };
 
   const removeFile = (fileId) => {
@@ -1794,13 +1900,18 @@ const NewPaymentPage = () => {
                                 key={`${account.id}-${account.bankAccount}`} 
                                 value={account.bankAccount}
                               >
-                                <Box>
-                                  <Typography variant="body2" fontWeight="medium">
-                                    {account.bankAccount}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    {account.bankName} - {account.companyName}
-                                  </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                                  <Box sx={{ mr: 1 }}>
+                                    {account.type === 'personal' ? <PersonIcon fontSize="small" /> : <CompanyIcon fontSize="small" />}
+                                  </Box>
+                                  <Box>
+                                    <Typography variant="body2" fontWeight="medium">
+                                      {account.bankAccount}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      {account.bankName} - {account.companyName} {account.type === 'personal' ? '(Personal)' : '(Empresarial)'}
+                                    </Typography>
+                                  </Box>
                                 </Box>
                               </MenuItem>
                             ))}
@@ -1855,7 +1966,7 @@ const NewPaymentPage = () => {
                             sx={{ mt: 1 }}
                           >
                             <Typography variant="body2">
-                              <strong>💡 Tip:</strong> Para registrar cuentas de origen, agrega la información bancaria en la sección de Empresas.
+                              <strong>💡 Tip:</strong> Para registrar cuentas de origen, agrega información bancaria en la sección de Empresas o en Cuentas Personales desde el menú principal.
                             </Typography>
                           </Alert>
                         </Grid>
@@ -2490,6 +2601,15 @@ const NewPaymentPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* 🗜️ DIÁLOGO DE VISTA PREVIA DE COMPRESIÓN */}
+      <PDFCompressionPreview
+        open={compressionPreviewOpen}
+        onClose={() => setCompressionPreviewOpen(false)}
+        file={pendingPDFFile}
+        onAccept={handleCompressionAccept}
+        onReject={handleCompressionReject}
+      />
     </Box>
   );
 };

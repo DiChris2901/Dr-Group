@@ -62,6 +62,9 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useSettings } from '../context/SettingsContext';
 import { db, storage } from '../config/firebase';
+// 🗜️ IMPORTAR SISTEMA DE COMPRESIÓN
+import PDFCompressionPreview from '../components/common/PDFCompressionPreview';
+import { drGroupCompressor } from '../utils/pdfCompressor';
 import {
   collection,
   addDoc,
@@ -125,6 +128,11 @@ const IncomePage = () => {
   // Estados para archivos/comprobantes
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploadProgress, setUploadProgress] = useState({});
+  
+  // 🗜️ ESTADO PARA COMPRESIÓN DE PDFs
+  const [compressionPreviewOpen, setCompressionPreviewOpen] = useState(false);
+  const [pendingPDFFile, setPendingPDFFile] = useState(null);
+  const [compressionEnabled, setCompressionEnabled] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
@@ -340,12 +348,50 @@ const IncomePage = () => {
     });
   };
 
-  // Procesar archivos (reutilizable)
+  // Procesar archivos (reutilizable) - CON COMPRESIÓN
   const processFiles = (validFiles) => {
-    if (validFiles.length > 0) {
-      setSelectedFiles(prev => [...prev, ...validFiles]);
-      showSuccess(`${validFiles.length} archivo(s) agregado(s)`);
-    }
+    if (validFiles.length === 0) return;
+
+    // 🗜️ PROCESAR CADA ARCHIVO (COMPRIMIR PDFs SI ES NECESARIO)
+    validFiles.forEach(file => {
+      if (file.type === 'application/pdf' && compressionEnabled && file.size > 100 * 1024) { // PDFs > 100KB
+        // Mostrar vista previa de compresión
+        setPendingPDFFile(file);
+        setCompressionPreviewOpen(true);
+      } else {
+        // Agregar archivos no-PDF o PDFs pequeños directamente
+        addFileToList(file);
+      }
+    });
+  };
+
+  // Función auxiliar para agregar archivos a la lista
+  const addFileToList = (file, compressionStats = null) => {
+    setSelectedFiles(prev => [...prev, file]);
+    
+    const message = compressionStats 
+      ? `"${file.name}" optimizado (${compressionStats.reductionPercent} reducido)`
+      : `"${file.name}" agregado`;
+      
+    showSuccess(message);
+  };
+
+  // 🗜️ MANEJAR RESULTADO DE COMPRESIÓN
+  const handleCompressionAccept = (compressionResult) => {
+    const compressedFile = new File([compressionResult.compressed], pendingPDFFile.name, {
+      type: 'application/pdf'
+    });
+    
+    addFileToList(compressedFile, compressionResult.stats);
+    setPendingPDFFile(null);
+    
+    showSuccess(`Comprobante optimizado (${compressionResult.stats.reductionPercent} reducido)`);
+  };
+
+  const handleCompressionReject = () => {
+    addFileToList(pendingPDFFile);
+    setPendingPDFFile(null);
+    showSuccess('Comprobante agregado sin comprimir');
   };
 
   // Actualizar handleFileSelect para usar las funciones reutilizables
@@ -1276,6 +1322,15 @@ const IncomePage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* 🗜️ DIÁLOGO DE VISTA PREVIA DE COMPRESIÓN */}
+      <PDFCompressionPreview
+        open={compressionPreviewOpen}
+        onClose={() => setCompressionPreviewOpen(false)}
+        file={pendingPDFFile}
+        onAccept={handleCompressionAccept}
+        onReject={handleCompressionReject}
+      />
     </Box>
   );
 };

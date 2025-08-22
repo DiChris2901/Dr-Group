@@ -26,7 +26,7 @@ const defaultSettings = {
     backgroundType: 'gradient', // 'solid' | 'gradient' | 'pattern'
     backgroundPreset: 'modern-blue', // Preset de fondo seleccionado
     compactMode: true, // Modo compacto global habilitado por defecto
-    animations: true, // Animaciones habilitadas por defecto
+    animations: false, // ⚡ MODO EMPRESARIAL: Animaciones deshabilitadas por defecto para máximo rendimiento
   },
 
   // Configuración del Sidebar
@@ -70,7 +70,7 @@ const defaultSettings = {
       autoRefresh: true,
       refreshInterval: 30,
       defaultPeriod: 'month',
-      animationsEnabled: true,
+      animationsEnabled: false, // ⚡ MODO EMPRESARIAL RÁPIDO
       showTooltips: true
     },
     appearance: {
