@@ -46,7 +46,10 @@ import {
   TableHead,
   TableRow,
   Tabs,
-  Tab
+  Tab,
+  Stepper as InstallmentStepper,
+  Step as InstallmentStep,
+  StepLabel as InstallmentStepLabel
 } from '@mui/material';
 import {
   AttachMoney as MoneyIcon,
@@ -69,15 +72,19 @@ import {
   Person as PersonIcon,
   Refresh as RefreshIcon,
   ArrowBack as ArrowBackIcon,
+  AccountBalance as InstallmentIcon,
   DateRange as DateRangeIcon,
   Payment as PaymentIcon,
-  CheckCircle as CheckCircleIcon
+  Timeline as TimelineIcon,
+  CheckCircle as CheckCircleIcon,
+  RadioButtonUnchecked as PendingIcon,
+  CreditCard as CreditCardIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationsContext';
 import { useAuth } from '../context/AuthContext';
-import { collection, query, where, getDocs, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc, Timestamp, onSnapshot, orderBy } from 'firebase/firestore';
 import { db, storage } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { PDFDocument } from 'pdf-lib';
@@ -147,6 +154,156 @@ const NewPaymentPage = () => {
     }).format(value);
   };
 
+  // � FUNCIÓN DE VERIFICACIÓN DE PAGOS EN FIREBASE
+    }
+  };
+
+  // � FUNCIÓN DE VERIFICACIÓN DE CUOTAS EN FIREBASE
+  const verifyInstallmentsInFirebase = async (parentPaymentId) => {
+    try {
+      console.log('🔍 VERIFICANDO CUOTAS EN FIREBASE...');
+      
+      // Buscar todas las cuotas relacionadas al pago padre
+      const installmentsQuery = query(
+        collection(db, 'payments'),
+        where('parentPaymentId', '==', parentPaymentId),
+        where('isInstallment', '==', true),
+        orderBy('installmentNumber', 'asc')
+      );
+      
+      const installmentsSnapshot = await getDocs(installmentsQuery);
+      const foundInstallments = [];
+      
+      installmentsSnapshot.forEach((doc) => {
+        foundInstallments.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+      
+      console.log('📊 RESULTADOS DE VERIFICACIÓN:');
+      console.log(`✅ Cuotas encontradas: ${foundInstallments.length}`);
+      
+      foundInstallments.forEach((installment, index) => {
+        console.log(`📋 Cuota ${installment.installmentNumber}:`, {
+          id: installment.id,
+          monto: installment.amount,
+          estado: installment.status,
+          vencimiento: installment.dueDate?.toDate?.()?.toLocaleDateString() || 'Sin fecha'
+        });
+      });
+      
+      // Verificar también el pago padre
+      const parentDoc = await getDoc(doc(db, 'payments', parentPaymentId));
+      if (parentDoc.exists()) {
+        const parentData = parentDoc.data();
+        console.log('👨‍👦 PAGO PADRE:', {
+          hasInstallments: parentData.hasInstallments,
+          totalInstallments: parentData.totalInstallments,
+          installmentIds: parentData.installmentIds?.length || 0
+        });
+      }
+      
+      return foundInstallments;
+    } catch (error) {
+      console.error('❌ Error verificando cuotas:', error);
+      return [];
+    }
+  };
+
+  // �💳 FUNCIONES PARA SISTEMA DE CUOTAS
+  const generateInstallmentPlan = (totalAmount, numberOfInstallments, startDate = new Date()) => {
+    if (numberOfInstallments < 2 || numberOfInstallments > 6) {
+      return [];
+    }
+
+    const installmentAmount = Math.round(totalAmount / numberOfInstallments);
+    const remainder = totalAmount - (installmentAmount * numberOfInstallments);
+    const installments = [];
+
+    for (let i = 0; i < numberOfInstallments; i++) {
+      const installmentDate = new Date(startDate);
+      installmentDate.setMonth(startDate.getMonth() + i);
+      
+      // La primera cuota incluye cualquier residuo de la división
+      const amount = i === 0 ? installmentAmount + remainder : installmentAmount;
+      
+      installments.push({
+        installmentNumber: i + 1,
+        amount: amount,
+        dueDate: installmentDate,
+        status: 'pending',
+        paymentId: null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    }
+
+    return installments;
+  };
+
+  const handleInstallmentToggle = (checked) => {
+    setUseInstallments(checked);
+    if (checked && formData.finalAmount > 0) {
+      const preview = generateInstallmentPlan(
+        formData.finalAmount, 
+        installmentPlan.numberOfInstallments,
+        createLocalDate(formData.date)
+      );
+      setInstallmentPreview(preview);
+    } else {
+      setInstallmentPreview([]);
+    }
+  };
+
+  const handleInstallmentNumberChange = (numberOfInstallments) => {
+    setInstallmentPlan(prev => ({ ...prev, numberOfInstallments }));
+    
+    if (useInstallments && formData.finalAmount > 0) {
+      const preview = generateInstallmentPlan(
+        formData.finalAmount, 
+        numberOfInstallments,
+        createLocalDate(formData.date)
+      );
+      setInstallmentPreview(preview);
+    }
+  };
+
+  const openInstallmentModal = () => {
+    if (!formData.finalAmount || formData.finalAmount <= 0) {
+      addNotification({
+        type: 'warning',
+        title: 'Monto requerido',
+        message: 'Debe ingresar el monto del pago antes de configurar las cuotas',
+        icon: 'warning'
+      });
+      return;
+    }
+
+    const preview = generateInstallmentPlan(
+      formData.finalAmount, 
+      installmentPlan.numberOfInstallments,
+      createLocalDate(formData.date)
+    );
+    setInstallmentPreview(preview);
+    setInstallmentModalOpen(true);
+  };
+
+  const confirmInstallmentPlan = () => {
+    setInstallmentPlan(prev => ({ 
+      ...prev, 
+      installments: installmentPreview 
+    }));
+    setInstallmentModalOpen(false);
+    
+    addNotification({
+      type: 'success',
+      title: 'Plan de cuotas confirmado',
+      message: `Se creará un plan de ${installmentPreview.length} cuotas mensuales`,
+      icon: 'success'
+    });
+  };
+
   // Estado para compromisos pendientes
   const [pendingCommitments, setPendingCommitments] = useState([]);
   const [loadingCommitments, setLoadingCommitments] = useState(true);
@@ -199,6 +356,16 @@ const NewPaymentPage = () => {
 
   // Función de refresh manual
   const [refreshing, setRefreshing] = useState(false);
+  
+  // 💳 ESTADOS PARA SISTEMA DE CUOTAS
+  const [installmentModalOpen, setInstallmentModalOpen] = useState(false);
+  const [useInstallments, setUseInstallments] = useState(false);
+  const [installmentPlan, setInstallmentPlan] = useState({
+    numberOfInstallments: 2,
+    installments: []
+  });
+  const [installmentPreview, setInstallmentPreview] = useState([]);
+  const [savingInstallments, setSavingInstallments] = useState(false);
   
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -253,6 +420,18 @@ const NewPaymentPage = () => {
     }
   }, [formData.finalAmount, formData.method, formData.sourceAccount]);
 
+  // 💳 useEffect para recalcular cuotas cuando cambie el monto o fecha
+  useEffect(() => {
+    if (useInstallments && formData.finalAmount > 0) {
+      const preview = generateInstallmentPlan(
+        formData.finalAmount,
+        installmentPlan.numberOfInstallments,
+        createLocalDate(formData.date)
+      );
+      setInstallmentPreview(preview);
+    }
+  }, [useInstallments, formData.finalAmount, formData.date, installmentPlan.numberOfInstallments]);
+
   // Cargar cuentas personales desde Firebase
   useEffect(() => {
     if (!user?.uid) {
@@ -290,7 +469,6 @@ const NewPaymentPage = () => {
     try {
       setLoadingCommitments(true);
       
-      // ✅ NUEVA LÓGICA: todos los pendientes del pasado + mes actual + 2 meses adelante
       const now = new Date();
       const currentYear = now.getFullYear();
       const currentMonth = now.getMonth(); // 0-11
@@ -299,27 +477,25 @@ const NewPaymentPage = () => {
       // Límite superior: inicio del mes que está 3 meses adelante
       const startOfThreeMonthsLater = new Date(currentYear, currentMonth + 3, 1);
       
-      console.log('📅 NUEVA LÓGICA - Filtrando compromisos: todos del pasado + actual + 2 meses adelante:', {
+      console.log('📅 Cargando compromisos pendientes:', {
         currentDate: now.toISOString(),
         limiteSuperior: startOfThreeMonthsLater.toISOString(),
-        currentMonth: currentMonth + 1,   // mes actual (human-readable) 
-        nextMonth1: currentMonth + 2,     // primer mes adelante (human-readable)
-        nextMonth2: currentMonth + 3,     // segundo mes adelante (human-readable)
-        currentYear,
-        note: 'Sin límite inferior - incluye todos los pendientes del pasado'
+        currentMonth: currentMonth + 1,
+        nextMonth1: currentMonth + 2,
+        nextMonth2: currentMonth + 3,
+        currentYear
       });
       
-      // Consultar compromisos: todos del pasado + actual + 2 meses adelante
+      // 📋 CONSULTAR SOLO COMPROMISOS REGULARES
       const commitmentsQuery = query(
         collection(db, 'commitments'),
         where('dueDate', '<', startOfThreeMonthsLater),
-        orderBy('dueDate', 'asc') // Ordenar por fecha para mostrar primero los más antiguos
+        orderBy('dueDate', 'asc')
       );
       
       const snapshot = await getDocs(commitmentsQuery);
-      const commitments = [];
       
-      console.log(`📊 Compromisos encontrados en rango (pasado+actual+2futuros): ${snapshot.size}`);
+      console.log(`📊 Compromisos encontrados: ${snapshot.size}`);
       
       // También consultar todos los pagos para verificar cuáles compromisos ya tienen pago
       const paymentsQuery = query(
@@ -339,10 +515,13 @@ const NewPaymentPage = () => {
       
       console.log('📊 Compromisos que ya tienen pagos:', Array.from(commitmentsWithPayments));
       
+      const pendingItems = [];
+      
+      // 📋 PROCESAR SOLO COMPROMISOS REGULARES
       snapshot.forEach((doc) => {
         const data = doc.data();
         
-        // ✅ LÓGICA MEJORADA: Verificar TODOS los posibles estados de pago
+        // ✅ LÓGICA SIMPLE: Verificar si está pagado
         const status = data.status || 'pending';
         const isPaidByStatus = status === 'paid' || status === 'completed';
         const isPaidByFlag = data.paid === true || data.isPaid === true;
@@ -352,24 +531,13 @@ const NewPaymentPage = () => {
         // Cualquier indicador de que está pagado
         const isAlreadyPaid = isPaidByStatus || isPaidByFlag || isPaidByPaymentStatus || hasPayment;
         
-        // 🐛 DEBUG: Log detallado para cada compromiso
-        console.log(`🔍 Analizando compromiso "${data.companyName} - ${data.concept}":`, {
-          id: doc.id,
-          status: data.status,
-          paid: data.paid,
-          isPaid: data.isPaid,
-          paymentStatus: data.paymentStatus,
-          hasPayment,
-          isAlreadyPaid,
-          willBeIncluded: !isAlreadyPaid && (status === 'pending' || status === 'overdue')
-        });
-        
+        // 📋 MOSTRAR SOLO COMPROMISOS COMPLETAMENTE PENDIENTES
         if ((status === 'pending' || status === 'overdue') && !isAlreadyPaid) {
-          console.log('✅ Compromiso SIN pago agregado:', doc.id, `"${data.companyName} - ${data.concept}"`);
-          commitments.push({
+          console.log('✅ Compromiso agregado:', doc.id, `"${data.companyName} - ${data.concept}"`);
+          pendingItems.push({
             id: doc.id,
+            type: 'commitment',
             ...data,
-            // Formatear datos para el display
             displayName: `${data.companyName || 'Sin empresa'} - ${data.concept || data.name || 'Sin concepto'}`,
             formattedDueDate: data.dueDate ? format(data.dueDate.toDate(), 'dd/MMM/yyyy', { locale: es }) : 'Sin fecha',
             formattedAmount: new Intl.NumberFormat('es-CO', {
@@ -379,29 +547,30 @@ const NewPaymentPage = () => {
             }).format(data.amount || 0)
           });
         } else {
-          console.log('🚫 Compromiso OMITIDO (ya pagado o no pendiente):', doc.id, `"${data.companyName} - ${data.concept}"`, {
-            reason: isAlreadyPaid ? 'YA PAGADO' : 'NO PENDIENTE',
-            status
+          console.log('🚫 Compromiso OMITIDO:', doc.id, `"${data.companyName} - ${data.concept}"`, { 
+            reason: isAlreadyPaid ? 'YA PAGADO' : 'NO PENDIENTE', 
+            status 
           });
         }
       });
       
       // Ordenar por fecha de vencimiento
-      commitments.sort((a, b) => {
-        if (!a.dueDate && !b.dueDate) return 0;
-        if (!a.dueDate) return 1;
-        if (!b.dueDate) return -1;
-        return a.dueDate.toDate() - b.dueDate.toDate();
+      pendingItems.sort((a, b) => {
+        const dateA = a.dueDate ? a.dueDate.toDate() : new Date(0);
+        const dateB = b.dueDate ? b.dueDate.toDate() : new Date(0);
+        return dateA - dateB;
       });
       
-      console.log(`📋 Total compromisos sin pago: ${commitments.length}`);
-      setPendingCommitments(commitments);
+      console.log(`🎯 RESUMEN: ${pendingItems.length} compromisos pendientes cargados`);
+      
+      setPendingCommitments(pendingItems);
+      
     } catch (error) {
-      console.error('Error loading pending commitments:', error);
+      console.error('❌ Error cargando compromisos pendientes:', error);
       addNotification({
         type: 'error',
         title: 'Error',
-        message: 'No se pudieron cargar los compromisos pendientes',
+        message: 'Error al cargar los compromisos pendientes',
         icon: 'error'
       });
     } finally {
@@ -649,6 +818,15 @@ const NewPaymentPage = () => {
       return;
     }
 
+    console.log('🎯 Compromiso/Cuota seleccionado:', {
+      id: commitment.id,
+      type: commitment.type,
+      concept: commitment.concept,
+      amount: commitment.amount,
+      isInstallment: commitment.type === 'installment',
+      installmentInfo: commitment.installmentInfo
+    });
+
     setSelectedCommitment(commitment);
     
     // No calcular intereses automáticamente, dejar en 0
@@ -661,13 +839,18 @@ const NewPaymentPage = () => {
       interests: 0,
       interesesDerechosExplotacion: 0,
       interesesGastosAdministracion: 0,
-      // CARGAR VALORES BASE DESDE EL COMPROMISO
+      // CARGAR VALORES BASE DESDE EL COMPROMISO/CUOTA
       derechosExplotacion: commitment.derechosExplotacion || 0,
       gastosAdministracion: commitment.gastosAdministracion || 0,
       finalAmount: finalAmount
     }));
 
     // 📄 Obtener URL de la factura del compromiso
+    // 💳 Para cuotas, intentar obtener la factura del pago padre si está disponible
+    if (commitment.type === 'installment' && commitment.parentPaymentId) {
+      console.log('💳 Es una cuota - verificando factura del pago padre:', commitment.parentPaymentId);
+      // Por ahora usar la extracción normal, podrías mejorar esto para buscar en el pago padre
+    }
     extractInvoiceUrl(commitment);
   };
 
@@ -973,42 +1156,230 @@ const NewPaymentPage = () => {
         }
       }
       
-      // Actualizar el compromiso como pagado
-      console.log('🔄 Actualizando compromiso como pagado...');
-      const commitmentRef = doc(db, 'commitments', selectedCommitment.id);
-      await updateDoc(commitmentRef, {
-        isPaid: true,
-        paid: true,
-        paymentDate: Timestamp.fromDate(createLocalDate(formData.date)),
-        paidAt: Timestamp.fromDate(createLocalDate(formData.date)), // También agregar paidAt para compatibilidad
-        paymentAmount: formData.finalAmount,
-        paymentId: paymentRef.id,
-        interestPaid: (formData.interests || 0) + (formData.interesesDerechosExplotacion || 0) + (formData.interesesGastosAdministracion || 0),
-        paymentMethod: formData.method,
-        paymentReference: formData.reference,
-        paymentNotes: formData.notes,
-        receiptUrl: uploadedFileUrls && uploadedFileUrls.length > 0 ? uploadedFileUrls[0] : null, // Primer archivo para compatibilidad
-        receiptUrls: uploadedFileUrls || [], // Todos los archivos
-        receiptMetadata: uploadedFileUrls ? uploadedFileUrls.map(url => ({
-          url: url,
-          uploadedAt: new Date(),
-          type: url.includes('.pdf') ? 'pdf' : 'image'
-        })) : [],
-        updatedAt: Timestamp.now()
-      });
+      // Actualizar el compromiso/cuota como pagado
+      console.log('🔄 Actualizando compromiso/cuota como pagado...');
       
-      console.log('✅ Compromiso actualizado como pagado');
+      if (selectedCommitment.type === 'installment') {
+        // 💳 ES UNA CUOTA - Actualizar el registro de cuota en la colección payments
+        console.log('💳 Actualizando cuota pendiente como pagada:', selectedCommitment.id);
+        
+        const installmentRef = doc(db, 'payments', selectedCommitment.id);
+        await updateDoc(installmentRef, {
+          status: 'completed',
+          paid: true,
+          isPaid: true,
+          paidAt: Timestamp.fromDate(createLocalDate(formData.date)),
+          paymentDate: Timestamp.fromDate(createLocalDate(formData.date)),
+          actualPaymentAmount: formData.finalAmount,
+          actualPaymentDate: Timestamp.fromDate(createLocalDate(formData.date)),
+          actualPaymentMethod: formData.method,
+          actualPaymentReference: formData.reference,
+          actualPaymentNotes: formData.notes,
+          actualPaymentAttachments: uploadedFileUrls || [],
+          processedBy: user.uid,
+          processedByEmail: user.email,
+          updatedAt: Timestamp.now()
+        });
+        
+        console.log('✅ Cuota actualizada como pagada');
+        
+        // 📊 ACTUALIZAR RESUMEN DEL PLAN DE CUOTAS SI EXISTE
+        if (selectedCommitment.parentPaymentId) {
+          console.log('📊 Actualizando resumen del plan de cuotas para:', selectedCommitment.parentPaymentId);
+          try {
+            await updateInstallmentSummary(selectedCommitment.parentPaymentId);
+            console.log('✅ Resumen del plan actualizado');
+          } catch (summaryError) {
+            console.error('❌ Error actualizando resumen del plan:', summaryError);
+          }
+        }
+        
+      } else {
+        // 📋 ES UN COMPROMISO REGULAR
+        console.log('📋 Procesando compromiso regular:', selectedCommitment.id);
+        
+        // 🎯 LÓGICA CONDICIONAL: Solo marcar como pagado si NO se van a crear cuotas
+        if (useInstallments && installmentPlan.installments.length > 1) {
+          // 💳 SE VA A PAGAR A CUOTAS - El compromiso permanece pendiente
+          console.log('� Compromiso se pagará a cuotas - mantener como pendiente hasta completar todas las cuotas');
+          
+          const commitmentRef = doc(db, 'commitments', selectedCommitment.id);
+          await updateDoc(commitmentRef, {
+            // ❌ NO marcar como pagado aún
+            status: 'partial_payment', // Estado especial para pagos parciales
+            hasInstallments: true,     // Flag para indicar que tiene plan de cuotas
+            installmentPlanId: paymentRef.id, // Referencia al pago padre del plan
+            firstInstallmentPaid: true,
+            firstInstallmentDate: Timestamp.fromDate(createLocalDate(formData.date)),
+            firstInstallmentAmount: formData.finalAmount,
+            firstPaymentId: paymentRef.id,
+            totalInstallments: installmentPlan.installments.length,
+            paidInstallments: 1,
+            pendingInstallments: installmentPlan.installments.length - 1,
+            // Mantener datos del primer pago para referencia
+            firstPaymentMethod: formData.method,
+            firstPaymentReference: formData.reference,
+            firstPaymentNotes: formData.notes,
+            receiptUrl: uploadedFileUrls && uploadedFileUrls.length > 0 ? uploadedFileUrls[0] : null,
+            receiptUrls: uploadedFileUrls || [],
+            updatedAt: Timestamp.now()
+          });
+          
+          console.log('✅ Compromiso actualizado con estado de pago parcial (primera cuota)');
+          
+        } else {
+          // 💰 PAGO COMPLETO - Marcar como pagado totalmente
+          console.log('💰 Pago completo - marcar compromiso como pagado');
+          
+          const commitmentRef = doc(db, 'commitments', selectedCommitment.id);
+          await updateDoc(commitmentRef, {
+            isPaid: true,
+            paid: true,
+            status: 'paid',
+            paymentDate: Timestamp.fromDate(createLocalDate(formData.date)),
+            paidAt: Timestamp.fromDate(createLocalDate(formData.date)),
+            paymentAmount: formData.finalAmount,
+            paymentId: paymentRef.id,
+            interestPaid: (formData.interests || 0) + (formData.interesesDerechosExplotacion || 0) + (formData.interesesGastosAdministracion || 0),
+            paymentMethod: formData.method,
+            paymentReference: formData.reference,
+            paymentNotes: formData.notes,
+            receiptUrl: uploadedFileUrls && uploadedFileUrls.length > 0 ? uploadedFileUrls[0] : null,
+            receiptUrls: uploadedFileUrls || [],
+            receiptMetadata: uploadedFileUrls ? uploadedFileUrls.map(url => ({
+              url: url,
+              uploadedAt: new Date(),
+              type: url.includes('.pdf') ? 'pdf' : 'image'
+            })) : [],
+            updatedAt: Timestamp.now()
+          });
+          
+          console.log('✅ Compromiso actualizado como pagado completamente');
+        }
+      }
       
       // =====================================================
       // 💳 PROCESAMIENTO DE CUOTAS (SI APLICA)
       // =====================================================
+      let installmentsCreated = [];
+      let finalPaymentMessage;
+      
+      // 🎯 MENSAJE FINAL SIMPLE
+      let finalPaymentMessage = `� Pago de $${formData.finalAmount.toLocaleString()} registrado para ${selectedCommitment.companyName}`;
+      
       // Recargar la lista de compromisos para quitar el que acaba de ser pagado
       await loadPendingCommitments();
-
+      
       addNotification({
         type: 'success',
         title: 'Pago registrado exitosamente',
-        message: `Pago de $${formData.finalAmount.toLocaleString()} registrado para ${selectedCommitment.companyName}`,
+        message: finalPaymentMessage,
+        icon: 'success'
+      });
+        setSavingInstallments(true);
+        
+        try {
+          console.log('� INICIANDO CREACIÓN DE PLAN DE CUOTAS COMPLETO');
+          console.log('📊 Total de cuotas planificadas:', installmentPlan.installments.length);
+          console.log('💰 Monto total a dividir:', formData.finalAmount);
+          console.log('📋 Detalle del plan:', installmentPlan.installments.map(inst => ({
+            cuota: inst.installmentNumber,
+            monto: inst.amount,
+            fecha: inst.dueDate
+          })));
+          
+          // Crear todas las cuotas basadas en el pago principal
+          installmentsCreated = await createInstallments(
+            paymentRef.id, 
+            installmentPlan.installments, 
+            paymentData
+          );
+          
+          console.log(`🎉 ÉXITO: ${installmentsCreated.length} cuotas creadas en Firebase`);
+          console.log('📋 IDs de cuotas creadas:', installmentsCreated.map(inst => inst.id));
+          
+          // 🔥 ACTUALIZAR PAGO PRINCIPAL CON INFORMACIÓN COMPLETA DE CUOTAS
+          const installmentSummary = {
+            hasInstallments: true,
+            totalInstallments: installmentPlan.installments.length,
+            installmentIds: installmentsCreated.map(inst => inst.id),
+            isParentPayment: true,
+            installmentPlan: {
+              planId: `${paymentRef.id}-PLAN`,
+              total: formData.finalAmount,
+              numberOfInstallments: installmentPlan.installments.length,
+              firstInstallmentPaid: true,
+              firstInstallmentAmount: installmentsCreated[0]?.amount || 0,
+              remainingInstallments: installmentPlan.installments.length - 1,
+              createdAt: Timestamp.now(),
+              nextDueDate: installmentsCreated[1]?.dueDate || null
+            },
+            // 📊 RESUMEN PARA BÚSQUEDAS Y REPORTES
+            installmentMetadata: {
+              paidInstallments: 1,
+              pendingInstallments: installmentPlan.installments.length - 1,
+              totalPaidAmount: installmentsCreated[0]?.amount || 0,
+              totalPendingAmount: installmentsCreated.slice(1).reduce((sum, inst) => sum + inst.amount, 0)
+            }
+          };
+          
+          await updateDoc(paymentRef, installmentSummary);
+          
+          console.log('✅ Pago principal actualizado con metadata de cuotas');
+          
+          // � ESTABLECER EL RESUMEN INICIAL DE CUOTAS
+          const initialSummary = await updateInstallmentSummary(paymentRef.id);
+          console.log('📋 Resumen inicial establecido:', initialSummary);
+          
+          // �🔍 VERIFICAR QUE LAS CUOTAS SE GUARDARON CORRECTAMENTE
+          setTimeout(async () => {
+            const verifiedInstallments = await verifyInstallmentsInFirebase(paymentRef.id);
+            if (verifiedInstallments.length === installmentPlan.installments.length) {
+              console.log('🎉 VERIFICACIÓN EXITOSA: Todas las cuotas están en Firebase');
+            } else {
+              console.warn('⚠️ VERIFICACIÓN FALLIDA: Cuotas faltantes en Firebase');
+            }
+          }, 2000); // Esperar 2 segundos para que Firebase procese todo
+          
+          // Actualizar mensaje de éxito más detallado
+          const paidInstallments = installmentsCreated.filter(inst => inst.status === 'completed').length;
+          const pendingInstallments = installmentsCreated.length - paidInstallments;
+          const totalPending = installmentsCreated.slice(1).reduce((sum, inst) => sum + inst.amount, 0);
+          
+          finalPaymentMessage = `💳 Plan de ${installmentsCreated.length} cuotas creado exitosamente.\n` +
+            `📊 ESTADO: Cuotas pagadas ${paidInstallments} de ${installmentsCreated.length}\n` +
+            `✅ PAGADO: ${formatCurrencyDisplay(installmentsCreated[0].amount)}\n` +
+            `💰 SALDO PENDIENTE: ${formatCurrencyDisplay(totalPending)}\n` +
+            `📅 Próximo vencimiento: ${installmentsCreated[1]?.dueDate.toDate().toLocaleDateString()}`;
+          
+        } catch (installmentError) {
+          console.error('🚨 ERROR CRÍTICO CREANDO CUOTAS:', installmentError);
+          console.error('📋 Detalles completos:', {
+            error: installmentError.message,
+            stack: installmentError.stack,
+            installmentPlan: installmentPlan.installments
+          });
+          
+          // Notificar el error de cuotas pero continuar con el pago principal
+          addNotification({
+            type: 'error',
+            title: '❌ Error creando plan de cuotas',
+            message: `El pago principal se registró, pero falló la creación de cuotas: ${installmentError.message}. Contacte al administrador.`,
+            icon: 'error',
+            duration: 8000
+          });
+        } finally {
+          setSavingInstallments(false);
+        }
+      }
+      
+      // Recargar la lista de compromisos para quitar el que acaba de ser pagado
+      await loadPendingCommitments();
+      
+      addNotification({
+        type: 'success',
+        title: 'Pago registrado exitosamente',
+        message: finalPaymentMessage,
         icon: 'success'
       });
       
@@ -1020,9 +1391,9 @@ const NewPaymentPage = () => {
         reference: '',
         date: new Date().toISOString().split('T')[0],
         notes: '',
-        sourceAccount: '',  // ✅ AGREGAR CAMPOS FALTANTES
-        sourceBank: '',     // ✅ AGREGAR CAMPOS FALTANTES
-        tax4x1000: 0,      // ✅ AGREGAR CAMPOS FALTANTES
+        sourceAccount: '',
+        sourceBank: '',
+        tax4x1000: 0,
         originalAmount: 0,
         interests: 0,
         interesesDerechosExplotacion: 0,
@@ -1034,10 +1405,6 @@ const NewPaymentPage = () => {
       // Limpiar también la URL de la factura
       setInvoiceUrl(null);
       
-      // ✅ DESHABILITADO: No navegar automáticamente después de registrar pago
-      // setTimeout(() => {
-      //   navigate('/payments');
-      // }, 2000);
     } catch (error) {
       console.error('Error guardando pago:', error);
       addNotification({
@@ -1490,22 +1857,56 @@ const NewPaymentPage = () => {
                             <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Typography variant="body1" fontWeight={600}>
+                                  {/* 🎯 MOSTRAR ICONO SEGÚN TIPO */}
+                                  {option.type === 'installment' ? '💳 ' : '📋 '}
                                   {option.companyName}
                                 </Typography>
                                 <Chip 
                                   label={option.formattedAmount} 
                                   size="small" 
-                                  color="primary" 
+                                  color={option.type === 'installment' ? 'secondary' : 'primary'}
                                   variant="outlined"
                                 />
                               </Box>
+                              
                               <Typography variant="body2" color="text.secondary">
                                 {option.concept}
                               </Typography>
+                              
+                              {/* 📊 INFORMACIÓN ESPECIAL PARA CUOTAS */}
+                              {option.type === 'installment' && option.installmentInfo && (
+                                <Typography variant="caption" sx={{ 
+                                  color: 'secondary.main',
+                                  fontWeight: 500,
+                                  mt: 0.5,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 0.5
+                                }}>
+                                  💳 {option.installmentInfo.planSummary}
+                                  {option.installmentPlan && option.installmentPlan.paidCount > 0 && (
+                                    ` • Pagadas: ${option.installmentPlan.paidCount}/${option.installmentPlan.totalInstallments}`
+                                  )}
+                                </Typography>
+                              )}
+                              
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
                                 <Typography variant="caption" color="warning.main">
                                   Vencimiento: {option.formattedDueDate}
                                 </Typography>
+                                
+                                {/* 🏷️ BADGE DE TIPO */}
+                                <Chip
+                                  label={option.type === 'installment' ? 'Cuota' : 'Compromiso'}
+                                  size="small"
+                                  variant="filled"
+                                  color={option.type === 'installment' ? 'secondary' : 'default'}
+                                  sx={{ 
+                                    height: 16, 
+                                    fontSize: '0.65rem',
+                                    '& .MuiChip-label': { px: 0.8 }
+                                  }}
+                                />
                               </Box>
                             </Box>
                           </li>
@@ -1537,8 +1938,26 @@ const NewPaymentPage = () => {
                               alignItems: 'center',
                               gap: 1
                             }}>
-                              <CompanyIcon color="action" fontSize="small" />
+                              {/* 🎯 ICONO DINÁMICO SEGÚN TIPO */}
+                              {selectedCommitment.type === 'installment' ? (
+                                <CreditCardIcon color="secondary" fontSize="small" />
+                              ) : (
+                                <CompanyIcon color="action" fontSize="small" />
+                              )}
                               {selectedCommitment.companyName}
+                              
+                              {/* 🏷️ BADGE SEGÚN TIPO */}
+                              <Chip
+                                label={selectedCommitment.type === 'installment' ? 'Cuota Pendiente' : 'Compromiso'}
+                                size="small"
+                                variant="filled"
+                                color={selectedCommitment.type === 'installment' ? 'secondary' : 'primary'}
+                                sx={{ 
+                                  height: 20, 
+                                  fontSize: '0.7rem',
+                                  '& .MuiChip-label': { px: 1 }
+                                }}
+                              />
                             </Typography>
                             
                             <Grid container spacing={2}>
@@ -1547,6 +1966,50 @@ const NewPaymentPage = () => {
                                   <strong>Concepto:</strong> {selectedCommitment.concept}
                                 </Typography>
                               </Grid>
+                              
+                              {/* 📊 INFORMACIÓN ESPECÍFICA DE CUOTAS */}
+                              {selectedCommitment.type === 'installment' && selectedCommitment.installmentInfo && (
+                                <>
+                                  <Grid item xs={12} md={6}>
+                                    <Typography variant="body2" color="secondary.main" sx={{ fontWeight: 500 }}>
+                                      <strong>Plan de Pagos:</strong> {selectedCommitment.installmentInfo.planSummary}
+                                    </Typography>
+                                  </Grid>
+                                  
+                                  {selectedCommitment.installmentPlan && (
+                                    <>
+                                      <Grid item xs={12} md={6}>
+                                        <Typography variant="body2" color="success.main" sx={{ fontWeight: 500 }}>
+                                          <strong>Cuotas Pagadas:</strong> {selectedCommitment.installmentPlan.paidCount || 0} de {selectedCommitment.installmentPlan.totalInstallments}
+                                        </Typography>
+                                      </Grid>
+                                      
+                                      <Grid item xs={12} md={6}>
+                                        <Typography variant="body2" color="warning.main" sx={{ fontWeight: 500 }}>
+                                          <strong>Saldo Pendiente:</strong> {new Intl.NumberFormat('es-CO', {
+                                            style: 'currency',
+                                            currency: 'COP',
+                                            minimumFractionDigits: 0
+                                          }).format(selectedCommitment.installmentPlan.remainingAmount || 0)}
+                                        </Typography>
+                                      </Grid>
+                                    </>
+                                  )}
+                                  
+                                  {selectedCommitment.parentPaymentId && (
+                                    <Grid item xs={12}>
+                                      <Typography variant="caption" color="text.secondary" sx={{ 
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 0.5,
+                                        fontStyle: 'italic'
+                                      }}>
+                                        🔗 Pago relacionado: {selectedCommitment.parentPaymentId.slice(0, 8)}...
+                                      </Typography>
+                                    </Grid>
+                                  )}
+                                </>
+                              )}
                               
                               {selectedCommitment.beneficiary && (
                                 <Grid item xs={12} md={6}>
@@ -1921,6 +2384,111 @@ const NewPaymentPage = () => {
                         {/* Espaciador visual */}
                         <Box sx={{ my: 1 }} />
                       </Grid>
+
+                      {/* 💳 SECCIÓN DE CUOTAS */}
+                      {formData.finalAmount > 0 && (
+                        <>
+                          <Grid item xs={12}>
+                            <Box
+                              sx={{
+                                p: 2,
+                                borderRadius: 2,
+                                bgcolor: alpha(theme.palette.primary.main, 0.05),
+                                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                                transition: 'all 0.3s ease'
+                              }}
+                            >
+                              <FormControlLabel
+                                control={
+                                  <Checkbox
+                                    checked={useInstallments}
+                                    onChange={(e) => handleInstallmentToggle(e.target.checked)}
+                                    color="primary"
+                                    icon={<PendingIcon />}
+                                    checkedIcon={<InstallmentIcon />}
+                                  />
+                                }
+                                label={
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography variant="subtitle1" fontWeight={600}>
+                                      Dividir en cuotas mensuales
+                                    </Typography>
+                                    <Chip
+                                      size="small"
+                                      label="Nuevo"
+                                      color="primary"
+                                      variant="outlined"
+                                    />
+                                  </Box>
+                                }
+                              />
+                              
+                              <Typography variant="body2" color="text.secondary" sx={{ ml: 4 }}>
+                                Divide el pago en 2-6 cuotas mensuales programadas
+                              </Typography>
+
+                              {useInstallments && (
+                                <Collapse in={useInstallments}>
+                                  <Box sx={{ mt: 2, ml: 4 }}>
+                                    <Grid container spacing={2} alignItems="center">
+                                      <Grid item xs={12} sm={4}>
+                                        <FormControl fullWidth size="small">
+                                          <InputLabel>Número de cuotas</InputLabel>
+                                          <Select
+                                            value={installmentPlan.numberOfInstallments}
+                                            label="Número de cuotas"
+                                            onChange={(e) => handleInstallmentNumberChange(e.target.value)}
+                                          >
+                                            {[2, 3, 4, 5, 6].map(num => (
+                                              <MenuItem key={num} value={num}>
+                                                {num} cuotas
+                                              </MenuItem>
+                                            ))}
+                                          </Select>
+                                        </FormControl>
+                                      </Grid>
+                                      
+                                      <Grid item xs={12} sm={4}>
+                                        <Button
+                                          variant="outlined"
+                                          startIcon={<TimelineIcon />}
+                                          onClick={openInstallmentModal}
+                                          size="small"
+                                          fullWidth
+                                        >
+                                          Ver cronograma
+                                        </Button>
+                                      </Grid>
+
+                                      {installmentPreview.length > 0 && (
+                                        <Grid item xs={12}>
+                                          <Box
+                                            sx={{
+                                              mt: 1,
+                                              p: 2,
+                                              bgcolor: alpha(theme.palette.success.main, 0.05),
+                                              border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+                                              borderRadius: 1
+                                            }}
+                                          >
+                                            <Typography variant="body2" color="success.main" fontWeight={600}>
+                                              ✅ Plan confirmado: {installmentPreview.length} cuotas de{' '}
+                                              {formatCurrencyDisplay(installmentPreview[0]?.amount || 0)} aprox.
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                                              Primera cuota se paga inmediatamente, las demás quedan programadas mensualmente
+                                            </Typography>
+                                          </Box>
+                                        </Grid>
+                                      )}
+                                    </Grid>
+                                  </Box>
+                                </Collapse>
+                              )}
+                            </Box>
+                          </Grid>
+                        </>
+                      )}
 
                       {/* Campo de cuenta de origen */}
                       <Grid item xs={12} sm={6}>
@@ -2469,6 +3037,7 @@ const NewPaymentPage = () => {
               {isSubmitting ? (
                 <>
                   <CircularProgress size={20} />
+                  {savingInstallments ? ' Creando cuotas...' : ''}
                 </>
               ) : uploading ? (
                 <>
@@ -2477,8 +3046,17 @@ const NewPaymentPage = () => {
                 </>
               ) : (
                 <>
-                  <SaveIcon sx={{ mr: 1 }} />
-                  Registrar Pago
+                  {useInstallments && installmentPreview.length > 0 ? (
+                    <>
+                      <InstallmentIcon sx={{ mr: 1 }} />
+                      Crear {installmentPreview.length} Cuotas
+                    </>
+                  ) : (
+                    <>
+                      <SaveIcon sx={{ mr: 1 }} />
+                      Registrar Pago
+                    </>
+                  )}
                 </>
               )}
             </Button>
@@ -2673,8 +3251,249 @@ const NewPaymentPage = () => {
         onAccept={handleCompressionAccept}
         onReject={handleCompressionReject}
       />
+
+      {/* 💳 MODAL DE CRONOGRAMA DE CUOTAS */}
+      <Dialog
+        open={installmentModalOpen}
+        onClose={() => setInstallmentModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            backdropFilter: 'blur(10px)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          color: 'white', 
+          background: 'rgba(0,0,0,0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2
+        }}>
+          <InstallmentIcon />
+          <Typography variant="h6">
+            Cronograma de Cuotas
+          </Typography>
+          <Chip 
+            label={`${installmentPreview.length} cuotas`}
+            size="small"
+            sx={{ 
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              color: 'white'
+            }}
+          />
+        </DialogTitle>
+
+        <DialogContent sx={{ 
+          background: 'rgba(255,255,255,0.95)',
+          p: 3
+        }}>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              📊 Resumen del Plan
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <Box sx={{ p: 2, bgcolor: 'primary.main', color: 'white', borderRadius: 1, textAlign: 'center' }}>
+                  <Typography variant="body2">Total a dividir</Typography>
+                  <Typography variant="h6" fontWeight="bold">
+                    {formatCurrencyDisplay(formData.finalAmount)}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={6}>
+                <Box sx={{ p: 2, bgcolor: 'success.main', color: 'white', borderRadius: 1, textAlign: 'center' }}>
+                  <Typography variant="body2">Pago inmediato</Typography>
+                  <Typography variant="h6" fontWeight="bold">
+                    {formatCurrencyDisplay(installmentPreview[0]?.amount || 0)}
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          </Box>
+
+          <Typography variant="h6" gutterBottom sx={{ mt: 3 }}>
+            📅 Calendario de Pagos
+          </Typography>
+          
+          <TableContainer component={Paper} sx={{ mt: 2, borderRadius: 2 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ bgcolor: 'grey.100' }}>
+                  <TableCell><strong>Cuota</strong></TableCell>
+                  <TableCell><strong>Monto</strong></TableCell>
+                  <TableCell><strong>Fecha de vencimiento</strong></TableCell>
+                  <TableCell><strong>Estado</strong></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {installmentPreview.map((installment, index) => (
+                  <TableRow key={index} sx={{ 
+                    bgcolor: index === 0 ? alpha(theme.palette.success.main, 0.1) : 'inherit'
+                  }}>
+                    <TableCell>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {index === 0 ? <PaymentIcon color="success" /> : <DateRangeIcon />}
+                        #{installment.installmentNumber}
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography fontWeight={index === 0 ? 'bold' : 'normal'}>
+                        {formatCurrencyDisplay(installment.amount)}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      {format(installment.dueDate, 'dd/MM/yyyy', { locale: es })}
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        icon={index === 0 ? <CheckCircleIcon /> : <PendingIcon />}
+                        label={index === 0 ? 'Se paga ahora' : 'Programada'}
+                        color={index === 0 ? 'success' : 'warning'}
+                        variant={index === 0 ? 'filled' : 'outlined'}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          <Alert 
+            severity="info" 
+            sx={{ mt: 3 }}
+            icon={<InstallmentIcon />}
+          >
+            <Typography variant="body2">
+              <strong>💡 ¿Cómo funciona?</strong><br/>
+              • La primera cuota se paga inmediatamente al crear el registro<br/>
+              • Las cuotas restantes quedan programadas para los siguientes meses<br/>
+              • Recibirás notificaciones cuando se acerque cada fecha de vencimiento<br/>
+              • Cada cuota se maneja como un pago independiente
+            </Typography>
+          </Alert>
+        </DialogContent>
+
+        <DialogActions sx={{ 
+          background: 'rgba(255,255,255,0.9)', 
+          p: 2,
+          gap: 1
+        }}>
+          <Button 
+            onClick={() => setInstallmentModalOpen(false)}
+            color="inherit"
+            startIcon={<CancelIcon />}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={confirmInstallmentPlan}
+            variant="contained"
+            color="primary"
+            startIcon={<CheckCircleIcon />}
+          >
+            Confirmar Plan
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
+};
+
+// 🔄 FUNCIÓN EXPORTABLE PARA ACTUALIZAR CUOTAS DESDE OTRAS PÁGINAS
+export const updateInstallmentWhenPaid = async (installmentId, parentPaymentId) => {
+  try {
+    console.log(`💳 Marcando cuota ${installmentId} como pagada...`);
+    
+    // Actualizar la cuota individual
+    await updateDoc(doc(db, 'payments', installmentId), {
+      status: 'completed',
+      installmentStatus: 'paid',
+      paymentDate: Timestamp.now(),
+      updatedAt: Timestamp.now()
+    });
+    
+    // Recalcular el resumen del pago principal
+    const installmentsQuery = query(
+      collection(db, 'payments'),
+      where('parentPaymentId', '==', parentPaymentId),
+      where('isInstallment', '==', true),
+      orderBy('installmentNumber', 'asc')
+    );
+    
+    const installmentsSnapshot = await getDocs(installmentsQuery);
+    const installments = [];
+    
+    installmentsSnapshot.forEach((doc) => {
+      installments.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    // Calcular totales
+    const totalInstallments = installments.length;
+    const paidInstallments = installments.filter(inst => inst.status === 'completed').length;
+    const pendingInstallments = totalInstallments - paidInstallments;
+    
+    const totalPaidAmount = installments
+      .filter(inst => inst.status === 'completed')
+      .reduce((sum, inst) => sum + inst.amount, 0);
+    
+    const totalPendingAmount = installments
+      .filter(inst => inst.status === 'pending')
+      .reduce((sum, inst) => sum + inst.amount, 0);
+    
+    // Encontrar próxima cuota pendiente
+    const nextPendingInstallment = installments.find(inst => inst.status === 'pending');
+    
+    // Actualizar el pago principal
+    const updateData = {
+      installmentMetadata: {
+        paidInstallments,
+        pendingInstallments,
+        totalPaidAmount,
+        totalPendingAmount,
+        lastUpdated: Timestamp.now(),
+        displaySummary: {
+          text: `Cuotas pagadas: ${paidInstallments} de ${totalInstallments}`,
+          paidText: `Pagado: $${totalPaidAmount.toLocaleString()}`,
+          pendingText: `Saldo pendiente: $${totalPendingAmount.toLocaleString()}`,
+          nextDueText: nextPendingInstallment ? 
+            `Próximo vencimiento: ${nextPendingInstallment.dueDate?.toDate?.()?.toLocaleDateString() || 'No definido'}` : 
+            'Plan de cuotas completado'
+        }
+      },
+      installmentPlan: {
+        ...installments[0]?.installmentPlan || {},
+        paidInstallments,
+        remainingInstallments: pendingInstallments,
+        nextDueDate: nextPendingInstallment?.dueDate || null,
+        isCompleted: pendingInstallments === 0,
+        lastPaymentDate: Timestamp.now()
+      }
+    };
+    
+    await updateDoc(doc(db, 'payments', parentPaymentId), updateData);
+    
+    console.log('✅ Cuota marcada como pagada y resumen actualizado:', {
+      cuotasPagadas: paidInstallments,
+      cuotasPendientes: pendingInstallments,
+      montoPagado: totalPaidAmount,
+      saldoPendiente: totalPendingAmount
+    });
+    
+    return updateData.installmentMetadata.displaySummary;
+    
+  } catch (error) {
+    console.error('❌ Error actualizando cuota pagada:', error);
+    throw error;
+  }
 };
 
 export default NewPaymentPage;
