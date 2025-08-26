@@ -116,26 +116,36 @@ const NewPaymentPage = () => {
     return 0;
   };
 
-  // 💰 Funciones para formateo de moneda colombiana
+  // 💰 Funciones para formateo de moneda colombiana (con decimales)
   const formatCurrency = (value) => {
     if (!value && value !== 0) return '';
     
-    // Remover todo excepto dígitos
-    const cleanValue = value.toString().replace(/[^\d]/g, '');
+    // Permitir dígitos, punto y coma para decimales
+    const cleanValue = value.toString().replace(/[^\d.,]/g, '');
     if (!cleanValue) return '';
-    if (cleanValue === '0') return '0';
+    if (cleanValue === '0' || cleanValue === '0,00') return '0';
     
-    // Formatear con separadores de miles
-    const numValue = parseInt(cleanValue);
+    // Convertir coma a punto para procesamiento
+    const normalizedValue = cleanValue.replace(',', '.');
+    const numValue = parseFloat(normalizedValue);
     if (isNaN(numValue)) return '';
     
-    return numValue.toLocaleString('es-CO');
+    // Formatear con separadores de miles y decimales colombianos
+    return numValue.toLocaleString('es-CO', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    });
   };
 
   const parseCurrency = (formattedValue) => {
     if (!formattedValue) return 0;
-    const cleanValue = formattedValue.toString().replace(/[^\d]/g, '');
-    return parseInt(cleanValue) || 0;
+    // Permitir dígitos, punto y coma
+    const cleanValue = formattedValue.toString().replace(/[^\d.,]/g, '');
+    if (!cleanValue) return 0;
+    
+    // Convertir formato colombiano (coma decimal) a formato estándar
+    const normalizedValue = cleanValue.replace(/\./g, '').replace(',', '.');
+    return parseFloat(normalizedValue) || 0;
   };
 
   const formatCurrencyDisplay = (value) => {
@@ -143,7 +153,8 @@ const NewPaymentPage = () => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
       currency: 'COP',
-      minimumFractionDigits: 0
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
     }).format(value);
   };
 
@@ -174,10 +185,15 @@ const NewPaymentPage = () => {
     interesesGastosAdministracion: 0,
     derechosExplotacion: 0,        // NUEVO: monto base derechos
     gastosAdministracion: 0,       // NUEVO: monto base gastos
-    finalAmount: 0
+    finalAmount: 0,
+    // 💰 NUEVO: Campo para pagos parciales
+    partialPaymentAmount: 0        // Monto del pago parcial
   });
 
   const [errors, setErrors] = useState({});
+  
+  // 💰 NUEVO: Estado para controlar pago parcial
+  const [isPartialPayment, setIsPartialPayment] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Estado para archivos
@@ -342,15 +358,15 @@ const NewPaymentPage = () => {
       snapshot.forEach((doc) => {
         const data = doc.data();
         
-        // ✅ LÓGICA MEJORADA: Verificar TODOS los posibles estados de pago
+        // ✅ LÓGICA CORREGIDA: Verificar SOLO estados que indican pago COMPLETO
         const status = data.status || 'pending';
         const isPaidByStatus = status === 'paid' || status === 'completed';
         const isPaidByFlag = data.paid === true || data.isPaid === true;
         const isPaidByPaymentStatus = data.paymentStatus === 'paid' || data.paymentStatus === 'Pagado' || data.paymentStatus === 'pagado';
-        const hasPayment = commitmentsWithPayments.has(doc.id);
         
-        // Cualquier indicador de que está pagado
-        const isAlreadyPaid = isPaidByStatus || isPaidByFlag || isPaidByPaymentStatus || hasPayment;
+        // 🔧 FIX: NO excluir compromisos con pagos parciales
+        // Solo excluir si está marcado como completamente pagado
+        const isAlreadyPaid = isPaidByStatus || isPaidByFlag || isPaidByPaymentStatus;
         
         // 🐛 DEBUG: Log detallado para cada compromiso
         console.log(`🔍 Analizando compromiso "${data.companyName} - ${data.concept}":`, {
@@ -359,16 +375,45 @@ const NewPaymentPage = () => {
           paid: data.paid,
           isPaid: data.isPaid,
           paymentStatus: data.paymentStatus,
-          hasPayment,
           isAlreadyPaid,
-          willBeIncluded: !isAlreadyPaid && (status === 'pending' || status === 'overdue')
+          willBeIncluded: !isAlreadyPaid && (status === 'pending' || status === 'overdue' || status === 'partial_payment')
         });
         
-        if ((status === 'pending' || status === 'overdue') && !isAlreadyPaid) {
+        // 🔧 FIX: Incluir compromisos con pagos parciales
+        if ((status === 'pending' || status === 'overdue' || status === 'partial_payment') && !isAlreadyPaid) {
+          // 💰 NUEVO: Calcular saldo pendiente para pagos parciales
+          const originalAmount = data.amount || 0;
+          
+          // Buscar todos los pagos realizados para este compromiso
+          const commitmentPayments = [];
+          paymentsSnapshot.forEach((paymentDoc) => {
+            const paymentData = paymentDoc.data();
+            if (paymentData.commitmentId === doc.id && !paymentData.is4x1000Tax) {
+              commitmentPayments.push(paymentData);
+            }
+          });
+          
+          // Sumar todos los pagos realizados
+          const totalPaid = commitmentPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+          const remainingBalance = originalAmount - totalPaid;
+          
+          console.log(`💰 Compromiso con pagos parciales:`, {
+            id: doc.id,
+            originalAmount,
+            totalPaid,
+            remainingBalance,
+            paymentsCount: commitmentPayments.length
+          });
+          
           console.log('✅ Compromiso SIN pago agregado:', doc.id, `"${data.companyName} - ${data.concept}"`);
           commitments.push({
             id: doc.id,
             ...data,
+            // 💰 NUEVO: Campos para pagos parciales
+            originalAmount: originalAmount,
+            totalPaid: totalPaid,
+            remainingBalance: remainingBalance,
+            hasPartialPayments: commitmentPayments.length > 0,
             // Formatear datos para el display
             displayName: `${data.companyName || 'Sin empresa'} - ${data.concept || data.name || 'Sin concepto'}`,
             formattedDueDate: data.dueDate ? format(data.dueDate.toDate(), 'dd/MMM/yyyy', { locale: es }) : 'Sin fecha',
@@ -376,7 +421,7 @@ const NewPaymentPage = () => {
               style: 'currency',
               currency: 'COP',
               minimumFractionDigits: 0
-            }).format(data.amount || 0)
+            }).format(remainingBalance) // 💰 Mostrar saldo pendiente en lugar del monto original
           });
         } else {
           console.log('🚫 Compromiso OMITIDO (ya pagado o no pendiente):', doc.id, `"${data.companyName} - ${data.concept}"`, {
@@ -651,20 +696,37 @@ const NewPaymentPage = () => {
 
     setSelectedCommitment(commitment);
     
-    // No calcular intereses automáticamente, dejar en 0
-    const finalAmount = commitment.amount || 0;
+    // 💰 NUEVO: Usar saldo pendiente en lugar del monto original para pagos parciales
+    const originalAmount = commitment.originalAmount || commitment.amount || 0;
+    const remainingBalance = commitment.remainingBalance || originalAmount;
+    const hasPartialPayments = commitment.hasPartialPayments || false;
+    
+    console.log('💰 Compromiso seleccionado:', {
+      id: commitment.id,
+      originalAmount,
+      remainingBalance,
+      hasPartialPayments,
+      totalPaid: commitment.totalPaid || 0,
+      isColjuegos: isColjuegosCommitment(commitment)
+    });
+    
+    // 🚫 Si es Coljuegos, desactivar automáticamente pago parcial
+    if (isColjuegosCommitment(commitment)) {
+      setIsPartialPayment(false);
+    }
 
     setFormData(prev => ({
       ...prev,
       commitmentId: commitment.id,
-      originalAmount: commitment.amount || 0,
+      originalAmount: originalAmount,
       interests: 0,
       interesesDerechosExplotacion: 0,
       interesesGastosAdministracion: 0,
       // CARGAR VALORES BASE DESDE EL COMPROMISO
       derechosExplotacion: commitment.derechosExplotacion || 0,
       gastosAdministracion: commitment.gastosAdministracion || 0,
-      finalAmount: finalAmount
+      finalAmount: remainingBalance,  // 💰 Usar saldo pendiente como monto inicial
+      partialPaymentAmount: 0         // 💰 Inicializar campo de pago parcial
     }));
 
     // 📄 Obtener URL de la factura del compromiso
@@ -805,6 +867,59 @@ const NewPaymentPage = () => {
     }
   };
 
+  // 💰 NUEVAS FUNCIONES PARA PAGOS PARCIALES
+  
+  // Manejar toggle de pago parcial
+  const handlePartialPaymentToggle = (checked) => {
+    setIsPartialPayment(checked);
+    
+    if (checked) {
+      // Si se activa pago parcial, limpiar el monto final
+      setFormData(prev => ({
+        ...prev,
+        finalAmount: 0,
+        partialPaymentAmount: 0
+      }));
+    } else {
+      // Si se desactiva, usar el saldo pendiente completo
+      const remainingBalance = selectedCommitment?.remainingBalance || selectedCommitment?.amount || 0;
+      setFormData(prev => ({
+        ...prev,
+        finalAmount: remainingBalance,
+        partialPaymentAmount: 0
+      }));
+    }
+  };
+
+  // Manejar cambio en el monto de pago parcial
+  const handlePartialAmountChange = (value) => {
+    const numericValue = parseCurrency(value);
+    const maxAmount = selectedCommitment?.remainingBalance || selectedCommitment?.amount || 0;
+    
+    // Validar que no exceda el saldo pendiente
+    if (numericValue > maxAmount) {
+      setErrors(prev => ({
+        ...prev,
+        partialPaymentAmount: `No puede exceder el saldo pendiente de ${formatCurrencyDisplay(maxAmount)}`
+      }));
+      return;
+    }
+    
+    // Limpiar error si existe
+    if (errors.partialPaymentAmount) {
+      setErrors(prev => ({
+        ...prev,
+        partialPaymentAmount: ''
+      }));
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      partialPaymentAmount: numericValue,
+      finalAmount: numericValue
+    }));
+  };
+
   const paymentMethods = [
     'Transferencia',
     'PSE',
@@ -894,11 +1009,20 @@ const NewPaymentPage = () => {
         amount: formData.finalAmount || 0,
         originalAmount: formData.originalAmount || 0,
         interests: formData.interests || 0,  // Intereses generales (sin Coljuegos)
-        // 🎰 NUEVOS CAMPOS ESPECÍFICOS DE COLJUEGOS
+        // 🎰 CAMPOS ESPECÍFICOS DE COLJUEGOS (solo si aplica)
         interesesDerechosExplotacion: formData.interesesDerechosExplotacion || 0,
         interesesGastosAdministracion: formData.interesesGastosAdministracion || 0,
         derechosExplotacion: formData.derechosExplotacion || 0,        // NUEVO: monto base derechos
         gastosAdministracion: formData.gastosAdministracion || 0,      // NUEVO: monto base gastos
+        // 💰 CAMPOS ESPECÍFICOS DE PAGOS PARCIALES
+        isPartialPayment: isPartialPayment,                            // Flag de pago parcial
+        partialPaymentAmount: isPartialPayment ? formData.finalAmount : 0, // Monto del pago parcial
+        originalCommitmentAmount: selectedCommitment.originalAmount || selectedCommitment.amount || 0, // Monto original del compromiso
+        remainingBalanceBefore: selectedCommitment.remainingBalance || selectedCommitment.amount || 0, // Saldo antes de este pago
+        remainingBalanceAfter: isPartialPayment ? 
+          (selectedCommitment.remainingBalance || selectedCommitment.amount || 0) - formData.finalAmount : 0, // Saldo después de este pago
+        paymentSequence: (selectedCommitment.totalPaid > 0 ? 
+          Math.floor(selectedCommitment.totalPaid / 1000) + 1 : 1), // Número de pago parcial
         method: formData.method || '',
         reference: formData.reference || '',
         date: Timestamp.fromDate(createLocalDate(formData.date)),
@@ -973,31 +1097,74 @@ const NewPaymentPage = () => {
         }
       }
       
-      // Actualizar el compromiso como pagado
-      console.log('🔄 Actualizando compromiso como pagado...');
+      // 💰 LÓGICA PARA PAGOS PARCIALES - Actualizar compromiso según el tipo de pago
+      console.log('🔄 Actualizando compromiso...');
       const commitmentRef = doc(db, 'commitments', selectedCommitment.id);
-      await updateDoc(commitmentRef, {
-        isPaid: true,
-        paid: true,
-        paymentDate: Timestamp.fromDate(createLocalDate(formData.date)),
-        paidAt: Timestamp.fromDate(createLocalDate(formData.date)), // También agregar paidAt para compatibilidad
-        paymentAmount: formData.finalAmount,
-        paymentId: paymentRef.id,
-        interestPaid: (formData.interests || 0) + (formData.interesesDerechosExplotacion || 0) + (formData.interesesGastosAdministracion || 0),
-        paymentMethod: formData.method,
-        paymentReference: formData.reference,
-        paymentNotes: formData.notes,
-        receiptUrl: uploadedFileUrls && uploadedFileUrls.length > 0 ? uploadedFileUrls[0] : null, // Primer archivo para compatibilidad
-        receiptUrls: uploadedFileUrls || [], // Todos los archivos
-        receiptMetadata: uploadedFileUrls ? uploadedFileUrls.map(url => ({
-          url: url,
-          uploadedAt: new Date(),
-          type: url.includes('.pdf') ? 'pdf' : 'image'
-        })) : [],
-        updatedAt: Timestamp.now()
-      });
       
-      console.log('✅ Compromiso actualizado como pagado');
+      // Calcular nuevo saldo pendiente
+      const originalAmount = selectedCommitment.originalAmount || selectedCommitment.amount || 0;
+      const previouslyPaid = selectedCommitment.totalPaid || 0;
+      const currentPayment = formData.finalAmount;
+      const newTotalPaid = previouslyPaid + currentPayment;
+      const newRemainingBalance = originalAmount - newTotalPaid;
+      
+      console.log('💰 Cálculos de pago parcial:', {
+        originalAmount,
+        previouslyPaid,
+        currentPayment,
+        newTotalPaid,
+        newRemainingBalance,
+        isFullyPaid: newRemainingBalance <= 0
+      });
+
+      if (newRemainingBalance <= 0) {
+        // 💰 PAGO COMPLETO - Marcar compromiso como totalmente pagado
+        await updateDoc(commitmentRef, {
+          isPaid: true,
+          paid: true,
+          status: 'paid',
+          paymentDate: Timestamp.fromDate(createLocalDate(formData.date)),
+          paidAt: Timestamp.fromDate(createLocalDate(formData.date)),
+          paymentAmount: originalAmount, // Monto original total
+          totalPaid: newTotalPaid,
+          remainingBalance: 0,
+          lastPaymentId: paymentRef.id,
+          lastPaymentAmount: currentPayment,
+          paymentMethod: formData.method,
+          paymentReference: formData.reference,
+          paymentNotes: formData.notes,
+          receiptUrl: uploadedFileUrls && uploadedFileUrls.length > 0 ? uploadedFileUrls[0] : null,
+          receiptUrls: uploadedFileUrls || [],
+          receiptMetadata: uploadedFileUrls ? uploadedFileUrls.map(url => ({
+            url: url,
+            uploadedAt: new Date(),
+            type: url.includes('.pdf') ? 'pdf' : 'image'
+          })) : [],
+          interestPaid: (formData.interests || 0) + (formData.interesesDerechosExplotacion || 0) + (formData.interesesGastosAdministracion || 0),
+          updatedAt: Timestamp.now()
+        });
+        console.log('✅ Compromiso marcado como TOTALMENTE PAGADO');
+      } else {
+        // 💰 PAGO PARCIAL - Mantener compromiso pendiente con nuevo saldo
+        await updateDoc(commitmentRef, {
+          isPaid: false, // 💰 MANTENER COMO PENDIENTE
+          paid: false,
+          status: 'partial_payment', // 💰 ESTADO ESPECIAL PARA PAGOS PARCIALES
+          totalPaid: newTotalPaid,
+          remainingBalance: newRemainingBalance,
+          lastPaymentId: paymentRef.id,
+          lastPaymentAmount: currentPayment,
+          lastPaymentDate: Timestamp.fromDate(createLocalDate(formData.date)),
+          paymentMethod: formData.method,
+          paymentReference: formData.reference,
+          paymentNotes: formData.notes,
+          // NO agregar receiptUrl/receiptUrls al compromiso en pagos parciales
+          // Los comprobantes quedan en cada pago individual
+          interestPaid: (formData.interests || 0) + (formData.interesesDerechosExplotacion || 0) + (formData.interesesGastosAdministracion || 0),
+          updatedAt: Timestamp.now()
+        });
+        console.log('✅ Compromiso actualizado con PAGO PARCIAL - Saldo pendiente:', formatCurrencyDisplay(newRemainingBalance));
+      }
       
       // =====================================================
       // 💳 PROCESAMIENTO DE CUOTAS (SI APLICA)
@@ -1027,9 +1194,13 @@ const NewPaymentPage = () => {
         interests: 0,
         interesesDerechosExplotacion: 0,
         interesesGastosAdministracion: 0,
-        finalAmount: 0
+        finalAmount: 0,
+        partialPaymentAmount: 0  // 💰 NUEVO: Limpiar campo de pago parcial
       });
       setFiles([]);
+      
+      // 💰 NUEVO: Limpiar estado de pago parcial
+      setIsPartialPayment(false);
       
       // Limpiar también la URL de la factura
       setInvoiceUrl(null);
@@ -1449,7 +1620,7 @@ const NewPaymentPage = () => {
                       noOptionsText={
                         loadingCommitments 
                           ? "Cargando compromisos..." 
-                          : "No hay compromisos pendientes sin pago registrado"
+                          : "No hay compromisos pendientes para completar el pago"
                       }
                       renderInput={(params) => (
                         <TextField
@@ -1464,7 +1635,7 @@ const NewPaymentPage = () => {
                           required
                           helperText={
                             pendingCommitments.length === 0 && !loadingCommitments
-                              ? "Solo se muestran compromisos pendientes que aún no tienen pagos registrados"
+                              ? "Incluye compromisos pendientes y con pagos parciales por completar"
                               : ""
                           }
                           InputProps={{
@@ -1567,6 +1738,46 @@ const NewPaymentPage = () => {
                                   <strong>Vencimiento:</strong> {selectedCommitment.formattedDueDate}
                                 </Typography>
                               </Grid>
+                              
+                              {/* 💰 Información de Pagos Parciales */}
+                              {selectedCommitment.hasPartialPayments && (
+                                <>
+                                  <Grid item xs={12} md={6}>
+                                    <Typography variant="body2" color="info.main" sx={{ fontWeight: 500 }}>
+                                      <strong>Monto Original:</strong> {new Intl.NumberFormat('es-CO', {
+                                        style: 'currency',
+                                        currency: 'COP',
+                                        minimumFractionDigits: 0
+                                      }).format(selectedCommitment.originalAmount)}
+                                    </Typography>
+                                  </Grid>
+                                  
+                                  <Grid item xs={12} md={6}>
+                                    <Typography variant="body2" color="success.main" sx={{ fontWeight: 500 }}>
+                                      <strong>Ya Pagado:</strong> {new Intl.NumberFormat('es-CO', {
+                                        style: 'currency',
+                                        currency: 'COP',
+                                        minimumFractionDigits: 0
+                                      }).format(selectedCommitment.totalPaid)}
+                                    </Typography>
+                                  </Grid>
+                                  
+                                  <Grid item xs={12} md={6}>
+                                    <Typography variant="body2" color="warning.main" sx={{ fontWeight: 600 }}>
+                                      <strong>Saldo Pendiente:</strong> {selectedCommitment.formattedAmount}
+                                    </Typography>
+                                  </Grid>
+                                </>
+                              )}
+                              
+                              {/* Monto total para compromisos sin pagos parciales */}
+                              {!selectedCommitment.hasPartialPayments && (
+                                <Grid item xs={12} md={6}>
+                                  <Typography variant="body2" color="primary.main" sx={{ fontWeight: 600 }}>
+                                    <strong>Monto Total:</strong> {selectedCommitment.formattedAmount}
+                                  </Typography>
+                                </Grid>
+                              )}
                             
                             {/* Botón para ver factura - Solo si existe */}
                             {invoiceUrl && (
@@ -1858,9 +2069,130 @@ const NewPaymentPage = () => {
                         </>
                       )}
 
+                      {/* 💰 SECCIÓN DE PAGO PARCIAL */}
+                      {selectedCommitment && !isColjuegosCommitment(selectedCommitment) && (
+                        <Grid item xs={12}>
+                          <Box
+                            sx={{
+                              p: 2,
+                              borderRadius: 2,
+                              bgcolor: alpha(theme.palette.info.main, 0.05),
+                              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                              mt: 1
+                            }}
+                          >
+                            <FormControlLabel
+                              control={
+                                <Checkbox
+                                  checked={isPartialPayment}
+                                  onChange={(e) => handlePartialPaymentToggle(e.target.checked)}
+                                  color="info"
+                                />
+                              }
+                              label={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <Typography variant="subtitle1" fontWeight={600}>
+                                    Pago Parcial
+                                  </Typography>
+                                </Box>
+                              }
+                            />
+                            
+                            <Typography variant="body2" color="text.secondary" sx={{ ml: 4, mb: 2 }}>
+                              Pagar solo una parte del compromiso. El saldo restante quedará pendiente.
+                            </Typography>
+
+                            {/* Información del compromiso */}
+                            <Grid container spacing={2} sx={{ ml: 4, mb: 2 }}>
+                              <Grid item xs={12} sm={4}>
+                                <Box sx={{ p: 1.5, bgcolor: 'grey.50', borderRadius: 1 }}>
+                                  <Typography variant="caption" color="text.secondary">
+                                    Monto Original
+                                  </Typography>
+                                  <Typography variant="body2" fontWeight="bold">
+                                    {formatCurrencyDisplay(selectedCommitment.originalAmount || selectedCommitment.amount || 0)}
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                              
+                              {selectedCommitment.hasPartialPayments && (
+                                <Grid item xs={12} sm={4}>
+                                  <Box sx={{ p: 1.5, bgcolor: 'success.50', borderRadius: 1 }}>
+                                    <Typography variant="caption" color="text.secondary">
+                                      Total Pagado
+                                    </Typography>
+                                    <Typography variant="body2" fontWeight="bold" color="success.main">
+                                      {formatCurrencyDisplay(selectedCommitment.totalPaid || 0)}
+                                    </Typography>
+                                  </Box>
+                                </Grid>
+                              )}
+                              
+                              <Grid item xs={12} sm={4}>
+                                <Box sx={{ p: 1.5, bgcolor: 'warning.50', borderRadius: 1 }}>
+                                  <Typography variant="caption" color="text.secondary">
+                                    Saldo Pendiente
+                                  </Typography>
+                                  <Typography variant="body2" fontWeight="bold" color="warning.main">
+                                    {formatCurrencyDisplay(selectedCommitment.remainingBalance || selectedCommitment.amount || 0)}
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                            </Grid>
+
+                            {/* Campo de monto de pago parcial */}
+                            {isPartialPayment && (
+                              <Box sx={{ ml: 4 }}>
+                                <TextField
+                                  label="Monto a Pagar"
+                                  placeholder="Ej: 1.500.000,50"
+                                  value={formatCurrency(formData.partialPaymentAmount)}
+                                  onChange={(e) => handlePartialAmountChange(e.target.value)}
+                                  fullWidth
+                                  error={!!errors.partialPaymentAmount}
+                                  helperText={errors.partialPaymentAmount || `Máximo: ${formatCurrencyDisplay(selectedCommitment.remainingBalance || selectedCommitment.amount || 0)} • Puede usar decimales (ej: 1.234.567,89)`}
+                                  InputProps={{
+                                    startAdornment: (
+                                      <InputAdornment position="start">
+                                        <MoneyIcon color="info" />
+                                      </InputAdornment>
+                                    ),
+                                  }}
+                                  sx={{ maxWidth: 300 }}
+                                />
+                              </Box>
+                            )}
+                          </Box>
+                        </Grid>
+                      )}
+
+                      {/* 🚫 MENSAJE PARA COLJUEGOS - NO PERMITE PAGOS PARCIALES */}
+                      {selectedCommitment && isColjuegosCommitment(selectedCommitment) && (
+                        <Grid item xs={12}>
+                          <Box
+                            sx={{
+                              p: 2,
+                              borderRadius: 2,
+                              bgcolor: alpha(theme.palette.warning.main, 0.05),
+                              border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                              mt: 1
+                            }}
+                          >
+                            <Typography variant="body2" color="warning.main" sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 1,
+                              fontWeight: 500
+                            }}>
+                              ⚠️ Los compromisos de Coljuegos deben pagarse completos - No se permiten pagos parciales
+                            </Typography>
+                          </Box>
+                        </Grid>
+                      )}
+
                       <Grid item xs={12} sm={4}>
                         <TextField
-                          label="Total a Pagar"
+                          label={isPartialPayment ? "Monto del Pago Parcial" : "Total a Pagar"}
                           value={new Intl.NumberFormat('es-CO', {
                             style: 'currency',
                             currency: 'COP',
@@ -1873,7 +2205,7 @@ const NewPaymentPage = () => {
                               <InputAdornment position="start">
                                 <MoneyIcon 
                                   sx={{ 
-                                    color: 'primary.main'
+                                    color: isPartialPayment ? 'info.main' : 'primary.main'
                                   }} 
                                 />
                               </InputAdornment>
