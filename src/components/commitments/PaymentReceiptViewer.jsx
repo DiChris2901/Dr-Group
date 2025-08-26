@@ -44,6 +44,30 @@ const PaymentReceiptViewer = ({
     'commitment keys': commitment ? Object.keys(commitment) : 'No commitment'
   });
 
+  // 🔍 ANÁLISIS DETALLADO DE VALORES PARA ENCONTRAR EL VALOR BASE ORIGINAL
+  if (commitment && open) {
+    console.log('💰 ANÁLISIS COMPLETO DE VALORES - COMMITMENT:');
+    console.log('📋 Commitment data completo:', JSON.stringify(commitment, null, 2));
+    
+    // Buscar todos los campos que podrían contener el valor base original
+    console.log('💵 POSIBLES VALORES BASE ORIGINALES:');
+    console.log('💵 originalCommitmentAmount:', commitment.originalCommitmentAmount);
+    console.log('💵 originalAmount:', commitment.originalAmount);
+    console.log('💵 amount:', commitment.amount);
+    console.log('💵 partialPaymentAmount:', commitment.partialPaymentAmount);
+    console.log('💵 remainingBalanceBefore:', commitment.remainingBalanceBefore);
+    console.log('💵 remainingBalanceAfter:', commitment.remainingBalanceAfter);
+    console.log('💵 baseAmount:', commitment.baseAmount);
+    console.log('💵 commitmentAmount:', commitment.commitmentAmount);
+    console.log('💵 totalAmount:', commitment.totalAmount);
+    
+    console.log('🔢 OTROS CAMPOS:');
+    console.log('💵 intereses/interests:', commitment.intereses || commitment.interests);
+    console.log('💵 iva:', commitment.iva);
+    console.log('🏷️ isPartialPayment:', commitment.isPartialPayment);
+    console.log('🏷️ paymentSequence:', commitment.paymentSequence);
+  }
+
   const theme = useTheme();
   const tokens = useTokens();
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
@@ -1200,7 +1224,9 @@ const PaymentReceiptViewer = ({
                       } else {
                         return (
                           <>
-                            {/* Monto Base/Impuestos - SIEMPRE MOSTRAR */}
+                            {/* INFORMACIÓN SIMPLIFICADA - SIEMPRE IGUAL PARA TODOS LOS PAGOS */}
+                            
+                            {/* Valor Original - VALOR BASE SIN IVA del compromiso original */}
                             <Grid item xs={12} sm={6}>
                               <Box sx={{ 
                                 display: 'flex', 
@@ -1213,15 +1239,20 @@ const PaymentReceiptViewer = ({
                                 border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`
                               }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
-                                  Monto Base
+                                  Valor Original
                                 </Typography>
                                 <Typography variant="body2" sx={{ fontWeight: 500, color: 'primary.main', fontSize: '0.9rem' }}>
-                                  {fCurrency(commitment?.originalAmount || commitment?.amount || 0)}
+                                  {fCurrency(
+                                    originalCommitment?.baseAmount ||      // Valor base original sin IVA
+                                    commitment?.originalCommitmentAmount || // Fallback 1
+                                    originalCommitment?.amount ||          // Fallback 2
+                                    0
+                                  )}
                                 </Typography>
                               </Box>
                             </Grid>
 
-                            {/* Intereses generales - SIEMPRE MOSTRAR */}
+                            {/* Intereses - Del pago específico */}
                             <Grid item xs={12} sm={6}>
                               <Box sx={{ 
                                 display: 'flex', 
@@ -1237,13 +1268,13 @@ const PaymentReceiptViewer = ({
                                   Intereses
                                 </Typography>
                                 <Typography variant="body2" sx={{ fontWeight: 500, color: 'error.main', fontSize: '0.9rem' }}>
-                                  {fCurrency(commitment?.interests || 0)}
+                                  {fCurrency(commitment?.intereses || commitment?.interests || 0)}
                                 </Typography>
                               </Box>
                             </Grid>
 
-                            {/* IVA - Mostrar si existe */}
-                            {(commitment?.iva > 0 || originalCommitment?.iva > 0) && (
+                            {/* IVA - Del compromiso original */}
+                            {originalCommitment?.iva > 0 && (
                               <Grid item xs={12} sm={6}>
                                 <Box sx={{ 
                                   display: 'flex', 
@@ -1259,7 +1290,7 @@ const PaymentReceiptViewer = ({
                                     IVA
                                   </Typography>
                                   <Typography variant="body2" sx={{ fontWeight: 500, color: 'warning.main', fontSize: '0.9rem' }}>
-                                    {fCurrency(commitment?.iva || originalCommitment?.iva || 0)}
+                                    {fCurrency(originalCommitment?.iva || 0)}
                                   </Typography>
                                 </Box>
                               </Grid>

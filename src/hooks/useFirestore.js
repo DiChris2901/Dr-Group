@@ -191,6 +191,36 @@ export const usePayments = (filters = {}) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // Si shouldLoadData es false, cargar solo datos para poblar los filtros (primeros 50 registros)
+    if (filters.shouldLoadData === false) {
+      let q = query(collection(db, 'payments'), orderBy('date', 'desc'), limit(50));
+      
+      const unsubscribe = onSnapshot(q, 
+        (snapshot) => {
+          const sampleData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            date: doc.data().date?.toDate ? doc.data().date.toDate() : new Date(doc.data().date),
+            amount: parseFloat(doc.data().amount) || 0
+          }));
+          
+          // Filtrar registros automáticos de 4x1000 en el cliente para la muestra
+          const filteredSample = sampleData.filter(payment => 
+            !payment.is4x1000Tax && !payment.isAutomatic
+          );
+          
+          setPayments(filteredSample);
+          setLoading(false);
+        },
+        (err) => {
+          setError(err.message);
+          setLoading(false);
+        }
+      );
+      
+      return () => unsubscribe();
+    }
+
     let q = collection(db, 'payments');
     
     // Aplicar filtros (sin filtro de 4x1000 en query)
@@ -229,7 +259,7 @@ export const usePayments = (filters = {}) => {
     );
 
     return unsubscribe;
-  }, [filters.company, filters.status]); // Solo dependencias específicas
+  }, [filters.company, filters.status, filters.shouldLoadData]); // Solo dependencias específicas
 
   const addPayment = async (paymentData) => {
     try {

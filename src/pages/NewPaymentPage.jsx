@@ -1006,6 +1006,8 @@ const NewPaymentPage = () => {
         commitmentId: selectedCommitment.id,
         companyName: selectedCommitment.companyName || selectedCommitment.company || 'Sin empresa',
         concept: selectedCommitment.name || selectedCommitment.concept || selectedCommitment.description || 'Sin concepto',
+        provider: selectedCommitment.provider || selectedCommitment.beneficiary || '',
+        beneficiary: selectedCommitment.beneficiary || selectedCommitment.provider || '',
         amount: formData.finalAmount || 0,
         originalAmount: formData.originalAmount || 0,
         interests: formData.interests || 0,  // Intereses generales (sin Coljuegos)

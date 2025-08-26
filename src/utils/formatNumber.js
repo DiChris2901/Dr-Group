@@ -61,7 +61,7 @@ export function fCurrency(num) {
     style: 'currency',
     currency: 'COP',
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0
+    maximumFractionDigits: 2
   }).format(number);
 }
 

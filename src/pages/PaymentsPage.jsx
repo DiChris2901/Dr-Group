@@ -47,7 +47,9 @@ import {
   Add as AddIcon,
   AttachMoney as MoneyIcon,
   Search as SearchIcon,
-  FilterList as FilterIcon,
+  FilterList,
+  Business,
+  Receipt,
   Receipt as ReceiptIcon,
   TrendingUp as TrendingUpIcon,
   CheckCircle as CheckIcon,
@@ -82,6 +84,7 @@ import {
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
+import PaymentsFilters from '../components/payments/PaymentsFilters';
 import { useNavigate } from 'react-router-dom';
 import { PDFDocument } from 'pdf-lib';
 
@@ -89,7 +92,7 @@ import { PDFDocument } from 'pdf-lib';
 // Nota: Los colores dinámicos se deben leer del theme de MUI
 
 // Hook para cargar pagos desde Firebase
-import { usePayments } from '../hooks/useFirestore';
+import { usePayments, useCommitments } from '../hooks/useFirestore';
 // Firebase para manejo de archivos y Firestore
 import { doc, updateDoc, getDoc, deleteDoc, collection, query, orderBy, onSnapshot, addDoc, getDocs, where, deleteField } from 'firebase/firestore';
 import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -115,7 +118,17 @@ const PaymentsPage = () => {
   const [companyFilter, setCompanyFilter] = useState('all'); // Filtro por empresa
   const [conceptFilter, setConceptFilter] = useState('all'); // Filtro por concepto
   const [beneficiaryFilter, setBeneficiaryFilter] = useState('all'); // Filtro por beneficiario/proveedor
-  const [show4x1000, setShow4x1000] = useState(true); // Filtro para mostrar/ocultar 4x1000
+  
+  // ✅ NUEVOS ESTADOS PARA SISTEMA DE FILTROS APLICADOS
+  const [appliedFilters, setAppliedFilters] = useState({
+    searchTerm: '',
+    companyFilter: 'all',
+    statusFilter: 'all',
+    conceptFilter: 'all',
+    beneficiaryFilter: 'all',
+    receiptsFilter: 'all'
+  });
+  const [filtersApplied, setFiltersApplied] = useState(false);
   
   // Estados para el visor de comprobantes
   const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
@@ -345,8 +358,16 @@ const PaymentsPage = () => {
   // Estados para notificaciones
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-  // Cargar pagos reales desde Firebase
-  const { payments: firebasePayments, loading, error } = usePayments({ status: statusFilter !== 'all' ? statusFilter : undefined });
+  // Cargar pagos reales desde Firebase - usar filtros aplicados
+  const { payments: firebasePayments, loading, error } = usePayments({ 
+    status: appliedFilters.statusFilter !== 'all' ? appliedFilters.statusFilter : undefined,
+    shouldLoadData: true // Siempre cargar datos para poblar los filtros
+  });
+
+  // Cargar compromisos para obtener beneficiarios de pagos que no los tengan
+  const { commitments: firebaseCommitments } = useCommitments({ 
+    shouldLoadData: true 
+  });
 
   // Función de refresh manual
   const [refreshing, setRefreshing] = useState(false);
@@ -356,6 +377,89 @@ const PaymentsPage = () => {
     setTimeout(() => {
       setRefreshing(false);
     }, 1000);
+  };
+
+  // Exponer función temporal de actualización en consola (solo en desarrollo)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      window.updatePaymentsWithBeneficiaries = async () => {
+        console.log('� Ejecutando actualización de beneficiarios...');
+        try {
+          const paymentsQuery = query(collection(db, 'payments'));
+          const paymentsSnapshot = await getDocs(paymentsQuery);
+          let updateCount = 0;
+          
+          for (const paymentDoc of paymentsSnapshot.docs) {
+            const payment = paymentDoc.data();
+            if (payment.provider || payment.beneficiary || !payment.commitmentId) continue;
+            
+            const commitmentDoc = await getDoc(doc(db, 'commitments', payment.commitmentId));
+            if (!commitmentDoc.exists()) continue;
+            
+            const commitment = commitmentDoc.data();
+            const provider = commitment.provider || commitment.beneficiary || '';
+            const beneficiary = commitment.beneficiary || commitment.provider || '';
+            
+            if (provider || beneficiary) {
+              await updateDoc(doc(db, 'payments', paymentDoc.id), {
+                provider: provider,
+                beneficiary: beneficiary,
+                updatedAt: new Date()
+              });
+              updateCount++;
+            }
+          }
+          
+          console.log(`✅ Actualizados ${updateCount} pagos`);
+          return updateCount;
+        } catch (error) {
+          console.error('❌ Error:', error);
+          return 0;
+        }
+      };
+    }
+  }, []);
+
+  // ✅ NUEVAS FUNCIONES PARA SISTEMA DE FILTROS APLICADOS
+  const handleApplyFilters = () => {
+    setAppliedFilters({
+      searchTerm,
+      companyFilter,
+      statusFilter,
+      conceptFilter,
+      beneficiaryFilter,
+      receiptsFilter
+    });
+    setFiltersApplied(true);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setCompanyFilter('all');
+    setStatusFilter('all');
+    setConceptFilter('all');
+    setBeneficiaryFilter('all');
+    setReceiptsFilter('all');
+    setAppliedFilters({
+      searchTerm: '',
+      companyFilter: 'all',
+      statusFilter: 'all',
+      conceptFilter: 'all',
+      beneficiaryFilter: 'all',
+      receiptsFilter: 'all'
+    });
+    setFiltersApplied(false);
+  };
+
+  const hasFiltersChanged = () => {
+    return (
+      appliedFilters.searchTerm !== searchTerm ||
+      appliedFilters.companyFilter !== companyFilter ||
+      appliedFilters.statusFilter !== statusFilter ||
+      appliedFilters.conceptFilter !== conceptFilter ||
+      appliedFilters.beneficiaryFilter !== beneficiaryFilter ||
+      appliedFilters.receiptsFilter !== receiptsFilter
+    );
   };
 
   // Usar solo datos reales de Firebase
@@ -413,12 +517,12 @@ const PaymentsPage = () => {
     }
   };
 
-  // Filtrar pagos por término de búsqueda y comprobantes
-  const filteredPayments = payments.filter(payment => {
+  // Filtrar pagos usando filtros aplicados - Solo mostrar datos si hay filtros aplicados
+  const filteredPayments = !filtersApplied ? [] : payments.filter(payment => {
     // Filtro por búsqueda
     let matchesSearch = true;
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
+    if (appliedFilters.searchTerm) {
+      const searchLower = appliedFilters.searchTerm.toLowerCase();
       matchesSearch = (
         payment.companyName?.toLowerCase().includes(searchLower) ||
         payment.concept?.toLowerCase().includes(searchLower) ||
@@ -431,55 +535,76 @@ const PaymentsPage = () => {
     
     // Filtro por empresa
     let matchesCompany = true;
-    if (companyFilter !== 'all') {
-      matchesCompany = payment.companyName === companyFilter;
+    if (appliedFilters.companyFilter !== 'all') {
+      matchesCompany = payment.companyName === appliedFilters.companyFilter;
     }
     
     // Filtro por concepto
     let matchesConcept = true;
-    if (conceptFilter !== 'all') {
-      matchesConcept = payment.concept === conceptFilter;
+    if (appliedFilters.conceptFilter !== 'all') {
+      matchesConcept = payment.concept === appliedFilters.conceptFilter;
     }
     
     // Filtro por beneficiario/proveedor
     let matchesBeneficiary = true;
-    if (beneficiaryFilter !== 'all') {
-      matchesBeneficiary = (payment.provider === beneficiaryFilter) || 
-                          (payment.beneficiary === beneficiaryFilter);
+    if (appliedFilters.beneficiaryFilter !== 'all') {
+      // Obtener todos los valores posibles del pago y del compromiso relacionado
+      const paymentProvider = payment.provider?.trim() || '';
+      const paymentBeneficiary = payment.beneficiary?.trim() || '';
+      const filterValue = appliedFilters.beneficiaryFilter.trim();
+      
+      // Buscar en ambos campos del pago
+      matchesBeneficiary = (paymentProvider === filterValue) || 
+                          (paymentBeneficiary === filterValue);
+      
+      // Si no encuentra match en el pago, buscar en el compromiso relacionado
+      if (!matchesBeneficiary && payment.commitmentId && firebaseCommitments?.length > 0) {
+        // Buscar el compromiso para obtener el beneficiario original
+        const relatedCommitment = firebaseCommitments.find(c => c.id === payment.commitmentId);
+        if (relatedCommitment) {
+          const commitmentProvider = relatedCommitment.provider?.trim() || '';
+          const commitmentBeneficiary = relatedCommitment.beneficiary?.trim() || '';
+          matchesBeneficiary = (commitmentProvider === filterValue) || 
+                              (commitmentBeneficiary === filterValue);
+        }
+      }
+      
+      // Debug temporal
+      console.log('Filtro beneficiario detallado:', {
+        filterValue,
+        paymentProvider,
+        paymentBeneficiary,
+        matchesBeneficiary,
+        paymentId: payment.id
+      });
     }
     
     // Filtro por estado
     let matchesStatus = true;
-    if (statusFilter !== 'all') {
+    if (appliedFilters.statusFilter !== 'all') {
       const paymentStatus = payment.status?.toLowerCase();
       matchesStatus = (
-        (statusFilter === 'completed' && (paymentStatus === 'completado' || paymentStatus === 'completed')) ||
-        (statusFilter === 'pending' && (paymentStatus === 'pendiente' || paymentStatus === 'pending')) ||
-        (statusFilter === 'failed' && (paymentStatus === 'fallido' || paymentStatus === 'failed'))
+        (appliedFilters.statusFilter === 'completed' && (paymentStatus === 'completado' || paymentStatus === 'completed')) ||
+        (appliedFilters.statusFilter === 'pending' && (paymentStatus === 'pendiente' || paymentStatus === 'pending')) ||
+        (appliedFilters.statusFilter === 'failed' && (paymentStatus === 'fallido' || paymentStatus === 'failed'))
       );
     }
     
     // Filtro por comprobantes
     let matchesReceipts = true;
-    if (receiptsFilter !== 'all') {
+    if (appliedFilters.receiptsFilter !== 'all') {
       const hasReceipts = !!(
         payment.receiptUrl || 
         (payment.receiptUrls && payment.receiptUrls.length > 0) ||
         (payment.attachments && payment.attachments.length > 0)
       );
       
-      matchesReceipts = (receiptsFilter === 'with' && hasReceipts) || 
-                       (receiptsFilter === 'without' && !hasReceipts);
-    }
-    
-    // Filtro para mostrar/ocultar registros del 4x1000
-    let matches4x1000Filter = true;
-    if (!show4x1000) {
-      matches4x1000Filter = !payment.is4x1000Tax; // Ocultar registros del 4x1000
+      matchesReceipts = (appliedFilters.receiptsFilter === 'with' && hasReceipts) || 
+                       (appliedFilters.receiptsFilter === 'without' && !hasReceipts);
     }
     
     return matchesSearch && matchesCompany && matchesConcept && 
-           matchesBeneficiary && matchesStatus && matchesReceipts && matches4x1000Filter;
+           matchesBeneficiary && matchesStatus && matchesReceipts;
   });
 
   // Calcular estadísticas de pagos
@@ -532,17 +657,51 @@ const PaymentsPage = () => {
         .filter(concept => concept && concept.trim() !== '')
       )].sort();
       
-      // Extraer beneficiarios/proveedores únicos
+      // Extraer beneficiarios/proveedores únicos (incluyendo desde compromisos)
       const beneficiaries = [...new Set(payments
-        .map(p => p.provider || p.beneficiary)
-        .filter(provider => provider && provider.trim() !== '')
+        .flatMap(p => {
+          const values = [];
+          // Datos directos del pago
+          if (p.provider && p.provider.trim() !== '') values.push(p.provider);
+          if (p.beneficiary && p.beneficiary.trim() !== '') values.push(p.beneficiary);
+          
+          // Si el pago tiene un commitmentId, buscar el compromiso relacionado
+          if (p.commitmentId && firebaseCommitments?.length > 0) {
+            const relatedCommitment = firebaseCommitments.find(commitment => commitment.id === p.commitmentId);
+            if (relatedCommitment) {
+              if (relatedCommitment.provider && relatedCommitment.provider.trim() !== '') {
+                values.push(relatedCommitment.provider);
+              }
+              if (relatedCommitment.beneficiary && relatedCommitment.beneficiary.trim() !== '') {
+                values.push(relatedCommitment.beneficiary);
+              }
+            }
+          }
+          
+          return values;
+        })
+        .filter(value => value && value.trim() !== '')
       )].sort();
+      
+      // Debug temporal
+      console.log('Beneficiarios únicos encontrados:', beneficiaries);
+      console.log('Pagos con datos de proveedor/beneficiario:', payments.map(p => ({
+        id: p.id,
+        provider: p.provider,
+        beneficiary: p.beneficiary,
+        commitmentId: p.commitmentId
+      })));
       
       setUniqueCompanies(companies);
       setUniqueConcepts(concepts);
       setUniqueBeneficiaries(beneficiaries);
+    } else {
+      // Limpiar listas cuando no hay datos
+      setUniqueCompanies([]);
+      setUniqueConcepts([]);
+      setUniqueBeneficiaries([]);
     }
-  }, [payments]);
+  }, [payments, firebaseCommitments]);
 
   // Cargar empresas con cuentas bancarias
   useEffect(() => {
@@ -2106,163 +2265,101 @@ const PaymentsPage = () => {
             ))}
           </Grid>
 
-          {/* FILTROS COMPACTOS */}
-          <motion.div {...fadeUp}>
-            <Paper sx={{ 
-              p: 1.5, 
-              borderRadius: 2, 
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
-            }}>
-              {/* Una sola fila con todos los filtros - Barra expandible */}
-              <Box sx={{ 
-                display:'flex', 
-                gap: 1.5, 
-                alignItems:'center',
-                width: '100%'
-              }}>
-                <Box sx={{ 
-                  flex: 1, 
-                  display:'flex', 
-                  alignItems:'center', 
-                  gap: 1, 
-                  px: 1.2, 
-                  py: 0.6, 
-                  borderRadius: 1, 
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`, 
-                  backgroundColor: 'background.default' 
-                }}>
-                  <SearchIcon fontSize="small" sx={{ color:'text.secondary', fontSize: 18 }} />
-                  <InputBase 
-                    placeholder="Buscar pagos..." 
-                    value={searchTerm} 
-                    onChange={e=>setSearchTerm(e.target.value)} 
-                    sx={{ 
-                      flex:1, 
-                      fontSize: '0.8rem',
-                      '& input::placeholder': {
-                        fontSize: '0.8rem'
-                      }
-                    }} 
-                  />
-                </Box>
-                <FormControl size="small" sx={{ flex: '0 0 130px' }}>
-                  <InputLabel sx={{ fontSize: '0.8rem' }}>Empresa</InputLabel>
-                  <Select 
-                    value={companyFilter} 
-                    onChange={e=>setCompanyFilter(e.target.value)} 
-                    label="Empresa" 
-                    sx={{ 
-                      borderRadius: 0.5,
-                      fontSize: '0.8rem',
-                      height: 36
-                    }}
-                  >
-                    <MenuItem value="all" sx={{ fontSize: '0.8rem' }}>Todas</MenuItem>
-                    {uniqueCompanies.map(company => (
-                      <MenuItem key={company} value={company} sx={{ fontSize: '0.8rem' }}>
-                        {company}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <FormControl size="small" sx={{ flex: '0 0 140px' }}>
-                  <InputLabel sx={{ fontSize: '0.8rem' }}>Concepto</InputLabel>
-                  <Select 
-                    value={conceptFilter} 
-                    onChange={e=>setConceptFilter(e.target.value)} 
-                    label="Concepto" 
-                    sx={{ 
-                      borderRadius: 0.5,
-                      fontSize: '0.8rem',
-                      height: 36
-                    }}
-                  >
-                    <MenuItem value="all" sx={{ fontSize: '0.8rem' }}>Todos</MenuItem>
-                    {uniqueConcepts.map(concept => (
-                      <MenuItem key={concept} value={concept} sx={{ fontSize: '0.8rem' }}>
-                        {concept}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <FormControl size="small" sx={{ flex: '0 0 140px' }}>
-                  <InputLabel sx={{ fontSize: '0.8rem' }}>Beneficiario</InputLabel>
-                  <Select 
-                    value={beneficiaryFilter} 
-                    onChange={e=>setBeneficiaryFilter(e.target.value)} 
-                    label="Beneficiario" 
-                    sx={{ 
-                      borderRadius: 0.5,
-                      fontSize: '0.8rem',
-                      height: 36
-                    }}
-                  >
-                    <MenuItem value="all" sx={{ fontSize: '0.8rem' }}>Todos</MenuItem>
-                    {uniqueBeneficiaries.map(beneficiary => (
-                      <MenuItem key={beneficiary} value={beneficiary} sx={{ fontSize: '0.8rem' }}>
-                        {beneficiary}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <FormControl size="small" sx={{ flex: '0 0 120px' }}>
-                  <InputLabel sx={{ fontSize: '0.8rem' }}>Estado</InputLabel>
-                  <Select 
-                    value={statusFilter} 
-                    onChange={e=>setStatusFilter(e.target.value)} 
-                    label="Estado" 
-                    sx={{ 
-                      borderRadius: 0.5,
-                      fontSize: '0.8rem',
-                      height: 36
-                    }}
-                  >
-                    <MenuItem value="all" sx={{ fontSize: '0.8rem' }}>Todos</MenuItem>
-                    <MenuItem value="completed" sx={{ fontSize: '0.8rem' }}>Completados</MenuItem>
-                    <MenuItem value="pending" sx={{ fontSize: '0.8rem' }}>Pendientes</MenuItem>
-                    <MenuItem value="failed" sx={{ fontSize: '0.8rem' }}>Fallidos</MenuItem>
-                  </Select>
-                </FormControl>
-                <FormControl size="small" sx={{ flex: '0 0 140px' }}>
-                  <InputLabel sx={{ fontSize: '0.8rem' }}>Comprobantes</InputLabel>
-                  <Select 
-                    value={receiptsFilter} 
-                    onChange={e=>setReceiptsFilter(e.target.value)} 
-                    label="Comprobantes" 
-                    sx={{ 
-                      borderRadius: 0.5,
-                      fontSize: '0.8rem',
-                      height: 36
-                    }}
-                  >
-                    <MenuItem value="all" sx={{ fontSize: '0.8rem' }}>Todos</MenuItem>
-                    <MenuItem value="with" sx={{ fontSize: '0.8rem' }}>Con comprobantes</MenuItem>
-                    <MenuItem value="without" sx={{ fontSize: '0.8rem' }}>Sin comprobantes</MenuItem>
-                  </Select>
-                </FormControl>
-                <Button 
-                  variant="contained" 
-                  startIcon={<AddIcon />} 
-                  onClick={()=>navigate('/payments/new')} 
-                  sx={{ 
-                    borderRadius: 0.5, 
-                    fontWeight: 600,
-                    textTransform:'none', 
-                    px: 2,
-                    fontSize: '0.8rem',
-                    height: 36,
-                    flex: '0 0 auto',
-                    whiteSpace: 'nowrap'
+          {/* COMPONENTE DE FILTROS */}
+          <PaymentsFilters
+            searchTerm={searchTerm}
+            companyFilter={companyFilter}
+            statusFilter={statusFilter}
+            conceptFilter={conceptFilter}
+            beneficiaryFilter={beneficiaryFilter}
+            receiptsFilter={receiptsFilter}
+            onSearchChange={setSearchTerm}
+            onCompanyChange={setCompanyFilter}
+            onStatusChange={setStatusFilter}
+            onConceptChange={setConceptFilter}
+            onBeneficiaryChange={setBeneficiaryFilter}
+            onReceiptsChange={setReceiptsFilter}
+            onApplyFilters={handleApplyFilters}
+            onClearFilters={handleClearFilters}
+            hasFiltersChanged={hasFiltersChanged()}
+            filtersApplied={filtersApplied}
+            uniqueCompanies={uniqueCompanies}
+            uniqueConcepts={uniqueConcepts}
+            uniqueBeneficiaries={uniqueBeneficiaries}
+          />
+
+          {/* ESTADO VACÍO CUANDO NO HAY FILTROS APLICADOS */}
+          {!filtersApplied && (
+            <motion.div {...fadeUp}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  py: 8,
+                  px: 4,
+                  textAlign: 'center',
+                  background: theme.palette.mode === 'dark'
+                    ? `linear-gradient(145deg, ${alpha(theme.palette.background.paper, 0.4)} 0%, ${alpha(theme.palette.background.paper, 0.8)} 100%)`
+                    : `linear-gradient(145deg, ${alpha('#ffffff', 0.6)} 0%, ${alpha('#f8fafc', 0.9)} 100%)`,
+                  borderRadius: 3,
+                  border: `2px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
+                  backdropFilter: 'blur(10px)'
+                }}
+              >
+                <Box
+                  sx={{
+                    p: 2,
+                    borderRadius: '50%',
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+                    mb: 3
                   }}
                 >
-                  Nuevo Pago
-                </Button>
+                  <FilterList sx={{ fontSize: 48, color: theme.palette.primary.main }} />
+                </Box>
+                <Typography
+                  variant="h5"
+                  fontWeight="700"
+                  color="text.primary"
+                  gutterBottom
+                >
+                  Configura tus filtros
+                </Typography>
+                <Typography
+                  variant="body1"
+                  color="text.secondary"
+                  sx={{ maxWidth: 500, mb: 3 }}
+                >
+                  Para comenzar, configura los filtros de búsqueda y luego haz clic en "Aplicar Filtros" 
+                  para cargar los pagos que coincidan con tus criterios.
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                  <Chip
+                    icon={<Business />}
+                    label="Filtra por empresa"
+                    variant="outlined"
+                    color="primary"
+                  />
+                  <Chip
+                    icon={<SearchIcon />}
+                    label="Busca por término"
+                    variant="outlined"
+                    color="primary"
+                  />
+                  <Chip
+                    icon={<Receipt />}
+                    label="Filtra por comprobantes"
+                    variant="outlined"
+                    color="primary"
+                  />
+                </Box>
               </Box>
-            </Paper>
-          </motion.div>
+            </motion.div>
+          )}
 
-          {/* TABLA ESTILO COMMITMENTS LIST */}
+          {/* TABLA ESTILO COMMITMENTS LIST - Solo mostrar si hay filtros aplicados */}
+          {filtersApplied && (
           <motion.div {...fadeUp}>
             <Box sx={{
               border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
@@ -2559,9 +2656,10 @@ const PaymentsPage = () => {
               </Box>
             </Box>
           </motion.div>
+          )}
                 
-          {/* PAGINACIÓN SEPARADA ESTILO COMMITMENTS */}
-          {filteredPayments.length > 0 && (
+          {/* PAGINACIÓN SEPARADA ESTILO COMMITMENTS - Solo mostrar si hay filtros aplicados */}
+          {filtersApplied && filteredPayments.length > 0 && (
             <Box sx={{ 
               display: 'flex', 
               flexDirection: { xs: 'column', sm: 'row' },
@@ -2828,12 +2926,19 @@ const PaymentsPage = () => {
           sourceAccount: selectedPayment.sourceAccount,
           sourceBank: selectedPayment.sourceBank,
           // CAMPOS ESPECÍFICOS DE COLJUEGOS
-          originalAmount: selectedPayment.originalAmount,
+          originalAmount: selectedPayment.originalAmount > 100000000 ? 
+            (selectedPayment.originalAmount / 100) : selectedPayment.originalAmount,
           interests: selectedPayment.interests,
           interesesDerechosExplotacion: selectedPayment.interesesDerechosExplotacion,
           interesesGastosAdministracion: selectedPayment.interesesGastosAdministracion,
           derechosExplotacion: selectedPayment.derechosExplotacion,
-          gastosAdministracion: selectedPayment.gastosAdministracion
+          gastosAdministracion: selectedPayment.gastosAdministracion,
+          // CAMPOS ESPECÍFICOS DE PAGOS PARCIALES
+          isPartialPayment: selectedPayment.isPartialPayment,
+          originalCommitmentAmount: selectedPayment.originalCommitmentAmount,
+          remainingBalanceBefore: selectedPayment.remainingBalanceBefore,
+          remainingBalanceAfter: selectedPayment.remainingBalanceAfter,
+          partialPaymentAmount: selectedPayment.partialPaymentAmount
         } : null}
       />
 
