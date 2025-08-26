@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { fCurrency } from '../utils/formatNumber';
 import {
   Box,
   Paper,
@@ -1187,11 +1188,19 @@ const PaymentsPage = () => {
     // Determinar si es Coljuegos para mostrar campos específicos
     const isColjuegos = isColjuegosCommitment(commitment);
     
+    // 🔍 DEBUG VALORES EXACTOS COMO EN EL MODAL
+    console.log('🔍 PAYMENT FORM DEBUG - commitmentData:', commitment);
+    console.log('🔍 baseAmount:', commitment?.baseAmount);
+    console.log('🔍 iva:', commitment?.iva);
+    console.log('🔍 amount:', commitment?.amount);
+    console.log('🔍 originalCommitmentAmount:', payment.originalCommitmentAmount);
+    
+    // Crear copia del pago para trabajar
+    let correctedPayment = { ...payment };
+    
     // 🔧 CORRECCIÓN AUTOMÁTICA DESACTIVADA TEMPORALMENTE
     // (Se puede reactivar más adelante si es necesario)
     /*
-    let correctedPayment = { ...payment };
-    
     // Si es un pago de Coljuegos pero los campos específicos están en 0 o undefined
     if (isColjuegos && (!payment.interesesDerechosExplotacion && !payment.interesesGastosAdministracion) && payment.interests > 0) {
       console.log('🔧 Detectado pago Coljuegos sin campos separados. Aplicando corrección automática...');
@@ -1238,34 +1247,40 @@ const PaymentsPage = () => {
     }
     */
     
-    // Usar datos originales sin corrección automática
-    let correctedPayment = { ...payment };
-    
+    // === LÓGICA ALINEADA CON PaymentReceiptViewer ===
+    const baseOriginal = (
+      commitment?.baseAmount ||
+      correctedPayment.originalCommitmentAmount ||
+      commitment?.originalAmount ||
+      commitment?.amount ||
+      correctedPayment.originalAmount ||
+      0
+    );
+    const ivaOriginal = commitment?.iva || 0;
+    const interesesNormales = isColjuegos ? 0 : (commitment?.intereses || commitment?.interests || correctedPayment.intereses || correctedPayment.interests || 0);
+
     setEditFormData({
       concept: correctedPayment.concept || '',
-      amount: formatCurrency(correctedPayment.amount || ''),
+      amount: fCurrency(correctedPayment.amount || 0),
       method: correctedPayment.method || '',
       notes: correctedPayment.notes || '',
       reference: correctedPayment.reference || '',
       companyName: correctedPayment.companyName || '',
       provider: providerName,
-      interests: isColjuegos ? '' : formatCurrency(correctedPayment.interests ?? 0),
-      interesesDerechosExplotacion: isColjuegos ? formatCurrency(correctedPayment.interesesDerechosExplotacion ?? 0) : '',
-      interesesGastosAdministracion: isColjuegos ? formatCurrency(correctedPayment.interesesGastosAdministracion ?? 0) : '',
-      // CARGAR VALORES BASE: primero del pago, si no están, del compromiso
-      derechosExplotacion: isColjuegos ? formatCurrency(correctedPayment.derechosExplotacion ?? commitment?.derechosExplotacion ?? 0) : '',
-      gastosAdministracion: isColjuegos ? formatCurrency(correctedPayment.gastosAdministracion ?? commitment?.gastosAdministracion ?? 0) : '',
-      // Para Coljuegos, usar originalAmount corregido si está disponible
-      originalAmount: isColjuegos 
-        ? formatCurrency(correctedPayment.originalAmount ?? (correctedPayment.amount - (correctedPayment.interesesDerechosExplotacion ?? 0) - (correctedPayment.interesesGastosAdministracion ?? 0)))
-        : formatCurrency(correctedPayment.originalAmount ?? correctedPayment.amount ?? 0),
+      interests: isColjuegos ? '' : fCurrency(interesesNormales),
+      interesesDerechosExplotacion: isColjuegos ? fCurrency(correctedPayment.interesesDerechosExplotacion ?? commitment?.interesesDerechosExplotacion ?? 0) : '',
+      interesesGastosAdministracion: isColjuegos ? fCurrency(correctedPayment.interesesGastosAdministracion ?? commitment?.interesesGastosAdministracion ?? 0) : '',
+      derechosExplotacion: isColjuegos ? fCurrency(correctedPayment.derechosExplotacion ?? commitment?.derechosExplotacion ?? 0) : '',
+      gastosAdministracion: isColjuegos ? fCurrency(correctedPayment.gastosAdministracion ?? commitment?.gastosAdministracion ?? 0) : '',
+      originalAmount: fCurrency(baseOriginal + ivaOriginal), // Monto original (base + IVA)
+      baseOriginal: fCurrency(baseOriginal),
+      ivaOriginal: fCurrency(ivaOriginal),
       sourceAccount: correctedPayment.sourceAccount || '',
       sourceBank: correctedPayment.sourceBank || '',
       date: formatDateForInput(correctedPayment.date),
-      // Calcular 4x1000 inicial
       tax4x1000: calculate4x1000Visual(
-        correctedPayment.amount || 0, 
-        correctedPayment.method || '', 
+        correctedPayment.amount || 0,
+        correctedPayment.method || '',
         correctedPayment.sourceAccount || ''
       )
     });
@@ -1800,6 +1815,8 @@ const PaymentsPage = () => {
     // Aplicar formato con puntos separadores de miles
     return cleanValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   };
+
+  // Eliminadas funciones de normalización experimental. Usamos datos exactos + fCurrency.
 
   // Función para limpiar formato de moneda (remover puntos)
   const cleanCurrency = (value) => {
@@ -2657,7 +2674,7 @@ const PaymentsPage = () => {
             </Box>
           </motion.div>
           )}
-                
+
           {/* PAGINACIÓN SEPARADA ESTILO COMMITMENTS - Solo mostrar si hay filtros aplicados */}
           {filtersApplied && filteredPayments.length > 0 && (
             <Box sx={{ 
@@ -2926,8 +2943,7 @@ const PaymentsPage = () => {
           sourceAccount: selectedPayment.sourceAccount,
           sourceBank: selectedPayment.sourceBank,
           // CAMPOS ESPECÍFICOS DE COLJUEGOS
-          originalAmount: selectedPayment.originalAmount > 100000000 ? 
-            (selectedPayment.originalAmount / 100) : selectedPayment.originalAmount,
+          originalAmount: selectedPayment.originalAmount,
           interests: selectedPayment.interests,
           interesesDerechosExplotacion: selectedPayment.interesesDerechosExplotacion,
           interesesGastosAdministracion: selectedPayment.interesesGastosAdministracion,
@@ -3172,7 +3188,7 @@ const PaymentsPage = () => {
                           </Typography>
                         )
                       }}
-                      helperText="Monto base del compromiso"
+                      helperText="Monto total original (base + impuestos)"
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 1.5,
@@ -3185,6 +3201,39 @@ const PaymentsPage = () => {
                           '&.Mui-focused': {
                             transform: 'translateY(-1px)',
                             boxShadow: `0 0 0 2px ${primaryColor}20`,
+                          }
+                        }
+                      }}
+                    />
+
+                    {/* NUEVO CAMPO: Solo Valor Base Original para Coljuegos */}
+                    <TextField
+                      label="Valor Base Original"
+                      type="text"
+                      fullWidth
+                      value={commitmentData?.baseAmount !== undefined ? fCurrency(commitmentData.baseAmount) : ''}
+                      variant="outlined"
+                      disabled
+                      InputProps={{
+                        startAdornment: (
+                          <Typography sx={{ 
+                            mr: 1, 
+                            color: theme.palette.primary.main, 
+                            fontWeight: 600,
+                            fontSize: '1rem'
+                          }}>
+                            $
+                          </Typography>
+                        )
+                      }}
+                      helperText="Valor base sin impuestos - Coljuegos"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1.5,
+                          backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                          '& input': {
+                            color: theme.palette.primary.main,
+                            fontWeight: 600
                           }
                         }
                       }}
@@ -3371,7 +3420,7 @@ const PaymentsPage = () => {
                           </Typography>
                         )
                       }}
-                      helperText="Monto base del compromiso"
+                      helperText="Monto total original (base + impuestos)"
                       sx={{
                         '& .MuiOutlinedInput-root': {
                           borderRadius: 1,
@@ -3403,6 +3452,149 @@ const PaymentsPage = () => {
                         }
                       }}
                     />
+
+                    {/* CAMPOS PARA COMPROMISOS REGULARES */}
+                    <Stack direction="row" spacing={2}>
+                      <TextField
+                        label="Valor Base Original"
+                        type="text"
+                        fullWidth
+                        value={commitmentData?.baseAmount !== undefined ? fCurrency(commitmentData.baseAmount) : ''}
+                        variant="outlined"
+                        disabled
+                        InputProps={{
+                          startAdornment: (
+                            <Typography sx={{ 
+                              mr: 1, 
+                              color: theme.palette.primary.main, 
+                              fontWeight: 600,
+                              fontSize: '1rem'
+                            }}>
+                              $
+                            </Typography>
+                          )
+                        }}
+                        helperText="Valor base sin impuestos"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1.5,
+                            backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                            '& input': {
+                              color: theme.palette.primary.main,
+                              fontWeight: 600
+                            }
+                          }
+                        }}
+                      />
+
+                      {/* IVA Original - Solo mostrar si existe, como en el modal de vista */}
+                      {commitmentData?.iva > 0 && (
+                        <TextField
+                          label="IVA Original"
+                          type="text"
+                          fullWidth
+                          value={
+                            commitmentData?.iva ? 
+                              fCurrency(commitmentData.iva) : 
+                              ''
+                          }
+                          variant="outlined"
+                          disabled
+                          InputProps={{
+                            startAdornment: (
+                              <Typography sx={{ 
+                                mr: 1, 
+                                color: theme.palette.warning.main, 
+                                fontWeight: 600,
+                                fontSize: '1rem'
+                              }}>
+                                $
+                              </Typography>
+                            )
+                          }}
+                          helperText="IVA del compromiso original"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              backgroundColor: alpha(theme.palette.warning.main, 0.05),
+                              '& input': {
+                                color: theme.palette.warning.main,
+                                fontWeight: 600
+                              }
+                            }
+                          }}
+                        />
+                      )}
+                    </Stack>
+
+                    {/* RETENCIONES (Solo si hasImpuestos = true) */}
+                    {commitmentData?.hasImpuestos && (
+                      <Stack direction="row" spacing={2}>
+                        <TextField
+                          label="Retefuente Original"
+                          type="text"
+                          fullWidth
+                          value={commitmentData?.retefuente ? formatCurrency(commitmentData.retefuente) : ''}
+                          variant="outlined"
+                          disabled
+                          InputProps={{
+                            startAdornment: (
+                              <Typography sx={{ 
+                                mr: 1, 
+                                color: theme.palette.error.main, 
+                                fontWeight: 600,
+                                fontSize: '1rem'
+                              }}>
+                                $
+                              </Typography>
+                            )
+                          }}
+                          helperText="Retefuente del compromiso"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              backgroundColor: alpha(theme.palette.error.main, 0.05),
+                              '& input': {
+                                color: theme.palette.error.main,
+                                fontWeight: 600
+                              }
+                            }
+                          }}
+                        />
+
+                        <TextField
+                          label="Reteica Original"
+                          type="text"
+                          fullWidth
+                          value={commitmentData?.reteica ? formatCurrency(commitmentData.reteica) : ''}
+                          variant="outlined"
+                          disabled
+                          InputProps={{
+                            startAdornment: (
+                              <Typography sx={{ 
+                                mr: 1, 
+                                color: theme.palette.info.main, 
+                                fontWeight: 600,
+                                fontSize: '1rem'
+                              }}>
+                                $
+                              </Typography>
+                            )
+                          }}
+                          helperText="Reteica del compromiso"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 1.5,
+                              backgroundColor: alpha(theme.palette.info.main, 0.05),
+                              '& input': {
+                                color: theme.palette.info.main,
+                                fontWeight: 600
+                              }
+                            }
+                          }}
+                        />
+                      </Stack>
+                    )}
                     
                     <TextField
                       name="amount"
