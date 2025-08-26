@@ -213,7 +213,7 @@ currentPage: 1      // Página seleccionada
 - ✅ **Notificaciones**: Confirmación de pago exitoso con formato de moneda
 
 ### � **DISEÑO SPECTACULAR DEL FORMULARIO DE PAGO**
-- **Header Glassmorphism**: Gradiente azul con ícono de check circular flotante
+- **Header Premium**: Gradiente azul con ícono de check circular flotante (sin glassmorphism)
 - **Monto del Compromiso**: Card destacada con formato de moneda colombiana
 - **Intereses Adicionales**: Input inteligente con símbolo de peso y cálculo automático
 - **Total a Pagar**: Card verde prominente con actualización en tiempo real

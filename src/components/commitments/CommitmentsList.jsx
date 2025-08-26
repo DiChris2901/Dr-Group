@@ -1912,10 +1912,10 @@ const CommitmentsList = ({
           textAlign: 'center',
           py: 4,
           px: 3,
-          backgroundColor: alpha(theme.palette.background.paper, 0.3),
+          backgroundColor: alpha(theme.palette.background.paper, 0.8),
           borderRadius: 2,
-          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-          backdropFilter: 'blur(10px)'
+          border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             {/* Icono compacto */}
@@ -3398,10 +3398,9 @@ const CommitmentsList = ({
         PaperProps={{
           sx: {
             borderRadius: 4,
-            backdropFilter: 'blur(20px)',
             background: theme.palette.mode === 'dark'
-              ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.95) 0%, rgba(50, 50, 50, 0.9) 100%)'
-              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.9) 100%)',
+              ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.98) 0%, rgba(50, 50, 50, 0.95) 100%)'
+              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%)',
             boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
             border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
             overflow: 'hidden',

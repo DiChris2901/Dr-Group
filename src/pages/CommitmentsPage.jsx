@@ -264,15 +264,14 @@ const CommitmentsPage = () => {
                     fontSize: '0.9rem',
                     fontWeight: 600,
                     borderRadius: `${settings.theme?.borderRadius || 16}px`,
-                    background: 'rgba(255, 255, 255, 0.2)',
-                    backdropFilter: 'blur(10px)',
+                    background: 'rgba(255, 255, 255, 0.9)',
                     border: '1px solid rgba(255, 255, 255, 0.3)',
-                    color: 'white',
+                    color: theme.palette.primary.main,
                     textTransform: 'none',
                     boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
-                      background: 'rgba(255, 255, 255, 0.25)',
+                      background: 'rgba(255, 255, 255, 1)',
                       transform: 'translateY(-2px)',
                       boxShadow: '0 6px 20px rgba(0, 0, 0, 0.3)'
                     }
@@ -292,15 +291,14 @@ const CommitmentsPage = () => {
                     fontSize: '0.9rem',
                     fontWeight: 600,
                     borderRadius: `${settings.theme?.borderRadius || 16}px`,
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    backdropFilter: 'blur(10px)',
+                    background: 'rgba(255, 255, 255, 0.9)',
                     border: '2px solid rgba(255, 255, 255, 0.3)',
-                    color: 'white',
+                    color: theme.palette.primary.main,
                     textTransform: 'none',
                     boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
-                      background: 'rgba(255, 255, 255, 0.2)',
+                      background: 'rgba(255, 255, 255, 1)',
                       transform: 'translateY(-2px)',
                       boxShadow: '0 6px 20px rgba(0, 0, 0, 0.2)',
                       border: '2px solid rgba(255, 255, 255, 0.5)'

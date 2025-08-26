@@ -25,7 +25,8 @@ import {
   FormLabel,
   Card,
   CardContent,
-  Divider
+  Divider,
+  useTheme
 } from '@mui/material';
 import {
   CompareArrows as CompareIcon,
@@ -44,7 +45,7 @@ import {
   BALANCED_COMPRESSION, 
   AGGRESSIVE_COMPRESSION 
 } from '../../utils/pdfCompressor';
-import { testPDFCompression } from '../../utils/pdfTestCompression';
+import { useSettings } from '../../context/SettingsContext';
 
 const PDFCompressionPreview = ({ 
   open, 
@@ -53,12 +54,25 @@ const PDFCompressionPreview = ({
   onAccept, 
   onReject 
 }) => {
+  const theme = useTheme();
+  const { settings } = useSettings();
   const [loading, setLoading] = useState(false);
   const [compressionResult, setCompressionResult] = useState(null);
   const [activeTab, setActiveTab] = useState(0);
   const [error, setError] = useState(null);
   const [compressionLevel, setCompressionLevel] = useState('balanced'); // conservative, balanced, aggressive
   const [showLevelSelector, setShowLevelSelector] = useState(true);
+
+  // 🎨 Configuraciones de tema sobrio (como NewCommitmentPage)
+  const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;
+  const secondaryColor = settings?.theme?.secondaryColor || theme.palette.secondary.main;
+  const borderRadius = settings?.theme?.borderRadius || 8;
+  const compactMode = settings?.sidebar?.compactMode || false;
+
+  // Función para obtener gradiente sobrio
+  const getGradientBackground = () => {
+    return `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`;
+  };
 
   // Ejecutar compresión cuando se abre el diálogo
   React.useEffect(() => {
@@ -230,43 +244,96 @@ const PDFCompressionPreview = ({
     <Dialog 
       open={open} 
       onClose={handleClose}
-      maxWidth="md"
+      maxWidth="lg"
       fullWidth
       PaperProps={{
         sx: { 
-          minHeight: '60vh',
-          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)'
+          minHeight: compactMode ? '60vh' : '70vh',
+          borderRadius: `${borderRadius}px`,
+          overflow: 'hidden',
+          backgroundColor: theme.palette.background.default,
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)'
         }
       }}
     >
       <DialogTitle sx={{ 
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: getGradientBackground(),
         color: 'white',
         display: 'flex',
         alignItems: 'center',
-        gap: 1
+        gap: 2,
+        py: compactMode ? 2.5 : 3,
+        px: 3,
+        fontSize: compactMode ? '1.1rem' : '1.25rem',
+        fontWeight: 600,
+        borderRadius: `${borderRadius}px ${borderRadius}px 0 0`,
+        minHeight: compactMode ? '60px' : '70px'
       }}>
-        <CompareIcon />
-        Vista Previa de Compresión PDF
+        <CompareIcon sx={{ fontSize: compactMode ? '1.5rem' : '2rem' }} />
+        <Box>
+          <Typography variant="h6" component="div" sx={{ 
+            fontWeight: 600, 
+            mb: 0.5,
+            fontSize: compactMode ? '1.1rem' : '1.25rem'
+          }}>
+            Vista Previa de Compresión PDF
+          </Typography>
+          <Typography variant="body2" sx={{ 
+            opacity: 0.9, 
+            fontSize: compactMode ? '0.8rem' : '0.9rem'
+          }}>
+            Optimiza tu documento manteniendo la calidad
+          </Typography>
+        </Box>
       </DialogTitle>
 
-      <DialogContent sx={{ p: 3 }}>
+      <DialogContent sx={{ p: 4, background: 'transparent' }}>
         {/* Selector de Nivel de Compresión */}
         {showLevelSelector && !loading && !error && (
           <Box sx={{ mb: 4 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-              <SettingsIcon sx={{ mr: 1, color: 'primary.main' }} />
-              <Typography variant="h6">
-                Selecciona el nivel de compresión
-              </Typography>
+            {/* Header Section */}
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              mb: 6, // Aumentado de 4 a 6 para más separación
+              mt: 3, // Agregado margen superior
+              p: 3,
+              borderRadius: 2,
+              backgroundColor: theme.palette.background.paper,
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+              border: `1px solid ${theme.palette.divider}`,
+              borderRadius: `${borderRadius}px`
+            }}>
+              <CompareIcon sx={{ 
+                mr: 2, 
+                color: 'primary.main', 
+                fontSize: compactMode ? '1.5rem' : '2rem',
+                p: 1,
+                borderRadius: `${borderRadius / 2}px`,
+                backgroundColor: `primary.50`
+              }} />
+              <Box>
+                <Typography variant="h6" sx={{ 
+                  fontWeight: 600, 
+                  color: 'text.primary', 
+                  mb: 1,
+                  fontSize: compactMode ? '1.1rem' : '1.25rem'
+                }}>
+                  Selecciona el nivel de compresión
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ 
+                  fontSize: compactMode ? '0.85rem' : '0.95rem',
+                  lineHeight: 1.5
+                }}>
+                  Para PDFs generados desde navegador (como facturas, reportes), recomendamos compresión{' '}
+                  <Box component="span" sx={{ fontWeight: 600, color: 'warning.main' }}>Agresiva</Box>.
+                  Para documentos escaneados o imágenes, usa{' '}
+                  <Box component="span" sx={{ fontWeight: 600, color: 'success.main' }}>Conservativa</Box>.
+                </Typography>
+              </Box>
             </Box>
-            
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Para PDFs generados desde navegador (como facturas, reportes), recomendamos compresión <strong>Agresiva</strong>.
-              Para documentos escaneados o imágenes, usa <strong>Conservativa</strong>.
-            </Typography>
 
-            <Grid container spacing={2}>
+            <Grid container spacing={3}>
               {Object.entries(compressionLevels).map(([level, config]) => {
                 const Icon = config.icon;
                 const isSelected = compressionLevel === level;
@@ -276,42 +343,103 @@ const PDFCompressionPreview = ({
                     <Card
                       sx={{
                         cursor: 'pointer',
+                        position: 'relative',
                         border: isSelected ? `2px solid` : '1px solid',
                         borderColor: isSelected ? `${config.color}.main` : 'divider',
-                        bgcolor: isSelected ? `${config.color}.50` : 'background.paper',
-                        transition: 'all 0.2s ease',
+                        backgroundColor: isSelected 
+                          ? `${config.color}.50`
+                          : theme.palette.background.paper,
+                        borderRadius: `${borderRadius}px`,
+                        transition: 'all 0.3s ease',
+                        transform: isSelected ? 'translateY(-4px)' : 'translateY(0)',
+                        boxShadow: isSelected 
+                          ? '0 8px 20px rgba(0, 0, 0, 0.15)'
+                          : '0 2px 8px rgba(0, 0, 0, 0.08)',
                         '&:hover': {
                           borderColor: `${config.color}.main`,
-                          bgcolor: `${config.color}.50`,
-                          transform: 'translateY(-2px)',
-                          boxShadow: 3
+                          transform: 'translateY(-4px)',
+                          boxShadow: '0 8px 20px rgba(0, 0, 0, 0.15)'
                         }
                       }}
                       onClick={() => setCompressionLevel(level)}
                     >
-                      <CardContent sx={{ textAlign: 'center', py: 3 }}>
-                        <Icon 
-                          sx={{ 
-                            fontSize: 40, 
-                            color: isSelected ? `${config.color}.main` : 'text.secondary',
-                            mb: 1 
-                          }} 
-                        />
-                        <Typography variant="h6" fontWeight={600}>
+                      <CardContent sx={{ textAlign: 'center', py: compactMode ? 3 : 4, px: 3 }}>
+                        <Box sx={{ 
+                          width: compactMode ? 60 : 70, 
+                          height: compactMode ? 60 : 70, 
+                          mx: 'auto', 
+                          mb: 2,
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          backgroundColor: isSelected 
+                            ? `${config.color}.100`
+                            : `${config.color}.50`,
+                          border: isSelected 
+                            ? `2px solid ${config.color}.300`
+                            : `2px solid ${config.color}.200`,
+                        }}>
+                          <Icon 
+                            sx={{ 
+                              fontSize: compactMode ? '2rem' : '2.5rem', 
+                              color: `${config.color}.main`
+                            }} 
+                          />
+                        </Box>
+                        
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600, 
+                          mb: 1, 
+                          color: 'text.primary',
+                          fontSize: compactMode ? '1rem' : '1.1rem'
+                        }}>
                           {config.title}
                         </Typography>
+                        
                         <Chip 
                           label={config.subtitle}
                           size="small"
-                          color={config.color}
-                          sx={{ mb: 1 }}
+                          sx={{
+                            mb: 2,
+                            fontWeight: 500,
+                            backgroundColor: isSelected ? `${config.color}.200` : `${config.color}.100`,
+                            color: `${config.color}.800`,
+                            border: 'none'
+                          }}
                         />
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        
+                        <Typography 
+                          variant="body2" 
+                          color="text.secondary"
+                          sx={{ 
+                            lineHeight: 1.5,
+                            fontSize: compactMode ? '0.8rem' : '0.9rem',
+                            mb: 2
+                          }}
+                        >
                           {config.description}
                         </Typography>
-                        <Typography variant="caption" fontWeight={600} color={`${config.color}.main`}>
-                          Reducción estimada: {config.reduction}
-                        </Typography>
+                        
+                        <Box sx={{ 
+                          p: 1.5, 
+                          borderRadius: 1.5,
+                          background: isSelected 
+                            ? `linear-gradient(135deg, ${config.color}.50 0%, ${config.color}.100 100%)`
+                            : `linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)`,
+                          border: `1px solid ${isSelected ? `${config.color}.200` : '#e2e8f0'}`
+                        }}>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              fontWeight: 600, 
+                              color: isSelected ? `${config.color}.700` : 'text.secondary',
+                              fontSize: '0.85rem'
+                            }}
+                          >
+                            Reducción estimada: {config.reduction}
+                          </Typography>
+                        </Box>
                       </CardContent>
                     </Card>
                   </Grid>
@@ -319,42 +447,31 @@ const PDFCompressionPreview = ({
               })}
             </Grid>
             
-            <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Box sx={{ mt: 4, textAlign: 'center' }}>
               <Button
                 variant="contained"
                 size="large"
                 onClick={() => setShowLevelSelector(false)}
                 startIcon={<CompareIcon />}
                 sx={{
-                  minWidth: 200,
-                  py: 1.5,
-                  mr: 2
+                  minWidth: 280,
+                  py: 2,
+                  px: 4,
+                  borderRadius: `${borderRadius}px`,
+                  fontSize: compactMode ? '1rem' : '1.1rem',
+                  fontWeight: 600,
+                  background: getGradientBackground(),
+                  color: 'white',
+                  textTransform: 'none',
+                  '&:hover': {
+                    background: getGradientBackground(),
+                    opacity: 0.9,
+                    transform: 'translateY(-2px)'
+                  },
+                  transition: 'all 0.2s ease'
                 }}
               >
                 Comprimir con {compressionLevels[compressionLevel].title}
-              </Button>
-              
-              <Button
-                variant="outlined"
-                size="large"
-                onClick={async () => {
-                  console.log('🧪 Ejecutando test directo...');
-                  try {
-                    const testResult = await testPDFCompression(file);
-                    console.log('🧪 RESULTADOS DEL TEST:', testResult);
-                    alert(`Test completado!\nOriginal: ${(testResult.original / 1024 / 1024).toFixed(2)} MB\nBásico: ${(testResult.basic / 1024 / 1024).toFixed(2)} MB\nCon streams: ${(testResult.withStreams / 1024 / 1024).toFixed(2)} MB\nLimpio: ${(testResult.cleaned / 1024 / 1024).toFixed(2)} MB\n\nVe la consola para más detalles.`);
-                  } catch (error) {
-                    console.error('❌ Error en test:', error);
-                    alert('Error en test: ' + error.message);
-                  }
-                }}
-                startIcon={<SettingsIcon />}
-                sx={{
-                  minWidth: 150,
-                  py: 1.5
-                }}
-              >
-                Test Directo
               </Button>
             </Box>
           </Box>
@@ -382,20 +499,21 @@ const PDFCompressionPreview = ({
         )}
 
         {compressionResult && file && (
-          <Box>
-            {/* DEBUG INFO */}
-            {process.env.NODE_ENV === 'development' && (
-              <Alert severity="info" sx={{ mb: 2 }}>
-                <Typography variant="caption">
-                  DEBUG: {file.name} - Original: {formatFileSize(file.size)} - 
-                  Comprimido: {formatFileSize(compressionResult.stats.compressedSize)}
-                </Typography>
-              </Alert>
-            )}
-
+          <Box sx={{ mt: 4 }}> {/* Agregado margen superior para separar del header */}
             {/* Resumen de Compresión */}
-            <Paper elevation={2} sx={{ p: 3, mb: 3, background: 'rgba(255,255,255,0.9)' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+            <Paper elevation={2} sx={{ 
+              p: 4, // Aumentado de 3 a 4 
+              mb: 4, // Aumentado de 3 a 4
+              background: 'rgba(255,255,255,0.9)',
+              borderRadius: `${borderRadius}px`
+            }}>
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                mb: 3, // Aumentado de 2 a 3
+                pb: 2, // Agregado padding bottom
+                borderBottom: `1px solid ${theme.palette.divider}` // Agregada línea separadora
+              }}>
                 {compressionResult.stats.legible ? (
                   <CheckIcon color="success" sx={{ mr: 1 }} />
                 ) : (
@@ -411,10 +529,15 @@ const PDFCompressionPreview = ({
                 />
               </Box>
 
-              <Grid container spacing={3}>
+              <Grid container spacing={4}> {/* Aumentado de 3 a 4 */}
                 {/* Archivo Original */}
                 <Grid item xs={12} md={6}>
-                  <Paper variant="outlined" sx={{ p: 2, background: '#f8f9fa' }}>
+                  <Paper variant="outlined" sx={{ 
+                    p: 3, // Aumentado de 2 a 3
+                    background: '#f8f9fa',
+                    borderRadius: `${borderRadius}px`,
+                    height: '100%' // Para igualar alturas
+                  }}>
                     <Typography variant="subtitle1" fontWeight={600} color="text.secondary">
                       📄 ARCHIVO ORIGINAL
                     </Typography>
@@ -429,7 +552,12 @@ const PDFCompressionPreview = ({
 
                 {/* Archivo Comprimido */}
                 <Grid item xs={12} md={6}>
-                  <Paper variant="outlined" sx={{ p: 2, background: '#f0f8f0' }}>
+                  <Paper variant="outlined" sx={{ 
+                    p: 3, // Aumentado de 2 a 3
+                    background: '#f0f8f0',
+                    borderRadius: `${borderRadius}px`,
+                    height: '100%' // Para igualar alturas
+                  }}>
                     <Typography variant="subtitle1" fontWeight={600} color="success.main">
                       📄 ARCHIVO OPTIMIZADO
                     </Typography>
@@ -443,10 +571,14 @@ const PDFCompressionPreview = ({
                 </Grid>
 
                 {/* Ahorro */}
-                <Grid item xs={12}>
+                <Grid item xs={12} sx={{ mt: 2 }}> {/* Agregado margen superior */}
                   <Alert 
                     severity={compressionResult.stats.legible ? "success" : "warning"} 
-                    sx={{ background: 'rgba(76, 175, 80, 0.1)' }}
+                    sx={{ 
+                      background: 'rgba(76, 175, 80, 0.1)',
+                      borderRadius: `${borderRadius}px`,
+                      p: 2.5 // Agregado padding interno
+                    }}
                   >
                     <Typography variant="h6">
                       💾 Ahorro de espacio: {compressionResult.stats.saved}
@@ -513,11 +645,36 @@ const PDFCompressionPreview = ({
         )}
       </DialogContent>
 
-      <DialogActions sx={{ p: 3, background: 'rgba(255,255,255,0.9)' }}>
+      <DialogActions sx={{ 
+        p: 4, 
+        background: theme.palette.mode === 'dark' 
+          ? 'linear-gradient(135deg, #1a202c 0%, #2d3748 100%)'
+          : 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+        borderTop: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'}`,
+        gap: 2,
+        justifyContent: 'center'
+      }}>
         <Button 
           onClick={handleReject} 
           variant="outlined"
           disabled={loading}
+          size="large"
+          sx={{
+            minWidth: 180,
+            py: 1.5,
+            px: 3,
+            borderRadius: `${borderRadius}px`,
+            borderWidth: 1,
+            fontWeight: 600,
+            textTransform: 'none',
+            borderColor: 'grey.300',
+            color: 'text.secondary',
+            '&:hover': {
+              borderWidth: 2,
+              borderColor: 'grey.400',
+              backgroundColor: 'grey.50'
+            }
+          }}
         >
           Mantener Original
         </Button>
@@ -527,6 +684,22 @@ const PDFCompressionPreview = ({
             variant="outlined"
             startIcon={<PreviewIcon />}
             onClick={() => window.open(compressionResult.preview, '_blank')}
+            size="large"
+            sx={{
+              minWidth: 160,
+              py: 1.5,
+              px: 3,
+              borderRadius: `${borderRadius}px`,
+              borderWidth: 1,
+              fontWeight: 600,
+              textTransform: 'none',
+              borderColor: 'info.main',
+              color: 'info.main',
+              '&:hover': {
+                borderWidth: 2,
+                backgroundColor: 'info.50'
+              }
+            }}
           >
             Vista Previa
           </Button>
@@ -536,11 +709,27 @@ const PDFCompressionPreview = ({
           onClick={handleAccept}
           variant="contained"
           disabled={loading || !compressionResult}
+          size="large"
           sx={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            minWidth: 180,
+            py: 1.5,
+            px: 3,
+            borderRadius: `${borderRadius}px`,
+            fontSize: compactMode ? '0.9rem' : '1rem',
+            fontWeight: 600,
+            textTransform: 'none',
+            background: getGradientBackground(),
+            color: 'white',
             '&:hover': {
-              background: 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
-            }
+              background: getGradientBackground(),
+              opacity: 0.9,
+              transform: 'translateY(-2px)'
+            },
+            '&:disabled': {
+              background: theme.palette.action.disabledBackground,
+              color: theme.palette.action.disabled
+            },
+            transition: 'all 0.2s ease'
           }}
         >
           {compressionResult?.stats.reduction > 0 ? 'Usar Comprimido' : 'Continuar'}

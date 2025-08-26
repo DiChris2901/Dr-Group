@@ -35,9 +35,9 @@ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
 background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
 boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)'
 
-// ✅ Efectos glassmorphism y shimmer permitidos
-backdropFilter: 'blur(20px)'
+// ✅ Efectos shimmer permitidos
 animation: 'shimmer 3s infinite'
+// ❌ NO usar efectos glassmorphism ni backdrop-filter
 ```
 
 ### Tipografía
@@ -65,10 +65,10 @@ animation: 'shimmer 3s infinite'
 
 ### Sombras
 ```jsx
-// ✅ Spectacular completas
-boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)'  // Glassmorphism
+// ✅ Spectacular sin glassmorphism
 boxShadow: '0 4px 20px rgba(0,0,0,0.12)'         // Soft
 boxShadow: '0 8px 25px rgba(0,0,0,0.15)'         // Hover
+boxShadow: '0 12px 40px rgba(0,0,0,0.20)'        // Deep
 ```
 
 ## Patrones de Desarrollo
@@ -90,10 +90,10 @@ boxShadow: '0 8px 25px rgba(0,0,0,0.15)'         // Hover
 - Alertas de compromisos próximos a vencer
 - Perfil de usuario con foto y preferencias
 
-## Buenas Prácticas Original Spectacular Design
+## Buenas Prácticas Original Spectacular Design (Sin Glassmorphism)
 - **Seguir DESIGN_SYSTEM.md** al pie de la letra
 - **Usar theme.palette** en lugar de colores hardcodeados
-- **Efectos visuales spectacular**: Shimmer, glassmorphism y gradientes permitidos
+- **Efectos visuales spectacular**: Shimmer y gradientes permitidos (NO glassmorphism)
 - **Mantener elegancia empresarial**: Diseño corporativo spectacular y profesional
 - Implementar loading states y error boundaries elegantes
 - Validación de formularios con react-hook-form si es necesario

@@ -23,7 +23,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { fCurrency } from '../../utils/formatNumber';
 import { db } from '../../config/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { useTokens } from '../../hooks/useTokens';
 import PDFPreviewDialog from '../common/PDFPreviewDialog';
 
@@ -51,6 +51,10 @@ const PaymentReceiptViewer = ({
   const [originalCommitment, setOriginalCommitment] = useState(null);
   const [loadingOriginalCommitment, setLoadingOriginalCommitment] = useState(false);
 
+  // 💳 Estados para información de cuotas
+  const [installmentInfo, setInstallmentInfo] = useState(null);
+  const [loadingInstallmentInfo, setLoadingInstallmentInfo] = useState(false);
+
   // Función para cargar datos del compromiso original
   const loadOriginalCommitmentData = async (commitmentId) => {
     if (!commitmentId) return null;
@@ -74,10 +78,90 @@ const PaymentReceiptViewer = ({
     }
   };
 
-  // Cargar compromiso original cuando se abre el modal
+  // 💳 Función para cargar información de cuotas
+  const loadInstallmentInfo = async (commitment) => {
+    console.log('🔍 [DEBUG CUOTAS] loadInstallmentInfo called with:', {
+      commitment,
+      'commitment.isInstallment': commitment?.isInstallment,
+      'commitment.parentPaymentId': commitment?.parentPaymentId,
+      'all commitment keys': commitment ? Object.keys(commitment) : 'no commitment'
+    });
+    
+    if (!commitment) return;
+    
+    try {
+      setLoadingInstallmentInfo(true);
+      
+      // Verificar si este pago es parte de un plan de cuotas
+      const isInstallment = commitment.isInstallment;
+      const parentPaymentId = commitment.parentPaymentId;
+      
+      console.log('🔍 [DEBUG CUOTAS] Checking installment status:', {
+        isInstallment,
+        parentPaymentId,
+        'should load installments': isInstallment && parentPaymentId
+      });
+      
+      if (isInstallment && parentPaymentId) {
+        console.log('💳 [DEBUG CUOTAS] Loading installments for parentPaymentId:', parentPaymentId);
+        
+        // Obtener todas las cuotas del plan
+        const installmentsQuery = query(
+          collection(db, 'payments'),
+          where('parentPaymentId', '==', parentPaymentId),
+          orderBy('installmentNumber', 'asc')
+        );
+        
+        const installmentsSnap = await getDocs(installmentsQuery);
+        const allInstallments = installmentsSnap.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        console.log('💳 [DEBUG CUOTAS] Found installments:', allInstallments);
+        
+        // Calcular estadísticas
+        const totalInstallments = allInstallments.length;
+        const paidInstallments = allInstallments.filter(inst => inst.status === 'completed').length;
+        const pendingInstallments = totalInstallments - paidInstallments;
+        
+        const totalAmount = allInstallments.reduce((sum, inst) => sum + (inst.amount || 0), 0);
+        const paidAmount = allInstallments
+          .filter(inst => inst.status === 'completed')
+          .reduce((sum, inst) => sum + (inst.amount || 0), 0);
+        const pendingAmount = totalAmount - paidAmount;
+        
+        const installmentInfoData = {
+          isInstallment: true,
+          currentInstallment: commitment.installmentNumber,
+          totalInstallments,
+          paidInstallments,
+          pendingInstallments,
+          totalAmount,
+          paidAmount,
+          pendingAmount,
+          allInstallments
+        };
+        
+        console.log('💳 [DEBUG CUOTAS] Setting installment info:', installmentInfoData);
+        setInstallmentInfo(installmentInfoData);
+      } else {
+        console.log('💳 [DEBUG CUOTAS] Not an installment payment, setting null');
+        setInstallmentInfo(null);
+      }
+    } catch (error) {
+      console.error('❌ Error cargando información de cuotas:', error);
+      setInstallmentInfo(null);
+    } finally {
+      setLoadingInstallmentInfo(false);
+    }
+  };
+
+  // Cargar compromiso original y información de cuotas cuando se abre el modal
   useEffect(() => {
     if (open && commitment?.id) {
       loadOriginalCommitmentData(commitment.id);
+      loadInstallmentInfo(commitment);
     }
   }, [open, commitment?.id]);
 
@@ -736,6 +820,164 @@ const PaymentReceiptViewer = ({
                   })()}
                 </Grid>
 
+                {/* 💳 SECCIÓN DE INFORMACIÓN DE CUOTAS */}
+                {(() => {
+                  console.log('💳 [DEBUG RENDER CUOTAS] Checking installment render condition:', {
+                    'installmentInfo': installmentInfo,
+                    'installmentInfo?.isInstallment': installmentInfo?.isInstallment,
+                    'should render': installmentInfo?.isInstallment
+                  });
+                  
+                  return installmentInfo?.isInstallment;
+                })() && (
+                  <Box sx={{ mt: 3, pt: 3, borderTop: `1px solid ${alpha(theme.palette.info.main, 0.2)}` }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                      <Box sx={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 1.5,
+                        backgroundColor: alpha(theme.palette.info.main, 0.15),
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'info.main',
+                        fontSize: '1.1rem'
+                      }}>
+                        💳
+                      </Box>
+                      <Typography variant="h6" sx={{ 
+                        color: 'info.main', 
+                        fontWeight: 600, 
+                        fontSize: '1.1rem',
+                        flex: 1
+                      }}>
+                        Plan de Cuotas
+                      </Typography>
+                      <Chip 
+                        label={`Cuota ${installmentInfo.currentInstallment}/${installmentInfo.totalInstallments}`}
+                        size="small"
+                        sx={{ 
+                          backgroundColor: alpha(theme.palette.info.main, 0.1),
+                          color: 'info.main',
+                          fontWeight: 600
+                        }}
+                      />
+                    </Box>
+                    
+                    <Grid container spacing={2}>
+                      {/* Progreso de Cuotas */}
+                      <Grid item xs={12} sm={6}>
+                        <Box sx={{ 
+                          p: 2,
+                          borderRadius: 2,
+                          backgroundColor: alpha(theme.palette.success.main, 0.06),
+                          border: `1px solid ${alpha(theme.palette.success.main, 0.15)}`
+                        }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem', mb: 1 }}>
+                            Cuotas Pagadas
+                          </Typography>
+                          <Typography variant="h6" sx={{ fontWeight: 600, color: 'success.main', mb: 1 }}>
+                            {installmentInfo.paidInstallments} de {installmentInfo.totalInstallments}
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500, color: 'success.main' }}>
+                            {fCurrency(installmentInfo.paidAmount)}
+                          </Typography>
+                        </Box>
+                      </Grid>
+
+                      <Grid item xs={12} sm={6}>
+                        <Box sx={{ 
+                          p: 2,
+                          borderRadius: 2,
+                          backgroundColor: alpha(theme.palette.warning.main, 0.06),
+                          border: `1px solid ${alpha(theme.palette.warning.main, 0.15)}`
+                        }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem', mb: 1 }}>
+                            Cuotas Pendientes
+                          </Typography>
+                          <Typography variant="h6" sx={{ fontWeight: 600, color: 'warning.main', mb: 1 }}>
+                            {installmentInfo.pendingInstallments} restantes
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500, color: 'warning.main' }}>
+                            {fCurrency(installmentInfo.pendingAmount)}
+                          </Typography>
+                        </Box>
+                      </Grid>
+
+                      {/* Valor Total del Compromiso */}
+                      <Grid item xs={12}>
+                        <Box sx={{ 
+                          p: 2,
+                          borderRadius: 2,
+                          backgroundColor: alpha(theme.palette.primary.main, 0.06),
+                          border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`
+                        }}>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem', mb: 1 }}>
+                            Valor Total del Compromiso
+                          </Typography>
+                          <Typography variant="h5" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                            {fCurrency(installmentInfo.totalAmount)}
+                          </Typography>
+                        </Box>
+                      </Grid>
+
+                      {/* Detalle de Todas las Cuotas */}
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: 'text.primary' }}>
+                          Detalle de Cuotas:
+                        </Typography>
+                        <Box sx={{ maxHeight: 200, overflowY: 'auto' }}>
+                          {installmentInfo.allInstallments.map((installment, index) => (
+                            <Box 
+                              key={installment.id}
+                              sx={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center',
+                                p: 1.5,
+                                mb: 1,
+                                borderRadius: 1,
+                                backgroundColor: installment.status === 'completed' 
+                                  ? alpha(theme.palette.success.main, 0.04)
+                                  : alpha(theme.palette.grey[500], 0.04),
+                                border: `1px solid ${installment.status === 'completed' 
+                                  ? alpha(theme.palette.success.main, 0.15)
+                                  : alpha(theme.palette.grey[500], 0.12)}`,
+                                opacity: installment.installmentNumber === installmentInfo.currentInstallment ? 1 : 0.7
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 600, minWidth: 60 }}>
+                                  Cuota {installment.installmentNumber}
+                                </Typography>
+                                {installment.installmentNumber === installmentInfo.currentInstallment && (
+                                  <Chip 
+                                    label="Actual" 
+                                    size="small" 
+                                    color="primary"
+                                    sx={{ fontSize: '0.7rem', height: 20 }}
+                                  />
+                                )}
+                              </Box>
+                              <Box sx={{ textAlign: 'right' }}>
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                  {fCurrency(installment.amount)}
+                                </Typography>
+                                <Chip 
+                                  label={installment.status === 'completed' ? 'Pagada' : 'Pendiente'}
+                                  size="small"
+                                  color={installment.status === 'completed' ? 'success' : 'warning'}
+                                  sx={{ fontSize: '0.7rem', height: 18 }}
+                                />
+                              </Box>
+                            </Box>
+                          ))}
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </Box>
+                )}
+
                 {/* SECCIÓN DE MONTOS Y DETALLES - SIEMPRE VISIBLE CON DEBUG */}
                 <Box sx={{ mt: 3, pt: 3, borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.2)}` }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
@@ -792,10 +1034,21 @@ const PaymentReceiptViewer = ({
                       console.log('- commitment.amount:', commitment?.amount);
                       console.log('- commitment completo:', commitment);
                       
+                      // 🔍 DEBUG IVA Y OTROS IMPUESTOS
+                      console.log('💳 IVA AND TAX DEBUG:');
+                      console.log('- commitment.iva:', commitment?.iva);
+                      console.log('- commitment.tax:', commitment?.tax);
+                      console.log('- commitment.taxes:', commitment?.taxes);
+                      console.log('- commitment.baseAmount:', commitment?.baseAmount);
+                      console.log('- commitment.originalAmount:', commitment?.originalAmount);
+                      console.log('- commitment.vatAmount:', commitment?.vatAmount);
+                      console.log('- commitment.ivaAmount:', commitment?.ivaAmount);
+                      
                       // 🔍 DEBUG ORIGINALCOMMITMENT DATA
                       console.log('📋 ORIGINAL COMMITMENT DATA DEBUG:');
                       console.log('- originalCommitment.interesesDerechosExplotacion:', originalCommitment?.interesesDerechosExplotacion);
                       console.log('- originalCommitment.interesesGastosAdministracion:', originalCommitment?.interesesGastosAdministracion);
+                      console.log('- originalCommitment.iva:', originalCommitment?.iva);
                       console.log('- originalCommitment completo:', originalCommitment);
                       
                       if (isColjuegos) {
@@ -988,6 +1241,29 @@ const PaymentReceiptViewer = ({
                                 </Typography>
                               </Box>
                             </Grid>
+
+                            {/* IVA - Mostrar si existe */}
+                            {(commitment?.iva > 0 || originalCommitment?.iva > 0) && (
+                              <Grid item xs={12} sm={6}>
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  justifyContent: 'space-between', 
+                                  alignItems: 'center', 
+                                  mb: 1,
+                                  p: 1.2,
+                                  borderRadius: 1.5,
+                                  backgroundColor: alpha(theme.palette.warning.main, 0.06),
+                                  border: `1px solid ${alpha(theme.palette.warning.main, 0.15)}`
+                                }}>
+                                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
+                                    IVA
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ fontWeight: 500, color: 'warning.main', fontSize: '0.9rem' }}>
+                                    {fCurrency(commitment?.iva || originalCommitment?.iva || 0)}
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                            )}
                           </>
                         );
                       }

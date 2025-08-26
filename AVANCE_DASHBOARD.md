@@ -56,7 +56,7 @@ Este documento registra la estructura completa y exhaustiva del dashboard del pr
   - ✅ **Estados dinámicos**: PENDIENTE, VENCE HOY, VENCIDO, PAGADO con colores diferenciados
   - ✅ **Archivos adjuntos**: Sistema completo de gestión de documentos con vista previa
   - ✅ **Filtros avanzados**: Por empresa, estado, búsqueda en tiempo real
-  - ✅ **Animaciones premium**: Efectos glassmorphism, gradientes, microinteracciones
+  - ✅ **Animaciones premium**: Gradientes, shimmer y microinteracciones (sin glassmorphism)
   - ✅ **Sistema de notificaciones**: Alertas inteligentes configurables
   - ✅ **Configuraciones avanzadas**: 8 opciones de personalización completamente funcionales
   - ✅ **Integración Firebase**: Persistencia en tiempo real, sincronización automática

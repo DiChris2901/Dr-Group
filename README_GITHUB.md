@@ -10,7 +10,7 @@ Dashboard empresarial moderno para control de compromisos financieros desarrolla
 - **130+ opciones de personalización** organizadas en 9 categorías
 - **Modo claro/oscuro** con switch animado
 - **Tipografías personalizables** (8 familias diferentes)
-- **Efectos visuales avanzados** (glassmorphism, gradientes, sombras)
+- **Efectos visuales avanzados** (gradientes, sombras, shimmer)
 
 ### 🔍 Búsqueda Avanzada
 - **Barra de búsqueda funcional** en tiempo real
@@ -106,7 +106,7 @@ El sistema incluye **9 categorías** de personalización:
 1. **🎨 Colores y Temas** - 8 presets + personalización avanzada
 2. **🔤 Tipografía** - 8 familias de fuentes + tamaños
 3. **📐 Layout y Espaciado** - Márgenes, padding, bordes
-4. **🎭 Efectos Visuales** - Glassmorphism, gradientes, sombras
+4. **🎭 Efectos Visuales** - Gradientes, sombras, shimmer (sin glassmorphism)
 5. **🔘 Botones y Controles** - Estilos y animaciones
 6. **📊 Tablas y Listas** - Densidad, colores, bordes
 7. **📋 Formularios** - Estilos de inputs y validación

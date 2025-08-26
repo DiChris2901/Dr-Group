@@ -208,69 +208,113 @@ const NewCommitmentPage = () => {
   const [pendingPDFFile, setPendingPDFFile] = useState(null);
   const [compressionEnabled, setCompressionEnabled] = useState(true);
 
-  // 💰 Funciones para formateo de moneda colombiana
+  // 💰 Funciones para formateo de moneda colombiana (CON DECIMALES)
   const formatNumberWithCommas = (value) => {
-    if (!value) return '';
-    const cleanValue = value.toString().replace(/[^\d]/g, '');
+    if (!value && value !== 0) return '';
+    
+    // Convertir a string y limpiar, pero preservar decimales
+    const strValue = value.toString();
+    
+    // Permitir solo números y un punto decimal
+    const cleanValue = strValue.replace(/[^\d.]/g, '');
+    
+    // Asegurar que solo haya un punto decimal
+    const parts = cleanValue.split('.');
+    if (parts.length > 2) {
+      // Si hay más de un punto, conservar solo el primero
+      return parts[0] + '.' + parts.slice(1).join('');
+    }
+    
     if (!cleanValue) return '';
-    return cleanValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    
+    // Si hay decimales
+    if (parts.length === 2) {
+      const integerPart = parts[0];
+      const decimalPart = parts[1];
+      
+      // Formatear la parte entera con puntos como separadores de miles
+      const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      
+      // Retornar con la parte decimal (máximo 2 decimales)
+      return formattedInteger + ',' + decimalPart.substring(0, 2);
+    } else {
+      // Solo parte entera
+      return cleanValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
   };
 
   const parseFormattedNumber = (value) => {
-    if (!value) return '';
-    return value.toString().replace(/\./g, '');
+    if (!value && value !== 0) return '';
+    
+    // Convertir puntos de miles a nada y comas decimales a puntos
+    return value.toString()
+      .replace(/\./g, '') // Remover separadores de miles
+      .replace(/,/g, '.'); // Convertir coma decimal a punto
   };
 
   const handleAmountChange = (e) => {
     const inputValue = e.target.value;
     const cleanValue = parseFormattedNumber(inputValue);
-    const formattedValue = formatNumberWithCommas(cleanValue);
     
-    // Actualizar el valor formateado en el estado
-    setFormData(prev => ({
-      ...prev,
-      baseAmount: cleanValue // Guardamos el valor sin formato para cálculos
-    }));
+    // Validar que sea un número válido (entero o decimal)
+    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
+      setFormData(prev => ({
+        ...prev,
+        baseAmount: cleanValue // Guardamos el valor sin formato para cálculos
+      }));
+    }
   };
 
   const handleIvaChange = (e) => {
     const inputValue = e.target.value;
     const cleanValue = parseFormattedNumber(inputValue);
     
-    setFormData(prev => ({
-      ...prev,
-      iva: cleanValue
-    }));
+    // Validar que sea un número válido (entero o decimal)
+    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
+      setFormData(prev => ({
+        ...prev,
+        iva: cleanValue
+      }));
+    }
   };
 
   const handleRetefuenteChange = (e) => {
     const inputValue = e.target.value;
     const cleanValue = parseFormattedNumber(inputValue);
     
-    setFormData(prev => ({
-      ...prev,
-      retefuente: cleanValue
-    }));
+    // Validar que sea un número válido (entero o decimal)
+    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
+      setFormData(prev => ({
+        ...prev,
+        retefuente: cleanValue
+      }));
+    }
   };
 
   const handleIcaChange = (e) => {
     const inputValue = e.target.value;
     const cleanValue = parseFormattedNumber(inputValue);
 
-    setFormData(prev => ({
-      ...prev,
-      ica: cleanValue
-    }));
+    // Validar que sea un número válido (entero o decimal)
+    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
+      setFormData(prev => ({
+        ...prev,
+        ica: cleanValue
+      }));
+    }
   };
 
   const handleDiscountChange = (e) => {
     const inputValue = e.target.value;
     const cleanValue = parseFormattedNumber(inputValue);
     
-    setFormData(prev => ({
-      ...prev,
-      discount: cleanValue
-    }));
+    // Validar que sea un número válido (entero o decimal)
+    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
+      setFormData(prev => ({
+        ...prev,
+        discount: cleanValue
+      }));
+    }
   };
 
   // 🎮 Manejadores específicos para Coljuegos
@@ -278,20 +322,26 @@ const NewCommitmentPage = () => {
     const inputValue = e.target.value;
     const cleanValue = parseFormattedNumber(inputValue);
     
-    setFormData(prev => ({
-      ...prev,
-      derechosExplotacion: cleanValue
-    }));
+    // Validar que sea un número válido (entero o decimal)
+    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
+      setFormData(prev => ({
+        ...prev,
+        derechosExplotacion: cleanValue
+      }));
+    }
   };
 
   const handleGastosChange = (e) => {
     const inputValue = e.target.value;
     const cleanValue = parseFormattedNumber(inputValue);
     
-    setFormData(prev => ({
-      ...prev,
-      gastosAdministracion: cleanValue
-    }));
+    // Validar que sea un número válido (entero o decimal)
+    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
+      setFormData(prev => ({
+        ...prev,
+        gastosAdministracion: cleanValue
+      }));
+    }
   };  // 🧮 Calcular automáticamente el total
   const calculateTotal = () => {
     // 🎮 Caso especial: Coljuegos

@@ -106,7 +106,7 @@ Columnas de salida:
 
 ### ✨ **Spectacular Design v2.1**
 - **Gradientes Premium**: Efectos visuales empresariales
-- **Glassmorphism**: Efectos de vidrio esmerilado
+- **❌ Glassmorphism Removido**: Sin efectos de vidrio esmerilado
 - **Animaciones Framer Motion**: Micro-interacciones fluidas
 - **Responsive Design**: Adaptable a móvil y desktop
 - **ARM64 Compatible**: Optimizado para Apple Silicon

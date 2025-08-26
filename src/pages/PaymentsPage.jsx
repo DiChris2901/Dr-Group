@@ -112,6 +112,9 @@ const PaymentsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [receiptsFilter, setReceiptsFilter] = useState('all'); // Nuevo filtro para comprobantes
+  const [companyFilter, setCompanyFilter] = useState('all'); // Filtro por empresa
+  const [conceptFilter, setConceptFilter] = useState('all'); // Filtro por concepto
+  const [beneficiaryFilter, setBeneficiaryFilter] = useState('all'); // Filtro por beneficiario/proveedor
   const [show4x1000, setShow4x1000] = useState(true); // Filtro para mostrar/ocultar 4x1000
   
   // Estados para el visor de comprobantes
@@ -272,6 +275,11 @@ const PaymentsPage = () => {
   const [companies, setCompanies] = useState([]);
   const [loadingCompanies, setLoadingCompanies] = useState(true);
   
+  // Estados para listas de filtros únicos
+  const [uniqueCompanies, setUniqueCompanies] = useState([]);
+  const [uniqueConcepts, setUniqueConcepts] = useState([]);
+  const [uniqueBeneficiaries, setUniqueBeneficiaries] = useState([]);
+  
   // Estados para ingresos (necesarios para calcular balances)
   const [incomes, setIncomes] = useState([]);
   const [loadingIncomes, setLoadingIncomes] = useState(true);
@@ -415,7 +423,39 @@ const PaymentsPage = () => {
         payment.companyName?.toLowerCase().includes(searchLower) ||
         payment.concept?.toLowerCase().includes(searchLower) ||
         payment.reference?.toLowerCase().includes(searchLower) ||
-        payment.method?.toLowerCase().includes(searchLower)
+        payment.method?.toLowerCase().includes(searchLower) ||
+        payment.provider?.toLowerCase().includes(searchLower) ||
+        payment.beneficiary?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Filtro por empresa
+    let matchesCompany = true;
+    if (companyFilter !== 'all') {
+      matchesCompany = payment.companyName === companyFilter;
+    }
+    
+    // Filtro por concepto
+    let matchesConcept = true;
+    if (conceptFilter !== 'all') {
+      matchesConcept = payment.concept === conceptFilter;
+    }
+    
+    // Filtro por beneficiario/proveedor
+    let matchesBeneficiary = true;
+    if (beneficiaryFilter !== 'all') {
+      matchesBeneficiary = (payment.provider === beneficiaryFilter) || 
+                          (payment.beneficiary === beneficiaryFilter);
+    }
+    
+    // Filtro por estado
+    let matchesStatus = true;
+    if (statusFilter !== 'all') {
+      const paymentStatus = payment.status?.toLowerCase();
+      matchesStatus = (
+        (statusFilter === 'completed' && (paymentStatus === 'completado' || paymentStatus === 'completed')) ||
+        (statusFilter === 'pending' && (paymentStatus === 'pendiente' || paymentStatus === 'pending')) ||
+        (statusFilter === 'failed' && (paymentStatus === 'fallido' || paymentStatus === 'failed'))
       );
     }
     
@@ -438,7 +478,8 @@ const PaymentsPage = () => {
       matches4x1000Filter = !payment.is4x1000Tax; // Ocultar registros del 4x1000
     }
     
-    return matchesSearch && matchesReceipts && matches4x1000Filter;
+    return matchesSearch && matchesCompany && matchesConcept && 
+           matchesBeneficiary && matchesStatus && matchesReceipts && matches4x1000Filter;
   });
 
   // Calcular estadísticas de pagos
@@ -475,6 +516,33 @@ const PaymentsPage = () => {
     const maxPage = Math.max(0, Math.ceil(filteredPayments.length / rowsPerPage) - 1);
     if(page > maxPage) setPage(0);
   }, [filteredPayments.length, page]);
+
+  // Actualizar listas únicas para filtros cuando cambien los pagos
+  useEffect(() => {
+    if (payments && payments.length > 0) {
+      // Extraer empresas únicas
+      const companies = [...new Set(payments
+        .map(p => p.companyName)
+        .filter(name => name && name.trim() !== '')
+      )].sort();
+      
+      // Extraer conceptos únicos
+      const concepts = [...new Set(payments
+        .map(p => p.concept)
+        .filter(concept => concept && concept.trim() !== '')
+      )].sort();
+      
+      // Extraer beneficiarios/proveedores únicos
+      const beneficiaries = [...new Set(payments
+        .map(p => p.provider || p.beneficiary)
+        .filter(provider => provider && provider.trim() !== '')
+      )].sort();
+      
+      setUniqueCompanies(companies);
+      setUniqueConcepts(concepts);
+      setUniqueBeneficiaries(beneficiaries);
+    }
+  }, [payments]);
 
   // Cargar empresas con cuentas bancarias
   useEffect(() => {
@@ -2044,88 +2112,153 @@ const PaymentsPage = () => {
               p: 1.5, 
               borderRadius: 2, 
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-              display:'flex', 
-              flexWrap:'wrap', 
-              gap: 1.5, 
-              alignItems:'center'
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
             }}>
+              {/* Una sola fila con todos los filtros - Barra expandible */}
               <Box sx={{ 
-                flex:1, 
-                minWidth: 240, 
                 display:'flex', 
-                alignItems:'center', 
-                gap: 1, 
-                px: 1.5, 
-                py: 0.5, 
-                borderRadius: 1, 
-                border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`, 
-                backgroundColor: 'background.default' 
+                gap: 1.5, 
+                alignItems:'center',
+                width: '100%'
               }}>
-                <SearchIcon fontSize="small" sx={{ color:'text.secondary', fontSize: 18 }} />
-                <InputBase 
-                  placeholder="Buscar pagos..." 
-                  value={searchTerm} 
-                  onChange={e=>setSearchTerm(e.target.value)} 
+                <Box sx={{ 
+                  flex: 1, 
+                  display:'flex', 
+                  alignItems:'center', 
+                  gap: 1, 
+                  px: 1.2, 
+                  py: 0.6, 
+                  borderRadius: 1, 
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`, 
+                  backgroundColor: 'background.default' 
+                }}>
+                  <SearchIcon fontSize="small" sx={{ color:'text.secondary', fontSize: 18 }} />
+                  <InputBase 
+                    placeholder="Buscar pagos..." 
+                    value={searchTerm} 
+                    onChange={e=>setSearchTerm(e.target.value)} 
+                    sx={{ 
+                      flex:1, 
+                      fontSize: '0.8rem',
+                      '& input::placeholder': {
+                        fontSize: '0.8rem'
+                      }
+                    }} 
+                  />
+                </Box>
+                <FormControl size="small" sx={{ flex: '0 0 130px' }}>
+                  <InputLabel sx={{ fontSize: '0.8rem' }}>Empresa</InputLabel>
+                  <Select 
+                    value={companyFilter} 
+                    onChange={e=>setCompanyFilter(e.target.value)} 
+                    label="Empresa" 
+                    sx={{ 
+                      borderRadius: 0.5,
+                      fontSize: '0.8rem',
+                      height: 36
+                    }}
+                  >
+                    <MenuItem value="all" sx={{ fontSize: '0.8rem' }}>Todas</MenuItem>
+                    {uniqueCompanies.map(company => (
+                      <MenuItem key={company} value={company} sx={{ fontSize: '0.8rem' }}>
+                        {company}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl size="small" sx={{ flex: '0 0 140px' }}>
+                  <InputLabel sx={{ fontSize: '0.8rem' }}>Concepto</InputLabel>
+                  <Select 
+                    value={conceptFilter} 
+                    onChange={e=>setConceptFilter(e.target.value)} 
+                    label="Concepto" 
+                    sx={{ 
+                      borderRadius: 0.5,
+                      fontSize: '0.8rem',
+                      height: 36
+                    }}
+                  >
+                    <MenuItem value="all" sx={{ fontSize: '0.8rem' }}>Todos</MenuItem>
+                    {uniqueConcepts.map(concept => (
+                      <MenuItem key={concept} value={concept} sx={{ fontSize: '0.8rem' }}>
+                        {concept}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl size="small" sx={{ flex: '0 0 140px' }}>
+                  <InputLabel sx={{ fontSize: '0.8rem' }}>Beneficiario</InputLabel>
+                  <Select 
+                    value={beneficiaryFilter} 
+                    onChange={e=>setBeneficiaryFilter(e.target.value)} 
+                    label="Beneficiario" 
+                    sx={{ 
+                      borderRadius: 0.5,
+                      fontSize: '0.8rem',
+                      height: 36
+                    }}
+                  >
+                    <MenuItem value="all" sx={{ fontSize: '0.8rem' }}>Todos</MenuItem>
+                    {uniqueBeneficiaries.map(beneficiary => (
+                      <MenuItem key={beneficiary} value={beneficiary} sx={{ fontSize: '0.8rem' }}>
+                        {beneficiary}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl size="small" sx={{ flex: '0 0 120px' }}>
+                  <InputLabel sx={{ fontSize: '0.8rem' }}>Estado</InputLabel>
+                  <Select 
+                    value={statusFilter} 
+                    onChange={e=>setStatusFilter(e.target.value)} 
+                    label="Estado" 
+                    sx={{ 
+                      borderRadius: 0.5,
+                      fontSize: '0.8rem',
+                      height: 36
+                    }}
+                  >
+                    <MenuItem value="all" sx={{ fontSize: '0.8rem' }}>Todos</MenuItem>
+                    <MenuItem value="completed" sx={{ fontSize: '0.8rem' }}>Completados</MenuItem>
+                    <MenuItem value="pending" sx={{ fontSize: '0.8rem' }}>Pendientes</MenuItem>
+                    <MenuItem value="failed" sx={{ fontSize: '0.8rem' }}>Fallidos</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl size="small" sx={{ flex: '0 0 140px' }}>
+                  <InputLabel sx={{ fontSize: '0.8rem' }}>Comprobantes</InputLabel>
+                  <Select 
+                    value={receiptsFilter} 
+                    onChange={e=>setReceiptsFilter(e.target.value)} 
+                    label="Comprobantes" 
+                    sx={{ 
+                      borderRadius: 0.5,
+                      fontSize: '0.8rem',
+                      height: 36
+                    }}
+                  >
+                    <MenuItem value="all" sx={{ fontSize: '0.8rem' }}>Todos</MenuItem>
+                    <MenuItem value="with" sx={{ fontSize: '0.8rem' }}>Con comprobantes</MenuItem>
+                    <MenuItem value="without" sx={{ fontSize: '0.8rem' }}>Sin comprobantes</MenuItem>
+                  </Select>
+                </FormControl>
+                <Button 
+                  variant="contained" 
+                  startIcon={<AddIcon />} 
+                  onClick={()=>navigate('/payments/new')} 
                   sx={{ 
-                    flex:1, 
+                    borderRadius: 0.5, 
+                    fontWeight: 600,
+                    textTransform:'none', 
+                    px: 2,
                     fontSize: '0.8rem',
-                    '& input::placeholder': {
-                      fontSize: '0.8rem'
-                    }
-                  }} 
-                />
+                    height: 36,
+                    flex: '0 0 auto',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  Nuevo Pago
+                </Button>
               </Box>
-              <FormControl size="small" sx={{ minWidth: 120 }}>
-                <InputLabel sx={{ fontSize: '0.8rem' }}>Estado</InputLabel>
-                <Select 
-                  value={statusFilter} 
-                  onChange={e=>setStatusFilter(e.target.value)} 
-                  label="Estado" 
-                  sx={{ 
-                    borderRadius: 0.5,
-                    fontSize: '0.8rem',
-                    height: 36
-                  }}
-                >
-                  <MenuItem value="all" sx={{ fontSize: '0.8rem' }}>Todos</MenuItem>
-                  <MenuItem value="completed" sx={{ fontSize: '0.8rem' }}>Completados</MenuItem>
-                  <MenuItem value="pending" sx={{ fontSize: '0.8rem' }}>Pendientes</MenuItem>
-                  <MenuItem value="failed" sx={{ fontSize: '0.8rem' }}>Fallidos</MenuItem>
-                </Select>
-              </FormControl>
-              <FormControl size="small" sx={{ minWidth: 150 }}>
-                <InputLabel sx={{ fontSize: '0.8rem' }}>Comprobantes</InputLabel>
-                <Select 
-                  value={receiptsFilter} 
-                  onChange={e=>setReceiptsFilter(e.target.value)} 
-                  label="Comprobantes" 
-                  sx={{ 
-                    borderRadius: 0.5,
-                    fontSize: '0.8rem',
-                    height: 36
-                  }}
-                >
-                  <MenuItem value="all" sx={{ fontSize: '0.8rem' }}>Todos</MenuItem>
-                  <MenuItem value="with" sx={{ fontSize: '0.8rem' }}>Con comprobantes</MenuItem>
-                  <MenuItem value="without" sx={{ fontSize: '0.8rem' }}>Sin comprobantes</MenuItem>
-                </Select>
-              </FormControl>
-              <Button 
-                variant="contained" 
-                startIcon={<AddIcon />} 
-                onClick={()=>navigate('/payments/new')} 
-                sx={{ 
-                  borderRadius: 0.5, 
-                  fontWeight: 600,
-                  textTransform:'none', 
-                  px: 2,
-                  fontSize: '0.8rem',
-                  height: 36
-                }}
-              >
-                Nuevo Pago
-              </Button>
             </Paper>
           </motion.div>
 

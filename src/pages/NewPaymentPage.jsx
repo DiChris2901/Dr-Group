@@ -128,7 +128,8 @@ const NewPaymentPage = () => {
     
     // Remover todo excepto dígitos
     const cleanValue = value.toString().replace(/[^\d]/g, '');
-    if (!cleanValue || cleanValue === '0') return '';
+    if (!cleanValue) return '';
+    if (cleanValue === '0') return '0';
     
     // Formatear con separadores de miles
     const numValue = parseInt(cleanValue);
@@ -277,14 +278,14 @@ const NewPaymentPage = () => {
           totalInstallments: installments.length,
           installmentStatus: i === 0 ? 'paid' : 'pending', // Solo la primera cuota se marca como pagada
           
-          // 4x1000 solo para la primera cuota (que se paga inmediatamente)
-          tax4x1000Amount: i === 0 ? Math.round((installment.amount * 4) / 1000) : 0,
-          includesTax4x1000: i === 0 && installment.amount > 0,
-          taxInfo: i === 0 ? {
+          // 4x1000 para cada cuota individual (se aplica cuando se paga cada una)
+          tax4x1000Amount: Math.round((installment.amount * 4) / 1000),
+          includesTax4x1000: installment.amount > 0,
+          taxInfo: {
             rate4x1000: 0.004,
             base: installment.amount,
             calculated: Math.round((installment.amount * 4) / 1000)
-          } : null,
+          },
           
           status: i === 0 ? 'completed' : 'pending',
           attachments: i === 0 ? basePaymentData.attachments : [], // Solo la primera cuota tiene archivos
@@ -482,36 +483,36 @@ const NewPaymentPage = () => {
     try {
       setLoadingCommitments(true);
       
-      // ✅ NUEVA LÓGICA: mes anterior + actual + siguiente
+      // ✅ NUEVA LÓGICA: todos los pendientes del pasado + mes actual + 2 meses adelante
       const now = new Date();
       const currentYear = now.getFullYear();
       const currentMonth = now.getMonth(); // 0-11
       
-      // Inicio del mes anterior
-      const startOfPreviousMonth = new Date(currentYear, currentMonth - 1, 1);
-      // Inicio del mes después del siguiente (límite superior)
-      const startOfTwoMonthsLater = new Date(currentYear, currentMonth + 2, 1);
+      // Sin límite inferior (para capturar todos los pendientes del pasado)
+      // Límite superior: inicio del mes que está 3 meses adelante
+      const startOfThreeMonthsLater = new Date(currentYear, currentMonth + 3, 1);
       
-      console.log('📅 NUEVA LÓGICA - Filtrando compromisos: mes anterior + actual + siguiente:', {
-        startOfPreviousMonth: startOfPreviousMonth.toISOString(),
-        startOfTwoMonthsLater: startOfTwoMonthsLater.toISOString(),
-        previousMonth: currentMonth,      // mes anterior (human-readable)
+      console.log('📅 NUEVA LÓGICA - Filtrando compromisos: todos del pasado + actual + 2 meses adelante:', {
+        currentDate: now.toISOString(),
+        limiteSuperior: startOfThreeMonthsLater.toISOString(),
         currentMonth: currentMonth + 1,   // mes actual (human-readable) 
-        nextMonth: currentMonth + 2,      // mes siguiente (human-readable)
-        currentYear
+        nextMonth1: currentMonth + 2,     // primer mes adelante (human-readable)
+        nextMonth2: currentMonth + 3,     // segundo mes adelante (human-readable)
+        currentYear,
+        note: 'Sin límite inferior - incluye todos los pendientes del pasado'
       });
       
-      // Consultar compromisos del rango: mes anterior + actual + siguiente
+      // Consultar compromisos: todos del pasado + actual + 2 meses adelante
       const commitmentsQuery = query(
         collection(db, 'commitments'),
-        where('dueDate', '>=', startOfPreviousMonth),
-        where('dueDate', '<', startOfTwoMonthsLater)
+        where('dueDate', '<', startOfThreeMonthsLater),
+        orderBy('dueDate', 'asc') // Ordenar por fecha para mostrar primero los más antiguos
       );
       
       const snapshot = await getDocs(commitmentsQuery);
       const commitments = [];
       
-      console.log(`📊 Compromisos encontrados en rango (anterior+actual+siguiente): ${snapshot.size}`);
+      console.log(`📊 Compromisos encontrados en rango (pasado+actual+2futuros): ${snapshot.size}`);
       
       // También consultar todos los pagos para verificar cuáles compromisos ya tienen pago
       const paymentsQuery = query(
@@ -754,11 +755,11 @@ const NewPaymentPage = () => {
     
     // Si se requieren intereses
     if (isColjuegosCommitment(selectedCommitment)) {
-      // Para Coljuegos: al menos uno de los dos tipos debe tener valor > 0
-      return formData.interesesDerechosExplotacion > 0 || formData.interesesGastosAdministracion > 0;
+      // Para Coljuegos: al menos uno de los dos tipos debe estar definido (puede ser 0)
+      return formData.interesesDerechosExplotacion !== undefined && formData.interesesGastosAdministracion !== undefined;
     } else {
-      // Para otros compromisos: debe tener intereses > 0
-      return formData.interests > 0;
+      // Para otros compromisos: debe estar definido (puede ser 0)
+      return formData.interests !== undefined;
     }
   };
 
@@ -1913,7 +1914,7 @@ const NewPaymentPage = () => {
                               <Grid item xs={12} sm={4}>
                                 <TextField
                                   label="Intereses Derechos de Explotación"
-                                  value={formData.interesesDerechosExplotacion > 0 ? formatCurrency(formData.interesesDerechosExplotacion) : ''}
+                                  value={formData.interesesDerechosExplotacion !== undefined ? formatCurrency(formData.interesesDerechosExplotacion) : ''}
                                   onChange={(e) => {
                                     const numericValue = parseCurrency(e.target.value);
                                     setFormData(prev => ({
@@ -1964,7 +1965,7 @@ const NewPaymentPage = () => {
                               <Grid item xs={12} sm={4}>
                                 <TextField
                                   label="Intereses Gastos de Administración"
-                                  value={formData.interesesGastosAdministracion > 0 ? formatCurrency(formData.interesesGastosAdministracion) : ''}
+                                  value={formData.interesesGastosAdministracion !== undefined ? formatCurrency(formData.interesesGastosAdministracion) : ''}
                                   onChange={(e) => {
                                     const numericValue = parseCurrency(e.target.value);
                                     setFormData(prev => ({
@@ -2043,7 +2044,7 @@ const NewPaymentPage = () => {
                               <Grid item xs={12} sm={6}>
                                 <TextField
                                   label="Intereses por Mora"
-                                  value={formData.interests > 0 ? formatCurrency(formData.interests) : ''}
+                                  value={formData.interests !== undefined ? formatCurrency(formData.interests) : ''}
                                   onChange={(e) => {
                                     const numericValue = parseCurrency(e.target.value);
                                     setFormData(prev => ({
@@ -2055,7 +2056,7 @@ const NewPaymentPage = () => {
                                   fullWidth
                                   placeholder="0"
                                   error={errors.interests && formData.interests === 0}
-                                  helperText={errors.interests && formData.interests === 0 ? "Requerido para pagos tardíos" : "Monto de intereses por mora"}
+                                  helperText={errors.interests && formData.interests === 0 ? "Requerido para pagos tardíos" : "Monto de intereses por mora (puede ser $0)"}
                                   InputProps={{
                                     startAdornment: (
                                       <InputAdornment position="start">
