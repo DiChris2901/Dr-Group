@@ -90,7 +90,7 @@ const IncomePage = () => {
   const { success: showSuccess, error: showError, warning: showWarning, info: showInfo } = useToast();
   const { settings } = useSettings();
   
-  // ðŸŽ¨ Colores dinÃ¡micos del tema (igual que el sidebar)
+  // 🎨 Colores dinámicos del tema (igual que el sidebar)
   const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;
   const secondaryColor = settings?.theme?.secondaryColor || theme.palette.secondary.main;
   
@@ -99,7 +99,7 @@ const IncomePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Estados para diÃ¡logos de visualizaciÃ³n y eliminaciÃ³n (mantener solo los necesarios)
+  // Estados para diálogos de visualización y eliminación (mantener solo los necesarios)
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedIncome, setSelectedIncome] = useState(null);
@@ -108,7 +108,7 @@ const IncomePage = () => {
   // Estado para autocompletado de clientes
   const [uniqueClients, setUniqueClients] = useState([]);
   
-  // Estados para distribuciÃ³n por empresas
+  // Estados para distribución por empresas
   const [companies, setCompanies] = useState([]);
   const [personalAccounts, setPersonalAccounts] = useState([]);
   
@@ -136,7 +136,7 @@ const IncomePage = () => {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
-  // FunciÃ³n para obtener cuentas bancarias (empresariales y personales)
+  // Función para obtener cuentas bancarias (empresariales y personales)
   const getBankAccounts = () => {
     // Cuentas empresariales
     const businessAccounts = companies
@@ -147,7 +147,8 @@ const IncomePage = () => {
         companyName: company.name,
         bankAccount: company.bankAccount,
         bankName: company.bankName,
-        displayName: `${company.name} (Empresarial)`
+        displayName: `${company.name} (Empresarial)`,
+        uniqueKey: `business-${company.id}-${company.bankAccount}`
       }));
 
     // Cuentas personales  
@@ -157,10 +158,17 @@ const IncomePage = () => {
       companyName: account.holderName,
       bankAccount: account.accountNumber,
       bankName: account.bankName,
-      displayName: `${account.holderName} (Personal)`
+      displayName: `${account.holderName} (Personal)`,
+      uniqueKey: `personal-${account.id}-${account.accountNumber}`
     }));
 
-    return [...businessAccounts, ...personalAccountsList];
+    // Filtrar duplicados por accountNumber para evitar elementos con el mismo key
+    const allAccounts = [...businessAccounts, ...personalAccountsList];
+    const uniqueAccounts = allAccounts.filter((account, index, self) => 
+      index === self.findIndex((a) => a.bankAccount === account.bankAccount && a.type === account.type)
+    );
+
+    return uniqueAccounts;
   };
 
   const cleanCurrencyInput = (value) => {
@@ -173,7 +181,7 @@ const IncomePage = () => {
     handleFormChange('amount', numericValue);
   };
 
-  // FunciÃ³n para manejar la selecciÃ³n de cuenta bancaria
+  // Función para manejar la selección de cuenta bancaria
   const handleBankAccountSelect = (selectedAccount) => {
     if (selectedAccount) {
       const accountInfo = getBankAccounts().find(acc => acc.bankAccount === selectedAccount);
@@ -331,14 +339,14 @@ const IncomePage = () => {
   // Validar archivos (reutilizable para drag y click)
   const validateFiles = (files) => {
     return files.filter(file => {
-      // Validar tipo de archivo (imÃ¡genes y PDFs)
+      // Validar tipo de archivo (imágenes y PDFs)
       const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
       if (!validTypes.includes(file.type)) {
-        showError(`${file.name}: Solo se permiten imÃ¡genes (JPG, PNG, WEBP) y archivos PDF`);
+        showError(`${file.name}: Solo se permiten imágenes (JPG, PNG, WEBP) y archivos PDF`);
         return false;
       }
 
-      // Validar tamaÃ±o (mÃ¡ximo 10MB)
+      // Validar tamaño (máximo 10MB)
       if (file.size > 10 * 1024 * 1024) {
         showError(`${file.name}: El archivo no puede exceder 10MB`);
         return false;
@@ -424,7 +432,7 @@ const IncomePage = () => {
   const handleDragLeave = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    // Solo quitar dragOver si realmente salimos del Ã¡rea
+    // Solo quitar dragOver si realmente salimos del área
     if (!e.currentTarget.contains(e.relatedTarget)) {
       setDragOver(false);
     }
@@ -508,7 +516,7 @@ const IncomePage = () => {
     }
   };
 
-  // FunciÃ³n para editar ingreso (llenar formulario inline)
+  // Función para editar ingreso (llenar formulario inline)
   const handleEditIncome = (income) => {
     setSelectedIncome(income);
     setFormData({
@@ -532,7 +540,7 @@ const IncomePage = () => {
     setViewDialogOpen(true);
   };
 
-  // Confirmar eliminaciÃ³n
+  // Confirmar eliminación
   const handleDeleteIncome = (income) => {
     setIncomeToDelete(income);
     setDeleteDialogOpen(true);
@@ -590,7 +598,7 @@ const IncomePage = () => {
         const incomeDoc = await addDoc(collection(db, 'incomes'), incomeData);
         incomeId = incomeDoc.id;
         
-        // Subir archivos despuÃ©s de crear el documento
+        // Subir archivos después de crear el documento
         if (selectedFiles.length > 0) {
           const uploadedFiles = await uploadFiles(incomeId);
           if (uploadedFiles.length > 0) {
@@ -672,10 +680,8 @@ const IncomePage = () => {
   const getPaymentMethodColor = (method) => {
     const colors = {
       'transferencia': 'primary',
-      'efectivo': 'success',
-      'cheque': 'warning',
-      'tarjeta': 'info',
-      'otro': 'default'
+      'consignacion': 'secondary',
+      'efectivo': 'success'
     };
     return colors[method] || 'default';
   };
@@ -958,17 +964,17 @@ const IncomePage = () => {
               />
             </Grid>
 
-            {/* DescripciÃ³n */}
+            {/* Descripción */}
             <Grid item xs={12}>
               <TextField
                 fullWidth
                 multiline
                 rows={3}
-                label="DescripciÃ³n"
+                label="Descripción"
                 value={formData.description}
                 onChange={(e) => handleFormChange('description', e.target.value)}
                 disabled={saving}
-                placeholder="DescripciÃ³n del ingreso (opcional)"
+                placeholder="Descripción del ingreso (opcional)"
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 2 }}>
@@ -1016,15 +1022,15 @@ const IncomePage = () => {
               />
             </Grid>
 
-            {/* MÃ©todo de pago */}
+            {/* Método de pago */}
             <Grid item xs={12} md={4}>
               <FormControl fullWidth required>
-                <InputLabel>MÃ©todo de Pago</InputLabel>
+                <InputLabel>Método de Pago</InputLabel>
                 <Select
                   value={formData.paymentMethod}
                   onChange={(e) => handleFormChange('paymentMethod', e.target.value)}
                   disabled={saving}
-                  label="MÃ©todo de Pago"
+                  label="Método de Pago"
                   startAdornment={
                     <InputAdornment position="start">
                       <AccountBalanceIcon sx={{ color: '#2196f3' }} />
@@ -1038,11 +1044,8 @@ const IncomePage = () => {
                   }}
                 >
                   <MenuItem value="transferencia">Transferencia</MenuItem>
-                  <MenuItem value="consignacion">ConsignaciÃ³n</MenuItem>
+                  <MenuItem value="consignacion">Consignación</MenuItem>
                   <MenuItem value="efectivo">Efectivo</MenuItem>
-                  <MenuItem value="cheque">Cheque</MenuItem>
-                  <MenuItem value="tarjeta">Tarjeta</MenuItem>
-                  <MenuItem value="otro">Otro</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -1052,6 +1055,7 @@ const IncomePage = () => {
               <Autocomplete
                 options={getBankAccounts()}
                 getOptionLabel={(option) => option.displayName || ''}
+                isOptionEqualToValue={(option, value) => option.uniqueKey === value.uniqueKey}
                 value={getBankAccounts().find(acc => acc.bankAccount === formData.account) || null}
                 onChange={(event, newValue) => handleBankAccountSelect(newValue?.bankAccount || '')}
                 renderInput={(params) => (
@@ -1078,19 +1082,27 @@ const IncomePage = () => {
                     }}
                   />
                 )}
-                renderOption={(props, option) => (
-                  <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <AccountBalanceIcon sx={{ color: '#9c27b0', fontSize: 18 }} />
-                    <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {option.companyName}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {option.bankName} - {option.bankAccount}
-                      </Typography>
+                renderOption={(props, option) => {
+                  const { key, ...listProps } = props;
+                  return (
+                    <Box 
+                      key={option.uniqueKey} 
+                      component="li" 
+                      {...listProps} 
+                      sx={{ display: 'flex', alignItems: 'center', gap: 2 }}
+                    >
+                      <AccountBalanceIcon sx={{ color: '#9c27b0', fontSize: 18 }} />
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {option.companyName}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {option.bankName} - {option.bankAccount}
+                        </Typography>
+                      </Box>
                     </Box>
-                  </Box>
-                )}
+                  );
+                }}
               />
             </Grid>
           </Grid>
