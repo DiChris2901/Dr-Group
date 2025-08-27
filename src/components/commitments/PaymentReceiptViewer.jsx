@@ -592,7 +592,7 @@ const PaymentReceiptViewer = ({
                       border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`
                     }}>
                       <NotesIcon sx={{ 
-                        fontSize: 24, 
+                        fontSize: 18, 
                         color: theme.palette.primary.main 
                       }} />
                     </Avatar>
@@ -628,26 +628,26 @@ const PaymentReceiptViewer = ({
               <Paper sx={{ 
                 mt: 3, 
                 p: 3, 
-                borderRadius: 2,
-                backgroundColor: 'white',
-                border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+                borderRadius: 3,
+                backgroundColor: alpha(theme.palette.background.paper, 0.8),
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                backdropFilter: 'none',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.12)'
               }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                  <Box sx={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: 2,
-                    backgroundColor: theme.palette.primary.main,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    fontSize: '1.1rem'
+                  <Avatar sx={{
+                    width: 48,
+                    height: 48,
+                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                    border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`
                   }}>
-                    <AnalyticsIcon sx={{ fontSize: 20 }} />
-                  </Box>
+                    <CreditCardIcon sx={{ 
+                      fontSize: 18, 
+                      color: theme.palette.primary.main 
+                    }} />
+                  </Avatar>
                   <Typography variant="h6" sx={{ 
-                    color: 'primary.main', 
+                    color: 'text.primary', 
                     fontWeight: 600, 
                     fontSize: '1.1rem',
                     flex: 1
@@ -664,10 +664,10 @@ const PaymentReceiptViewer = ({
                       justifyContent: 'space-between', 
                       alignItems: 'center', 
                       mb: 1,
-                      p: 1.2,
-                      borderRadius: 1.5,
-                      backgroundColor: alpha(theme.palette.grey[500], 0.04),
-                      border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`
+                      p: 1.5,
+                      borderRadius: 2,
+                      backgroundColor: alpha(theme.palette.background.paper, 0.6),
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`
                     }}>
                       <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                         Empresa
@@ -685,10 +685,10 @@ const PaymentReceiptViewer = ({
                       justifyContent: 'space-between', 
                       alignItems: 'center', 
                       mb: 1,
-                      p: 1.2,
-                      borderRadius: 1.5,
-                      backgroundColor: alpha(theme.palette.grey[500], 0.04),
-                      border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`
+                      p: 1.5,
+                      borderRadius: 2,
+                      backgroundColor: alpha(theme.palette.background.paper, 0.6),
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`
                     }}>
                       <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                         Concepto
@@ -707,10 +707,10 @@ const PaymentReceiptViewer = ({
                         justifyContent: 'space-between', 
                         alignItems: 'center', 
                         mb: 1,
-                        p: 1.2,
-                        borderRadius: 1.5,
-                        backgroundColor: 'white',
-                        border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`
+                        p: 1.5,
+                        borderRadius: 2,
+                        backgroundColor: alpha(theme.palette.background.paper, 0.6),
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`
                       }}>
                         <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                           Referencia
@@ -722,77 +722,26 @@ const PaymentReceiptViewer = ({
                     </Grid>
                   )}
 
-                  {/* Cuenta de Origen del Pago */}
-                  {getAccountDisplayName(commitment) && (
-                    <Grid item xs={12} sm={6}>
-                      <Box sx={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'center', 
-                        mb: 1,
-                        p: 1.2,
-                        borderRadius: 1.5,
-                        backgroundColor: alpha(theme.palette.grey[500], 0.04),
-                        border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`
-                      }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
-                          Cuenta de Pago
-                        </Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 400, color: 'text.primary', fontSize: '0.85rem' }}>
-                          {getAccountDisplayName(commitment)}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  )}
-
-                  {/* Proveedor/Beneficiario */}
-                  {(() => {
-                    // 🔍 DEBUG COMPLETO: Ver toda la estructura del objeto commitment
-                    console.log('🔍 FULL COMMITMENT OBJECT:', commitment);
-                    console.log('🔍 COMMITMENT KEYS:', Object.keys(commitment || {}));
-                    
-                    // Buscar todos los campos posibles que podrían contener el beneficiario
-                    const possibleFields = {
-                      beneficiary: commitment?.beneficiary,
-                      provider: commitment?.provider,
-                      companyName: commitment?.companyName,
-                      concept: commitment?.concept,
-                      reference: commitment?.reference,
-                      paymentNotes: commitment?.paymentNotes,
-                      sourceBank: commitment?.sourceBank
-                    };
-                    
-                    console.log('🔍 ALL POSSIBLE BENEFICIARY FIELDS:', possibleFields);
-                    
-                    const hasBeneficiary = commitment?.beneficiary;
-                    
-                    console.log('🏢 FINAL DEBUG BENEFICIARY: ', {
-                      'commitment?.beneficiary': hasBeneficiary,
-                      'should show field': !!hasBeneficiary
-                    });
-                    
-                    return hasBeneficiary ? (
-                      <Grid item xs={12} sm={6}>
-                        <Box sx={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center', 
-                          mb: 1,
-                          p: 1.2,
-                          borderRadius: 1.5,
-                          backgroundColor: 'white',
-                          border: `1px solid ${alpha(theme.palette.grey[500], 0.12)}`
-                        }}>
-                          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
-                            Proveedor/Beneficiario
-                          </Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary', fontSize: '0.85rem' }}>
-                            {commitment.beneficiary}
-                          </Typography>
-                        </Box>
-                      </Grid>
-                    ) : null;
-                  })()}
+                  {/* Proveedor/Beneficiario - Siempre visible */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      mb: 1,
+                      p: 1.5,
+                      borderRadius: 2,
+                      backgroundColor: alpha(theme.palette.background.paper, 0.6),
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`
+                    }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
+                        Proveedor/Beneficiario
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary', fontSize: '0.85rem' }}>
+                        {commitment?.beneficiary || 'No especificado'}
+                      </Typography>
+                    </Box>
+                  </Grid>
                 </Grid>
 
                 {/* 💳 SECCIÓN DE INFORMACIÓN DE CUOTAS */}
@@ -956,21 +905,19 @@ const PaymentReceiptViewer = ({
                 {/* SECCIÓN DE MONTOS Y DETALLES - SIEMPRE VISIBLE CON DEBUG */}
                 <Box sx={{ mt: 3, pt: 3, borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.2)}` }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                    <Box sx={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 1.5,
-                      backgroundColor: alpha(theme.palette.secondary.main, 0.15),
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'secondary.main',
-                      fontSize: '1.1rem'
+                    <Avatar sx={{
+                      width: 40,
+                      height: 40,
+                      backgroundColor: alpha(theme.palette.secondary.main, 0.1),
+                      border: `2px solid ${alpha(theme.palette.secondary.main, 0.2)}`
                     }}>
-                      <AttachMoneyIcon sx={{ fontSize: 18 }} />
-                    </Box>
+                      <AttachMoneyIcon sx={{ 
+                        fontSize: 20, 
+                        color: theme.palette.secondary.main 
+                      }} />
+                    </Avatar>
                     <Typography variant="h6" sx={{ 
-                      color: 'secondary.main', 
+                      color: 'text.primary', 
                       fontWeight: 600, 
                       fontSize: '1.1rem',
                       flex: 1
@@ -1184,10 +1131,10 @@ const PaymentReceiptViewer = ({
                                 justifyContent: 'space-between', 
                                 alignItems: 'center', 
                                 mb: 1,
-                                p: 1.2,
-                                borderRadius: 1.5,
-                                backgroundColor: alpha(theme.palette.primary.main, 0.06),
-                                border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`
+                                p: 1.5,
+                                borderRadius: 2,
+                                backgroundColor: alpha(theme.palette.background.paper, 0.6),
+                                border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`
                               }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                                   Valor Original
@@ -1210,10 +1157,10 @@ const PaymentReceiptViewer = ({
                                 justifyContent: 'space-between', 
                                 alignItems: 'center', 
                                 mb: 1,
-                                p: 1.2,
-                                borderRadius: 1.5,
-                                backgroundColor: alpha(theme.palette.error.main, 0.06),
-                                border: `1px solid ${alpha(theme.palette.error.main, 0.15)}`
+                                p: 1.5,
+                                borderRadius: 2,
+                                backgroundColor: alpha(theme.palette.background.paper, 0.6),
+                                border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`
                               }}>
                                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                                   Intereses
@@ -1260,28 +1207,27 @@ const PaymentReceiptViewer = ({
                         mt: 2, 
                         pt: 2, 
                         borderTop: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
-                        backgroundColor: 'white',
-                        borderRadius: 2,
+                        backgroundColor: alpha(theme.palette.background.paper, 0.8),
+                        borderRadius: 3,
                         px: 2.5,
-                        py: 1.8
+                        py: 1.8,
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`
                       }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Box sx={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 2,
-                            backgroundColor: theme.palette.success.main,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            fontSize: '1.1rem'
+                          <Avatar sx={{
+                            width: 40,
+                            height: 40,
+                            backgroundColor: alpha(theme.palette.success.main, 0.1),
+                            border: `2px solid ${alpha(theme.palette.success.main, 0.2)}`
                           }}>
-                            💵
-                          </Box>
+                            <AttachMoneyIcon sx={{ 
+                              fontSize: 22, 
+                              color: theme.palette.success.main 
+                            }} />
+                          </Avatar>
                           <Typography variant="h6" sx={{ 
                             fontWeight: 600,
-                            color: 'success.main',
+                            color: 'text.primary',
                             fontSize: '1rem'
                           }}>
                             Total Pagado
@@ -1312,27 +1258,27 @@ const PaymentReceiptViewer = ({
                 <Paper sx={{ 
                   mt: 3, 
                   p: 3, 
-                  borderRadius: 2,
-                  backgroundColor: 'white',
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                  borderRadius: 3,
+                  backgroundColor: alpha(theme.palette.background.paper, 0.8),
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                  backdropFilter: 'none',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
                   textAlign: 'center'
                 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, mb: 2 }}>
-                    <Box sx={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: 2,
-                      backgroundColor: theme.palette.primary.main,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'white',
-                      fontSize: '1.1rem'
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, mb: 2.5 }}>
+                    <Avatar sx={{
+                      width: 48,
+                      height: 48,
+                      backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                      border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`
                     }}>
-                      📎
-                    </Box>
+                      <ReceiptIcon sx={{ 
+                        fontSize: 18, 
+                        color: theme.palette.primary.main 
+                      }} />
+                    </Avatar>
                     <Typography variant="h6" sx={{ 
-                      color: 'primary.main', 
+                      color: 'text.primary', 
                       fontWeight: 600, 
                       fontSize: '1.1rem'
                     }}>
@@ -1355,8 +1301,9 @@ const PaymentReceiptViewer = ({
                           fontWeight: 500,
                           fontSize: '0.75rem',
                           height: 24,
-                          backgroundColor: alpha(theme.palette.grey[500], 0.1),
-                          border: `1px solid ${alpha(theme.palette.grey[500], 0.2)}`
+                          backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                          border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                          color: 'primary.main'
                         }}
                       />
                     )}
