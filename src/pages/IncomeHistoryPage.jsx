@@ -14,7 +14,9 @@ import {
     Save as SaveIcon,
     Search as SearchIcon,
     TrendingUp as TrendingUpIcon,
-    Visibility as VisibilityIcon
+    Visibility as VisibilityIcon,
+    SwapHoriz as SwapHorizIcon,
+    CloudUpload as CloudUploadIcon
 } from '@mui/icons-material';
 import {
   Box,
@@ -366,10 +368,10 @@ const IncomeHistoryPage = () => {
 
     try {
       // 1. Eliminar archivos de Storage si existen
-      if (incomeToDelete.files && incomeToDelete.files.length > 0) {
-        for (const file of incomeToDelete.files) {
+      if (incomeToDelete.attachments && incomeToDelete.attachments.length > 0) {
+        for (const file of incomeToDelete.attachments) {
           try {
-            const fileRef = ref(storage, file.storagePath);
+            const fileRef = ref(storage, file.path || file.storagePath);
             await deleteObject(fileRef);
             console.log(`Archivo eliminado: ${file.name}`);
           } catch (fileError) {
@@ -411,9 +413,10 @@ const IncomeHistoryPage = () => {
     setFormattedAmount(amountValue ? formatCurrencyInput(amountValue) : '');
     
     // Marcar archivos existentes como tal
-    const existingFiles = (income.files || []).map(file => ({
+    const existingFiles = (income.attachments || []).map(file => ({
       ...file,
-      isNew: false
+      isNew: false,
+      storagePath: file.path // Mapear 'path' a 'storagePath' para compatibilidad
     }));
     setEditFiles(existingFiles);
     setEditDialogOpen(true);
@@ -463,7 +466,7 @@ const IncomeHistoryPage = () => {
       // Si es un archivo existente, marcarlo para eliminación
       try {
         const storage = getStorage();
-        const fileRef = ref(storage, fileToRemove.storagePath);
+        const fileRef = ref(storage, fileToRemove.path || fileToRemove.storagePath);
         await deleteObject(fileRef);
         setEditFiles(prev => prev.filter((_, index) => index !== fileIndex));
         showSuccess(`Archivo ${fileToRemove.name} eliminado`);
@@ -472,6 +475,54 @@ const IncomeHistoryPage = () => {
         showError('Error al eliminar archivo');
       }
     }
+  };
+
+  // Nueva función para reemplazar comprobante existente
+  const handleEditFileReplace = async (fileIndex) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.jpg,.jpeg,.png,.webp';
+    
+    input.onchange = async (event) => {
+      const newFile = event.target.files[0];
+      if (!newFile) return;
+      
+      // Validar tamaño
+      if (newFile.size > 5 * 1024 * 1024) {
+        showError('El archivo no puede ser mayor a 5MB');
+        return;
+      }
+      
+      const oldFile = editFiles[fileIndex];
+      
+      try {
+        // 1. Eliminar el archivo anterior del storage
+        if (oldFile && (oldFile.path || oldFile.storagePath) && !oldFile.isNew) {
+          const storage = getStorage();
+          const oldFileRef = ref(storage, oldFile.path || oldFile.storagePath);
+          await deleteObject(oldFileRef);
+        }
+        
+        // 2. Reemplazar en el estado con el nuevo archivo
+        setEditFiles(prev => prev.map((file, index) => 
+          index === fileIndex 
+            ? {
+                name: newFile.name,
+                file: newFile,
+                isNew: true,
+                url: URL.createObjectURL(newFile)
+              }
+            : file
+        ));
+        
+        showSuccess(`Comprobante reemplazado: ${newFile.name}`);
+      } catch (error) {
+        console.error('Error al reemplazar archivo:', error);
+        showError('Error al reemplazar el comprobante');
+      }
+    };
+    
+    input.click();
   };
 
   const handleEditSubmit = async () => {
@@ -503,11 +554,12 @@ const IncomeHistoryPage = () => {
           
           uploadedFiles.push({
             name: fileData.file.name,
+            originalName: fileData.file.name,
             url: downloadURL,
-            storagePath: filePath,
+            path: filePath,
             size: fileData.file.size,
             type: fileData.file.type,
-            uploadedAt: new Date()
+            uploadedAt: new Date().toISOString()
           });
         } catch (error) {
           console.error(`Error al subir ${fileData.file.name}:`, error);
@@ -526,7 +578,7 @@ const IncomeHistoryPage = () => {
         paymentMethod: editFormData.paymentMethod,
         account: editFormData.account,
         date: Timestamp.fromDate(new Date(editFormData.date)),
-        files: allFiles,
+        attachments: allFiles,
         updatedAt: Timestamp.fromDate(new Date())
       };
 
@@ -1219,7 +1271,7 @@ const IncomeHistoryPage = () => {
           <Box sx={{ mt: 3 }}>
             <Grid container spacing={3}>
               {/* Información Principal */}
-              <Grid item xs={12} md={8}>
+              <Grid item xs={12} md={7}>
                 <Paper sx={{ 
                   p: 3, 
                   borderRadius: 2, 
@@ -1356,10 +1408,10 @@ const IncomeHistoryPage = () => {
               </Grid>
 
               {/* Información Lateral */}
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={5}>
                 {/* Gestión de Archivos */}
                 <Paper sx={{ 
-                  p: 3, 
+                  p: 3.5, 
                   borderRadius: 2, 
                   border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
                   background: theme.palette.background.paper,
@@ -1407,22 +1459,47 @@ const IncomeHistoryPage = () => {
                 {editFiles.length > 0 ? (
                   <Box sx={{ mb: 3 }}>
                     <Alert 
-                      severity="info" 
+                      severity={editFiles.filter(f => !f.isNew).length > 0 ? "info" : "success"}
                       sx={{ 
                         mb: 2, 
-                        backgroundColor: alpha(theme.palette.info.main, 0.08),
-                        '& .MuiAlert-icon': { color: theme.palette.info.main }
+                        backgroundColor: alpha(
+                          editFiles.filter(f => !f.isNew).length > 0 
+                            ? theme.palette.info.main 
+                            : theme.palette.success.main, 
+                          0.08
+                        ),
+                        '& .MuiAlert-icon': { 
+                          color: editFiles.filter(f => !f.isNew).length > 0 
+                            ? theme.palette.info.main 
+                            : theme.palette.success.main 
+                        }
                       }}
                     >
-                      <Typography variant="body2">
-                        {editFiles.length} archivo{editFiles.length > 1 ? 's' : ''} 
-                        {editFiles.filter(f => !f.isNew).length > 0 && (
-                          <> ({editFiles.filter(f => !f.isNew).length} existente{editFiles.filter(f => !f.isNew).length > 1 ? 's' : ''})</>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {editFiles.filter(f => !f.isNew).length > 0 ? (
+                          <>
+                            ☁️ <strong>Este ingreso tiene {editFiles.filter(f => !f.isNew).length} comprobante{editFiles.filter(f => !f.isNew).length > 1 ? 's' : ''} en almacenamiento</strong>
+                            {editFiles.filter(f => f.isNew).length > 0 && (
+                              <> + {editFiles.filter(f => f.isNew).length} nuevo{editFiles.filter(f => f.isNew).length > 1 ? 's' : ''}</>
+                            )}
+                            <br />
+                            <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                              Puedes reemplazar o eliminar los comprobantes existentes
+                            </Typography>
+                          </>
+                        ) : (
+                          <>
+                            📄 <strong>{editFiles.length} archivo{editFiles.length > 1 ? 's' : ''} nuevo{editFiles.length > 1 ? 's' : ''} agregado{editFiles.length > 1 ? 's' : ''}</strong>
+                            <br />
+                            <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                              Se subirá{editFiles.length > 1 ? 'n' : ''} al almacenamiento al guardar
+                            </Typography>
+                          </>
                         )}
                       </Typography>
                     </Alert>
                     
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
                       {editFiles.map((file, index) => (
                         <Paper
                           key={index}
@@ -1431,7 +1508,7 @@ const IncomeHistoryPage = () => {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
-                            p: 2.5,
+                            p: 3,
                             borderRadius: 3,
                             background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.7)} 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
                             border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
@@ -1451,7 +1528,7 @@ const IncomeHistoryPage = () => {
                                 height: 10,
                                 borderRadius: '50%',
                                 backgroundColor: file.isNew ? theme.palette.success.main : theme.palette.info.main,
-                                mr: 2.5,
+                                mr: 3,
                                 flexShrink: 0,
                                 boxShadow: `0 0 0 3px ${alpha(file.isNew ? theme.palette.success.main : theme.palette.info.main, 0.15)}`,
                                 border: `2px solid ${alpha(theme.palette.background.paper, 0.8)}`
@@ -1471,43 +1548,73 @@ const IncomeHistoryPage = () => {
                                 {file.name || file.file?.name}
                               </Typography>
                               <Chip
-                                label={file.isNew ? 'Nuevo archivo' : 'En almacenamiento'}
+                                label={file.isNew ? '📄 Nuevo archivo' : '☁️ En almacenamiento'}
                                 size="small"
                                 variant="outlined"
                                 sx={{ 
                                   mt: 0.5,
-                                  height: 20,
-                                  fontSize: '0.65rem',
-                                  borderColor: file.isNew ? theme.palette.success.light : theme.palette.primary.light,
-                                  color: file.isNew ? theme.palette.success.main : theme.palette.primary.main,
-                                  backgroundColor: alpha(file.isNew ? theme.palette.success.main : theme.palette.primary.main, 0.08)
+                                  height: 22,
+                                  fontSize: '0.7rem',
+                                  borderColor: file.isNew ? theme.palette.success.light : theme.palette.info.light,
+                                  color: file.isNew ? theme.palette.success.main : theme.palette.info.main,
+                                  backgroundColor: alpha(file.isNew ? theme.palette.success.main : theme.palette.info.main, 0.08),
+                                  fontWeight: 500
                                 }}
                               />
                             </Box>
                           </Box>
                           
-                          <Tooltip title="Eliminar archivo">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleEditFileRemove(index)}
-                              disabled={saving}
-                              sx={{
-                                color: alpha(theme.palette.error.main, 0.7),
-                                borderRadius: 1.5,
-                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                '&:hover': {
-                                  color: theme.palette.error.main,
-                                  backgroundColor: alpha(theme.palette.error.main, 0.08),
-                                  transform: 'scale(1.05)'
-                                },
-                                '&:disabled': {
-                                  color: alpha(theme.palette.text.disabled, 0.5)
-                                }
-                              }}
-                            >
-                              <DeleteIcon sx={{ fontSize: 18 }} />
-                            </IconButton>
-                          </Tooltip>
+                          <Box sx={{ display: 'flex', gap: 1.5 }}>
+                            {/* Botón Reemplazar - Solo para archivos existentes */}
+                            {!file.isNew && (
+                              <Tooltip title="Reemplazar comprobante">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleEditFileReplace(index)}
+                                  disabled={saving}
+                                  sx={{
+                                    color: alpha(theme.palette.warning.main, 0.8),
+                                    borderRadius: 1.5,
+                                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    '&:hover': {
+                                      color: theme.palette.warning.main,
+                                      backgroundColor: alpha(theme.palette.warning.main, 0.08),
+                                      transform: 'scale(1.05)'
+                                    },
+                                    '&:disabled': {
+                                      color: alpha(theme.palette.text.disabled, 0.5)
+                                    }
+                                  }}
+                                >
+                                  <SwapHorizIcon sx={{ fontSize: 18 }} />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                            
+                            {/* Botón Eliminar */}
+                            <Tooltip title={file.isNew ? "Quitar archivo" : "Eliminar comprobante"}>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleEditFileRemove(index)}
+                                disabled={saving}
+                                sx={{
+                                  color: alpha(theme.palette.error.main, 0.7),
+                                  borderRadius: 1.5,
+                                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                  '&:hover': {
+                                    color: theme.palette.error.main,
+                                    backgroundColor: alpha(theme.palette.error.main, 0.08),
+                                    transform: 'scale(1.05)'
+                                  },
+                                  '&:disabled': {
+                                    color: alpha(theme.palette.text.disabled, 0.5)
+                                  }
+                                }}
+                              >
+                                <DeleteIcon sx={{ fontSize: 18 }} />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
                         </Paper>
                       ))}
                     </Box>
@@ -1551,13 +1658,20 @@ const IncomeHistoryPage = () => {
                       color: theme.palette.text.primary,
                       fontSize: '1rem'
                     }}>
-                      No hay archivos adjuntos
+                      Sin comprobantes en almacenamiento
                     </Typography>
                     <Typography variant="body2" sx={{ 
                       color: alpha(theme.palette.text.secondary, 0.8),
+                      lineHeight: 1.6,
+                      mb: 2
+                    }}>
+                      Este ingreso no tiene comprobantes adjuntos
+                    </Typography>
+                    <Typography variant="caption" sx={{ 
+                      color: alpha(theme.palette.text.secondary, 0.6),
                       lineHeight: 1.6
                     }}>
-                      Utiliza el botón de abajo para agregar comprobantes
+                      Utiliza el botón de abajo para agregar comprobantes de pago
                     </Typography>
                   </Box>
                 )}
@@ -1602,7 +1716,8 @@ const IncomeHistoryPage = () => {
                       }
                     }}
                   >
-                    {editFiles.length > 0 ? 'Agregar Más Archivos' : 'Seleccionar Archivos'}
+                    <CloudUploadIcon sx={{ mr: 1 }} />
+                    {editFiles.length > 0 ? 'Agregar Más Archivos' : 'Seleccionar Comprobantes'}
                   </Button>
                 </label>
                 
@@ -1704,9 +1819,9 @@ const IncomeHistoryPage = () => {
               <Typography variant="body2" color="text.secondary">
                 <strong>Fecha:</strong> {format(incomeToDelete.date, 'dd MMM yyyy', { locale: es })}
               </Typography>
-              {incomeToDelete.files && incomeToDelete.files.length > 0 && (
+              {incomeToDelete.attachments && incomeToDelete.attachments.length > 0 && (
                 <Typography variant="body2" color="text.secondary">
-                  <strong>Archivos adjuntos:</strong> {incomeToDelete.files.length} archivo(s)
+                  <strong>Archivos adjuntos:</strong> {incomeToDelete.attachments.length} archivo(s)
                 </Typography>
               )}
             </Box>
