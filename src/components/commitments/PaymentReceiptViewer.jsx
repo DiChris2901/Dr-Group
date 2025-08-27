@@ -10,13 +10,20 @@ import {
   Grid,
   Box,
   IconButton,
+  Avatar,
   alpha,
   useTheme
 } from '@mui/material';
 import {
   Close,
   Visibility,
-  CheckCircle
+  CheckCircle,
+  AttachMoney as AttachMoneyIcon,
+  CalendarToday as CalendarIcon,
+  CreditCard as CreditCardIcon,
+  Analytics as AnalyticsIcon,
+  Notes as NotesIcon,
+  Receipt as ReceiptIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
@@ -387,60 +394,19 @@ const PaymentReceiptViewer = ({
           }}
         >
           {/* � Header Sobrio Corporativo */}
-          <DialogTitle>
-            <Paper sx={{ 
-              background: theme.palette.mode === 'dark' 
-                ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
-                : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-              borderRadius: 1,
-              overflow: 'hidden',
-              boxShadow: theme.palette.mode === 'dark'
-                ? '0 4px 20px rgba(0, 0, 0, 0.3)'
-                : '0 4px 20px rgba(0, 0, 0, 0.08)'
-            }}>
-              <Box sx={{ p: 3, position: 'relative', zIndex: 1 }}>
-                <Typography variant="overline" sx={{
-                  fontWeight: 600, 
-                  fontSize: '0.7rem', 
-                  color: 'rgba(255, 255, 255, 0.8)',
-                  letterSpacing: 1.2
-                }}>
-                  FINANZAS • COMPROBANTE
-                </Typography>
-                <Typography variant="h4" sx={{
-                  fontWeight: 700, 
-                  color: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1
-                }}>
-                  📄 Comprobante de Pago
-                </Typography>
-                <Typography variant="body1" sx={{ 
-                  color: 'rgba(255, 255, 255, 0.9)'
-                }}>
-                  Detalles de la transacción
-                </Typography>
-              </Box>
-            </Paper>
+          <DialogTitle sx={{ pb: 4, backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar sx={{ backgroundColor: 'primary.main', width: 40, height: 40 }}>
+                <ReceiptIcon />
+              </Avatar>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                Detalle del Pago
+              </Typography>
+            </Box>
           </DialogTitle>
-
-          <DialogContent sx={{ 
-            p: { xs: 2, sm: 3, md: 4 },
-            bgcolor: 'white',
-            '&::-webkit-scrollbar': {
-              width: 6,
-            },
-            '&::-webkit-scrollbar-track': {
-              background: alpha(theme.palette.divider, 0.1),
-            },
-            '&::-webkit-scrollbar-thumb': {
-              background: alpha(theme.palette.action.active, 0.2),
-              borderRadius: 3,
-            },
-          }}>
+          <DialogContent sx={{ p: 3, pt: 4 }}>
             {/* 📊 Tarjetas de Información Principal - Diseño Sobrio */}
-            <Grid container spacing={3}>
+            <Grid container spacing={3} sx={{ mt: 1 }}>
               {/* 💰 Monto Pagado */}
               <Grid item xs={12} md={4}>
                 <motion.div
@@ -451,45 +417,40 @@ const PaymentReceiptViewer = ({
                 >
                   <Paper
                     sx={{
-                      p: 2,
+                      p: 3,
                       borderRadius: 2,
                       backgroundColor: 'white',
-                      border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-                      height: 100,
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                       display: 'flex',
                       alignItems: 'center'
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-                      <Box sx={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 2,
-                        backgroundColor: theme.palette.success.main,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        fontSize: '1.2rem'
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
+                      <Avatar sx={{
+                        width: 36,
+                        height: 36,
+                        backgroundColor: alpha(theme.palette.success.main, 0.1),
+                        color: 'success.main'
                       }}>
-                        💰
-                      </Box>
+                        <AttachMoneyIcon sx={{ fontSize: 18 }} />
+                      </Avatar>
                       <Box sx={{ flex: 1 }}>
                         <Typography variant="caption" sx={{ 
                           color: 'text.secondary',
                           fontWeight: 500,
-                          fontSize: '0.65rem',
+                          fontSize: '0.7rem',
                           textTransform: 'uppercase',
-                          letterSpacing: '0.08em',
+                          letterSpacing: '0.05em',
                           display: 'block',
-                          mb: 0.3
+                          mb: 0.5
                         }}>
                           MONTO PAGADO
                         </Typography>
                         <Typography variant="h6" sx={{ 
                           fontWeight: 600,
-                          color: 'success.main',
-                          fontSize: '1.2rem'
+                          color: 'text.primary',
+                          fontSize: '1.1rem'
                         }}>
                           {fCurrency(payment.amount)}
                         </Typography>
@@ -509,45 +470,40 @@ const PaymentReceiptViewer = ({
                 >
                   <Paper
                     sx={{
-                      p: 2,
+                      p: 3,
                       borderRadius: 2,
                       backgroundColor: 'white',
-                      border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
-                      height: 100,
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                       display: 'flex',
                       alignItems: 'center'
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-                      <Box sx={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 2,
-                        backgroundColor: theme.palette.info.main,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        fontSize: '1.2rem'
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
+                      <Avatar sx={{
+                        width: 36,
+                        height: 36,
+                        backgroundColor: alpha(theme.palette.info.main, 0.1),
+                        color: 'info.main'
                       }}>
-                        📅
-                      </Box>
+                        <CalendarIcon sx={{ fontSize: 18 }} />
+                      </Avatar>
                       <Box sx={{ flex: 1 }}>
                         <Typography variant="caption" sx={{ 
                           color: 'text.secondary',
                           fontWeight: 500,
-                          fontSize: '0.65rem',
+                          fontSize: '0.7rem',
                           textTransform: 'uppercase',
-                          letterSpacing: '0.08em',
+                          letterSpacing: '0.05em',
                           display: 'block',
-                          mb: 0.3
+                          mb: 0.5
                         }}>
                           FECHA DE PAGO
                         </Typography>
                         <Typography variant="h6" sx={{ 
                           fontWeight: 600,
-                          color: 'info.main',
-                          fontSize: '1.2rem'
+                          color: 'text.primary',
+                          fontSize: '1.1rem'
                         }}>
                           {format(validPaymentDate, 'dd/MM/yyyy', { locale: es })}
                         </Typography>
@@ -567,45 +523,40 @@ const PaymentReceiptViewer = ({
                 >
                   <Paper
                     sx={{
-                      p: 2,
+                      p: 3,
                       borderRadius: 2,
                       backgroundColor: 'white',
-                      border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
-                      height: 100,
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                       display: 'flex',
                       alignItems: 'center'
                     }}
                   >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-                      <Box sx={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 2,
-                        backgroundColor: theme.palette.secondary.main,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'white',
-                        fontSize: '1.2rem'
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, width: '100%' }}>
+                      <Avatar sx={{
+                        width: 36,
+                        height: 36,
+                        backgroundColor: alpha(theme.palette.secondary.main, 0.1),
+                        color: 'secondary.main'
                       }}>
-                        💳
-                      </Box>
+                        <CreditCardIcon sx={{ fontSize: 18 }} />
+                      </Avatar>
                       <Box sx={{ flex: 1 }}>
                         <Typography variant="caption" sx={{ 
                           color: 'text.secondary',
                           fontWeight: 500,
-                          fontSize: '0.65rem',
+                          fontSize: '0.7rem',
                           textTransform: 'uppercase',
-                          letterSpacing: '0.08em',
+                          letterSpacing: '0.05em',
                           display: 'block',
-                          mb: 0.3
+                          mb: 0.5
                         }}>
                           MÉTODO DE PAGO
                         </Typography>
                         <Typography variant="h6" sx={{ 
                           fontWeight: 600,
-                          color: 'secondary.main',
-                          fontSize: '1.2rem'
+                          color: 'text.primary',
+                          fontSize: '1.1rem'
                         }}>
                           {payment.paymentMethod || 'Transferencia'}
                         </Typography>
@@ -626,27 +577,27 @@ const PaymentReceiptViewer = ({
               >
                 <Paper sx={{ 
                   mt: 3, 
-                  p: 2.5, 
-                  borderRadius: 2,
-                  backgroundColor: 'white',
-                  border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+                  p: 3, 
+                  borderRadius: 3,
+                  backgroundColor: alpha(theme.palette.background.paper, 0.8),
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                  backdropFilter: 'none',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.12)'
                 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                    <Box sx={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 2,
-                      backgroundColor: theme.palette.info.main,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'white',
-                      fontSize: '1.2rem'
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2.5 }}>
+                    <Avatar sx={{
+                      width: 48,
+                      height: 48,
+                      backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                      border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`
                     }}>
-                      📝
-                    </Box>
+                      <NotesIcon sx={{ 
+                        fontSize: 24, 
+                        color: theme.palette.primary.main 
+                      }} />
+                    </Avatar>
                     <Typography variant="h6" sx={{ 
-                      color: 'info.main', 
+                      color: 'text.primary', 
                       fontWeight: 600, 
                       fontSize: '1.1rem',
                       flex: 1
@@ -657,9 +608,9 @@ const PaymentReceiptViewer = ({
                   <Typography variant="body1" sx={{ 
                     fontWeight: 400, 
                     lineHeight: 1.6,
-                    color: theme.palette.text.primary,
-                    pl: 7,
-                    fontStyle: 'italic'
+                    color: theme.palette.text.secondary,
+                    pl: 0,
+                    fontStyle: 'normal'
                   }}>
                     {payment.notes}
                   </Typography>
@@ -691,9 +642,9 @@ const PaymentReceiptViewer = ({
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: 'white',
-                    fontSize: '1.3rem'
+                    fontSize: '1.1rem'
                   }}>
-                    📊
+                    <AnalyticsIcon sx={{ fontSize: 20 }} />
                   </Box>
                   <Typography variant="h6" sx={{ 
                     color: 'primary.main', 
@@ -867,7 +818,7 @@ const PaymentReceiptViewer = ({
                         color: 'info.main',
                         fontSize: '1.1rem'
                       }}>
-                        💳
+                        <CreditCardIcon sx={{ fontSize: 18 }} />
                       </Box>
                       <Typography variant="h6" sx={{ 
                         color: 'info.main', 
@@ -1016,7 +967,7 @@ const PaymentReceiptViewer = ({
                       color: 'secondary.main',
                       fontSize: '1.1rem'
                     }}>
-                      💰
+                      <AttachMoneyIcon sx={{ fontSize: 18 }} />
                     </Box>
                     <Typography variant="h6" sx={{ 
                       color: 'secondary.main', 
