@@ -271,13 +271,13 @@ const PDFCompressionPreview = ({
       }}>
         <CompareIcon sx={{ fontSize: compactMode ? '1.5rem' : '2rem' }} />
         <Box>
-          <Typography variant="h6" component="div" sx={{ 
+          <Box component="div" sx={{ 
             fontWeight: 600, 
             mb: 0.5,
             fontSize: compactMode ? '1.1rem' : '1.25rem'
           }}>
             Vista Previa de Compresión PDF
-          </Typography>
+          </Box>
           <Typography variant="body2" sx={{ 
             opacity: 0.9, 
             fontSize: compactMode ? '0.8rem' : '0.9rem'
@@ -298,7 +298,6 @@ const PDFCompressionPreview = ({
               mb: 6, // Aumentado de 4 a 6 para más separación
               mt: 3, // Agregado margen superior
               p: 3,
-              borderRadius: 2,
               backgroundColor: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
               border: `1px solid ${theme.palette.divider}`,

@@ -19,6 +19,7 @@ import {
 import {
   Box,
   Typography,
+  Avatar,
   Card,
   CardContent,
   Grid,
@@ -39,7 +40,6 @@ import {
   Tooltip,
   InputAdornment,
   Alert,
-  Avatar,
   Pagination,
   Divider,
   alpha,
@@ -1180,36 +1180,65 @@ const IncomeHistoryPage = () => {
         maxWidth="md"
         fullWidth
         PaperProps={{
-          sx: { 
+          sx: {
             borderRadius: 2,
+            background: theme.palette.background.paper,
             boxShadow: theme.palette.mode === 'dark'
-              ? '0 12px 40px rgba(0, 0, 0, 0.3)'
-              : '0 12px 40px rgba(0, 0, 0, 0.15)',
-            background: theme.palette.mode === 'dark'
-              ? `linear-gradient(135deg, ${theme.palette.grey[900]} 0%, ${theme.palette.grey[800]} 100%)`
-              : `linear-gradient(135deg, ${theme.palette.grey[50]} 0%, ${theme.palette.common.white} 100%)`
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
           }
         }}
       >
         <DialogTitle sx={{ 
           pb: 2, 
-          pt: 3,
-          px: 3,
-          background: 'transparent',
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          background: theme.palette.mode === 'dark' 
+            ? theme.palette.grey[900]
+            : theme.palette.grey[50],
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          color: 'text.primary'
         }}>
-          <EditIcon sx={{ fontSize: 20, color: theme.palette.primary.main }} />
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            Editar Ingreso
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+              <EditIcon />
+            </Avatar>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
+                Editar Ingreso
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                {editFormData.client || 'Modificar información del ingreso'}
+              </Typography>
+            </Box>
+          </Box>
         </DialogTitle>
-        <DialogContent sx={{ px: 3, pb: 2, pt: 3 }}>
-          <Grid container spacing={3}>
-            {/* Cliente */}
-            <Grid item xs={12} md={6}>
+        <DialogContent sx={{ p: 3, pt: 5 }}>
+          <Box sx={{ mt: 3 }}>
+            <Grid container spacing={3}>
+              {/* Información Principal */}
+              <Grid item xs={12} md={8}>
+                <Paper sx={{ 
+                  p: 3, 
+                  borderRadius: 2, 
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                  background: theme.palette.background.paper,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                }}>
+                  <Typography variant="overline" sx={{ 
+                    fontWeight: 600, 
+                    color: 'primary.main',
+                    letterSpacing: 0.8,
+                    fontSize: '0.75rem'
+                  }}>
+                    Información General
+                  </Typography>
+                  
+                  <Grid container spacing={3} sx={{ mt: 1 }}>
+                    {/* Cliente */}
+                    <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
                 required
@@ -1322,9 +1351,32 @@ const IncomeHistoryPage = () => {
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
               />
             </Grid>
+                  </Grid>
+                </Paper>
+              </Grid>
+
+              {/* Información Lateral */}
+              <Grid item xs={12} md={4}>
+                {/* Gestión de Archivos */}
+                <Paper sx={{ 
+                  p: 3, 
+                  borderRadius: 2, 
+                  border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                  background: theme.palette.background.paper,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                }}>
+                  <Typography variant="overline" sx={{ 
+                    fontWeight: 600, 
+                    color: 'secondary.main',
+                    letterSpacing: 0.8,
+                    fontSize: '0.75rem'
+                  }}>
+                    <AttachFileIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
+                    Gestión de Archivos
+                  </Typography>
 
             {/* Archivos */}
-            <Grid item xs={12}>
+            <Box sx={{ mt: 2 }}>
               <Paper
                 sx={{
                   p: 3,
@@ -1380,12 +1432,14 @@ const IncomeHistoryPage = () => {
                             alignItems: 'center',
                             justifyContent: 'space-between',
                             p: 2.5,
-                            borderRadius: 2,
-                            backgroundColor: theme.palette.background.default,
-                            border: `1px solid ${theme.palette.divider}`,
-                            transition: 'all 0.2s ease',
+                            borderRadius: 3,
+                            background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.7)} 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+                            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                             '&:hover': {
-                              borderColor: theme.palette.primary.light,
+                              borderColor: alpha(theme.palette.primary.main, 0.25),
+                              background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.9)} 0%, ${alpha(theme.palette.primary.main, 0.04)} 100%)`,
+                              transform: 'translateY(-1px)',
                               boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
                             }
                           }}
@@ -1393,13 +1447,14 @@ const IncomeHistoryPage = () => {
                           <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
                             <Box
                               sx={{
-                                width: 12,
-                                height: 12,
+                                width: 10,
+                                height: 10,
                                 borderRadius: '50%',
-                                backgroundColor: file.isNew ? theme.palette.success.main : theme.palette.primary.main,
-                                mr: 2,
+                                backgroundColor: file.isNew ? theme.palette.success.main : theme.palette.info.main,
+                                mr: 2.5,
                                 flexShrink: 0,
-                                boxShadow: `0 0 0 3px ${alpha(file.isNew ? theme.palette.success.main : theme.palette.primary.main, 0.2)}`
+                                boxShadow: `0 0 0 3px ${alpha(file.isNew ? theme.palette.success.main : theme.palette.info.main, 0.15)}`,
+                                border: `2px solid ${alpha(theme.palette.background.paper, 0.8)}`
                               }}
                             />
                             <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -1437,9 +1492,16 @@ const IncomeHistoryPage = () => {
                               onClick={() => handleEditFileRemove(index)}
                               disabled={saving}
                               sx={{
-                                color: theme.palette.error.main,
+                                color: alpha(theme.palette.error.main, 0.7),
+                                borderRadius: 1.5,
+                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                 '&:hover': {
-                                  backgroundColor: alpha(theme.palette.error.main, 0.08)
+                                  color: theme.palette.error.main,
+                                  backgroundColor: alpha(theme.palette.error.main, 0.08),
+                                  transform: 'scale(1.05)'
+                                },
+                                '&:disabled': {
+                                  color: alpha(theme.palette.text.disabled, 0.5)
                                 }
                               }}
                             >
@@ -1454,24 +1516,47 @@ const IncomeHistoryPage = () => {
                   <Box
                     sx={{
                       textAlign: 'center',
-                      py: 4,
+                      py: 6,
                       mb: 3,
-                      borderRadius: 2,
-                      backgroundColor: alpha(theme.palette.primary.main, 0.04),
-                      border: `2px dashed ${alpha(theme.palette.primary.main, 0.2)}`
+                      borderRadius: 3,
+                      background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.3)} 0%, ${alpha(theme.palette.primary.main, 0.01)} 100%)`,
+                      border: `2px dashed ${alpha(theme.palette.divider, 0.15)}`,
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&:hover': {
+                        borderColor: alpha(theme.palette.primary.main, 0.25),
+                        background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.5)} 0%, ${alpha(theme.palette.primary.main, 0.02)} 100%)`,
+                        transform: 'translateY(-1px)'
+                      }
                     }}
                   >
-                    <AttachFileIcon 
-                      sx={{ 
-                        fontSize: 48, 
-                        color: alpha(theme.palette.primary.main, 0.4),
-                        mb: 1
-                      }} 
-                    />
-                    <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 500 }}>
+                    <Box sx={{ 
+                      width: 56, 
+                      height: 56, 
+                      borderRadius: '50%',
+                      background: `linear-gradient(135deg, ${alpha(theme.palette.grey[400], 0.1)} 0%, ${alpha(theme.palette.grey[300], 0.05)} 100%)`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto 16px',
+                      border: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+                    }}>
+                      <AttachFileIcon sx={{ 
+                        fontSize: 24, 
+                        color: alpha(theme.palette.text.secondary, 0.7)
+                      }} />
+                    </Box>
+                    <Typography variant="h6" sx={{ 
+                      fontWeight: 500,
+                      mb: 1,
+                      color: theme.palette.text.primary,
+                      fontSize: '1rem'
+                    }}>
                       No hay archivos adjuntos
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="body2" sx={{ 
+                      color: alpha(theme.palette.text.secondary, 0.8),
+                      lineHeight: 1.6
+                    }}>
                       Utiliza el botón de abajo para agregar comprobantes
                     </Typography>
                   </Box>
@@ -1497,15 +1582,24 @@ const IncomeHistoryPage = () => {
                     sx={{
                       borderRadius: 2,
                       py: 1.5,
-                      borderColor: theme.palette.primary.main,
+                      px: 3,
+                      fontWeight: 500,
+                      textTransform: 'none',
+                      borderColor: alpha(theme.palette.primary.main, 0.3),
                       color: theme.palette.primary.main,
+                      background: alpha(theme.palette.primary.main, 0.02),
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&:hover': {
-                        borderColor: theme.palette.primary.dark,
-                        backgroundColor: alpha(theme.palette.primary.main, 0.04),
+                        borderColor: theme.palette.primary.main,
+                        background: alpha(theme.palette.primary.main, 0.06),
                         transform: 'translateY(-1px)',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                       },
-                      transition: 'all 0.2s ease'
+                      '&:disabled': {
+                        borderColor: alpha(theme.palette.text.disabled, 0.23),
+                        color: alpha(theme.palette.text.disabled, 0.6),
+                        background: alpha(theme.palette.text.disabled, 0.04)
+                      }
                     }}
                   >
                     {editFiles.length > 0 ? 'Agregar Más Archivos' : 'Seleccionar Archivos'}
@@ -1525,51 +1619,47 @@ const IncomeHistoryPage = () => {
                 >
                   📎 Formatos admitidos: PDF, JPG, PNG, WebP • 📏 Máximo 5MB por archivo
                 </Typography>
-              </Paper>
+                </Paper>
+              </Box>
+            </Paper>
+              </Grid>
             </Grid>
-          </Grid>
+          </Box>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 3, gap: 1.5, borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}` }}>
-          <Button 
-            onClick={handleEditCancel}
-            variant="outlined"
-            disabled={saving}
-            sx={{ 
-              borderRadius: 2,
-              px: 3,
-              py: 1,
-              color: theme.palette.text.secondary,
-              borderColor: theme.palette.divider,
-              '&:hover': {
-                borderColor: theme.palette.text.secondary,
-                backgroundColor: alpha(theme.palette.text.secondary, 0.04)
-              }
-            }}
-          >
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleEditSubmit}
-            variant="contained"
-            disabled={saving || !editFormData.client || !editFormData.amount || !editFormData.account}
-            startIcon={saving ? <CircularProgress size={16} /> : <SaveIcon />}
-            sx={{ 
-              borderRadius: 2,
-              px: 3,
-              py: 1,
-              background: theme.palette.mode === 'dark'
-                ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`
-                : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
-              '&:hover': {
-                background: theme.palette.mode === 'dark'
-                  ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.light} 100%)`
-                  : `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-              }
-            }}
-          >
-            {saving ? 'Guardando...' : 'Guardar Cambios'}
-          </Button>
+        <DialogActions sx={{ p: 3, justifyContent: 'space-between' }}>
+          <Typography variant="caption" color="text.secondary">
+            {editFormData.client ? `Editando: ${editFormData.client}` : 'Formulario de edición'}
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <Button 
+              onClick={handleEditCancel}
+              variant="outlined"
+              disabled={saving}
+              sx={{ 
+                borderRadius: 1,
+                fontWeight: 500,
+                textTransform: 'none',
+                px: 3
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleEditSubmit}
+              variant="contained"
+              disabled={saving || !editFormData.client || !editFormData.amount || !editFormData.account}
+              startIcon={saving ? <CircularProgress size={16} /> : <SaveIcon />}
+              sx={{ 
+                borderRadius: 1,
+                fontWeight: 600,
+                textTransform: 'none',
+                px: 4,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+              }}
+            >
+              {saving ? 'Guardando...' : 'Guardar Cambios'}
+            </Button>
+          </Box>
         </DialogActions>
       </Dialog>
 

@@ -206,10 +206,15 @@ const DataCleanupTool = () => {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle sx={{ pb: 1 }}>
-          <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            ⚠️ Confirmar Eliminación de Datos
-          </Typography>
+        <DialogTitle sx={{ 
+          pb: 1, 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: 1, 
+          fontWeight: 600, 
+          fontSize: '1.25rem' 
+        }}>
+          ⚠️ Confirmar Eliminación de Datos
         </DialogTitle>
         
         <DialogContent>

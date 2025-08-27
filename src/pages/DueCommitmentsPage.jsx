@@ -2417,13 +2417,15 @@ const DeleteConfirmDialog = ({ open, commitment, onConfirm, onCancel }) => {
         }
       }}
     >
-      <DialogTitle>
-        <Stack direction="row" alignItems="center" spacing={2}>
-          <Warning sx={{ color: theme.palette.error.main }} />
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            Confirmar Eliminación
-          </Typography>
-        </Stack>
+      <DialogTitle sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        fontWeight: 600,
+        fontSize: '1.25rem'
+      }}>
+        <Warning sx={{ color: theme.palette.error.main }} />
+        Confirmar Eliminación
       </DialogTitle>
       
       <DialogContent>

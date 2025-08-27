@@ -1093,9 +1093,15 @@ const UserManagementPage = () => {
           <Box>
             {editingUser ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
             {editingUser && (
-              <Typography variant="caption" sx={{ display: 'block', opacity: 0.8, mt: 0.5 }}>
+              <Box component="div" sx={{ 
+                display: 'block', 
+                opacity: 0.8, 
+                mt: 0.5,
+                fontSize: '0.75rem',
+                lineHeight: 1.66
+              }}>
                 {formData.email}
-              </Typography>
+              </Box>
             )}
           </Box>
           {editingUser && hasUnsavedChanges && (

@@ -586,10 +586,8 @@ const ConfigurationCompatibilityAnalyzer = ({ pageName, pageUrl, isOpen, onClose
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>
-          <Typography variant="h6" fontWeight="600">
-            ⚠️ Confirmar Aplicación de Configuraciones
-          </Typography>
+        <DialogTitle sx={{ fontWeight: 600, fontSize: '1.25rem' }}>
+          ⚠️ Confirmar Aplicación de Configuraciones
         </DialogTitle>
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2, borderRadius: `${borderRadius}px` }}>
