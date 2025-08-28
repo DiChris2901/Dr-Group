@@ -17,6 +17,46 @@
 
 ---
 
+## ⚠️ INSTRUCCIONES ESPECÍFICAS POR TIPO DE MODAL
+
+### **🔍 Para Modales de Visor PDF/Documentos**
+
+**⚠️ OBLIGATORIO: Revisar primero `MODAL_PDF_VIEWER_DESIGN.md`**
+
+Si vas a implementar un modal para visualizar PDFs, documentos o archivos:
+
+```
+🎯 PASO 1: CONSULTAR REFERENCIA ESPECÍFICA
+└── docs/MODAL_PDF_VIEWER_DESIGN.md
+    ├── Implementación completa con panel información expandible
+    ├── Integración Firebase Storage getMetadata
+    ├── Prompt específico y detallado para implementación
+    └── Referencias exactas a CommitmentsList.jsx líneas 3230-3620
+
+🎯 PASO 2: USAR COMO BASE OBLIGATORIA
+└── src/components/commitments/CommitmentsList.jsx
+    ├── Modal PDF Viewer avanzado (líneas 3230-3620)
+    ├── Funciones auxiliares (líneas 930-1220)
+    └── Estados requeridos (documentInfo, documentInfoOpen, documentDimensions)
+
+⚠️ NO IMPLEMENTAR versiones simplificadas de visor PDF
+✅ USAR la implementación de referencia completa
+```
+
+**Características que DEBE incluir el visor PDF:**
+- ✅ Panel información expandible con metadatos Firebase
+- ✅ Ajuste dinámico de altura según panel abierto/cerrado
+- ✅ CSS Grid layout responsivo
+- ✅ Integración Firebase getMetadata real
+- ✅ Formateo inteligente de tipos MIME
+- ✅ Scroll interno optimizado
+
+### **📋 Para Otros Tipos de Modales**
+
+Para modales de formularios, confirmación, información, etc., continúa con este documento usando los principios de diseño spectacular.
+
+---
+
 ## 🎯 Principios de Diseño
 
 ### **Consistencia Visual Obligatoria**
