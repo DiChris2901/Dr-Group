@@ -407,10 +407,16 @@ const CommitmentDetailDialog = ({
                               color: 'text.primary',
                               textTransform: 'capitalize'
                             }}>
-                              {selectedCommitment.dueDate && format(selectedCommitment.dueDate, 'EEEE', { locale: es })}
+                              {(() => {
+                                const safeDate = safeToDate(selectedCommitment.dueDate);
+                                return safeDate ? format(safeDate, 'EEEE', { locale: es }) : 'Fecha no válida';
+                              })()}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                              {selectedCommitment.dueDate && format(selectedCommitment.dueDate, "dd 'de' MMMM 'de' yyyy", { locale: es })}
+                              {(() => {
+                                const safeDate = safeToDate(selectedCommitment.dueDate);
+                                return safeDate ? format(safeDate, "dd 'de' MMMM 'de' yyyy", { locale: es }) : 'Fecha no válida';
+                              })()}
                             </Typography>
                           </Box>
                         </Box>

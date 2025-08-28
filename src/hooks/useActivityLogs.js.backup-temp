@@ -1,0 +1,337 @@
+import { useState, useEffect } from 'react';
+import { 
+  collection, 
+  addDoc, 
+  query, 
+  orderBy, 
+  where, 
+  onSnapshot, 
+  limit,
+  startAfter,
+  getDocs
+} from 'firebase/firestore';
+import { db } from '../config/firebase';
+import { useAuth } from '../context/AuthContext';
+
+/**
+ * Hook para gestión de logs de actividad del sistema
+ * Registra automáticamente las acciones de usuarios para auditoría
+ */
+export const useActivityLogs = () => {
+  const { currentUser, userProfile } = useAuth();
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  /**
+   * Limpia un objeto removiendo propiedades undefined, null o vacías
+   */
+  const cleanObject = (obj) => {
+    if (!obj || typeof obj !== 'object') return obj;
+    
+    const cleaned = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined && value !== null) {
+        if (typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+          const cleanedValue = cleanObject(value);
+          if (Object.keys(cleanedValue).length > 0) {
+            cleaned[key] = cleanedValue;
+          }
+        } else {
+          cleaned[key] = value;
+        }
+      }
+    }
+    return cleaned;
+  };
+
+  /**
+   * Registra una actividad en el sistema
+   * @param {string} action - Tipo de acción realizada
+   * @param {string} entityType - Tipo de entidad afectada
+   * @param {string} entityId - ID de la entidad (opcional)
+   * @param {object} details - Detalles específicos de la acción
+   */
+  const logActivity = async (action, entityType, entityId = null, details = {}) => {
+    if (!currentUser || !userProfile) {
+      console.warn('⚠️ No se puede registrar actividad: usuario no autenticado');
+      return;
+    }
+
+    try {
+      const activityLog = {
+        // Información del usuario
+        userId: currentUser.uid,
+        userEmail: currentUser.email,
+        userName: userProfile.displayName || userProfile.name || 'Usuario sin nombre',
+        userRole: userProfile.role || 'user',
+        
+        // Información de la acción
+        action,
+        entityType,
+        entityId,
+        
+        // Detalles específicos (limpiados de undefined/null)
+        details: cleanObject({
+          ...details,
+          // Agregar información contextual automática
+          timestamp: new Date().toISOString(),
+          userAgent: navigator.userAgent,
+          url: window.location.pathname,
+        }),
+        
+        // Metadata del sistema
+        timestamp: new Date(),
+        createdAt: new Date(),
+        
+        // Información técnica
+        metadata: {
+          version: '1.0',
+          source: 'web-app',
+          environment: process.env.NODE_ENV || 'development'
+        }
+      };
+
+      // Limpiar el objeto completo antes de guardar
+      const cleanedActivityLog = cleanObject(activityLog);
+
+      // Registrar en Firestore
+      await addDoc(collection(db, 'activity_logs'), cleanedActivityLog);
+      
+      console.log('✅ Actividad registrada:', { action, entityType, entityId });
+      
+    } catch (error) {
+      console.error('❌ Error al registrar actividad:', error);
+      // No lanzar error para no interrumpir el flujo principal
+    }
+  };
+
+  /**
+   * Obtiene logs de actividad con filtros
+   * @param {object} filters - Filtros para la consulta
+   * @param {number} pageSize - Número de elementos por página
+   */
+  const getActivityLogs = async (filters = {}, pageSize = 50) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      let q;
+      
+      // Si tenemos filtro de userId, construir consulta con índice compuesto
+      if (filters.userId) {
+        q = query(
+          collection(db, 'activity_logs'),
+          where('userId', '==', filters.userId),
+          orderBy('timestamp', 'desc'),
+          limit(pageSize)
+        );
+      } else {
+        // Sin filtro de usuario, solo ordenar por timestamp
+        q = query(
+          collection(db, 'activity_logs'),
+          orderBy('timestamp', 'desc'),
+          limit(pageSize)
+        );
+  const getActivityLogs = async (filters = {}, pageSize = 50) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      let logsData = [];
+      
+      if (filters.userId) {
+        // Obtener todos los logs del usuario (sin orderBy para evitar índice compuesto)
+        const userQuery = query(
+          collection(db, 'activity_logs'),
+          where('userId', '==', filters.userId),
+          limit(pageSize * 3) // Obtener más para compensar filtros adicionales
+        );
+        
+        const snapshot = await getDocs(userQuery);
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          logsData.push({
+            id: doc.id,
+            ...data,
+            timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date(data.timestamp),
+            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt)
+          });
+        });
+        
+        // Ordenar por timestamp en el cliente
+        logsData.sort((a, b) => b.timestamp - a.timestamp);
+        
+      } else {
+        // Sin filtro de usuario, solo orderBy timestamp
+        const generalQuery = query(
+          collection(db, 'activity_logs'),
+          orderBy('timestamp', 'desc'),
+          limit(pageSize * 2)
+        );
+        
+        const snapshot = await getDocs(generalQuery);
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          logsData.push({
+            id: doc.id,
+            ...data,
+            timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date(data.timestamp),
+            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt)
+          });
+        });
+      }
+
+      // Aplicar filtros adicionales en el cliente
+      if (filters.action) {
+        logsData = logsData.filter(log => log.action === filters.action);
+      }
+      
+      if (filters.entityType) {
+        logsData = logsData.filter(log => log.entityType === filters.entityType);
+      }
+
+      if (filters.startDate) {
+        logsData = logsData.filter(log => log.timestamp >= filters.startDate);
+      }
+      
+      if (filters.endDate) {
+        logsData = logsData.filter(log => log.timestamp <= filters.endDate);
+      }
+
+      // Limitar a la cantidad solicitada
+      logsData = logsData.slice(0, pageSize);
+
+      setLogs(logsData);
+      return logsData;
+      
+    } catch (error) {
+      console.error('❌ Error al obtener logs:', error);
+      setError(error.message);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Suscripción en tiempo real a los logs más recientes
+   * @param {object} filters - Filtros para la consulta
+   * @param {number} limitCount - Número máximo de logs
+   */
+  const subscribeToRecentLogs = (filters = {}, limitCount = 100) => {
+    setLoading(true);
+
+    let q = query(
+      collection(db, 'activity_logs'),
+      orderBy('timestamp', 'desc'),
+      limit(limitCount)
+    );
+
+    // Aplicar filtros básicos
+    if (filters.userId) {
+      q = query(collection(db, 'activity_logs'), where('userId', '==', filters.userId), orderBy('timestamp', 'desc'), limit(limitCount));
+    }
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const logsData = [];
+      
+      snapshot.forEach((doc) => {
+        logsData.push({
+          id: doc.id,
+          ...doc.data(),
+          timestamp: doc.data().timestamp?.toDate ? doc.data().timestamp.toDate() : new Date(doc.data().timestamp),
+          createdAt: doc.data().createdAt?.toDate ? doc.data().createdAt.toDate() : new Date(doc.data().createdAt)
+        });
+      });
+
+      setLogs(logsData);
+      setLoading(false);
+      setError(null);
+    }, (error) => {
+      console.error('❌ Error en suscripción de logs:', error);
+      setError(error.message);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  };
+
+  /**
+   * Obtiene estadísticas de actividad
+   */
+  const getActivityStats = async (dateRange = 30) => {
+    try {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - dateRange);
+
+      // Consulta simple sin filtros compuestos
+      const q = query(
+        collection(db, 'activity_logs'),
+        orderBy('timestamp', 'desc'),
+        limit(1000) // Obtener últimas 1000 actividades
+      );
+
+      const snapshot = await getDocs(q);
+      const logs = [];
+      
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const timestamp = data.timestamp?.toDate ? data.timestamp.toDate() : new Date(data.timestamp);
+        
+        // Filtrar por rango de fechas en el cliente
+        if (timestamp >= startDate && timestamp <= endDate) {
+          logs.push({
+            ...data,
+            timestamp
+          });
+        }
+      });
+
+      // Calcular estadísticas
+      const stats = {
+        totalActivities: logs.length,
+        uniqueUsers: [...new Set(logs.map(log => log.userId))].length,
+        actionTypes: {},
+        entityTypes: {},
+        dailyActivity: {},
+        mostActiveUsers: {}
+      };
+
+      // Contar por tipos de acción
+      logs.forEach(log => {
+        stats.actionTypes[log.action] = (stats.actionTypes[log.action] || 0) + 1;
+        stats.entityTypes[log.entityType] = (stats.entityTypes[log.entityType] || 0) + 1;
+        
+        // Actividad diaria
+        const dateKey = log.timestamp?.toDate ? 
+          log.timestamp.toDate().toISOString().split('T')[0] : 
+          new Date(log.timestamp).toISOString().split('T')[0];
+        stats.dailyActivity[dateKey] = (stats.dailyActivity[dateKey] || 0) + 1;
+        
+        // Usuarios más activos
+        const userKey = `${log.userName} (${log.userEmail})`;
+        stats.mostActiveUsers[userKey] = (stats.mostActiveUsers[userKey] || 0) + 1;
+      });
+
+      return stats;
+      
+    } catch (error) {
+      console.error('❌ Error al obtener estadísticas:', error);
+      return null;
+    }
+  };
+
+  return {
+    logs,
+    loading,
+    error,
+    logActivity,
+    getActivityLogs,
+    subscribeToRecentLogs,
+    getActivityStats
+  };
+};
+
+export default useActivityLogs;

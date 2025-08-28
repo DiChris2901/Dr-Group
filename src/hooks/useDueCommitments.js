@@ -135,6 +135,12 @@ export const useDueCommitments = () => {
   const refreshCommitments = () => {
     setLoading(true);
     // El onSnapshot se encargará de actualizar automáticamente
+    // Agregar un timeout de seguridad para evitar loading infinito
+    setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+      }
+    }, 5000);
   };
 
   const getCommitmentsByPriority = (priority) => {

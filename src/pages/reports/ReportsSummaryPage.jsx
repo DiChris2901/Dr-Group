@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import useActivityLogs from '../../hooks/useActivityLogs';
 import {
   Box,
   Card,
@@ -32,6 +33,7 @@ import { useCommitments, useCompanies } from '../../hooks/useFirestore';
 
 const ReportsSummaryPage = () => {
   const theme = useTheme();
+  const { logActivity } = useActivityLogs();
   
   // Conectar con Firebase para obtener datos reales
   const { commitments, loading: commitmentsLoading } = useCommitments();

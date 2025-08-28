@@ -77,7 +77,8 @@ import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationsContext';
 import { useAuth } from '../context/AuthContext';
-import { collection, query, where, getDocs, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy } from 'firebase/firestore';
+import useActivityLogs from '../hooks/useActivityLogs';
+import { collection, query, where, getDocs, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { db, storage } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { PDFDocument } from 'pdf-lib';
@@ -92,6 +93,7 @@ const NewPaymentPage = () => {
   const navigate = useNavigate();
   const { addNotification } = useNotifications();
   const { user } = useAuth();
+  const { logActivity } = useActivityLogs();
   
   // Helper para crear fecha local sin problemas de zona horaria
   const createLocalDate = (dateString) => {
@@ -230,6 +232,62 @@ const NewPaymentPage = () => {
     loadPendingCommitments();
   }, []);
 
+  // ✅ NUEVO: Listener en tiempo real para compromisos y pagos
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    console.log('🔄 Configurando listeners en tiempo real para compromisos y pagos...');
+
+    // Listener para compromisos (detecta cambios en estados de pago)
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    const startOfThreeMonthsLater = new Date(currentYear, currentMonth + 3, 1);
+
+    const commitmentsQuery = query(
+      collection(db, 'commitments'),
+      where('dueDate', '<', startOfThreeMonthsLater),
+      orderBy('dueDate', 'asc')
+    );
+
+    const unsubscribeCommitments = onSnapshot(commitmentsQuery, (snapshot) => {
+      console.log('🔄 Cambios detectados en compromisos, actualizando lista...');
+      // Solo recargar si la página está visible y hay cambios relevantes
+      if (!document.hidden) {
+        loadPendingCommitments();
+      }
+    }, (error) => {
+      console.error('❌ Error en listener de compromisos:', error);
+    });
+
+    // Listener para pagos (detecta eliminaciones y creaciones)
+    const paymentsQuery = query(
+      collection(db, 'payments'),
+      orderBy('createdAt', 'desc'),
+      limit(100) // Limitar para performance
+    );
+
+    const unsubscribePayments = onSnapshot(paymentsQuery, (snapshot) => {
+      console.log('🔄 Cambios detectados en pagos, actualizando compromisos disponibles...');
+      // Solo recargar si la página está visible y hay cambios en pagos
+      if (!document.hidden) {
+        // Delay para permitir que se procesen las actualizaciones de compromisos
+        setTimeout(() => {
+          loadPendingCommitments();
+        }, 500);
+      }
+    }, (error) => {
+      console.error('❌ Error en listener de pagos:', error);
+    });
+
+    // Cleanup listeners
+    return () => {
+      console.log('🧹 Limpiando listeners en tiempo real...');
+      unsubscribeCommitments();
+      unsubscribePayments();
+    };
+  }, [user?.uid]);
+
   // Cargar empresas con cuentas bancarias
   useEffect(() => {
     loadCompanies();
@@ -268,6 +326,40 @@ const NewPaymentPage = () => {
       }));
     }
   }, [formData.finalAmount, formData.method, formData.sourceAccount]);
+
+  // 💰 useEffect para recalcular finalAmount según el tipo de pago y intereses
+  useEffect(() => {
+    if (!selectedCommitment) return;
+    
+    // Si es pago parcial, el finalAmount ya está establecido por partialPaymentAmount
+    if (isPartialPayment) {
+      // En pago parcial, finalAmount = partialPaymentAmount (sin sumar intereses automáticamente)
+      // Los intereses se manejarán por separado si es necesario
+      return;
+    }
+    
+    // Si no es pago parcial, calcular el total con intereses
+    const baseAmount = formData.originalAmount || 0;
+    const regularInterests = formData.interests || 0;
+    const coljuegosInterests1 = formData.interesesDerechosExplotacion || 0;
+    const coljuegosInterests2 = formData.interesesGastosAdministracion || 0;
+    
+    const totalWithInterests = baseAmount + regularInterests + coljuegosInterests1 + coljuegosInterests2;
+    
+    if (totalWithInterests !== formData.finalAmount) {
+      setFormData(prev => ({
+        ...prev,
+        finalAmount: totalWithInterests
+      }));
+    }
+  }, [
+    selectedCommitment,
+    isPartialPayment,
+    formData.originalAmount,
+    formData.interests,
+    formData.interesesDerechosExplotacion,
+    formData.interesesGastosAdministracion
+  ]);
 
   // Cargar cuentas personales desde Firebase
   useEffect(() => {
@@ -337,96 +429,143 @@ const NewPaymentPage = () => {
       
       console.log(`📊 Compromisos encontrados en rango (pasado+actual+2futuros): ${snapshot.size}`);
       
-      // También consultar todos los pagos para verificar cuáles compromisos ya tienen pago
+      // También consultar todos los pagos ACTIVOS para verificar cuáles compromisos realmente tienen pago válido
       const paymentsQuery = query(
-        collection(db, 'payments')
+        collection(db, 'payments'),
+        orderBy('createdAt', 'desc')
       );
       
       const paymentsSnapshot = await getDocs(paymentsQuery);
-      const commitmentsWithPayments = new Set();
       
-      // Crear set de commitmentIds que ya tienen pagos
-      paymentsSnapshot.forEach((doc) => {
-        const paymentData = doc.data();
-        if (paymentData.commitmentId) {
-          commitmentsWithPayments.add(paymentData.commitmentId);
-        }
-      });
-      
-      console.log('📊 Compromisos que ya tienen pagos:', Array.from(commitmentsWithPayments));
+      console.log('📊 Total de pagos en base de datos:', paymentsSnapshot.size);
       
       snapshot.forEach((doc) => {
         const data = doc.data();
+        const commitmentId = doc.id;
+        
+        // ✅ NUEVA LÓGICA: Verificar pagos REALES para este compromiso específico
+        const commitmentPayments = [];
+        paymentsSnapshot.forEach((paymentDoc) => {
+          const paymentData = paymentDoc.data();
+          if (paymentData.commitmentId === commitmentId && !paymentData.is4x1000Tax) {
+            commitmentPayments.push({
+              id: paymentDoc.id,
+              ...paymentData
+            });
+          }
+        });
+        
+        console.log(`� Compromiso "${data.concept}" (${data.companyName}):`, {
+          id: commitmentId,
+          status: data.status,
+          paid: data.paid,
+          isPaid: data.isPaid,
+          paymentsFound: commitmentPayments.length,
+          paymentIds: commitmentPayments.map(p => p.id),
+          dueDate: data.dueDate?.toDate?.() || data.dueDate
+        });
         
         // ✅ LÓGICA CORREGIDA: Verificar SOLO estados que indican pago COMPLETO
-        const status = data.status || 'pending';
-        const isPaidByStatus = status === 'paid' || status === 'completed';
+  const status = data.status || 'pending';
+  const isPaidByStatus = status === 'paid' || status === 'completed';
         const isPaidByFlag = data.paid === true || data.isPaid === true;
         const isPaidByPaymentStatus = data.paymentStatus === 'paid' || data.paymentStatus === 'Pagado' || data.paymentStatus === 'pagado';
         
-        // 🔧 FIX: NO excluir compromisos con pagos parciales
-        // Solo excluir si está marcado como completamente pagado
-        const isAlreadyPaid = isPaidByStatus || isPaidByFlag || isPaidByPaymentStatus;
+        // ✅ NUEVA LÓGICA: Verificar si realmente tiene pagos válidos (no solo la marca en el documento)
+        const hasActivePayments = commitmentPayments.length > 0;
+        const totalPaidAmount = commitmentPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+        const originalAmount = data.amount || 0;
+        const remainingBalance = originalAmount - totalPaidAmount;
         
-        // 🐛 DEBUG: Log detallado para cada compromiso
-        console.log(`🔍 Analizando compromiso "${data.companyName} - ${data.concept}":`, {
-          id: doc.id,
+        // 🔧 FIX: Solo considerar "pagado" si tiene la marca Y pagos reales, o si el saldo restante es <= 0
+        const isReallyPaid = (isPaidByStatus || isPaidByFlag || isPaidByPaymentStatus) && hasActivePayments;
+        const isFullyPaidByAmount = hasActivePayments && remainingBalance <= 0;
+
+        // 🛠 NORMALIZACIÓN: si NO hay pagos reales pero está marcado como pagado en flags, lo tratamos como pendiente/overdue
+        let effectiveStatus = status;
+        if (!hasActivePayments && (isPaidByStatus || isPaidByFlag || isPaidByPaymentStatus)) {
+          // Determinar si está vencido
+            try {
+              const dueJS = data.dueDate?.toDate?.() || data.dueDate;
+              if (dueJS) {
+                const due = new Date(dueJS);
+                due.setHours(0,0,0,0);
+                const today = new Date();
+                today.setHours(0,0,0,0);
+                effectiveStatus = due < today ? 'overdue' : 'pending';
+              } else {
+                effectiveStatus = 'pending';
+              }
+            } catch(normalizeErr) {
+              console.warn('⚠️ Error normalizando status, usando pending por defecto:', normalizeErr);
+              effectiveStatus = 'pending';
+            }
+          console.log('🛠 Normalización aplicada: compromiso sin pagos pero marcado pagado. Nuevo status:', effectiveStatus);
+        }
+
+        // Excluir solo si realmente está pagado y existen pagos válidos
+        const shouldExclude = hasActivePayments && (isReallyPaid || isFullyPaidByAmount);
+        
+        console.log(`🔍 ANÁLISIS DETALLADO "${data.companyName} - ${data.concept}":`, {
+          id: commitmentId,
           status: data.status,
           paid: data.paid,
           isPaid: data.isPaid,
           paymentStatus: data.paymentStatus,
-          isAlreadyPaid,
-          willBeIncluded: !isAlreadyPaid && (status === 'pending' || status === 'overdue' || status === 'partial_payment')
+          hasActivePayments,
+          paymentsCount: commitmentPayments.length,
+          originalAmount,
+          totalPaidAmount,
+          remainingBalance,
+          isReallyPaid,
+          isFullyPaidByAmount,
+          shouldExclude,
+          willBeIncluded: !shouldExclude && (effectiveStatus === 'pending' || effectiveStatus === 'overdue' || effectiveStatus === 'partial_payment')
         });
         
-        // 🔧 FIX: Incluir compromisos con pagos parciales
-        if ((status === 'pending' || status === 'overdue' || status === 'partial_payment') && !isAlreadyPaid) {
-          // 💰 NUEVO: Calcular saldo pendiente para pagos parciales
-          const originalAmount = data.amount || 0;
+        // ✅ NUEVA LÓGICA: Incluir compromisos que no están realmente pagados
+  if ((effectiveStatus === 'pending' || effectiveStatus === 'overdue' || effectiveStatus === 'partial_payment') && !shouldExclude) {
           
-          // Buscar todos los pagos realizados para este compromiso
-          const commitmentPayments = [];
-          paymentsSnapshot.forEach((paymentDoc) => {
-            const paymentData = paymentDoc.data();
-            if (paymentData.commitmentId === doc.id && !paymentData.is4x1000Tax) {
-              commitmentPayments.push(paymentData);
-            }
-          });
-          
-          // Sumar todos los pagos realizados
-          const totalPaid = commitmentPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
-          const remainingBalance = originalAmount - totalPaid;
-          
-          console.log(`💰 Compromiso con pagos parciales:`, {
-            id: doc.id,
+          console.log(`✅ Compromiso DISPONIBLE agregado:`, {
+            id: commitmentId,
+            concept: data.concept,
+            company: data.companyName,
             originalAmount,
-            totalPaid,
-            remainingBalance,
-            paymentsCount: commitmentPayments.length
+            totalPaidAmount, 
+            remainingBalance: remainingBalance > 0 ? remainingBalance : originalAmount,
+            hasPartialPayments: commitmentPayments.length > 0,
+            effectiveStatus
           });
           
-          console.log('✅ Compromiso SIN pago agregado:', doc.id, `"${data.companyName} - ${data.concept}"`);
-          commitments.push({
-            id: doc.id,
+          const displayBalance = remainingBalance > 0 ? remainingBalance : originalAmount;
+          const isPartialPaymentScenario = commitmentPayments.length > 0 && remainingBalance > 0;
+          
+            commitments.push({
+            id: commitmentId,
             ...data,
+              status: effectiveStatus,
             // 💰 NUEVO: Campos para pagos parciales
             originalAmount: originalAmount,
-            totalPaid: totalPaid,
-            remainingBalance: remainingBalance,
+            totalPaid: totalPaidAmount,
+            remainingBalance: displayBalance,
             hasPartialPayments: commitmentPayments.length > 0,
             // Formatear datos para el display
-            displayName: `${data.companyName || 'Sin empresa'} - ${data.concept || data.name || 'Sin concepto'}`,
+            displayName: `${data.companyName || 'Sin empresa'} - ${data.concept || data.name || 'Sin concepto'}${isPartialPaymentScenario ? ' (Saldo Pendiente)' : ''}`,
             formattedDueDate: data.dueDate ? format(data.dueDate.toDate(), 'dd/MMM/yyyy', { locale: es }) : 'Sin fecha',
             formattedAmount: new Intl.NumberFormat('es-CO', {
               style: 'currency',
               currency: 'COP',
               minimumFractionDigits: 0
-            }).format(remainingBalance) // 💰 Mostrar saldo pendiente en lugar del monto original
+            }).format(displayBalance) // 💰 Mostrar saldo pendiente o monto original
           });
         } else {
-          console.log('🚫 Compromiso OMITIDO (ya pagado o no pendiente):', doc.id, `"${data.companyName} - ${data.concept}"`, {
-            reason: isAlreadyPaid ? 'YA PAGADO' : 'NO PENDIENTE',
-            status
+          console.log('🚫 Compromiso OMITIDO:', commitmentId, `"${data.companyName} - ${data.concept}"`, {
+            reason: shouldExclude ? 'YA TIENE PAGO VÁLIDO' : 'ESTADO NO VÁLIDO',
+            status: effectiveStatus,
+            shouldExclude,
+            hasActivePayments,
+            totalPaidAmount,
+            remainingBalance
           });
         }
       });
@@ -1063,6 +1202,19 @@ const NewPaymentPage = () => {
       console.log('💾 Guardando pago en Firebase:', paymentData);
       const paymentRef = await addDoc(collection(db, 'payments'), paymentData);
       console.log('✅ Pago guardado con ID:', paymentRef.id);
+      
+      // 📝 Registrar actividad de auditoría - Creación de nuevo pago
+      await logActivity('create_payment', 'payment', paymentRef.id, {
+        concept: paymentData.concept,
+        amount: paymentData.finalAmount,
+        paymentMethod: paymentData.method,
+        companyName: selectedCommitment?.companyName || 'Sin empresa',
+        provider: selectedCommitment?.provider || selectedCommitment?.beneficiary || 'Sin proveedor',
+        reference: paymentData.reference || 'Sin referencia',
+        commitmentId: selectedCommitment?.id,
+        isPartialPayment: paymentData.isPartialPayment || false,
+        remainingBalance: paymentData.remainingBalanceAfter || 0
+      });
       
       // =====================================================
       // GENERAR 4x1000 AUTOMÁTICAMENTE (SI APLICA)
@@ -1875,8 +2027,8 @@ const NewPaymentPage = () => {
                                     const numericValue = parseCurrency(e.target.value);
                                     setFormData(prev => ({
                                       ...prev,
-                                      interesesDerechosExplotacion: numericValue,
-                                      finalAmount: prev.originalAmount + numericValue + prev.interesesGastosAdministracion
+                                      interesesDerechosExplotacion: numericValue
+                                      // finalAmount se calcula en useEffect
                                     }));
                                   }}
                                   fullWidth
@@ -1926,8 +2078,8 @@ const NewPaymentPage = () => {
                                     const numericValue = parseCurrency(e.target.value);
                                     setFormData(prev => ({
                                       ...prev,
-                                      interesesGastosAdministracion: numericValue,
-                                      finalAmount: prev.originalAmount + prev.interesesDerechosExplotacion + numericValue
+                                      interesesGastosAdministracion: numericValue
+                                      // finalAmount se calcula en useEffect
                                     }));
                                   }}
                                   fullWidth
@@ -2005,8 +2157,8 @@ const NewPaymentPage = () => {
                                     const numericValue = parseCurrency(e.target.value);
                                     setFormData(prev => ({
                                       ...prev,
-                                      interests: numericValue,
-                                      finalAmount: prev.originalAmount + numericValue
+                                      interests: numericValue
+                                      // finalAmount se calcula en useEffect
                                     }));
                                   }}
                                   fullWidth
@@ -2695,16 +2847,59 @@ const NewPaymentPage = () => {
                     
                     {/* Breakdown de costos */}
                     <Box sx={{ mb: 2 }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                        <Typography variant="body2">Valor Base:</Typography>
-                        <Typography variant="body2" fontWeight={500}>
-                          {new Intl.NumberFormat('es-CO', {
-                            style: 'currency',
-                            currency: 'COP',
-                            minimumFractionDigits: 0
-                          }).format(formData.originalAmount)}
-                        </Typography>
-                      </Box>
+                      {/* 💰 Mostrar información específica para pagos parciales */}
+                      {selectedCommitment.hasPartialPayments && (
+                        <>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <Typography variant="body2" color="info.main">Monto Original:</Typography>
+                            <Typography variant="body2" fontWeight={500}>
+                              {new Intl.NumberFormat('es-CO', {
+                                style: 'currency',
+                                currency: 'COP',
+                                minimumFractionDigits: 0
+                              }).format(selectedCommitment.originalAmount || 0)}
+                            </Typography>
+                          </Box>
+                          
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <Typography variant="body2" color="success.main">Ya Pagado:</Typography>
+                            <Typography variant="body2" color="success.main" fontWeight={500}>
+                              -{new Intl.NumberFormat('es-CO', {
+                                style: 'currency',
+                                currency: 'COP',
+                                minimumFractionDigits: 0
+                              }).format(selectedCommitment.totalPaid || 0)}
+                            </Typography>
+                          </Box>
+                          
+                          <Divider sx={{ my: 1 }} />
+                          
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <Typography variant="body2" color="warning.main" fontWeight={600}>Saldo Pendiente:</Typography>
+                            <Typography variant="body2" color="warning.main" fontWeight={600}>
+                              {new Intl.NumberFormat('es-CO', {
+                                style: 'currency',
+                                currency: 'COP',
+                                minimumFractionDigits: 0
+                              }).format(selectedCommitment.remainingBalance || 0)}
+                            </Typography>
+                          </Box>
+                        </>
+                      )}
+                      
+                      {/* Para compromisos sin pagos parciales */}
+                      {!selectedCommitment.hasPartialPayments && (
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                          <Typography variant="body2">Valor Base:</Typography>
+                          <Typography variant="body2" fontWeight={500}>
+                            {new Intl.NumberFormat('es-CO', {
+                              style: 'currency',
+                              currency: 'COP',
+                              minimumFractionDigits: 0
+                            }).format(formData.originalAmount)}
+                          </Typography>
+                        </Box>
+                      )}
                       
                       {/* Intereses - Simplificados */}
                       {(formData.interests > 0 || formData.interesesDerechosExplotacion > 0 || formData.interesesGastosAdministracion > 0) && (

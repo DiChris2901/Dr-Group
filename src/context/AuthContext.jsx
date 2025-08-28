@@ -3,6 +3,28 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebas
 import { auth, db } from '../config/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 
+// Helper function para logs de auditoría (no podemos usar hooks dentro del provider)
+const logAuthActivity = async (action, userId, details = {}) => {
+  try {
+    await addDoc(collection(db, 'activityLogs'), {
+      action,
+      entityType: 'authentication',
+      entityId: userId || 'anonymous',
+      userId: userId || 'system',
+      details: {
+        userAgent: navigator.userAgent,
+        deviceType: getDeviceType(),
+        deviceInfo: getBrowserInfo(),
+        ...details
+      },
+      timestamp: new Date()
+    });
+    console.log(`✅ Audit log created: ${action}`);
+  } catch (error) {
+    console.error('❌ Error creating audit log:', error);
+  }
+};
+
 // Helper functions para detectar dispositivo y navegador
 const getDeviceType = () => {
   const userAgent = navigator.userAgent;
@@ -59,6 +81,14 @@ export const AuthProvider = ({ children }) => {
     try {
       setError(null);
       const result = await signInWithEmailAndPassword(auth, email, password);
+      
+      // 📝 Registrar actividad de auditoría - Inicio de sesión exitoso
+      await logAuthActivity('user_login', result.user.uid, {
+        email: result.user.email,
+        ipAddress: 'Unknown', // Requiere servicio externo
+        success: true,
+        sessionId: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      });
       
       // 🆕 Registrar inicio de sesión en historial
       try {
@@ -124,6 +154,13 @@ export const AuthProvider = ({ children }) => {
       // 🆕 Limpiar sesiones activas antes de cerrar sesión
       if (userId) {
         try {
+          // 📝 Registrar actividad de auditoría - Cierre de sesión
+          await logAuthActivity('user_logout', userId, {
+            email: currentUser.email,
+            sessionDuration: 'Unknown', // Se podría calcular con timestamp de login
+            reason: 'manual_logout'
+          });
+          
           // Registrar cierre de sesión en historial
           await addDoc(collection(db, 'loginHistory'), {
             userId: userId,
@@ -272,6 +309,16 @@ export const AuthProvider = ({ children }) => {
       console.log('💾 AuthContext - Actualizando documento en Firestore...');
       await updateDoc(userDocRef, updateData);
       console.log('✅ AuthContext - Documento actualizado exitosamente en Firestore');
+
+      // 📝 Registrar actividad de auditoría - Actualización de perfil
+      await logAuthActivity('profile_update', currentUser.uid, {
+        email: currentUser.email,
+        updatedFields: Object.keys(updates),
+        profileData: {
+          displayName: updates.displayName || currentUser.displayName,
+          role: updates.role || 'unchanged'
+        }
+      });
 
       // Actualizar estado local
       console.log('🔄 AuthContext - Actualizando estado local...');

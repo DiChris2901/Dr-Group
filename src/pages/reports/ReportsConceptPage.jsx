@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import useActivityLogs from '../../hooks/useActivityLogs';
 import {
   Box,
   Card,
@@ -44,6 +45,7 @@ import { useCommitments } from '../../hooks/useFirestore';
 
 const ReportsConceptPage = () => {
   const theme = useTheme();
+  const { logActivity } = useActivityLogs();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [timeRange, setTimeRange] = useState('last6months');
@@ -207,8 +209,24 @@ const ReportsConceptPage = () => {
 
   const stats = getTotalStats();
 
-  const exportReport = () => {
+  const exportReport = async () => {
     console.log('Exportando reporte por concepto...');
+    
+    // 📝 Registrar actividad de auditoría - Exportación de reporte
+    try {
+      await logActivity('export_report', 'report', 'concept_report', {
+        reportType: 'Análisis por Concepto',
+        category: selectedCategory,
+        timeRange: timeRange,
+        searchTerm: searchTerm || 'Sin filtro',
+        totalConcepts: filteredData.length,
+        totalAmount: stats.totalAmount,
+        exportFormat: 'Excel'
+      });
+    } catch (logError) {
+      console.error('Error logging report export activity:', logError);
+    }
+    
     // Aquí se implementaría la exportación real
   };
 

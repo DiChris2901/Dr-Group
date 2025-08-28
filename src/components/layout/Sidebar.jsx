@@ -180,6 +180,12 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       icon: People,
       path: '/users',
       color: primaryColor
+    },
+    {
+      title: 'Auditoría del Sistema',
+      icon: Assessment,
+      path: '/admin/activity-logs',
+      color: '#9c27b0'
     }
   ];
 

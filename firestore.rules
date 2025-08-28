@@ -27,7 +27,20 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
     
-    // Logs de auditoría: Solo usuarios autenticados
+    // Logs de actividad: Solo lectura para admins, escritura para usuarios autenticados
+    match /activity_logs/{logId} {
+      // Solo admins pueden leer logs de auditoría
+      allow read: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['ADMIN', 'SUPER_ADMIN'];
+      
+      // Cualquier usuario autenticado puede escribir logs (para registro de actividades)
+      allow create: if request.auth != null;
+      
+      // No permitir actualización ni eliminación (logs son inmutables)
+      allow update, delete: if false;
+    }
+    
+    // Logs de auditoría: Solo usuarios autenticados (mantener compatibilidad)
     match /audit_logs/{logId} {
       allow read, write: if request.auth != null;
     }

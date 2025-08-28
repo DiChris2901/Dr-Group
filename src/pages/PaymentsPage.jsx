@@ -105,9 +105,12 @@ import AddSamplePayments from '../components/debug/AddSamplePayments';
 import PaymentReceiptViewer from '../components/commitments/PaymentReceiptViewer';
 // Context para autenticación
 import { useAuth } from '../context/AuthContext';
+// Hook para auditoría
+import useActivityLogs from '../hooks/useActivityLogs';
 
 const PaymentsPage = () => {
   const { currentUser } = useAuth();
+  const { logActivity } = useActivityLogs();
   const theme = useTheme();
   // Tomar colores desde el tema efectivo de MUI (que ya refleja SettingsContext)
   const primaryColor = theme.palette.primary.main;
@@ -970,7 +973,14 @@ const PaymentsPage = () => {
               console.warn('⚠️ No se pudo extraer el path del archivo:', url);
             }
           } catch (deleteError) {
-            console.warn('⚠️ Error al eliminar archivo antiguo:', deleteError.message);
+            // ✅ MEJORADO: Manejo específico para diferentes tipos de errores
+            if (deleteError.code === 'storage/object-not-found') {
+              console.log('ℹ️ Archivo ya no existe en storage (probablemente eliminado anteriormente):', filePath || url);
+            } else if (deleteError.code === 'storage/unauthorized') {
+              console.warn('⚠️ Sin permisos para eliminar archivo del storage:', filePath || url);
+            } else {
+              console.warn('⚠️ Error al eliminar archivo antiguo:', deleteError.message, 'Path:', filePath || url);
+            }
             // Continuar con el siguiente archivo aunque falle la eliminación
           }
         }
@@ -1042,6 +1052,18 @@ const PaymentsPage = () => {
       await updateDoc(paymentRef, updateData);
       console.log('✅ Documento actualizado en Firestore exitosamente');
 
+      // 📝 Registrar actividad de auditoría - Modificación de comprobantes de pago
+      await logActivity('update_receipt', 'payment', payment.id, {
+        concept: payment.concept || 'Sin concepto',
+        amount: payment.amount || 0,
+        paymentMethod: payment.method || 'Sin método',
+        companyName: payment.companyName || 'Sin empresa',
+        newReceiptsCount: files.length,
+        previousReceiptsCount: (payment.attachments || []).length,
+        receiptNames: files.map(f => f.name).join(', '),
+        action: 'replace_receipts'
+      });
+
       // Actualizar el estado local del currentPayment para reflejar los cambios inmediatamente
       setCurrentPayment(prevPayment => ({
         ...prevPayment,
@@ -1099,7 +1121,14 @@ const PaymentsPage = () => {
               console.log('✅ Archivo eliminado de Storage');
             }
           } catch (storageError) {
-            console.warn('⚠️ Error al eliminar archivo de Storage:', storageError);
+            // ✅ MEJORADO: Manejo específico para diferentes tipos de errores
+            if (storageError.code === 'storage/object-not-found') {
+              console.log('ℹ️ Archivo ya no existe en storage (probablemente eliminado anteriormente)');
+            } else if (storageError.code === 'storage/unauthorized') {
+              console.warn('⚠️ Sin permisos para eliminar archivo del storage');
+            } else {
+              console.warn('⚠️ Error al eliminar archivo de Storage:', storageError.message);
+            }
           }
         }
       }
@@ -1167,7 +1196,14 @@ const PaymentsPage = () => {
                 console.log('✅ Archivo antiguo eliminado:', filePath);
               }
             } catch (deleteError) {
-              console.warn('⚠️ Error al eliminar archivo antiguo:', deleteError);
+              // ✅ MEJORADO: Manejo específico para diferentes tipos de errores
+              if (deleteError.code === 'storage/object-not-found') {
+                console.log('ℹ️ Archivo ya no existe en storage (probablemente eliminado anteriormente)');
+              } else if (deleteError.code === 'storage/unauthorized') {
+                console.warn('⚠️ Sin permisos para eliminar archivo del storage');
+              } else {
+                console.warn('⚠️ Error al eliminar archivo antiguo:', deleteError.message);
+              }
             }
           }
         }
@@ -1513,7 +1549,18 @@ const PaymentsPage = () => {
       };
 
       // Agregar a la colección de pagos
-      await addDoc(collection(db, 'payments'), tax4x1000Data);
+      const docRef = await addDoc(collection(db, 'payments'), tax4x1000Data);
+      
+      // 📝 Registrar actividad de auditoría
+      await logActivity('create_payment', 'payment', docRef.id, {
+        concept: tax4x1000Data.concept,
+        amount: tax4x1000,
+        paymentMethod: 'Transferencia',
+        companyName: companyName || 'Sin empresa',
+        isAutomatic: true,
+        is4x1000Tax: true,
+        relatedToAmount: paymentAmount
+      });
       
       console.log('✅ Registro 4x1000 creado:', formatCurrencyBalance(tax4x1000));
       return tax4x1000;
@@ -1663,6 +1710,19 @@ const PaymentsPage = () => {
       setUploadProgress(90);
       await updateDoc(paymentRef, updateData);
       
+      // 📝 Registrar actividad de auditoría
+      await logActivity('update_payment', 'payment', editingPayment.id, {
+        concept: updateData.concept,
+        amount: updateData.amount,
+        originalAmount: updateData.originalAmount,
+        companyName: updateData.companyName || 'Sin empresa',
+        paymentMethod: updateData.method,
+        hasNewAttachments: selectedFiles.length > 0,
+        attachmentCount: selectedFiles.length,
+        isColjuegos: isColjuegos,
+        interestsPaid: updateData.interests || 0
+      });
+      
       // =====================================================
       // GENERAR 4x1000 AUTOMÁTICAMENTE (SI APLICA)
       // =====================================================
@@ -1715,6 +1775,9 @@ const PaymentsPage = () => {
     
     setDeletingPayment(true);
     
+    // ✅ FIXED: Declarar tax4x1000Records fuera del try-catch para que esté disponible en toda la función
+    let tax4x1000Records = [];
+    
     try {
       console.log('🗑️ Iniciando eliminación del pago:', paymentToDelete.id);
       
@@ -1725,10 +1788,17 @@ const PaymentsPage = () => {
           try {
             const storageRef = ref(storage, attachmentUrl);
             await deleteObject(storageRef);
-            console.log('✅ Comprobante eliminado del storage');
+            console.log('✅ Comprobante eliminado del storage:', attachmentUrl);
           } catch (storageError) {
-            console.warn('⚠️ Error eliminando comprobante del storage:', storageError.message);
-            // Continuar aunque falle eliminar el archivo
+            // ✅ MEJORADO: Manejo específico para diferentes tipos de errores
+            if (storageError.code === 'storage/object-not-found') {
+              console.log('ℹ️ Archivo ya no existe en storage (probablemente eliminado anteriormente):', attachmentUrl);
+            } else if (storageError.code === 'storage/unauthorized') {
+              console.warn('⚠️ Sin permisos para eliminar archivo del storage:', attachmentUrl);
+            } else {
+              console.warn('⚠️ Error eliminando comprobante del storage:', storageError.message, 'URL:', attachmentUrl);
+            }
+            // Continuar aunque falle eliminar el archivo - no es crítico
           }
         }
       }
@@ -1743,7 +1813,8 @@ const PaymentsPage = () => {
         );
         
         const snapshot = await getDocs(paymentsQuery);
-        const tax4x1000Records = [];
+        // ✅ FIXED: Reasignar el array en lugar de declarar uno nuevo
+        tax4x1000Records = [];
         
         snapshot.forEach((doc) => {
           const data = doc.data();
@@ -1797,9 +1868,38 @@ const PaymentsPage = () => {
           // Si no hay otros pagos válidos, marcar compromiso como no pagado
           if (!hasOtherValidPayments) {
             const commitmentRef = doc(db, 'commitments', paymentToDelete.commitmentId);
+
+            // Leer el compromiso para recalcular estado y saldo
+            let newStatus = 'pending';
+            let restoredAmount = 0;
+            try {
+              const commitmentSnap = await getDoc(commitmentRef);
+              if (commitmentSnap.exists()) {
+                const cData = commitmentSnap.data();
+                restoredAmount = cData.amount || cData.originalAmount || 0;
+                const rawDue = cData.dueDate?.toDate?.() || cData.dueDate;
+                if (rawDue) {
+                  const due = new Date(rawDue);
+                  due.setHours(0,0,0,0);
+                  const today = new Date();
+                  today.setHours(0,0,0,0);
+                  if (due < today) newStatus = 'overdue';
+                }
+              }
+            } catch(readCommitmentErr) {
+              console.warn('⚠️ No se pudo leer el compromiso antes de revertir estado, se usará status pending por defecto:', readCommitmentErr);
+            }
+
             await updateDoc(commitmentRef, {
               isPaid: false,
               paid: false,
+              status: newStatus,            // Revertir a pending/overdue según fecha
+              paymentStatus: deleteField(),  // Eliminar posibles flags previos
+              totalPaid: deleteField(),      // Limpia acumulados de pagos
+              remainingBalance: restoredAmount, // Restaura saldo completo
+              lastPaymentId: deleteField(),
+              lastPaymentAmount: deleteField(),
+              lastPaymentDate: deleteField(),
               paymentDate: deleteField(),
               paidAt: deleteField(),
               paymentAmount: deleteField(),
@@ -1813,7 +1913,7 @@ const PaymentsPage = () => {
               receiptMetadata: deleteField(),
               updatedAt: new Date()
             });
-            console.log('✅ Compromiso marcado como no pagado');
+            console.log('✅ Compromiso marcado como no pagado y restablecido (status:', newStatus, ')');
           } else {
             console.log('ℹ️ El compromiso tiene otros pagos, mantiene estado pagado');
           }
@@ -1827,6 +1927,17 @@ const PaymentsPage = () => {
       // 4. Eliminar el documento del pago de Firestore
       const paymentRef = doc(db, 'payments', paymentToDelete.id);
       await deleteDoc(paymentRef);
+      
+      // 📝 Registrar actividad de auditoría
+      await logActivity('delete_payment', 'payment', paymentToDelete.id, {
+        concept: paymentToDelete.concept || 'Pago sin concepto',
+        amount: paymentToDelete.amount || 0,
+        companyName: paymentToDelete.companyName || paymentToDelete.company || 'Sin empresa',
+        commitmentId: paymentToDelete.commitmentId || null,
+        paymentMethod: paymentToDelete.paymentMethod || 'No especificado',
+        had4x1000: tax4x1000Records.length > 0,
+        deleted4x1000Count: tax4x1000Records.length
+      });
       
       console.log('✅ Pago eliminado exitosamente');
       showNotification('Pago eliminado y compromiso actualizado correctamente', 'success');

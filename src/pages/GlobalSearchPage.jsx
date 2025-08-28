@@ -39,6 +39,7 @@ import {
   Description as PageIcon,
   TrendingUp as KPIIcon,
   Visibility as ViewIcon,
+  Visibility as VisibilityIcon,
   Launch as LaunchIcon,
   Close as CloseIcon,
   CalendarToday,
@@ -683,7 +684,7 @@ const GlobalSearchPage = () => {
                         size="small" 
                         color="primary"
                         onClick={(e) => {
-                          e.stopPropagation(); // Evitar que se active el click de la fila
+                          e.stopPropagation();
                           handleViewCommitment(item);
                         }}
                       >
@@ -1002,363 +1003,26 @@ const GlobalSearchPage = () => {
         onClose={handleCloseCompanyViewDialog}
         maxWidth="lg"
         fullWidth
-        sx={{
-          '& .MuiDialog-paper': {
-            margin: '24px',
-            maxHeight: 'calc(100vh - 48px)',
-          }
-        }}
-        TransitionProps={{
-          timeout: 400,
-        }}
-        transitionDuration={{
-          enter: 400,
-          exit: 300,
-        }}
-        componentsProps={{
-          backdrop: {
-            timeout: 400,
-            sx: {
-              backdropFilter: 'blur(2px)',
-              transition: 'backdrop-filter 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
-            }
-          }
-        }}
-        PaperProps={{
-          sx: {
-            borderRadius: 1,
-            background: theme.palette.mode === 'dark'
-              ? theme.palette.background.paper
-              : theme.palette.background.paper,
-            boxShadow: theme.palette.mode === 'dark'
-              ? '0 4px 24px rgba(0, 0, 0, 0.4)'
-              : '0 4px 24px rgba(0, 0, 0, 0.08)',
-            border: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
-          }
-        }}
       >
         {selectedCompany && (
           <>
-            <DialogTitle sx={{ 
-              pb: 2, 
-              pt: 3,
-              px: 3,
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between',
-              background: 'transparent',
-              borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
-            }}>
+            <DialogTitle>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <BusinessIcon sx={{ 
-                  color: theme.palette.secondary.main,
-                  fontSize: 20
-                }} />
-                <Box>
-                  <Typography variant="h6" sx={{ 
-                    fontWeight: 500,
-                    color: theme.palette.text.primary,
-                    fontSize: '1.1rem'
-                  }}>
-                    {selectedCompany.name || 'Empresa'}
-                  </Typography>
-                  <Typography variant="body2" sx={{ 
-                    color: theme.palette.text.secondary,
-                    fontSize: '0.875rem',
-                    mt: 0.5
-                  }}>
-                    Información de la empresa
-                  </Typography>
-                </Box>
+                <BusinessIcon sx={{ color: theme.palette.secondary.main }} />
+                <Typography variant="h6">{selectedCompany.name || 'Empresa'}</Typography>
               </Box>
               <IconButton 
-                onClick={handleCloseCompanyViewDialog} 
-                size="small"
-                sx={{
-                  color: theme.palette.text.secondary,
-                  '&:hover': {
-                    backgroundColor: alpha(theme.palette.text.secondary, 0.04),
-                    color: theme.palette.text.primary
-                  }
-                }}
+                onClick={handleCloseCompanyViewDialog}
+                sx={{ position: 'absolute', right: 8, top: 8 }}
               >
-                <CloseIcon fontSize="small" />
+                <CloseIcon />
               </IconButton>
             </DialogTitle>
-
-            <DialogContent sx={{ p: 4, pt: 5 }}>
-              {/* Logotipo si existe */}
-              {selectedCompany.logoURL && (
-                <Box sx={{ textAlign: 'center', mb: 4 }}>
-                  <Box
-                    component="img"
-                    src={selectedCompany.logoURL}
-                    alt={`Logo de ${selectedCompany.name}`}
-                    sx={{
-                      maxWidth: 200,
-                      maxHeight: 120,
-                      width: 'auto',
-                      height: 'auto',
-                      objectFit: 'contain',
-                      border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                      borderRadius: 1,
-                      p: 1,
-                      backgroundColor: 'background.paper',
-                      boxShadow: 1
-                    }}
-                  />
-                  <Typography variant="caption" sx={{ 
-                    color: theme.palette.text.secondary,
-                    display: 'block',
-                    mt: 1,
-                    fontSize: '0.75rem'
-                  }}>
-                    Logotipo de {selectedCompany.name}
-                  </Typography>
-                </Box>
-              )}
-
-              {/* Información Básica */}
-              <Typography variant="subtitle1" sx={{ 
-                fontWeight: 500, 
-                mb: 3,
-                color: theme.palette.text.primary,
-                fontSize: '1rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
-              }}>
-                <BusinessIcon sx={{ fontSize: 20, color: theme.palette.secondary.main }} />
-                Información Básica
-              </Typography>
-              
-              <Grid container spacing={3} sx={{ mb: 4 }}>
-                {/* Nombre de la empresa */}
-                <Grid item xs={12} md={4}>
-                  <Box sx={{ 
-                    p: 2, 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: 1,
-                    backgroundColor: alpha(theme.palette.background.default, 0.5)
-                  }}>
-                    <Typography variant="subtitle2" sx={{ 
-                      color: theme.palette.text.secondary,
-                      fontSize: '0.75rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.08em',
-                      fontWeight: 500,
-                      mb: 1
-                    }}>
-                      Empresa
-                    </Typography>
-                    <Typography variant="body1" sx={{ 
-                      fontWeight: 500,
-                      color: theme.palette.text.primary,
-                      fontSize: '0.95rem'
-                    }}>
-                      {selectedCompany.name}
-                    </Typography>
-                  </Box>
-                </Grid>
-
-                {/* NIT */}
-                <Grid item xs={12} md={4}>
-                  <Box sx={{ 
-                    p: 2, 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: 1,
-                    backgroundColor: alpha(theme.palette.background.default, 0.5)
-                  }}>
-                    <Typography variant="subtitle2" sx={{ 
-                      color: theme.palette.text.secondary,
-                      fontSize: '0.75rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.08em',
-                      fontWeight: 500,
-                      mb: 1
-                    }}>
-                      NIT
-                    </Typography>
-                    <Typography variant="body1" sx={{ 
-                      color: theme.palette.text.primary,
-                      fontSize: '0.95rem'
-                    }}>
-                      {selectedCompany.nit || 'No especificado'}
-                    </Typography>
-                  </Box>
-                </Grid>
-
-                {/* Email */}
-                {selectedCompany.email && (
-                  <Grid item xs={12} md={4}>
-                    <Box sx={{ 
-                      p: 2, 
-                      border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                      borderRadius: 1,
-                      backgroundColor: alpha(theme.palette.background.default, 0.5)
-                    }}>
-                      <Typography variant="subtitle2" sx={{ 
-                        color: theme.palette.text.secondary,
-                        fontSize: '0.75rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
-                        fontWeight: 500,
-                        mb: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.5
-                      }}>
-                        <EmailIcon sx={{ fontSize: 12 }} />
-                        Email
-                      </Typography>
-                      <Typography variant="body1" sx={{ 
-                        color: theme.palette.text.primary,
-                        fontSize: '0.95rem'
-                      }} noWrap>
-                        {selectedCompany.email}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                )}
-
-                {/* Representante Legal */}
-                {selectedCompany.legalRepresentative && (
-                  <Grid item xs={12} md={4}>
-                    <Box sx={{ 
-                      p: 2, 
-                      border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                      borderRadius: 1,
-                      backgroundColor: alpha(theme.palette.background.default, 0.5)
-                    }}>
-                      <Typography variant="subtitle2" sx={{ 
-                        color: theme.palette.text.secondary,
-                        fontSize: '0.75rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
-                        fontWeight: 500,
-                        mb: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.5
-                      }}>
-                        <PersonIcon sx={{ fontSize: 12 }} />
-                        Representante Legal
-                      </Typography>
-                      <Typography variant="body1" sx={{ 
-                        color: theme.palette.text.primary,
-                        fontSize: '0.95rem'
-                      }}>
-                        {selectedCompany.legalRepresentative}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                )}
-
-                {/* Cédula Representante Legal */}
-                {selectedCompany.legalRepresentativeId && (
-                  <Grid item xs={12} md={4}>
-                    <Box sx={{ 
-                      p: 2, 
-                      border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                      borderRadius: 1,
-                      backgroundColor: alpha(theme.palette.background.default, 0.5)
-                    }}>
-                      <Typography variant="subtitle2" sx={{ 
-                        color: theme.palette.text.secondary,
-                        fontSize: '0.75rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
-                        fontWeight: 500,
-                        mb: 1
-                      }}>
-                        Cédula Rep Legal
-                      </Typography>
-                      <Typography variant="body1" sx={{ 
-                        color: theme.palette.text.primary,
-                        fontSize: '0.95rem'
-                      }}>
-                        {selectedCompany.legalRepresentativeId}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                )}
-
-                {/* Número de Contrato */}
-                {selectedCompany.contractNumber && (
-                  <Grid item xs={12} md={4}>
-                    <Box sx={{ 
-                      p: 2, 
-                      border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                      borderRadius: 1,
-                      backgroundColor: alpha(theme.palette.background.default, 0.5)
-                    }}>
-                      <Typography variant="subtitle2" sx={{ 
-                        color: theme.palette.text.secondary,
-                        fontSize: '0.75rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
-                        fontWeight: 500,
-                        mb: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.5
-                      }}>
-                        <ReceiptIcon sx={{ fontSize: 12 }} />
-                        Número de Contrato
-                      </Typography>
-                      <Typography variant="body1" sx={{ 
-                        color: theme.palette.text.primary,
-                        fontSize: '0.95rem'
-                      }}>
-                        {selectedCompany.contractNumber}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                )}
-
-                {/* Descripción si existe */}
-                {selectedCompany.description && (
-                  <Grid item xs={12}>
-                    <Box sx={{ 
-                      p: 2, 
-                      border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                      borderRadius: 1,
-                      backgroundColor: alpha(theme.palette.background.default, 0.5)
-                    }}>
-                      <Typography variant="subtitle2" sx={{ 
-                        color: theme.palette.text.secondary,
-                        fontSize: '0.75rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
-                        fontWeight: 500,
-                        mb: 1
-                      }}>
-                        Descripción
-                      </Typography>
-                      <Typography variant="body1" sx={{ 
-                        color: theme.palette.text.primary,
-                        fontSize: '0.95rem',
-                        lineHeight: 1.6
-                      }}>
-                        {selectedCompany.description}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                )}
-              </Grid>
+            <DialogContent>
+              <Typography>Información de la empresa: {selectedCompany.name}</Typography>
             </DialogContent>
-
-            <DialogActions sx={{ p: 3, pt: 1, gap: 1 }}>
-              <Button onClick={handleCloseCompanyViewDialog} variant="outlined">
-                Cerrar
-              </Button>
-              <Button 
-                onClick={() => handleResultClick('company', selectedCompany)}
-                variant="contained"
-                startIcon={<LaunchIcon />}
-              >
-                Ver en Empresas
-              </Button>
+            <DialogActions>
+              <Button onClick={handleCloseCompanyViewDialog}>Cerrar</Button>
             </DialogActions>
           </>
         )}
@@ -1370,70 +1034,45 @@ const GlobalSearchPage = () => {
         onClose={handleCloseViewDialog}
         maxWidth="md"
         fullWidth
-        sx={{
-          '& .MuiDialog-paper': {
-            margin: '24px',
-            maxHeight: 'calc(100vh - 48px)',
-          }
-        }}
-        TransitionProps={{
-          timeout: 400,
-        }}
-        transitionDuration={{
-          enter: 400,
-          exit: 300,
-        }}
-        componentsProps={{
-          backdrop: {
-            timeout: 400,
-            sx: {
-              backdropFilter: 'blur(2px)',
-              transition: 'backdrop-filter 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
-            }
-          }
-        }}
         PaperProps={{
           sx: {
-            borderRadius: 1,
-            background: theme.palette.mode === 'dark'
-              ? theme.palette.background.paper
-              : theme.palette.background.paper,
+            borderRadius: 2,
+            background: theme.palette.background.paper,
             boxShadow: theme.palette.mode === 'dark'
-              ? '0 4px 24px rgba(0, 0, 0, 0.4)'
-              : '0 4px 24px rgba(0, 0, 0, 0.08)',
-            border: `1px solid ${alpha(theme.palette.divider, 0.06)}`,
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
           }
         }}
       >
         {selectedCommitment && (
           <>
             <DialogTitle sx={{ 
-              pb: 2, 
-              pt: 3,
-              px: 3,
+              pb: 2,
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'space-between',
-              background: 'transparent',
-              borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+              background: theme.palette.mode === 'dark' 
+                ? theme.palette.grey[900]
+                : theme.palette.grey[50],
+              borderBottom: `1px solid ${theme.palette.divider}`,
+              color: 'text.primary'
             }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <CommitmentIcon sx={{ 
-                  color: theme.palette.primary.main,
-                  fontSize: 20
-                }} />
+                <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+                  <VisibilityIcon />
+                </Avatar>
                 <Box>
                   <Typography variant="h6" sx={{ 
-                    fontWeight: 500,
-                    color: theme.palette.text.primary,
-                    fontSize: '1.1rem'
+                    fontWeight: 700,
+                    mb: 0,
+                    color: 'text.primary' 
                   }}>
-                    {selectedCommitment.concept || 'Compromiso Financiero'}
+                    Detalle del Compromiso
                   </Typography>
-                  <Typography variant="body2" sx={{ 
-                    color: theme.palette.text.secondary,
-                    fontSize: '0.875rem',
-                    mt: 0.5
+                  <Typography variant="caption" sx={{ 
+                    color: 'text.secondary',
+                    display: 'block'
                   }}>
                     {selectedCommitment.companyName || 'Empresa no especificada'}
                   </Typography>
@@ -1443,243 +1082,300 @@ const GlobalSearchPage = () => {
                 onClick={handleCloseViewDialog} 
                 size="small"
                 sx={{
-                  color: theme.palette.text.secondary,
+                  color: 'text.secondary',
                   '&:hover': {
-                    backgroundColor: alpha(theme.palette.text.secondary, 0.04),
-                    color: theme.palette.text.primary
+                    backgroundColor: alpha(theme.palette.primary.main, 0.04),
+                    color: 'primary.main'
                   }
                 }}
               >
-                <CloseIcon fontSize="small" />
+                <CloseIcon />
               </IconButton>
             </DialogTitle>
 
-            <DialogContent sx={{ p: 4, pt: 5 }}>
-              <Stack spacing={4}>
-                {/* Estado del compromiso */}
-                <Box>
-                  <Typography variant="subtitle2" sx={{ 
-                    color: theme.palette.text.secondary, 
-                    fontSize: '0.75rem',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    fontWeight: 500,
-                    mb: 1.5
-                  }}>
-                    Estado
-                  </Typography>
-                  <Chip 
-                    icon={getStatusInfo(selectedCommitment).icon}
-                    label={getStatusInfo(selectedCommitment).label}
-                    color={getStatusInfo(selectedCommitment).chipColor}
-                    size="small"
-                    variant="filled"
-                    sx={{
-                      fontSize: '0.75rem',
-                      fontWeight: 500
-                    }}
-                  />
-                </Box>
-
-                <Divider sx={{ opacity: 0.6 }} />
-
-                {/* Información básica */}
-                <Box>
-                  <Typography variant="subtitle1" sx={{ 
-                    fontWeight: 500, 
-                    mb: 3,
-                    color: theme.palette.text.primary,
-                    fontSize: '1rem'
-                  }}>
-                    Información General
-                  </Typography>
-                  
+            <DialogContent sx={{ p: 3 }}>
+              <Grid container spacing={3}>
+                {/* Información principal - xs=12 md=8 */}
+                <Grid item xs={12} md={8}>
                   <Stack spacing={3}>
-                    {selectedCommitment.description && (
-                      <Box>
-                        <Typography variant="subtitle2" sx={{ 
-                          color: theme.palette.text.secondary,
-                          fontSize: '0.75rem',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.08em',
-                          fontWeight: 500,
-                          mb: 1
-                        }}>
-                          Descripción
-                        </Typography>
-                        <Typography variant="body1" sx={{ 
-                          color: theme.palette.text.primary,
-                          fontSize: '0.95rem',
-                          lineHeight: 1.6
-                        }}>
-                          {selectedCommitment.description}
-                        </Typography>
-                      </Box>
-                    )}
-
-                    <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      <Box sx={{ flex: 1, minWidth: '200px' }}>
-                        <Typography variant="subtitle2" sx={{ 
-                          color: theme.palette.text.secondary,
-                          fontSize: '0.75rem',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.08em',
-                          fontWeight: 500,
-                          mb: 1
-                        }}>
-                          Beneficiario
-                        </Typography>
-                        <Typography variant="body1" sx={{ 
-                          color: theme.palette.text.primary,
-                          fontSize: '0.95rem'
-                        }}>
-                          {selectedCommitment.beneficiary || 'No especificado'}
-                        </Typography>
-                      </Box>
-
-                      <Box sx={{ flex: 1, minWidth: '200px' }}>
-                        <Typography variant="subtitle2" sx={{ 
-                          color: theme.palette.text.secondary,
-                          fontSize: '0.75rem',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.08em',
-                          fontWeight: 500,
-                          mb: 1
-                        }}>
-                          Monto
-                        </Typography>
-                        <Typography variant="h6" sx={{ 
-                          fontWeight: 500,
-                          fontSize: '1.1rem',
-                          color: theme.palette.text.primary
-                        }}>
-                          {formatCurrency(selectedCommitment.amount)}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                      <Box sx={{ flex: 1, minWidth: '200px' }}>
-                        <Typography variant="subtitle2" sx={{ 
-                          color: theme.palette.text.secondary,
-                          fontSize: '0.75rem',
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.08em',
-                          fontWeight: 500,
-                          mb: 1
-                        }}>
-                          Fecha de Vencimiento
-                        </Typography>
-                        <Typography variant="body1" sx={{ 
-                          color: theme.palette.text.primary,
-                          fontSize: '0.95rem'
-                        }}>
-                          {safeFormatDate(selectedCommitment.dueDate)}
-                        </Typography>
-                      </Box>
-
-                      {selectedCommitment.createdAt && (
-                        <Box sx={{ flex: 1, minWidth: '200px' }}>
-                          <Typography variant="subtitle2" sx={{ 
-                            color: theme.palette.text.secondary,
-                            fontSize: '0.75rem',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.08em',
-                            fontWeight: 500,
-                            mb: 1
-                          }}>
-                            Fecha de Creación
-                          </Typography>
-                          <Typography variant="body1" sx={{ 
-                            color: theme.palette.text.primary,
-                            fontSize: '0.95rem'
-                          }}>
-                            {safeFormatDate(selectedCommitment.createdAt, "dd/MM/yyyy")}
-                          </Typography>
-                        </Box>
-                      )}
-                    </Box>
-                  </Stack>
-                </Box>
-
-                {/* Información de pago si existe */}
-                {(selectedCommitment.paid || selectedCommitment.isPaid) && (
-                  <>
-                    <Divider sx={{ opacity: 0.6 }} />
-                    <Box>
-                      <Typography variant="subtitle1" sx={{ 
-                        fontWeight: 500, 
-                        mb: 3,
-                        color: 'success.main',
-                        fontSize: '1rem'
+                    {/* Estado del compromiso */}
+                    <Paper sx={{ 
+                      p: 2.5, 
+                      borderRadius: 1,
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                      background: alpha(theme.palette.primary.main, 0.04)
+                    }}>
+                      <Typography variant="overline" sx={{ 
+                        color: 'text.secondary', 
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        letterSpacing: '0.1em'
                       }}>
-                        Información de Pago
+                        Estado
+                      </Typography>
+                      <Box sx={{ mt: 1 }}>
+                        <Chip 
+                          icon={getStatusInfo(selectedCommitment).icon}
+                          label={getStatusInfo(selectedCommitment).label}
+                          color={getStatusInfo(selectedCommitment).chipColor}
+                          size="medium"
+                          variant="filled"
+                          sx={{ fontWeight: 600 }}
+                        />
+                      </Box>
+                    </Paper>
+
+                    {/* Información básica */}
+                    <Paper sx={{ 
+                      p: 2.5, 
+                      borderRadius: 1,
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                    }}>
+                      <Typography variant="subtitle1" sx={{ 
+                        fontWeight: 700, 
+                        mb: 2,
+                        color: 'text.primary'
+                      }}>
+                        Información General
                       </Typography>
                       
-                      <Stack spacing={3}>
-                        {selectedCommitment.paymentDate && (
+                      <Stack spacing={2}>
+                        {selectedCommitment.description && (
                           <Box>
-                            <Typography variant="subtitle2" sx={{ 
-                              color: theme.palette.text.secondary,
+                            <Typography variant="overline" sx={{ 
+                              color: 'text.secondary',
                               fontSize: '0.75rem',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.08em',
-                              fontWeight: 500,
-                              mb: 1
+                              fontWeight: 600,
+                              letterSpacing: '0.1em'
                             }}>
-                              Fecha de Pago
+                              Concepto
                             </Typography>
                             <Typography variant="body1" sx={{ 
-                              color: theme.palette.text.primary,
-                              fontSize: '0.95rem'
+                              color: 'text.primary',
+                              mt: 0.5,
+                              lineHeight: 1.6
                             }}>
-                              {safeFormatDate(selectedCommitment.paymentDate)}
+                              {selectedCommitment.concept || selectedCommitment.description}
                             </Typography>
                           </Box>
                         )}
 
-                        {selectedCommitment.paymentReference && (
-                          <Box>
-                            <Typography variant="subtitle2" sx={{ 
-                              color: theme.palette.text.secondary,
+                        <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                          <Box sx={{ flex: 1, minWidth: '200px' }}>
+                            <Typography variant="overline" sx={{ 
+                              color: 'text.secondary',
                               fontSize: '0.75rem',
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.08em',
-                              fontWeight: 500,
-                              mb: 1
+                              fontWeight: 600,
+                              letterSpacing: '0.1em'
                             }}>
-                              Referencia de Pago
+                              Beneficiario
                             </Typography>
                             <Typography variant="body1" sx={{ 
-                              fontFamily: 'monospace',
-                              color: theme.palette.text.primary,
-                              fontSize: '0.9rem',
-                              backgroundColor: alpha(theme.palette.text.secondary, 0.04),
-                              p: 1,
-                              borderRadius: 1,
-                              border: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+                              color: 'text.primary',
+                              mt: 0.5
                             }}>
-                              {selectedCommitment.paymentReference}
+                              {selectedCommitment.beneficiary || 'No especificado'}
                             </Typography>
                           </Box>
-                        )}
+
+                          <Box sx={{ flex: 1, minWidth: '200px' }}>
+                            <Typography variant="overline" sx={{ 
+                              color: 'text.secondary',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              letterSpacing: '0.1em'
+                            }}>
+                              Monto
+                            </Typography>
+                            <Typography variant="h6" sx={{ 
+                              fontWeight: 700,
+                              color: 'primary.main',
+                              mt: 0.5
+                            }}>
+                              {formatCurrency(selectedCommitment.amount)}
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                          <Box sx={{ flex: 1, minWidth: '200px' }}>
+                            <Typography variant="overline" sx={{ 
+                              color: 'text.secondary',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              letterSpacing: '0.1em'
+                            }}>
+                              Fecha de Vencimiento
+                            </Typography>
+                            <Typography variant="body1" sx={{ 
+                              color: 'text.primary',
+                              mt: 0.5
+                            }}>
+                              {safeFormatDate(selectedCommitment.dueDate)}
+                            </Typography>
+                          </Box>
+
+                          {selectedCommitment.createdAt && (
+                            <Box sx={{ flex: 1, minWidth: '200px' }}>
+                              <Typography variant="overline" sx={{ 
+                                color: 'text.secondary',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                letterSpacing: '0.1em'
+                              }}>
+                                Fecha de Creación
+                              </Typography>
+                              <Typography variant="body1" sx={{ 
+                                color: 'text.primary',
+                                mt: 0.5
+                              }}>
+                                {safeFormatDate(selectedCommitment.createdAt, "dd/MM/yyyy")}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
                       </Stack>
-                    </Box>
-                  </>
-                )}
-              </Stack>
+                    </Paper>
+
+                    {/* Información de pago si existe */}
+                    {(selectedCommitment.paid || selectedCommitment.isPaid) && (
+                      <Paper sx={{ 
+                        p: 2.5, 
+                        borderRadius: 1,
+                        border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+                        background: alpha(theme.palette.success.main, 0.08)
+                      }}>
+                        <Typography variant="subtitle1" sx={{ 
+                          fontWeight: 700, 
+                          mb: 2,
+                          color: 'success.main'
+                        }}>
+                          Información de Pago
+                        </Typography>
+                        
+                        <Stack spacing={2}>
+                          {selectedCommitment.paymentDate && (
+                            <Box>
+                              <Typography variant="overline" sx={{ 
+                                color: 'text.secondary',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                letterSpacing: '0.1em'
+                              }}>
+                                Fecha de Pago
+                              </Typography>
+                              <Typography variant="body1" sx={{ 
+                                color: 'text.primary',
+                                mt: 0.5
+                              }}>
+                                {safeFormatDate(selectedCommitment.paymentDate)}
+                              </Typography>
+                            </Box>
+                          )}
+
+                          {selectedCommitment.paymentReference && (
+                            <Box>
+                              <Typography variant="overline" sx={{ 
+                                color: 'text.secondary',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                letterSpacing: '0.1em'
+                              }}>
+                                Referencia de Pago
+                              </Typography>
+                              <Typography variant="body2" sx={{ 
+                                fontFamily: 'monospace',
+                                color: 'text.primary',
+                                mt: 0.5,
+                                backgroundColor: alpha(theme.palette.background.default, 0.5),
+                                p: 1.5,
+                                borderRadius: 1,
+                                border: `1px solid ${alpha(theme.palette.divider, 0.15)}`
+                              }}>
+                                {selectedCommitment.paymentReference}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Stack>
+                      </Paper>
+                    )}
+                  </Stack>
+                </Grid>
+
+                {/* Información lateral - xs=12 md=4 */}
+                <Grid item xs={12} md={4}>
+                  <Stack spacing={3}>
+                    {/* Card de empresa */}
+                    <Paper sx={{ 
+                      p: 2.5, 
+                      borderRadius: 1,
+                      border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                    }}>
+                      <Typography variant="subtitle1" sx={{ 
+                        fontWeight: 700, 
+                        mb: 2,
+                        color: 'text.primary'
+                      }}>
+                        Empresa
+                      </Typography>
+                      <Typography variant="h6" sx={{ 
+                        color: 'primary.main',
+                        fontWeight: 600
+                      }}>
+                        {selectedCommitment.companyName || 'No especificada'}
+                      </Typography>
+                    </Paper>
+
+                    {/* Acciones rápidas */}
+                    <Paper sx={{ 
+                      p: 2.5, 
+                      borderRadius: 1,
+                      border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                    }}>
+                      <Typography variant="subtitle1" sx={{ 
+                        fontWeight: 700, 
+                        mb: 2,
+                        color: 'text.primary'
+                      }}>
+                        Acciones
+                      </Typography>
+                      <Button 
+                        onClick={() => handleResultClick('commitment', selectedCommitment)}
+                        variant="contained"
+                        startIcon={<LaunchIcon />}
+                        fullWidth
+                        sx={{ 
+                          borderRadius: 1,
+                          textTransform: 'none',
+                          fontWeight: 600
+                        }}
+                      >
+                        Ver en Compromisos
+                      </Button>
+                    </Paper>
+                  </Stack>
+                </Grid>
+              </Grid>
             </DialogContent>
 
-            <DialogActions sx={{ p: 3, pt: 1, gap: 1 }}>
-              <Button onClick={handleCloseViewDialog} variant="outlined">
-                Cerrar
-              </Button>
+            <DialogActions sx={{ 
+              p: 3, 
+              borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+              gap: 2,
+              justifyContent: 'flex-end'
+            }}>
               <Button 
-                onClick={() => handleResultClick('commitment', selectedCommitment)}
-                variant="contained"
-                startIcon={<LaunchIcon />}
+                onClick={handleCloseViewDialog} 
+                variant="outlined"
+                sx={{ 
+                  borderRadius: 1,
+                  textTransform: 'none'
+                }}
               >
-                Ver en Compromisos
+                Cerrar
               </Button>
             </DialogActions>
           </>

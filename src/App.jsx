@@ -44,6 +44,9 @@ import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
 import FinancialKPIsPage from './pages/FinancialKPIsPage';
 import LiquidationProcessorPage from './pages/LiquidationProcessorPage';
 
+// Módulo de Auditoría
+import ActivityLogsPage from './pages/ActivityLogsPage';
+
 // Hook de autenticación
 import { useAuth } from './context/AuthContext';
 
@@ -260,6 +263,14 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Limpieza de Datos" breadcrumbs={['Administración', 'Limpieza']}>
             <CleanupPage />
+          </MainLayout>
+        }
+      />
+      <Route 
+        path="/admin/activity-logs" 
+        element={
+          <MainLayout title="Auditoría del Sistema" breadcrumbs={['Administración', 'Auditoría']}>
+            <ActivityLogsPage />
           </MainLayout>
         }
       />

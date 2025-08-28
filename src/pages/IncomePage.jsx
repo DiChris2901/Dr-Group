@@ -59,6 +59,7 @@ import { useTheme } from '@mui/material/styles';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
+import useActivityLogs from '../hooks/useActivityLogs';
 import { useToast } from '../context/ToastContext';
 import { useSettings } from '../context/SettingsContext';
 import { db, storage } from '../config/firebase';
@@ -87,6 +88,7 @@ import {
 const IncomePage = () => {
   const theme = useTheme();
   const { currentUser } = useAuth();
+  const { logActivity } = useActivityLogs();
   const { success: showSuccess, error: showError, warning: showWarning, info: showInfo } = useToast();
   const { settings } = useSettings();
   
@@ -575,6 +577,19 @@ const IncomePage = () => {
         incomeId = selectedIncome.id;
         await updateDoc(doc(db, 'incomes', incomeId), incomeData);
         
+        // 📝 Registrar actividad de auditoría - Actualización de ingreso
+        await logActivity('update_income', 'income', incomeId, {
+          client: incomeData.client,
+          amount: incomeData.amount,
+          paymentMethod: incomeData.paymentMethod,
+          account: incomeData.account,
+          bank: incomeData.bank,
+          description: incomeData.description || 'Sin descripción',
+          hasNewAttachments: selectedFiles.length > 0,
+          newAttachmentsCount: selectedFiles.length,
+          previousAmount: selectedIncome.amount || 0
+        });
+        
         // Subir archivos si hay nuevos
         if (selectedFiles.length > 0) {
           const uploadedFiles = await uploadFiles(incomeId);
@@ -597,6 +612,18 @@ const IncomePage = () => {
         incomeData.createdAt = Timestamp.fromDate(new Date());
         const incomeDoc = await addDoc(collection(db, 'incomes'), incomeData);
         incomeId = incomeDoc.id;
+        
+        // 📝 Registrar actividad de auditoría - Creación de ingreso
+        await logActivity('create_income', 'income', incomeId, {
+          client: incomeData.client,
+          amount: incomeData.amount,
+          paymentMethod: incomeData.paymentMethod,
+          account: incomeData.account,
+          bank: incomeData.bank,
+          description: incomeData.description || 'Sin descripción',
+          hasAttachments: selectedFiles.length > 0,
+          attachmentsCount: selectedFiles.length
+        });
         
         // Subir archivos después de crear el documento
         if (selectedFiles.length > 0) {
@@ -659,6 +686,18 @@ const IncomePage = () => {
 
       // 2. Luego eliminar el documento de Firestore
       await deleteDoc(doc(db, 'incomes', incomeToDelete.id));
+      
+      // 📝 Registrar actividad de auditoría - Eliminación de ingreso
+      await logActivity('delete_income', 'income', incomeToDelete.id, {
+        client: incomeToDelete.client,
+        amount: incomeToDelete.amount,
+        paymentMethod: incomeToDelete.paymentMethod,
+        account: incomeToDelete.account,
+        bank: incomeToDelete.bank,
+        description: incomeToDelete.description || 'Sin descripción',
+        attachmentsCount: (incomeToDelete.attachments || []).length,
+        deletedAttachments: (incomeToDelete.attachments || []).map(f => f.name).join(', ')
+      });
       
       showSuccess('El ingreso y sus archivos han sido eliminados correctamente');
       setDeleteDialogOpen(false);

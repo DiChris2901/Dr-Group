@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import useActivityLogs from '../hooks/useActivityLogs';
 import {
   Box,
   Paper,
@@ -96,6 +97,7 @@ const BankAccountsPage = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { showToast } = useToast();
+  const { logActivity } = useActivityLogs();
 
   // Estados
   const [companies, setCompanies] = useState([]);
@@ -384,20 +386,43 @@ const BankAccountsPage = () => {
       if (accountData.id && personalAccounts.find(account => account.id === accountData.id)) {
         // Actualizar cuenta existente
         const accountRef = doc(db, 'personal_accounts', accountData.id);
+        const oldAccount = personalAccounts.find(acc => acc.id === accountData.id);
+        
         await updateDoc(accountRef, {
           ...accountData,
           userId: currentUser.uid,
           updatedAt: new Date()
         });
+        
+        // 📝 Registrar actividad de auditoría - Actualización de cuenta
+        await logActivity('update_bank_account', 'bank_account', accountData.id, {
+          accountType: 'Personal',
+          bankName: accountData.bankName,
+          accountNumber: accountData.accountNumber.slice(-4), // Solo últimos 4 dígitos
+          accountOwner: accountData.accountOwner,
+          previousBank: oldAccount?.bankName,
+          changes: Object.keys(accountData).filter(key => accountData[key] !== oldAccount?.[key])
+        });
+        
         showToast('Cuenta personal actualizada correctamente', 'success');
       } else {
         // Crear nueva cuenta
-        await addDoc(collection(db, 'personal_accounts'), {
+        const docRef = await addDoc(collection(db, 'personal_accounts'), {
           ...accountData,
           userId: currentUser.uid,
           createdAt: new Date(),
           updatedAt: new Date()
         });
+        
+        // 📝 Registrar actividad de auditoría - Creación de cuenta
+        await logActivity('create_bank_account', 'bank_account', docRef.id, {
+          accountType: 'Personal',
+          bankName: accountData.bankName,
+          accountNumber: accountData.accountNumber.slice(-4), // Solo últimos 4 dígitos
+          accountOwner: accountData.accountOwner,
+          accountCategory: accountData.category || 'Sin categoría'
+        });
+        
         showToast('Cuenta personal agregada correctamente', 'success');
       }
       setPersonalAccountModal({ open: false, account: null });

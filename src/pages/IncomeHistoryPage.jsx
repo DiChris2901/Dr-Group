@@ -72,12 +72,14 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+import useActivityLogs from '../hooks/useActivityLogs';
 import { useToast } from '../context/ToastContext';
 import IncomeDetailModal from '../components/incomes/IncomeDetailModal';
 
 const IncomeHistoryPage = () => {
   const theme = useTheme();
   const { currentUser } = useAuth();
+  const { logActivity } = useActivityLogs();
   const { success: showSuccess, error: showError } = useToast();
   const navigate = useNavigate();
   
@@ -383,6 +385,19 @@ const IncomeHistoryPage = () => {
       // 2. Eliminar documento de Firestore
       await deleteDoc(doc(db, 'incomes', incomeToDelete.id));
 
+      // 📝 Registrar actividad de auditoría - Eliminación de ingreso desde historial
+      await logActivity('delete_income', 'income', incomeToDelete.id, {
+        client: incomeToDelete.client,
+        amount: incomeToDelete.amount,
+        paymentMethod: incomeToDelete.paymentMethod,
+        account: incomeToDelete.account,
+        bank: incomeToDelete.bank || 'Sin banco',
+        description: incomeToDelete.description || 'Sin descripción',
+        attachmentsCount: (incomeToDelete.attachments || []).length,
+        deletedAttachments: (incomeToDelete.attachments || []).map(f => f.name).join(', '),
+        source: 'history_page'
+      });
+
       // 3. Mostrar mensaje de éxito
       showSuccess('Ingreso eliminado exitosamente');
 
@@ -583,6 +598,20 @@ const IncomeHistoryPage = () => {
       };
 
       await updateDoc(doc(db, 'incomes', incomeToEdit.id), updateData);
+
+      // 📝 Registrar actividad de auditoría - Edición de ingreso desde historial
+      await logActivity('update_income', 'income', incomeToEdit.id, {
+        client: updateData.client,
+        amount: updateData.amount,
+        paymentMethod: updateData.paymentMethod,
+        account: updateData.account,
+        description: updateData.description || 'Sin descripción',
+        attachmentsModified: editFiles.some(f => f.isNew) || filesToRemove.length > 0,
+        newAttachmentsCount: editFiles.filter(f => f.isNew).length,
+        removedAttachmentsCount: filesToRemove.length,
+        previousAmount: incomeToEdit.amount || 0,
+        source: 'history_page'
+      });
 
       // 4. Mostrar mensaje de éxito
       showSuccess('Ingreso actualizado exitosamente');

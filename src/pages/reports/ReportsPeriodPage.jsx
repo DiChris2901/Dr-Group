@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import useActivityLogs from '../../hooks/useActivityLogs';
 import {
   Box,
   Card,
@@ -41,6 +42,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 
 const ReportsPeriodPage = () => {
   const theme = useTheme();
+  const { logActivity } = useActivityLogs();
   
   const [startDate, setStartDate] = useState(new Date(2025, 0, 1)); // 1 enero 2025
   const [endDate, setEndDate] = useState(new Date(2025, 6, 31)); // 31 julio 2025
@@ -151,8 +153,24 @@ const ReportsPeriodPage = () => {
 
   const stats = getTotalStats();
 
-  const exportReport = () => {
+  const exportReport = async () => {
     console.log('Exportando reporte por período...');
+    
+    // 📝 Registrar actividad de auditoría - Exportación de reporte
+    try {
+      await logActivity('export_report', 'report', 'period_report', {
+        reportType: 'Análisis Temporal',
+        periodType: periodType,
+        dateRange: `${startDate.toLocaleDateString('es-CO')} - ${endDate.toLocaleDateString('es-CO')}`,
+        comparisonMode: comparisonMode,
+        totalRecords: currentData.length,
+        totalAmount: stats.totalAmount,
+        exportFormat: 'Excel' // o el formato que se implemente
+      });
+    } catch (logError) {
+      console.error('Error logging report export activity:', logError);
+    }
+    
     // Aquí se implementaría la exportación real
   };
 

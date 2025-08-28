@@ -33,8 +33,7 @@ import {
   DialogContent,
   DialogActions,
   DialogContentText,
-  Pagination,
-  CircularProgress
+  Pagination
 } from '@mui/material';
 import {
   Warning,
@@ -72,7 +71,6 @@ import { useAuth } from '../context/AuthContext';
 import { useDueCommitments } from '../hooks/useDueCommitments';
 import { useSettings } from '../context/SettingsContext';
 import { useNotifications } from '../context/NotificationsContext';
-import useActivityLogs from '../hooks/useActivityLogs';
 
 // Firebase
 import { doc, updateDoc, deleteDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
@@ -506,7 +504,6 @@ const DueCommitmentsPage = () => {
   const { settings } = useSettings();
   const { userProfile, currentUser } = useAuth();
   const { addNotification } = useNotifications();
-  const { logActivity } = useActivityLogs();
   const { 
     commitments, 
     loading, 
@@ -520,7 +517,6 @@ const DueCommitmentsPage = () => {
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [companyFilter, setCompanyFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   
   // Estados para paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -674,106 +670,91 @@ const DueCommitmentsPage = () => {
   };
 
   const confirmDelete = async () => {
-    if (!commitmentToDelete) return;
-    
-    setDeleting(true);
-    
-    try {
-      console.log('🗑️ Iniciando eliminación del compromiso:', commitmentToDelete.id);
-      
-      // 1. Eliminar archivos de Firebase Storage si existen
-      const filesToDelete = [];
-      
-      // Eliminar comprobante de pago si existe
-      if (commitmentToDelete.receiptUrl) {
-        try {
-          // Extraer el path del archivo desde la URL de Firebase Storage
-          let storagePath = '';
-          
-          if (commitmentToDelete.receiptUrl.includes('firebase.googleapis.com')) {
-            // URL de descarga de Firebase Storage
-            const urlParts = commitmentToDelete.receiptUrl.split('/o/')[1];
-            if (urlParts) {
-              storagePath = decodeURIComponent(urlParts.split('?')[0]);
-              console.log('📂 Path del comprobante a eliminar:', storagePath);
-              
-              const fileRef = ref(storage, storagePath);
-              await deleteObject(fileRef);
-              console.log('✅ Comprobante eliminado de Firebase Storage');
-            }
-          }
-        } catch (storageError) {
-          console.warn('⚠️ Error al eliminar comprobante de Storage:', storageError.message);
-          // Continuar con la eliminación aunque falle Storage
-        }
-      }
-
-      // Eliminar otros archivos adjuntos si existen
-      if (commitmentToDelete.attachmentUrls && Array.isArray(commitmentToDelete.attachmentUrls)) {
-        for (const url of commitmentToDelete.attachmentUrls) {
+    if (commitmentToDelete) {
+      try {
+        console.log('🗑️ Iniciando eliminación del compromiso:', commitmentToDelete.id);
+        
+        // 1. Eliminar archivos de Firebase Storage si existen
+        const filesToDelete = [];
+        
+        // Eliminar comprobante de pago si existe
+        if (commitmentToDelete.receiptUrl) {
           try {
-            if (url.includes('firebase.googleapis.com')) {
-              const urlParts = url.split('/o/')[1];
+            // Extraer el path del archivo desde la URL de Firebase Storage
+            let storagePath = '';
+            
+            if (commitmentToDelete.receiptUrl.includes('firebase.googleapis.com')) {
+              // URL de descarga de Firebase Storage
+              const urlParts = commitmentToDelete.receiptUrl.split('/o/')[1];
               if (urlParts) {
-                const storagePath = decodeURIComponent(urlParts.split('?')[0]);
-                console.log('📎 Path del archivo adjunto a eliminar:', storagePath);
+                storagePath = decodeURIComponent(urlParts.split('?')[0]);
+                console.log('📂 Path del comprobante a eliminar:', storagePath);
                 
                 const fileRef = ref(storage, storagePath);
                 await deleteObject(fileRef);
-                console.log('✅ Archivo adjunto eliminado de Firebase Storage');
+                console.log('✅ Comprobante eliminado de Firebase Storage');
               }
             }
           } catch (storageError) {
-            console.warn('⚠️ Error al eliminar archivo adjunto de Storage:', storageError.message);
-            // Continuar con siguiente archivo
+            console.warn('⚠️ Error al eliminar comprobante de Storage:', storageError.message);
+            // Continuar con la eliminación aunque falle Storage
           }
         }
-      }
 
-      // 2. Eliminar el documento de Firestore
-      await deleteDoc(doc(db, 'commitments', commitmentToDelete.id));
-      console.log('✅ Compromiso eliminado de Firestore');
-      
-      // 📝 Registrar actividad de auditoría
-      await logActivity('delete_commitment', 'commitment', commitmentToDelete.id, {
-        concept: commitmentToDelete.concept || commitmentToDelete.description || 'Sin concepto',
-        companyName: commitmentToDelete.company || 'Sin empresa',
-        amount: commitmentToDelete.amount || 0,
-        deletedAmount: commitmentToDelete.totalAmount || commitmentToDelete.amount || 0
-      });
-      
-      // 3. Mostrar notificación de éxito
-      addNotification({
-        type: 'success',
-        title: '🗑️ Compromiso Eliminado',
-        message: `El compromiso "${commitmentToDelete.concept || commitmentToDelete.description || 'Sin concepto'}" ha sido eliminado correctamente`,
-        duration: 5000
-      });
-      
-      // 4. Cerrar dialog y limpiar estado
-      setDeleteDialogOpen(false);
-      setCommitmentToDelete(null);
-      
-      // 5. Refrescar datos - con delay para asegurar que Firestore se actualiza
-      setTimeout(() => {
+        // Eliminar otros archivos adjuntos si existen
+        if (commitmentToDelete.attachmentUrls && Array.isArray(commitmentToDelete.attachmentUrls)) {
+          for (const url of commitmentToDelete.attachmentUrls) {
+            try {
+              if (url.includes('firebase.googleapis.com')) {
+                const urlParts = url.split('/o/')[1];
+                if (urlParts) {
+                  const storagePath = decodeURIComponent(urlParts.split('?')[0]);
+                  console.log('📎 Path del archivo adjunto a eliminar:', storagePath);
+                  
+                  const fileRef = ref(storage, storagePath);
+                  await deleteObject(fileRef);
+                  console.log('✅ Archivo adjunto eliminado de Firebase Storage');
+                }
+              }
+            } catch (storageError) {
+              console.warn('⚠️ Error al eliminar archivo adjunto de Storage:', storageError.message);
+              // Continuar con siguiente archivo
+            }
+          }
+        }
+
+        // 2. Eliminar el documento de Firestore
+        await deleteDoc(doc(db, 'commitments', commitmentToDelete.id));
+        console.log('✅ Compromiso eliminado de Firestore');
+        
+        // 3. Mostrar notificación de éxito
+        addNotification({
+          type: 'success',
+          title: '🗑️ Compromiso Eliminado',
+          message: `El compromiso "${commitmentToDelete.concept || commitmentToDelete.description || 'Sin concepto'}" ha sido eliminado correctamente`,
+          duration: 5000
+        });
+        
+        // 4. Cerrar dialog y limpiar estado
+        setDeleteDialogOpen(false);
+        setCommitmentToDelete(null);
+        
+        // 5. Refrescar datos (opcional ya que onSnapshot actualiza automáticamente)
         refreshCommitments();
-      }, 500);
-      
-    } catch (error) {
-      console.error('❌ Error al eliminar compromiso:', error);
-      addNotification({
-        type: 'error',
-        title: '❌ Error al Eliminar',
-        message: `No se pudo eliminar el compromiso: ${error.message}`,
-        duration: 8000
-      });
-    } finally {
-      setDeleting(false);
+        
+      } catch (error) {
+        console.error('❌ Error al eliminar compromiso:', error);
+        addNotification({
+          type: 'error',
+          title: '❌ Error al Eliminar',
+          message: `No se pudo eliminar el compromiso: ${error.message}`,
+          duration: 8000
+        });
+      }
     }
   };
 
   const cancelDelete = () => {
-    if (deleting) return; // No permitir cancelar durante la eliminación
     setDeleteDialogOpen(false);
     setCommitmentToDelete(null);
   };
@@ -1753,26 +1734,409 @@ const DueCommitmentsPage = () => {
       )}
       
       {/* Modales y Dialogs */}
-      {/* Dialog de Detalle reutilizable */}
+      {/* Modal de Detalles del Compromiso */}
       <CommitmentDetailDialog
         open={viewDialogOpen}
         commitment={selectedCommitment}
         companyData={companyData}
         onClose={handleCloseViewDialog}
-        onEdit={(c) => {
+        onEdit={(commitment) => {
           handleCloseViewDialog();
-            if (c) handleEditCommitment(c); else if (selectedCommitment) handleEditCommitment(selectedCommitment);
+          handleEditCommitment(commitment);
         }}
-        onOpenPdf={(url) => { if (url) window.open(url, '_blank'); }}
-        extractInvoiceUrl={(receiptMetadata) => receiptMetadata?.downloadURL || receiptMetadata?.url || null}
+        onOpenPdf={(fileUrl) => {
+          // Lógica para abrir PDF si es necesaria
+          window.open(fileUrl, '_blank');
+        }}
+        extractInvoiceUrl={(receiptMetadata) => {
+          // Lógica para extraer URL de factura si es necesaria
+          return receiptMetadata?.downloadURL || null;
+        }}
         safeToDate={(date) => {
           if (!date) return null;
           if (date?.toDate) return date.toDate();
           if (date instanceof Date) return date;
-          // cadenas ISO u otros formatos
-          try { return new Date(date); } catch { return null; }
+          return new Date(date);
         }}
       />
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600, 
+                          color: 'text.primary',
+                          textTransform: 'capitalize',
+                          mb: 0.2
+                        }}>
+                          {formatSafeDate(selectedCommitment.dueDate, 'EEEE')}
+                        </Typography>
+                        <Typography variant="body2" sx={{ 
+                          fontWeight: 500,
+                          color: 'text.secondary'
+                        }}>
+                          {formatSafeDate(selectedCommitment.dueDate, 'dd \'de\' MMMM \'de\' yyyy')}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Card>
+                </Grid>
+
+                {/* Información Adicional COMPLETA */}
+                <Grid item xs={12}>
+                  <Box>
+                    <Card
+                      sx={{
+                        p: 2.5,
+                        bgcolor: 'background.paper',
+                        border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
+                        borderRadius: 3,
+                        boxShadow: 'none',
+                      }}
+                    >
+                      <Box sx={{ position: 'relative', zIndex: 2 }}>
+                        <Typography variant="h6" sx={{ 
+                          fontWeight: 600, 
+                          mb: 2, 
+                          color: 'text.primary',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1
+                        }}>
+                          <Info sx={{ fontSize: 20, color: 'primary.main' }} />
+                          Información Adicional
+                        </Typography>
+                        
+                        <Grid container spacing={2}>
+                          {/* Primera fila: Beneficiario y Método de Pago */}
+                          <Grid item xs={12} md={6}>
+                            <Box sx={{
+                              p: 2,
+                              bgcolor: 'background.paper',
+                              borderRadius: 2,
+                              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                              '&:hover': {
+                                transform: 'translateY(-1px)',
+                                boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`
+                              },
+                              transition: 'all 0.3s ease'
+                            }}>
+                              <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                <Person sx={{ color: 'primary.main', fontSize: 20 }} />
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                                  Beneficiario
+                                </Typography>
+                              </Box>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 500,
+                                color: 'text.primary',
+                                fontStyle: selectedCommitment.beneficiary ? 'normal' : 'italic',
+                                opacity: selectedCommitment.beneficiary ? 1 : 0.7
+                              }}>
+                                {selectedCommitment.beneficiary || 'No especificado'}
+                              </Typography>
+                            </Box>
+                          </Grid>
+
+                          <Grid item xs={12} md={6}>
+                            <Box sx={{
+                              p: 2,
+                              bgcolor: 'background.paper',
+                              borderRadius: 2,
+                              border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                              '&:hover': {
+                                transform: 'translateY(-1px)',
+                                boxShadow: `0 4px 12px ${alpha(theme.palette.secondary.main, 0.15)}`
+                              },
+                              transition: 'all 0.3s ease'
+                            }}>
+                              <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                <Payment sx={{ color: 'secondary.main', fontSize: 20 }} />
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'secondary.main' }}>
+                                  Método de Pago
+                                </Typography>
+                              </Box>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 500,
+                                color: 'text.primary'
+                              }}>
+                                {(() => {
+                                  switch(selectedCommitment.paymentMethod) {
+                                    case 'transfer': return 'Transferencia';
+                                    case 'cash': return 'Efectivo';
+                                    case 'pse': return 'PSE';
+                                    case 'check': return 'Cheque';
+                                    case 'card': return 'Tarjeta';
+                                    default: return 'Transferencia';
+                                  }
+                                })()}
+                              </Typography>
+                            </Box>
+                          </Grid>
+
+                          {/* Segunda fila: Periodicidad y Empresa */}
+                          <Grid item xs={12} md={6}>
+                            <Box sx={{
+                              p: 2,
+                              bgcolor: 'background.paper',
+                              borderRadius: 2,
+                              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                              '&:hover': {
+                                transform: 'translateY(-1px)',
+                                boxShadow: `0 4px 12px ${alpha(theme.palette.info.main, 0.15)}`
+                              },
+                              transition: 'all 0.3s ease'
+                            }}>
+                              <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                <Schedule sx={{ color: 'info.main', fontSize: 20 }} />
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'info.main' }}>
+                                  Periodicidad
+                                </Typography>
+                              </Box>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 500,
+                                color: 'text.primary'
+                              }}>
+                                {(() => {
+                                  switch(selectedCommitment.periodicity) {
+                                    case 'unique': return 'Pago único';
+                                    case 'monthly': return 'Mensual';
+                                    case 'bimonthly': return 'Bimestral';
+                                    case 'quarterly': return 'Trimestral';
+                                    case 'fourmonthly': return 'Cuatrimestral';
+                                    case 'biannual': return 'Semestral';
+                                    case 'annual': return 'Anual';
+                                    default: return 'Mensual';
+                                  }
+                                })()}
+                              </Typography>
+                            </Box>
+                          </Grid>
+
+                          <Grid item xs={12} md={6}>
+                            <Box sx={{
+                              p: 2,
+                              bgcolor: 'background.paper',
+                              borderRadius: 2,
+                              border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+                              '&:hover': {
+                                transform: 'translateY(-1px)',
+                                boxShadow: `0 4px 12px ${alpha(theme.palette.success.main, 0.15)}`
+                              },
+                              transition: 'all 0.3s ease'
+                            }}>
+                              <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                <Business sx={{ color: 'success.main', fontSize: 20 }} />
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'success.main' }}>
+                                  Empresa
+                                </Typography>
+                              </Box>
+                              <Box display="flex" alignItems="center" gap={1}>
+                                {companyData?.logoURL ? (
+                                  <Box
+                                    component="img"
+                                    src={companyData.logoURL}
+                                    alt={`Logo de ${companyData.name}`}
+                                    sx={{
+                                      width: 20,
+                                      height: 20,
+                                      borderRadius: 1,
+                                      objectFit: 'contain',
+                                      backgroundColor: theme.palette.mode === 'dark' 
+                                        ? alpha(theme.palette.background.paper, 0.9)
+                                        : 'rgba(255, 255, 255, 0.9)',
+                                    }}
+                                  />
+                                ) : (
+                                  <Business sx={{ fontSize: 18, color: 'text.secondary' }} />
+                                )}
+                                <Typography variant="body2" sx={{ 
+                                  fontWeight: 500,
+                                  color: 'text.primary'
+                                }}>
+                                  {companyData?.name || selectedCommitment.company || 'Empresa no especificada'}
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </Grid>
+
+                          {/* Tercera fila: Observaciones (full width) */}
+                          <Grid item xs={12}>
+                            <Box sx={{
+                              p: 2,
+                              bgcolor: 'background.paper',
+                              borderRadius: 2,
+                              border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                              '&:hover': {
+                                transform: 'translateY(-1px)',
+                                boxShadow: `0 4px 12px ${alpha(theme.palette.warning.main, 0.15)}`
+                              },
+                              transition: 'all 0.3s ease'
+                            }}>
+                              <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                <Notes sx={{ color: 'warning.main', fontSize: 20 }} />
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'warning.main' }}>
+                                  Observaciones
+                                </Typography>
+                              </Box>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 400,
+                                lineHeight: 1.5,
+                                color: 'text.primary',
+                                fontStyle: selectedCommitment.observations ? 'normal' : 'italic',
+                                opacity: selectedCommitment.observations ? 1 : 0.7
+                              }}>
+                                {selectedCommitment.observations || 'Sin observaciones adicionales'}
+                              </Typography>
+                            </Box>
+                          </Grid>
+
+                          {/* Cuarta fila: Fechas del sistema */}
+                          <Grid item xs={12} md={6}>
+                            <Box sx={{
+                              p: 2,
+                              bgcolor: 'background.paper',
+                              borderRadius: 2,
+                              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                              transition: 'all 0.3s ease-in-out',
+                              '&:hover': {
+                                transform: 'translateY(-2px)',
+                                boxShadow: `0 4px 12px ${alpha(theme.palette.info.main, 0.15)}`,
+                              }
+                            }}>
+                              <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                <History sx={{ color: theme.palette.info.main, fontSize: 20 }} />
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: theme.palette.info.main }}>
+                                  Fecha de Creación
+                                </Typography>
+                              </Box>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 500,
+                                color: 'text.primary'
+                              }}>
+                                {selectedCommitment.createdAt && safeToDate(selectedCommitment.createdAt)
+                                  ? formatSafeDate(selectedCommitment.createdAt, "dd 'de' MMMM 'de' yyyy")
+                                  : 'No disponible'
+                                }
+                              </Typography>
+                            </Box>
+                          </Grid>
+
+                          {selectedCommitment.updatedAt && (
+                            <Grid item xs={12} md={6}>
+                              <Box sx={{
+                                p: 2,
+                                bgcolor: 'background.paper',
+                                borderRadius: 2,
+                                border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                                transition: 'all 0.3s ease-in-out',
+                                '&:hover': {
+                                  transform: 'translateY(-2px)',
+                                  boxShadow: `0 4px 12px ${alpha(theme.palette.secondary.main, 0.15)}`,
+                                }
+                              }}>
+                                <Box display="flex" alignItems="center" gap={1} mb={1}>
+                                  <Edit sx={{ color: theme.palette.secondary.main, fontSize: 20 }} />
+                                  <Typography variant="subtitle2" sx={{ fontWeight: 600, color: theme.palette.secondary.main }}>
+                                    Última Modificación
+                                  </Typography>
+                                </Box>
+                                <Typography variant="body2" sx={{ 
+                                  fontWeight: 500,
+                                  color: 'text.primary'
+                                }}>
+                                  {selectedCommitment.updatedAt && safeToDate(selectedCommitment.updatedAt)
+                                    ? formatSafeDate(selectedCommitment.updatedAt, "dd 'de' MMMM 'de' yyyy")
+                                    : 'No disponible'
+                                  }
+                                </Typography>
+                              </Box>
+                            </Grid>
+                          )}
+                        </Grid>
+                      </Box>
+                    </Card>
+                  </Box>
+                </Grid>
+              </Grid>
+            </DialogContent>
+            
+            <DialogActions
+              sx={{
+                p: 4,
+                pb: 6,
+                // Fondo blanco puro (o mismo paper en dark) sin transparencias ni gradientes
+                backgroundColor: theme.palette.mode === 'dark'
+                  ? theme.palette.background.paper + ' !important'
+                  : '#ffffff !important',
+                // Borde superior sutil (se puede quitar si también genera sombra gris)
+                borderTop: theme.palette.mode === 'dark'
+                  ? `1px solid ${alpha(theme.palette.divider, 0.3)}`
+                  : '1px solid #ffffff',
+                position: 'relative',
+                boxShadow: 'none',
+                // Eliminamos pseudo-elemento que creaba degradado y efecto gris
+                '&::before': { display: 'none' },
+                '&::after': { display: 'none' }
+              }}
+            >
+              <Box>
+                <Button 
+                  onClick={handleCloseViewDialog}
+                  variant="outlined"
+                  sx={{ 
+                    borderRadius: 3,
+                    px: 4,
+                    py: 1.25,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.95rem',
+                    border: `1.5px solid ${alpha(theme.palette.divider, 0.3)}`,
+                    color: theme.palette.text.secondary,
+                    backgroundColor: 'transparent',
+                    '&:hover': {
+                      borderColor: alpha(theme.palette.text.primary, 0.3),
+                      backgroundColor: alpha(theme.palette.text.primary, 0.04),
+                      transform: 'translateY(-1px)',
+                      boxShadow: `0 6px 20px ${alpha(theme.palette.text.primary, 0.15)}`
+                    }
+                  }}
+                >
+                  Cerrar
+                </Button>
+              </Box>
+              
+              <Box display="flex" gap={2.5}>
+                <Box>
+                  <Button 
+                    variant="contained"
+                    startIcon={<Edit />}
+                    onClick={() => handleEditCommitment(selectedCommitment)}
+                    sx={{ 
+                      borderRadius: 3.5,
+                      px: 4,
+                      py: 1.5,
+                      textTransform: 'none',
+                      fontWeight: 700,
+                      fontSize: '0.95rem',
+                      bgcolor: 'primary.main',
+                      color: 'primary.contrastText',
+                      boxShadow: theme.palette.mode === 'dark' 
+                        ? `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`
+                        : `0 8px 25px ${alpha(theme.palette.primary.main, 0.35)}`,
+                      '&:hover': {
+                        bgcolor: 'primary.dark',
+                        boxShadow: theme.palette.mode === 'dark' 
+                          ? `0 6px 18px ${alpha(theme.palette.primary.main, 0.4)}`
+                          : `0 12px 35px ${alpha(theme.palette.primary.main, 0.45)}`,
+                        transform: 'translateY(-2px)'
+                      }
+                    }}
+                  >
+                    Editar
+                  </Button>
+                </Box>
+              </Box>
+            </DialogActions>
+          </div>
+        )}
+      </Dialog>
       
       {/* Modal de Edición usando CommitmentEditFormComplete */}
       <CommitmentEditFormComplete 
@@ -1787,7 +2151,6 @@ const DueCommitmentsPage = () => {
       <DeleteConfirmDialog 
         open={deleteDialogOpen}
         commitment={commitmentToDelete}
-        deleting={deleting}
         onConfirm={confirmDelete}
         onCancel={cancelDelete}
       />
@@ -1798,7 +2161,7 @@ const DueCommitmentsPage = () => {
 // Eliminado componente PaymentFormDialog (lógica movida a página dedicada)
 
 // Componente para Confirmar Eliminación
-const DeleteConfirmDialog = ({ open, commitment, deleting = false, onConfirm, onCancel }) => {
+const DeleteConfirmDialog = ({ open, commitment, onConfirm, onCancel }) => {
   const theme = useTheme();
   
   if (!commitment) return null;
@@ -1806,7 +2169,7 @@ const DeleteConfirmDialog = ({ open, commitment, deleting = false, onConfirm, on
   return (
     <Dialog 
       open={open} 
-      onClose={deleting ? undefined : onCancel}
+      onClose={onCancel}
       maxWidth="sm"
       PaperProps={{
         sx: {
@@ -1823,33 +2186,16 @@ const DeleteConfirmDialog = ({ open, commitment, deleting = false, onConfirm, on
         fontSize: '1.25rem'
       }}>
         <Warning sx={{ color: theme.palette.error.main }} />
-        {deleting ? 'Eliminando...' : 'Confirmar Eliminación'}
+        Confirmar Eliminación
       </DialogTitle>
       
       <DialogContent>
-        {deleting ? (
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: 'column', 
-            alignItems: 'center', 
-            gap: 2, 
-            py: 2 
-          }}>
-            <CircularProgress color="error" size={40} />
-            <Typography>
-              Eliminando compromiso, por favor espera...
-            </Typography>
-          </Box>
-        ) : (
-          <>
-            <DialogContentText>
-              ¿Estás seguro de que deseas eliminar el compromiso <strong>"{commitment.title}"</strong>?
-            </DialogContentText>
-            <DialogContentText sx={{ mt: 1, color: theme.palette.error.main }}>
-              Esta acción no se puede deshacer.
-            </DialogContentText>
-          </>
-        )}
+        <DialogContentText>
+          ¿Estás seguro de que deseas eliminar el compromiso <strong>"{commitment.title}"</strong>?
+        </DialogContentText>
+        <DialogContentText sx={{ mt: 1, color: theme.palette.error.main }}>
+          Esta acción no se puede deshacer.
+        </DialogContentText>
       </DialogContent>
       
       <DialogActions sx={{ p: 3 }}>
@@ -1857,7 +2203,6 @@ const DeleteConfirmDialog = ({ open, commitment, deleting = false, onConfirm, on
           onClick={onCancel} 
           variant="outlined"
           sx={{ borderRadius: 2 }}
-          disabled={deleting}
         >
           Cancelar
         </Button>
@@ -1866,9 +2211,8 @@ const DeleteConfirmDialog = ({ open, commitment, deleting = false, onConfirm, on
           variant="contained" 
           color="error"
           sx={{ borderRadius: 2 }}
-          disabled={deleting}
         >
-          {deleting ? 'Eliminando...' : 'Eliminar'}
+          Eliminar
         </Button>
       </DialogActions>
     </Dialog>

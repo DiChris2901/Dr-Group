@@ -55,6 +55,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { db, storage } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
+import useActivityLogs from '../hooks/useActivityLogs';
 import { getPaymentMethodOptions } from '../utils/formatUtils';
 import { 
   generateRecurringCommitments, 
@@ -72,6 +73,7 @@ import { drGroupCompressor } from '../utils/pdfCompressor';
 const NewCommitmentPage = () => {
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
+  const { logActivity } = useActivityLogs();
   const { settings } = useSettings();
   const theme = useTheme();
   const navigate = useNavigate();
@@ -1162,7 +1164,18 @@ const NewCommitmentPage = () => {
         // Guardar todos los compromisos recurrentes
         const result = await saveRecurringCommitments(recurringCommitments);
 
-        // 🔊 Notificación de éxito para compromisos recurrentes
+        // � Registrar actividad de auditoría para compromisos recurrentes
+        await logActivity('create_commitment', 'commitment', result.groupId, {
+          concept: formData.concept,
+          companyName: formData.companyName,
+          totalAmount: parseFloat(formData.totalAmount) || 0,
+          beneficiary: formData.beneficiary,
+          periodicity: formData.periodicity,
+          recurringCount: result.count,
+          type: 'recurring'
+        });
+
+        // �🔊 Notificación de éxito para compromisos recurrentes
         if (notificationsEnabled) {
           if (notificationSoundEnabled) {
             const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmUeCSGh2u+8g');
@@ -1201,7 +1214,16 @@ const NewCommitmentPage = () => {
         
       } else {
         // Guardar compromiso único
-        await addDoc(collection(db, 'commitments'), commitmentData);
+        const docRef = await addDoc(collection(db, 'commitments'), commitmentData);
+        
+        // 📝 Registrar actividad de auditoría para compromiso único
+        await logActivity('create_commitment', 'commitment', docRef.id, {
+          concept: formData.concept,
+          companyName: formData.companyName,
+          totalAmount: parseFloat(formData.totalAmount) || 0,
+          beneficiary: formData.beneficiary,
+          type: 'single'
+        });
         
         // 🔊 Notificación con sonido condicional
         if (notificationsEnabled) {

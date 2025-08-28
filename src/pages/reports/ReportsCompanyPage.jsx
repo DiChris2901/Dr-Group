@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import useActivityLogs from '../../hooks/useActivityLogs';
 import {
   Box,
   Card,
@@ -37,6 +38,7 @@ import { useCommitments, useCompanies } from '../../hooks/useFirestore';
 
 const ReportsCompanyPage = () => {
   const theme = useTheme();
+  const { logActivity } = useActivityLogs();
   
   const [selectedCompany, setSelectedCompany] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -131,8 +133,27 @@ const ReportsCompanyPage = () => {
     return Math.round((company.completed / company.commitments) * 100);
   };
 
-  const exportReport = () => {
+  const exportReport = async () => {
     console.log('Exportando reporte por empresa...');
+    
+    // 📝 Registrar actividad de auditoría - Exportación de reporte
+    try {
+      const selectedCompanyName = selectedCompany === 'all' ? 'Todas las empresas' : 
+        companiesData.find(c => c.id === selectedCompany)?.name || selectedCompany;
+      
+      await logActivity('export_report', 'report', 'company_report', {
+        reportType: 'Análisis por Empresa',
+        selectedCompany: selectedCompanyName,
+        timeRange: timeRange,
+        searchTerm: searchTerm || 'Sin filtro',
+        totalCompanies: filteredData.length,
+        totalAmount: totalStats.totalAmount,
+        exportFormat: 'Excel'
+      });
+    } catch (logError) {
+      console.error('Error logging report export activity:', logError);
+    }
+    
     // Aquí se implementaría la exportación real
   };
 

@@ -59,11 +59,13 @@ import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, d
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+import useActivityLogs from '../hooks/useActivityLogs';
 import { useSettings } from '../context/SettingsContext';
 import { useNotifications } from '../context/NotificationsContext';
 
 const CompaniesPage = () => {
   const { currentUser } = useAuth();
+  const { logActivity } = useActivityLogs();
   const { settings } = useSettings();
   const { addNotification } = useNotifications();
   const theme = useTheme();
@@ -305,6 +307,19 @@ const CompaniesPage = () => {
       await uploadBytes(storageRef, logoFile);
       const downloadURL = await getDownloadURL(storageRef);
       
+      // 📝 Registrar actividad de auditoría - Carga de logo
+      try {
+        await logActivity('upload_company_logo', 'document', 'logo_upload', {
+          fileName: logoFile.name,
+          fileSize: logoFile.size,
+          fileType: logoFile.type,
+          uploadPath: fileName,
+          companyName: formData.name || 'Nueva empresa'
+        });
+      } catch (logError) {
+        console.error('Error logging logo upload activity:', logError);
+      }
+      
       return downloadURL;
     } catch (error) {
       console.error('Error uploading logo:', error);
@@ -382,6 +397,20 @@ const CompaniesPage = () => {
       
       await uploadBytes(storageRef, bankCertificationFile);
       const downloadURL = await getDownloadURL(storageRef);
+      
+      // 📝 Registrar actividad de auditoría - Carga de certificación bancaria
+      try {
+        await logActivity('upload_company_document', 'document', 'bank_cert_upload', {
+          documentType: 'Certificación bancaria',
+          fileName: bankCertificationFile.name,
+          fileSize: bankCertificationFile.size,
+          fileType: bankCertificationFile.type,
+          uploadPath: fileName,
+          companyName: formData.name || 'Nueva empresa'
+        });
+      } catch (logError) {
+        console.error('Error logging document upload activity:', logError);
+      }
       
       return downloadURL;
     } catch (error) {
@@ -496,6 +525,18 @@ const CompaniesPage = () => {
       if (selectedCompany) {
         // Editar empresa existente
         await updateDoc(doc(db, 'companies', selectedCompany.id), companyData);
+        
+        // 📝 Registrar actividad de auditoría - Edición de empresa
+        await logActivity('update_company', 'company', selectedCompany.id, {
+          companyName: formData.name,
+          nit: formData.nit,
+          previousName: selectedCompany.name,
+          bankAccount: formData.bankAccount || 'Sin cuenta bancaria',
+          bankName: formData.bankName || 'Sin banco',
+          hasLogo: !!formData.logoURL,
+          changes: Object.keys(formData).filter(key => formData[key] !== selectedCompany[key])
+        });
+        
         addNotification({
           type: 'success',
           title: 'Empresa actualizada',
@@ -506,11 +547,21 @@ const CompaniesPage = () => {
         setEditDialogOpen(false);
       } else {
         // Crear nueva empresa
-        await addDoc(collection(db, 'companies'), {
+        const docRef = await addDoc(collection(db, 'companies'), {
           ...companyData,
           createdAt: serverTimestamp(),
           createdBy: currentUser.uid
         });
+        
+        // 📝 Registrar actividad de auditoría - Creación de empresa
+        await logActivity('create_company', 'company', docRef.id, {
+          companyName: formData.name,
+          nit: formData.nit,
+          bankAccount: formData.bankAccount || 'Sin cuenta bancaria',
+          bankName: formData.bankName || 'Sin banco',
+          hasLogo: !!formData.logoURL
+        });
+        
         addNotification({
           type: 'success',
           title: 'Empresa creada',
@@ -542,6 +593,15 @@ const CompaniesPage = () => {
     if (window.confirm(`¿Estás seguro de que quieres eliminar la empresa "${company.name}"?`)) {
       try {
         await deleteDoc(doc(db, 'companies', company.id));
+        
+        // 📝 Registrar actividad de auditoría - Eliminación de empresa
+        await logActivity('delete_company', 'company', company.id, {
+          companyName: company.name,
+          nit: company.nit,
+          hadLogo: !!company.logoURL,
+          hadBankAccount: !!company.bankAccount
+        });
+        
         addNotification({
           type: 'delete',
           title: 'Empresa eliminada',

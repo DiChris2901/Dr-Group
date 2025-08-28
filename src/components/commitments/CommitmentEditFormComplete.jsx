@@ -67,6 +67,7 @@ import {
 import { db, storage } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
+import useActivityLogs from '../../hooks/useActivityLogs';
 
 // Opciones de método de pago - COINCIDEN CON FIREBASE
 const PAYMENT_METHOD_OPTIONS = [
@@ -114,6 +115,7 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
   const theme = useTheme();
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
+  const { logActivity } = useActivityLogs();
 
   // Estados principales
   const [saving, setSaving] = useState(false);
@@ -268,9 +270,38 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
   useEffect(() => {
     if (commitment && open) {
       console.log('🔍 Debugging commitment data:', commitment);
-      console.log('🔍 invoiceFiles:', commitment.invoiceFiles);
-      console.log('🔍 invoiceURLs:', commitment.invoiceURLs);
+      console.log('🔍 invoiceFiles (legacy):', commitment.invoiceFiles);
+      console.log('🔍 invoiceURLs (legacy):', commitment.invoiceURLs);
+      console.log('🔍 invoices (current):', commitment.invoices);
       console.log('🔍 receiptMetadata:', commitment.receiptMetadata);
+      
+      // ✅ ACTUALIZADO: Leer archivos del campo invoices array
+      let invoiceFiles = [];
+      let invoiceURLs = [];
+      let invoiceFileNames = [];
+      
+      // Prioridad: usar invoices array si existe, sino legacy fields
+      if (commitment.invoices && Array.isArray(commitment.invoices) && commitment.invoices.length > 0) {
+        console.log('📁 Usando invoices array (formato actual)');
+        commitment.invoices.forEach((invoice, index) => {
+          if (invoice.url || invoice.downloadURL) {
+            invoiceURLs.push(invoice.url || invoice.downloadURL);
+            invoiceFileNames.push(invoice.name || `Factura ${index + 1}`);
+            invoiceFiles.push({
+              name: invoice.name || `Factura ${index + 1}`,
+              url: invoice.url || invoice.downloadURL,
+              type: invoice.type || 'application/pdf'
+            });
+          }
+        });
+      } else if (commitment.invoiceFiles || commitment.invoiceURLs) {
+        console.log('📁 Usando campos legacy (invoiceFiles/invoiceURLs)');
+        invoiceFiles = commitment.invoiceFiles || [];
+        invoiceURLs = commitment.invoiceURLs || [];
+        invoiceFileNames = commitment.invoiceFileNames || [];
+      }
+      
+      console.log('✅ Archivos procesados:', { invoiceFiles, invoiceURLs, invoiceFileNames });
       
       const initialData = {
         concept: commitment.concept || commitment.description || '',
@@ -294,9 +325,9 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
         dueDate: formatSafeDate(commitment.dueDate, 'yyyy-MM-dd'),
         periodicity: commitment.periodicity || 'monthly',
         recurringCount: commitment.recurringCount || 12,
-        invoiceFiles: commitment.invoiceFiles || [],
-        invoiceURLs: commitment.invoiceURLs || [],
-        invoiceFileNames: commitment.invoiceFileNames || [],
+        invoiceFiles: invoiceFiles,
+        invoiceURLs: invoiceURLs,
+        invoiceFileNames: invoiceFileNames,
         receiptMetadata: commitment.receiptMetadata || {},
         amount: commitment.totalAmount || commitment.amount || ''
       };
@@ -380,6 +411,15 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
 
       const commitmentRef = doc(db, 'commitments', commitment.id);
       await updateDoc(commitmentRef, updatedData);
+
+      // 📝 Registrar actividad de auditoría
+      await logActivity('update_commitment', 'commitment', commitment.id, {
+        concept: formData.concept.trim(),
+        companyName: companies.find(c => c.id === formData.companyId)?.name || 'N/A',
+        totalAmount: parseFloat(formData.totalAmount) || 0,
+        beneficiary: formData.beneficiary.trim(),
+        previousAmount: commitment.totalAmount || commitment.amount || 0
+      });
 
       addNotification({
         type: 'success',
@@ -497,6 +537,16 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
         updatedBy: currentUser.uid
       });
 
+      // 📝 Registrar actividad de auditoría - Subida de comprobante de compromiso
+      await logActivity('update_commitment_invoice', 'commitment', commitment.id, {
+        concept: commitment.concept || 'Sin concepto',
+        companyName: companies.find(c => c.id === commitment.companyId)?.name || 'Sin empresa',
+        totalAmount: commitment.totalAmount || commitment.amount || 0,
+        fileName: fileToUpload.name,
+        fileSize: fileToUpload.size,
+        action: 'upload_invoice'
+      });
+
       addNotification({
         type: 'success',
         title: '✅ Comprobante Actualizado',
@@ -575,6 +625,15 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
         receiptMetadata: {},
         updatedAt: serverTimestamp(),
         updatedBy: currentUser.uid
+      });
+
+      // 📝 Registrar actividad de auditoría - Eliminación de comprobante de compromiso
+      await logActivity('delete_commitment_invoice', 'commitment', commitment.id, {
+        concept: commitment.concept || 'Sin concepto',
+        companyName: companies.find(c => c.id === commitment.companyId)?.name || 'Sin empresa',
+        totalAmount: commitment.totalAmount || commitment.amount || 0,
+        deletedFileName: commitment.invoiceFileNames?.[0] || 'archivo_desconocido',
+        action: 'delete_invoice'
       });
 
       addNotification({
@@ -668,7 +727,7 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
       open={open}
       onClose={onClose}
       fullWidth
-      maxWidth="md"  // OBLIGATORIO según Design System
+      maxWidth="lg"  // ✅ ACTUALIZADO: Aumentado de "md" a "lg" para más espacio en los campos
       PaperProps={{
         sx: {
           borderRadius: 2,  // EXACTO
@@ -1133,45 +1192,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
                     </Typography>
                   </Paper>
                 </Box>
-
-                {/* Información de Facturas */}
-                {formData.invoiceFiles && formData.invoiceFiles.length > 0 && (
-                  <Box sx={{ mt: 3 }}>
-                    <Typography variant="overline" sx={OVERLINE_STYLES.secondary}>
-                      <AttachFileIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
-                      Facturas Adjuntas
-                    </Typography>
-                    
-                    <Alert 
-                      severity="info"
-                      sx={{ 
-                        mt: 2,
-                        backgroundColor: alpha(theme.palette.info.main, 0.08),
-                        '& .MuiAlert-icon': { color: 'info.main' }
-                      }}
-                    >
-                      <Typography variant="body2" fontWeight={500}>
-                        📄 {formData.invoiceFiles.length} archivo(s) adjunto(s)
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Las facturas no se pueden editar desde este modal.
-                      </Typography>
-                    </Alert>
-                    
-                    <Box sx={{ mt: 1 }}>
-                      {formData.invoiceFileNames?.map((name, index) => (
-                        <Chip 
-                          key={index}
-                          label={name}
-                          size="small"
-                          variant="outlined"
-                          color="info"
-                          sx={{ mr: 1, mb: 1 }}
-                        />
-                      ))}
-                    </Box>
-                  </Box>
-                )}
 
               </Paper>
 

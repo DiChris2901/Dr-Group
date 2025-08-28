@@ -363,7 +363,12 @@ const CommitmentsList = ({
   const hasValidPayment = (commitment) => {
     const isPaid = commitment.paid || commitment.isPaid;
     const hasPaymentDate = commitment.paymentDate || commitment.paidAt;
-    const hasReceipt = commitment.receiptUrl || (commitment.receiptUrls && commitment.receiptUrls.length > 0);
+    
+    // ✅ ACTUALIZADO: Detectar archivos de comprobante incluyendo invoices array
+    const hasReceipt = commitment.receiptUrl || 
+                      (commitment.receiptUrls && commitment.receiptUrls.length > 0) ||
+                      (commitment.invoices && Array.isArray(commitment.invoices) && commitment.invoices.length > 0);
+    
     const hasPaymentRef = commitment.paymentReference || commitment.paymentId;
     const hasPaymentMetadata = commitment.receiptMetadata && commitment.receiptMetadata.length > 0;
     
@@ -375,6 +380,7 @@ const CommitmentsList = ({
       hasPaymentMetadata,
       receiptUrl: commitment.receiptUrl,
       receiptUrls: commitment.receiptUrls,
+      invoices: commitment.invoices,
       paid: commitment.paid,
       isPaidField: commitment.isPaid
     });
@@ -902,17 +908,28 @@ const CommitmentsList = ({
   // ✅ FUNCIONES PARA EL VISOR PDF DE FACTURAS
   const extractInvoiceUrl = (commitment) => {
     // Prioridad de búsqueda
-    // 1. Campo invoice.url (nuevo formato)
+    // 1. Campo invoices array (formato actual Firebase)
+    if (commitment.invoices && Array.isArray(commitment.invoices) && commitment.invoices.length > 0) {
+      const firstInvoice = commitment.invoices[0];
+      if (firstInvoice?.url) {
+        return firstInvoice.url;
+      }
+      if (firstInvoice?.downloadURL) {
+        return firstInvoice.downloadURL;
+      }
+    }
+    
+    // 2. Campo invoice.url (formato anterior)
     if (commitment.invoice?.url) {
       return commitment.invoice.url;
     }
     
-    // 2. Campo invoiceUrl directo (formato antiguo)
+    // 3. Campo invoiceUrl directo (formato legacy)
     if (commitment.invoiceUrl) {
       return commitment.invoiceUrl;
     }
     
-    // 3. Buscar en attachments por tipo invoice
+    // 4. Buscar en attachments por tipo invoice
     if (commitment.attachments?.length > 0) {
       const invoiceAttachment = commitment.attachments.find(att => 
         att.type === 'invoice' || 
