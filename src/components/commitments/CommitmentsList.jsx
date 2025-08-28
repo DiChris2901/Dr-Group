@@ -39,7 +39,7 @@ import { useNotifications } from '../../context/NotificationsContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useTableTokens } from '../../hooks/useTokens';
 import useCommitmentAlerts from '../../hooks/useCommitmentAlerts';
-import CommitmentEditForm from './CommitmentEditForm';
+import CommitmentEditFormComplete from './CommitmentEditFormComplete';
 import {
   FilterList,
   NavigateBefore,
@@ -3233,12 +3233,12 @@ const CommitmentsList = ({
         safeToDate={safeToDate}
       />
 
-      {/* Formulario de edición compacto */}
-      <CommitmentEditForm
+      {/* Formulario de edición completo */}
+      <CommitmentEditFormComplete
         open={editDialogOpen}
         onClose={handleCloseEditDialog}
         commitment={selectedCommitment}
-        onSaved={handleCommitmentSaved}
+        onUpdate={handleCommitmentSaved}
       />
 
       {/* ✅ VISOR DE COMPROBANTES DE PAGO ELIMINADO COMPLETAMENTE */}

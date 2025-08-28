@@ -119,27 +119,117 @@ const CommitmentEditForm = ({
   const [originalData, setOriginalData] = useState({});
   // ✅ paymentPopupOpen ELIMINADO COMPLETAMENTE
   
-  // Estado del formulario
+  // Estado del formulario - ACTUALIZADO CON TODOS LOS CAMPOS
   const [formData, setFormData] = useState({
     concept: '',
     companyId: '',
-    amount: '',
-    dueDate: null,
     beneficiary: '',
-    observations: '',
+    beneficiaryNit: '', // 🆔 NIT o identificación del beneficiario
+    baseAmount: '', // 💰 Valor base (antes era 'amount')
+    // 🎮 Campos específicos de Coljuegos
+    derechosExplotacion: '', // Derechos de Explotación
+    gastosAdministracion: '', // Gastos de Administración
+    iva: '', // 📊 IVA
+    retefuente: '', // 📉 Retención en la fuente
+    ica: '', // 🏙️ ICA
+    discount: '', // 🏷️ Descuento
+    invoiceNumber: '', // 🧾 Número de Factura
+    hasTaxes: false, // ✅ Mostrar/ocultar impuestos y descuentos
+    totalAmount: '', // 💵 Total calculado
     paymentMethod: 'transfer',
+    observations: '',
+    deferredPayment: false,
+    status: 'pending',
+    dueDate: null,
     periodicity: 'monthly', // unique, monthly, bimonthly, quarterly, fourmonthly, biannual, annual
-    recurringCount: 12 // número de cuotas para compromisos recurrentes
+    recurringCount: 12, // número de cuotas para compromisos recurrentes
+    // 📄 Campos para facturas - NO EDITABLES en modal de edición
+    invoiceFiles: [],
+    invoiceURLs: [],
+    invoiceFileNames: [],
+    // Mantener compatibilidad con campo legacy
+    amount: '' // Se calculará automáticamente desde totalAmount
   });
 
   // Calcular progreso del formulario
   const calculateProgress = () => {
-    const requiredFields = ['concept', 'companyId', 'amount', 'dueDate'];
+    const requiredFields = ['concept', 'companyId', 'totalAmount', 'dueDate']; // Cambiado 'amount' por 'totalAmount'
     const filledFields = requiredFields.filter(field => {
       if (field === 'dueDate') return formData[field] !== null;
       return formData[field] && formData[field].toString().trim() !== '';
     });
     return (filledFields.length / requiredFields.length) * 100;
+  };
+
+  // 💰 Funciones para formateo de moneda colombiana (CON DECIMALES)
+  const formatNumberWithCommas = (value) => {
+    if (!value && value !== 0) return '';
+    
+    // Convertir a string y limpiar, pero preservar decimales
+    const strValue = value.toString();
+    
+    // Permitir solo números y un punto decimal
+    const cleanValue = strValue.replace(/[^\d.]/g, '');
+    
+    // Asegurar que solo haya un punto decimal
+    const parts = cleanValue.split('.');
+    if (parts.length > 2) {
+      // Si hay más de un punto, conservar solo el primero
+      return parts[0] + '.' + parts.slice(1).join('');
+    }
+    
+    if (!cleanValue) return '';
+    
+    // Si hay decimales
+    if (parts.length === 2) {
+      const integerPart = parts[0];
+      const decimalPart = parts[1];
+      
+      // Formatear la parte entera con puntos como separadores de miles
+      const formattedInteger = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      
+      // Retornar con la parte decimal (máximo 2 decimales)
+      return formattedInteger + ',' + decimalPart.substring(0, 2);
+    } else {
+      // Solo parte entera
+      return cleanValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    }
+  };
+
+  const parseFormattedNumber = (value) => {
+    if (!value && value !== 0) return '';
+    
+    // Convertir puntos de miles a nada y comas decimales a puntos
+    return value.toString()
+      .replace(/\./g, '') // Remover separadores de miles
+      .replace(/,/g, '.'); // Convertir coma decimal a punto
+  };
+
+  // 🎮 Detectar compromisos de Coljuegos
+  const isColjuegosCommitment = () => {
+    return formData.beneficiary && formData.beneficiary.toLowerCase().includes('coljuegos');
+  };
+
+  // 🧮 Calcular automáticamente el total
+  const calculateTotal = () => {
+    // 🎮 Caso especial: Coljuegos
+    if (isColjuegosCommitment()) {
+      const derechos = parseFloat(formData.derechosExplotacion) || 0;
+      const gastos = parseFloat(formData.gastosAdministracion) || 0;
+      return derechos + gastos; // Suma directa sin impuestos
+    }
+    
+    // 📊 Caso general: Otras empresas
+    const base = parseFloat(formData.baseAmount) || 0;
+    if (!formData.hasTaxes) return base;
+    
+    const iva = parseFloat(formData.iva) || 0;
+    const retefuente = parseFloat(formData.retefuente) || 0;
+    const ica = parseFloat(formData.ica) || 0;
+    const discount = parseFloat(formData.discount) || 0;
+    
+    // Total = Valor base + IVA - Retefuente - ICA - Descuento
+    return base + iva - retefuente - ica - discount;
   };
 
   // Opciones para periodicidad (siguiendo el patrón de NewCommitmentPage)
@@ -225,13 +315,32 @@ const CommitmentEditForm = ({
       const initialData = {
         concept: commitment.concept || commitment.description || '',
         companyId: commitment.companyId || '',
-        amount: commitment.amount || '',
-        dueDate: formatSafeDate(commitment.dueDate, 'yyyy-MM-dd'), // Convertir a string para input
         beneficiary: commitment.beneficiary || '',
-        observations: commitment.observations || '',
+        beneficiaryNit: commitment.beneficiaryNit || '',
+        baseAmount: commitment.baseAmount || commitment.amount || '', // Compatibilidad con campo legacy
+        // 🎮 Campos específicos de Coljuegos
+        derechosExplotacion: commitment.derechosExplotacion || '',
+        gastosAdministracion: commitment.gastosAdministracion || '',
+        iva: commitment.iva || '',
+        retefuente: commitment.retefuente || '',
+        ica: commitment.ica || '',
+        discount: commitment.discount || '',
+        invoiceNumber: commitment.invoiceNumber || '',
+        hasTaxes: commitment.hasTaxes || false,
+        totalAmount: commitment.totalAmount || commitment.amount || '',
         paymentMethod: commitment.paymentMethod || 'transfer',
+        observations: commitment.observations || '',
+        deferredPayment: commitment.deferredPayment || false,
+        status: commitment.status || 'pending',
+        dueDate: formatSafeDate(commitment.dueDate, 'yyyy-MM-dd'), // Convertir a string para input
         periodicity: commitment.periodicity || 'monthly',
-        recurringCount: commitment.recurringCount || 12
+        recurringCount: commitment.recurringCount || 12,
+        // 📄 Campos para facturas - NO EDITABLES en modal de edición
+        invoiceFiles: commitment.invoiceFiles || [],
+        invoiceURLs: commitment.invoiceURLs || [],
+        invoiceFileNames: commitment.invoiceFileNames || [],
+        // Mantener compatibilidad con campo legacy
+        amount: commitment.totalAmount || commitment.amount || ''
       };
       
       setFormData(initialData);
@@ -247,6 +356,30 @@ const CommitmentEditForm = ({
     });
     setHasChanges(hasFormChanges);
   }, [formData, originalData]);
+
+  // 🧮 Actualizar total automáticamente cuando cambien los valores
+  useEffect(() => {
+    const total = calculateTotal();
+    setFormData(prev => ({
+      ...prev,
+      totalAmount: total.toString(),
+      amount: total.toString() // Mantener compatibilidad con campo legacy
+    }));
+  }, [formData.baseAmount, formData.iva, formData.retefuente, formData.ica, formData.discount, formData.hasTaxes, formData.derechosExplotacion, formData.gastosAdministracion, formData.beneficiary]);
+
+  // 🎮 Auto-desactivar impuestos para Coljuegos
+  useEffect(() => {
+    if (isColjuegosCommitment() && formData.hasTaxes) {
+      setFormData(prev => ({
+        ...prev,
+        hasTaxes: false,
+        iva: '',
+        retefuente: '',
+        ica: '',
+        discount: ''
+      }));
+    }
+  }, [formData.beneficiary]);
 
   const handleFormChange = (field, value) => {
     // Detectar cambio de periodicidad para mostrar toast informativo
@@ -287,8 +420,73 @@ const CommitmentEditForm = ({
     validateField(field, value);
   };
 
+  // 💰 Funciones de manejo de campos numéricos con formato
+  const handleBaseAmountChange = (e) => {
+    const inputValue = e.target.value;
+    const cleanValue = parseFormattedNumber(inputValue);
+    
+    // Validar que sea un número válido (entero o decimal)
+    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
+      handleFormChange('baseAmount', cleanValue);
+    }
+  };
+
+  const handleDerechosChange = (e) => {
+    const inputValue = e.target.value;
+    const cleanValue = parseFormattedNumber(inputValue);
+    
+    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
+      handleFormChange('derechosExplotacion', cleanValue);
+    }
+  };
+
+  const handleGastosChange = (e) => {
+    const inputValue = e.target.value;
+    const cleanValue = parseFormattedNumber(inputValue);
+    
+    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
+      handleFormChange('gastosAdministracion', cleanValue);
+    }
+  };
+
+  const handleIvaChange = (e) => {
+    const inputValue = e.target.value;
+    const cleanValue = parseFormattedNumber(inputValue);
+    
+    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
+      handleFormChange('iva', cleanValue);
+    }
+  };
+
+  const handleRetefuenteChange = (e) => {
+    const inputValue = e.target.value;
+    const cleanValue = parseFormattedNumber(inputValue);
+    
+    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
+      handleFormChange('retefuente', cleanValue);
+    }
+  };
+
+  const handleIcaChange = (e) => {
+    const inputValue = e.target.value;
+    const cleanValue = parseFormattedNumber(inputValue);
+    
+    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
+      handleFormChange('ica', cleanValue);
+    }
+  };
+
+  const handleDiscountChange = (e) => {
+    const inputValue = e.target.value;
+    const cleanValue = parseFormattedNumber(inputValue);
+    
+    if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
+      handleFormChange('discount', cleanValue);
+    }
+  };
+
   const handleSave = async () => {
-    if (!commitment || !formData.concept.trim() || !formData.amount) {
+    if (!commitment || !formData.concept.trim() || !formData.totalAmount) { // Cambiar validación a totalAmount
       return;
     }
 
@@ -313,16 +511,32 @@ const CommitmentEditForm = ({
         string: dueDateToSave?.toString()
       });
       
-      // Datos del compromiso actualizado
+      // Datos del compromiso actualizado - INCLUIR TODOS LOS CAMPOS NUEVOS
       const updatedData = {
         concept: formData.concept.trim(),
         companyId: formData.companyId,
-        amount: parseFloat(formData.amount),
-        dueDate: dueDateToSave, // Usar fecha convertida
         beneficiary: formData.beneficiary.trim(),
-        observations: formData.observations.trim(),
+        beneficiaryNit: formData.beneficiaryNit.trim(),
+        baseAmount: parseFloat(formData.baseAmount) || 0,
+        // 🎮 Campos específicos de Coljuegos
+        derechosExplotacion: parseFloat(formData.derechosExplotacion) || 0,
+        gastosAdministracion: parseFloat(formData.gastosAdministracion) || 0,
+        iva: parseFloat(formData.iva) || 0,
+        retefuente: parseFloat(formData.retefuente) || 0,
+        ica: parseFloat(formData.ica) || 0,
+        discount: parseFloat(formData.discount) || 0,
+        invoiceNumber: formData.invoiceNumber.trim(),
+        hasTaxes: formData.hasTaxes,
+        totalAmount: parseFloat(formData.totalAmount) || 0,
         paymentMethod: formData.paymentMethod,
+        observations: formData.observations.trim(),
+        deferredPayment: formData.deferredPayment,
+        status: formData.status,
+        dueDate: dueDateToSave, // Usar fecha convertida
         periodicity: formData.periodicity,
+        recurringCount: formData.recurringCount,
+        // Mantener compatibilidad con campo legacy
+        amount: parseFloat(formData.totalAmount) || parseFloat(formData.amount) || 0,
         updatedAt: serverTimestamp(),
         updatedBy: currentUser.uid
       };
