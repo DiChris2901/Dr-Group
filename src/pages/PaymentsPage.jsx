@@ -4590,74 +4590,173 @@ const PaymentsPage = () => {
         PaperProps={{
           sx: {
             borderRadius: 3,
+            background: '#ffffff',
             overflow: 'hidden',
-            border: `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
           }
         }}
         TransitionComponent={Slide}
         TransitionProps={{ direction: 'up' }}
       >
         <DialogTitle sx={{ 
-          background: theme.palette.mode === 'dark' 
-            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-            : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white',
-          textAlign: 'center'
+          pb: 3,
+          pt: 3,
+          px: 3,
+          backgroundColor: '#ffffff',
+          borderBottom: 'none'
         }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}>
-            <AttachEmailIcon />
-            <Typography variant="h6" fontWeight="600">
-              Gestionar Comprobantes
-            </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+            <Avatar sx={{
+              width: 52,
+              height: 52,
+              backgroundColor: alpha(theme.palette.secondary.main, 0.12),
+              border: `2px solid ${alpha(theme.palette.secondary.main, 0.3)}`
+            }}>
+              <AttachEmailIcon sx={{ 
+                fontSize: 24, 
+                color: theme.palette.secondary.main 
+              }} />
+            </Avatar>
+            <Box>
+              <Typography variant="h6" sx={{ 
+                fontWeight: 600, 
+                color: alpha(theme.palette.secondary.main, 0.9),
+                fontSize: '1.25rem'
+              }}>
+                Gestionar Comprobantes
+              </Typography>
+              <Typography variant="body2" sx={{ 
+                color: 'text.secondary',
+                fontSize: '0.9rem',
+                mt: 0.5
+              }}>
+                {currentPayment?.concept || 'Pago seleccionado'}
+              </Typography>
+            </Box>
           </Box>
-          <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5 }}>
-            {currentPayment?.concept || 'Pago seleccionado'}
-          </Typography>
         </DialogTitle>
 
         <DialogContent sx={{ p: 3 }}>
           {/* Comprobantes actuales */}
           {currentPayment?.attachments?.length > 0 && (
             <Box sx={{ mb: 3 }}>
-              <Typography variant="subtitle1" fontWeight="600" sx={{ mb: 2 }}>
-                📎 Comprobantes actuales
-              </Typography>
               <Box sx={{ 
-                p: 2, 
-                borderRadius: 2, 
-                bgcolor: alpha(theme.palette.success.main, 0.1),
-                border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+                mb: 2.5
               }}>
-                <Typography variant="body2" color="success.dark">
-                  ✅ {currentPayment.attachments.length} archivo(s) adjunto(s)
+                <Avatar sx={{
+                  width: 40,
+                  height: 40,
+                  backgroundColor: alpha(theme.palette.success.main, 0.1),
+                  border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`
+                }}>
+                  <ReceiptIcon sx={{ 
+                    fontSize: 20, 
+                    color: theme.palette.success.main 
+                  }} />
+                </Avatar>
+                <Typography variant="h6" sx={{ 
+                  fontWeight: 600, 
+                  color: alpha(theme.palette.success.main, 0.9),
+                  fontSize: '1.1rem'
+                }}>
+                  Comprobantes actuales
                 </Typography>
               </Box>
+              <Paper
+                elevation={0}
+                sx={{ 
+                  p: 3, 
+                  borderRadius: 2, 
+                  background: alpha(theme.palette.success.main, 0.02),
+                  border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '&:hover': {
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
+                  }
+                }}
+              >
+                <Avatar sx={{
+                  width: 36,
+                  height: 36,
+                  backgroundColor: alpha(theme.palette.success.main, 0.1),
+                  border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`
+                }}>
+                  <CheckIcon sx={{ 
+                    fontSize: 18, 
+                    color: theme.palette.success.main 
+                  }} />
+                </Avatar>
+                <Typography variant="body1" sx={{
+                  fontWeight: 600,
+                  color: alpha(theme.palette.success.main, 0.9)
+                }}>
+                  {currentPayment.attachments.length} archivo(s) adjunto(s)
+                </Typography>
+              </Paper>
             </Box>
           )}
 
           {/* Zona de drag & drop mejorada */}
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle1" fontWeight="600" sx={{ mb: 2 }}>
-              🔄 Reemplazar comprobantes
-            </Typography>
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ 
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              mb: 2.5
+            }}>
+              <Avatar sx={{
+                width: 40,
+                height: 40,
+                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`
+              }}>
+                <SwapIcon sx={{ 
+                  fontSize: 20, 
+                  color: theme.palette.primary.main 
+                }} />
+              </Avatar>
+              <Typography variant="h6" sx={{ 
+                fontWeight: 600, 
+                color: alpha(theme.palette.primary.main, 0.9),
+                fontSize: '1.1rem'
+              }}>
+                Reemplazar comprobantes
+              </Typography>
+            </Box>
             <Box
               onDragEnter={handleReceiptDragEnter}
               onDragLeave={handleReceiptDragLeave}
               onDragOver={handleReceiptDragOver}
               onDrop={handleReceiptDrop}
               sx={{
-                border: `2px dashed ${receiptDragActive ? theme.palette.primary.main : alpha(theme.palette.primary.main, 0.3)}`,
+                border: `2px dashed ${receiptDragActive 
+                  ? alpha(theme.palette.primary.main, 0.8) 
+                  : alpha(theme.palette.primary.main, 0.6)}`,
                 borderRadius: 3,
                 p: 4,
                 textAlign: 'center',
                 cursor: 'pointer',
-                transition: 'all 0.3s ease',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 background: receiptDragActive 
-                  ? alpha(theme.palette.primary.main, 0.05)
+                  ? alpha(theme.palette.primary.main, 0.04)
                   : alpha(theme.palette.primary.main, 0.02),
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                minHeight: 200,
+                justifyContent: 'center',
                 '&:hover': {
-                  borderColor: theme.palette.primary.main,
-                  background: alpha(theme.palette.primary.main, 0.05)
+                  borderColor: alpha(theme.palette.primary.main, 0.8),
+                  background: alpha(theme.palette.primary.main, 0.04),
+                  transform: 'translateY(-2px)',
+                  boxShadow: '0 8px 25px rgba(0, 0, 0, 0.12)'
                 }
               }}
               onClick={() => {
@@ -4678,18 +4777,50 @@ const PaymentsPage = () => {
                 input.click();
               }}
             >
-              <CloudUpload sx={{ 
-                fontSize: 48, 
-                color: receiptDragActive ? 'primary.main' : 'primary.light',
-                mb: 1 
-              }} />
-              <Typography variant="h6" color="primary.main" fontWeight="600">
+              <motion.div
+                animate={receiptDragActive ? { scale: 1.08, rotate: [0, 3, -3, 0] } : { scale: 1 }}
+                transition={{ duration: 0.3, type: "spring", stiffness: 300 }}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+              >
+                <Avatar sx={{
+                  width: 64,
+                  height: 64,
+                  backgroundColor: receiptDragActive 
+                    ? alpha(theme.palette.success.main, 0.15) 
+                    : alpha(theme.palette.primary.main, 0.1),
+                  border: `2px solid ${receiptDragActive 
+                    ? alpha(theme.palette.success.main, 0.4) 
+                    : alpha(theme.palette.primary.main, 0.3)}`,
+                  mb: 2,
+                  transition: 'all 0.3s ease'
+                }}>
+                  <CloudUpload sx={{ 
+                    fontSize: 28, 
+                    color: receiptDragActive 
+                      ? theme.palette.success.main 
+                      : theme.palette.primary.main,
+                    transition: 'all 0.3s ease'
+                  }} />
+                </Avatar>
+              </motion.div>
+              
+              <Typography variant="h6" sx={{ 
+                fontWeight: 600, 
+                color: receiptDragActive 
+                  ? theme.palette.success.main 
+                  : alpha(theme.palette.primary.main, 0.9),
+                mb: 1,
+                transition: 'all 0.3s ease'
+              }}>
                 {receiptDragActive ? 'Suelta los archivos aquí' : 'Subir nuevos comprobantes'}
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              <Typography variant="body1" color="text.secondary" sx={{ mb: 1.5 }}>
                 Arrastra archivos aquí o haz clic para seleccionar
               </Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{ 
+                color: alpha(theme.palette.text.secondary, 0.7),
+                fontSize: '0.75rem'
+              }}>
                 Formatos: PDF, JPG, PNG | Múltiples archivos permitidos
               </Typography>
             </Box>
@@ -4697,16 +4828,56 @@ const PaymentsPage = () => {
 
           {/* Loading indicator */}
           {uploadingFile && (
-            <Box sx={{ mt: 2 }}>
-              <LinearProgress />
-              <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mt: 1 }}>
-                Procesando archivos...
-              </Typography>
-            </Box>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Paper
+                elevation={0}
+                sx={{ 
+                  mt: 3,
+                  p: 3,
+                  background: alpha(theme.palette.info.main, 0.02),
+                  border: `1px solid ${alpha(theme.palette.info.main, 0.6)}`,
+                  borderRadius: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2
+                }}
+              >
+                <Avatar sx={{
+                  width: 36,
+                  height: 36,
+                  backgroundColor: alpha(theme.palette.info.main, 0.1),
+                  border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`
+                }}>
+                  <CircularProgress size={20} sx={{ color: theme.palette.info.main }} />
+                </Avatar>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ 
+                    fontWeight: 600,
+                    color: alpha(theme.palette.info.main, 0.9),
+                    mb: 0.5
+                  }}>
+                    Procesando archivos...
+                  </Typography>
+                  <LinearProgress sx={{ 
+                    width: 200,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: alpha(theme.palette.info.main, 0.1),
+                    '& .MuiLinearProgress-bar': {
+                      backgroundColor: theme.palette.info.main
+                    }
+                  }} />
+                </Box>
+              </Paper>
+            </motion.div>
           )}
         </DialogContent>
 
-        <DialogActions sx={{ p: 3, gap: 1 }}>
+        <DialogActions sx={{ p: 3, gap: 2, borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}` }}>
           <Button
             onClick={() => {
               if (window.confirm('¿Estás seguro de eliminar todos los comprobantes? Esta acción no se puede deshacer.')) {
@@ -4716,15 +4887,42 @@ const PaymentsPage = () => {
             }}
             disabled={uploadingFile}
             startIcon={<Delete />}
+            variant="outlined"
             sx={{ 
               color: 'error.main',
-              '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.1) }
+              borderColor: alpha(theme.palette.error.main, 0.6),
+              '&:hover': { 
+                bgcolor: alpha(theme.palette.error.main, 0.1),
+                borderColor: theme.palette.error.main,
+                transform: 'translateY(-1px)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
+              },
+              '&:disabled': {
+                opacity: 0.5
+              },
+              transition: 'all 0.2s ease'
             }}
           >
             Eliminar todos
           </Button>
           <Box sx={{ flex: 1 }} />
-          <Button onClick={handleCloseReceiptManagement} disabled={uploadingFile}>
+          <Button 
+            onClick={handleCloseReceiptManagement} 
+            disabled={uploadingFile}
+            variant="contained"
+            sx={{
+              bgcolor: alpha(theme.palette.primary.main, 0.9),
+              '&:hover': {
+                bgcolor: theme.palette.primary.main,
+                transform: 'translateY(-1px)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
+              },
+              '&:disabled': {
+                opacity: 0.5
+              },
+              transition: 'all 0.2s ease'
+            }}
+          >
             Cerrar
           </Button>
         </DialogActions>

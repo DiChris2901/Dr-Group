@@ -10,7 +10,9 @@ import {
   Button,
   Card,
   CardMedia,
-  Alert
+  Alert,
+  Avatar,
+  alpha
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -19,6 +21,7 @@ import {
   Security as SecurityIcon,
   Download as DownloadIcon
 } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
 import FallbackPDFViewer from './FallbackPDFViewer';
 
 /**
@@ -48,6 +51,8 @@ const PDFPreviewDialog = ({
   // Compatibilidad: usar receiptUrl o url, receiptMetadata o metadata
   const finalUrl = receiptUrl || url;
   const finalMetadata = receiptMetadata || metadata;
+  const theme = useTheme();
+
   return (
     <Dialog
       open={open}
@@ -57,30 +62,52 @@ const PDFPreviewDialog = ({
       PaperProps={{
         sx: {
           borderRadius: 3,
-          background: 'linear-gradient(145deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 100%)',
-          backdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255,255,255,0.2)',
+          background: '#ffffff',
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
         }
       }}
     >
       <DialogTitle sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: 'white',
-        fontWeight: 600
+        pb: 3,
+        pt: 3,
+        px: 3,
+        backgroundColor: '#ffffff',
+        borderBottom: 'none'
       }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <ReceiptIcon />
-          {title}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+            <Avatar sx={{
+              width: 52,
+              height: 52,
+              backgroundColor: alpha(theme.palette.primary.main, 0.12),
+              border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`
+            }}>
+              <ReceiptIcon sx={{ 
+                fontSize: 24, 
+                color: theme.palette.primary.main 
+              }} />
+            </Avatar>
+            <Typography variant="h6" sx={{ 
+              fontWeight: 600, 
+              color: alpha(theme.palette.primary.main, 0.9),
+              fontSize: '1.25rem'
+            }}>
+              {title}
+            </Typography>
+          </Box>
+          <IconButton 
+            onClick={onClose}
+            sx={{ 
+              color: 'text.secondary',
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.error.main, 0.1),
+                color: 'error.main'
+              }
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
         </Box>
-        <IconButton 
-          onClick={onClose}
-          sx={{ color: 'white' }}
-        >
-          <CloseIcon />
-        </IconButton>
       </DialogTitle>
       
       <DialogContent sx={{ p: 3 }}>
@@ -91,7 +118,8 @@ const PDFPreviewDialog = ({
               <Card sx={{ 
                 maxWidth: 600, 
                 mx: 'auto',
-                boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                 borderRadius: 2
               }}>
                 <CardMedia
@@ -110,30 +138,64 @@ const PDFPreviewDialog = ({
               // Vista previa segura de PDFs
               <Box sx={{ width: '100%' }}>
                 <Box sx={{ 
-                  p: 2, 
-                  textAlign: 'center',
-                  background: 'linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%)',
-                  borderRadius: '8px 8px 0 0',
-                  border: '2px solid #dee2e6',
+                  p: 3, 
+                  background: alpha(theme.palette.info.main, 0.02),
+                  border: `1px solid ${alpha(theme.palette.info.main, 0.6)}`,
+                  borderRadius: 2,
                   borderBottom: 'none',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between'
                 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <PictureAsPdfIcon sx={{ fontSize: 24, color: '#dc3545' }} />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar sx={{
+                      width: 48,
+                      height: 48,
+                      backgroundColor: alpha(theme.palette.error.main, 0.1),
+                      border: `2px solid ${alpha(theme.palette.error.main, 0.3)}`
+                    }}>
+                      <PictureAsPdfIcon sx={{ 
+                        fontSize: 22, 
+                        color: theme.palette.error.main 
+                      }} />
+                    </Avatar>
                     <Box>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                      <Typography variant="subtitle1" sx={{ 
+                        fontWeight: 600,
+                        color: 'text.primary'
+                      }}>
                         {finalMetadata?.originalName || finalMetadata?.name || filename}
                       </Typography>
-                      <Typography variant="caption" color="textSecondary">
+                      <Typography variant="body2" color="text.secondary">
                         Documento PDF • {finalMetadata?.size ? (finalMetadata.size / 1024 / 1024).toFixed(2) : '1.08'} MB
                       </Typography>
                     </Box>
                   </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <SecurityIcon sx={{ fontSize: 16, color: '#28a745' }} />
-                    <Typography variant="caption" color="success.main" sx={{ fontWeight: 600 }}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 1,
+                    background: alpha(theme.palette.success.main, 0.1),
+                    px: 2,
+                    py: 1,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`
+                  }}>
+                    <Avatar sx={{
+                      width: 24,
+                      height: 24,
+                      backgroundColor: alpha(theme.palette.success.main, 0.1),
+                      border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`
+                    }}>
+                      <SecurityIcon sx={{ 
+                        fontSize: 14, 
+                        color: theme.palette.success.main 
+                      }} />
+                    </Avatar>
+                    <Typography variant="caption" sx={{ 
+                      color: theme.palette.success.main,
+                      fontWeight: 600
+                    }}>
                       Vista Segura
                     </Typography>
                   </Box>
@@ -152,8 +214,38 @@ const PDFPreviewDialog = ({
             )}
             
             {finalMetadata && (
-              <Box sx={{ mt: 2, p: 2, backgroundColor: '#f8f9fa', borderRadius: 1 }}>
-                <Typography variant="caption" color="textSecondary">
+              <Box sx={{ 
+                mt: 3, 
+                p: 3, 
+                background: alpha(theme.palette.info.main, 0.02),
+                border: `1px solid ${alpha(theme.palette.info.main, 0.6)}`,
+                borderRadius: 2
+              }}>
+                <Box sx={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                  mb: 2
+                }}>
+                  <Avatar sx={{
+                    width: 32,
+                    height: 32,
+                    backgroundColor: alpha(theme.palette.info.main, 0.1),
+                    border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`
+                  }}>
+                    <ReceiptIcon sx={{ 
+                      fontSize: 16, 
+                      color: theme.palette.info.main 
+                    }} />
+                  </Avatar>
+                  <Typography variant="subtitle2" sx={{ 
+                    fontWeight: 600,
+                    color: alpha(theme.palette.info.main, 0.9)
+                  }}>
+                    Información del Archivo
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
                   <strong>Archivo:</strong> {finalMetadata.originalName || finalMetadata.name || filename}<br/>
                   <strong>Tamaño:</strong> {finalMetadata.size ? (finalMetadata.size / 1024 / 1024).toFixed(2) : '1.08'} MB<br/>
                   <strong>Tipo:</strong> {finalMetadata.type || 'application/pdf'}
@@ -170,8 +262,14 @@ const PDFPreviewDialog = ({
         )}
       </DialogContent>
       
-      <DialogActions sx={{ p: 3, pt: 0, justifyContent: 'space-between' }}>
-        {/* Botón de descarga solo si tiene permisos - IDÉNTICO al PaymentPopupPremium */}
+      <DialogActions sx={{ 
+        p: 3, 
+        pt: 2, 
+        gap: 2,
+        borderTop: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+        justifyContent: 'space-between' 
+      }}>
+        {/* Botón de descarga solo si tiene permisos */}
         {canDownloadReceipts && finalUrl && (
           <Button 
             variant="outlined"
@@ -179,11 +277,14 @@ const PDFPreviewDialog = ({
             startIcon={<DownloadIcon />}
             sx={{ 
               color: 'success.main',
-              borderColor: 'success.main',
+              borderColor: alpha(theme.palette.success.main, 0.6),
               '&:hover': {
-                backgroundColor: 'success.light',
-                borderColor: 'success.dark'
-              }
+                backgroundColor: alpha(theme.palette.success.main, 0.1),
+                borderColor: theme.palette.success.main,
+                transform: 'translateY(-1px)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
+              },
+              transition: 'all 0.2s ease'
             }}
           >
             Descargar
@@ -193,6 +294,15 @@ const PDFPreviewDialog = ({
         <Button 
           onClick={onClose}
           variant="contained"
+          sx={{
+            bgcolor: alpha(theme.palette.primary.main, 0.9),
+            '&:hover': {
+              bgcolor: theme.palette.primary.main,
+              transform: 'translateY(-1px)',
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
+            },
+            transition: 'all 0.2s ease'
+          }}
         >
           Cerrar
         </Button>

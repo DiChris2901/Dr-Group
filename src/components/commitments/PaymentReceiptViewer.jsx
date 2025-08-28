@@ -393,10 +393,11 @@ const PaymentReceiptViewer = ({
             }
           }}
         >
-          {/* � Header Sobrio Corporativo */}
+          {/* 🎯 Header Sobrio Corporativo */}
           <DialogTitle sx={{ pb: 4, backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50' }}>
+            
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar sx={{ backgroundColor: 'primary.main', width: 40, height: 40 }}>
+              <Avatar sx={{ backgroundColor: 'primary.main', width: 48, height: 48 }}>
                 <ReceiptIcon />
               </Avatar>
               <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>

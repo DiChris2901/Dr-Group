@@ -48,7 +48,7 @@ import {
   NotificationAdd,
   GetApp,
   Close,
-  // ✅ Receipt as ReceiptIcon ELIMINADO (ya no se usa)
+  Assignment as AssignmentIcon,
   Person,
   Info,
   Notes,
@@ -3448,259 +3448,40 @@ const CommitmentsList = ({
             }}
             style={{ position: 'relative', zIndex: 2 }}
           >
-            {/* Header Premium Spectacular */}
-            <motion.div
-              initial={{ opacity: 0, y: -30, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ 
-                type: "spring", 
-                damping: 20, 
-                stiffness: 100,
-                delay: 0.1 
-              }}
-            >
-              <Box
-                sx={{
-                  background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-                  color: 'white',
-                  p: 3,
-                  borderRadius: '16px 16px 0 0',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.15) 0%, transparent 50%)',
-                    zIndex: 1
-                  },
-                  '&::after': {
-                    content: '""',
-                    position: 'absolute',
-                    top: -50,
-                    right: -50,
-                    width: 120,
-                    height: 120,
-                    borderRadius: '50%',
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    animation: 'float 6s ease-in-out infinite',
-                    zIndex: 1
-                  },
-                  '@keyframes float': {
-                    '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
-                    '50%': { transform: 'translateY(-20px) rotate(180deg)' }
-                  }
-                }}
-              >
-                <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ position: 'relative', zIndex: 2 }}>
-                  <Box display="flex" alignItems="center" gap={2.5}>
-                    {/* Logo de empresa en lugar del icono ojo */}
-                    <motion.div
-                      initial={{ scale: 0.8, rotate: -15 }}
-                      animate={{ scale: 1, rotate: 0 }}
-                      transition={{ delay: 0.2, duration: 0.6, type: "spring", bounce: 0.4 }}
-                      whileHover={{ scale: 1.05, rotate: 5 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <Box
-                        sx={{
-                          width: 56,
-                          height: 56,
-                          borderRadius: 2.5,
-                          background: 'rgba(255, 255, 255, 0.2)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          backdropFilter: 'blur(10px)',
-                          border: '1px solid rgba(255, 255, 255, 0.3)',
-                          position: 'relative',
-                          overflow: 'hidden',
-                          '&::before': {
-                            content: '""',
-                            position: 'absolute',
-                            top: 0,
-                            left: '-100%',
-                            width: '100%',
-                            height: '100%',
-                            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
-                            animation: 'shimmer 2s infinite'
-                          }
-                        }}
-                      >
-                        {companyData?.logoURL ? (
-                          <Box
-                            component="img"
-                            src={companyData.logoURL}
-                            alt={`Logo de ${companyData.name}`}
-                            sx={{
-                              width: 40,
-                              height: 40,
-                              borderRadius: 2,
-                              objectFit: 'contain',
-                              backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                              border: '1px solid rgba(255, 255, 255, 0.3)',
-                              zIndex: 1
-                            }}
-                          />
-                        ) : (
-                          <Business sx={{ fontSize: 28, color: 'white', zIndex: 1 }} />
-                        )}
-                      </Box>
-                    </motion.div>
-                    
-                    {/* Información compacta del compromiso */}
-                    <Box>
-                      <motion.div
-                        initial={{ x: -30, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 0.3, duration: 0.5 }}
-                      >
-                        <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.3, textShadow: '0 2px 4px rgba(0,0,0,0.3)', fontSize: '1.25rem' }}>
-                          {selectedCommitment?.concept || selectedCommitment?.description || 'Sin concepto'}
-                        </Typography>
-                        <Box display="flex" alignItems="center" gap={2}>
-                          <Typography 
-                            variant="h5" 
-                            sx={{ 
-                              fontWeight: 800, 
-                              fontSize: '1.4rem',
-                              textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                              color: 'rgba(255, 255, 255, 0.95)'
-                            }}
-                          >
-                            ${selectedCommitment?.amount?.toLocaleString() || '0'}
-                          </Typography>
-                          {companyData && (
-                            <Typography variant="body2" sx={{ opacity: 0.8, fontWeight: 500 }}>
-                              • {companyData.name}
-                            </Typography>
-                          )}
-                        </Box>
-                        {/* Nueva fila con información adicional */}
-                        <Box display="flex" alignItems="center" gap={2} mt={0.5}>
-                          <Typography variant="body2" sx={{ 
-                            opacity: 0.85, 
-                            fontWeight: 500,
-                            fontSize: '0.875rem'
-                          }}>
-                            {(() => {
-                              switch(selectedCommitment?.periodicity) {
-                                case 'unique': return '🔄 Pago único';
-                                case 'monthly': return '📅 Mensual';
-                                case 'bimonthly': return '📅 Bimestral';
-                                case 'quarterly': return '📅 Trimestral';
-                                case 'fourmonthly': return '📅 Cuatrimestral';
-                                case 'biannual': return '📅 Semestral';
-                                case 'annual': return '📅 Anual';
-                                default: return '📅 Mensual';
-                              }
-                            })()}
-                          </Typography>
-                          <Typography variant="body2" sx={{ 
-                            opacity: 0.85, 
-                            fontWeight: 500,
-                            fontSize: '0.875rem'
-                          }}>
-                            • {(() => {
-                              switch(selectedCommitment?.paymentMethod) {
-                                case 'transfer': return '🏦 Transferencia';
-                                case 'cash': return '💵 Efectivo';
-                                case 'pse': return '💳 PSE';
-                                case 'check': return '📝 Cheque';
-                                case 'card': return '💳 Tarjeta';
-                                default: return '🏦 Transferencia';
-                              }
-                            })()}
-                          </Typography>
-                          {(() => {
-                            const status = getCommitmentStatus(selectedCommitment);
-                            const colors = getStatusColor(status, theme);
-                            return (
-                              <Box
-                                sx={{
-                                  px: 1.5,
-                                  py: 0.5,
-                                  borderRadius: 1.5,
-                                  background: colors.bg,
-                                  border: `1px solid ${colors.border}`,
-                                  backdropFilter: 'blur(10px)'
-                                }}
-                              >
-                                <Typography variant="caption" sx={{ 
-                                  fontWeight: 600,
-                                  fontSize: '0.75rem',
-                                  color: 'rgba(255, 255, 255, 0.95)'
-                                }}>
-                                  {status.emoji} {status.text}
-                                </Typography>
-                              </Box>
-                            );
-                          })()}
-                        </Box>
-                      </motion.div>
-                    </Box>
-                  </Box>
-
-                  {/* Lado derecho: Estado + Botón cerrar */}
-                  <motion.div
-                    initial={{ x: 30, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    transition={{ delay: 0.4, duration: 0.5 }}
-                  >
-                    <Box display="flex" alignItems="center" gap={2}>
-                      {/* Estado del compromiso */}
-                      <motion.div
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        transition={{ type: "spring", bounce: 0.5 }}
-                      >
-                        <Chip
-                          icon={getStatusInfo(selectedCommitment).icon}
-                          label={getStatusInfo(selectedCommitment).label}
-                          size="medium"
-                          sx={{ 
-                            bgcolor: 'rgba(255, 255, 255, 0.2)',
-                            color: 'white',
-                            fontWeight: 600,
-                            backdropFilter: 'blur(10px)',
-                            border: '1px solid rgba(255, 255, 255, 0.3)',
-                            '& .MuiChip-icon': {
-                              color: 'white'
-                            }
-                          }}
-                        />
-                      </motion.div>
-
-                      {/* Botón de cerrar */}
-                      <motion.div
-                        initial={{ x: 20, opacity: 0 }}
-                        animate={{ x: 0, opacity: 1 }}
-                        transition={{ delay: 0.6, duration: 0.5 }}
-                      >
-                        <IconButton
-                          onClick={handleCloseViewDialog}
-                          sx={{
-                            background: 'rgba(255, 255, 255, 0.2)',
-                            backdropFilter: 'blur(10px)',
-                            border: '1px solid rgba(255, 255, 255, 0.3)',
-                            color: 'white',
-                            '&:hover': {
-                              background: 'rgba(255, 255, 255, 0.3)',
-                              transform: 'scale(1.1)'
-                            }
-                          }}
-                        >
-                          <Close />
-                        </IconButton>
-                      </motion.div>
-                    </Box>
-                  </motion.div>
+            {/* Header según Modal Design System */}
+            <DialogTitle sx={{ 
+              pb: 2,  // EXACTO según las notas
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              background: theme.palette.mode === 'dark' 
+                ? theme.palette.grey[900]      // EXACTO - 900 no 800
+                : theme.palette.grey[50],      // EXACTO - 50 no 100
+              borderBottom: `1px solid ${theme.palette.divider}`,
+              color: 'text.primary'
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>  {/* EXACTO gap: 1.5 */}
+                <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+                  <AssignmentIcon />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 700,  // EXACTO - 700 no 600
+                    mb: 0,           // EXACTO - 0 margin bottom
+                    color: 'text.primary' 
+                  }}>
+                    Detalle del Compromiso
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    {selectedCommitment?.concept || selectedCommitment?.description || 'Sin concepto'} • ${selectedCommitment?.amount?.toLocaleString() || '0'}
+                  </Typography>
                 </Box>
               </Box>
-            </motion.div>
+              {/* BOTÓN DE CIERRE - Solo en modales de vista */}
+              <IconButton onClick={handleCloseViewDialog} sx={{ color: 'text.secondary' }}>
+                <Close />
+              </IconButton>
+            </DialogTitle>
             
             <DialogContent sx={{ p: 4 }}>
               <Grid container spacing={4}>
@@ -3729,11 +3510,10 @@ const CommitmentsList = ({
                     <Card
                       sx={{
                         p: 3,
-                        background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.secondary.main, 0.05)})`,
-                        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                        backgroundColor: alpha(theme.palette.primary.main, 0.02),
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                         borderRadius: 3,
-                        backdropFilter: 'blur(10px)',
-                        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
                         position: 'relative',
                         overflow: 'hidden'
                       }}
@@ -3750,7 +3530,7 @@ const CommitmentsList = ({
                               width: 56,
                               height: 56,
                               borderRadius: 2.5,
-                              background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                              backgroundColor: theme.palette.primary.main,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -3795,14 +3575,12 @@ const CommitmentsList = ({
                     <Card
                       sx={{
                         p: 3,
-                        background: gradients.paper,
-                        border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+                        backgroundColor: theme.palette.background.paper,
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                         borderRadius: 4,
-                        backdropFilter: 'blur(20px)',
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
                         position: 'relative',
-                        overflow: 'hidden',
-                        ...shimmerEffect
+                        overflow: 'hidden'
                       }}
                     >
                       <Box sx={{ position: 'relative', zIndex: 2 }}>
@@ -3828,9 +3606,9 @@ const CommitmentsList = ({
                             >
                               <Box sx={{
                                 p: 2.5,
-                                background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.08)}, ${alpha(theme.palette.info.light, 0.04)})`,
+                                backgroundColor: alpha(theme.palette.info.main, 0.02),
                                 borderRadius: 3,
-                                border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`,
+                                border: `1px solid ${alpha(theme.palette.info.main, 0.6)}`,
                                 position: 'relative',
                                 overflow: 'hidden'
                               }}>
@@ -3860,9 +3638,9 @@ const CommitmentsList = ({
                             >
                               <Box sx={{
                                 p: 2.5,
-                                background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.08)}, ${alpha(theme.palette.success.light, 0.04)})`,
+                                backgroundColor: alpha(theme.palette.success.main, 0.02),
                                 borderRadius: 3,
-                                border: `1px solid ${alpha(theme.palette.success.main, 0.15)}`,
+                                border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
                                 position: 'relative',
                                 overflow: 'hidden'
                               }}>
@@ -3900,9 +3678,9 @@ const CommitmentsList = ({
                             >
                               <Box sx={{
                                 p: 2.5,
-                                background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.08)}, ${alpha(theme.palette.warning.light, 0.04)})`,
+                                backgroundColor: alpha(theme.palette.warning.main, 0.02),
                                 borderRadius: 3,
-                                border: `1px solid ${alpha(theme.palette.warning.main, 0.15)}`,
+                                border: `1px solid ${alpha(theme.palette.warning.main, 0.6)}`,
                                 position: 'relative',
                                 overflow: 'hidden'
                               }}>
@@ -3941,9 +3719,9 @@ const CommitmentsList = ({
                             >
                               <Box sx={{
                                 p: 2.5,
-                                background: `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.08)}, ${alpha(theme.palette.secondary.light, 0.04)})`,
+                                backgroundColor: alpha(theme.palette.secondary.main, 0.02),
                                 borderRadius: 3,
-                                border: `1px solid ${alpha(theme.palette.secondary.main, 0.15)}`,
+                                border: `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`,
                                 position: 'relative',
                                 overflow: 'hidden'
                               }}>
@@ -3991,9 +3769,9 @@ const CommitmentsList = ({
                             >
                               <Box sx={{
                                 p: 2.5,
-                                background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.06)}, ${alpha(theme.palette.primary.light, 0.03)})`,
+                                backgroundColor: alpha(theme.palette.primary.main, 0.02),
                                 borderRadius: 3,
-                                border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+                                border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                                 position: 'relative',
                                 overflow: 'hidden'
                               }}>
@@ -4025,9 +3803,9 @@ const CommitmentsList = ({
                             >
                               <Box sx={{
                                 p: 2.5,
-                                background: `linear-gradient(135deg, ${alpha(theme.palette.grey[500], 0.08)}, ${alpha(theme.palette.grey[400], 0.04)})`,
+                                backgroundColor: alpha(theme.palette.grey[500], 0.02),
                                 borderRadius: 3,
-                                border: `1px solid ${alpha(theme.palette.grey[500], 0.15)}`,
+                                border: `1px solid ${alpha(theme.palette.grey[500], 0.6)}`,
                                 position: 'relative',
                                 overflow: 'hidden'
                               }}>
@@ -4059,9 +3837,9 @@ const CommitmentsList = ({
                               >
                                 <Box sx={{
                                   p: 2.5,
-                                  background: `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.08)}, ${alpha(theme.palette.error.light, 0.04)})`,
+                                  backgroundColor: alpha(theme.palette.error.main, 0.02),
                                   borderRadius: 3,
-                                  border: `1px solid ${alpha(theme.palette.error.main, 0.15)}`,
+                                  border: `1px solid ${alpha(theme.palette.error.main, 0.6)}`,
                                   position: 'relative',
                                   overflow: 'hidden'
                                 }}>
@@ -4101,13 +3879,12 @@ const CommitmentsList = ({
                       <Card
                         sx={{
                           p: 3,
-                          background: gradients.infoCard,
-                          border: `2px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                          backgroundColor: theme.palette.background.paper,
+                          border: `1px solid ${alpha(theme.palette.info.main, 0.6)}`,
                           borderRadius: 4,
-                          boxShadow: '0 8px 32px rgba(33, 150, 243, 0.15)',
+                          boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
                           position: 'relative',
-                          overflow: 'hidden',
-                          ...shimmerEffect
+                          overflow: 'hidden'
                         }}
                       >
                         <Box sx={{ position: 'relative', zIndex: 2 }}>
@@ -4257,13 +4034,9 @@ const CommitmentsList = ({
                 <DialogActions 
                   sx={{ 
                     p: 4,
-                    pb: 6, // Padding inferior fijo y razonable
-                    background: `
-                      linear-gradient(135deg, rgba(248, 250, 252, 0.95) 0%, rgba(241, 245, 249, 0.9) 100%),
-                      linear-gradient(225deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.6) 100%)
-                    `,
-                    borderTop: '1px solid rgba(0, 0, 0, 0.08)',
-                    backdropFilter: 'blur(20px) saturate(180%)',
+                    pb: 6,
+                    backgroundColor: alpha(theme.palette.background.paper, 0.98),
+                    borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                     position: 'relative',
                     '&::before': {
                       content: '""',
