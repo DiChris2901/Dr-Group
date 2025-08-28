@@ -77,6 +77,7 @@ import {
   SwapHoriz as SwapIcon,
   AttachEmail as AttachEmailIcon,
   Menu as MenuIcon,
+  Info as InfoIcon,
   Visibility,
   Edit,
   Delete,
@@ -297,6 +298,9 @@ const PaymentsPage = () => {
   // Estados para ingresos (necesarios para calcular balances)
   const [incomes, setIncomes] = useState([]);
   const [loadingIncomes, setLoadingIncomes] = useState(true);
+  
+  // Estado para cuentas personales
+  const [personalAccounts, setPersonalAccounts] = useState([]);
   
   const [editFormData, setEditFormData] = useState({
     concept: '',
@@ -772,6 +776,39 @@ const PaymentsPage = () => {
     };
 
     loadIncomes();
+  }, [currentUser]);
+
+  // Cargar cuentas personales desde Firebase
+  useEffect(() => {
+    if (!currentUser?.uid) {
+      setPersonalAccounts([]);
+      return;
+    }
+
+    const q = query(
+      collection(db, 'personal_accounts'),
+      where('userId', '==', currentUser.uid)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const accounts = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          accounts.push({
+            id: doc.id,
+            ...data
+          });
+        });
+        setPersonalAccounts(accounts);
+      },
+      (error) => {
+        console.error('Error cargando cuentas personales:', error);
+      }
+    );
+
+    return () => unsubscribe();
   }, [currentUser]);
 
   const paginatedPayments = filteredPayments.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
@@ -1344,17 +1381,38 @@ const PaymentsPage = () => {
   // Función para obtener cuentas bancarias de todas las empresas
   const getBankAccounts = () => {
     const accounts = [];
+    
+    // Agregar cuentas empresariales
     companies.forEach(company => {
       // La estructura de datos usa bankAccount y bankName (singular), no bankAccounts (array)
       if (company.bankAccount && company.bankName) {
         accounts.push({
           account: company.bankAccount,
           bank: company.bankName,
-          companyName: company.name
+          companyName: company.name,
+          type: 'Empresarial'
         });
       }
     });
-    return accounts;
+
+    // Agregar cuentas personales desde Firebase
+    personalAccounts.forEach(account => {
+      if (account.accountNumber && account.bankName) {
+        accounts.push({
+          account: account.accountNumber,
+          bank: account.bankName,
+          companyName: account.holderName || 'Personal',
+          type: 'Personal'
+        });
+      }
+    });
+
+    // Ordenar: primero empresariales, luego personales
+    return accounts.sort((a, b) => {
+      if (a.type === 'Empresarial' && b.type === 'Personal') return -1;
+      if (a.type === 'Personal' && b.type === 'Empresarial') return 1;
+      return a.companyName?.localeCompare(b.companyName) || 0;
+    });
   };
 
   // Función para manejar la selección de cuenta bancaria
@@ -2179,8 +2237,7 @@ const PaymentsPage = () => {
                     fontSize: '0.7rem',
                     height: 26,
                     bgcolor: 'rgba(255, 255, 255, 0.2)',
-                    color: 'white',
-                    backdropFilter: 'blur(10px)'
+                    color: 'white'
                   }} 
                 />
                 <Chip 
@@ -2191,8 +2248,7 @@ const PaymentsPage = () => {
                     fontSize: '0.7rem',
                     height: 26,
                     bgcolor: 'rgba(76, 175, 80, 0.3)',
-                    color: 'white',
-                    backdropFilter: 'blur(10px)'
+                    color: 'white'
                   }} 
                 />
                 <Chip 
@@ -2204,7 +2260,6 @@ const PaymentsPage = () => {
                     height: 26,
                     bgcolor: 'rgba(255, 152, 0, 0.3)',
                     color: 'white',
-                    backdropFilter: 'blur(10px)'
                   }} 
                 />
                 <Chip 
@@ -2215,8 +2270,7 @@ const PaymentsPage = () => {
                     fontSize: '0.7rem',
                     height: 26,
                     bgcolor: 'rgba(255, 255, 255, 0.15)',
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    backdropFilter: 'blur(10px)'
+                    color: 'rgba(255, 255, 255, 0.9)'
                   }} 
                 />
               </Box>
@@ -2321,8 +2375,7 @@ const PaymentsPage = () => {
                     ? `linear-gradient(145deg, ${alpha(theme.palette.background.paper, 0.4)} 0%, ${alpha(theme.palette.background.paper, 0.8)} 100%)`
                     : `linear-gradient(145deg, ${alpha('#ffffff', 0.6)} 0%, ${alpha('#f8fafc', 0.9)} 100%)`,
                   borderRadius: 3,
-                  border: `2px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
-                  backdropFilter: 'blur(10px)'
+                  border: `2px dashed ${alpha(theme.palette.primary.main, 0.2)}`
                 }}
               >
                 <Box
@@ -2967,7 +3020,7 @@ const PaymentsPage = () => {
         PaperProps={{
           sx: {
             borderRadius: 2,
-            background: theme.palette.background.paper,
+            background: '#ffffff',
             minHeight: '70vh',
             boxShadow: theme.shadows[8],
             border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
@@ -2975,70 +3028,30 @@ const PaymentsPage = () => {
         }}
       >
         <DialogTitle sx={{ 
-          fontWeight: 600, 
-          color: theme.palette.text.primary,
-          background: theme.palette.mode === 'dark' 
-            ? 'linear-gradient(135deg, rgba(31, 38, 135, 0.15) 0%, rgba(76, 175, 80, 0.08) 100%)'
-            : 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.8) 100%)',
-          borderBottom: `3px solid ${primaryColor}`,
-          backdropFilter: 'blur(15px)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 2,
-          py: 2.5,
+          pb: 3,
+          pt: 3,
           px: 3,
-          position: 'relative',
-          overflow: 'hidden',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '3px',
-            background: `linear-gradient(90deg, ${primaryColor}, ${secondaryColor})`,
-            opacity: 0.8
-          }
+          backgroundColor: '#ffffff',
+          borderBottom: 'none'
         }}>
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.4, type: "spring" }}
-            whileHover={{ scale: 1.1 }}
-          >
-            <Avatar sx={{ 
-              background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
-              width: 48,
-              height: 48,
-              boxShadow: `0 6px 20px ${primaryColor}40`,
-              border: `2px solid ${theme.palette.background.paper}`,
-              transition: 'all 0.3s ease'
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+            <Avatar sx={{
+              width: 52,
+              height: 52,
+              backgroundColor: alpha(theme.palette.primary.main, 0.12),
+              border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`
             }}>
               <EditIcon sx={{ 
-                fontSize: 24,
-                color: 'white',
-                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
+                fontSize: 24, 
+                color: theme.palette.primary.main 
               }} />
             </Avatar>
-          </motion.div>
-          
-          <Box>
             <Typography variant="h6" sx={{ 
-              fontWeight: 700, 
-              color: theme.palette.text.primary,
-              fontSize: '1.3rem',
-              letterSpacing: '-0.02em'
+              fontWeight: 600, 
+              color: alpha(theme.palette.primary.main, 0.9),
+              fontSize: '1.25rem'
             }}>
-              Editar Pago Empresarial
-            </Typography>
-            <Typography variant="body2" sx={{ 
-              color: primaryColor,
-              fontSize: '0.9rem',
-              fontWeight: 500,
-              mt: 0.5
-            }}>
-              {editingPayment?.companyName}
+              Editar Pago
             </Typography>
           </Box>
         </DialogTitle>
@@ -3069,27 +3082,39 @@ const PaymentsPage = () => {
             {/* Columna Izquierda - Información del Pago */}
             <Grid item xs={12} md={6}>
               <Box sx={{ 
-                p: 2, 
+                p: 3, 
                 borderRadius: 2, 
-                background: theme.palette.mode === 'dark' 
-                  ? 'linear-gradient(145deg, rgba(255, 255, 255, 0.02) 0%, rgba(255, 255, 255, 0.05) 100%)'
-                  : 'linear-gradient(145deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 250, 252, 0.9) 100%)',
-                border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)'}`,
-                boxShadow: theme.palette.mode === 'dark' 
-                  ? '0 4px 20px rgba(0, 0, 0, 0.2)' 
-                  : '0 4px 20px rgba(0, 0, 0, 0.06)',
-                mb: 1.5
+                background: alpha(theme.palette.primary.main, 0.02),
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                mb: 2,
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
               }}>
-                <Typography variant="subtitle1" sx={{ 
-                  fontWeight: 600, 
-                  color: primaryColor,
-                  mb: 2,
+                <Box sx={{ 
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 1
+                  gap: 2,
+                  mb: 2.5
                 }}>
-                  <MoneyIcon sx={{ fontSize: 20 }} /> Datos del Pago
-                </Typography>
+                  <Avatar sx={{
+                    width: 40,
+                    height: 40,
+                    backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`
+                  }}>
+                    <MoneyIcon sx={{ 
+                      fontSize: 20, 
+                      color: theme.palette.primary.main 
+                    }} />
+                  </Avatar>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 600, 
+                    color: alpha(theme.palette.primary.main, 0.9),
+                    fontSize: '1.1rem'
+                  }}>
+                    Datos del Pago
+                  </Typography>
+                </Box>
                 
                 <Stack spacing={2}>
                 {/* Empresa/Cliente (a quién le corresponde el pago) */}
@@ -3727,7 +3752,7 @@ const PaymentsPage = () => {
                                 {account.account}
                               </Typography>
                               <Typography variant="caption" color="text.secondary">
-                                {account.bank} - {account.companyName}
+                                {account.bank} - {account.companyName} {account.type && `(${account.type})`}
                               </Typography>
                             </Stack>
                             <Stack direction="column" alignItems="flex-end">
@@ -3861,48 +3886,61 @@ const PaymentsPage = () => {
             {/* Columna Derecha - Comprobantes */}
             <Grid item xs={12} md={6}>
               <Box sx={{ 
-                p: 2, 
+                p: 3, 
                 borderRadius: 2, 
-                background: theme.palette.mode === 'dark' 
-                  ? 'linear-gradient(145deg, rgba(76, 175, 80, 0.03) 0%, rgba(67, 160, 71, 0.05) 100%)'
-                  : 'linear-gradient(145deg, rgba(232, 245, 233, 0.6) 0%, rgba(220, 237, 200, 0.7) 100%)',
-                border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(76, 175, 80, 0.1)' : 'rgba(76, 175, 80, 0.2)'}`,
-                boxShadow: theme.palette.mode === 'dark' 
-                  ? '0 4px 20px rgba(0, 0, 0, 0.2)' 
-                  : '0 4px 20px rgba(0, 0, 0, 0.06)',
-                mb: 1.5
+                background: alpha(theme.palette.success.main, 0.02),
+                border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                mb: 2,
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
               }}>
-                <Typography variant="subtitle1" sx={{ 
-                  fontWeight: 600, 
-                  color: '#4caf50',
-                  mb: 2,
+                <Box sx={{ 
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 1
+                  gap: 2,
+                  mb: 2.5
                 }}>
-                  <UploadIcon sx={{ fontSize: 20 }} /> Comprobantes de Pago
-                </Typography>
+                  <Avatar sx={{
+                    width: 40,
+                    height: 40,
+                    backgroundColor: alpha(theme.palette.success.main, 0.1),
+                    border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`
+                  }}>
+                    <UploadIcon sx={{ 
+                      fontSize: 20, 
+                      color: theme.palette.success.main 
+                    }} />
+                  </Avatar>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 600, 
+                    color: alpha(theme.palette.success.main, 0.9),
+                    fontSize: '1.1rem'
+                  }}>
+                    Comprobantes de Pago
+                  </Typography>
+                </Box>
 
                 {/* Área de carga de comprobantes */}
                 <Paper
                   elevation={0}
                   sx={{
-                    border: `1px dashed ${alpha(theme.palette.primary.main, 0.6)}`,
-                    borderRadius: 2,
-                    p: 2.5,
+                    border: `2px dashed ${alpha(theme.palette.primary.main, 0.6)}`,
+                    borderRadius: 3,
+                    p: 4,
                     textAlign: 'center',
-                    background: theme.palette.background.paper,
+                    background: alpha(theme.palette.primary.main, 0.02),
                     cursor: 'pointer',
-                    transition: 'all 0.2s ease',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     minHeight: 250,
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'center',
+                    alignItems: 'center',
                     '&:hover': {
                       borderColor: alpha(theme.palette.primary.main, 0.8),
-                      backgroundColor: alpha(theme.palette.primary.main, 0.02),
-                      transform: 'translateY(-1px)',
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
+                      backgroundColor: alpha(theme.palette.primary.main, 0.04),
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 8px 25px rgba(0, 0, 0, 0.12)'
                     }
                   }}
                   onClick={() => document.getElementById('receipt-upload-edit').click()}
@@ -3912,50 +3950,55 @@ const PaymentsPage = () => {
                 onDrop={handleDrop}
               >
                 <motion.div
-                  animate={dragActive ? { scale: 1.05, rotate: [0, 2, -2, 0] } : { scale: 1 }}
-                  transition={{ duration: 0.2 }}
+                  animate={dragActive ? { scale: 1.08, rotate: [0, 3, -3, 0] } : { scale: 1 }}
+                  transition={{ duration: 0.3, type: "spring", stiffness: 300 }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}
                 >
-                  <UploadIcon sx={{ 
-                    fontSize: 40, 
-                    color: dragActive ? '#4caf50' : 'rgba(76, 175, 80, 0.6)',
-                    mb: 1.5,
-                    transition: 'all 0.2s ease',
-                    filter: dragActive ? 'drop-shadow(0 2px 8px rgba(76, 175, 80, 0.3))' : 'none'
-                  }} />
+                  <Avatar sx={{
+                    width: 64,
+                    height: 64,
+                    backgroundColor: dragActive 
+                      ? alpha(theme.palette.success.main, 0.15) 
+                      : alpha(theme.palette.primary.main, 0.1),
+                    border: `2px solid ${dragActive 
+                      ? alpha(theme.palette.success.main, 0.4) 
+                      : alpha(theme.palette.primary.main, 0.3)}`,
+                    mb: 2,
+                    transition: 'all 0.3s ease'
+                  }}>
+                    <UploadIcon sx={{ 
+                      fontSize: 28, 
+                      color: dragActive 
+                        ? theme.palette.success.main 
+                        : theme.palette.primary.main,
+                      transition: 'all 0.3s ease'
+                    }} />
+                  </Avatar>
                 </motion.div>
                 
                 <Typography variant="h6" sx={{ 
                   fontWeight: 600, 
-                  color: dragActive ? '#4caf50' : theme.palette.text.primary,
-                  mb: 0.5,
-                  textShadow: dragActive ? '0 1px 4px rgba(76, 175, 80, 0.2)' : 'none'
+                  color: dragActive 
+                    ? theme.palette.success.main 
+                    : alpha(theme.palette.primary.main, 0.9),
+                  mb: 1,
+                  transition: 'all 0.3s ease'
                 }}>
-                  {dragActive ? '¡Suelta los archivos aquí!' : '✨ Subir Comprobantes'}
+                  {dragActive ? '¡Suelta los archivos aquí!' : 'Subir Comprobantes'}
                 </Typography>
                 
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 1.5 }}>
                   Arrastra archivos aquí o haz clic para seleccionar
                 </Typography>
                 
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" sx={{ 
+                  color: alpha(theme.palette.text.secondary, 0.7),
+                  fontSize: '0.75rem'
+                }}>
                   PDF, JPG, PNG • Máximo 10MB por archivo
                 </Typography>
                 
-                <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main', mb: 1 }}>
-                  {dragActive ? 'Suelta los archivos aquí' : 'Subir Comprobantes'}
-                </Typography>
-                
-                <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
-                  Arrastra aquí tus archivos o haz clic para seleccionar
-                </Typography>
-                
-                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem', mb: 1 }}>
-                  Formatos soportados: PDF, JPG, PNG
-                  <br />
-                  Máximo 10MB por archivo
-                </Typography>
-
-                <Typography variant="caption" color="primary.main" sx={{ fontWeight: 600 }}>
+                <Typography variant="caption" color="primary.main" sx={{ fontWeight: 600, mt: 1 }}>
                   💡 Múltiples archivos se combinarán automáticamente en un solo PDF
                 </Typography>
 
@@ -3972,96 +4015,280 @@ const PaymentsPage = () => {
               {/* Lista de archivos seleccionados */}
               {selectedFiles.length > 0 && (
                 <Box sx={{ mt: 3 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: 'text.secondary' }}>
-                    📋 Archivos Seleccionados ({selectedFiles.length})
-                  </Typography>
-                  <List dense>
-                    {selectedFiles.map((fileData) => (
-                      <ListItem key={fileData.id}>
-                        <ListItemIcon>
-                          <FileIcon color={fileData.uploaded ? 'success' : 'default'} />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={fileData.name}
-                          secondary={`${(fileData.size / 1024 / 1024).toFixed(2)} MB`}
-                        />
-                        <ListItemSecondaryAction>
+                  <Box sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    mb: 2
+                  }}>
+                    <Avatar sx={{
+                      width: 32,
+                      height: 32,
+                      backgroundColor: alpha(theme.palette.info.main, 0.1),
+                      border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`
+                    }}>
+                      <FileIcon sx={{ 
+                        fontSize: 16, 
+                        color: theme.palette.info.main 
+                      }} />
+                    </Avatar>
+                    <Typography variant="subtitle2" sx={{ 
+                      fontWeight: 600, 
+                      color: alpha(theme.palette.info.main, 0.9)
+                    }}>
+                      📋 Archivos Seleccionados ({selectedFiles.length})
+                    </Typography>
+                  </Box>
+                  <Stack spacing={2} sx={{ mt: 1 }}>
+                    {selectedFiles.map((fileData, index) => (
+                      <motion.div
+                        key={fileData.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1, duration: 0.3 }}
+                      >
+                        <Paper
+                          elevation={0}
+                          sx={{
+                            p: 2.5,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 2,
+                            background: fileData.uploaded 
+                              ? alpha(theme.palette.success.main, 0.02)
+                              : alpha(theme.palette.info.main, 0.02),
+                            border: `1px solid ${fileData.uploaded 
+                              ? alpha(theme.palette.success.main, 0.6)
+                              : alpha(theme.palette.info.main, 0.6)}`,
+                            borderRadius: 2,
+                            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                            '&:hover': {
+                              transform: 'translateY(-1px)',
+                              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                              borderColor: fileData.uploaded 
+                                ? alpha(theme.palette.success.main, 0.8)
+                                : alpha(theme.palette.info.main, 0.8)
+                            }
+                          }}
+                        >
+                          <Avatar sx={{
+                            width: 40,
+                            height: 40,
+                            backgroundColor: fileData.uploaded 
+                              ? alpha(theme.palette.success.main, 0.1)
+                              : alpha(theme.palette.info.main, 0.1),
+                            border: `1px solid ${fileData.uploaded 
+                              ? alpha(theme.palette.success.main, 0.3)
+                              : alpha(theme.palette.info.main, 0.3)}`
+                          }}>
+                            <FileIcon sx={{ 
+                              fontSize: 18, 
+                              color: fileData.uploaded 
+                                ? theme.palette.success.main
+                                : theme.palette.info.main
+                            }} />
+                          </Avatar>
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="body2" sx={{ 
+                              fontWeight: 600,
+                              mb: 0.5,
+                              color: fileData.uploaded 
+                                ? theme.palette.success.main
+                                : theme.palette.info.main
+                            }}>
+                              {fileData.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {(fileData.size / 1024 / 1024).toFixed(2)} MB
+                            </Typography>
+                          </Box>
                           <IconButton 
-                            edge="end" 
                             onClick={() => removeFile(fileData.id)}
                             size="small"
+                            sx={{
+                              color: 'error.main',
+                              '&:hover': {
+                                backgroundColor: alpha(theme.palette.error.main, 0.1),
+                                transform: 'scale(1.1)'
+                              }
+                            }}
                           >
                             <DeleteIcon fontSize="small" />
                           </IconButton>
-                        </ListItemSecondaryAction>
-                      </ListItem>
+                        </Paper>
+                      </motion.div>
                     ))}
-                  </List>
+                  </Stack>
                   
                   {/* Información sobre múltiples archivos */}
-                  <Box sx={{ mt: 2, p: 2, bgcolor: 'info.main', color: 'info.contrastText', borderRadius: 1 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                          📋 Archivos seleccionados
-                        </Typography>
-                        <Typography variant="caption">
-                          {selectedFiles.length > 1 
-                            ? `${selectedFiles.length} archivos se combinarán automáticamente en un PDF único al guardar cambios`
-                            : '1 archivo se subirá al guardar cambios'
-                          }
-                        </Typography>
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.2 }}
+                  >
+                    <Paper
+                      elevation={0}
+                      sx={{ 
+                        mt: 3, 
+                        p: 3, 
+                        background: alpha(theme.palette.info.main, 0.02),
+                        border: `1px solid ${alpha(theme.palette.info.main, 0.6)}`,
+                        borderRadius: 2
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
+                        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Avatar sx={{
+                            width: 36,
+                            height: 36,
+                            backgroundColor: alpha(theme.palette.info.main, 0.1),
+                            border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`
+                          }}>
+                            <InfoIcon sx={{ 
+                              fontSize: 18, 
+                              color: theme.palette.info.main 
+                            }} />
+                          </Avatar>
+                          <Box>
+                            <Typography variant="subtitle2" sx={{ 
+                              fontWeight: 600, 
+                              mb: 0.5,
+                              color: alpha(theme.palette.info.main, 0.9)
+                            }}>
+                              � Procesamiento Automático
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.85rem' }}>
+                              {selectedFiles.length > 1 
+                                ? `${selectedFiles.length} archivos se combinarán automáticamente en un PDF único al guardar cambios`
+                                : '1 archivo se subirá al guardar cambios'
+                              }
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => setSelectedFiles([])}
+                          sx={{ 
+                            color: theme.palette.info.main, 
+                            borderColor: alpha(theme.palette.info.main, 0.6),
+                            '&:hover': {
+                              backgroundColor: alpha(theme.palette.info.main, 0.1),
+                              borderColor: theme.palette.info.main,
+                              transform: 'scale(1.05)'
+                            },
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          Limpiar
+                        </Button>
                       </Box>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={() => setSelectedFiles([])}
-                        sx={{ 
-                          color: 'info.contrastText', 
-                          borderColor: 'info.contrastText',
-                          '&:hover': {
-                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                            borderColor: 'info.contrastText'
-                          }
-                        }}
-                      >
-                        Limpiar
-                      </Button>
-                    </Box>
-                  </Box>
+                    </Paper>
+                  </motion.div>
                 </Box>
               )}
 
               {/* Mostrar comprobantes actuales si existen */}
               {editingPayment?.attachments?.length > 0 && (
                 <Box sx={{ mt: 3 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: 'text.secondary' }}>
-                    📋 Comprobantes Actuales:
-                  </Typography>
+                  <Box sx={{ 
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    mb: 2
+                  }}>
+                    <Avatar sx={{
+                      width: 32,
+                      height: 32,
+                      backgroundColor: alpha(theme.palette.success.main, 0.1),
+                      border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`
+                    }}>
+                      <ReceiptIcon sx={{ 
+                        fontSize: 16, 
+                        color: theme.palette.success.main 
+                      }} />
+                    </Avatar>
+                    <Typography variant="subtitle2" sx={{ 
+                      fontWeight: 600, 
+                      color: alpha(theme.palette.success.main, 0.9)
+                    }}>
+                      📋 Comprobantes Actuales:
+                    </Typography>
+                  </Box>
                   {editingPayment.attachments.map((attachment, index) => (
-                    <Paper
+                    <motion.div
                       key={index}
-                      elevation={1}
-                      sx={{
-                        p: 2,
-                        mb: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 2,
-                        background: alpha(theme.palette.success.main, 0.05),
-                        border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
-                      }}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1, duration: 0.3 }}
                     >
-                      <FileIcon color="success" />
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          Comprobante {index + 1}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {attachment.slice(-20)}
-                        </Typography>
-                      </Box>
-                    </Paper>
+                      <Paper
+                        elevation={0}
+                        sx={{
+                          p: 3,
+                          mb: 2,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2.5,
+                          background: alpha(theme.palette.success.main, 0.02),
+                          border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
+                          borderRadius: 2,
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          cursor: 'pointer',
+                          '&:hover': {
+                            transform: 'translateY(-2px)',
+                            boxShadow: '0 8px 25px rgba(0, 0, 0, 0.12)',
+                            borderColor: alpha(theme.palette.success.main, 0.8),
+                            background: alpha(theme.palette.success.main, 0.04)
+                          }
+                        }}
+                      >
+                        <Avatar sx={{
+                          width: 48,
+                          height: 48,
+                          backgroundColor: alpha(theme.palette.success.main, 0.1),
+                          border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`
+                        }}>
+                          <FileIcon sx={{ 
+                            fontSize: 22, 
+                            color: theme.palette.success.main 
+                          }} />
+                        </Avatar>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="subtitle1" sx={{ 
+                            fontWeight: 600,
+                            color: alpha(theme.palette.success.main, 0.9),
+                            mb: 0.5
+                          }}>
+                            Comprobante {index + 1}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{
+                            fontFamily: 'monospace',
+                            fontSize: '0.8rem',
+                            opacity: 0.7
+                          }}>
+                            {attachment.slice(-20)}
+                          </Typography>
+                        </Box>
+                        <Box sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1
+                        }}>
+                          <Chip
+                            label="PDF"
+                            size="small"
+                            sx={{
+                              backgroundColor: alpha(theme.palette.success.main, 0.1),
+                              color: theme.palette.success.main,
+                              border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                              fontWeight: 600,
+                              fontSize: '0.7rem'
+                            }}
+                          />
+                        </Box>
+                      </Paper>
+                    </motion.div>
                   ))}
                 </Box>
               )}
@@ -4091,7 +4318,6 @@ const PaymentsPage = () => {
           background: theme.palette.mode === 'dark' 
             ? 'linear-gradient(145deg, rgba(30, 30, 30, 0.6) 0%, rgba(20, 20, 20, 0.8) 100%)'
             : 'linear-gradient(145deg, rgba(248, 250, 252, 0.6) 0%, rgba(255, 255, 255, 0.8) 100%)',
-          backdropFilter: 'blur(15px)',
           borderTop: `1px solid ${theme.palette.divider}`,
           display: 'flex',
           justifyContent: 'space-between'

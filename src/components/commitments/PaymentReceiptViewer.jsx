@@ -738,7 +738,16 @@ const PaymentReceiptViewer = ({
                         Proveedor/Beneficiario
                       </Typography>
                       <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.primary', fontSize: '0.85rem' }}>
-                        {commitment?.beneficiary || 'No especificado'}
+                        {originalCommitment?.beneficiary || 
+                         originalCommitment?.provider || 
+                         originalCommitment?.paymentNotes || 
+                         originalCommitment?.recipientName || 
+                         originalCommitment?.payeeName || 
+                         originalCommitment?.supplierName || 
+                         originalCommitment?.vendorName || 
+                         commitment?.beneficiary || 
+                         commitment?.provider || 
+                         'No especificado'}
                       </Typography>
                     </Box>
                   </Grid>
