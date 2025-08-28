@@ -23,8 +23,7 @@ import {
   Select,
   FormControl,
   InputLabel,
-  CircularProgress,
-  Avatar
+  CircularProgress
 } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -50,16 +49,7 @@ import {
   Edit,
   AttachFile,
   AccountBalance,
-  Warning,
-  CheckCircle,
-  GetApp,
-  Payment,
-  Person,
-  Schedule,
-  NotificationAdd,
-  CalendarToday,
-  Business,
-  Delete
+  Warning
 } from '@mui/icons-material';
 import CommitmentDetailDialog from './CommitmentDetailDialog';
 
@@ -162,39 +152,6 @@ const DateDisplayDS3 = ({ date, showDaysRemaining = false, variant = 'standard',
   );
 };
 
-// Encabezado tabla (reintroducido)
-const TableHeaderDS3 = ({ columns = ['Concepto', 'Vence', 'Monto', 'Estado', 'Acciones'] }) => {
-  const theme = useTheme();
-  return (
-    <Box sx={{
-      display: 'grid',
-      gridTemplateColumns: '1fr 120px 130px 120px 120px',
-      gap: 1,
-      alignItems: 'center',
-      px: 2,
-      py: 1.5,
-      background: theme.palette.mode === 'dark'
-        ? alpha(theme.palette.primary.main, 0.12)
-        : alpha(theme.palette.primary.main, 0.08),
-      borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-      position: 'sticky',
-      top: 0,
-      zIndex: 1
-    }}>
-      {columns.map(col => (
-        <Typography key={col} variant="caption" sx={{
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px',
-          fontWeight: 600,
-          fontSize: '0.65rem',
-          color: theme.palette.mode === 'dark' ? theme.palette.primary.light : theme.palette.primary.dark,
-          opacity: 0.85
-        }}>{col}</Typography>
-      ))}
-    </Box>
-  );
-};
-
 // Amount display
 const AmountDisplayDS3 = ({ amount, variant = 'standard', showAnimation = false, theme }) => {
   const darkColors = getGlobalDarkModeColors(theme);
@@ -251,8 +208,6 @@ const CommitmentsList = ({
   const { settings } = useSettings();
   const navigate = useNavigate();
   const theme = useTheme();
-  // Colores reutilizables (modo oscuro / claro) para el cuerpo principal
-  const darkColors = getGlobalDarkModeColors(theme);
 
   // Dashboard config (defensive fallbacks)
   const dashboardConfig = settings?.dashboard || { layout: { viewMode: viewMode, cardSize: 'medium', density: 'normal', columns: 3 }, behavior: { animationsEnabled: true, showTooltips: true } };
@@ -263,89 +218,79 @@ const CommitmentsList = ({
   const animationsEnabled = dashboardConfig.behavior.animationsEnabled;
   const showTooltips = dashboardConfig.behavior.showTooltips;
 
-  // ================= Pagination & View Config =================
-  // Constant restored (was referenced before declaration after refactor)
-  const ITEMS_PER_PAGE = 9; // Fixed as per original design
-
-  // Helper functions that depend on density/cardSize now placed AFTER those vars
+  // Funciones helper para aplicar configuraciones
   const getSpacingByDensity = () => {
     switch (density) {
       case 'compact': return { grid: 1.5, card: 1, padding: 1.5 };
       case 'spacious': return { grid: 4, card: 3, padding: 3 };
-      default: return { grid: 3, card: 2, padding: 2 };
+      default: return { grid: 3, card: 2, padding: 2 }; // normal
     }
   };
 
   const getCardSizeStyles = () => {
     const base = {
-      small: { minHeight: 160, padding: 1.5, fontSize: '0.85rem', titleSize: '0.95rem', subtitleSize: '0.75rem', captionSize: '0.65rem', amountSize: '1rem' },
-      medium: { minHeight: 190, padding: 2, fontSize: '0.9rem', titleSize: '1rem', subtitleSize: '0.8rem', captionSize: '0.7rem', amountSize: '1.15rem' },
-      large: { minHeight: 240, padding: 3, fontSize: '0.95rem', titleSize: '1.1rem', subtitleSize: '0.85rem', captionSize: '0.75rem', amountSize: '1.3rem' }
+      small: { 
+        minHeight: 160, 
+        padding: 1.5, 
+        fontSize: '0.85rem',
+        titleSize: '0.95rem',
+        subtitleSize: '0.75rem',
+        captionSize: '0.65rem',
+        amountSize: '1rem'
+      },
+      medium: { 
+        minHeight: 190, 
+        padding: 2, 
+        fontSize: '0.9rem',
+        titleSize: '1rem',
+        subtitleSize: '0.8rem',
+        captionSize: '0.7rem',
+        amountSize: '1.15rem'
+      },
+      large: { 
+        minHeight: 240, 
+        padding: 3, 
+        fontSize: '0.95rem',
+        titleSize: '1.1rem',
+        subtitleSize: '0.85rem',
+        captionSize: '0.75rem',
+        amountSize: '1.3rem'
+      }
     };
     return base[cardSize] || base.medium;
   };
 
-  const getColumnsConfig = () => ({
-    xs: Math.min(columns, 1),
-    sm: Math.min(columns, 2),
-    md: Math.min(columns, 3),
-    lg: Math.min(columns, 4),
-    xl: Math.min(columns, 6)
-  });
+  const getColumnsConfig = () => {
+    // Responsive columns basado en la configuración
+    const baseColumns = {
+      xs: Math.min(columns, 1),
+      sm: Math.min(columns, 2),
+      md: Math.min(columns, 3),
+      lg: Math.min(columns, 4),
+      xl: Math.min(columns, 6)
+    };
+    return baseColumns;
+  };
 
   const spacing = getSpacingByDensity();
   const cardStyles = getCardSizeStyles();
   const responsiveColumns = getColumnsConfig();
 
+  // Configuración de paginación por modo de vista
   const getPaginationConfig = () => {
+    // Usar valor fijo de 9 elementos por página
     switch (effectiveViewMode) {
-      case 'table': return { itemsPerPage: ITEMS_PER_PAGE, label: 'filas por página' };
-      case 'list': return { itemsPerPage: ITEMS_PER_PAGE, label: 'elementos por página' };
-      case 'cards':
-      default: return { itemsPerPage: ITEMS_PER_PAGE, label: 'tarjetas por página' };
+      case 'table': 
+        return { itemsPerPage: ITEMS_PER_PAGE, label: 'filas por página' };
+      case 'list': 
+        return { itemsPerPage: ITEMS_PER_PAGE, label: 'elementos por página' };
+      case 'cards': 
+      default: 
+        return { itemsPerPage: ITEMS_PER_PAGE, label: 'tarjetas por página' };
     }
   };
+
   const paginationConfig = getPaginationConfig();
-
-  // ================= Filter values (no debounce restoration) =================
-  // Refactor: original file applied debouncing; for now we map directly to props to restore functionality.
-  const debouncedSearchTerm = searchTerm;
-  const debouncedCompanyFilter = companyFilter;
-  const debouncedStatusFilter = statusFilter;
-  const debouncedYearFilter = yearFilter;
-
-  // (Duplicated helper block removed after refactor consolidation)
-
-  // ================= Local State (reintroducido tras refactor) =================
-  // Paginación y datos
-  const [currentPage, setCurrentPage] = useState(1); // Página actual
-  const [commitments, setCommitments] = useState([]); // Compromisos mostrados (paginados)
-  const [totalCommitments, setTotalCommitments] = useState(0); // Total global filtrado
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  // Cache de documentos por página para optimizar startAfter
-  const [pageDocuments, setPageDocuments] = useState({});
-  const [firstVisibleDoc, setFirstVisibleDoc] = useState(null);
-  const [lastVisibleDoc, setLastVisibleDoc] = useState(null);
-
-  // Estados de diálogos / selección
-  const [selectedCommitment, setSelectedCommitment] = useState(null);
-  const [viewDialogOpen, setViewDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
-  const [viewerSize, setViewerSize] = useState('normal');
-  
-  // Estados adicionales para modal de confirmación y datos de empresa
-  const [companyData, setCompanyData] = useState(null);
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [commitmentToDelete, setCommitmentToDelete] = useState(null);
-  const [loadingCompany, setLoadingCompany] = useState(false);
-  const [invoiceUrl, setInvoiceUrl] = useState(null);
-  const [jumpToPage, setJumpToPage] = useState('');
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-
-  // Eliminados en esta versión: visor de comprobantes de pago y estados relacionados
 
   // Función helper para verificar si un compromiso tiene pago válido (SIMPLIFICADA PARA DEBUG)
   const hasValidPayment = (commitment) => {
@@ -3357,10 +3302,9 @@ const CommitmentsList = ({
             </Box>
           </Card>
         </motion.div>
-      )}
-      {/* (stray fragment cleanup) */}
-      </>
-      )}
+  )}
+  {/* (stray fragment removed) */}
+  )}
     </Box>
   );
 };
