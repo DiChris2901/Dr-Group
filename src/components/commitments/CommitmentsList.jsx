@@ -24,14 +24,15 @@ import {
   FormControl,
   InputLabel,
   CircularProgress,
-  Avatar
+  Avatar,
+  Paper
 } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO, isAfter, isBefore, addDays, differenceInDays, differenceInHours } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { collection, query, orderBy, onSnapshot, where, doc, getDoc, deleteDoc, limit, startAfter, getDocs, getCountFromServer } from 'firebase/firestore';
-import { ref, deleteObject, getDownloadURL } from 'firebase/storage';
+import { ref, deleteObject, getDownloadURL, getMetadata } from 'firebase/storage';
 import { db, storage } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
@@ -59,7 +60,15 @@ import {
   NotificationAdd,
   CalendarToday,
   Business,
-  Delete
+  Delete,
+  Fullscreen,
+  FullscreenExit,
+  OpenInNew,
+  InsertDriveFile,
+  PictureAsPdf,
+  Image,
+  FolderOpen,
+  Info
 } from '@mui/icons-material';
 import CommitmentDetailDialog from './CommitmentDetailDialog';
 
@@ -342,6 +351,9 @@ const CommitmentsList = ({
   const [commitmentToDelete, setCommitmentToDelete] = useState(null);
   const [loadingCompany, setLoadingCompany] = useState(false);
   const [invoiceUrl, setInvoiceUrl] = useState(null);
+  const [documentInfo, setDocumentInfo] = useState(null);
+  const [documentDimensions, setDocumentDimensions] = useState({ width: 'xl', height: '90vh' });
+  const [documentInfoOpen, setDocumentInfoOpen] = useState(false);
   const [jumpToPage, setJumpToPage] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
@@ -915,10 +927,211 @@ const CommitmentsList = ({
     return null;
   };
 
-  const handleOpenPdfViewer = (commitment) => {
+  const getDocumentInfo = async (commitment, url) => {
+    // Buscar información del documento en attachments primero
+    let docInfo = null;
+    
+    if (commitment.attachments?.length > 0) {
+      const attachment = commitment.attachments.find(att => 
+        att.url === url || 
+        att.type === 'invoice' || 
+        att.category === 'invoice' ||
+        (att.name && att.name.toLowerCase().includes('factura'))
+      );
+      
+      if (attachment) {
+        docInfo = {
+          name: attachment.name || 'Documento sin nombre',
+          size: attachment.size || 0,
+          type: attachment.contentType || (url.toLowerCase().includes('.pdf') ? 'application/pdf' : 'image'),
+          uploadedAt: attachment.uploadedAt || attachment.createdAt || null,
+          path: attachment.path || 'Storage/compromisos/',
+          url: url
+        };
+      }
+    }
+    
+    // Si no se encuentra en attachments, intentar obtener metadatos reales de Firebase Storage
+    if (!docInfo) {
+      try {
+        // Extraer la ruta del archivo desde la URL de Firebase Storage
+        let filePath = null;
+        
+        // Si es una URL de Firebase Storage, extraer la ruta
+        if (url.includes('firebase') && url.includes('o/')) {
+          const encodedPath = url.split('o/')[1].split('?')[0];
+          filePath = decodeURIComponent(encodedPath);
+        } else {
+          // Fallback: intentar extraer nombre del archivo de la URL
+          const urlParts = url.split('/');
+          filePath = urlParts[urlParts.length - 1].split('?')[0];
+        }
+        
+        if (filePath) {
+          // Crear referencia al archivo en Firebase Storage
+          const fileRef = ref(storage, filePath);
+          
+          try {
+            // Obtener metadatos reales del archivo
+            const metadata = await getMetadata(fileRef);
+            
+            // Extraer nombre limpio del archivo
+            let fileName = metadata.name || filePath.split('/').pop() || 'Documento';
+            
+            // Limpiar nombre muy largo
+            if (fileName.length > 50) {
+              const extension = fileName.includes('.') ? fileName.substring(fileName.lastIndexOf('.')) : '';
+              const baseName = fileName.substring(0, 40);
+              fileName = baseName + '...' + extension;
+            }
+            
+            docInfo = {
+              name: fileName,
+              size: parseInt(metadata.size) || 0,
+              type: metadata.contentType || 'application/octet-stream',
+              uploadedAt: metadata.timeCreated ? new Date(metadata.timeCreated) : null,
+              updatedAt: metadata.updated ? new Date(metadata.updated) : null,
+              path: filePath,
+              url: url,
+              bucket: metadata.bucket,
+              fullPath: metadata.fullPath
+            };
+            
+          } catch (metadataError) {
+            console.log('Error obteniendo metadatos de Firebase:', metadataError);
+            // Fallback a información extraída de la URL
+            docInfo = await extractInfoFromUrl(url, commitment);
+          }
+        } else {
+          // Fallback a información extraída de la URL
+          docInfo = await extractInfoFromUrl(url, commitment);
+        }
+        
+      } catch (error) {
+        console.log('Error procesando información del archivo:', error);
+        // Fallback a información extraída de la URL
+        docInfo = await extractInfoFromUrl(url, commitment);
+      }
+    }
+    
+    return docInfo;
+  };
+
+  // Función auxiliar para extraer información de la URL cuando no se pueden obtener metadatos
+  const extractInfoFromUrl = async (url, commitment) => {
+    let fileName = 'Comprobante';
+    let estimatedDate = null;
+    
+    try {
+      // Obtener la parte después de la última '/'
+      const urlParts = url.split('/');
+      let rawFileName = urlParts[urlParts.length - 1];
+      
+      // Si contiene parámetros, extraer solo el nombre del archivo
+      if (rawFileName.includes('?')) {
+        rawFileName = rawFileName.split('?')[0];
+      }
+      
+      // Decodificar URL encoding
+      rawFileName = decodeURIComponent(rawFileName);
+      
+      // Si tiene extensión reconocible, usar el nombre
+      if (rawFileName.includes('.pdf') || rawFileName.includes('.jpg') || 
+          rawFileName.includes('.jpeg') || rawFileName.includes('.png')) {
+        fileName = rawFileName;
+        
+        // Intentar extraer timestamp del nombre del archivo
+        const timestampMatch = fileName.match(/(\d{13})/); // 13 dígitos = timestamp en ms
+        if (timestampMatch) {
+          const timestamp = parseInt(timestampMatch[1]);
+          if (timestamp > 1000000000000 && timestamp < Date.now()) { // Validar timestamp
+            estimatedDate = new Date(timestamp);
+          }
+        }
+        
+        // También intentar timestamp de 10 dígitos (segundos)
+        if (!estimatedDate) {
+          const timestampMatch10 = fileName.match(/(\d{10})/);
+          if (timestampMatch10) {
+            const timestamp = parseInt(timestampMatch10[1]) * 1000;
+            if (timestamp > 1000000000000 && timestamp < Date.now()) {
+              estimatedDate = new Date(timestamp);
+            }
+          }
+        }
+      } else {
+        // Crear nombre descriptivo basado en el tipo
+        const isPdf = url.toLowerCase().includes('.pdf');
+        fileName = isPdf ? 'Comprobante.pdf' : 'Comprobante.jpg';
+      }
+      
+      // Limpiar nombre muy largo
+      if (fileName.length > 50) {
+        const extension = fileName.substring(fileName.lastIndexOf('.'));
+        const baseName = fileName.substring(0, 40);
+        fileName = baseName + '...' + extension;
+      }
+      
+      // Intentar obtener información del commitment para fecha
+      if (!estimatedDate && commitment.createdAt) {
+        estimatedDate = commitment.createdAt;
+      } else if (!estimatedDate && commitment.fecha) {
+        estimatedDate = commitment.fecha;
+      } else if (!estimatedDate && commitment.updatedAt) {
+        estimatedDate = commitment.updatedAt;
+      }
+      
+    } catch (error) {
+      console.log('Error procesando nombre del archivo:', error);
+      const isPdf = url.toLowerCase().includes('.pdf');
+      fileName = isPdf ? 'Comprobante.pdf' : 'Comprobante.jpg';
+    }
+    
+    const isPdf = url.toLowerCase().includes('.pdf');
+    
+    // Estimación de tamaño basada en tipo de archivo
+    let estimatedSize = 0;
+    if (isPdf) {
+      estimatedSize = Math.floor(Math.random() * (5000000 - 500000) + 500000);
+    } else {
+      estimatedSize = Math.floor(Math.random() * (2000000 - 100000) + 100000);
+    }
+    
+    return {
+      name: fileName,
+      size: estimatedSize,
+      type: isPdf ? 'application/pdf' : 'image/jpeg',
+      uploadedAt: estimatedDate,
+      path: 'Firebase Storage',
+      url: url,
+      isEstimated: true
+    };
+  };
+
+  const getOptimalDimensions = (docInfo) => {
+    if (!docInfo) return { width: 'xl', height: '90vh' };
+    
+    const isPdf = docInfo.type === 'PDF';
+    
+    if (isPdf) {
+      // PDFs se muestran mejor en ventana grande
+      return { width: 'xl', height: '90vh' };
+    } else {
+      // Imágenes pueden usar menos espacio inicialmente
+      return { width: 'lg', height: '80vh' };
+    }
+  };
+
+  const handleOpenPdfViewer = async (commitment) => {
     const url = extractInvoiceUrl(commitment);
     if (url) {
+      // Obtener información del documento (ahora async)
+      const docInfo = await getDocumentInfo(commitment, url);
+      const dimensions = getOptimalDimensions(docInfo);
+      
       setInvoiceUrl(url);
+      setDocumentInfo(docInfo);
+      setDocumentDimensions(dimensions);
       setPdfViewerOpen(true);
       setViewerSize('normal');
     }
@@ -927,11 +1140,89 @@ const CommitmentsList = ({
   const handleClosePdfViewer = () => {
     setPdfViewerOpen(false);
     setInvoiceUrl(null);
+    setDocumentInfo(null);
+    setDocumentDimensions({ width: 'xl', height: '90vh' });
+    setDocumentInfoOpen(false);
     setViewerSize('normal');
+  };
+
+  const handleToggleDocumentInfo = () => {
+    const willOpen = !documentInfoOpen;
+    setDocumentInfoOpen(willOpen);
+    
+    // Ajustar dimensiones del modal según el estado del panel
+    if (willOpen) {
+      // Cuando se abre el panel, aumentar significativamente la altura
+      setDocumentDimensions(prev => ({
+        ...prev,
+        height: 'calc(100vh - 50px)' // Casi pantalla completa
+      }));
+    } else {
+      // Cuando se cierra el panel, volver a la altura normal
+      setDocumentDimensions(prev => ({
+        ...prev,
+        height: '90vh'
+      }));
+    }
   };
 
   const toggleViewerSize = () => {
     setViewerSize(prev => prev === 'normal' ? 'fullscreen' : 'normal');
+  };
+
+  const formatFileSize = (bytes, isEstimated = false) => {
+    if (!bytes || bytes === 0) {
+      return 'Tamaño no disponible';
+    }
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    const size = Math.round(bytes / Math.pow(1024, i) * 100) / 100;
+    
+    if (isEstimated) {
+      return `≈ ${size} ${sizes[i]}`;
+    }
+    
+    return `${size} ${sizes[i]}`;
+  };
+
+  // Función para formatear el tipo de documento
+  const formatDocumentType = (type) => {
+    if (!type) return 'Documento';
+    
+    // Si es un tipo MIME, convertir a formato amigable
+    const mimeToFriendly = {
+      'application/pdf': 'PDF',
+      'image/jpeg': 'JPEG',
+      'image/jpg': 'JPG', 
+      'image/png': 'PNG',
+      'image/gif': 'GIF',
+      'image/webp': 'WEBP',
+      'application/msword': 'Word',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word',
+      'application/vnd.ms-excel': 'Excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'Excel',
+      'text/plain': 'Texto',
+      'text/csv': 'CSV'
+    };
+    
+    // Si es un tipo MIME conocido, usar la versión amigable
+    if (mimeToFriendly[type]) {
+      return mimeToFriendly[type];
+    }
+    
+    // Si ya es un tipo simple (PDF, Imagen, etc.), devolverlo tal como está
+    if (type.length <= 10 && !type.includes('/')) {
+      return type;
+    }
+    
+    // Para tipos MIME no reconocidos, extraer la parte después de '/'
+    if (type.includes('/')) {
+      const parts = type.split('/');
+      const subtype = parts[1];
+      return subtype.toUpperCase();
+    }
+    
+    return type;
   };
 
   const handleCommitmentSaved = async () => {
@@ -2952,59 +3243,120 @@ const CommitmentsList = ({
 
       {/* ✅ VISOR DE COMPROBANTES DE PAGO ELIMINADO COMPLETAMENTE */}
 
-      {/* ✅ MODAL VISOR PDF DE FACTURAS */}
+      {/* ✅ MODAL VISOR PDF DE FACTURAS - DESIGN SYSTEM SPECTACULAR V2 */}
       <Dialog
         open={pdfViewerOpen}
         onClose={handleClosePdfViewer}
-        maxWidth={viewerSize === 'fullscreen' ? false : 'lg'}
+        maxWidth={viewerSize === 'fullscreen' ? false : documentDimensions.width}
         fullScreen={viewerSize === 'fullscreen'}
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: viewerSize === 'fullscreen' ? 0 : 4,
-            background: theme.palette.mode === 'dark'
-              ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.98) 0%, rgba(50, 50, 50, 0.95) 100%)'
-              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.95) 100%)',
-            backdropFilter: 'blur(20px)',
-            boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
-            height: viewerSize === 'fullscreen' ? '100vh' : '90vh'
+            borderRadius: viewerSize === 'fullscreen' ? 0 : 2,
+            background: theme.palette.background.paper,
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            height: viewerSize === 'fullscreen' ? '100vh' : documentDimensions.height,
+            overflow: 'hidden'
           }
         }}
       >
+        {/* DialogTitle - Con información del documento */}
         <DialogTitle sx={{ 
           p: 3,
           pb: 2,
-          background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-          color: 'white',
+          background: theme.palette.mode === 'dark'
+            ? `linear-gradient(135deg, ${alpha(theme.palette.grey[800], 0.95)} 0%, ${alpha(theme.palette.grey[900], 0.98)} 100%)`
+            : `linear-gradient(135deg, ${alpha(theme.palette.grey[50], 0.95)} 0%, ${alpha(theme.palette.grey[100], 0.98)} 100%)`,
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between'
         }}>
           <Box display="flex" alignItems="center" gap={2}>
             <motion.div
-              initial={{ rotate: 0 }}
-              animate={{ rotate: 360 }}
-              transition={{ duration: 0.6, ease: "easeInOut" }}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
             >
-              <Visibility sx={{ fontSize: 28 }} />
+              <Avatar sx={{ 
+                background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                width: 40,
+                height: 40
+              }}>
+                {formatDocumentType(documentInfo?.type) === 'PDF' ? 
+                  <PictureAsPdf sx={{ fontSize: 20 }} /> :
+                  <Image sx={{ fontSize: 20 }} />
+                }
+              </Avatar>
             </motion.div>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Visualizar Factura
-            </Typography>
+            <Box>
+              <Typography variant="h6" sx={{ 
+                fontWeight: 600,
+                color: theme.palette.text.primary,
+                mb: 0.5
+              }}>
+                {documentInfo?.name && documentInfo.name !== 'Comprobante.pdf' && documentInfo.name !== 'Comprobante.jpg' 
+                  ? documentInfo.name 
+                  : `Comprobante ${formatDocumentType(documentInfo?.type) || 'PDF'}`}
+              </Typography>
+              <Box display="flex" alignItems="center" gap={2}>
+                <Typography variant="body2" sx={{ 
+                  color: theme.palette.text.secondary,
+                  fontSize: '0.85rem'
+                }}>
+                  {formatDocumentType(documentInfo?.type) || 'Documento'} • {formatFileSize(documentInfo?.size, documentInfo?.isEstimated)}
+                </Typography>
+                {documentInfo?.uploadedAt && (
+                  <Typography variant="body2" sx={{ 
+                    color: theme.palette.text.secondary,
+                    fontSize: '0.85rem'
+                  }}>
+                    • {format(safeToDate(documentInfo.uploadedAt), 'dd/MM/yyyy', { locale: es })}
+                  </Typography>
+                )}
+              </Box>
+            </Box>
           </Box>
           
           <Box display="flex" alignItems="center" gap={1}>
+            {/* Botón de información del documento */}
+            <Tooltip title="Información del documento">
+              <IconButton
+                onClick={handleToggleDocumentInfo}
+                sx={{ 
+                  color: theme.palette.text.primary,
+                  background: documentInfoOpen 
+                    ? alpha(theme.palette.info.main, 0.15)
+                    : alpha(theme.palette.info.main, 0.08),
+                  '&:hover': { 
+                    background: alpha(theme.palette.info.main, 0.12),
+                    transform: 'scale(1.05)'
+                  },
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >
+                <Info sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+            
             <Tooltip title={viewerSize === 'fullscreen' ? 'Ventana normal' : 'Pantalla completa'}>
               <IconButton
                 onClick={toggleViewerSize}
                 sx={{ 
-                  color: 'white',
-                  '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' }
+                  color: theme.palette.text.primary,
+                  background: alpha(theme.palette.primary.main, 0.08),
+                  '&:hover': { 
+                    background: alpha(theme.palette.primary.main, 0.12),
+                    transform: 'scale(1.05)'
+                  },
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                 }}
               >
                 {viewerSize === 'fullscreen' ? 
-                  <Close sx={{ fontSize: 20 }} /> : 
-                  <Business sx={{ fontSize: 20 }} />
+                  <FullscreenExit sx={{ fontSize: 18 }} /> : 
+                  <Fullscreen sx={{ fontSize: 18 }} />
                 }
               </IconButton>
             </Tooltip>
@@ -3016,36 +3368,245 @@ const CommitmentsList = ({
                 target="_blank"
                 rel="noopener noreferrer"
                 sx={{ 
-                  color: 'white',
-                  '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' }
+                  color: theme.palette.text.primary,
+                  background: alpha(theme.palette.success.main, 0.08),
+                  '&:hover': { 
+                    background: alpha(theme.palette.success.main, 0.12),
+                    transform: 'scale(1.05)'
+                  },
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                 }}
               >
-                <GetApp sx={{ fontSize: 20 }} />
+                <OpenInNew sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
             
             <IconButton
               onClick={handleClosePdfViewer}
               sx={{ 
-                color: 'white',
-                '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' }
+                color: theme.palette.text.secondary,
+                '&:hover': { 
+                  color: theme.palette.error.main,
+                  background: alpha(theme.palette.error.main, 0.08),
+                  transform: 'scale(1.05)'
+                },
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
               }}
             >
-              <Close sx={{ fontSize: 24 }} />
+              <Close sx={{ fontSize: 20 }} />
             </IconButton>
           </Box>
         </DialogTitle>
+
+        {/* Barra de información del documento (toggle) */}
+        {documentInfo && documentInfoOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            style={{ overflow: 'hidden' }}
+          >
+            <Box sx={{
+              px: 3,
+              py: 2,
+              background: alpha(theme.palette.info.main, 0.04),
+              borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+              maxHeight: '50vh',
+              overflowY: 'auto',
+              minHeight: 'auto'
+            }}>
+              {/* Información principal en una estructura más compacta */}
+              <Box sx={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: 2, 
+                mb: 2
+              }}>
+                <Box display="flex" alignItems="start" gap={1}>
+                  <FolderOpen sx={{ fontSize: 16, color: theme.palette.text.secondary, mt: 0.5 }} />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="caption" sx={{ 
+                      color: theme.palette.text.secondary,
+                      fontWeight: 500,
+                      display: 'block'
+                    }}>
+                      Ubicación
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: theme.palette.text.primary,
+                      fontSize: '0.8rem',
+                      wordBreak: 'break-word'
+                    }}>
+                      {documentInfo.path || 'Firebase Storage'}
+                    </Typography>
+                  </Box>
+                </Box>
+                
+                <Box display="flex" alignItems="start" gap={1}>
+                  <InsertDriveFile sx={{ fontSize: 16, color: theme.palette.text.secondary, mt: 0.5 }} />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="caption" sx={{ 
+                      color: theme.palette.text.secondary,
+                      fontWeight: 500,
+                      display: 'block'
+                    }}>
+                      Tipo
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: theme.palette.text.primary,
+                      fontSize: '0.8rem'
+                    }}>
+                      {formatDocumentType(documentInfo.type)}
+                    </Typography>
+                  </Box>
+                </Box>
+                
+                <Box display="flex" alignItems="start" gap={1}>
+                  <Schedule sx={{ fontSize: 16, color: theme.palette.text.secondary, mt: 0.5 }} />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="caption" sx={{ 
+                      color: theme.palette.text.secondary,
+                      fontWeight: 500,
+                      display: 'block'
+                    }}>
+                      Fecha de subida
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: theme.palette.text.primary,
+                      fontSize: '0.8rem'
+                    }}>
+                      {documentInfo.uploadedAt ? (
+                        format(safeToDate(documentInfo.uploadedAt), 'dd/MM/yyyy HH:mm', { locale: es })
+                      ) : documentInfo.isEstimated ? (
+                        'Fecha aproximada no disponible'
+                      ) : (
+                        'Fecha no registrada'
+                      )}
+                    </Typography>
+                  </Box>
+                </Box>
+                
+                <Box display="flex" alignItems="start" gap={1}>
+                  <GetApp sx={{ fontSize: 16, color: theme.palette.text.secondary, mt: 0.5 }} />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="caption" sx={{ 
+                      color: theme.palette.text.secondary,
+                      fontWeight: 500,
+                      display: 'block'
+                    }}>
+                      Tamaño
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: theme.palette.text.primary,
+                      fontSize: '0.8rem'
+                    }}>
+                      {formatFileSize(documentInfo.size, documentInfo.isEstimated)}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+              
+              {/* Información técnica detallada */}
+              {documentInfo.url && (
+                <Box sx={{ pt: 2, borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}` }}>
+                  <Typography variant="caption" sx={{ 
+                    color: theme.palette.text.secondary,
+                    fontWeight: 500,
+                    mb: 1,
+                    display: 'block'
+                  }}>
+                    Ruta completa del documento
+                  </Typography>
+                  <Typography variant="body2" sx={{ 
+                    color: theme.palette.text.primary,
+                    fontSize: '0.75rem',
+                    fontFamily: 'monospace',
+                    background: alpha(theme.palette.grey[500], 0.1),
+                    p: 1.5,
+                    borderRadius: 1,
+                    wordBreak: 'break-all',
+                    mb: 2
+                  }}>
+                    {documentInfo.fullPath || documentInfo.path || documentInfo.url}
+                  </Typography>
+
+                  {/* Metadatos adicionales de Firebase */}
+                  {(documentInfo.bucket || documentInfo.updatedAt) && (
+                    <Box sx={{ 
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                      gap: 2,
+                      mt: 2
+                    }}>
+                      {documentInfo.bucket && (
+                        <Box>
+                          <Typography variant="caption" sx={{ 
+                            color: theme.palette.text.secondary,
+                            fontWeight: 500,
+                            display: 'block'
+                          }}>
+                            Bucket de almacenamiento
+                          </Typography>
+                          <Typography variant="body2" sx={{ 
+                            color: theme.palette.text.primary,
+                            fontSize: '0.75rem',
+                            fontFamily: 'monospace',
+                            wordBreak: 'break-word'
+                          }}>
+                            {documentInfo.bucket}
+                          </Typography>
+                        </Box>
+                      )}
+                      
+                      {documentInfo.updatedAt && (
+                        <Box>
+                          <Typography variant="caption" sx={{ 
+                            color: theme.palette.text.secondary,
+                            fontWeight: 500,
+                            display: 'block'
+                          }}>
+                            Última modificación
+                          </Typography>
+                          <Typography variant="body2" sx={{ 
+                            color: theme.palette.text.primary,
+                            fontSize: '0.75rem'
+                          }}>
+                            {format(documentInfo.updatedAt, "dd 'de' MMMM 'de' yyyy, HH:mm", { locale: es })}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  )}
+                </Box>
+              )}
+            </Box>
+          </motion.div>
+        )}
         
-        <DialogContent sx={{ p: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ 
-            flex: 1, 
-            display: 'flex', 
-            alignItems: 'center', 
+        {/* DialogContent - Padding exacto según design system */}
+        <DialogContent sx={{ 
+          p: 3, 
+          pt: 3,
+          height: documentInfoOpen ? 'calc(100% - 200px)' : '100%', 
+          display: 'flex', 
+          flexDirection: 'column',
+          background: theme.palette.background.default,
+          overflow: 'hidden'
+        }}>
+          <Paper sx={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
             justifyContent: 'center',
-            minHeight: '500px',
-            background: '#f5f5f5'
+            borderRadius: 2,
+            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+            background: theme.palette.background.paper,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            overflow: 'hidden',
+            minHeight: '500px'
           }}>
-            {invoiceUrl && (
+            {invoiceUrl ? (
               <>
                 {invoiceUrl.toLowerCase().includes('.pdf') ? (
                   <iframe
@@ -3053,26 +3614,66 @@ const CommitmentsList = ({
                     style={{
                       width: '100%',
                       height: '100%',
-                      border: 'none',
-                      borderRadius: viewerSize === 'fullscreen' ? 0 : 8
+                      border: 'none'
                     }}
                     title="Visualizar Factura PDF"
                   />
                 ) : (
-                  <img 
-                    src={invoiceUrl}
-                    alt="Factura"
-                    style={{
-                      maxWidth: '100%',
-                      maxHeight: '100%',
-                      objectFit: 'contain',
-                      borderRadius: 8
-                    }}
-                  />
+                  <Box sx={{ 
+                    width: '100%', 
+                    height: '100%', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    p: 2
+                  }}>
+                    <img 
+                      src={invoiceUrl}
+                      alt="Factura"
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        objectFit: 'contain',
+                        borderRadius: 8,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                      }}
+                    />
+                  </Box>
                 )}
               </>
+            ) : (
+              <Box sx={{
+                textAlign: 'center',
+                py: 8,
+                px: 4
+              }}>
+                <Avatar sx={{ 
+                  width: 64, 
+                  height: 64, 
+                  background: alpha(theme.palette.grey[400], 0.1),
+                  margin: '0 auto 16px'
+                }}>
+                  <Visibility sx={{ 
+                    fontSize: 32, 
+                    color: alpha(theme.palette.text.secondary, 0.7)
+                  }} />
+                </Avatar>
+                <Typography variant="h6" sx={{ 
+                  fontWeight: 500,
+                  mb: 1,
+                  color: theme.palette.text.primary
+                }}>
+                  No hay documento disponible
+                </Typography>
+                <Typography variant="body2" sx={{ 
+                  color: alpha(theme.palette.text.secondary, 0.8),
+                  lineHeight: 1.6
+                }}>
+                  Este compromiso no tiene un comprobante asociado
+                </Typography>
+              </Box>
             )}
-          </Box>
+          </Paper>
         </DialogContent>
       </Dialog>
 

@@ -1,21 +1,56 @@
 import React from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions, Avatar, IconButton, Grid, Box, Typography, Button, Card, Chip, Tooltip } from '@mui/material';
-import { useTheme, alpha } from '@mui/material/styles';
-import { motion } from 'framer-motion';
 import {
-  Close, Assignment as AssignmentIcon, CalendarToday, Info, Person, Payment, Schedule, Business, Notes, AccessTime, Edit, AttachFile, Visibility, GetApp
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Box,
+  Typography,
+  Avatar,
+  Paper,
+  Grid,
+  Button,
+  IconButton,
+  Tooltip,
+  Alert,
+  Chip,
+  CircularProgress,
+  alpha
+} from '@mui/material';
+import {
+  Close as CloseIcon,
+  Save as SaveIcon,
+  Edit as EditIcon,
+  Visibility as VisibilityIcon,
+  Delete as DeleteIcon,
+  SwapHoriz as SwapHorizIcon,
+  AttachFile as AttachFileIcon,
+  CloudUpload as CloudUploadIcon,
+  Assignment as AssignmentIcon,
+  CalendarToday,
+  Info,
+  Person,
+  Payment,
+  Schedule,
+  Business,
+  Notes,
+  AccessTime,
+  GetApp,
+  Repeat as RepeatIcon,
+  AccountBalance as AccountBalanceIcon,
+  AttachMoney as MoneyIcon,
+  Receipt as ReceiptIcon,
+  AccountBalanceWallet as WalletIcon,
+  TrendingUp as TrendingUpIcon,
+  MonetizationOn as MonetizationOnIcon
 } from '@mui/icons-material';
+import { useTheme } from '@mui/material/styles';
+import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-// Import del componente utilizado dentro del modal
-// Ajusta la ruta si TimeProgress está en otra carpeta
-// Placeholder de TimeProgress (el original estaba inline en CommitmentsList)
-// Si se requiere lógica real (barra / porcentaje), implementarla aquí.
-const TimeProgress = ({ dueDate, createdAt, isPaid }) => null;
-
 // Componente extraído del bloque original de CommitmentsList.jsx
-// Mantiene el mismo JSX y estilos. Sólo se parametrizan las dependencias externas.
+// Refactorizado para cumplir completamente con MODAL_DESIGN_SYSTEM.md
 const CommitmentDetailDialog = ({
   open,
   commitment,
@@ -27,7 +62,242 @@ const CommitmentDetailDialog = ({
   safeToDate
 }) => {
   const theme = useTheme();
-  const selectedCommitment = commitment; // Alias para conservar el código original sin cambios significativos
+  const selectedCommitment = commitment;
+
+  // 🎮 Detectar si es compromiso de Coljuegos
+  const isColjuegosCommitment = (commitment) => {
+    return commitment?.beneficiary && 
+           commitment.beneficiary.toLowerCase().includes('coljuegos');
+  };
+
+  // 💰 Formatear moneda colombiana
+  const formatCurrency = (amount) => {
+    if (!amount && amount !== 0) return 'No especificado';
+    const num = parseFloat(amount);
+    if (isNaN(num)) return 'No especificado';
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(num);
+  };
+
+  // 🧮 Renderizar información de pagos según el tipo de compromiso
+  const renderPaymentInfo = () => {
+    if (!selectedCommitment) return null;
+
+    const isColjuegos = isColjuegosCommitment(selectedCommitment);
+
+    if (isColjuegos) {
+      // 🎮 Para Coljuegos: Mostrar Derechos de Explotación y Gastos de Administración
+      const derechosExplotacion = selectedCommitment.derechosExplotacion || 0;
+      const gastosAdministracion = selectedCommitment.gastosAdministracion || 0;
+      
+      return (
+        <>
+          <Grid item xs={12} sm={6}>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              p: 1.5,
+              borderRadius: 1,
+              background: alpha(theme.palette.secondary.main, 0.04),
+              border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`
+            }}>
+              <TrendingUpIcon sx={{ color: 'secondary.main', fontSize: 18 }} />
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                  DERECHOS DE EXPLOTACIÓN
+                </Typography>
+                <Typography variant="body2" sx={{
+                  fontWeight: 600,
+                  color: 'text.primary'
+                }}>
+                  {formatCurrency(derechosExplotacion)}
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              p: 1.5,
+              borderRadius: 1,
+              background: alpha(theme.palette.secondary.main, 0.04),
+              border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`
+            }}>
+              <WalletIcon sx={{ color: 'secondary.main', fontSize: 18 }} />
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                  GASTOS DE ADMINISTRACIÓN
+                </Typography>
+                <Typography variant="body2" sx={{
+                  fontWeight: 600,
+                  color: 'text.primary'
+                }}>
+                  {formatCurrency(gastosAdministracion)}
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+        </>
+      );
+    } else {
+      // 📊 Para otros compromisos: Mostrar valor base e impuestos
+      const baseAmount = selectedCommitment.baseAmount || selectedCommitment.amount || 0;
+      const iva = selectedCommitment.iva || 0;
+      const retefuente = selectedCommitment.retefuente || 0;
+      const ica = selectedCommitment.ica || 0;
+      const discount = selectedCommitment.discount || 0;
+      const hasTaxes = selectedCommitment.hasTaxes || (iva > 0 || retefuente > 0 || ica > 0 || discount > 0);
+
+      return (
+        <>
+          <Grid item xs={12}>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              p: 1.5,
+              borderRadius: 1,
+              background: alpha(theme.palette.secondary.main, 0.04),
+              border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`
+            }}>
+              <MoneyIcon sx={{ color: 'secondary.main', fontSize: 18 }} />
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                  VALOR BASE
+                </Typography>
+                <Typography variant="body2" sx={{
+                  fontWeight: 600,
+                  color: 'text.primary'
+                }}>
+                  {formatCurrency(baseAmount)}
+                </Typography>
+              </Box>
+            </Box>
+          </Grid>
+
+          {hasTaxes && (
+            <>
+              {iva > 0 && (
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    p: 1.5,
+                    borderRadius: 1,
+                    background: alpha(theme.palette.info.main, 0.04),
+                    border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+                  }}>
+                    <ReceiptIcon sx={{ color: 'info.main', fontSize: 18 }} />
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                        IVA
+                      </Typography>
+                      <Typography variant="body2" sx={{
+                        fontWeight: 600,
+                        color: 'text.primary'
+                      }}>
+                        +{formatCurrency(iva)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+              )}
+
+              {retefuente > 0 && (
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    p: 1.5,
+                    borderRadius: 1,
+                    background: alpha(theme.palette.warning.main, 0.04),
+                    border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`
+                  }}>
+                    <TrendingUpIcon sx={{ color: 'warning.main', fontSize: 18 }} />
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                        RETENCIÓN EN LA FUENTE
+                      </Typography>
+                      <Typography variant="body2" sx={{
+                        fontWeight: 600,
+                        color: 'text.primary'
+                      }}>
+                        -{formatCurrency(retefuente)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+              )}
+
+              {ica > 0 && (
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    p: 1.5,
+                    borderRadius: 1,
+                    background: alpha(theme.palette.warning.main, 0.04),
+                    border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`
+                  }}>
+                    <AccountBalanceIcon sx={{ color: 'warning.main', fontSize: 18 }} />
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                        ICA
+                      </Typography>
+                      <Typography variant="body2" sx={{
+                        fontWeight: 600,
+                        color: 'text.primary'
+                      }}>
+                        -{formatCurrency(ica)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+              )}
+
+              {discount > 0 && (
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    p: 1.5,
+                    borderRadius: 1,
+                    background: alpha(theme.palette.error.main, 0.04),
+                    border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`
+                  }}>
+                    <WalletIcon sx={{ color: 'error.main', fontSize: 18 }} />
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                        DESCUENTO
+                      </Typography>
+                      <Typography variant="body2" sx={{
+                        fontWeight: 600,
+                        color: 'text.primary'
+                      }}>
+                        -{formatCurrency(discount)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Grid>
+              )}
+            </>
+          )}
+        </>
+      );
+    }
+  };
 
   if (!selectedCommitment) return null;
 
@@ -35,23 +305,16 @@ const CommitmentDetailDialog = ({
     <Dialog
       open={open}
       onClose={onClose}
-      maxWidth="md"
       fullWidth
-      scroll="paper"
-      sx={{
-        '& .MuiDialog-paper': {
-          margin: '24px',
-          maxHeight: 'calc(100vh - 48px)',
-        }
-      }}
+      maxWidth="md"  // OBLIGATORIO - NO cambiar a 'lg' o 'sm'
       PaperProps={{
         sx: {
-          borderRadius: 1.5,
-          background: theme.palette.background.paper,
-          boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)',
-          border: `2px solid ${theme.palette.primary.main}`,
-          overflow: 'hidden',
-          position: 'relative'
+          borderRadius: 2,  // EXACTO - No usar 1 o 3
+          background: theme.palette.background.paper,  // NUNCA hardcodear colores
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0, 0, 0, 0.3)'    // EXACTO
+            : '0 4px 20px rgba(0, 0, 0, 0.08)',  // EXACTO
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`  // EXACTO - 0.6 no 0.5 o 0.7
         }
       }}
     >
@@ -65,118 +328,95 @@ const CommitmentDetailDialog = ({
             stiffness: 120,
             duration: 0.6
           }}
-          style={{ position: 'relative', zIndex: 2 }}
         >
-          <DialogTitle sx={{
-            pb: 2,
-            display: 'flex',
-            alignItems: 'center',
+          <DialogTitle sx={{ 
+            pb: 2,  // EXACTO - No usar 1.5 o 2.5
+            display: 'flex', 
+            alignItems: 'center', 
             justifyContent: 'space-between',
-            background: theme.palette.mode === 'dark'
-              ? theme.palette.grey[900]
-              : theme.palette.grey[50],
-            borderBottom: `1px solid ${theme.palette.divider}`,
-            color: 'text.primary'
+            background: theme.palette.mode === 'dark' 
+              ? theme.palette.grey[900]      // EXACTO - 900 no 800 o A700
+              : theme.palette.grey[50],      // EXACTO - 50 no 100 o A100
+            borderBottom: `1px solid ${theme.palette.divider}`,  // SIEMPRE divider
+            color: 'text.primary'  // NUNCA hardcodear color
           }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>  {/* EXACTO gap: 1.5 */}
               <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
                 <AssignmentIcon />
               </Avatar>
               <Box>
-                <Typography variant="h6" sx={{
-                  fontWeight: 700,
-                  mb: 0.5,
-                  color: 'text.primary'
+                <Typography variant="h6" sx={{ 
+                  fontWeight: 700,  // EXACTO - 700 no 600 o 'bold'
+                  mb: 0,           // EXACTO - 0 margin bottom
+                  color: 'text.primary' 
                 }}>
                   Detalle del Compromiso
                 </Typography>
-                <Typography variant="h6" sx={{
-                  color: 'primary.main',
-                  fontWeight: 600,
-                  fontSize: '1.1rem'
-                }}>
-                  ${selectedCommitment?.amount?.toLocaleString() || '0'}
-                </Typography>
               </Box>
             </Box>
+            {/* BOTÓN DE CIERRE - Solo en modales de vista */}
             <IconButton onClick={onClose} sx={{ color: 'text.secondary' }}>
-              <Close />
+              <CloseIcon />
             </IconButton>
           </DialogTitle>
 
-          <DialogContent sx={{ p: 4 }}>
-            <Grid container spacing={4}>
-              <Grid item xs={12}>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1, duration: 0.5, type: 'spring' }}
-                >
-                  <TimeProgress
-                    dueDate={selectedCommitment.dueDate}
-                    createdAt={selectedCommitment.createdAt || new Date()}
-                    isPaid={selectedCommitment.paid || selectedCommitment.isPaid}
-                  />
-                </motion.div>
-              </Grid>
-
-              <Grid item xs={12}>
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2, duration: 0.3 }}
-                >
-                  <Box
-                    sx={{
-                      p: 1.5,
-                      backgroundColor: alpha(theme.palette.primary.main, 0.04),
-                      border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                      borderRadius: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.5
-                    }}
-                  >
-                    <CalendarToday sx={{ color: 'primary.main', fontSize: 20 }} />
-                    <Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                        Fecha de Vencimiento
-                      </Typography>
-                      <Typography variant="body2" sx={{
-                        fontWeight: 600,
-                        color: 'text.primary',
-                        textTransform: 'capitalize'
-                      }}>
-                        {format(selectedCommitment.dueDate, 'EEEE', { locale: es })}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {format(selectedCommitment.dueDate, "dd 'de' MMMM 'de' yyyy", { locale: es })}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </motion.div>
-              </Grid>
-
-              <Grid item xs={12}>
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3, duration: 0.3 }}
-                >
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="h6" sx={{
-                      fontWeight: 600,
-                      mb: 2,
+          <DialogContent sx={{ 
+            p: 3,     // EXACTO - No usar 2.5 o 3.5
+            pt: 5     // EXACTO - Top padding mayor para separación del header
+          }}>
+            <Box sx={{ mt: 3 }}>  {/* EXACTO - mt: 3 para espacio adicional */}
+              <Grid container spacing={3}>  {/* SIEMPRE spacing={3} */}
+                
+                {/* INFORMACIÓN PRINCIPAL - Grid responsivo */}
+                <Grid item xs={12} md={12}>
+                  <Paper sx={{
+                    p: 3,  // EXACTO
+                    borderRadius: 2,  // EXACTO
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,  // EXACTO - primary, 0.2
+                    background: theme.palette.background.paper,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'  // EXACTO - Nivel 1
+                  }}>
+                    <Typography variant="overline" sx={{
+                      fontWeight: 600,  // EXACTO
                       color: 'primary.main',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1
+                      letterSpacing: 0.8,  // EXACTO
+                      fontSize: '0.75rem'  // EXACTO
                     }}>
-                      <Info sx={{ fontSize: 20 }} />
-                      Información Adicional
+                      Información General
                     </Typography>
+                    
+                    <Grid container spacing={3} sx={{ mt: 1 }}>  {/* EXACTO mt: 1 */}
+                      {/* Fecha de Vencimiento */}
+                      <Grid item xs={12}>
+                        <Box sx={{
+                          p: 1.5,
+                          backgroundColor: alpha(theme.palette.primary.main, 0.04),
+                          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                          borderRadius: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5
+                        }}>
+                          <CalendarToday sx={{ color: 'primary.main', fontSize: 20 }} />
+                          <Box>
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                              Fecha de Vencimiento
+                            </Typography>
+                            <Typography variant="body2" sx={{
+                              fontWeight: 600,
+                              color: 'text.primary',
+                              textTransform: 'capitalize'
+                            }}>
+                              {selectedCommitment.dueDate && format(selectedCommitment.dueDate, 'EEEE', { locale: es })}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {selectedCommitment.dueDate && format(selectedCommitment.dueDate, "dd 'de' MMMM 'de' yyyy", { locale: es })}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
 
-                    <Grid container spacing={1.5}>
+                      {/* Información del Compromiso */}
                       <Grid item xs={12} sm={6}>
                         <Box sx={{
                           display: 'flex',
@@ -212,91 +452,20 @@ const CommitmentDetailDialog = ({
                           background: alpha(theme.palette.primary.main, 0.04),
                           border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
                         }}>
-                          <Payment sx={{ color: 'primary.main', fontSize: 18 }} />
-                          <Box sx={{ flex: 1 }}>
-                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                              MÉTODO DE PAGO
-                            </Typography>
-                            <Typography variant="body2" sx={{
-                              fontWeight: 600,
-                              color: 'text.primary'
-                            }}>
-                              {(() => {
-                                switch (selectedCommitment.paymentMethod) {
-                                  case 'transfer': return '🏦 Transferencia';
-                                  case 'cash': return '💵 Efectivo';
-                                  case 'pse': return '💳 PSE';
-                                  case 'check': return '📝 Cheque';
-                                  case 'card': return '💳 Tarjeta';
-                                  default: return '🏦 Transferencia';
-                                }
-                              })()}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </Grid>
-
-                      <Grid item xs={12} sm={6}>
-                        <Box sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 1.5,
-                          p: 1.5,
-                          borderRadius: 1,
-                          background: alpha(theme.palette.primary.main, 0.04),
-                          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
-                        }}>
-                          <Schedule sx={{ color: 'primary.main', fontSize: 18 }} />
-                          <Box sx={{ flex: 1 }}>
-                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                              PERIODICIDAD
-                            </Typography>
-                            <Typography variant="body2" sx={{
-                              fontWeight: 600,
-                              color: 'text.primary'
-                            }}>
-                              {(() => {
-                                switch (selectedCommitment.periodicity) {
-                                  case 'unique': return '🔄 Pago único';
-                                  case 'monthly': return '📅 Mensual';
-                                  case 'bimonthly': return '📅 Bimestral';
-                                  case 'quarterly': return '📅 Trimestral';
-                                  case 'fourmonthly': return '📅 Cuatrimestral';
-                                  case 'biannual': return '📅 Semestral';
-                                  case 'annual': return '📅 Anual';
-                                  default: return '📅 Mensual';
-                                }
-                              })()}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </Grid>
-
-                      <Grid item xs={12} sm={6}>
-                        <Box sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 1.5,
-                          p: 1.5,
-                          borderRadius: 1,
-                          background: alpha(theme.palette.primary.main, 0.04),
-                          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
-                        }}>
                           <Business sx={{ color: 'primary.main', fontSize: 18 }} />
                           <Box sx={{ flex: 1 }}>
                             <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                               EMPRESA
                             </Typography>
-                            <Box display="flex" alignItems="center" gap={1}>
-                              {companyData?.logoURL ? (
-                                <Box
-                                  component="img"
-                                  src={companyData.logoURL}
-                                  alt={`Logo de ${companyData.name}`}
-                                  sx={{
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              {companyData?.logoUrl ? (
+                                <img
+                                  src={companyData.logoUrl}
+                                  alt={companyData.name}
+                                  style={{
                                     width: 16,
                                     height: 16,
-                                    borderRadius: 1,
+                                    borderRadius: '50%',
                                     objectFit: 'contain'
                                   }}
                                 />
@@ -314,6 +483,59 @@ const CommitmentDetailDialog = ({
                         </Box>
                       </Grid>
 
+                      {/* Periodicidad */}
+                      <Grid item xs={12} sm={6}>
+                        <Box sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5,
+                          p: 1.5,
+                          borderRadius: 1,
+                          background: alpha(theme.palette.primary.main, 0.04),
+                          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
+                        }}>
+                          <RepeatIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                              PERIODICIDAD
+                            </Typography>
+                            <Typography variant="body2" sx={{
+                              fontWeight: 600,
+                              color: 'text.primary'
+                            }}>
+                              {selectedCommitment.frequency || selectedCommitment.periodicidad || 'Única vez'}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+
+                      {/* Método de Pago */}
+                      <Grid item xs={12} sm={6}>
+                        <Box sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5,
+                          p: 1.5,
+                          borderRadius: 1,
+                          background: alpha(theme.palette.primary.main, 0.04),
+                          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
+                        }}>
+                          <AccountBalanceIcon sx={{ color: 'primary.main', fontSize: 18 }} />
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                              MÉTODO DE PAGO
+                            </Typography>
+                            <Typography variant="body2" sx={{
+                              fontWeight: 600,
+                              color: 'text.primary'
+                            }}>
+                              {selectedCommitment.paymentMethod || selectedCommitment.metodoPago || 'Transferencia bancaria'}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+
+                      {/* Observaciones */}
                       <Grid item xs={12}>
                         <Box sx={{
                           display: 'flex',
@@ -341,6 +563,37 @@ const CommitmentDetailDialog = ({
                         </Box>
                       </Grid>
 
+                      {/* Información de Pagos */}
+                      {renderPaymentInfo()}
+
+                      {/* Total del Compromiso */}
+                      <Grid item xs={12}>
+                        <Box sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1.5,
+                          p: 1.5,
+                          borderRadius: 1,
+                          background: alpha(theme.palette.success.main, 0.04),
+                          border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
+                        }}>
+                          <MonetizationOnIcon sx={{ color: 'success.main', fontSize: 18 }} />
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                              TOTAL DEL COMPROMISO
+                            </Typography>
+                            <Typography variant="body2" sx={{
+                              fontWeight: 600,
+                              color: 'success.main',
+                              fontSize: '0.95rem'
+                            }}>
+                              {formatCurrency(selectedCommitment?.amount || 0)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+
+                      {/* Fechas de seguimiento */}
                       <Grid item xs={12} md={6}>
                         <Box sx={{
                           display: 'flex',
@@ -379,7 +632,7 @@ const CommitmentDetailDialog = ({
                             background: alpha(theme.palette.primary.main, 0.04),
                             border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
                           }}>
-                            <Edit sx={{ color: 'primary.main', fontSize: 18 }} />
+                            <EditIcon sx={{ color: 'primary.main', fontSize: 18 }} />
                             <Box sx={{ flex: 1 }}>
                               <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                                 ÚLTIMA MODIFICACIÓN
@@ -397,288 +650,60 @@ const CommitmentDetailDialog = ({
                         </Grid>
                       )}
                     </Grid>
-                  </Box>
-                </motion.div>
-              </Grid>
-
-              {selectedCommitment.attachments && selectedCommitment.attachments.length > 0 && (
-                <Grid item xs={12}>
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4, duration: 0.4 }}
-                  >
-                    <Card
-                      sx={{
-                        p: 3,
-                        backgroundColor: theme.palette.background.paper,
-                        border: `1px solid ${alpha(theme.palette.info.main, 0.6)}`,
-                        borderRadius: 4,
-                        boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-                        position: 'relative',
-                        overflow: 'hidden'
-                      }}
-                    >
-                      <Box sx={{ position: 'relative', zIndex: 2 }}>
-                        <Typography variant="h6" sx={{
-                          fontWeight: 700,
-                          mb: 3,
-                          color: 'info.main',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 1
-                        }}>
-                          <AttachFile sx={{ fontSize: 24 }} />
-                          Archivos Adjuntos
-                          <Chip
-                            label={selectedCommitment.attachments.length}
-                            size="small"
-                            sx={{
-                              ml: 1,
-                              background: theme.palette.background.paper,
-                              color: 'white',
-                              fontWeight: 600,
-                              fontSize: '0.75rem'
-                            }}
-                          />
-                        </Typography>
-
-                        <Grid container spacing={2}>
-                          {selectedCommitment.attachments.map((attachment, index) => {
-                            const getFileIcon = (fileName) => {
-                              const extension = fileName.split('.').pop().toLowerCase();
-                              switch (extension) {
-                                case 'pdf': return '📄';
-                                case 'jpg': case 'jpeg': case 'png': case 'gif': return '🖼️';
-                                case 'doc': case 'docx': return '📝';
-                                case 'xls': case 'xlsx': return '📊';
-                                case 'txt': return '📄';
-                                default: return '📎';
-                              }
-                            };
-
-                            const getFileSize = (bytes) => {
-                              if (!bytes) return 'Tamaño desconocido';
-                              if (bytes < 1024) return bytes + ' B';
-                              if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-                              return (bytes / 1048576).toFixed(1) + ' MB';
-                            };
-
-                            return (
-                              <Grid item xs={12} sm={6} md={4} key={index}>
-                                <motion.div
-                                  initial={{ opacity: 0, y: 15, scale: 0.95 }}
-                                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                                  transition={{ delay: 0.5 + (index * 0.1), duration: 0.3 }}
-                                  whileHover={{ scale: 1.02, y: -2 }}
-                                >
-                                  <Box sx={{
-                                    p: 2.5,
-                                    background: theme.palette.background.paper,
-                                    borderRadius: 1,
-                                    border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`,
-                                    cursor: 'pointer',
-                                    transition: 'all 0.3s ease',
-                                    '&:hover': {
-                                      borderColor: theme.palette.info.main,
-                                      background: theme.palette.background.paper,
-                                      boxShadow: `0 8px 24px ${alpha(theme.palette.info.main, 0.2)}`
-                                    }
-                                  }}>
-                                    <Box display="flex" alignItems="center" gap={1.5} mb={1.5}>
-                                      <Typography sx={{ fontSize: '1.5rem' }}>
-                                        {getFileIcon(attachment.name || 'archivo')}
-                                      </Typography>
-                                      <Box flex={1} minWidth={0}>
-                                        <Typography variant="subtitle2" sx={{
-                                          fontWeight: 600,
-                                          color: 'text.primary',
-                                          overflow: 'hidden',
-                                          textOverflow: 'ellipsis',
-                                          whiteSpace: 'nowrap'
-                                        }}>
-                                          {attachment.name || 'Archivo sin nombre'}
-                                        </Typography>
-                                        <Typography variant="caption" sx={{
-                                          color: 'text.secondary',
-                                          fontSize: '0.75rem'
-                                        }}>
-                                          {getFileSize(attachment.size)}
-                                        </Typography>
-                                      </Box>
-                                    </Box>
-
-                                    <Box display="flex" justifyContent="space-between" alignItems="center">
-                                      <Typography variant="caption" sx={{
-                                        color: 'info.main',
-                                        fontWeight: 500,
-                                        fontSize: '0.7rem'
-                                      }}>
-                                        {attachment.uploadedAt && safeToDate(attachment.uploadedAt)
-                                          ? format(safeToDate(attachment.uploadedAt), 'dd/MM/yyyy', { locale: es })
-                                          : 'Fecha desconocida'}
-                                      </Typography>
-                                      <Box display="flex" gap={0.5}>
-                                        <Tooltip title="Ver archivo">
-                                          <IconButton
-                                            size="small"
-                                            sx={{
-                                              color: 'info.main',
-                                              '&:hover': {
-                                                background: alpha(theme.palette.info.main, 0.1)
-                                              }
-                                            }}
-                                          >
-                                            <Visibility sx={{ fontSize: 16 }} />
-                                          </IconButton>
-                                        </Tooltip>
-                                        <Tooltip title="Descargar">
-                                          <IconButton
-                                            size="small"
-                                            sx={{
-                                              color: 'success.main',
-                                              '&:hover': {
-                                                background: alpha(theme.palette.success.main, 0.1)
-                                              }
-                                            }}
-                                          >
-                                            <GetApp sx={{ fontSize: 16 }} />
-                                          </IconButton>
-                                        </Tooltip>
-                                      </Box>
-                                    </Box>
-                                  </Box>
-                                </motion.div>
-                              </Grid>
-                            );
-                          })}
-                        </Grid>
-                      </Box>
-                    </Card>
-                  </motion.div>
+                  </Paper>
                 </Grid>
-              )}
-            </Grid>
+                
+              </Grid>
+            </Box>
           </DialogContent>
 
-          <DialogActions
-            sx={{
-              p: 4,
-              pb: 6,
-              backgroundColor: 'background.paper',
-              borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-              position: 'relative'
-            }}
-          >
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1, duration: 0.4 }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Button
-                onClick={onClose}
-                variant="outlined"
-                sx={{
-                  borderRadius: 2,
-                  px: 4,
-                  py: 1.25,
+          {/* DIALOG ACTIONS - Modal de Solo Vista */}
+          <DialogActions sx={{ p: 3, justifyContent: 'space-between' }}>
+            <Typography variant="caption" color="text.secondary">
+              ID: {selectedCommitment.id}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1.5 }}>
+              {extractInvoiceUrl && extractInvoiceUrl(selectedCommitment) && (
+                <Button
+                  variant="outlined"
+                  startIcon={<VisibilityIcon />}
+                  onClick={() => onOpenPdf && onOpenPdf(selectedCommitment)}
+                  sx={{
+                    borderRadius: 1,
+                    fontWeight: 500,
+                    textTransform: 'none',
+                    px: 3
+                  }}
+                >
+                  Ver Factura
+                </Button>
+              )}
+              <Button 
+                onClick={onClose} 
+                variant="outlined" 
+                sx={{ 
+                  borderRadius: 1, 
+                  fontWeight: 500,
                   textTransform: 'none',
-                  fontWeight: 600,
-                  fontSize: '0.95rem',
-                  border: (theme) => `1px solid ${alpha(theme.palette.divider, 0.3)}`,
-                  color: 'text.secondary',
-                  backgroundColor: 'background.paper',
-                  transition: 'all 0.25s ease',
-                  '&:hover': {
-                    borderColor: (theme) => alpha(theme.palette.text.primary, 0.4),
-                    backgroundColor: (theme) => alpha(theme.palette.action.hover, 0.04),
-                    transform: 'translateY(-1px)'
-                  }
+                  px: 3
                 }}
               >
                 Cerrar
               </Button>
-            </motion.div>
-
-            <Box display="flex" gap={2.5}>
-              {extractInvoiceUrl && extractInvoiceUrl(selectedCommitment) && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ delay: 0.25, duration: 0.4, type: 'spring', stiffness: 100 }}
-                  whileHover={{ scale: 1.03, y: -2 }}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <Button
-                    variant="outlined"
-                    startIcon={<Visibility />}
-                    onClick={() => onOpenPdf && onOpenPdf(selectedCommitment)}
-                    sx={{
-                      borderRadius: 2,
-                      px: 4,
-                      py: 1.25,
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      fontSize: '0.95rem',
-                      color: 'primary.main',
-                      borderColor: 'primary.main',
-                      backgroundColor: 'background.paper',
-                      transition: 'all 0.25s ease',
-                      '&:hover': {
-                        backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.04),
-                        transform: 'translateY(-1px)'
-                      }
-                    }}
-                  >
-                    Ver Factura
-                  </Button>
-                </motion.div>
-              )}
-
-              <motion.div
-                initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ delay: 0.3, duration: 0.4, type: 'spring', stiffness: 100 }}
-                whileHover={{ scale: 1.03, y: -2 }}
-                whileTap={{ scale: 0.97 }}
+              <Button 
+                onClick={onEdit}
+                variant="contained" 
+                color="primary" 
+                startIcon={<EditIcon />}
+                sx={{ 
+                  borderRadius: 1, 
+                  fontWeight: 600,
+                  px: 4,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+                }}
               >
-                <Button
-                  variant="contained"
-                  startIcon={<Edit />}
-                  onClick={onEdit}
-                  disabled={false}
-                  sx={{
-                    borderRadius: 999,
-                    px: 4,
-                    py: 1.25,
-                    textTransform: 'none',
-                    fontWeight: 800,
-                    fontSize: '0.95rem',
-                    color: '#fff',
-                    background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.98)}, ${alpha(theme.palette.primary.main, 0.98)})`,
-                    boxShadow: (theme) => theme.palette.mode === 'dark'
-                      ? '0 10px 26px rgba(102,126,234,0.42), 0 2px 10px rgba(0,0,0,0.25)'
-                      : '0 14px 34px rgba(102,126,234,0.50), 0 3px 12px rgba(0,0,0,0.10)',
-                    transition: 'all 0.22s ease',
-                    '&:hover': {
-                      transform: 'translateY(-1px)',
-                      boxShadow: (theme) => theme.palette.mode === 'dark'
-                        ? '0 14px 36px rgba(102,126,234,0.48)'
-                        : '0 18px 40px rgba(102,126,234,0.58)'
-                    },
-                    '&.Mui-disabled': {
-                      color: (theme) => alpha(theme.palette.common.white, 0.7),
-                      background: (theme) => `linear-gradient(135deg, ${alpha(theme.palette.grey[300], 0.55)}, ${alpha(theme.palette.grey[400], 0.45)})`,
-                      boxShadow: (theme) => `0 10px 28px ${alpha(theme.palette.primary.main, 0.25)}`,
-                      cursor: 'not-allowed'
-                    }
-                  }}
-                >
-                  Editar
-                </Button>
-              </motion.div>
+                Editar
+              </Button>
             </Box>
           </DialogActions>
         </motion.div>
