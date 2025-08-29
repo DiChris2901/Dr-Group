@@ -109,7 +109,7 @@ import { useAuth } from '../context/AuthContext';
 import useActivityLogs from '../hooks/useActivityLogs';
 
 const PaymentsPage = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const { logActivity } = useActivityLogs();
   const theme = useTheme();
   // Tomar colores desde el tema efectivo de MUI (que ya refleja SettingsContext)
@@ -1062,7 +1062,7 @@ const PaymentsPage = () => {
         previousReceiptsCount: (payment.attachments || []).length,
         receiptNames: files.map(f => f.name).join(', '),
         action: 'replace_receipts'
-      });
+      }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
 
       // Actualizar el estado local del currentPayment para reflejar los cambios inmediatamente
       setCurrentPayment(prevPayment => ({
@@ -1560,7 +1560,7 @@ const PaymentsPage = () => {
         isAutomatic: true,
         is4x1000Tax: true,
         relatedToAmount: paymentAmount
-      });
+      }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
       
       console.log('✅ Registro 4x1000 creado:', formatCurrencyBalance(tax4x1000));
       return tax4x1000;
@@ -1721,7 +1721,7 @@ const PaymentsPage = () => {
         attachmentCount: selectedFiles.length,
         isColjuegos: isColjuegos,
         interestsPaid: updateData.interests || 0
-      });
+      }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
       
       // =====================================================
       // GENERAR 4x1000 AUTOMÁTICAMENTE (SI APLICA)
@@ -1937,7 +1937,7 @@ const PaymentsPage = () => {
         paymentMethod: paymentToDelete.paymentMethod || 'No especificado',
         had4x1000: tax4x1000Records.length > 0,
         deleted4x1000Count: tax4x1000Records.length
-      });
+      }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
       
       console.log('✅ Pago eliminado exitosamente');
       showNotification('Pago eliminado y compromiso actualizado correctamente', 'success');
@@ -2468,6 +2468,7 @@ const PaymentsPage = () => {
             uniqueCompanies={uniqueCompanies}
             uniqueConcepts={uniqueConcepts}
             uniqueBeneficiaries={uniqueBeneficiaries}
+            companies={companies}
           />
 
           {/* ESTADO VACÍO CUANDO NO HAY FILTROS APLICADOS */}

@@ -521,6 +521,7 @@ const DueCommitmentsPage = () => {
   const [companyFilter, setCompanyFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [companiesData, setCompaniesData] = useState([]);
   
   // Estados para paginación
   const [currentPage, setCurrentPage] = useState(1);
@@ -572,6 +573,27 @@ const DueCommitmentsPage = () => {
     // Reset to first page when filters change
     setCurrentPage(1);
   }, [priorityFilter, companyFilter, commitments]);
+
+  // Fetch companies data for logos
+  useEffect(() => {
+    const fetchCompanies = async () => {
+      try {
+        const companiesSnapshot = await getDocs(collection(db, 'companies'));
+        const companies = [];
+        companiesSnapshot.forEach((doc) => {
+          companies.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+        setCompaniesData(companies);
+      } catch (error) {
+        console.error('Error fetching companies:', error);
+      }
+    };
+
+    fetchCompanies();
+  }, []);
 
   // Calculate paginated data
   const totalPages = Math.ceil(filteredCommitments.length / itemsPerPage);
@@ -753,7 +775,7 @@ const DueCommitmentsPage = () => {
           companyName: commitmentToDelete.company || 'Sin empresa',
           amount: commitmentToDelete.amount || 0,
           deletedAmount: commitmentToDelete.totalAmount || commitmentToDelete.amount || 0
-        }, currentUser?.uid, currentUser?.displayName, currentUser?.email);
+        }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
       } catch (logError) {
         console.warn('⚠️ Error al registrar log de actividad (no crítico):', logError.message);
       }
@@ -899,6 +921,19 @@ const DueCommitmentsPage = () => {
       .sort();
     return companies;
   }, [commitments]);
+
+  // Get unique companies with full data for logos
+  const uniqueCompaniesWithData = useMemo(() => {
+    const companyNames = commitments
+      .map(commitment => commitment.company)
+      .filter(company => company && company.trim() !== '')
+      .filter((company, index, arr) => arr.indexOf(company) === index);
+
+    return companyNames.map(companyName => {
+      const companyData = companiesData.find(c => c.name === companyName);
+      return companyData || { id: companyName, name: companyName, logoURL: null };
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }, [commitments, companiesData]);
 
   const overdueCounts = {
     total: dueCommitmentsStats.total,
@@ -1273,56 +1308,66 @@ const DueCommitmentsPage = () => {
             <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap" justifyContent="space-between">
               {/* Filtro por Prioridad */}
               <Stack direction="row" alignItems="center" spacing={2} flexWrap="wrap">
-                <FilterList sx={{ color: theme.palette.text.secondary, fontSize: 20 }} />
+                <FilterList sx={{ color: theme.palette.primary.main, fontSize: 20 }} />
                 <Typography variant="subtitle2" sx={{ 
-                  fontWeight: 600,
+                  fontWeight: 700,
                   color: theme.palette.text.primary,
                   fontSize: '0.875rem',
                   minWidth: 'fit-content'
                 }}>
                   Filtrar por prioridad:
                 </Typography>
-                {['all', 'critical', 'high', 'medium'].map((filter) => (
-                  <motion.div
-                    key={filter}
-                    whileHover={{ scale: 1.02, y: -1 }}
-                    whileTap={{ scale: 0.97 }}
-                    transition={{ type: 'spring', bounce: 0.3, duration: 0.25 }}
-                  >
-                    <Chip
-                      label={filter === 'all' ? 'Todas' : filter.charAt(0).toUpperCase() + filter.slice(1)}
-                      onClick={() => setPriorityFilter(filter)}
-                      sx={{ 
-                        borderRadius: 1,
-                        fontWeight: 500,
-                        fontSize: '0.75rem',
-                        height: 32,
-                        backgroundColor: priorityFilter === filter ? theme.palette.primary.main : 'transparent',
-                        color: priorityFilter === filter ? 'white' : theme.palette.text.secondary,
-                        border: `1px solid ${priorityFilter === filter ? theme.palette.primary.main : (theme.palette.mode === 'dark' ? alpha(theme.palette.divider, 0.3) : '#e0e0e0')}`,
-                        transition: 'all 0.2s ease',
-                        '&:hover': {
+                {['all', 'critical', 'high', 'medium'].map((filter) => {
+                  const priorityConfig = {
+                    all: { label: '📋 Todas', color: theme.palette.grey[600] },
+                    critical: { label: '🔴 Critical', color: theme.palette.error.main },
+                    high: { label: '🟠 High', color: theme.palette.warning.main },
+                    medium: { label: '🟡 Medium', color: theme.palette.info.main }
+                  };
+                  
+                  return (
+                    <motion.div
+                      key={filter}
+                      whileHover={{ scale: 1.02, y: -1 }}
+                      whileTap={{ scale: 0.97 }}
+                      transition={{ type: 'spring', bounce: 0.3, duration: 0.25 }}
+                    >
+                      <Chip
+                        label={priorityConfig[filter].label}
+                        onClick={() => setPriorityFilter(filter)}
+                        sx={{ 
+                          borderRadius: 2,
+                          fontWeight: 600,
+                          fontSize: '0.75rem',
+                          height: 34,
+                          paddingX: 1,
                           backgroundColor: priorityFilter === filter 
-                            ? theme.palette.primary.dark 
-                            : (theme.palette.mode === 'dark' ? alpha(theme.palette.text.primary, 0.05) : 'white'),
-                          borderColor: priorityFilter === filter 
-                            ? theme.palette.primary.dark 
-                            : (theme.palette.mode === 'dark' ? alpha(theme.palette.divider, 0.5) : '#d0d0d0'),
-                          boxShadow: theme.palette.mode === 'dark' 
-                            ? '0 2px 8px rgba(255,255,255,0.1)' 
-                            : '0 2px 8px rgba(0,0,0,0.1)'
-                        }
-                      }}
-                    />
-                  </motion.div>
-                ))}
+                            ? priorityConfig[filter].color 
+                            : 'transparent',
+                          color: priorityFilter === filter 
+                            ? 'white' 
+                            : priorityConfig[filter].color,
+                          border: `2px solid ${priorityConfig[filter].color}`,
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': {
+                            backgroundColor: priorityFilter === filter 
+                              ? priorityConfig[filter].color
+                              : alpha(priorityConfig[filter].color, 0.1),
+                            transform: 'translateY(-2px)',
+                            boxShadow: `0 4px 20px ${alpha(priorityConfig[filter].color, 0.3)}`
+                          }
+                        }}
+                      />
+                    </motion.div>
+                  );
+                })}
               </Stack>
 
               {/* Filtro por Empresa */}
               <Stack direction="row" alignItems="center" spacing={2.5}>
-                <Business sx={{ color: theme.palette.text.secondary, fontSize: 20 }} />
+                <Business sx={{ color: theme.palette.primary.main, fontSize: 20 }} />
                 <Typography variant="subtitle2" sx={{ 
-                  fontWeight: 600,
+                  fontWeight: 700,
                   color: theme.palette.text.primary,
                   fontSize: '0.875rem',
                   minWidth: 'fit-content'
@@ -1332,50 +1377,45 @@ const DueCommitmentsPage = () => {
                 <FormControl 
                   size="small" 
                   sx={{ 
-                    minWidth: 220,
+                    minWidth: 240,
                     '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                      height: 32,
-                      fontSize: '0.75rem',
+                      borderRadius: 2,
+                      height: 36,
+                      fontSize: '0.8rem',
                       fontWeight: 500,
-                      border: `1px solid ${theme.palette.mode === 'dark' ? alpha(theme.palette.divider, 0.3) : '#e0e0e0'}`,
+                      background: theme.palette.mode === 'dark' 
+                        ? alpha(theme.palette.background.paper, 0.8) 
+                        : 'white',
+                      border: `2px solid ${theme.palette.mode === 'dark' ? alpha(theme.palette.divider, 0.2) : '#e3f2fd'}`,
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&:hover': {
-                        borderColor: theme.palette.mode === 'dark' ? alpha(theme.palette.divider, 0.5) : '#d0d0d0',
-                        boxShadow: theme.palette.mode === 'dark' ? '0 2px 8px rgba(255,255,255,0.1)' : '0 2px 8px rgba(0,0,0,0.1)'
+                        borderColor: theme.palette.primary.main,
+                        boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.15)}`,
+                        transform: 'translateY(-1px)'
                       },
                       '&.Mui-focused': {
                         borderColor: theme.palette.primary.main,
-                        boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.2)}`
+                        boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.2)}`,
+                        transform: 'translateY(-1px)'
                       }
                     },
                     '& .MuiSelect-select': {
-                      padding: '6px 24px',
-                      color: theme.palette.text.secondary
-                    },
-                    '& .MuiInputLabel-root': {
-                      fontSize: '0.75rem',
-                      color: theme.palette.text.secondary,
-                      fontWeight: 500,
-                      transform: 'translate(24px, 8px) scale(1)',
-                      '&.Mui-focused, &.MuiFormLabel-filled': {
-                        transform: 'translate(24px, -9px) scale(0.75)',
-                        color: theme.palette.primary.main,
-                        fontWeight: 600
-                      }
+                      padding: '8px 24px',
+                      color: theme.palette.text.primary,
+                      fontWeight: 500
                     },
                     '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: theme.palette.mode === 'dark' ? alpha(theme.palette.divider, 0.3) : '#e0e0e0'
+                      border: 'none'
                     },
                     '& fieldset': {
-                      borderRadius: 1
+                      borderRadius: 2
                     }
                   }}
                 >
-                  <InputLabel>Seleccionar empresa</InputLabel>
                   <Select
                     value={companyFilter}
                     onChange={(e) => setCompanyFilter(e.target.value)}
-                    label="Seleccionar empresa"
+                    displayEmpty
                     MenuProps={{
                       PaperProps: {
                         sx: {
@@ -1405,17 +1445,52 @@ const DueCommitmentsPage = () => {
                     <MenuItem value="all">
                       <Stack direction="row" alignItems="center" spacing={1}>
                         <Business sx={{ fontSize: 16, color: theme.palette.text.secondary }} />
-                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
+                        <Typography sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
                           Todas las empresas
                         </Typography>
                       </Stack>
                     </MenuItem>
-                    {uniqueCompanies.map((company) => (
-                      <MenuItem key={company} value={company}>
-                        <Stack direction="row" alignItems="center" spacing={1}>
-                          <Business sx={{ fontSize: 16, color: theme.palette.primary.main }} />
-                          <Typography sx={{ fontSize: '0.75rem', fontWeight: 500 }}>
-                            {company}
+                    {uniqueCompaniesWithData.map((company) => (
+                      <MenuItem key={company.name} value={company.name}>
+                        <Stack direction="row" alignItems="center" spacing={1.5} sx={{ width: '100%' }}>
+                          {company.logoURL ? (
+                            <Box
+                              sx={{
+                                width: 20,
+                                height: 20,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: 0.5,
+                                backgroundColor: 'background.paper'
+                              }}
+                            >
+                              <Box
+                                component="img"
+                                src={company.logoURL}
+                                alt={`Logo de ${company.name}`}
+                                sx={{
+                                  maxWidth: '100%',
+                                  maxHeight: '100%',
+                                  objectFit: 'contain'
+                                }}
+                              />
+                            </Box>
+                          ) : (
+                            <Avatar 
+                              sx={{ 
+                                width: 20, 
+                                height: 20, 
+                                bgcolor: theme.palette.primary.main,
+                                fontSize: 10,
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              {company.name.charAt(0)}
+                            </Avatar>
+                          )}
+                          <Typography sx={{ fontSize: '0.8rem', fontWeight: 500, flex: 1 }}>
+                            {company.name}
                           </Typography>
                         </Stack>
                       </MenuItem>
@@ -1439,13 +1514,52 @@ const DueCommitmentsPage = () => {
           sx={{
             borderRadius: 2,
             overflow: 'hidden',
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+            border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
             background: theme.palette.mode === 'dark' 
               ? alpha(theme.palette.background.paper, 0.8)
               : 'white',
             boxShadow: theme.palette.mode === 'dark'
-              ? '0 2px 8px rgba(0,0,0,0.3)'
-              : '0 2px 8px rgba(0,0,0,0.06)'
+              ? '0 4px 20px rgba(0,0,0,0.4)'
+              : '0 4px 20px rgba(0,0,0,0.1)',
+            position: 'relative',
+            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: -2,
+              left: -2,
+              right: -2,
+              bottom: -2,
+              background: `linear-gradient(45deg, 
+                ${theme.palette.primary.main}, 
+                ${theme.palette.secondary.main}, 
+                ${theme.palette.primary.light},
+                ${theme.palette.secondary.light}
+              )`,
+              borderRadius: 'inherit',
+              zIndex: -1,
+              opacity: 0,
+              transition: 'opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+              animation: 'gradientShift 8s ease-in-out infinite'
+            },
+            '&:hover': {
+              transform: 'translateY(-2px)',
+              borderColor: theme.palette.primary.main,
+              boxShadow: theme.palette.mode === 'dark'
+                ? `0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px ${alpha(theme.palette.primary.main, 0.4)}`
+                : `0 8px 40px rgba(0,0,0,0.15), 0 0 0 1px ${alpha(theme.palette.primary.main, 0.4)}`,
+              '&::before': {
+                opacity: 0.1
+              }
+            },
+            '@keyframes gradientShift': {
+              '0%, 100%': {
+                backgroundPosition: '0% 50%'
+              },
+              '50%': {
+                backgroundPosition: '100% 50%'
+              }
+            }
           }}
         >
           {/* Grid Layout igual que CommitmentsList */}

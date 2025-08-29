@@ -71,7 +71,7 @@ import PDFCompressionPreview from '../components/common/PDFCompressionPreview';
 import { drGroupCompressor } from '../utils/pdfCompressor';
 
 const NewCommitmentPage = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const { addNotification } = useNotifications();
   const { logActivity } = useActivityLogs();
   const { settings } = useSettings();
@@ -1187,7 +1187,7 @@ const NewCommitmentPage = () => {
             periodicity: formData.periodicity,
             recurringCount: result.count,
             type: 'recurring'
-          }, currentUser?.uid, currentUser?.displayName, currentUser?.email);
+          }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
         } catch (logError) {
           console.warn('⚠️ Error al registrar log de actividad (no crítico):', logError.message);
         }
@@ -1241,7 +1241,7 @@ const NewCommitmentPage = () => {
             totalAmount: parseFloat(formData.totalAmount) || 0,
             beneficiary: formData.beneficiary,
             type: 'single'
-          }, currentUser?.uid, currentUser?.displayName, currentUser?.email);
+          }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
         } catch (logError) {
           console.warn('⚠️ Error al registrar log de actividad (no crítico):', logError.message);
         }

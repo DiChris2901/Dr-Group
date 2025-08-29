@@ -64,7 +64,7 @@ import { useSettings } from '../context/SettingsContext';
 import { useNotifications } from '../context/NotificationsContext';
 
 const CompaniesPage = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const { logActivity } = useActivityLogs();
   const { settings } = useSettings();
   const { addNotification } = useNotifications();

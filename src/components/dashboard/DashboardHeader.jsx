@@ -438,9 +438,9 @@ const DashboardHeader = ({ onOpenSettings }) => {
       display: 'flex', 
       alignItems: 'center', 
       width: '100%', 
-      // 📐 Altura dinámica según modo compacto
-      height: compactMode ? 60 : 72,
-      py: compactMode ? 1 : 1.5,
+      // 📐 Altura dinámica según modo compacto - Aumentada para mejor espaciado
+      height: compactMode ? 80 : 96,
+      py: compactMode ? 2 : 2.5,
       px: 2,
     }}>
       {/* Área izquierda - espacio para balance */}

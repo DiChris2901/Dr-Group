@@ -113,7 +113,7 @@ const formatSafeDate = (dateValue, formatString = 'yyyy-MM-dd') => {
 
 const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => {
   const theme = useTheme();
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const { addNotification } = useNotifications();
   const { logActivity } = useActivityLogs();
 

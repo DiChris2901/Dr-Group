@@ -87,7 +87,7 @@ import {
 
 const IncomePage = () => {
   const theme = useTheme();
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const { logActivity } = useActivityLogs();
   const { success: showSuccess, error: showError, warning: showWarning, info: showInfo } = useToast();
   const { settings } = useSettings();
@@ -588,7 +588,7 @@ const IncomePage = () => {
           hasNewAttachments: selectedFiles.length > 0,
           newAttachmentsCount: selectedFiles.length,
           previousAmount: selectedIncome.amount || 0
-        });
+        }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
         
         // Subir archivos si hay nuevos
         if (selectedFiles.length > 0) {
@@ -623,7 +623,7 @@ const IncomePage = () => {
           description: incomeData.description || 'Sin descripción',
           hasAttachments: selectedFiles.length > 0,
           attachmentsCount: selectedFiles.length
-        });
+        }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
         
         // Subir archivos después de crear el documento
         if (selectedFiles.length > 0) {
@@ -697,7 +697,7 @@ const IncomePage = () => {
         description: incomeToDelete.description || 'Sin descripción',
         attachmentsCount: (incomeToDelete.attachments || []).length,
         deletedAttachments: (incomeToDelete.attachments || []).map(f => f.name).join(', ')
-      });
+      }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
       
       showSuccess('El ingreso y sus archivos han sido eliminados correctamente');
       setDeleteDialogOpen(false);

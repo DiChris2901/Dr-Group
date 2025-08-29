@@ -2346,12 +2346,12 @@ const NewPaymentPage = () => {
 
                       <Grid item xs={12} sm={4}>
                         <TextField
-                          label={isPartialPayment ? "Monto del Pago Parcial" : "Total a Pagar"}
+                          label={isPartialPayment ? "Saldo Disponible" : "Total a Pagar"}
                           value={new Intl.NumberFormat('es-CO', {
                             style: 'currency',
                             currency: 'COP',
                             minimumFractionDigits: 0
-                          }).format(formData.finalAmount)}
+                          }).format(selectedCommitment?.remainingBalance || selectedCommitment?.amount || formData.finalAmount)}
                           fullWidth
                           disabled
                           InputProps={{
@@ -2359,7 +2359,7 @@ const NewPaymentPage = () => {
                               <InputAdornment position="start">
                                 <MoneyIcon 
                                   sx={{ 
-                                    color: isPartialPayment ? 'info.main' : 'primary.main'
+                                    color: isPartialPayment ? 'warning.main' : 'primary.main'
                                   }} 
                                 />
                               </InputAdornment>
@@ -2373,7 +2373,52 @@ const NewPaymentPage = () => {
                             }
                           }}
                         />
+                        {/* Texto de ayuda para pagos parciales */}
+                        {isPartialPayment && (
+                          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                            ℹ️ Este es el saldo pendiente total disponible - ingrese el monto específico arriba
+                          </Typography>
+                        )}
+                        {!isPartialPayment && selectedCommitment?.hasPartialPayments && (
+                          <Typography variant="caption" color="info.main" sx={{ mt: 0.5, display: 'block' }}>
+                            ℹ️ Este es el saldo pendiente disponible para pago completo
+                          </Typography>
+                        )}
                       </Grid>
+
+                      {/* Campo adicional: Monto específico de este pago parcial */}
+                      {isPartialPayment && formData.partialPaymentAmount > 0 && (
+                        <Grid item xs={12} sm={4}>
+                          <TextField
+                            label="Monto de este Pago"
+                            value={new Intl.NumberFormat('es-CO', {
+                              style: 'currency',
+                              currency: 'COP',
+                              minimumFractionDigits: 0
+                            }).format(formData.partialPaymentAmount)}
+                            fullWidth
+                            disabled
+                            InputProps={{
+                              startAdornment: (
+                                <InputAdornment position="start">
+                                  <MoneyIcon 
+                                    sx={{ 
+                                      color: 'success.main'
+                                    }} 
+                                  />
+                                </InputAdornment>
+                              ),
+                            }}
+                            sx={{
+                              '& .MuiInputBase-input': {
+                                fontWeight: 600,
+                                color: 'success.main',
+                                fontSize: '1rem'
+                              }
+                            }}
+                          />
+                        </Grid>
+                      )}
 
                       {/* Campo visual del 4x1000 - Visible cuando hay monto válido */}
                       {formData.finalAmount > 0 && (

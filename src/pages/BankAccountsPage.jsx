@@ -95,7 +95,7 @@ function TabPanel({ children, value, index, ...other }) {
 const BankAccountsPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const { showToast } = useToast();
   const { logActivity } = useActivityLogs();
 
@@ -402,7 +402,7 @@ const BankAccountsPage = () => {
           accountOwner: accountData.accountOwner,
           previousBank: oldAccount?.bankName,
           changes: Object.keys(accountData).filter(key => accountData[key] !== oldAccount?.[key])
-        });
+        }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
         
         showToast('Cuenta personal actualizada correctamente', 'success');
       } else {
@@ -421,7 +421,7 @@ const BankAccountsPage = () => {
           accountNumber: accountData.accountNumber.slice(-4), // Solo últimos 4 dígitos
           accountOwner: accountData.accountOwner,
           accountCategory: accountData.category || 'Sin categoría'
-        });
+        }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
         
         showToast('Cuenta personal agregada correctamente', 'success');
       }

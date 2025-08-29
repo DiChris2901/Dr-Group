@@ -41,36 +41,91 @@ import { es } from 'date-fns/locale';
 import { useNotifications } from '../../context/NotificationsContext';
 import { useSettings } from '../../context/SettingsContext';
 
-// Estilos CSS para animaciones spectacular
+// Estilos CSS para animaciones spectacular mejoradas
 const styles = `
   @keyframes pulse {
-    0% {
+    0%, 100% {
       transform: scale(1);
       opacity: 1;
     }
     50% {
-      transform: scale(1.03);
+      transform: scale(1.05);
       opacity: 0.8;
-    }
-    100% {
-      transform: scale(1);
-      opacity: 1;
     }
   }
   
   @keyframes shimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(200%); }
+    0% { 
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+    50% {
+      opacity: 1;
+    }
+    100% { 
+      transform: translateX(200%);
+      opacity: 0;
+    }
   }
 
-  @keyframes slideIn {
+  @keyframes slideInDown {
     0% {
       opacity: 0;
-      transform: translateY(-5px);
+      transform: translateY(-10px) scale(0.95);
     }
     100% {
       opacity: 1;
-      transform: translateY(0);
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes fadeIn {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes bounce {
+    0%, 20%, 53%, 80%, 100% {
+      transform: translate3d(0,0,0);
+    }
+    40%, 43% {
+      transform: translate3d(0, -4px, 0);
+    }
+    70% {
+      transform: translate3d(0, -2px, 0);
+    }
+    90% {
+      transform: translate3d(0, -1px, 0);
+    }
+  }
+
+  @keyframes alertPulse {
+    0% {
+      transform: scale(1);
+      box-shadow: 0 0 8px rgba(255, 152, 0, 0.4);
+    }
+    50% {
+      transform: scale(1.08);
+      box-shadow: 0 0 16px rgba(255, 152, 0, 0.8);
+    }
+    100% {
+      transform: scale(1);
+      box-shadow: 0 0 8px rgba(255, 152, 0, 0.4);
+    }
+  }
+
+  @keyframes slideInRight {
+    0% {
+      opacity: 0;
+      transform: translateX(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateX(0);
     }
   }
 `;
@@ -207,6 +262,7 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
           border: `1px solid ${theme.palette.divider}`,
           overflow: 'visible',
           mt: 1,
+          animation: animationsEnabled ? 'slideInDown 0.3s ease-out' : 'none',
           '&::before': {
             content: '""',
             display: 'block',
@@ -220,7 +276,8 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
             zIndex: 0,
             border: `1px solid ${theme.palette.divider}`,
             borderBottom: 'none',
-            borderRight: 'none'
+            borderRight: 'none',
+            animation: animationsEnabled ? 'fadeIn 0.4s ease-out 0.1s both' : 'none'
           },
         }
       }}
@@ -344,7 +401,7 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
               </Box>
             ) : (
               <List sx={{ p: 0 }}>
-                {sortedNotifications.map((notification) => (
+                {sortedNotifications.map((notification, index) => (
                   <ListItem
                     key={notification.id}
                     sx={{
@@ -358,11 +415,14 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                       my: 0,
                       px: 2,
                       py: 1.5,
-                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                      animation: animationsEnabled ? `slideInRight 0.4s ease-out ${index * 0.08}s both` : 'none',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       '&:hover': {
-                        backgroundColor: alpha(theme.palette.primary.main, 0.04),
+                        backgroundColor: alpha(theme.palette.primary.main, 0.06),
+                        transform: animationsEnabled ? 'translateX(4px)' : 'none',
                         '& .MuiListItemIcon-root': {
-                          color: theme.palette.primary.main
+                          color: theme.palette.primary.main,
+                          transform: animationsEnabled ? 'scale(1.1)' : 'none'
                         }
                       }
                     }}
@@ -375,9 +435,17 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                           height: 32,
                           backgroundColor: alpha(getNotificationColor(notification.type), 0.1),
                           color: getNotificationColor(notification.type),
-                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                           '& .MuiSvgIcon-root': {
-                            fontSize: '18px'
+                            fontSize: '18px',
+                            transition: 'all 0.2s ease'
+                          },
+                          '&:hover': {
+                            backgroundColor: alpha(getNotificationColor(notification.type), 0.2),
+                            transform: animationsEnabled ? 'scale(1.1) rotate(5deg)' : 'scale(1.05)',
+                            '& .MuiSvgIcon-root': {
+                              transform: animationsEnabled ? 'scale(1.2)' : 'scale(1.1)'
+                            }
                           }
                         }}
                       >
@@ -425,8 +493,20 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                               height: 10,
                               borderRadius: '50%',
                               backgroundColor: primaryColor,
-                              animation: animationsEnabled ? 'pulse 4s infinite' : 'none',
-                              boxShadow: `0 0 12px ${alpha(primaryColor, 0.6)}`
+                              animation: animationsEnabled ? 'pulse 2s infinite' : 'none',
+                              boxShadow: `0 0 12px ${alpha(primaryColor, 0.6)}`,
+                              position: 'relative',
+                              '&::after': animationsEnabled ? {
+                                content: '""',
+                                position: 'absolute',
+                                top: '-2px',
+                                left: '-2px',
+                                right: '-2px',
+                                bottom: '-2px',
+                                borderRadius: '50%',
+                                background: `linear-gradient(45deg, transparent, ${alpha(primaryColor, 0.3)})`,
+                                animation: 'shimmer 3s infinite'
+                              } : {}
                             }}
                           />
                         )}
@@ -513,11 +593,12 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                       my: 0.5,
                       border: `1px solid ${alpha(theme.palette.warning.main, 0.12)}`,
                       transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
-                      animation: animationsEnabled ? `slideIn 0.4s ease-out ${index * 0.05}s both` : 'none',
+                      animation: animationsEnabled ? `slideInRight 0.5s ease-out ${index * 0.1}s both` : 'none',
                       '&:hover': {
                         backgroundColor: alpha(theme.palette.warning.main, 0.08),
-                        transform: animationsEnabled ? 'translateX(3px) scale(1.005)' : 'none',
-                        boxShadow: `0 4px 16px ${alpha(theme.palette.warning.main, 0.2)}`
+                        transform: animationsEnabled ? 'translateX(4px) scale(1.02)' : 'none',
+                        boxShadow: `0 6px 20px ${alpha(theme.palette.warning.main, 0.25)}`,
+                        borderColor: alpha(theme.palette.warning.main, 0.3)
                       }
                     }}
                   >
@@ -527,14 +608,15 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                           width: 32,
                           height: 32,
                           background: animationsEnabled 
-                            ? `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`
-                            : primaryColor,
+                            ? `linear-gradient(135deg, ${theme.palette.warning.main} 0%, ${theme.palette.orange?.main || '#ff9800'} 100%)`
+                            : theme.palette.warning.main,
                           color: 'white',
-                          boxShadow: `0 4px 20px ${alpha(primaryColor, 0.4)}`,
-                          animation: animationsEnabled ? 'pulse 4s infinite' : 'none',
+                          boxShadow: `0 4px 20px ${alpha(theme.palette.warning.main, 0.4)}`,
+                          animation: animationsEnabled ? 'alertPulse 3s infinite' : 'none',
                           '&:hover': {
-                            transform: 'scale(1.02)',
-                            boxShadow: `0 6px 25px ${alpha(primaryColor, 0.5)}`
+                            transform: animationsEnabled ? 'scale(1.1) rotate(5deg)' : 'scale(1.02)',
+                            boxShadow: `0 6px 25px ${alpha(theme.palette.warning.main, 0.6)}`,
+                            animation: animationsEnabled ? 'bounce 0.6s ease-in-out' : 'none'
                           },
                           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                         }}

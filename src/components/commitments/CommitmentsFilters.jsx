@@ -20,7 +20,8 @@ import {
   Select,
   TextField,
   Typography,
-  alpha
+  alpha,
+  Avatar
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { collection, getDocs } from 'firebase/firestore';
@@ -122,11 +123,11 @@ const CommitmentsFilters = ({
   };
 
   const statusOptions = [
-    { value: 'all', label: 'Todos los estados', color: 'default' },
-    { value: 'overdue', label: 'Vencidos', color: 'error' },
-    { value: 'due-soon', label: 'Próximos a vencer', color: 'warning' },
-    { value: 'pending', label: 'Pendientes', color: 'info' },
-    { value: 'paid', label: 'Pagados', color: 'success' }
+    { value: 'all', label: 'Todos los estados', color: 'default', icon: '📋' },
+    { value: 'overdue', label: 'Vencidos', color: 'error', icon: '🔴' },
+    { value: 'due-soon', label: 'Próximos a vencer', color: 'warning', icon: '⚠️' },
+    { value: 'pending', label: 'Pendientes', color: 'info', icon: '⏳' },
+    { value: 'paid', label: 'Pagados', color: 'success', icon: '✅' }
   ];
 
   const hasActiveFilters = searchTerm || companyFilter !== 'all' || statusFilter !== 'all' || yearFilter !== 'all';
@@ -298,22 +299,55 @@ const CommitmentsFilters = ({
                     }
                   >
                     <MenuItem value="all">
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <Business fontSize="small" />
+                      <Box display="flex" alignItems="center">
+                        <Business sx={{ mr: 1, color: 'text.secondary' }} />
                         Todas las empresas
                       </Box>
                     </MenuItem>
                     {companies.map((company) => (
                       <MenuItem key={company.id} value={company.id}>
-                        <Box display="flex" alignItems="center" gap={1}>
-                          {company.logoURL && (
-                            <img 
-                              src={company.logoURL} 
-                              alt={company.name}
-                              style={{ width: 16, height: 16, borderRadius: 2 }}
-                            />
+                        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                          {company.logoURL ? (
+                            <Box
+                              sx={{
+                                width: 24,
+                                height: 24,
+                                mr: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: 0.5,
+                                backgroundColor: 'background.paper'
+                              }}
+                            >
+                              <Box
+                                component="img"
+                                src={company.logoURL}
+                                alt={`Logo de ${company.name}`}
+                                sx={{
+                                  maxWidth: '100%',
+                                  maxHeight: '100%',
+                                  objectFit: 'contain'
+                                }}
+                              />
+                            </Box>
+                          ) : (
+                            <Avatar 
+                              sx={{ 
+                                width: 24, 
+                                height: 24, 
+                                mr: 1, 
+                                bgcolor: 'primary.main',
+                                fontSize: 12,
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              {company.name.charAt(0)}
+                            </Avatar>
                           )}
-                          {company.name}
+                          <Typography variant="body2" sx={{ flex: 1 }}>
+                            {company.name}
+                          </Typography>
                         </Box>
                       </MenuItem>
                     ))}
@@ -359,18 +393,18 @@ const CommitmentsFilters = ({
                   >
                     {statusOptions.map((option) => (
                       <MenuItem key={option.value} value={option.value}>
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Chip 
-                            size="small" 
-                            label={option.label}
-                            color={option.color}
-                            variant="outlined"
-                            sx={{ 
-                              height: 20,
-                              '& .MuiChip-label': { fontSize: '0.75rem' }
-                            }}
-                          />
-                        </Box>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: option.value === 'all' ? 'text.primary' : `${option.color}.main`,
+                            fontWeight: option.value === 'all' ? 'normal' : 500,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 0.5
+                          }}
+                        >
+                          {option.icon} {option.label}
+                        </Typography>
                       </MenuItem>
                     ))}
                   </Select>
@@ -414,17 +448,24 @@ const CommitmentsFilters = ({
                     }
                   >
                     <MenuItem value="all">
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <CalendarToday fontSize="small" />
-                        Todos los años
-                      </Box>
+                      <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        📅 Todos los años
+                      </Typography>
                     </MenuItem>
                     {availableYears.map((year) => (
                       <MenuItem key={year} value={year.toString()}>
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <CalendarToday fontSize="small" color="primary" />
-                          {year}
-                        </Box>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 0.5,
+                            color: 'primary.main',
+                            fontWeight: 500 
+                          }}
+                        >
+                          🗓️ {year}
+                        </Typography>
                       </MenuItem>
                     ))}
                   </Select>

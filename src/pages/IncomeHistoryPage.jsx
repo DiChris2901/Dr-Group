@@ -78,7 +78,7 @@ import IncomeDetailModal from '../components/incomes/IncomeDetailModal';
 
 const IncomeHistoryPage = () => {
   const theme = useTheme();
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const { logActivity } = useActivityLogs();
   const { success: showSuccess, error: showError } = useToast();
   const navigate = useNavigate();
@@ -396,7 +396,7 @@ const IncomeHistoryPage = () => {
         attachmentsCount: (incomeToDelete.attachments || []).length,
         deletedAttachments: (incomeToDelete.attachments || []).map(f => f.name).join(', '),
         source: 'history_page'
-      });
+      }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
 
       // 3. Mostrar mensaje de éxito
       showSuccess('Ingreso eliminado exitosamente');
@@ -611,7 +611,7 @@ const IncomeHistoryPage = () => {
         removedAttachmentsCount: filesToRemove.length,
         previousAmount: incomeToEdit.amount || 0,
         source: 'history_page'
-      });
+      }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
 
       // 4. Mostrar mensaje de éxito
       showSuccess('Ingreso actualizado exitosamente');
