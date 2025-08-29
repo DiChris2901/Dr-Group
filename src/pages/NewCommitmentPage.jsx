@@ -1068,6 +1068,19 @@ const NewCommitmentPage = () => {
   const handleSaveCommitment = async () => {
     if (!validateForm()) return;
 
+    // ✅ Validar que el usuario esté autenticado
+    if (!currentUser || !currentUser.uid) {
+      console.error('❌ Usuario no autenticado, no se puede guardar el compromiso');
+      addNotification({
+        type: 'error',
+        title: 'Error de Autenticación',
+        message: 'Debe estar autenticado para crear compromisos.',
+        icon: 'error',
+        color: 'error'
+      });
+      return;
+    }
+
     setSaving(true);
     try {
       // 📄 Subir archivos de facturas si existen
@@ -1164,16 +1177,20 @@ const NewCommitmentPage = () => {
         // Guardar todos los compromisos recurrentes
         const result = await saveRecurringCommitments(recurringCommitments);
 
-        // � Registrar actividad de auditoría para compromisos recurrentes
-        await logActivity('create_commitment', 'commitment', result.groupId, {
-          concept: formData.concept,
-          companyName: formData.companyName,
-          totalAmount: parseFloat(formData.totalAmount) || 0,
-          beneficiary: formData.beneficiary,
-          periodicity: formData.periodicity,
-          recurringCount: result.count,
-          type: 'recurring'
-        });
+        // 📝 Registrar actividad de auditoría para compromisos recurrentes
+        try {
+          await logActivity('create_commitment', 'commitment', result.groupId, {
+            concept: formData.concept,
+            companyName: formData.companyName,
+            totalAmount: parseFloat(formData.totalAmount) || 0,
+            beneficiary: formData.beneficiary,
+            periodicity: formData.periodicity,
+            recurringCount: result.count,
+            type: 'recurring'
+          }, currentUser?.uid, currentUser?.displayName, currentUser?.email);
+        } catch (logError) {
+          console.warn('⚠️ Error al registrar log de actividad (no crítico):', logError.message);
+        }
 
         // �🔊 Notificación de éxito para compromisos recurrentes
         if (notificationsEnabled) {
@@ -1217,13 +1234,17 @@ const NewCommitmentPage = () => {
         const docRef = await addDoc(collection(db, 'commitments'), commitmentData);
         
         // 📝 Registrar actividad de auditoría para compromiso único
-        await logActivity('create_commitment', 'commitment', docRef.id, {
-          concept: formData.concept,
-          companyName: formData.companyName,
-          totalAmount: parseFloat(formData.totalAmount) || 0,
-          beneficiary: formData.beneficiary,
-          type: 'single'
-        });
+        try {
+          await logActivity('create_commitment', 'commitment', docRef.id, {
+            concept: formData.concept,
+            companyName: formData.companyName,
+            totalAmount: parseFloat(formData.totalAmount) || 0,
+            beneficiary: formData.beneficiary,
+            type: 'single'
+          }, currentUser?.uid, currentUser?.displayName, currentUser?.email);
+        } catch (logError) {
+          console.warn('⚠️ Error al registrar log de actividad (no crítico):', logError.message);
+        }
         
         // 🔊 Notificación con sonido condicional
         if (notificationsEnabled) {

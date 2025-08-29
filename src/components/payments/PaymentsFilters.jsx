@@ -54,6 +54,20 @@ const PaymentsFilters = ({
     onSearchChange(event.target.value);
   };
 
+  const handleSearchKeyDown = (event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      onApplyFilters();
+    }
+  };
+
+  const handleSelectKeyDown = (event) => {
+    if (event.key === 'Enter' && event.target.tagName !== 'INPUT') {
+      event.preventDefault();
+      onApplyFilters();
+    }
+  };
+
   const handleCompanyChange = (event) => {
     onCompanyChange(event.target.value);
   };
@@ -153,7 +167,8 @@ const PaymentsFilters = ({
               fullWidth
               value={searchTerm}
               onChange={handleSearchChange}
-              placeholder="Buscar pagos..."
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Buscar pagos... (Presiona Enter para aplicar)"
               variant="outlined"
               size="small"
               InputProps={{
@@ -217,6 +232,7 @@ const PaymentsFilters = ({
               <Select
                 value={companyFilter}
                 onChange={handleCompanyChange}
+                onKeyDown={handleSelectKeyDown}
                 label="Empresa"
                 sx={{
                   borderRadius: 2,
@@ -248,6 +264,7 @@ const PaymentsFilters = ({
               <Select
                 value={statusFilter}
                 onChange={handleStatusChange}
+                onKeyDown={handleSelectKeyDown}
                 label="Estado"
                 sx={{
                   borderRadius: 2,
@@ -289,6 +306,7 @@ const PaymentsFilters = ({
               <Select
                 value={conceptFilter}
                 onChange={handleConceptChange}
+                onKeyDown={handleSelectKeyDown}
                 label="Concepto"
                 sx={{
                   borderRadius: 2,
@@ -332,6 +350,7 @@ const PaymentsFilters = ({
               <Select
                 value={beneficiaryFilter}
                 onChange={handleBeneficiaryChange}
+                onKeyDown={handleSelectKeyDown}
                 label="Beneficiario"
                 sx={{
                   borderRadius: 2,
@@ -375,6 +394,7 @@ const PaymentsFilters = ({
               <Select
                 value={receiptsFilter}
                 onChange={handleReceiptsChange}
+                onKeyDown={handleSelectKeyDown}
                 label="Comprobantes"
                 sx={{
                   borderRadius: 2,

@@ -34,14 +34,30 @@ const useActivityLogs = () => {
    */
   const logActivity = async (action, entityType, entityId, details = {}, userId, userName, userEmail) => {
     try {
+      // ✅ Validación de parámetros críticos
+      if (!userId) {
+        console.warn('⚠️ userId es undefined, no se registrará el log de actividad');
+        return null;
+      }
+
+      // 🐛 Debug: Verificar parámetros recibidos
+      console.log('🔍 Registrando actividad:', { 
+        action, 
+        entityType, 
+        entityId, 
+        userId: userId?.substring(0, 8) + '...', 
+        userName,
+        userEmail: userEmail?.substring(0, 5) + '***'
+      });
+
       const logData = {
         action,
         entityType,
         entityId,
         details,
         userId,
-        userName,
-        userEmail,
+        userName: userName || 'Usuario desconocido',
+        userEmail: userEmail || 'Sin email',
         timestamp: serverTimestamp(),
         createdAt: serverTimestamp(),
         // Metadatos adicionales

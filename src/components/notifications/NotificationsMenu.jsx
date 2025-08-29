@@ -49,8 +49,8 @@ const styles = `
       opacity: 1;
     }
     50% {
-      transform: scale(1.1);
-      opacity: 0.7;
+      transform: scale(1.03);
+      opacity: 0.8;
     }
     100% {
       transform: scale(1);
@@ -66,7 +66,7 @@ const styles = `
   @keyframes slideIn {
     0% {
       opacity: 0;
-      transform: translateY(-10px);
+      transform: translateY(-5px);
     }
     100% {
       opacity: 1;
@@ -425,7 +425,7 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                               height: 10,
                               borderRadius: '50%',
                               backgroundColor: primaryColor,
-                              animation: animationsEnabled ? 'pulse 2s infinite' : 'none',
+                              animation: animationsEnabled ? 'pulse 4s infinite' : 'none',
                               boxShadow: `0 0 12px ${alpha(primaryColor, 0.6)}`
                             }}
                           />
@@ -513,10 +513,10 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                       my: 0.5,
                       border: `1px solid ${alpha(theme.palette.warning.main, 0.12)}`,
                       transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
-                      animation: animationsEnabled ? `slideIn 0.3s ease-out ${index * 0.1}s both` : 'none',
+                      animation: animationsEnabled ? `slideIn 0.4s ease-out ${index * 0.05}s both` : 'none',
                       '&:hover': {
                         backgroundColor: alpha(theme.palette.warning.main, 0.08),
-                        transform: animationsEnabled ? 'translateX(6px) scale(1.01)' : 'none',
+                        transform: animationsEnabled ? 'translateX(3px) scale(1.005)' : 'none',
                         boxShadow: `0 4px 16px ${alpha(theme.palette.warning.main, 0.2)}`
                       }
                     }}
@@ -531,9 +531,9 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                             : primaryColor,
                           color: 'white',
                           boxShadow: `0 4px 20px ${alpha(primaryColor, 0.4)}`,
-                          animation: animationsEnabled ? 'shimmer 3s infinite, pulse 2s infinite' : 'none',
+                          animation: animationsEnabled ? 'pulse 4s infinite' : 'none',
                           '&:hover': {
-                            transform: 'scale(1.1)',
+                            transform: 'scale(1.02)',
                             boxShadow: `0 6px 25px ${alpha(primaryColor, 0.5)}`
                           },
                           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
@@ -570,7 +570,7 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                               borderRadius: `${settings.borderRadius || 12}px`,
                               boxShadow: `0 4px 12px ${alpha(alert.priority === 'Alta' ? theme.palette.error.main : theme.palette.warning.main, 0.3)}`,
                               '&:hover': {
-                                transform: 'scale(1.05)',
+                                transform: 'scale(1.02)',
                                 boxShadow: `0 6px 16px ${alpha(alert.priority === 'Alta' ? theme.palette.error.main : theme.palette.warning.main, 0.4)}`
                               },
                               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
@@ -651,9 +651,9 @@ const NotificationsMenu = ({ anchorEl, open, onClose }) => {
                   boxShadow: `0 4px 16px ${alpha(primaryColor, 0.4)}`,
                   px: 3,
                   py: 1,
-                  animation: animationsEnabled ? 'shimmer 3s infinite' : 'none',
+                  animation: 'none',
                   '&:hover': {
-                    transform: 'translateY(-2px) scale(1.05)',
+                    transform: 'translateY(-1px) scale(1.02)',
                     boxShadow: `0 8px 25px ${alpha(primaryColor, 0.5)}`,
                     background: animationsEnabled 
                       ? `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`

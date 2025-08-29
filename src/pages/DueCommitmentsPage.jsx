@@ -676,6 +676,18 @@ const DueCommitmentsPage = () => {
   const confirmDelete = async () => {
     if (!commitmentToDelete) return;
     
+    // ✅ Validar que el usuario esté autenticado
+    if (!currentUser || !currentUser.uid) {
+      console.error('❌ Usuario no autenticado, no se puede eliminar el compromiso');
+      addNotification({
+        type: 'error',
+        title: 'Error de Autenticación',
+        message: 'Debe estar autenticado para eliminar compromisos.',
+        duration: 5000
+      });
+      return;
+    }
+    
     setDeleting(true);
     
     try {
@@ -735,12 +747,16 @@ const DueCommitmentsPage = () => {
       console.log('✅ Compromiso eliminado de Firestore');
       
       // 📝 Registrar actividad de auditoría
-      await logActivity('delete_commitment', 'commitment', commitmentToDelete.id, {
-        concept: commitmentToDelete.concept || commitmentToDelete.description || 'Sin concepto',
-        companyName: commitmentToDelete.company || 'Sin empresa',
-        amount: commitmentToDelete.amount || 0,
-        deletedAmount: commitmentToDelete.totalAmount || commitmentToDelete.amount || 0
-      });
+      try {
+        await logActivity('delete_commitment', 'commitment', commitmentToDelete.id, {
+          concept: commitmentToDelete.concept || commitmentToDelete.description || 'Sin concepto',
+          companyName: commitmentToDelete.company || 'Sin empresa',
+          amount: commitmentToDelete.amount || 0,
+          deletedAmount: commitmentToDelete.totalAmount || commitmentToDelete.amount || 0
+        }, currentUser?.uid, currentUser?.displayName, currentUser?.email);
+      } catch (logError) {
+        console.warn('⚠️ Error al registrar log de actividad (no crítico):', logError.message);
+      }
       
       // 3. Mostrar notificación de éxito
       addNotification({
@@ -754,10 +770,10 @@ const DueCommitmentsPage = () => {
       setDeleteDialogOpen(false);
       setCommitmentToDelete(null);
       
-      // 5. Refrescar datos - con delay para asegurar que Firestore se actualiza
-      setTimeout(() => {
-        refreshCommitments();
-      }, 500);
+      // 5. Refrescar datos inmediatamente
+      console.log('🔄 Refrescando lista de compromisos...');
+      await refreshCommitments();
+      console.log('✅ Lista de compromisos refrescada');
       
     } catch (error) {
       console.error('❌ Error al eliminar compromiso:', error);

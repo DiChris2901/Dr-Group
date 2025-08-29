@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, where, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, where, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
-import { differenceInDays, isAfter, isBefore, addDays } from 'date-fns';
+import { differenceInDays, isAfter, isBefore, addDays, parseISO } from 'date-fns';
 
 export const useDueCommitments = () => {
   const { currentUser } = useAuth();
@@ -132,15 +132,92 @@ export const useDueCommitments = () => {
     return unsubscribe;
   }, [currentUser]);
 
-  const refreshCommitments = () => {
+  const refreshCommitments = async () => {
+    console.log('🔄 Iniciando refresh manual de compromisos vencidos...');
     setLoading(true);
-    // El onSnapshot se encargará de actualizar automáticamente
-    // Agregar un timeout de seguridad para evitar loading infinito
-    setTimeout(() => {
-      if (loading) {
+    setError(null);
+    
+    try {
+      if (!currentUser?.uid) {
         setLoading(false);
+        return;
       }
-    }, 5000);
+
+      // Ejecutar consulta manual inmediata
+      const q = query(
+        collection(db, 'commitments'),
+        where('userId', '==', currentUser.uid),
+        where('status', 'in', ['pending', 'overdue'])
+      );
+
+      const querySnapshot = await getDocs(q);
+      const commitmentsData = [];
+      const now = new Date();
+      const sevenDaysFromNow = addDays(now, 7);
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        
+        // Procesar fecha de vencimiento
+        let dueDate = null;
+        if (data.dueDate) {
+          try {
+            if (data.dueDate.toDate) {
+              dueDate = data.dueDate.toDate();
+            } else if (typeof data.dueDate === 'string') {
+              dueDate = parseISO(data.dueDate);
+            } else if (data.dueDate instanceof Date) {
+              dueDate = data.dueDate;
+            }
+          } catch (error) {
+            console.warn(`⚠️ Error procesando fecha para compromiso ${doc.id}:`, error);
+            dueDate = null;
+          }
+        }
+        
+        if (dueDate && dueDate <= sevenDaysFromNow && (data.status === 'pending' || data.status === 'overdue')) {
+          const daysUntilDue = differenceInDays(dueDate, now);
+          let status = 'upcoming';
+          let priority = data.priority || 'medium';
+
+          if (daysUntilDue < 0) {
+            status = 'overdue';
+            priority = 'critical';
+          } else if (daysUntilDue <= 1) {
+            status = 'due_soon';
+            priority = priority === 'low' ? 'high' : priority;
+          } else if (daysUntilDue <= 3) {
+            status = 'due_soon';
+          }
+
+          commitmentsData.push({
+            id: doc.id,
+            title: data.title || data.concept || data.description || 'Compromiso sin título',
+            company: data.company || data.companyName || 'Sin empresa',
+            amount: parseFloat(data.amount) || 0,
+            dueDate: dueDate,
+            priority: priority,
+            status: status,
+            description: data.description || data.notes || '',
+            category: data.category || 'general',
+            createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
+            updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(),
+            userId: data.userId,
+            // Preservar datos originales
+            ...data
+          });
+        }
+      });
+
+      console.log(`✅ Refresh manual completado: ${commitmentsData.length} compromisos encontrados`);
+      setCommitments(commitmentsData);
+      
+    } catch (error) {
+      console.error('❌ Error en refresh manual de compromisos:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getCommitmentsByPriority = (priority) => {
