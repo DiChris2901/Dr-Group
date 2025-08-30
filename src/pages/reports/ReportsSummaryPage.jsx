@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import useActivityLogs from '../../hooks/useActivityLogs';
+import { fCurrency, fShortenNumber } from '../../utils/formatNumber';
 import {
   Box,
   Card,
@@ -34,12 +35,14 @@ import {
   FilterList
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, AreaChart, Area, ScatterChart, Scatter } from 'recharts';
 import { useCommitments, useCompanies } from '../../hooks/useFirestore';
+import { useSettings } from '../../context/SettingsContext';
 
 const ReportsSummaryPage = () => {
   const theme = useTheme();
   const { logActivity } = useActivityLogs();
+  const { settings } = useSettings();
   
   // Estados locales
   const [refreshing, setRefreshing] = useState(false);
@@ -187,14 +190,6 @@ const ReportsSummaryPage = () => {
     return companyStats;
   }, [commitments, companies]);
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-      minimumFractionDigits: 0
-    }).format(amount);
-  };
-
   const handleRefresh = async () => {
     setRefreshing(true);
     setLastUpdated(new Date());
@@ -227,8 +222,868 @@ const ReportsSummaryPage = () => {
         commitments: commitments?.length || 0, 
         companies: companies?.length || 0
       });
+      console.log('🎨 Chart Settings:', settings.dashboard.charts);
+      console.log('🎨 Color Scheme Selected:', settings.dashboard.charts.colorScheme);
+      console.log('📈 Status Chart Type:', settings.dashboard.charts?.statusChart?.type || settings.dashboard.charts?.defaultType || 'pie');
+      console.log('📊 Trend Chart Type:', settings.dashboard.charts?.trendChart?.type || settings.dashboard.charts?.defaultType || 'bar');
     }
-  }, [commitments, companies, loading]);
+  }, [commitments, companies, loading, settings]);
+
+  // Función helper para obtener esquemas de colores mejorados
+  const getColorScheme = (schemeName) => {
+    console.log('🎨 Getting color scheme for:', schemeName);
+    
+    const schemes = {
+      // Esquemas exactos del AdvancedSettingsDrawer.jsx con colores mejorados
+      corporate: [
+        theme.palette.primary.main,
+        theme.palette.secondary.main,
+        theme.palette.success.main,
+        theme.palette.warning.main,
+        theme.palette.error.main,
+        theme.palette.info.main
+      ],
+      vibrant: [
+        '#FF6B6B', // Rojo vibrante
+        '#4ECDC4', // Turquesa
+        '#45B7D1', // Azul cielo
+        '#96CEB4', // Verde menta
+        '#FECA57', // Amarillo brillante
+        '#FFA07A'  // Salmón
+      ],
+      pastel: [
+        '#A8E6CF', // Verde pastel
+        '#DCEDC8', // Verde claro
+        '#FFD3A5', // Melocotón
+        '#FD9853', // Naranja suave
+        '#E1BEE7', // Lavanda
+        '#FFDFD3'  // Rosa pálido
+      ],
+      monochrome: [
+        '#2C3E50', // Azul oscuro
+        '#34495E', // Gris azulado
+        '#7F8C8D', // Gris medio
+        '#95A5A6', // Gris claro
+        '#BDC3C7', // Gris muy claro
+        '#ECF0F1'  // Gris casi blanco
+      ],
+      ocean: [
+        '#1B4F72', // Azul marino
+        '#2E86C1', // Azul océano
+        '#5DADE2', // Azul medio
+        '#85C1E9', // Azul claro
+        '#AED6F1', // Azul pastel
+        '#D6EAF8'  // Azul muy claro
+      ],
+      
+      // Alias para compatibilidad con nombres en español
+      corporativo: [
+        theme.palette.primary.main,
+        theme.palette.secondary.main,
+        theme.palette.success.main,
+        theme.palette.warning.main,
+        theme.palette.error.main,
+        theme.palette.info.main
+      ],
+      vibrante: [
+        '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FFA07A'
+      ],
+      monocromatico: [
+        '#2C3E50', '#34495E', '#7F8C8D', '#95A5A6', '#BDC3C7', '#ECF0F1'
+      ],
+      oceano: [
+        '#1B4F72', '#2E86C1', '#5DADE2', '#85C1E9', '#AED6F1', '#D6EAF8'
+      ]
+    };
+    
+    const selectedColors = schemes[schemeName] || schemes.corporate;
+    console.log('🎨 Selected colors:', selectedColors);
+    console.log('🎨 Available schemes:', Object.keys(schemes));
+    
+    return selectedColors;
+  };
+
+  // Función para crear gradientes dinámicos
+  const createGradient = (color1, color2) => ({
+    background: `linear-gradient(135deg, ${color1} 0%, ${color2} 100%)`,
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent'
+  });
+
+  // Función para renderizar gráficas de estado con diseño premium
+  const renderStatusChart = (data, chartType) => {
+    const { animations, colorScheme, showDataLabels, gridLines } = settings.dashboard.charts;
+    const colors = getColorScheme(colorScheme);
+    const isAnimated = animations !== 'none';
+    const animationDuration = isAnimated ? (animations === 'smooth' ? 300 : animations === 'bounce' ? 500 : 800) : 0;
+
+    // Agregar colores a los datos si no los tienen
+    const dataWithColors = data.map((item, index) => ({
+      ...item,
+      fill: colors[index % colors.length]
+    }));
+
+    const commonTooltipStyle = {
+      backgroundColor: theme.palette.background.paper,
+      border: `1px solid ${theme.palette.primary.main}`,
+      borderRadius: 12,
+      boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+      fontSize: '14px'
+    };
+
+    switch (chartType) {
+      case 'pie':
+        return (
+          <PieChart>
+            <defs>
+              {colors.map((color, index) => (
+                <linearGradient key={`gradient-${index}`} id={`gradient-${index}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor={color} stopOpacity={1}/>
+                  <stop offset="100%" stopColor={color} stopOpacity={0.7}/>
+                </linearGradient>
+              ))}
+            </defs>
+            <Pie
+              data={dataWithColors}
+              cx="50%"
+              cy="50%"
+              innerRadius={50}
+              outerRadius={130}
+              paddingAngle={2}
+              dataKey="value"
+              animationBegin={0}
+              animationDuration={animationDuration}
+            >
+              {dataWithColors.map((entry, index) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={`url(#gradient-${index})`}
+                  stroke={colors[index % colors.length]}
+                  strokeWidth={2}
+                />
+              ))}
+            </Pie>
+            <Tooltip 
+              formatter={(value) => [`${value} compromisos`, 'Cantidad']}
+              contentStyle={commonTooltipStyle}
+            />
+            {showDataLabels && (
+              <Legend 
+                wrapperStyle={{
+                  fontSize: '14px',
+                  fontWeight: 500
+                }}
+              />
+            )}
+          </PieChart>
+        );
+
+      case 'donut':
+        return (
+          <PieChart>
+            <defs>
+              {colors.map((color, index) => (
+                <radialGradient key={`radial-${index}`} id={`radial-${index}`} cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stopColor={color} stopOpacity={0.3}/>
+                  <stop offset="70%" stopColor={color} stopOpacity={0.8}/>
+                  <stop offset="100%" stopColor={color} stopOpacity={1}/>
+                </radialGradient>
+              ))}
+            </defs>
+            <Pie
+              data={dataWithColors}
+              cx="50%"
+              cy="50%"
+              innerRadius={90}
+              outerRadius={130}
+              paddingAngle={3}
+              dataKey="value"
+              animationBegin={0}
+              animationDuration={animationDuration}
+            >
+              {dataWithColors.map((entry, index) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={`url(#radial-${index})`}
+                  stroke={colors[index % colors.length]}
+                  strokeWidth={2}
+                />
+              ))}
+            </Pie>
+            <Tooltip 
+              formatter={(value) => [`${value} compromisos`, 'Cantidad']}
+              contentStyle={commonTooltipStyle}
+            />
+            {showDataLabels && (
+              <Legend 
+                wrapperStyle={{
+                  fontSize: '14px',
+                  fontWeight: 500
+                }}
+              />
+            )}
+          </PieChart>
+        );
+
+      case 'bar':
+        return (
+          <BarChart data={dataWithColors} margin={{ top: 30, right: 40, left: 20, bottom: 20 }}>
+            <defs>
+              <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={colors[0]} stopOpacity={1}/>
+                <stop offset="100%" stopColor={colors[0]} stopOpacity={0.6}/>
+              </linearGradient>
+            </defs>
+            {gridLines && (
+              <CartesianGrid 
+                strokeDasharray="3 3" 
+                stroke={theme.palette.divider} 
+                opacity={0.3}
+              />
+            )}
+            <XAxis 
+              dataKey="name" 
+              axisLine={{ stroke: theme.palette.text.secondary, strokeWidth: 2 }}
+              tickLine={{ stroke: theme.palette.text.secondary }}
+              tick={{ fill: theme.palette.text.primary, fontWeight: 500 }}
+            />
+            <YAxis 
+              axisLine={{ stroke: theme.palette.text.secondary, strokeWidth: 2 }}
+              tickLine={{ stroke: theme.palette.text.secondary }}
+              tick={{ fill: theme.palette.text.primary, fontWeight: 500 }}
+            />
+            <Tooltip 
+              formatter={(value) => [`${value} compromisos`, 'Cantidad']}
+              contentStyle={commonTooltipStyle}
+            />
+            {showDataLabels && (
+              <Legend 
+                wrapperStyle={{
+                  fontSize: '14px',
+                  fontWeight: 500
+                }}
+              />
+            )}
+            <Bar 
+              dataKey="value" 
+              fill="url(#barGradient)"
+              radius={[8, 8, 0, 0]}
+              animationDuration={animationDuration}
+              stroke={colors[0]}
+              strokeWidth={1}
+            />
+          </BarChart>
+        );
+
+      case 'line':
+        return (
+          <LineChart data={dataWithColors} margin={{ top: 30, right: 40, left: 20, bottom: 20 }}>
+            <defs>
+              <linearGradient id="statusLineGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor={colors[0]} stopOpacity={0.8}/>
+                <stop offset="100%" stopColor={colors[0]} stopOpacity={1}/>
+              </linearGradient>
+            </defs>
+            {gridLines && (
+              <CartesianGrid 
+                strokeDasharray="3 3" 
+                stroke={theme.palette.divider} 
+                opacity={0.3}
+              />
+            )}
+            <XAxis 
+              dataKey="name" 
+              axisLine={{ stroke: theme.palette.text.secondary, strokeWidth: 2 }}
+              tickLine={{ stroke: theme.palette.text.secondary }}
+              tick={{ fill: theme.palette.text.primary, fontWeight: 500 }}
+            />
+            <YAxis 
+              axisLine={{ stroke: theme.palette.text.secondary, strokeWidth: 2 }}
+              tickLine={{ stroke: theme.palette.text.secondary }}
+              tick={{ fill: theme.palette.text.primary, fontWeight: 500 }}
+              tickFormatter={(value) => `${value}`}
+            />
+            <Tooltip 
+              formatter={(value) => [`${value} compromisos`, 'Cantidad']}
+              contentStyle={commonTooltipStyle}
+            />
+            {showDataLabels && (
+              <Legend 
+                wrapperStyle={{
+                  fontSize: '14px',
+                  fontWeight: 500
+                }}
+              />
+            )}
+            <Line 
+              type="monotone" 
+              dataKey="value" 
+              stroke={colors[0]}
+              strokeWidth={4}
+              dot={{ r: 8, fill: colors[0], strokeWidth: 2, stroke: '#fff' }}
+              activeDot={{ r: 10, fill: colors[0], strokeWidth: 2, stroke: '#fff' }}
+              animationDuration={animationDuration}
+            />
+          </LineChart>
+        );
+
+      case 'area':
+        return (
+          <AreaChart data={dataWithColors} margin={{ top: 30, right: 40, left: 20, bottom: 20 }}>
+            <defs>
+              <linearGradient id="statusAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={colors[0]} stopOpacity={0.8}/>
+                <stop offset="100%" stopColor={colors[0]} stopOpacity={0.1}/>
+              </linearGradient>
+            </defs>
+            {gridLines && (
+              <CartesianGrid 
+                strokeDasharray="3 3" 
+                stroke={theme.palette.divider} 
+                opacity={0.3}
+              />
+            )}
+            <XAxis 
+              dataKey="name" 
+              axisLine={{ stroke: theme.palette.text.secondary, strokeWidth: 2 }}
+              tickLine={{ stroke: theme.palette.text.secondary }}
+              tick={{ fill: theme.palette.text.primary, fontWeight: 500 }}
+            />
+            <YAxis 
+              axisLine={{ stroke: theme.palette.text.secondary, strokeWidth: 2 }}
+              tickLine={{ stroke: theme.palette.text.secondary }}
+              tick={{ fill: theme.palette.text.primary, fontWeight: 500 }}
+              tickFormatter={(value) => `${value}`}
+            />
+            <Tooltip 
+              formatter={(value) => [`${value} compromisos`, 'Cantidad']}
+              contentStyle={commonTooltipStyle}
+            />
+            {showDataLabels && (
+              <Legend 
+                wrapperStyle={{
+                  fontSize: '14px',
+                  fontWeight: 500
+                }}
+              />
+            )}
+            <Area 
+              type="monotone" 
+              dataKey="value" 
+              stroke={colors[0]} 
+              strokeWidth={3}
+              fill="url(#statusAreaGradient)"
+              animationDuration={animationDuration}
+            />
+          </AreaChart>
+        );
+
+      case 'scatter':
+        const scatterData = dataWithColors.map((item, index) => ({
+          x: index + 1,
+          y: item.value,
+          z: item.value * 10,
+          name: item.name,
+          color: colors[index % colors.length]
+        }));
+        
+        return (
+          <ScatterChart data={scatterData} margin={{ top: 30, right: 40, left: 20, bottom: 20 }}>
+            {gridLines && (
+              <CartesianGrid 
+                strokeDasharray="3 3" 
+                stroke={theme.palette.divider} 
+                opacity={0.3}
+              />
+            )}
+            <XAxis 
+              dataKey="x" 
+              name="Categoría"
+              axisLine={{ stroke: theme.palette.text.secondary, strokeWidth: 2 }}
+              tickLine={{ stroke: theme.palette.text.secondary }}
+              tick={{ fill: theme.palette.text.primary, fontWeight: 500 }}
+            />
+            <YAxis 
+              dataKey="y" 
+              name="Compromisos"
+              axisLine={{ stroke: theme.palette.text.secondary, strokeWidth: 2 }}
+              tickLine={{ stroke: theme.palette.text.secondary }}
+              tick={{ fill: theme.palette.text.primary, fontWeight: 500 }}
+            />
+            <Tooltip 
+              formatter={(value, name) => [value, name === 'y' ? 'Compromisos' : name]}
+              contentStyle={commonTooltipStyle}
+            />
+            {showDataLabels && (
+              <Legend 
+                wrapperStyle={{
+                  fontSize: '14px',
+                  fontWeight: 500
+                }}
+              />
+            )}
+            <Scatter
+              dataKey="y"
+              fill={colors[0]}
+              animationDuration={animationDuration}
+            >
+              {scatterData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color} />
+              ))}
+            </Scatter>
+          </ScatterChart>
+        );
+
+      default:
+        return renderStatusChart(data, 'pie');
+    }
+  };
+
+  // Función para renderizar gráficas de tendencia mensual con diseño premium
+  const renderTrendChart = (data, chartType) => {
+    const { animations, colorScheme, showDataLabels, gridLines } = settings.dashboard.charts;
+    const colors = getColorScheme(colorScheme);
+    const isAnimated = animations !== 'none';
+    const animationDuration = isAnimated ? (animations === 'smooth' ? 300 : animations === 'bounce' ? 500 : 800) : 0;
+
+    const commonProps = {
+      data,
+      margin: { top: 30, right: 40, left: 20, bottom: 20 }
+    };
+
+    const commonAxisProps = {
+      axisLine: { stroke: theme.palette.text.secondary, strokeWidth: 2 },
+      tickLine: { stroke: theme.palette.text.secondary },
+      tick: { fill: theme.palette.text.primary, fontWeight: 500 }
+    };
+
+    // Formatters específicos para ejes Y
+    const yAxisAmountProps = {
+      ...commonAxisProps,
+      tickFormatter: (value) => {
+        if (value === 0) return '$0';
+        if (value >= 1000000000) return `$${(value / 1000000000).toFixed(1)}B`;
+        if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+        if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+        return `$${value}`;
+      }
+    };
+
+    const yAxisCommitmentsProps = {
+      ...commonAxisProps,
+      tickFormatter: (value) => {
+        if (value === 0) return '0';
+        return value.toString();
+      }
+    };
+
+    const commonTooltipStyle = {
+      backgroundColor: theme.palette.background.paper,
+      border: `1px solid ${theme.palette.primary.main}`,
+      borderRadius: 12,
+      boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+      fontSize: '14px'
+    };
+
+    const tooltipProps = {
+      formatter: (value, name) => [
+        name === 'amount' ? fCurrency(value) : value,
+        name === 'amount' ? 'Monto' : 'Compromisos'
+      ],
+      contentStyle: commonTooltipStyle
+    };
+
+    switch (chartType) {
+      case 'pie':
+        // Para pie chart de tendencia, convertir datos mensuales a pie
+        const pieData = data.map((item, index) => ({
+          name: item.month,
+          value: item.amount, // Usar amount en lugar de commitments para mejor visualización
+          commitments: item.commitments,
+          fill: colors[index % colors.length]
+        }));
+        
+        return (
+          <PieChart>
+            <defs>
+              {colors.map((color, index) => (
+                <linearGradient key={`trend-pie-${index}`} id={`trend-pie-${index}`} x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor={color} stopOpacity={1}/>
+                  <stop offset="100%" stopColor={color} stopOpacity={0.8}/>
+                </linearGradient>
+              ))}
+            </defs>
+            <Pie
+              data={pieData}
+              cx="50%"
+              cy="50%"
+              innerRadius={50}
+              outerRadius={130}
+              paddingAngle={2}
+              dataKey="value"
+              animationBegin={0}
+              animationDuration={animationDuration}
+            >
+              {pieData.map((entry, index) => (
+                <Cell 
+                  key={`trend-pie-cell-${index}`} 
+                  fill={colors[index % colors.length]} // Usar color sólido directamente
+                  stroke={colors[index % colors.length]}
+                  strokeWidth={2}
+                />
+              ))}
+            </Pie>
+            <Tooltip 
+              formatter={(value, name, entry) => {
+                const total = data.reduce((sum, item) => sum + item.amount, 0);
+                const percentage = ((value / total) * 100).toFixed(1);
+                return [
+                  `${fCurrency(value)} (${percentage}%)`,
+                  `${entry.payload.month} - ${entry.payload.commitments} compromisos`
+                ];
+              }}
+              contentStyle={commonTooltipStyle}
+            />
+            {showDataLabels && (
+              <Legend 
+                wrapperStyle={{
+                  fontSize: '14px',
+                  fontWeight: 500
+                }}
+              />
+            )}
+          </PieChart>
+        );
+
+      case 'donut':
+        // Para donut de tendencia, convertir datos mensuales a donut
+        const donutData = data.map((item, index) => ({
+          name: item.month,
+          value: item.amount, // Usar amount en lugar de commitments
+          commitments: item.commitments,
+          fill: colors[index % colors.length]
+        }));
+        
+        return (
+          <PieChart>
+            <defs>
+              {colors.map((color, index) => (
+                <radialGradient key={`trend-donut-${index}`} id={`trend-donut-${index}`} cx="50%" cy="50%" r="50%">
+                  <stop offset="30%" stopColor={color} stopOpacity={0.4}/>
+                  <stop offset="70%" stopColor={color} stopOpacity={0.9}/>
+                  <stop offset="100%" stopColor={color} stopOpacity={1}/>
+                </radialGradient>
+              ))}
+            </defs>
+            <Pie
+              data={donutData}
+              cx="50%"
+              cy="50%"
+              innerRadius={90}
+              outerRadius={130}
+              paddingAngle={3}
+              dataKey="value"
+              animationBegin={0}
+              animationDuration={animationDuration}
+            >
+              {donutData.map((entry, index) => (
+                <Cell 
+                  key={`trend-donut-cell-${index}`} 
+                  fill={colors[index % colors.length]} // Usar color sólido directamente
+                  stroke={colors[index % colors.length]}
+                  strokeWidth={2}
+                />
+              ))}
+            </Pie>
+            <Tooltip 
+              formatter={(value, name, entry) => {
+                const total = data.reduce((sum, item) => sum + item.amount, 0);
+                const percentage = ((value / total) * 100).toFixed(1);
+                return [
+                  `${fCurrency(value)} (${percentage}%)`,
+                  `${entry.payload.month} - ${entry.payload.commitments} compromisos`
+                ];
+              }}
+              contentStyle={commonTooltipStyle}
+            />
+            {showDataLabels && (
+              <Legend 
+                wrapperStyle={{
+                  fontSize: '14px',
+                  fontWeight: 500
+                }}
+              />
+            )}
+          </PieChart>
+        );
+
+      case 'bar':
+        return (
+          <BarChart {...commonProps}>
+            <defs>
+              <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={colors[0]} stopOpacity={1}/>
+                <stop offset="100%" stopColor={colors[0]} stopOpacity={0.6}/>
+              </linearGradient>
+              <linearGradient id="commitmentsGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={colors[1]} stopOpacity={1}/>
+                <stop offset="100%" stopColor={colors[1]} stopOpacity={0.6}/>
+              </linearGradient>
+            </defs>
+            {gridLines && (
+              <CartesianGrid 
+                strokeDasharray="3 3" 
+                stroke={theme.palette.divider} 
+                opacity={0.3}
+              />
+            )}
+            <XAxis dataKey="month" {...commonAxisProps} />
+            <YAxis yAxisId="amount" orientation="left" {...yAxisAmountProps} />
+            <YAxis yAxisId="commitments" orientation="right" {...yAxisCommitmentsProps} />
+            <Tooltip {...tooltipProps} />
+            {showDataLabels && (
+              <Legend 
+                wrapperStyle={{
+                  fontSize: '14px',
+                  fontWeight: 500
+                }}
+              />
+            )}
+            <Bar 
+              yAxisId="amount"
+              dataKey="amount" 
+              fill="url(#amountGradient)"
+              name="Monto"
+              radius={[4, 4, 0, 0]}
+              animationDuration={animationDuration}
+              stroke={colors[0]}
+              strokeWidth={1}
+            />
+            <Bar 
+              yAxisId="commitments"
+              dataKey="commitments" 
+              fill="url(#commitmentsGradient)"
+              name="Compromisos"
+              radius={[4, 4, 0, 0]}
+              animationDuration={animationDuration}
+              stroke={colors[1]}
+              strokeWidth={1}
+            />
+          </BarChart>
+        );
+
+      case 'line':
+        return (
+          <LineChart {...commonProps}>
+            <defs>
+              <linearGradient id="lineGradient1" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor={colors[0]} stopOpacity={0.8}/>
+                <stop offset="100%" stopColor={colors[0]} stopOpacity={1}/>
+              </linearGradient>
+              <linearGradient id="lineGradient2" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor={colors[1]} stopOpacity={0.8}/>
+                <stop offset="100%" stopColor={colors[1]} stopOpacity={1}/>
+              </linearGradient>
+            </defs>
+            {gridLines && (
+              <CartesianGrid 
+                strokeDasharray="3 3" 
+                stroke={theme.palette.divider} 
+                opacity={0.3}
+              />
+            )}
+            <XAxis dataKey="month" {...commonAxisProps} />
+            <YAxis yAxisId="amount" orientation="left" {...yAxisAmountProps} />
+            <YAxis yAxisId="commitments" orientation="right" {...yAxisCommitmentsProps} />
+            <Tooltip {...tooltipProps} />
+            {showDataLabels && (
+              <Legend 
+                wrapperStyle={{
+                  fontSize: '14px',
+                  fontWeight: 500
+                }}
+              />
+            )}
+            <Line 
+              yAxisId="amount"
+              type="monotone" 
+              dataKey="amount" 
+              stroke={colors[0]}
+              strokeWidth={4}
+              dot={{ r: 8, fill: colors[0], strokeWidth: 2, stroke: '#fff' }}
+              activeDot={{ r: 10, fill: colors[0], strokeWidth: 2, stroke: '#fff' }}
+              animationDuration={animationDuration}
+              name="Monto"
+            />
+            <Line 
+              yAxisId="commitments"
+              type="monotone" 
+              dataKey="commitments" 
+              stroke={colors[1]}
+              strokeWidth={4}
+              dot={{ r: 8, fill: colors[1], strokeWidth: 2, stroke: '#fff' }}
+              activeDot={{ r: 10, fill: colors[1], strokeWidth: 2, stroke: '#fff' }}
+              animationDuration={animationDuration}
+              name="Compromisos"
+            />
+          </LineChart>
+        );
+
+      case 'area':
+        return (
+          <AreaChart {...commonProps}>
+            <defs>
+              <linearGradient id="areaGradient1" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={colors[0]} stopOpacity={0.8}/>
+                <stop offset="100%" stopColor={colors[0]} stopOpacity={0.1}/>
+              </linearGradient>
+              <linearGradient id="areaGradient2" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={colors[1]} stopOpacity={0.8}/>
+                <stop offset="100%" stopColor={colors[1]} stopOpacity={0.1}/>
+              </linearGradient>
+            </defs>
+            {gridLines && (
+              <CartesianGrid 
+                strokeDasharray="3 3" 
+                stroke={theme.palette.divider} 
+                opacity={0.3}
+              />
+            )}
+            <XAxis dataKey="month" {...commonAxisProps} />
+            <YAxis yAxisId="amount" orientation="left" {...yAxisAmountProps} />
+            <YAxis yAxisId="commitments" orientation="right" {...yAxisCommitmentsProps} />
+            <Tooltip {...tooltipProps} />
+            {showDataLabels && (
+              <Legend 
+                wrapperStyle={{
+                  fontSize: '14px',
+                  fontWeight: 500
+                }}
+              />
+            )}
+            <Area 
+              yAxisId="amount"
+              type="monotone" 
+              dataKey="amount" 
+              stackId="1" 
+              stroke={colors[0]} 
+              strokeWidth={3}
+              fill="url(#areaGradient1)"
+              animationDuration={animationDuration}
+              name="Monto"
+            />
+            <Area 
+              yAxisId="commitments"
+              type="monotone" 
+              dataKey="commitments" 
+              stackId="2" 
+              stroke={colors[1]} 
+              strokeWidth={3}
+              fill="url(#areaGradient2)"
+              animationDuration={animationDuration}
+              name="Compromisos"
+            />
+          </AreaChart>
+        );
+
+      case 'scatter':
+        const scatterData = data.map((item, index) => ({
+          x: item.amount / 1000000, // Convertir a millones para mejor visualización
+          y: item.commitments,
+          name: item.month,
+          color: colors[index % colors.length]
+        }));
+        
+        return (
+          <ScatterChart data={scatterData} margin={{ top: 30, right: 40, left: 20, bottom: 20 }}>
+            {gridLines && (
+              <CartesianGrid 
+                strokeDasharray="3 3" 
+                stroke={theme.palette.divider} 
+                opacity={0.3}
+              />
+            )}
+            <XAxis 
+              dataKey="x" 
+              name="Monto"
+              axisLine={{ stroke: theme.palette.text.secondary, strokeWidth: 2 }}
+              tickLine={{ stroke: theme.palette.text.secondary }}
+              tick={{ fill: theme.palette.text.primary, fontWeight: 500 }}
+              tickFormatter={(value) => `$${value.toFixed(1)}M`}
+              label={{ 
+                value: 'Monto (Millones COP)', 
+                position: 'insideBottom', 
+                offset: -10,
+                style: { textAnchor: 'middle', fill: theme.palette.text.secondary, fontSize: '12px' }
+              }}
+            />
+            <YAxis 
+              dataKey="y" 
+              name="Compromisos"
+              {...yAxisCommitmentsProps}
+              label={{ 
+                value: 'Número de Compromisos', 
+                angle: -90, 
+                position: 'insideLeft',
+                style: { textAnchor: 'middle', fill: theme.palette.text.secondary, fontSize: '12px' }
+              }}
+            />
+            <Tooltip 
+              formatter={(value, name, payload) => {
+                if (name === 'x') {
+                  return [`${fCurrency(value * 1000000)}`, 'Monto Total'];
+                }
+                return [value, 'Compromisos'];
+              }}
+              labelFormatter={(label) => `Datos del mes`}
+              content={({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload;
+                  return (
+                    <div style={commonTooltipStyle}>
+                      <p style={{ margin: 0, fontWeight: 600, marginBottom: '8px' }}>
+                        📊 {data.name}
+                      </p>
+                      <p style={{ margin: 0, color: colors[0] }}>
+                        💰 Monto: {fCurrency(data.x * 1000000)}
+                      </p>
+                      <p style={{ margin: 0, color: colors[1] }}>
+                        📋 Compromisos: {data.y}
+                      </p>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
+            {showDataLabels && (
+              <Legend 
+                wrapperStyle={{
+                  fontSize: '14px',
+                  fontWeight: 500
+                }}
+              />
+            )}
+            <Scatter
+              dataKey="y"
+              fill={colors[0]}
+              animationDuration={animationDuration}
+            >
+              {scatterData.map((entry, index) => (
+                <Cell 
+                  key={`cell-${index}`} 
+                  fill={entry.color}
+                  r={8}
+                />
+              ))}
+            </Scatter>
+          </ScatterChart>
+        );
+
+      default:
+        return renderTrendChart(data, 'bar');
+    }
+  };
 
   return (
     <Box sx={{ 
@@ -372,7 +1227,7 @@ const ReportsSummaryPage = () => {
           },
           { 
             label: 'Monto Total', 
-            value: formatCurrency(summaryData.totalAmount), 
+            value: fCurrency(summaryData.totalAmount), 
             icon: AttachMoney,
             color: theme.palette.success.main,
             trend: `+${summaryData.monthlyGrowth}%`,
@@ -388,7 +1243,7 @@ const ReportsSummaryPage = () => {
           },
           { 
             label: 'Promedio por Compromiso', 
-            value: formatCurrency(summaryData.averageAmount), 
+            value: fCurrency(summaryData.averageAmount), 
             icon: AccountBalance,
             color: theme.palette.warning.main,
             trend: '+5.2%',
@@ -522,23 +1377,7 @@ const ReportsSummaryPage = () => {
                 Distribución por Estado
               </Typography>
               <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={statusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {statusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => [`${value} compromisos`, 'Cantidad']} />
-                  <Legend />
-                </PieChart>
+                {renderStatusChart(statusData, settings.dashboard.charts?.statusChart?.type || settings.dashboard.charts?.defaultType || 'pie')}
               </ResponsiveContainer>
             </CardContent>
           </Card>
@@ -561,20 +1400,7 @@ const ReportsSummaryPage = () => {
                 Tendencia Mensual
               </Typography>
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value, name) => [
-                      name === 'amount' ? formatCurrency(value) : value,
-                      name === 'amount' ? 'Monto' : 'Compromisos'
-                    ]}
-                  />
-                  <Legend />
-                  <Bar dataKey="amount" fill={theme.palette.primary.main} name="amount" />
-                  <Bar dataKey="commitments" fill={theme.palette.secondary.main} name="commitments" />
-                </BarChart>
+                {renderTrendChart(monthlyData, settings.dashboard.charts?.trendChart?.type || settings.dashboard.charts?.defaultType || 'bar')}
               </ResponsiveContainer>
             </CardContent>
           </Card>
@@ -617,7 +1443,7 @@ const ReportsSummaryPage = () => {
                             </Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                               <Typography sx={{ fontWeight: 600, color: 'success.main' }}>
-                                {formatCurrency(company.amount)}
+                                {fCurrency(company.amount)}
                               </Typography>
                               <Typography 
                                 variant="body2"

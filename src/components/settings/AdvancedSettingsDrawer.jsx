@@ -410,7 +410,16 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
     charts: {
       defaultType: 'bar',
       animations: 'smooth',
-      colorScheme: 'corporate'
+      colorScheme: 'corporate',
+      // Configuraciones específicas por gráfica
+      statusChart: {
+        type: 'pie',
+        enabled: true
+      },
+      trendChart: {
+        type: 'bar',
+        enabled: true
+      }
     },
     notifications: {
       enabled: true,
@@ -1512,6 +1521,158 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                               <MenuItem value="smooth">Suaves</MenuItem>
                               <MenuItem value="bounce">Con Rebote</MenuItem>
                               <MenuItem value="elastic">Elásticas</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+
+                        {/* Specific Chart Configurations */}
+                        <Grid item xs={12}>
+                          <Typography variant="subtitle1" sx={{ 
+                            fontWeight: 600, 
+                            mb: 2,
+                            color: 'text.primary',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                          }}>
+                            <Box sx={{
+                              p: 0.5,
+                              borderRadius: 1,
+                              backgroundColor: alpha(theme.palette.success.main, 0.15),
+                              color: 'success.main'
+                            }}>
+                              <GridIcon sx={{ fontSize: 16 }} />
+                            </Box>
+                            Configuración Individual de Gráficas
+                          </Typography>
+                        </Grid>
+
+                        {/* Status Chart Type */}
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth>
+                            <Tooltip 
+                              title="Configura el tipo de gráfica para la distribución por estado" 
+                              placement="top" 
+                              arrow
+                            >
+                              <FormLabel sx={{ 
+                                mb: 1, 
+                                fontWeight: 600, 
+                                display: 'flex', 
+                                alignItems: 'center',
+                                gap: 1,
+                                minHeight: '32px'
+                              }}>
+                                Distribución por Estado
+                                <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                              </FormLabel>
+                            </Tooltip>
+                            <Select
+                              value={dashboardSettings.charts?.statusChart?.type || 'pie'}
+                              onChange={(e) => updateDashboardSetting('charts.statusChart.type', e.target.value)}
+                              size="small"
+                            >
+                              <MenuItem value="bar">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <ChartBarIcon sx={{ fontSize: 18 }} />
+                                  Barras
+                                </Box>
+                              </MenuItem>
+                              <MenuItem value="line">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <ChartLineIcon sx={{ fontSize: 18 }} />
+                                  Líneas
+                                </Box>
+                              </MenuItem>
+                              <MenuItem value="pie">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <ChartPieIcon sx={{ fontSize: 18 }} />
+                                  Círculos (Pie)
+                                </Box>
+                              </MenuItem>
+                              <MenuItem value="donut">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <ChartDonutIcon sx={{ fontSize: 18 }} />
+                                  Dona (Donut)
+                                </Box>
+                              </MenuItem>
+                              <MenuItem value="area">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <ChartAreaIcon sx={{ fontSize: 18 }} />
+                                  Área
+                                </Box>
+                              </MenuItem>
+                              <MenuItem value="scatter">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <ChartScatterIcon sx={{ fontSize: 18 }} />
+                                  Dispersión
+                                </Box>
+                              </MenuItem>
+                            </Select>
+                          </FormControl>
+                        </Grid>
+
+                        {/* Trend Chart Type */}
+                        <Grid item xs={12} sm={6}>
+                          <FormControl fullWidth>
+                            <Tooltip 
+                              title="Configura el tipo de gráfica para la tendencia mensual" 
+                              placement="top" 
+                              arrow
+                            >
+                              <FormLabel sx={{ 
+                                mb: 1, 
+                                fontWeight: 600, 
+                                display: 'flex', 
+                                alignItems: 'center',
+                                gap: 1,
+                                minHeight: '32px'
+                              }}>
+                                Tendencia Mensual
+                                <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                              </FormLabel>
+                            </Tooltip>
+                            <Select
+                              value={dashboardSettings.charts?.trendChart?.type || 'bar'}
+                              onChange={(e) => updateDashboardSetting('charts.trendChart.type', e.target.value)}
+                              size="small"
+                            >
+                              <MenuItem value="bar">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <ChartBarIcon sx={{ fontSize: 18 }} />
+                                  Barras
+                                </Box>
+                              </MenuItem>
+                              <MenuItem value="line">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <ChartLineIcon sx={{ fontSize: 18 }} />
+                                  Líneas
+                                </Box>
+                              </MenuItem>
+                              <MenuItem value="pie">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <ChartPieIcon sx={{ fontSize: 18 }} />
+                                  Círculos (Pie)
+                                </Box>
+                              </MenuItem>
+                              <MenuItem value="donut">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <ChartDonutIcon sx={{ fontSize: 18 }} />
+                                  Dona (Donut)
+                                </Box>
+                              </MenuItem>
+                              <MenuItem value="area">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <ChartAreaIcon sx={{ fontSize: 18 }} />
+                                  Área
+                                </Box>
+                              </MenuItem>
+                              <MenuItem value="scatter">
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <ChartScatterIcon sx={{ fontSize: 18 }} />
+                                  Dispersión
+                                </Box>
+                              </MenuItem>
                             </Select>
                           </FormControl>
                         </Grid>
