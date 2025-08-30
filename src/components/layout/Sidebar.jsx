@@ -163,14 +163,6 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
         { title: 'Por Período', icon: Assignment, path: '/reports/period' },
         { title: 'Por Concepto', icon: Receipt, path: '/reports/concept' }
       ]
-    },
-    {
-      title: 'Herramientas',
-      icon: Analytics,
-      color: '#4caf50',
-      submenu: [
-        { title: 'Procesador de Liquidaciones', icon: Analytics, path: '/liquidation-processor' }
-      ]
     }
   ];
 

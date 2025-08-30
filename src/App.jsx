@@ -42,7 +42,6 @@ import BankAccountsPage from './pages/BankAccountsPage';
 import AdvancedToolsPage from './pages/AdvancedToolsPage';
 import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
 import FinancialKPIsPage from './pages/FinancialKPIsPage';
-import LiquidationProcessorPage from './pages/LiquidationProcessorPage';
 
 // Módulo de Auditoría
 import ActivityLogsPage from './pages/ActivityLogsPage';
@@ -221,14 +220,6 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Herramientas Avanzadas" breadcrumbs={['Herramientas']}>
             <AdvancedToolsPage />
-          </MainLayout>
-        }
-      />
-      <Route 
-        path="/liquidation-processor" 
-        element={
-          <MainLayout title="Procesador de Liquidaciones" breadcrumbs={['Herramientas', 'Liquidaciones']}>
-            <LiquidationProcessorPage />
           </MainLayout>
         }
       />
