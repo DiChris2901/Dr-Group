@@ -1169,6 +1169,10 @@ const NewCommitmentPage = () => {
         }
       }
 
+      // 🏢 Obtener nombre de la empresa para compromisos recurrentes
+      const selectedCompany = companies.find(company => company.id === formData.companyId);
+      const companyName = selectedCompany ? selectedCompany.name : 'Sin empresa';
+
       const commitmentData = {
         ...formData,
         amount: parseFloat(formData.totalAmount), // El campo amount en la BD será el total
@@ -1179,9 +1183,11 @@ const NewCommitmentPage = () => {
         isColjuegosCommitment: isColjuegosCommitment(), // Bandera para identificar tipo
         iva: parseFloat(formData.iva) || 0,
         retefuente: parseFloat(formData.retefuente) || 0,
-  ica: parseFloat(formData.ica) || 0,
-  discount: parseFloat(formData.discount) || 0,
-  hasTaxes: !!formData.hasTaxes && !isColjuegosCommitment(), // No impuestos para Coljuegos
+        ica: parseFloat(formData.ica) || 0,
+        discount: parseFloat(formData.discount) || 0,
+        hasTaxes: !!formData.hasTaxes && !isColjuegosCommitment(), // No impuestos para Coljuegos
+        // ✅ CRITICAL FIX: Asegurar que companyName esté presente
+        companyName: companyName,
         createdAt: serverTimestamp(),
         createdBy: currentUser.uid,
         updatedAt: serverTimestamp(),
@@ -1684,27 +1690,30 @@ const NewCommitmentPage = () => {
                           getOptionLabel={(option) => option.name || ''}
                           isOptionEqualToValue={(option, value) => option.id === value.id}
                           disabled={saving}
-                          renderOption={(props, option) => (
-                            <Box component="li" {...props}>
-                              <Box display="flex" alignItems="center" gap={1}>
-                                {option.logoURL && (
-                                  <img 
-                                    src={option.logoURL} 
-                                    alt={option.name}
-                                    style={{ width: 24, height: 24, borderRadius: 4 }}
-                                  />
-                                )}
-                                <Box>
-                                  <Typography variant="body2" fontWeight="500">
-                                    {option.name}
-                                  </Typography>
-                                  <Typography variant="caption" color="text.secondary">
-                                    NIT: {option.nit}
-                                  </Typography>
+                          renderOption={(props, option) => {
+                            const { key, ...otherProps } = props;
+                            return (
+                              <Box key={key} component="li" {...otherProps}>
+                                <Box display="flex" alignItems="center" gap={1}>
+                                  {option.logoURL && (
+                                    <img 
+                                      src={option.logoURL} 
+                                      alt={option.name}
+                                      style={{ width: 24, height: 24, borderRadius: 4 }}
+                                    />
+                                  )}
+                                  <Box>
+                                    <Typography variant="body2" fontWeight="500">
+                                      {option.name}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                      NIT: {option.nit}
+                                    </Typography>
+                                  </Box>
                                 </Box>
                               </Box>
-                            </Box>
-                          )}
+                            );
+                          }}
                           renderInput={(params) => (
                             <TextField
                               {...params}

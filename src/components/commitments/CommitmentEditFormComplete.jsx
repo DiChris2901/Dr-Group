@@ -60,6 +60,7 @@ import {
   onSnapshot,
   where,
   getDocs,
+  getDoc,
   writeBatch
 } from 'firebase/firestore';
 import { 
@@ -387,9 +388,15 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
         }
       }
       
+      // 🏢 Obtener nombre de la empresa para asegurar consistencia
+      const selectedCompany = companies.find(company => company.id === formData.companyId);
+      const companyName = selectedCompany ? selectedCompany.name : 'Sin empresa';
+      
       const updatedData = {
         concept: formData.concept.trim(),
         companyId: formData.companyId,
+        // ✅ CRITICAL FIX: Asegurar que companyName esté presente
+        companyName: companyName,
         beneficiary: formData.beneficiary.trim(),
         beneficiaryNit: formData.beneficiaryNit.trim(),
         baseAmount: parseFloat(formData.baseAmount) || 0,
@@ -415,6 +422,20 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
       };
 
       const commitmentRef = doc(db, 'commitments', commitment.id);
+      
+      // ✅ Verificar si el documento existe antes de actualizar
+      const docSnapshot = await getDoc(commitmentRef);
+      if (!docSnapshot.exists()) {
+        console.error(`❌ El compromiso ${commitment.id} no existe en Firestore`);
+        addNotification({
+          type: 'error',
+          title: '❌ Compromiso No Encontrado',
+          message: 'Este compromiso ya no existe en la base de datos. Posiblemente fue eliminado.',
+          duration: 6000
+        });
+        return;
+      }
+      
       await updateDoc(commitmentRef, updatedData);
 
       // 🔄 Si cambió de "unique" a recurrente, generar compromisos adicionales
@@ -935,27 +956,30 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
                       }}
                       getOptionLabel={(option) => option.name || ''}
                       isOptionEqualToValue={(option, value) => option.id === value.id}
-                      renderOption={(props, option) => (
-                        <Box component="li" {...props}>
-                          <Box display="flex" alignItems="center" gap={1}>
-                            {option.logoURL && (
-                              <img 
-                                src={option.logoURL} 
-                                alt={option.name}
-                                style={{ width: 24, height: 24, borderRadius: 4 }}
-                              />
-                            )}
-                            <Box>
-                              <Typography variant="body2" fontWeight="500">
-                                {option.name}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                NIT: {option.nit}
-                              </Typography>
+                      renderOption={(props, option) => {
+                        const { key, ...otherProps } = props;
+                        return (
+                          <Box key={key} component="li" {...otherProps}>
+                            <Box display="flex" alignItems="center" gap={1}>
+                              {option.logoURL && (
+                                <img 
+                                  src={option.logoURL} 
+                                  alt={option.name}
+                                  style={{ width: 24, height: 24, borderRadius: 4 }}
+                                />
+                              )}
+                              <Box>
+                                <Typography variant="body2" fontWeight="500">
+                                  {option.name}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  NIT: {option.nit}
+                                </Typography>
+                              </Box>
                             </Box>
                           </Box>
-                        </Box>
-                      )}
+                        );
+                      }}
                       renderInput={(params) => (
                         <TextField
                           {...params}

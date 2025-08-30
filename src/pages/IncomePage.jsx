@@ -1125,7 +1125,7 @@ const IncomePage = () => {
                   const { key, ...listProps } = props;
                   return (
                     <Box 
-                      key={option.uniqueKey} 
+                      key={key} 
                       component="li" 
                       {...listProps} 
                       sx={{ display: 'flex', alignItems: 'center', gap: 2 }}

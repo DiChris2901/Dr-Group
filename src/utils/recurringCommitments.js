@@ -31,6 +31,30 @@ const PERIODICITY_MONTHS = {
  */
 export const generateRecurringCommitments = async (commitmentData, instancesCount = 12, skipFirst = false, maxDate = null) => {
   try {
+    // ✅ VALIDACIONES CRÍTICAS PARA PREVENIR COMPROMISOS HUÉRFANOS
+    if (!commitmentData) {
+      throw new Error('commitmentData es requerido');
+    }
+    
+    if (!commitmentData.concept || commitmentData.concept.trim() === '') {
+      throw new Error('El concepto del compromiso es requerido');
+    }
+    
+    if (!commitmentData.companyId) {
+      console.warn('⚠️ companyId faltante en commitmentData');
+    }
+    
+    if (!commitmentData.companyName || commitmentData.companyName.trim() === '') {
+      console.error('❌ CRITICAL: companyName faltante en commitmentData');
+      console.error('📋 Datos recibidos:', {
+        companyId: commitmentData.companyId,
+        companyName: commitmentData.companyName,
+        concept: commitmentData.concept,
+        beneficiary: commitmentData.beneficiary
+      });
+      throw new Error('companyName es requerido para evitar compromisos huérfanos');
+    }
+    
     // Verificar que no sea pago único
     if (commitmentData.periodicity === 'unique') {
       return [commitmentData];
@@ -50,8 +74,23 @@ export const generateRecurringCommitments = async (commitmentData, instancesCoun
     const generatedCommitments = [];
     const baseDate = new Date(commitmentData.dueDate);
     
+    // ✅ VERIFICAR QUE LA FECHA BASE SEA VÁLIDA
+    if (isNaN(baseDate.getTime())) {
+      throw new Error('Fecha de vencimiento no válida');
+    }
+    
     // Determinar índice inicial (0 si no skipFirst, 1 si skipFirst)
     const startIndex = skipFirst ? 1 : 0;
+    
+    // Log de debug para monitorear generación
+    console.log('🔄 Generando compromisos recurrentes:', {
+      concept: commitmentData.concept,
+      companyName: commitmentData.companyName,
+      periodicity: commitmentData.periodicity,
+      instancesCount,
+      skipFirst,
+      baseDate: format(baseDate, 'dd/MM/yyyy', { locale: es })
+    });
     
     // Generar compromisos recurrentes con límite temporal
     let generatedCount = 0;
@@ -68,6 +107,9 @@ export const generateRecurringCommitments = async (commitmentData, instancesCoun
         ...commitmentData,
         dueDate: currentDate,
         concept: commitmentData.concept, // 🔧 Mantener concepto original sin fecha automática
+        // ✅ ASEGURAR CAMPOS CRÍTICOS
+        companyName: commitmentData.companyName, // Explícitamente asegurar que esté presente
+        companyId: commitmentData.companyId,
         month: currentDate.getMonth() + 1,
         year: currentDate.getFullYear(),
         instanceNumber: i + 1,
@@ -79,6 +121,11 @@ export const generateRecurringCommitments = async (commitmentData, instancesCoun
         updatedAt: serverTimestamp()
       };
 
+      // ✅ VALIDACIÓN FINAL ANTES DE AGREGAR
+      if (!commitment.companyName || commitment.companyName.trim() === '') {
+        throw new Error(`Compromiso ${i + 1} quedaría sin companyName - cancelando generación`);
+      }
+
       generatedCommitments.push(commitment);
       generatedCount++;
     }
@@ -86,10 +133,21 @@ export const generateRecurringCommitments = async (commitmentData, instancesCoun
     // Log del resultado
     const limitedByTime = generatedCount < instancesCount;
     console.log(`📅 Compromisos generados: ${generatedCount}/${instancesCount}${limitedByTime ? ` (limitado al año ${currentYear})` : ''}`);
+    
+    // ✅ VALIDACIÓN FINAL DEL RESULTADO
+    if (generatedCommitments.length === 0) {
+      throw new Error('No se generaron compromisos recurrentes');
+    }
+    
+    // Verificar que todos tengan companyName
+    const invalidCommitments = generatedCommitments.filter(c => !c.companyName || c.companyName.trim() === '');
+    if (invalidCommitments.length > 0) {
+      throw new Error(`${invalidCommitments.length} compromisos sin companyName detectados - cancelando operación`);
+    }
 
     return generatedCommitments;
   } catch (error) {
-    console.error('Error generating recurring commitments:', error);
+    console.error('❌ Error generating recurring commitments:', error);
     throw error;
   }
 };
@@ -101,18 +159,48 @@ export const generateRecurringCommitments = async (commitmentData, instancesCoun
  */
 export const saveRecurringCommitments = async (commitments) => {
   try {
+    // ✅ VALIDACIONES CRÍTICAS
+    if (!commitments || !Array.isArray(commitments) || commitments.length === 0) {
+      throw new Error('Array de compromisos vacío o inválido');
+    }
+    
+    // Verificar que todos los compromisos tengan companyName
+    const invalidCommitments = commitments.filter(c => !c.companyName || c.companyName.trim() === '');
+    if (invalidCommitments.length > 0) {
+      console.error('❌ Compromisos sin companyName detectados:', invalidCommitments);
+      throw new Error(`${invalidCommitments.length} compromisos sin companyName - no se guardarán para evitar huérfanos`);
+    }
+    
+    // Log de debug
+    console.log('💾 Guardando compromisos recurrentes:', {
+      count: commitments.length,
+      firstCommitment: {
+        concept: commitments[0].concept,
+        companyName: commitments[0].companyName,
+        beneficiary: commitments[0].beneficiary,
+        periodicity: commitments[0].periodicity
+      }
+    });
+    
     const savedIds = [];
     const recurringGroupId = `recurring_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    // Guardar el primer compromiso para obtener su ID
+    // ✅ VALIDACIÓN ADICIONAL DEL PRIMER COMPROMISO
     const firstCommitment = { 
       ...commitments[0], 
       recurringGroup: recurringGroupId,
       parentCommitmentId: null
     };
     
+    if (!firstCommitment.companyName || firstCommitment.companyName.trim() === '') {
+      throw new Error('El primer compromiso no tiene companyName - cancelando guardado');
+    }
+    
+    // Guardar el primer compromiso para obtener su ID
     const firstDocRef = await addDoc(collection(db, 'commitments'), firstCommitment);
     savedIds.push(firstDocRef.id);
+    
+    console.log(`✅ Primer compromiso guardado: ${firstDocRef.id} (${firstCommitment.concept} - ${firstCommitment.companyName})`);
     
     // Guardar el resto de compromisos con referencia al primer compromiso
     for (let i = 1; i < commitments.length; i++) {
@@ -122,9 +210,17 @@ export const saveRecurringCommitments = async (commitments) => {
         parentCommitmentId: firstDocRef.id
       };
       
+      // ✅ VALIDACIÓN INDIVIDUAL
+      if (!commitment.companyName || commitment.companyName.trim() === '') {
+        console.error(`❌ Compromiso ${i + 1} sin companyName:`, commitment);
+        throw new Error(`Compromiso ${i + 1} sin companyName - cancelando operación`);
+      }
+      
       const docRef = await addDoc(collection(db, 'commitments'), commitment);
       savedIds.push(docRef.id);
     }
+    
+    console.log(`✅ ${savedIds.length} compromisos recurrentes guardados exitosamente`);
 
     return {
       success: true,
@@ -133,7 +229,7 @@ export const saveRecurringCommitments = async (commitments) => {
       groupId: recurringGroupId
     };
   } catch (error) {
-    console.error('Error saving recurring commitments:', error);
+    console.error('❌ Error saving recurring commitments:', error);
     throw error;
   }
 };

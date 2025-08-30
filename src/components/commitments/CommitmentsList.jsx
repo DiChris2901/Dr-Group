@@ -1659,9 +1659,38 @@ const CommitmentsList = ({
 
       console.log(`📊 RESULTADO PAGOS: ${deletedPayments} eliminados, ${failedPaymentDeletions} fallos`);
 
-      // 3. Eliminar el documento de Firestore
+      // 3. Verificar si el documento existe antes de eliminar
+      console.log('� Verificando existencia del documento...');
+      const docRef = doc(db, 'commitments', commitmentToDelete.id);
+      const docSnapshot = await getDoc(docRef);
+      
+      if (!docSnapshot.exists()) {
+        console.log('❌ El documento ya no existe en Firestore');
+        
+        // Actualizar estado local para remover el compromiso inexistente
+        setCommitments(prevCommitments => {
+          const filtered = prevCommitments.filter(c => c.id !== commitmentToDelete.id);
+          console.log(`📊 Limpiando estado local: ${prevCommitments.length} → ${filtered.length}`);
+          return filtered;
+        });
+        
+        addNotification({
+          type: 'warning',
+          title: '⚠️ Compromiso ya eliminado',
+          message: `El compromiso "${commitmentToDelete.concept || 'Sin concepto'}" ya no existe en la base de datos.`,
+          icon: '👻'
+        });
+        
+        setDeleteDialogOpen(false);
+        setCommitmentToDelete(null);
+        return;
+      }
+      
+      console.log('✅ Documento existe, procediendo con eliminación...');
+      
+      // 4. Eliminar el documento de Firestore
       console.log('🗑️ Eliminando documento de Firestore...');
-      await deleteDoc(doc(db, 'commitments', commitmentToDelete.id));
+      await deleteDoc(docRef);
       console.log('✅ Documento eliminado de Firestore exitosamente');
       
       // 4. Actualizar estado local
@@ -1751,6 +1780,177 @@ const CommitmentsList = ({
     setDeleteDialogOpen(false);
     setCommitmentToDelete(null);
   };
+
+  // 🧹 FUNCIÓN DE EMERGENCIA: Limpiar compromisos huérfanos
+  const cleanupOrphanedCommitments = async () => {
+    console.log('🧹 INICIANDO LIMPIEZA DE EMERGENCIA DE COMPROMISOS HUÉRFANOS');
+    
+    try {
+      // 1. Buscar compromisos con "Sin empresa"
+      console.log('🔍 Buscando compromisos "Sin empresa"...');
+      
+      const orphanQuery = query(
+        collection(db, 'commitments'),
+        where('companyName', '==', 'Sin empresa')
+      );
+      
+      const orphanSnapshot = await getDocs(orphanQuery);
+      console.log(`📋 Compromisos "Sin empresa" encontrados: ${orphanSnapshot.size}`);
+      
+      // 2. Buscar compromisos con companyName vacío
+      const emptyCompanyQuery = query(
+        collection(db, 'commitments'),
+        where('companyName', '==', '')
+      );
+      
+      const emptySnapshot = await getDocs(emptyCompanyQuery);
+      console.log(`📋 Compromisos con empresa vacía: ${emptySnapshot.size}`);
+      
+      const totalProblematic = orphanSnapshot.size + emptySnapshot.size;
+      
+      if (totalProblematic === 0) {
+        addNotification({
+          type: 'info',
+          title: '✅ Base de datos limpia',
+          message: 'No se encontraron compromisos huérfanos para limpiar',
+          duration: 4000
+        });
+        return;
+      }
+      
+      // 3. Mostrar confirmación al usuario
+      const userConfirmed = window.confirm(
+        `Se encontraron ${totalProblematic} compromisos huérfanos:\n\n` +
+        `• ${orphanSnapshot.size} compromisos "Sin empresa"\n` +
+        `• ${emptySnapshot.size} compromisos con empresa vacía\n\n` +
+        `¿Deseas eliminarlos permanentemente?`
+      );
+      
+      if (!userConfirmed) {
+        console.log('❌ Limpieza cancelada por el usuario');
+        return;
+      }
+      
+      // 4. Procesar eliminaciones
+      console.log('🗑️ Iniciando eliminaciones...');
+      let deletedCount = 0;
+      let errorCount = 0;
+      const deletedCommitments = [];
+      
+      // Procesar compromisos "Sin empresa"
+      for (const docSnapshot of orphanSnapshot.docs) {
+        try {
+          const data = docSnapshot.data();
+          console.log(`🔍 Verificando: ${data.concept} - ${data.beneficiary}`);
+          
+          // Verificar si realmente existe
+          const docRef = doc(db, 'commitments', docSnapshot.id);
+          const currentDoc = await getDoc(docRef);
+          
+          if (currentDoc.exists()) {
+            await deleteDoc(docRef);
+            deletedCount++;
+            deletedCommitments.push(`${data.concept} (${data.beneficiary})`);
+            console.log(`✅ Eliminado: ${docSnapshot.id}`);
+          } else {
+            console.log(`👻 Ya no existe: ${docSnapshot.id}`);
+          }
+        } catch (error) {
+          console.error(`❌ Error eliminando ${docSnapshot.id}:`, error);
+          errorCount++;
+        }
+      }
+      
+      // Procesar compromisos con empresa vacía
+      for (const docSnapshot of emptySnapshot.docs) {
+        try {
+          const data = docSnapshot.data();
+          console.log(`🔍 Verificando empresa vacía: ${data.concept} - ${data.beneficiary}`);
+          
+          // Verificar si realmente existe
+          const docRef = doc(db, 'commitments', docSnapshot.id);
+          const currentDoc = await getDoc(docRef);
+          
+          if (currentDoc.exists()) {
+            await deleteDoc(docRef);
+            deletedCount++;
+            deletedCommitments.push(`${data.concept} (${data.beneficiary})`);
+            console.log(`✅ Eliminado: ${docSnapshot.id}`);
+          } else {
+            console.log(`👻 Ya no existe: ${docSnapshot.id}`);
+          }
+        } catch (error) {
+          console.error(`❌ Error eliminando ${docSnapshot.id}:`, error);
+          errorCount++;
+        }
+      }
+      
+      // 5. Actualizar estado local inmediatamente
+      console.log('🔄 Actualizando estado local...');
+      setCommitments(prevCommitments => {
+        const filtered = prevCommitments.filter(commitment => 
+          commitment.companyName && 
+          commitment.companyName !== 'Sin empresa' && 
+          commitment.companyName.trim() !== ''
+        );
+        console.log(`📊 Estado local: ${prevCommitments.length} → ${filtered.length}`);
+        return filtered;
+      });
+      
+      // 6. Recargar datos desde servidor
+      console.log('🔄 Recargando datos desde servidor...');
+      try {
+        const total = await getTotalCount();
+        setTotalCommitments(total);
+        await loadCommitmentsPage(1); // Ir a la primera página
+        setCurrentPage(1);
+      } catch (reloadError) {
+        console.error('Error recargando datos:', reloadError);
+      }
+      
+      // 7. Mostrar resultado al usuario
+      console.log(`📊 LIMPIEZA COMPLETADA: ${deletedCount} eliminados, ${errorCount} errores`);
+      
+      if (deletedCount > 0) {
+        addNotification({
+          type: 'success',
+          title: '🧹 Limpieza completada',
+          message: `Se eliminaron ${deletedCount} compromisos huérfanos. ${errorCount > 0 ? `${errorCount} errores.` : ''}`,
+          duration: 6000
+        });
+        
+        // Log de auditoría
+        await logActivity('bulk_delete_orphaned_commitments', 'commitments', 'cleanup', {
+          deletedCount,
+          errorCount,
+          deletedCommitments: deletedCommitments.slice(0, 10), // Solo los primeros 10 para no saturar
+          totalProcessed: totalProblematic
+        });
+        
+      } else {
+        addNotification({
+          type: 'warning',
+          title: '⚠️ Sin cambios',
+          message: 'No se eliminó ningún compromiso. Pueden haber sido eliminados previamente.',
+          duration: 4000
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Error durante la limpieza de emergencia:', error);
+      addNotification({
+        type: 'error',
+        title: '❌ Error en limpieza',
+        message: 'Hubo un error durante la limpieza de compromisos huérfanos',
+        duration: 5000
+      });
+    }
+  };
+
+  // 🚨 EXPOSER FUNCIÓN GLOBALMENTE PARA DEBUG (solo en desarrollo)
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    window.cleanupOrphanedCommitments = cleanupOrphanedCommitments;
+  }
 
   if (loading) {
     return (

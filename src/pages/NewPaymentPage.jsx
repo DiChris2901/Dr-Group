@@ -46,7 +46,8 @@ import {
   TableHead,
   TableRow,
   Tabs,
-  Tab
+  Tab,
+  useTheme
 } from '@mui/material';
 import {
   AttachMoney as MoneyIcon,
@@ -71,9 +72,9 @@ import {
   ArrowBack as ArrowBackIcon,
   DateRange as DateRangeIcon,
   Payment as PaymentIcon,
-  CheckCircle as CheckCircleIcon
+  CheckCircle as CheckCircleIcon,
+  AccountBalance as AccountBalanceIcon
 } from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationsContext';
 import { useAuth } from '../context/AuthContext';
@@ -550,7 +551,8 @@ const NewPaymentPage = () => {
             remainingBalance: displayBalance,
             hasPartialPayments: commitmentPayments.length > 0,
             // Formatear datos para el display
-            displayName: `${data.companyName || 'Sin empresa'} - ${data.concept || data.name || 'Sin concepto'}${isPartialPaymentScenario ? ' (Saldo Pendiente)' : ''}`,
+            displayName: `${data.companyName || 'Sin empresa'} - ${data.concept || data.name || 'Sin concepto'}${isPartialPaymentScenario ? ' (Saldo Pendiente)' : ''} - ${data.dueDate ? format(data.dueDate.toDate(), 'dd/MMM', { locale: es }) : 'Sin fecha'}`,
+            uniqueKey: `${commitmentId}-${data.companyName || 'sin-empresa'}-${data.concept || data.name || 'sin-concepto'}`, // Key única para React
             formattedDueDate: data.dueDate ? format(data.dueDate.toDate(), 'dd/MMM/yyyy', { locale: es }) : 'Sin fecha',
             formattedAmount: new Intl.NumberFormat('es-CO', {
               style: 'currency',
@@ -1767,14 +1769,85 @@ const NewPaymentPage = () => {
                   <Grid item xs={12}>
                     <Autocomplete
                       options={pendingCommitments}
-                      getOptionLabel={(option) => option.displayName || ''}
+                      getOptionLabel={(option) => `${option.displayName || ''} [${option.id.slice(-6)}]`}
+                      isOptionEqualToValue={(option, value) => option.id === value.id}
                       loading={loadingCommitments}
                       value={selectedCommitment}
                       onChange={(event, newValue) => handleCommitmentSelect(newValue)}
+                      filterOptions={(options, { inputValue }) => {
+                        if (!inputValue) return options;
+                        
+                        const filtered = options.filter(option => {
+                          const searchText = inputValue.toLowerCase();
+                          
+                          // Lista completa de campos a buscar
+                          const searchFields = [
+                            option.companyName || '',
+                            option.concept || '',
+                            option.name || '',
+                            option.beneficiary || '',
+                            option.provider || '',
+                            option.formattedAmount || '',
+                            option.displayName || '',
+                            option.description || '',
+                            option.category || '',
+                            option.subcategory || '',
+                            option.observations || '',
+                            option.notes || '',
+                            // Incluir campos específicos que podrían contener "salario"
+                            option.paymentType || '',
+                            option.commitmentType || '',
+                            option.frequency || ''
+                          ];
+                          
+                          // Debug: Log para ver qué campos están disponibles
+                          if (searchText === 'salario' && options.indexOf(option) === 0) {
+                            console.log('🔍 Campos disponibles para búsqueda:', {
+                              companyName: option.companyName,
+                              concept: option.concept,
+                              name: option.name,
+                              beneficiary: option.beneficiary,
+                              provider: option.provider,
+                              displayName: option.displayName,
+                              description: option.description,
+                              category: option.category,
+                              allFields: Object.keys(option)
+                            });
+                          }
+                          
+                          // Buscar en todos los campos de texto
+                          return searchFields.some(field => 
+                            field.toLowerCase().includes(searchText)
+                          );
+                        });
+                        
+                        // Ordenar resultados por relevancia
+                        return filtered.sort((a, b) => {
+                          const searchText = inputValue.toLowerCase();
+                          const aCompany = (a.companyName || '').toLowerCase();
+                          const bCompany = (b.companyName || '').toLowerCase();
+                          const aConcept = (a.concept || a.name || '').toLowerCase();
+                          const bConcept = (b.concept || b.name || '').toLowerCase();
+                          
+                          // Priorizar coincidencias exactas de empresa
+                          if (aCompany.startsWith(searchText) && !bCompany.startsWith(searchText)) return -1;
+                          if (bCompany.startsWith(searchText) && !aCompany.startsWith(searchText)) return 1;
+                          
+                          // Priorizar coincidencias exactas de concepto
+                          if (aConcept.startsWith(searchText) && !bConcept.startsWith(searchText)) return -1;
+                          if (bConcept.startsWith(searchText) && !aConcept.startsWith(searchText)) return 1;
+                          
+                          // Luego por fecha de vencimiento
+                          if (!a.dueDate && !b.dueDate) return 0;
+                          if (!a.dueDate) return 1;
+                          if (!b.dueDate) return -1;
+                          return a.dueDate.toDate() - b.dueDate.toDate();
+                        });
+                      }}
                       noOptionsText={
                         loadingCommitments 
                           ? "Cargando compromisos..." 
-                          : "No hay compromisos pendientes para completar el pago"
+                          : "No se encontraron compromisos que coincidan con su búsqueda"
                       }
                       renderInput={(params) => (
                         <TextField
@@ -1783,14 +1856,14 @@ const NewPaymentPage = () => {
                           placeholder={
                             pendingCommitments.length === 0 && !loadingCommitments
                               ? "No hay compromisos disponibles para pagar..."
-                              : "Seleccione un compromiso pendiente..."
+                              : "Buscar por cualquier texto: empresa, concepto, beneficiario, salario, etc..."
                           }
                           fullWidth
                           required
                           helperText={
                             pendingCommitments.length === 0 && !loadingCommitments
                               ? "Incluye compromisos pendientes y con pagos parciales por completar"
-                              : ""
+                              : "El filtrado busca en todos los campos del compromiso (concepto, empresa, beneficiario, etc.)"
                           }
                           InputProps={{
                             ...params.InputProps,
@@ -1808,29 +1881,99 @@ const NewPaymentPage = () => {
                           }}
                         />
                       )}
-                      renderOption={(props, option) => {
+                      renderOption={(props, option, { inputValue }) => {
                         const { key, ...otherProps } = props;
+                        
+                        // Función para resaltar texto coincidente
+                        const highlightText = (text, searchText) => {
+                          if (!searchText) return text;
+                          
+                          const regex = new RegExp(`(${searchText})`, 'gi');
+                          const parts = text.split(regex);
+                          
+                          return parts.map((part, index) => 
+                            part.toLowerCase() === searchText.toLowerCase() ? (
+                              <span key={index} style={{ 
+                                backgroundColor: theme.palette.primary.main + '20',
+                                color: theme.palette.primary.main,
+                                fontWeight: 600,
+                                borderRadius: 2,
+                                padding: '0 2px'
+                              }}>
+                                {part}
+                              </span>
+                            ) : part
+                          );
+                        };
+
                         return (
                           <li key={key} {...otherProps}>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Typography variant="body1" fontWeight={600}>
-                                  {option.companyName}
-                                </Typography>
-                                <Chip 
-                                  label={option.formattedAmount} 
-                                  size="small" 
-                                  color="primary" 
-                                  variant="outlined"
-                                />
+                            <Box 
+                              sx={{ 
+                                display: 'flex', 
+                                flexDirection: 'column', 
+                                width: '100%',
+                                py: 1
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
+                                <Box sx={{ flex: 1, mr: 1 }}>
+                                  <Typography variant="body1" fontWeight={600} sx={{ lineHeight: 1.2 }}>
+                                    {highlightText(option.companyName || 'Sin empresa', inputValue)}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.2, lineHeight: 1.3 }}>
+                                    {highlightText(option.concept || option.name || 'Sin concepto', inputValue)}
+                                  </Typography>
+                                  {option.beneficiary && (
+                                    <Typography variant="caption" color="text.disabled" sx={{ mt: 0.2, display: 'block' }}>
+                                      Beneficiario: {highlightText(option.beneficiary, inputValue)}
+                                    </Typography>
+                                  )}
+                                </Box>
+                                <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+                                  <Chip 
+                                    label={option.formattedAmount} 
+                                    size="small" 
+                                    color={option.hasPartialPayments ? 'warning' : 'primary'}
+                                    variant="outlined"
+                                    sx={{ mb: 0.5 }}
+                                  />
+                                  {option.hasPartialPayments && (
+                                    <Typography variant="caption" color="warning.main" sx={{ display: 'block' }}>
+                                      Pago Parcial
+                                    </Typography>
+                                  )}
+                                </Box>
                               </Box>
-                              <Typography variant="body2" color="text.secondary">
-                                {option.concept}
-                              </Typography>
-                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                                <Typography variant="caption" color="warning.main">
-                                  Vencimiento: {option.formattedDueDate}
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
+                                <Typography 
+                                  variant="caption" 
+                                  color={
+                                    option.status === 'overdue' ? 'error.main' : 
+                                    option.status === 'partial_payment' ? 'warning.main' : 
+                                    'text.secondary'
+                                  }
+                                >
+                                  🗓️ Vence: {option.formattedDueDate}
                                 </Typography>
+                                {option.status === 'overdue' && (
+                                  <Chip 
+                                    label="Vencido" 
+                                    size="small" 
+                                    color="error" 
+                                    variant="filled"
+                                    sx={{ height: 18, fontSize: '0.65rem' }}
+                                  />
+                                )}
+                                {option.status === 'partial_payment' && (
+                                  <Chip 
+                                    label="Parcial" 
+                                    size="small" 
+                                    color="warning" 
+                                    variant="filled"
+                                    sx={{ height: 18, fontSize: '0.65rem' }}
+                                  />
+                                )}
                               </Box>
                             </Box>
                           </li>
@@ -2455,67 +2598,65 @@ const NewPaymentPage = () => {
 
                       {/* Campo de cuenta de origen */}
                       <Grid item xs={12} sm={6}>
-                        <FormControl fullWidth error={!!errors.sourceAccount}>
-                          <InputLabel>Cuenta de Origen</InputLabel>
-                          <Select
-                            value={formData.sourceAccount}
-                            label="Cuenta de Origen"
-                            onChange={(e) => handleSourceAccountSelect(e.target.value)}
-                            disabled={loadingCompanies}
-                            startAdornment={
-                              <InputAdornment position="start">
-                                <CompanyIcon 
-                                  sx={{ 
-                                    color: 'success.main',
-                                    transition: 'color 0.2s ease',
-                                    '.MuiOutlinedInput-root:hover &': {
-                                      color: 'primary.main'
-                                    },
-                                    '.MuiOutlinedInput-root.Mui-focused &': {
-                                      color: 'primary.main'
-                                    }
-                                  }} 
-                                />
-                              </InputAdornment>
-                            }
-                            sx={{
-                              '&:hover .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'primary.main'
-                              }
-                            }}
-                          >
-                            <MenuItem value="">
-                              <em>Seleccionar cuenta de origen</em>
-                            </MenuItem>
-                            {getBankAccounts().map((account) => (
-                              <MenuItem 
-                                key={`${account.id}-${account.bankAccount}`} 
-                                value={account.bankAccount}
-                              >
+                        <Autocomplete
+                          fullWidth
+                          options={getBankAccounts()}
+                          value={getBankAccounts().find(acc => acc.bankAccount === formData.sourceAccount) || null}
+                          onChange={(event, newValue) => {
+                            handleSourceAccountSelect(newValue ? newValue.bankAccount : '');
+                          }}
+                          getOptionLabel={(option) => option.displayText || ''}
+                          isOptionEqualToValue={(option, value) => option.bankAccount === value.bankAccount}
+                          disabled={loadingCompanies}
+                          renderOption={(props, option) => {
+                            const { key, ...otherProps } = props;
+                            return (
+                              <Box key={key} component="li" {...otherProps}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                                   <Box sx={{ mr: 1 }}>
-                                    {account.type === 'personal' ? <PersonIcon fontSize="small" /> : <CompanyIcon fontSize="small" />}
+                                    {option.type === 'personal' ? <PersonIcon fontSize="small" /> : <CompanyIcon fontSize="small" />}
                                   </Box>
                                   <Box>
                                     <Typography variant="body2" fontWeight="medium">
-                                      {account.bankAccount}
+                                      {option.bankAccount}
                                     </Typography>
                                     <Typography variant="caption" color="text.secondary">
-                                      {account.bankName} - {account.companyName} {account.type === 'personal' ? '(Personal)' : '(Empresarial)'}
+                                      {option.bankName} - {option.companyName} {option.type === 'personal' ? '(Personal)' : '(Empresarial)'}
                                     </Typography>
                                   </Box>
                                 </Box>
-                              </MenuItem>
-                            ))}
-                            {getBankAccounts().length === 0 && (
-                              <MenuItem disabled>
-                                <Typography variant="body2" color="text.secondary">
-                                  {loadingCompanies ? 'Cargando...' : 'No hay cuentas bancarias registradas'}
-                                </Typography>
-                              </MenuItem>
-                            )}
-                          </Select>
-                        </FormControl>
+                              </Box>
+                            );
+                          }}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              label="Cuenta de Origen"
+                              error={!!errors.sourceAccount}
+                              helperText={errors.sourceAccount}
+                              placeholder="Buscar cuenta... (ej: Bancolombia, 123456)"
+                              InputProps={{
+                                ...params.InputProps,
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <CompanyIcon 
+                                      sx={{ 
+                                        color: 'success.main',
+                                        transition: 'color 0.2s ease'
+                                      }} 
+                                    />
+                                  </InputAdornment>
+                                ),
+                                sx: {
+                                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                                    borderColor: 'primary.main'
+                                  }
+                                }
+                              }}
+                            />
+                          )}
+                          noOptionsText={loadingCompanies ? "Cargando..." : "No hay cuentas registradas"}
+                        />
                       </Grid>
 
                       {/* Campo de banco (autocompletado) */}
@@ -2565,41 +2706,69 @@ const NewPaymentPage = () => {
                       )}
 
                       <Grid item xs={12} sm={6}>
-                        <FormControl fullWidth error={!!errors.method}>
-                          <InputLabel>Método de Pago</InputLabel>
-                          <Select
-                            value={formData.method}
-                            onChange={handleInputChange('method')}
-                            label="Método de Pago"
-                            startAdornment={
-                              <InputAdornment position="start">
-                                <ReceiptIcon 
-                                  sx={{ 
-                                    color: 'secondary.main',
-                                    transition: 'color 0.2s ease',
-                                    '.MuiOutlinedInput-root:hover &': {
-                                      color: 'primary.main'
-                                    },
-                                    '.MuiOutlinedInput-root.Mui-focused &': {
-                                      color: 'primary.main'
-                                    }
-                                  }} 
-                                />
-                              </InputAdornment>
+                        <Autocomplete
+                          fullWidth
+                          options={paymentMethods}
+                          value={formData.method || null}
+                          onChange={(event, newValue) => {
+                            setFormData({
+                              ...formData,
+                              method: newValue || ''
+                            });
+                            // Limpiar error cuando el usuario empiece a escribir
+                            if (errors.method) {
+                              setErrors({
+                                ...errors,
+                                method: ''
+                              });
                             }
-                            sx={{
-                              '&:hover .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'primary.main'
-                              }
-                            }}
-                          >
-                            {paymentMethods.map((method) => (
-                              <MenuItem key={method} value={method}>
-                                {method}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
+                          }}
+                          getOptionLabel={(option) => option || ''}
+                          renderOption={(props, option) => {
+                            const { key, ...otherProps } = props;
+                            return (
+                              <Box key={key} component="li" {...otherProps}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                                  <Box sx={{ mr: 1 }}>
+                                    {option === 'Transferencia' && <ReceiptIcon fontSize="small" color="primary" />}
+                                    {option === 'PSE' && <AccountBalanceIcon fontSize="small" color="secondary" />}
+                                    {option === 'Efectivo' && <MoneyIcon fontSize="small" color="success" />}
+                                  </Box>
+                                  <Typography variant="body2" fontWeight="medium">
+                                    {option}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            );
+                          }}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              label="Método de Pago"
+                              error={!!errors.method}
+                              helperText={errors.method}
+                              placeholder="Buscar método... (ej: Transfer, PSE)"
+                              InputProps={{
+                                ...params.InputProps,
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <ReceiptIcon 
+                                      sx={{ 
+                                        color: 'secondary.main',
+                                        transition: 'color 0.2s ease'
+                                      }} 
+                                    />
+                                  </InputAdornment>
+                                ),
+                                sx: {
+                                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                                    borderColor: 'primary.main'
+                                  }
+                                }
+                              }}
+                            />
+                          )}
+                        />
                       </Grid>
 
                       <Grid item xs={12} sm={6}>
