@@ -50,7 +50,7 @@ import {
 import { motion } from 'framer-motion';
 import { useTheme, alpha } from '@mui/material/styles';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs, where, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs, where, updateDoc, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
@@ -92,17 +92,33 @@ const NewCommitmentPage = () => {
   // Obtener empresa preseleccionada desde la navegación
   const preselectedCompany = location.state?.preselectedCompany;
 
-  // 🔄 Calcular número de compromisos sugerido según periodicidad (para 1 año)
-  const getDefaultRecurringCount = (periodicity) => {
-    const counts = {
-      'monthly': 12,      // 12 meses = 1 año
-      'bimonthly': 6,     // 6 bimestres = 1 año  
-      'quarterly': 4,     // 4 trimestres = 1 año
-      'fourmonthly': 3,   // 3 cuatrimestres = 1 año
-      'biannual': 2,      // 2 semestres = 1 año
-      'annual': 1         // 1 año
+  // 🔄 Calcular número de compromisos sugerido según periodicidad (limitado al año en curso)
+  const getDefaultRecurringCount = (periodicity, baseDate = null) => {
+    const currentDate = baseDate || new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth(); // 0-11
+    
+    // Calcular meses restantes en el año (incluyendo el mes actual)
+    const remainingMonths = 12 - currentMonth;
+    
+    const periodicityMonths = {
+      'monthly': 1,       // Cada mes
+      'bimonthly': 2,     // Cada 2 meses  
+      'quarterly': 3,     // Cada 3 meses
+      'fourmonthly': 4,   // Cada 4 meses
+      'biannual': 6,      // Cada 6 meses
+      'annual': 12        // Cada 12 meses
     };
-    return counts[periodicity] || 12;
+    
+    const intervalMonths = periodicityMonths[periodicity] || 1;
+    
+    // Calcular cuántos compromisos caben en los meses restantes
+    const maxPossible = Math.ceil(remainingMonths / intervalMonths);
+    
+    // Para periodicidad anual, siempre es 1 si estamos en el año
+    if (periodicity === 'annual') return 1;
+    
+    return Math.max(1, maxPossible); // Mínimo 1 compromiso
   };
 
   // 🆔 Formatear NIT/Identificación automáticamente
@@ -142,21 +158,9 @@ const NewCommitmentPage = () => {
         // Usuario escribió guión pero no dígito, mantener guión
         return `${formattedMain}-`;
       }
-    } else if (mainPart.length >= 9) {
-      // Si tiene 9 o más dígitos sin guión, asumir que es NIT
-      // Separar los primeros 9 dígitos del último para verificación
-      const nitMain = mainPart.substring(0, 9);
-      const nitVerification = mainPart.substring(9, 10);
-      
-      const formattedNitMain = nitMain.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-      
-      if (nitVerification) {
-        return `${formattedNitMain}-${nitVerification}`;
-      } else {
-        return formattedNitMain;
-      }
     } else {
-      // Es ID personal (cédula, etc.)
+      // Para números sin guión, solo formatear con puntos
+      // NO asumir automáticamente que es NIT por longitud
       return formattedMain;
     }
   };
@@ -496,50 +500,51 @@ const NewCommitmentPage = () => {
     return () => unsubscribe();
   }, [currentUser, addNotification]);
 
+  // 🔄 Función para cargar sugerencias (movida fuera del useEffect para reutilización)
+  const loadSuggestions = async () => {
+    if (!currentUser) return;
+    
+    setLoadingSuggestions(true);
+    try {
+      // Cargar proveedores desde la colección providers
+      const providersQuery = query(collection(db, 'providers'), orderBy('name'));
+      const providersSnapshot = await getDocs(providersQuery);
+      
+      const providers = [];
+      providersSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.name && data.name.trim()) {
+          providers.push({
+            name: data.name.trim(),
+            nit: data.nit?.trim() || '',
+            id: doc.id
+          });
+        }
+      });
+      
+      // Cargar conceptos desde compromisos existentes
+      const commitmentsQuery = query(collection(db, 'commitments'));
+      const commitmentsSnapshot = await getDocs(commitmentsQuery);
+      
+      const conceptsSet = new Set();
+      commitmentsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.concept && data.concept.trim()) {
+          conceptsSet.add(data.concept.trim());
+        }
+      });
+      
+      setProvidersSuggestions(providers);
+      setConceptsSuggestions(Array.from(conceptsSet).sort());
+    } catch (error) {
+      console.error('Error loading suggestions:', error);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
   // Cargar sugerencias para autocompletado desde proveedores y compromisos
   useEffect(() => {
-    if (!currentUser) return;
-
-    const loadSuggestions = async () => {
-      setLoadingSuggestions(true);
-      try {
-        // Cargar proveedores desde la colección providers
-        const providersQuery = query(collection(db, 'providers'), orderBy('name'));
-        const providersSnapshot = await getDocs(providersQuery);
-        
-        const providers = [];
-        providersSnapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data.name && data.name.trim()) {
-            providers.push({
-              name: data.name.trim(),
-              nit: data.nit?.trim() || '',
-              id: doc.id
-            });
-          }
-        });
-        
-        // Cargar conceptos desde compromisos existentes
-        const commitmentsQuery = query(collection(db, 'commitments'));
-        const commitmentsSnapshot = await getDocs(commitmentsQuery);
-        
-        const conceptsSet = new Set();
-        commitmentsSnapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data.concept && data.concept.trim()) {
-            conceptsSet.add(data.concept.trim());
-          }
-        });
-        
-        setProvidersSuggestions(providers);
-        setConceptsSuggestions(Array.from(conceptsSet).sort());
-      } catch (error) {
-        console.error('Error loading suggestions:', error);
-      } finally {
-        setLoadingSuggestions(false);
-      }
-    };
-
     loadSuggestions();
   }, [currentUser]);
 
@@ -556,16 +561,17 @@ const NewCommitmentPage = () => {
     }
   }, [preselectedCompany, companies, addNotification]);
 
-  // 🔄 Actualizar contador de compromisos según periodicidad
+  // 🔄 Actualizar contador de compromisos según periodicidad y fecha
   useEffect(() => {
     if (formData.periodicity && formData.periodicity !== 'unique') {
-      const defaultCount = getDefaultRecurringCount(formData.periodicity);
+      const baseDate = formData.dueDate || new Date();
+      const defaultCount = getDefaultRecurringCount(formData.periodicity, baseDate);
       setFormData(prev => ({
         ...prev,
         recurringCount: defaultCount
       }));
     }
-  }, [formData.periodicity]);
+  }, [formData.periodicity, formData.dueDate]);
 
   // Manejar cambios en el formulario
   const handleFormChange = (field, value) => {
@@ -643,7 +649,72 @@ const NewCommitmentPage = () => {
     setUploadProgress(0);
   };
 
-  // 📄 Funciones para manejo de archivos
+  // �️ Eliminar concepto de las sugerencias
+  const handleDeleteConcept = async (conceptToDelete) => {
+    try {
+      // Confirmar eliminación
+      const confirmed = window.confirm(
+        `¿Estás seguro de que quieres eliminar el concepto "${conceptToDelete}"?\n\nEsto eliminará TODOS los compromisos que tengan este concepto exacto.`
+      );
+      
+      if (!confirmed) return;
+
+      setLoadingSuggestions(true);
+
+      // Buscar y eliminar todos los compromisos con este concepto
+      const commitmentsQuery = query(
+        collection(db, 'commitments'),
+        where('concept', '==', conceptToDelete)
+      );
+
+      const commitmentsSnapshot = await getDocs(commitmentsQuery);
+      
+      if (commitmentsSnapshot.empty) {
+        addNotification({
+          type: 'info',
+          title: 'Sin compromisos',
+          message: `No se encontraron compromisos con el concepto "${conceptToDelete}"`,
+          icon: 'info',
+          color: 'info'
+        });
+        setLoadingSuggestions(false);
+        return;
+      }
+
+      // Eliminar compromisos en batch
+      const batch = writeBatch(db);
+      commitmentsSnapshot.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+
+      await batch.commit();
+
+      // Actualizar sugerencias localmente
+      setConceptsSuggestions(prev => prev.filter(concept => concept !== conceptToDelete));
+
+      addNotification({
+        type: 'success',
+        title: 'Concepto eliminado',
+        message: `Se eliminaron ${commitmentsSnapshot.size} compromisos con el concepto "${conceptToDelete}"`,
+        icon: 'success',
+        color: 'success'
+      });
+
+    } catch (error) {
+      console.error('Error eliminando concepto:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error eliminando concepto',
+        message: 'No se pudo eliminar el concepto. Inténtalo de nuevo.',
+        icon: 'error',
+        color: 'error'
+      });
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  // �📄 Funciones para manejo de archivos
   const handleFileSelect = (event) => {
     const files = Array.from(event.target.files);
     if (files.length === 0) return;
@@ -1168,10 +1239,16 @@ const NewCommitmentPage = () => {
 
       // 🔄 Si la periodicidad NO es "único", generar compromisos recurrentes automáticamente
       if (formData.periodicity !== 'unique') {
-        // Generar compromisos recurrentes automáticamente
+        // Establecer límite anual para compromisos recurrentes
+        const currentYear = new Date().getFullYear();
+        const maxDate = new Date(currentYear, 11, 31); // 31 de diciembre del año en curso
+        
+        // Generar compromisos recurrentes automáticamente con límite anual
         const recurringCommitments = await generateRecurringCommitments(
           commitmentData, 
-          formData.recurringCount || 12
+          formData.recurringCount || 12,
+          false, // skipFirst = false para nuevo compromiso
+          maxDate // Límite anual
         );
 
         // Guardar todos los compromisos recurrentes
@@ -1229,6 +1306,22 @@ const NewCommitmentPage = () => {
         // 🧹 Limpiar formulario después del éxito
         resetForm();
         
+        // 🔄 Actualización optimista: agregar nuevo beneficiario/concepto si no existe
+        if (formData.beneficiary && !providersSuggestions.some(p => p.name === formData.beneficiary)) {
+          setProvidersSuggestions(prev => [...prev, {
+            name: formData.beneficiary,
+            nit: formData.beneficiaryNit || '',
+            id: `temp-${Date.now()}` // ID temporal
+          }].sort((a, b) => a.name.localeCompare(b.name)));
+        }
+        
+        if (formData.concept && !conceptsSuggestions.includes(formData.concept)) {
+          setConceptsSuggestions(prev => [...prev, formData.concept].sort());
+        }
+        
+        // 🔄 Recargar sugerencias completas en background (sin bloquear UI)
+        setTimeout(() => loadSuggestions(), 1000);
+        
       } else {
         // Guardar compromiso único
         const docRef = await addDoc(collection(db, 'commitments'), commitmentData);
@@ -1275,6 +1368,22 @@ const NewCommitmentPage = () => {
         
         // 🧹 Limpiar formulario después del éxito
         resetForm();
+        
+        // 🔄 Actualización optimista: agregar nuevo beneficiario/concepto si no existe
+        if (formData.beneficiary && !providersSuggestions.some(p => p.name === formData.beneficiary)) {
+          setProvidersSuggestions(prev => [...prev, {
+            name: formData.beneficiary,
+            nit: formData.beneficiaryNit || '',
+            id: `temp-${Date.now()}` // ID temporal
+          }].sort((a, b) => a.name.localeCompare(b.name)));
+        }
+        
+        if (formData.concept && !conceptsSuggestions.includes(formData.concept)) {
+          setConceptsSuggestions(prev => [...prev, formData.concept].sort());
+        }
+        
+        // 🔄 Recargar sugerencias completas en background (sin bloquear UI)
+        setTimeout(() => loadSuggestions(), 1000);
       }
 
       // ✅ DESHABILITADO: No navegar automáticamente después de guardar
@@ -1565,37 +1674,65 @@ const NewCommitmentPage = () => {
                     
                     <Grid container spacing={3}>
                       <Grid item xs={12} md={6}>
-                        <FormControl fullWidth required>
-                          <InputLabel>Empresa</InputLabel>
-                          <Select
-                            value={formData.companyId}
-                            label="Empresa"
-                            onChange={(e) => handleFormChange('companyId', e.target.value)}
-                            disabled={saving}
-                          >
-                            {companies.map((company) => (
-                              <MenuItem key={company.id} value={company.id}>
-                                <Box display="flex" alignItems="center" gap={1}>
-                                  {company.logoURL && (
-                                    <img 
-                                      src={company.logoURL} 
-                                      alt={company.name}
-                                      style={{ width: 24, height: 24, borderRadius: 4 }}
-                                    />
-                                  )}
-                                  <Box>
-                                    <Typography variant="body2" fontWeight="500">
-                                      {company.name}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                      NIT: {company.nit}
-                                    </Typography>
-                                  </Box>
+                        <Autocomplete
+                          fullWidth
+                          options={companies}
+                          value={companies.find(company => company.id === formData.companyId) || null}
+                          onChange={(event, newValue) => {
+                            handleFormChange('companyId', newValue ? newValue.id : '');
+                          }}
+                          getOptionLabel={(option) => option.name || ''}
+                          isOptionEqualToValue={(option, value) => option.id === value.id}
+                          disabled={saving}
+                          renderOption={(props, option) => (
+                            <Box component="li" {...props}>
+                              <Box display="flex" alignItems="center" gap={1}>
+                                {option.logoURL && (
+                                  <img 
+                                    src={option.logoURL} 
+                                    alt={option.name}
+                                    style={{ width: 24, height: 24, borderRadius: 4 }}
+                                  />
+                                )}
+                                <Box>
+                                  <Typography variant="body2" fontWeight="500">
+                                    {option.name}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    NIT: {option.nit}
+                                  </Typography>
                                 </Box>
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
+                              </Box>
+                            </Box>
+                          )}
+                          renderInput={(params) => (
+                            <TextField
+                              {...params}
+                              label="Empresa"
+                              required
+                              placeholder="Buscar empresa... (ej: King)"
+                              InputProps={{
+                                ...params.InputProps,
+                                startAdornment: (
+                                  <InputAdornment position="start">
+                                    <BusinessIcon sx={{ color: primaryColor }} />
+                                  </InputAdornment>
+                                ),
+                                sx: {
+                                  borderRadius: `${borderRadius}px`,
+                                  '& .MuiOutlinedInput-root': {
+                                    transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                                    '&:hover': animationsEnabled ? {
+                                      borderColor: primaryColor,
+                                      transform: 'translateY(-1px)',
+                                      boxShadow: `0 4px 12px ${alpha(primaryColor, 0.25)}`
+                                    } : {}
+                                  }
+                                }
+                              }}
+                            />
+                          )}
+                        />
                       </Grid>
                     </Grid>
                   </Paper>
@@ -1921,6 +2058,53 @@ const NewCommitmentPage = () => {
                           }}
                           disabled={saving}
                           loading={loadingSuggestions}
+                          renderOption={(props, option) => {
+                            const { key, ...otherProps } = props;
+                            return (
+                              <Box
+                                key={key}
+                                {...otherProps}
+                                component="li"
+                                sx={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  '&:hover .delete-concept-btn': {
+                                    opacity: 1
+                                  }
+                                }}
+                              >
+                                <Typography
+                                  sx={{
+                                    flex: 1,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis'
+                                  }}
+                                >
+                                  {option}
+                                </Typography>
+                                <IconButton
+                                  className="delete-concept-btn"
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteConcept(option);
+                                  }}
+                                  sx={{
+                                    opacity: 0,
+                                    transition: 'opacity 0.2s ease',
+                                    color: 'error.main',
+                                    '&:hover': {
+                                      backgroundColor: 'error.light',
+                                      color: 'error.dark'
+                                    }
+                                  }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Box>
+                            );
+                          }}
                           renderInput={(params) => (
                             <TextField
                               {...params}

@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import useActivityLogs from '../../hooks/useActivityLogs';
 import { fCurrency, fShortenNumber } from '../../utils/formatNumber';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import { Chart, registerables } from 'chart.js';
+
+// Registrar componentes de Chart.js
+Chart.register(...registerables);
 import {
   Box,
   Card,
@@ -32,7 +39,9 @@ import {
   Schedule,
   Refresh,
   Download,
-  FilterList
+  FilterList,
+  TableChart,
+  PictureAsPdf
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, AreaChart, Area, ScatterChart, Scatter } from 'recharts';
@@ -205,14 +214,568 @@ const ReportsSummaryPage = () => {
     }, 1000);
   };
 
-  const handleExport = async () => {
-    await logActivity('reports_export', 'summary', {
-      timestamp: new Date().toISOString(),
-      format: 'excel'
+  const handleExport = async (format = 'excel') => {
+    try {
+      // Log de actividad
+      await logActivity('reports_export', 'summary', {
+        timestamp: new Date().toISOString(),
+        format: format,
+        recordsCount: summaryData.totalCommitments
+      });
+
+      if (format === 'pdf') {
+        await exportToPDF();
+      } else {
+        await exportToExcelAdvanced();
+      }
+      
+    } catch (error) {
+      console.error(`❌ Error al generar reporte ${format}:`, error);
+      
+      await logActivity('reports_export_error', 'summary', {
+        timestamp: new Date().toISOString(),
+        format: format,
+        error: error.message
+      });
+
+      alert(`Error al generar el reporte ${format}. Verifica la consola para más detalles.`);
+    }
+  };
+
+  // 🎨 FUNCIÓN PARA GENERAR GRÁFICAS COMO IMÁGENES
+  const generateChartImage = async (chartData, chartType, title) => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 800;
+      canvas.height = 400;
+      canvas.style.backgroundColor = 'white';
+      
+      const ctx = canvas.getContext('2d');
+      
+      // Configuración del gráfico según el tipo
+      let chartConfig = {
+        type: chartType,
+        data: chartData,
+        options: {
+          responsive: false,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            title: {
+              display: true,
+              text: title,
+              font: { size: 20, weight: 'bold' },
+              color: '#1565C0',
+              padding: 20
+            },
+            legend: {
+              position: 'bottom',
+              labels: {
+                font: { size: 14 },
+                padding: 20,
+                usePointStyle: true
+              }
+            }
+          },
+          scales: chartType !== 'pie' && chartType !== 'doughnut' ? {
+            y: {
+              beginAtZero: true,
+              grid: { color: '#E0E0E0' },
+              ticks: {
+                font: { size: 12 },
+                callback: function(value) {
+                  return fCurrency(value);
+                }
+              }
+            },
+            x: {
+              grid: { color: '#E0E0E0' },
+              ticks: { font: { size: 12 } }
+            }
+          } : {}
+        }
+      };
+
+      const chart = new Chart(ctx, chartConfig);
+      
+      // Esperar a que se renderice y obtener la imagen
+      setTimeout(() => {
+        const imageData = canvas.toDataURL('image/png', 1.0);
+        chart.destroy();
+        resolve(imageData);
+      }, 500);
+    });
+  };
+
+  // 📊 EXPORTAR A EXCEL AVANZADO CON FORMATO PROFESIONAL
+  const exportToExcelAdvanced = async () => {
+    console.log('🚀 Generando Excel PREMIUM con formato empresarial...');
+
+    // Crear workbook
+    const wb = XLSX.utils.book_new();
+    wb.Props = {
+      Title: "DR Group - Reporte Ejecutivo PREMIUM",
+      Subject: "Análisis Avanzado de Compromisos Financieros",
+      Author: "DR Group Dashboard",
+      CreatedDate: new Date()
+    };
+
+    // === HOJA 1: DASHBOARD EJECUTIVO ===
+    const dashboardData = [
+      // Header corporativo
+      ['DR GROUP - REPORTE EJECUTIVO PREMIUM', '', '', '', '', '', '', ''],
+      [`Generado: ${new Date().toLocaleString('es-CO', { 
+        timeZone: 'America/Bogota',
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      })}`, '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', ''], // Espacio
+
+      // KPIs principales con formato mejorado
+      ['INDICADORES CLAVE DE RENDIMIENTO', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', ''],
+      ['METRICA', 'VALOR', 'FORMATO', '', 'METRICA', 'VALOR', 'FORMATO', ''],
+      ['Total Compromisos', summaryData.totalCommitments, 'unidades', '', 'Completados', summaryData.completedCommitments, 'unidades', ''],
+      ['Monto Total', summaryData.totalAmount, 'COP', '', 'Pendientes', summaryData.pendingCommitments, 'unidades', ''],
+      ['Promedio', summaryData.averageAmount, 'COP', '', 'Vencidos', summaryData.overdueCommitments, 'unidades', ''],
+      ['Empresas Activas', topCompanies.length, 'unidades', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', ''], // Espacio
+
+      // Distribución con formato de tabla profesional
+      ['DISTRIBUCION POR ESTADO', '', '', '', '', '', '', ''],
+      ['', '', '', '', '', '', '', ''],
+      ['ESTADO', 'CANTIDAD', 'PORCENTAJE', 'INDICADOR', '', '', '', ''],
+    ];
+
+    // Agregar datos de distribución
+    statusData.forEach(item => {
+      const total = statusData.reduce((sum, s) => sum + s.value, 0);
+      const percentage = total > 0 ? ((item.value / total) * 100).toFixed(1) : '0.0';
+      const indicator = item.value > 20 ? 'ALTO' : item.value > 10 ? 'MEDIO' : 'BAJO';
+      
+      dashboardData.push([
+        item.name, item.value, `${percentage}%`, indicator, '', '', '', ''
+      ]);
+    });
+
+    const dashboardWs = XLSX.utils.aoa_to_sheet(dashboardData);
+
+    // APLICAR ESTILOS PROFESIONALES
+    const range = XLSX.utils.decode_range(dashboardWs['!ref']);
+    
+    // Estilos para diferentes secciones
+    for (let row = 0; row <= range.e.r; row++) {
+      for (let col = 0; col <= range.e.c; col++) {
+        const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+        if (!dashboardWs[cellRef]) continue;
+
+        const cell = dashboardWs[cellRef];
+        
+        // Header principal (filas 0-1)
+        if (row <= 1) {
+          cell.s = {
+            fill: { fgColor: { rgb: "1565C0" } },
+            font: { bold: true, sz: row === 0 ? 18 : 12, color: { rgb: "FFFFFF" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: {
+              top: { style: "thick", color: { rgb: "FFFFFF" } },
+              bottom: { style: "thick", color: { rgb: "FFFFFF" } },
+              left: { style: "thick", color: { rgb: "FFFFFF" } },
+              right: { style: "thick", color: { rgb: "FFFFFF" } }
+            }
+          };
+        }
+        // Headers de sección (filas 3, 12)
+        else if (row === 3 || row === 12) {
+          cell.s = {
+            fill: { fgColor: { rgb: "E3F2FD" } },
+            font: { bold: true, sz: 14, color: { rgb: "1565C0" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: {
+              top: { style: "medium", color: { rgb: "1565C0" } },
+              bottom: { style: "medium", color: { rgb: "1565C0" } }
+            }
+          };
+        }
+        // Headers de tabla (filas 5, 14)
+        else if (row === 5 || row === 14) {
+          cell.s = {
+            fill: { fgColor: { rgb: "424242" } },
+            font: { bold: true, sz: 11, color: { rgb: "FFFFFF" } },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: {
+              top: { style: "medium", color: { rgb: "424242" } },
+              bottom: { style: "medium", color: { rgb: "424242" } }
+            }
+          };
+        }
+        // Celdas de datos
+        else if (row > 5 && row < 11) {
+          // Alternar colores de fila
+          const bgColor = (row % 2 === 0) ? "F5F5F5" : "FFFFFF";
+          cell.s = {
+            fill: { fgColor: { rgb: bgColor } },
+            font: { sz: 10, color: { rgb: "424242" } },
+            alignment: { horizontal: col === 1 || col === 2 || col === 5 || col === 6 ? "right" : "left", vertical: "center" },
+            border: {
+              top: { style: "thin", color: { rgb: "E0E0E0" } },
+              bottom: { style: "thin", color: { rgb: "E0E0E0" } },
+              left: { style: "thin", color: { rgb: "E0E0E0" } },
+              right: { style: "thin", color: { rgb: "E0E0E0" } }
+            }
+          };
+          
+          // Formato especial para números grandes
+          if (typeof cell.v === 'number' && cell.v > 1000) {
+            cell.s.numFmt = '#,##0';
+            cell.s.font.color = { rgb: "2E7D32" };
+            cell.s.font.bold = true;
+          }
+        }
+        // Datos de distribución
+        else if (row > 14) {
+          const bgColor = ((row - 15) % 2 === 0) ? "FFF3E0" : "FFFFFF";
+          cell.s = {
+            fill: { fgColor: { rgb: bgColor } },
+            font: { sz: 10, color: { rgb: "424242" } },
+            alignment: { horizontal: col === 1 || col === 2 ? "center" : "left", vertical: "center" },
+            border: {
+              top: { style: "thin", color: { rgb: "FFB74D" } },
+              bottom: { style: "thin", color: { rgb: "FFB74D" } },
+              left: { style: "thin", color: { rgb: "FFB74D" } },
+              right: { style: "thin", color: { rgb: "FFB74D" } }
+            }
+          };
+        }
+      }
+    }
+
+    // Configurar anchos de columna optimizados
+    dashboardWs['!cols'] = [
+      { width: 20 }, { width: 15 }, { width: 12 }, { width: 8 },
+      { width: 15 }, { width: 12 }, { width: 12 }, { width: 8 }
+    ];
+
+    // Merge cells para headers
+    dashboardWs['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, // Header principal
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } }, // Fecha
+      { s: { r: 3, c: 0 }, e: { r: 3, c: 7 } }, // KPIs title
+      { s: { r: 12, c: 0 }, e: { r: 12, c: 7 } } // Distribución title
+    ];
+
+    // === HOJA 2: ANÁLISIS TEMPORAL PROFESIONAL ===
+    const temporalData = [
+      ['ANALISIS TEMPORAL DETALLADO', '', '', '', '', '', ''],
+      [`Periodo: ${monthlyData[0]?.month || 'N/A'} - ${monthlyData[monthlyData.length - 1]?.month || 'N/A'}`, '', '', '', '', '', ''],
+      ['', '', '', '', '', '', ''],
+      ['MES', 'MONTO TOTAL', 'CANTIDAD', 'PROMEDIO', 'CRECIMIENTO %', 'TENDENCIA', 'RANKING']
+    ];
+
+    monthlyData.forEach((month, index) => {
+      const prevMonth = index > 0 ? monthlyData[index - 1] : month;
+      const growth = prevMonth.amount > 0 
+        ? ((month.amount - prevMonth.amount) / prevMonth.amount * 100).toFixed(1)
+        : '0.0';
+      
+      const trendText = parseFloat(growth) > 0 ? 'POSITIVA' : parseFloat(growth) < 0 ? 'NEGATIVA' : 'ESTABLE';
+      const ranking = index < 2 ? 'ORO' : index < 4 ? 'PLATA' : 'BRONCE';
+      
+      temporalData.push([
+        month.month,
+        month.amount,
+        month.commitments,
+        month.commitments > 0 ? Math.round(month.amount / month.commitments) : 0,
+        `${growth}%`,
+        trendText,
+        ranking
+      ]);
+    });
+
+    const temporalWs = XLSX.utils.aoa_to_sheet(temporalData);
+    
+    // Estilos para análisis temporal
+    const tempRange = XLSX.utils.decode_range(temporalWs['!ref']);
+    for (let row = 0; row <= tempRange.e.r; row++) {
+      for (let col = 0; col <= tempRange.e.c; col++) {
+        const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+        if (!temporalWs[cellRef]) continue;
+
+        const cell = temporalWs[cellRef];
+        
+        if (row <= 2) {
+          // Headers
+          cell.s = {
+            fill: { fgColor: { rgb: row === 0 ? "7B1FA2" : "F3E5F5" } },
+            font: { bold: true, sz: row === 0 ? 16 : 12, color: { rgb: row === 0 ? "FFFFFF" : "7B1FA2" } },
+            alignment: { horizontal: "center", vertical: "center" }
+          };
+        } else if (row === 3) {
+          // Column headers
+          cell.s = {
+            fill: { fgColor: { rgb: "424242" } },
+            font: { bold: true, sz: 11, color: { rgb: "FFFFFF" } },
+            alignment: { horizontal: "center", vertical: "center" }
+          };
+        } else {
+          // Data rows
+          const bgColor = (row % 2 === 0) ? "F8F9FA" : "FFFFFF";
+          cell.s = {
+            fill: { fgColor: { rgb: bgColor } },
+            font: { sz: 10 },
+            alignment: { horizontal: col === 0 ? "left" : "center", vertical: "center" },
+            border: {
+              top: { style: "thin", color: { rgb: "E0E0E0" } },
+              bottom: { style: "thin", color: { rgb: "E0E0E0" } }
+            }
+          };
+          
+          // Formato especial para montos
+          if (col === 1 && typeof cell.v === 'number') {
+            cell.s.numFmt = '#,##0';
+            cell.s.font.color = { rgb: "2E7D32" };
+            cell.s.font.bold = true;
+          }
+        }
+      }
+    }
+
+    temporalWs['!cols'] = [
+      { width: 12 }, { width: 18 }, { width: 12 }, { width: 18 }, 
+      { width: 15 }, { width: 15 }, { width: 12 }
+    ];
+
+    temporalWs['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } }
+    ];
+
+    // === HOJA 3: TOP EMPRESAS CON FORMATO PREMIUM ===
+    if (topCompanies.length > 0) {
+      const companiesData = [
+        ['TOP EMPRESAS POR RENDIMIENTO', '', '', '', '', '', ''],
+        [`Total empresas analizadas: ${topCompanies.length}`, '', '', '', '', '', ''],
+        ['', '', '', '', '', '', ''],
+        ['RANKING', 'EMPRESA', 'MONTO TOTAL', 'COMPROMISOS', 'PROMEDIO', 'PARTICIPACION %', 'ESTADO']
+      ];
+
+      const totalAmount = topCompanies.reduce((sum, comp) => sum + comp.amount, 0);
+      
+      topCompanies.forEach((company, index) => {
+        const participation = totalAmount > 0 ? ((company.amount / totalAmount) * 100).toFixed(1) : '0.0';
+        const status = index === 0 ? 'LIDER' : index < 3 ? 'DESTACADA' : 'ACTIVA';
+        const rankingPos = `${index + 1}°`;
+        
+        companiesData.push([
+          rankingPos,
+          company.name,
+          company.amount,
+          company.commitments,
+          company.commitments > 0 ? Math.round(company.amount / company.commitments) : 0,
+          `${participation}%`,
+          status
+        ]);
+      });
+
+      const companiesWs = XLSX.utils.aoa_to_sheet(companiesData);
+      
+      // Estilos empresariales
+      const compRange = XLSX.utils.decode_range(companiesWs['!ref']);
+      for (let row = 0; row <= compRange.e.r; row++) {
+        for (let col = 0; col <= compRange.e.c; col++) {
+          const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+          if (!companiesWs[cellRef]) continue;
+
+          const cell = companiesWs[cellRef];
+          
+          if (row <= 2) {
+            cell.s = {
+              fill: { fgColor: { rgb: row === 0 ? "FF6F00" : "FFF3E0" } },
+              font: { bold: true, sz: row === 0 ? 16 : 12, color: { rgb: row === 0 ? "FFFFFF" : "FF6F00" } },
+              alignment: { horizontal: "center", vertical: "center" }
+            };
+          } else if (row === 3) {
+            cell.s = {
+              fill: { fgColor: { rgb: "37474F" } },
+              font: { bold: true, sz: 11, color: { rgb: "FFFFFF" } },
+              alignment: { horizontal: "center", vertical: "center" }
+            };
+          } else {
+            // Colores especiales para el top 3
+            let bgColor = "FFFFFF";
+            let textColor = "424242";
+            const dataRow = row - 4;
+            
+            if (dataRow === 0) { // 1er lugar
+              bgColor = "FFF3E0"; textColor = "E65100";
+            } else if (dataRow === 1) { // 2do lugar  
+              bgColor = "F3E5F5"; textColor = "7B1FA2";
+            } else if (dataRow === 2) { // 3er lugar
+              bgColor = "E8F5E8"; textColor = "2E7D32";
+            } else {
+              bgColor = (row % 2 === 0) ? "F8F9FA" : "FFFFFF";
+            }
+            
+            cell.s = {
+              fill: { fgColor: { rgb: bgColor } },
+              font: { sz: 10, color: { rgb: textColor }, bold: dataRow < 3 },
+              alignment: { horizontal: col === 1 ? "left" : "center", vertical: "center" },
+              border: {
+                top: { style: "thin", color: { rgb: "E0E0E0" } },
+                bottom: { style: "thin", color: { rgb: "E0E0E0" } }
+              }
+            };
+            
+            if (col === 2 && typeof cell.v === 'number') {
+              cell.s.numFmt = '#,##0';
+            }
+          }
+        }
+      }
+
+      companiesWs['!cols'] = [
+        { width: 10 }, { width: 25 }, { width: 18 }, { width: 12 }, 
+        { width: 15 }, { width: 15 }, { width: 12 }
+      ];
+
+      companiesWs['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 6 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } }
+      ];
+      
+      XLSX.utils.book_append_sheet(wb, companiesWs, 'Top Empresas');
+    }
+
+    // Agregar las hojas principales
+    XLSX.utils.book_append_sheet(wb, dashboardWs, 'Dashboard Ejecutivo');
+    XLSX.utils.book_append_sheet(wb, temporalWs, 'Analisis Temporal');
+
+    // Generar y descargar archivo
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+    XLSX.writeFile(wb, `DR-Group-Reporte-Premium-${timestamp}.xlsx`);
+
+    console.log('✨ Reporte Excel PREMIUM generado exitosamente con formato profesional');
+  };
+
+  // � EXPORTAR A PDF PROFESIONAL
+  const exportToPDF = async () => {
+    console.log('�🚀 Generando PDF profesional...');
+    
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    
+    // === PORTADA CORPORATIVA ===
+    pdf.setFillColor(21, 101, 192); // Color corporativo
+    pdf.rect(0, 0, pageWidth, 60, 'F');
+    
+    // Logo y título
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(24);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('DR GROUP', pageWidth / 2, 25, { align: 'center' });
+    
+    pdf.setFontSize(16);
+    pdf.text('REPORTE EJECUTIVO DE COMPROMISOS FINANCIEROS', pageWidth / 2, 40, { align: 'center' });
+    
+    // Fecha y hora
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    const now = new Date().toLocaleString('es-CO', { 
+      timeZone: 'America/Bogota',
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+    pdf.text(`Generado: ${now}`, pageWidth / 2, 52, { align: 'center' });
+    
+    // === KPIs PRINCIPALES ===
+    let yPos = 80;
+    pdf.setTextColor(21, 101, 192);
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('INDICADORES CLAVE DE RENDIMIENTO', 20, yPos);
+    
+    yPos += 15;
+    pdf.setFontSize(11);
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFont('helvetica', 'normal');
+    
+    const kpis = [
+      { label: 'Total Compromisos:', value: summaryData.totalCommitments.toLocaleString('es-CO') },
+      { label: 'Monto Total:', value: fCurrency(summaryData.totalAmount) },
+      { label: 'Completados:', value: summaryData.completedCommitments.toLocaleString('es-CO') },
+      { label: 'Pendientes:', value: summaryData.pendingCommitments.toLocaleString('es-CO') },
+      { label: 'Vencidos:', value: summaryData.overdueCommitments.toLocaleString('es-CO') },
+      { label: 'Promedio:', value: fCurrency(summaryData.averageAmount) }
+    ];
+    
+    kpis.forEach(kpi => {
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(kpi.label, 25, yPos);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(kpi.value, 120, yPos);
+      yPos += 8;
     });
     
-    // Aquí implementarías la lógica de exportación
-    console.log('Exportando reporte...');
+    // === DISTRIBUCIÓN POR ESTADO ===
+    yPos += 10;
+    pdf.setTextColor(123, 31, 162);
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('DISTRIBUCION POR ESTADO', 20, yPos);
+    
+    yPos += 15;
+    pdf.setFontSize(11);
+    pdf.setTextColor(0, 0, 0);
+    
+    const total = statusData.reduce((sum, item) => sum + item.value, 0);
+    statusData.forEach(item => {
+      const percentage = total > 0 ? ((item.value / total) * 100).toFixed(1) : '0.0';
+      
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`${item.name}:`, 25, yPos);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`${item.value} (${percentage}%)`, 120, yPos);
+      yPos += 8;
+    });
+    
+    // === ANÁLISIS TEMPORAL ===
+    if (yPos > pageHeight - 40) {
+      pdf.addPage();
+      yPos = 30;
+    }
+    
+    yPos += 10;
+    pdf.setTextColor(255, 111, 0);
+    pdf.setFontSize(16);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('ANALISIS TEMPORAL', 20, yPos);
+    
+    yPos += 15;
+    pdf.setFontSize(10);
+    pdf.setTextColor(0, 0, 0);
+    
+    monthlyData.slice(0, 6).forEach((month, index) => {
+      const avgAmount = month.commitments > 0 ? month.amount / month.commitments : 0;
+      
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`${month.month}:`, 25, yPos);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`${fCurrency(month.amount)} (${month.commitments} compromisos)`, 70, yPos);
+      pdf.text(`Promedio: ${fCurrency(avgAmount)}`, 140, yPos);
+      yPos += 7;
+    });
+    
+    // === PIE DE PÁGINA ===
+    pdf.setFontSize(8);
+    pdf.setTextColor(128, 128, 128);
+    pdf.text('DR Group Dashboard - Reporte generado automaticamente', pageWidth / 2, pageHeight - 10, { align: 'center' });
+    
+    // Generar y descargar
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
+    pdf.save(`DR-Group-Reporte-PDF-${timestamp}.pdf`);
+    
+    console.log('✨ PDF profesional generado exitosamente');
   };
 
   // DEBUG: Información esencial sobre el estado de los datos
@@ -1196,18 +1759,41 @@ const ReportsSummaryPage = () => {
                 }} />
               </IconButton>
               
+              {/* Botón Excel Premium */}
               <IconButton
-                onClick={handleExport}
+                onClick={() => handleExport('excel')}
                 sx={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  backgroundColor: 'rgba(76, 175, 80, 0.15)',
                   color: 'white',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  border: '1px solid rgba(76, 175, 80, 0.5)',
                   '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.25)'
-                  }
+                    backgroundColor: 'rgba(76, 175, 80, 0.25)',
+                    transform: 'scale(1.05)'
+                  },
+                  transition: 'all 0.3s ease'
                 }}
+                title="Exportar Excel Premium"
               >
-                <Download sx={{ fontSize: 20 }} />
+                <TableChart sx={{ fontSize: 20 }} />
+              </IconButton>
+
+              {/* Botón PDF Profesional */}
+              <IconButton
+                onClick={() => handleExport('pdf')}
+                sx={{
+                  backgroundColor: 'rgba(244, 67, 54, 0.15)',
+                  color: 'white',
+                  border: '1px solid rgba(244, 67, 54, 0.5)',
+                  '&:hover': {
+                    backgroundColor: 'rgba(244, 67, 54, 0.25)',
+                    transform: 'scale(1.05)'
+                  },
+                  transition: 'all 0.3s ease',
+                  ml: 1
+                }}
+                title="Exportar PDF Ejecutivo"
+              >
+                <PictureAsPdf sx={{ fontSize: 20 }} />
               </IconButton>
             </Box>
           </Box>

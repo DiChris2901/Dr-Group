@@ -25,7 +25,8 @@ import {
   Chip,
   Avatar,
   alpha,
-  useTheme
+  useTheme,
+  Autocomplete
 } from '@mui/material';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -56,7 +57,10 @@ import {
   collection,
   query,
   orderBy,
-  onSnapshot
+  onSnapshot,
+  where,
+  getDocs,
+  writeBatch
 } from 'firebase/firestore';
 import { 
   ref, 
@@ -68,6 +72,7 @@ import { db, storage } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
 import useActivityLogs from '../../hooks/useActivityLogs';
+import { generateRecurringCommitments, saveRecurringCommitments } from '../../utils/recurringCommitments';
 
 // Opciones de método de pago - COINCIDEN CON FIREBASE
 const PAYMENT_METHOD_OPTIONS = [
@@ -411,6 +416,110 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
 
       const commitmentRef = doc(db, 'commitments', commitment.id);
       await updateDoc(commitmentRef, updatedData);
+
+      // 🔄 Si cambió de "unique" a recurrente, generar compromisos adicionales
+      const wasUnique = commitment.periodicity === 'unique';
+      const isNowRecurring = formData.periodicity !== 'unique';
+      
+      if (wasUnique && isNowRecurring) {
+        console.log('🔄 Detectado cambio de único a recurrente, generando compromisos...');
+        
+        // Usar los datos actualizados para generar compromisos recurrentes
+        const baseCommitmentData = {
+          ...updatedData,
+          id: commitment.id, // Mantener el ID original para evitar duplicar
+          createdAt: commitment.createdAt,
+          createdBy: commitment.createdBy,
+          // Usar la fecha de vencimiento actual como base
+          dueDate: dueDateToSave || commitment.dueDate
+        };
+        
+        try {
+          // 🔄 Generar compromisos recurrentes (saltando el primero para evitar duplicados)
+          const recurringCommitments = await generateRecurringCommitments(baseCommitmentData, 12, true);
+          console.log('✅ Compromisos recurrentes generados:', recurringCommitments);
+          
+          // 💾 Guardar los compromisos generados en Firebase
+          if (recurringCommitments && recurringCommitments.length > 0) {
+            const savedIds = await saveRecurringCommitments(recurringCommitments);
+            console.log('✅ Compromisos guardados en Firebase:', savedIds);
+            
+            addNotification({
+              type: 'success',
+              title: '🔄 Compromisos Recurrentes Creados',
+              message: `Se generaron y guardaron ${recurringCommitments.length} compromisos adicionales`,
+              duration: 4000
+            });
+          } else {
+            console.log('ℹ️ No se generaron compromisos (posiblemente limitados por fecha)');
+            addNotification({
+              type: 'info',
+              title: 'ℹ️ Sin Compromisos Adicionales',
+              message: 'No se generaron compromisos adicionales (limitados por fecha del año actual)',
+              duration: 4000
+            });
+          }
+        } catch (recurringError) {
+          console.error('❌ Error generando compromisos recurrentes:', recurringError);
+          addNotification({
+            type: 'warning',
+            title: '⚠️ Advertencia',
+            message: 'El compromiso se actualizó pero hubo un problema generando los compromisos recurrentes',
+            duration: 5000
+          });
+        }
+      }
+
+      // 🗑️ Si cambió de recurrente a "unique", eliminar compromisos relacionados
+      const wasRecurring = commitment.periodicity !== 'unique';
+      const isNowUnique = formData.periodicity === 'unique';
+      
+      if (wasRecurring && isNowUnique) {
+        console.log('🗑️ Detectado cambio de recurrente a único, eliminando compromisos relacionados...');
+        
+        try {
+          // Buscar compromisos relacionados con el mismo concepto, empresa y beneficiario
+          // pero que NO sea el compromiso actual que estamos editando
+          const relatedQuery = query(
+            collection(db, 'commitments'),
+            where('concept', '==', formData.concept.trim()),
+            where('companyId', '==', formData.companyId),
+            where('beneficiary', '==', formData.beneficiary.trim())
+          );
+          
+          const relatedSnapshot = await getDocs(relatedQuery);
+          const relatedCommitments = relatedSnapshot.docs.filter(doc => doc.id !== commitment.id);
+          
+          if (relatedCommitments.length > 0) {
+            // Eliminar en lote todos los compromisos relacionados
+            const batch = writeBatch(db);
+            relatedCommitments.forEach((doc) => {
+              batch.delete(doc.ref);
+            });
+            
+            await batch.commit();
+            console.log(`✅ Eliminados ${relatedCommitments.length} compromisos relacionados`);
+            
+            addNotification({
+              type: 'success',
+              title: '🗑️ Compromisos Relacionados Eliminados',
+              message: `Se eliminaron ${relatedCommitments.length} compromisos del grupo recurrente`,
+              duration: 4000
+            });
+          } else {
+            console.log('ℹ️ No se encontraron compromisos relacionados para eliminar');
+          }
+          
+        } catch (deleteError) {
+          console.error('❌ Error eliminando compromisos relacionados:', deleteError);
+          addNotification({
+            type: 'warning',
+            title: '⚠️ Advertencia',
+            message: 'El compromiso se actualizó pero hubo un problema eliminando los compromisos relacionados',
+            duration: 5000
+          });
+        }
+      }
 
       // 📝 Registrar actividad de auditoría
       await logActivity('update_commitment', 'commitment', commitment.id, {
@@ -817,26 +926,54 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
 
                   {/* Empresa y Beneficiario */}
                   <Grid item xs={12} md={6}>
-                    <FormControl fullWidth variant="outlined">
-                      <InputLabel>Empresa</InputLabel>
-                      <Select
-                        value={formData.companyId}
-                        onChange={(e) => handleFormChange('companyId', e.target.value)}
-                        label="Empresa"
-                        startAdornment={
-                          <InputAdornment position="start">
-                            <Business color="primary" />
-                          </InputAdornment>
-                        }
-                        sx={{ borderRadius: 1 }}
-                      >
-                        {companies.map((company) => (
-                          <MenuItem key={company.id} value={company.id}>
-                            {company.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
+                    <Autocomplete
+                      fullWidth
+                      options={companies}
+                      value={companies.find(company => company.id === formData.companyId) || null}
+                      onChange={(event, newValue) => {
+                        handleFormChange('companyId', newValue ? newValue.id : '');
+                      }}
+                      getOptionLabel={(option) => option.name || ''}
+                      isOptionEqualToValue={(option, value) => option.id === value.id}
+                      renderOption={(props, option) => (
+                        <Box component="li" {...props}>
+                          <Box display="flex" alignItems="center" gap={1}>
+                            {option.logoURL && (
+                              <img 
+                                src={option.logoURL} 
+                                alt={option.name}
+                                style={{ width: 24, height: 24, borderRadius: 4 }}
+                              />
+                            )}
+                            <Box>
+                              <Typography variant="body2" fontWeight="500">
+                                {option.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                NIT: {option.nit}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </Box>
+                      )}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          label="Empresa"
+                          variant="outlined"
+                          placeholder="Buscar empresa... (ej: King)"
+                          InputProps={{
+                            ...params.InputProps,
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <Business color="primary" />
+                              </InputAdornment>
+                            ),
+                            sx: { borderRadius: 1 }
+                          }}
+                        />
+                      )}
+                    />
                   </Grid>
 
                   <Grid item xs={12} md={6}>

@@ -2265,7 +2265,7 @@ const CommitmentsList = ({
             
             return animationsEnabled ? (
               <motion.div
-                key={commitment.id}
+                key={`${commitment.id}-${index}`}
                 initial={{ 
                   opacity: 0, 
                   y: 20, 
@@ -2295,7 +2295,7 @@ const CommitmentsList = ({
                 {cardContent}
               </motion.div>
             ) : (
-              <Box key={commitment.id} sx={{ mb: spacing.grid }}>
+              <Box key={`${commitment.id}-${index}`} sx={{ mb: spacing.grid }}>
                 {cardContent}
               </Box>
             );
@@ -2341,7 +2341,7 @@ const CommitmentsList = ({
               
               return (
                 <motion.div
-                  key={commitment.id}
+                  key={`${commitment.id}-${index}`}
                   initial={animationsEnabled ? { opacity: 0, x: -20 } : { opacity: 1, x: 0 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.05 }}
@@ -2582,7 +2582,7 @@ const CommitmentsList = ({
                 md={12 / responsiveColumns.md} 
                 lg={12 / responsiveColumns.lg} 
                 xl={12 / responsiveColumns.xl} 
-                key={commitment.id}
+                key={`${commitment.id}-${index}`}
               >
                 {animationsEnabled ? (
                   <motion.div

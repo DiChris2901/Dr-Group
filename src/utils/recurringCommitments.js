@@ -42,9 +42,9 @@ export const generateRecurringCommitments = async (commitmentData, instancesCoun
       throw new Error(`Periodicidad no válida: ${commitmentData.periodicity}`);
     }
 
-    // Establecer límite temporal por defecto: fin del año siguiente
+    // Establecer límite temporal por defecto: fin del año en curso
     const currentYear = new Date().getFullYear();
-    const defaultMaxDate = new Date(currentYear + 1, 11, 31); // 31 de diciembre del año siguiente
+    const defaultMaxDate = new Date(currentYear, 11, 31); // 31 de diciembre del año en curso
     const effectiveMaxDate = maxDate || defaultMaxDate;
 
     const generatedCommitments = [];
@@ -58,18 +58,16 @@ export const generateRecurringCommitments = async (commitmentData, instancesCoun
     for (let i = startIndex; i < instancesCount + startIndex && generatedCount < instancesCount; i++) {
       const currentDate = addMonths(baseDate, i * monthsInterval);
       
-      // Verificar límite temporal
+      // Verificar límite temporal (solo año en curso)
       if (currentDate > effectiveMaxDate) {
-        console.log(`⏱️ Límite temporal alcanzado: ${currentDate.toISOString()} > ${effectiveMaxDate.toISOString()}`);
+        console.log(`📅 Límite anual alcanzado: ${format(currentDate, 'dd/MM/yyyy', { locale: es })} excede el año ${currentYear}`);
         break;
       }
       
       const commitment = {
         ...commitmentData,
         dueDate: currentDate,
-        concept: i === 0 
-          ? commitmentData.concept 
-          : `${commitmentData.concept} - ${format(currentDate, 'MMMM yyyy', { locale: es })}`,
+        concept: commitmentData.concept, // 🔧 Mantener concepto original sin fecha automática
         month: currentDate.getMonth() + 1,
         year: currentDate.getFullYear(),
         instanceNumber: i + 1,
@@ -87,7 +85,7 @@ export const generateRecurringCommitments = async (commitmentData, instancesCoun
 
     // Log del resultado
     const limitedByTime = generatedCount < instancesCount;
-    console.log(`📅 Compromisos generados: ${generatedCount}/${instancesCount}${limitedByTime ? ' (limitado por fecha)' : ''}`);
+    console.log(`📅 Compromisos generados: ${generatedCount}/${instancesCount}${limitedByTime ? ` (limitado al año ${currentYear})` : ''}`);
 
     return generatedCommitments;
   } catch (error) {
