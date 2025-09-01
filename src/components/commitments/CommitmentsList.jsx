@@ -91,10 +91,7 @@ const getGlobalDarkModeColors = (theme) => ({
   hoverBackground: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.98) : alpha(theme.palette.background.default, 0.8),
   shadowColor: theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(0, 0, 0, 0.1)',
   textPrimary: theme.palette.mode === 'dark' ? '#e2e8f0' : theme.palette.text.primary,
-  textSecondary: theme.palette.mode === 'dark' ? '#94a3b8' : theme.palette.text.secondary,
-  shimmerEffect: theme.palette.mode === 'dark'
-    ? 'linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)'
-    : 'linear-gradient(90deg, transparent, rgba(0,0,0,0.03), transparent)',
+  textSecondary: theme.palette.mode === 'dark' ? '#94a3b8' : theme.palette.text.secondary
 });
 
 // Status color helper
@@ -305,6 +302,16 @@ const CommitmentsList = ({
   const spacing = getSpacingByDensity();
   const cardStyles = getCardSizeStyles();
   const responsiveColumns = getColumnsConfig();
+
+  // ================= Transparent Chip Styles Function =================
+  const getTransparentChipStyles = (color) => ({
+    backgroundColor: alpha(theme.palette[color]?.main || color, 0.1),
+    borderColor: alpha(theme.palette[color]?.main || color, 0.3),
+    color: theme.palette[color]?.main || color,
+    '& .MuiChip-icon': {
+      color: theme.palette[color]?.main || color
+    }
+  });
 
   const getPaginationConfig = () => {
     switch (effectiveViewMode) {
@@ -2813,24 +2820,10 @@ const CommitmentsList = ({
                         border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                         borderRadius: 2,
                         transition: 'all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                        '&::before': {
-                          content: '""',
-                          position: 'absolute',
-                          top: 0,
-                          left: '-100%',
-                          width: '100%',
-                          height: '100%',
-                          background: darkColors.hoverBackground,
-                          transition: 'left 0.6s ease-out',
-                          zIndex: 1
-                        },
                         '&:hover': {
                           transform: 'translateY(-4px)',
                           boxShadow: `0 8px 24px ${darkColors.shadowColor}`,
-                          borderColor: alpha(theme.palette.primary.main, 0.8),
-                          '&::before': {
-                            left: '100%'
-                          }
+                          borderColor: alpha(theme.palette.primary.main, 0.8)
                         },
                         '&::after': {
                           content: '""',
