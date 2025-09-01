@@ -52,6 +52,7 @@ import { useCommitments, useCompanies } from '../../hooks/useFirestore';
 import { useSettings } from '../../context/SettingsContext';
 import { db } from '../../config/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { determineCommitmentStatus, getCommitmentStats } from '../../utils/commitmentStatusUtils';
 
 const ReportsCompanyPage = () => {
   const theme = useTheme();
@@ -557,8 +558,8 @@ const ReportsCompanyPage = () => {
       
       console.log(`Total compromisos obtenidos de Firebase: ${allCommitments.length}`);
       
-      // 🔥 OBTENER TODOS LOS PAGOS DE FIREBASE PARA CRUZAR INFORMACIÓN
-      console.log('Obteniendo todos los pagos de Firebase...');
+      // 🔥 OBTENER TODOS LOS PAGOS PARA FECHAS DE PAGO REALES
+      console.log('Obteniendo pagos para fechas de pago...');
       const paymentsRef = collection(db, 'payments');
       const paymentsSnapshot = await getDocs(paymentsRef);
       const allPayments = paymentsSnapshot.docs.map(doc => ({
@@ -566,84 +567,36 @@ const ReportsCompanyPage = () => {
         ...doc.data()
       }));
       
-      console.log(`Total pagos obtenidos de Firebase: ${allPayments.length}`);
+      console.log(`Total pagos obtenidos: ${allPayments.length}`);
       
-      // 🔥 CREAR ÍNDICE DE PAGOS POR COMMITMENT ID PARA BÚSQUEDA RÁPIDA
-      const paymentsByCommitment = {};
+      // Crear índice de pagos por commitment ID
+      const paymentsByCommitmentId = {};
       allPayments.forEach(payment => {
         const commitmentId = payment.commitmentId;
         if (commitmentId) {
-          if (!paymentsByCommitment[commitmentId]) {
-            paymentsByCommitment[commitmentId] = [];
+          if (!paymentsByCommitmentId[commitmentId]) {
+            paymentsByCommitmentId[commitmentId] = [];
           }
-          paymentsByCommitment[commitmentId].push(payment);
+          paymentsByCommitmentId[commitmentId].push(payment);
         }
       });
       
-      console.log(`Compromisos con pagos asociados: ${Object.keys(paymentsByCommitment).length}`);
+      console.log(`Compromisos con pagos asociados: ${Object.keys(paymentsByCommitmentId).length}`);
       
-      // 🔥 FUNCIÓN PARA DETERMINAR SI UN COMPROMISO ESTÁ REALMENTE COMPLETADO/PAGADO
-      const isCommitmentCompleted = (commitment) => {
-        // 1. Verificar estado directo del compromiso
-        const statusCompleted = commitment.status === 'completed' || commitment.status === 'paid';
-        
-        // 2. Verificar pagos asociados
-        const payments = paymentsByCommitment[commitment.id] || [];
-        const hasValidPayments = payments.length > 0;
-        
-        if (!hasValidPayments) {
-          // Sin pagos: solo confiar en el status si está marcado como completado
-          return statusCompleted;
-        }
-        
-        // 3. Con pagos: verificar si el monto total pagado cubre el compromiso
-        const commitmentAmount = parseFloat(commitment.totalAmount || commitment.amount || 0);
-        const totalPaid = payments.reduce((sum, payment) => {
-          const paymentAmount = parseFloat(payment.amount || payment.totalAmount || 0);
-          return sum + paymentAmount;
-        }, 0);
-        
-        // Tolerancia del 1% para diferencias de redondeo
-        const tolerance = commitmentAmount * 0.01;
-        const isFullyPaid = Math.abs(totalPaid - commitmentAmount) <= tolerance || totalPaid >= commitmentAmount;
-        
-        // 4. Resultado final: completado si tiene status de completado O está totalmente pagado
-        return statusCompleted || isFullyPaid;
-      };
+      // 🔥 CLASIFICAR COMPROMISOS USANDO LA NUEVA LÓGICA DE PAGOS PARCIALES
+      console.log('Clasificando compromisos usando nueva lógica de pagos parciales...');
       
-      // 🔥 FUNCIÓN PARA DETERMINAR SI UN COMPROMISO ESTÁ VENCIDO
-      const isCommitmentOverdue = (commitment) => {
-        // No puede estar vencido si ya está completado
-        if (isCommitmentCompleted(commitment)) {
-          return false;
-        }
-        
-        // Verificar si la fecha de vencimiento ya pasó
-        const dueDate = commitment.dueDate?.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate);
-        const today = new Date();
-        today.setHours(23, 59, 59, 999); // Fin del día actual
-        
-        return dueDate < today;
-      };
+      const commitmentsWithStatus = await Promise.all(
+        allCommitments.map(async (commitment) => {
+          const status = await determineCommitmentStatus(commitment);
+          return { ...commitment, calculatedStatus: status };
+        })
+      );
       
-      // Analizar estados de compromisos para debug
-      const statusCount = allCommitments.reduce((acc, c) => {
-        acc[c.status || 'undefined'] = (acc[c.status || 'undefined'] || 0) + 1;
-        return acc;
-      }, {});
-      console.log('Estados de compromisos encontrados:', statusCount);
+      console.log('Clasificación completada. Filtrando por empresa y fecha...');
       
-      const paymentStatusCount = allCommitments.reduce((acc, c) => {
-        const paymentStatus = c.paymentStatus || 'undefined';
-        acc[paymentStatus] = (acc[paymentStatus] || 0) + 1;
-        return acc;
-      }, {});
-      console.log('Estados de pago encontrados:', paymentStatusCount);
-      
-      console.log('Ejemplo de compromiso:', allCommitments[0]);
-      
-      // 🔥 FILTRAR COMPROMISOS COMPLETADOS USANDO LÓGICA REAL DE PAGOS
-      const completedCommitments = allCommitments.filter(c => {
+      // Aplicar filtros de empresa y fecha
+      const filteredCommitments = commitmentsWithStatus.filter(c => {
         // Filtro por empresa
         if (selectedCompanies.length > 0 && !selectedCompanies.includes(c.companyId)) {
           return false;
@@ -656,68 +609,36 @@ const ReportsCompanyPage = () => {
           if (customEndDate && commitmentDate > new Date(customEndDate)) return false;
         }
         
-        // 🔥 USAR LA NUEVA FUNCIÓN QUE CRUZA CON PAGOS REALES
-        return isCommitmentCompleted(c);
+        return true;
       });
       
-      // 🔥 FILTRAR COMPROMISOS PENDIENTES USANDO LÓGICA REAL DE PAGOS
-      const pendingCommitments = allCommitments.filter(c => {
-        // Filtro por empresa
-        if (selectedCompanies.length > 0 && !selectedCompanies.includes(c.companyId)) {
-          return false;
-        }
-        
-        // Filtro por fecha (si aplica)
-        if (customStartDate || customEndDate) {
-          const commitmentDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate || c.createdAt?.toDate() || c.createdAt);
-          if (customStartDate && commitmentDate < new Date(customStartDate)) return false;
-          if (customEndDate && commitmentDate > new Date(customEndDate)) return false;
-        }
-        
-        // 🔥 PENDIENTE: NO completado Y NO vencido
-        return !isCommitmentCompleted(c) && !isCommitmentOverdue(c);
-      });
+      // 🔥 SEPARAR POR ESTADOS USANDO LA NUEVA CLASIFICACIÓN
+      const completedCommitments = filteredCommitments.filter(c => c.calculatedStatus === 'completed');
+      const pendingCommitments = filteredCommitments.filter(c => 
+        c.calculatedStatus === 'pending' || c.calculatedStatus === 'partial'
+      );
+      const overdueCommitments = filteredCommitments.filter(c => c.calculatedStatus === 'overdue');
       
-      // 🔥 FILTRAR COMPROMISOS VENCIDOS USANDO LÓGICA REAL DE PAGOS
-      const overdueCommitments = allCommitments.filter(c => {
-        // Filtro por empresa
-        if (selectedCompanies.length > 0 && !selectedCompanies.includes(c.companyId)) {
-          return false;
-        }
-        
-        // Filtro por fecha (si aplica)
-        if (customStartDate || customEndDate) {
-          const commitmentDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate || c.createdAt?.toDate() || c.createdAt);
-          if (customStartDate && commitmentDate < new Date(customStartDate)) return false;
-          if (customEndDate && commitmentDate > new Date(customEndDate)) return false;
-        }
-        
-        // 🔥 VENCIDO: NO completado Y SÍ vencido por fecha
-        return !isCommitmentCompleted(c) && isCommitmentOverdue(c);
-      });
+      console.log(`✅ Compromisos completados (pagados completos): ${completedCommitments.length}`);
+      console.log(`⏳ Compromisos pendientes (sin pago + pagos parciales): ${pendingCommitments.length}`);
+      console.log(`🔴 Compromisos vencidos (sin pagos y vencidos): ${overdueCommitments.length}`);
       
-      console.log(`Compromisos completados encontrados: ${completedCommitments.length}`);
-      console.log(`Compromisos pendientes encontrados: ${pendingCommitments.length}`);
-      console.log(`Compromisos vencidos encontrados: ${overdueCommitments.length}`);
+      // 🔍 LOG DETALLADO DE COMPROMISOS PENDIENTES (Para verificar pagos parciales)
+      const partialPayments = pendingCommitments.filter(c => c.calculatedStatus === 'partial');
+      const trulyPending = pendingCommitments.filter(c => c.calculatedStatus === 'pending');
       
-      // 🔥 DEBUG: Mostrar ejemplos de compromisos completados con sus pagos
-      if (completedCommitments.length > 0) {
-        const exampleCompleted = completedCommitments[0];
-        const examplePayments = paymentsByCommitment[exampleCompleted.id] || [];
-        console.log('Ejemplo de compromiso completado:', {
-          commitment: {
-            id: exampleCompleted.id,
-            status: exampleCompleted.status,
-            paymentStatus: exampleCompleted.paymentStatus,
-            amount: exampleCompleted.totalAmount || exampleCompleted.amount,
-            description: exampleCompleted.description
-          },
-          associatedPayments: examplePayments.map(p => ({
-            id: p.id,
-            amount: p.amount || p.totalAmount,
-            date: p.date,
-            status: p.status
-          }))
+      console.log(`📊 DESGLOSE DE COMPROMISOS PENDIENTES:`);
+      console.log(`   - Con pagos parciales: ${partialPayments.length}`);
+      console.log(`   - Sin pagos (pendientes): ${trulyPending.length}`);
+      console.log(`   - Total pendientes: ${pendingCommitments.length}`);
+      
+      if (partialPayments.length > 0) {
+        console.log(`💰 Ejemplo de compromiso con pago parcial:`, {
+          id: partialPayments[0].id,
+          description: partialPayments[0].description || partialPayments[0].concept,
+          amount: partialPayments[0].totalAmount || partialPayments[0].amount,
+          status: partialPayments[0].calculatedStatus,
+          company: partialPayments[0].companyName || 'Sin nombre'
         });
       }
       
@@ -737,8 +658,30 @@ const ReportsCompanyPage = () => {
       console.log(`Compromisos vencidos: ${overdueCommitments.length}`);
       
       // �📝 Registrar actividad de auditoría - Exportación de reporte
-      const selectedCompanyNames = selectedCompanies.length === 0 ? 'Todas las empresas' : 
-        selectedCompanies.map(id => companiesData.find(c => c.id === id)?.name || id).join(', ');
+      // 🔥 FUNCIÓN HELPER PARA FORMATEAR LISTA DE EMPRESAS DE MANERA ELEGANTE
+      const formatCompanyList = (companies, companiesData) => {
+        if (companies.length === 0) return 'Todas las empresas';
+        
+        if (companies.length <= 2) {
+          return companies.map(id => companiesData.find(c => c.id === id)?.name || id).join(' y ');
+        }
+        
+        if (companies.length === 3) {
+          const names = companies.map(id => companiesData.find(c => c.id === id)?.name || id);
+          return `${names[0]}, ${names[1]} y ${names[2]}`;
+        }
+        
+        if (companies.length <= 5) {
+          const names = companies.map(id => companiesData.find(c => c.id === id)?.name || id);
+          const firstTwo = names.slice(0, 2).join(', ');
+          const remaining = companies.length - 2;
+          return `${firstTwo} y ${remaining} más`;
+        }
+        
+        return `${companies.length} empresas seleccionadas`;
+      };
+
+      const selectedCompanyNames = formatCompanyList(selectedCompanies, companiesData);
       
       await logActivity('export_report', 'report', 'company_report', {
         reportType: 'Análisis por Empresa',
@@ -775,14 +718,22 @@ const ReportsCompanyPage = () => {
       };
       summarySheet.getRow(1).height = 35;
       
-      // Información del reporte con formato empresarial
+      // Información del reporte con formato empresarial mejorado
       summarySheet.mergeCells('A2:H2');
       const infoCell = summarySheet.getCell('A2');
-      infoCell.value = `Generado: ${new Date().toLocaleString('es-ES', { 
-        timeZone: 'America/Bogota',
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-      })} | Filtros: ${selectedCompanyNames} | Período: ${timeRange}`;
+      
+      // 🔥 CREAR INFORMACIÓN MÁS ORGANIZADA Y LEGIBLE
+      const reportInfo = [
+        `📅 Generado: ${new Date().toLocaleDateString('es-ES', { 
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        })} a las ${new Date().toLocaleTimeString('es-ES', { 
+          hour: '2-digit', minute: '2-digit'
+        })}`,
+        `🏢 Empresas: ${selectedCompanyNames}`,
+        `⏰ Período: ${timeRange}`
+      ].join(' | ');
+      
+      infoCell.value = reportInfo;
       infoCell.font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FF1565C0' } };
       infoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } };
       infoCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -871,11 +822,11 @@ const ReportsCompanyPage = () => {
       // Subtítulo
       detailSheet.mergeCells('A2:G2');
       const subtitleCell = detailSheet.getCell('A2');
-      subtitleCell.value = `Período: ${timeRange} | Total empresas analizadas: ${filteredCompanies.length}`;
+      subtitleCell.value = `📊 Período analizado: ${timeRange} | 🏢 ${selectedCompanyNames} | 📈 Total empresas: ${filteredCompanies.length}`;
       subtitleCell.font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FF7B1FA2' } };
       subtitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E5F5' } };
       subtitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-      detailSheet.getRow(2).height = 22;
+      detailSheet.getRow(2).height = 25;
       
       // Encabezados de la tabla con formato premium
       const headers = ['RANKING', 'EMPRESA', 'COMPROMISOS', 'COMPLETADOS', 'MONTO TOTAL', '% CUMPLIMIENTO', 'ESTADO'];
@@ -1116,6 +1067,34 @@ const ReportsCompanyPage = () => {
           
           completedTotal += totalAmount;
           
+          // 🔥 OBTENER FECHA REAL DE PAGO DESDE LA COLECCIÓN PAYMENTS
+          const commitmentPayments = paymentsByCommitmentId[commitment.id] || [];
+          let paymentDate = 'N/A';
+          
+          if (commitmentPayments.length > 0) {
+            // Ordenar pagos por fecha y tomar el más reciente
+            const sortedPayments = commitmentPayments.sort((a, b) => {
+              const dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date || a.createdAt);
+              const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date || b.createdAt);
+              return dateB - dateA; // Más reciente primero
+            });
+            
+            const latestPayment = sortedPayments[0];
+            const paymentDateObj = latestPayment.date?.toDate ? 
+              latestPayment.date.toDate() : 
+              new Date(latestPayment.date || latestPayment.createdAt);
+              
+            paymentDate = paymentDateObj.toLocaleDateString('es-ES');
+            
+            console.log(`📅 Compromiso ${commitment.id}: ${commitmentPayments.length} pagos, fecha más reciente: ${paymentDate}`);
+          } else {
+            // Fallback: usar la fecha del compromiso si existe
+            if (commitment.paidDate) {
+              paymentDate = new Date(commitment.paidDate.toDate ? commitment.paidDate.toDate() : commitment.paidDate).toLocaleDateString('es-ES');
+            }
+            console.log(`⚠️ Compromiso ${commitment.id}: Sin pagos en colección payments, usando fecha del compromiso: ${paymentDate}`);
+          }
+          
           const rowData = [
             company?.name || 'N/A',
             commitment.beneficiary || 'N/A',
@@ -1130,7 +1109,7 @@ const ReportsCompanyPage = () => {
             intereses,
             descuentos,
             totalAmount,
-            commitment.paidDate ? new Date(commitment.paidDate.toDate ? commitment.paidDate.toDate() : commitment.paidDate).toLocaleDateString('es-ES') : 'N/A',
+            paymentDate, // 🔥 Usar la fecha real del pago
             commitment.paymentMethod || 'N/A'
           ];
           
@@ -1191,8 +1170,38 @@ const ReportsCompanyPage = () => {
       if (pendingCommitments.length > 0) {
         const pendingSheet = workbook.addWorksheet('Compromisos Pendientes');
         
+        // 🔥 CALCULAR MÁXIMO NÚMERO DE PAGOS PARCIALES PARA CREAR COLUMNAS DINÁMICAS
+        let maxPartialPayments = 0;
+        pendingCommitments.forEach(commitment => {
+          const commitmentPayments = paymentsByCommitmentId[commitment.id] || [];
+          if (commitmentPayments.length > maxPartialPayments) {
+            maxPartialPayments = commitmentPayments.length;
+          }
+        });
+        
+        console.log(`📊 Máximo de pagos parciales encontrados: ${maxPartialPayments}`);
+        
+        // Headers básicos para compromisos pendientes
+        const basicPendingHeaders = [
+          'EMPRESA', 'BENEFICIARIO/PROVEEDOR', 'NIT', 'CONCEPTO', 'VALOR BASE', 'IVA', 'RETEFUENTE', 
+          'ICA', 'DERECHOS EXPLOTACIÓN', 'GASTOS ADMIN', 'INTERESES', 'DESCUENTOS', 'VALOR TOTAL', 'FECHA VENCIMIENTO'
+        ];
+        
+        // 🔥 AGREGAR COLUMNAS DINÁMICAS PARA CADA PAGO PARCIAL
+        const partialPaymentHeaders = [];
+        for (let i = 1; i <= maxPartialPayments; i++) {
+          partialPaymentHeaders.push(`PAGO PARCIAL ${i}`);
+          partialPaymentHeaders.push(`FECHA PAGO ${i}`);
+        }
+        
+        const pendingHeaders = [...basicPendingHeaders, ...partialPaymentHeaders];
+        
+        // Calcular el rango de merge basado en el número total de columnas
+        const totalColumns = pendingHeaders.length;
+        const mergeRange = `A1:${String.fromCharCode(64 + totalColumns)}1`;
+        
         // Header
-        pendingSheet.mergeCells('A1:N1');
+        pendingSheet.mergeCells(mergeRange);
         const pendingTitleCell = pendingSheet.getCell('A1');
         pendingTitleCell.value = '⏳ COMPROMISOS PENDIENTES - DETALLE FINANCIERO';
         pendingTitleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -1201,30 +1210,31 @@ const ReportsCompanyPage = () => {
         pendingSheet.getRow(1).height = 30;
 
         // Subtítulo
-        pendingSheet.mergeCells('A2:N2');
+        const subtitleMergeRange = `A2:${String.fromCharCode(64 + totalColumns)}2`;
+        pendingSheet.mergeCells(subtitleMergeRange);
         const pendingSubtitleCell = pendingSheet.getCell('A2');
-        pendingSubtitleCell.value = `Total compromisos pendientes: ${pendingCommitments.length} | Monto total: ${formatCurrency(pendingCommitments.reduce((sum, c) => sum + (parseFloat(c.totalAmount) || parseFloat(c.amount) || 0), 0))}`;
+        pendingSubtitleCell.value = `Total compromisos pendientes: ${pendingCommitments.length} | Monto total: ${formatCurrency(pendingCommitments.reduce((sum, c) => sum + (parseFloat(c.totalAmount) || parseFloat(c.amount) || 0), 0))} | Máx. pagos parciales: ${maxPartialPayments}`;
         pendingSubtitleCell.font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FFF57C00' } };
         pendingSubtitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3E0' } };
         pendingSubtitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
         pendingSheet.getRow(2).height = 22;
 
-        // Headers detallados (sin fecha/método de pago)
-        const pendingHeaders = [
-          'EMPRESA', 'BENEFICIARIO/PROVEEDOR', 'NIT', 'CONCEPTO', 'VALOR BASE', 'IVA', 'RETEFUENTE', 
-          'ICA', 'DERECHOS EXPLOTACIÓN', 'GASTOS ADMIN', 'INTERESES', 'DESCUENTOS', 'VALOR TOTAL', 'FECHA VENCIMIENTO'
-        ];
-        
+        // Headers detallados con pagos parciales dinámicos        
         const pendingHeaderRow = pendingSheet.getRow(4);
         pendingHeaders.forEach((header, index) => {
           const cell = pendingHeaderRow.getCell(index + 1);
           cell.value = header;
           cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE65100' } };
+          
+          // Color diferente para columnas de pagos parciales
+          const isPaymentColumn = index >= basicPendingHeaders.length;
+          const bgColor = isPaymentColumn ? 'FF4CAF50' : 'FFE65100';
+          
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
           cell.alignment = { horizontal: 'center', vertical: 'middle' };
           cell.border = {
-            top: { style: 'medium', color: { argb: 'FFE65100' } },
-            bottom: { style: 'medium', color: { argb: 'FFE65100' } }
+            top: { style: 'medium', color: { argb: bgColor } },
+            bottom: { style: 'medium', color: { argb: bgColor } }
           };
         });
         pendingHeaderRow.height = 25;
@@ -1247,6 +1257,17 @@ const ReportsCompanyPage = () => {
           
           pendingTotal += totalAmount;
           
+          // 🔥 OBTENER PAGOS PARCIALES PARA ESTE COMPROMISO
+          const commitmentPayments = paymentsByCommitmentId[commitment.id] || [];
+          
+          // Ordenar pagos por fecha (más antiguo primero)
+          const sortedPayments = commitmentPayments.sort((a, b) => {
+            const dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date || a.createdAt);
+            const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date || b.createdAt);
+            return dateA - dateB; // Más antiguo primero
+          });
+          
+          // Datos básicos del compromiso
           const rowData = [
             company?.name || 'N/A',
             commitment.beneficiary || 'N/A',
@@ -1264,6 +1285,27 @@ const ReportsCompanyPage = () => {
             commitment.dueDate ? new Date(commitment.dueDate.toDate ? commitment.dueDate.toDate() : commitment.dueDate).toLocaleDateString('es-ES') : 'N/A'
           ];
           
+          // 🔥 AGREGAR DATOS DE PAGOS PARCIALES DINÁMICAMENTE
+          for (let i = 0; i < maxPartialPayments; i++) {
+            if (i < sortedPayments.length) {
+              const payment = sortedPayments[i];
+              const paymentAmount = parseFloat(payment.amount) || 0;
+              const paymentDateObj = payment.date?.toDate ? 
+                payment.date.toDate() : 
+                new Date(payment.date || payment.createdAt);
+              const paymentDate = paymentDateObj.toLocaleDateString('es-ES');
+              
+              rowData.push(paymentAmount); // Monto del pago
+              rowData.push(paymentDate);   // Fecha del pago
+            } else {
+              // Columnas vacías si no hay más pagos
+              rowData.push('');
+              rowData.push('');
+            }
+          }
+          
+          console.log(`💰 Compromiso ${commitment.id}: ${sortedPayments.length} pagos parciales de ${maxPartialPayments} máximo`);
+          
           rowData.forEach((value, colIndex) => {
             const cell = row.getCell(colIndex + 1);
             cell.value = value;
@@ -1272,15 +1314,32 @@ const ReportsCompanyPage = () => {
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
             cell.font = { name: 'Arial', size: 9, color: { argb: 'FF424242' } };
             
+            const basicColumnsCount = basicPendingHeaders.length;
+            const isPaymentAmountColumn = colIndex >= basicColumnsCount && (colIndex - basicColumnsCount) % 2 === 0;
+            const isPaymentDateColumn = colIndex >= basicColumnsCount && (colIndex - basicColumnsCount) % 2 === 1;
+            
             if (colIndex === 0 || colIndex === 1 || colIndex === 3) {
+              // Columnas de texto (empresa, beneficiario, concepto)
               cell.alignment = { horizontal: 'left', vertical: 'center' };
-            } else if (colIndex >= 4 && colIndex <= 12) {
+            } else if ((colIndex >= 4 && colIndex <= 12) || isPaymentAmountColumn) {
+              // Columnas numéricas (montos y pagos parciales)
               cell.alignment = { horizontal: 'right', vertical: 'center' };
-              cell.numFmt = '#,##0.00';
               if (typeof value === 'number' && value > 0) {
-                cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FFF57C00' } };
+                cell.numFmt = '$#,##0.00';
+                if (isPaymentAmountColumn) {
+                  cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF4CAF50' } };
+                } else {
+                  cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FFF57C00' } };
+                }
+              }
+            } else if (isPaymentDateColumn) {
+              // Columnas de fecha de pago
+              cell.alignment = { horizontal: 'center', vertical: 'center' };
+              if (value && value !== '') {
+                cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF4CAF50' } };
               }
             } else {
+              // Otras columnas (fechas vencimiento, etc.)
               cell.alignment = { horizontal: 'center', vertical: 'center' };
             }
             
@@ -1307,12 +1366,18 @@ const ReportsCompanyPage = () => {
         totalPendingRow.getCell(13).numFmt = '$#,##0.00';
         totalPendingRow.getCell(13).alignment = { horizontal: 'right', vertical: 'middle' };
         
-        // Configurar anchos de columna
-        pendingSheet.columns = [
-          { width: 20 }, { width: 25 }, { width: 15 }, { width: 25 }, { width: 15 },
-          { width: 12 }, { width: 12 }, { width: 12 }, { width: 15 }, { width: 12 },
-          { width: 12 }, { width: 12 }, { width: 15 }, { width: 15 }
+        // 🔥 CONFIGURAR ANCHOS DE COLUMNA DINÁMICAMENTE
+        const columnWidths = [
+          20, 25, 15, 25, 15, 12, 12, 12, 15, 12, 12, 12, 15, 15 // Columnas básicas
         ];
+        
+        // Agregar anchos para columnas de pagos parciales
+        for (let i = 0; i < maxPartialPayments; i++) {
+          columnWidths.push(15); // Ancho para monto del pago
+          columnWidths.push(12); // Ancho para fecha del pago
+        }
+        
+        pendingSheet.columns = columnWidths.map(width => ({ width }));
       }
 
       // 📋 HOJA 6: COMPROMISOS VENCIDOS DETALLADOS

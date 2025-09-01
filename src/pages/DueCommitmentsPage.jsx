@@ -74,6 +74,9 @@ import { useSettings } from '../context/SettingsContext';
 import { useNotifications } from '../context/NotificationsContext';
 import useActivityLogs from '../hooks/useActivityLogs';
 
+// Componentes personalizados
+import CommitmentStatusChip from '../components/commitments/CommitmentStatusChip';
+
 // Firebase
 import { doc, updateDoc, deleteDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -1622,11 +1625,11 @@ const DueCommitmentsPage = () => {
                       },
                       alignItems: 'center'
                     }}>
-                      {/* Estado con StatusChipDS3 */}
-                      <StatusChipDS3 
-                        status={getStatusInfo(commitment, theme)}
+                      {/* 🔥 COMPONENTE MEJORADO QUE CONSIDERA PAGOS PARCIALES */}
+                      <CommitmentStatusChip 
+                        commitment={commitment}
                         showTooltip={true}
-                        theme={theme}
+                        variant="filled"
                       />
 
                       {/* Descripción igual que CommitmentsList */}

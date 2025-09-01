@@ -39,7 +39,10 @@ import { useNotifications } from '../../context/NotificationsContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useTableTokens } from '../../hooks/useTokens';
 import useCommitmentAlerts from '../../hooks/useCommitmentAlerts';
+import { useCommitmentCompleteStatus } from '../../hooks/useCommitmentPaymentStatus';
+import { determineCommitmentStatus, filterCommitmentsByStatus } from '../../utils/commitmentStatusUtils';
 import CommitmentEditFormComplete from './CommitmentEditFormComplete';
+import CommitmentStatusChip, { getEnhancedStatusInfo } from './CommitmentStatusChip';
 import {
   FilterList,
   NavigateBefore,
@@ -442,26 +445,8 @@ const CommitmentsList = ({
         }
 
         if (debouncedStatusFilter && debouncedStatusFilter !== 'all') {
-          const today = new Date();
-          const threeDaysFromNow = new Date();
-          threeDaysFromNow.setDate(today.getDate() + 3);
-
-          filteredCommitments = filteredCommitments.filter(commitment => {
-            const dueDate = commitment.dueDate;
-            
-            switch (debouncedStatusFilter) {
-              case 'overdue':
-                return dueDate < today && !commitment.paid;
-              case 'due-soon':
-                return dueDate > today && dueDate < threeDaysFromNow && !commitment.paid;
-              case 'pending':
-                return !commitment.paid && dueDate >= threeDaysFromNow;
-              case 'paid':
-                return commitment.paid;
-              default:
-                return true;
-            }
-          });
+          // Usar la nueva lógica de filtrado con estados de pago reales
+          filteredCommitments = await filterCommitmentsByStatus(filteredCommitments, debouncedStatusFilter);
         }
         
         totalCount = filteredCommitments.length;
@@ -573,25 +558,8 @@ const CommitmentsList = ({
 
       // Filtro por estado
       if (debouncedStatusFilter && debouncedStatusFilter !== 'all') {
-        const today = new Date();
-        const threeDaysFromNow = addDays(today, 3);
-
-        filteredCommitments = filteredCommitments.filter(commitment => {
-          const dueDate = commitment.dueDate;
-          
-          switch (debouncedStatusFilter) {
-            case 'overdue':
-              return isBefore(dueDate, today) && !commitment.paid;
-            case 'due-soon':
-              return isAfter(dueDate, today) && isBefore(dueDate, threeDaysFromNow) && !commitment.paid;
-            case 'pending':
-              return !commitment.paid && isAfter(dueDate, threeDaysFromNow);
-            case 'paid':
-              return commitment.paid;
-            default:
-              return true;
-          }
-        });
+        // Usar la nueva lógica de filtrado con estados de pago reales
+        filteredCommitments = await filterCommitmentsByStatus(filteredCommitments, debouncedStatusFilter);
       }
 
       const firstVisible = snapshot.docs[0];
@@ -661,7 +629,7 @@ const CommitmentsList = ({
     }
 
     // Configurar listener en tiempo real
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
       console.log('🔔 [REAL TIME] Datos actualizados desde Firestore');
       
       if (snapshot.empty) {
@@ -700,27 +668,15 @@ const CommitmentsList = ({
         );
       }
 
-      // Filtro por estado
+      // Filtro por estado - Ahora con función asíncrona
       if (debouncedStatusFilter && debouncedStatusFilter !== 'all') {
-        const today = new Date();
-        const threeDaysFromNow = addDays(today, 3);
-
-        filteredCommitments = filteredCommitments.filter(commitment => {
-          const dueDate = commitment.dueDate;
-          
-          switch (debouncedStatusFilter) {
-            case 'overdue':
-              return isBefore(dueDate, today) && !commitment.paid && !commitment.isPaid;
-            case 'due-soon':
-              return isAfter(dueDate, today) && isBefore(dueDate, threeDaysFromNow) && !commitment.paid && !commitment.isPaid;
-            case 'pending':
-              return !commitment.paid && !commitment.isPaid && isAfter(dueDate, threeDaysFromNow);
-            case 'paid':
-              return commitment.paid || commitment.isPaid;
-            default:
-              return true;
-          }
-        });
+        try {
+          // Usar la nueva lógica de filtrado con estados de pago reales
+          filteredCommitments = await filterCommitmentsByStatus(filteredCommitments, debouncedStatusFilter);
+        } catch (error) {
+          console.error('Error al filtrar por estado:', error);
+          // En caso de error, mantener todos los compromisos sin filtrar por estado
+        }
       }
 
       console.log(`🎯 [REAL TIME] ${filteredCommitments.length} compromisos después de filtros`);
@@ -788,62 +744,10 @@ const CommitmentsList = ({
     return () => clearTimeout(resetTimer);
   }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter]); // NO incluir currentPage aquí
 
+  // 🔥 FUNCIÓN DE ESTADO MEJORADA QUE CONSIDERA PAGOS PARCIALES
   const getStatusInfo = (commitment) => {
-    const today = new Date();
-    const dueDate = commitment.dueDate;
-    const threeDaysFromNow = addDays(today, 3);
-    const daysDifference = differenceInDays(dueDate, today);
-
-    if (commitment.paid) {
-      return {
-        label: 'Pagado',
-        color: theme.palette.success.main,
-        chipColor: 'success',
-        icon: <CheckCircle />,
-        gradient: 'linear-gradient(135deg, #4caf50 0%, #8bc34a 100%)',
-        shadowColor: 'rgba(76, 175, 80, 0.3)',
-        action: 'Ver Comprobante',
-        actionIcon: <GetApp />
-      };
-    }
-
-    if (isBefore(dueDate, today)) {
-      const urgency = Math.min(Math.abs(daysDifference), 30) / 30; // Más urgente = más rojo
-      return {
-        label: 'Vencido',
-        color: theme.palette.error.main,
-        chipColor: 'error',
-        icon: <Warning />,
-        gradient: `linear-gradient(135deg, #f44336 0%, #d32f2f ${urgency * 50}%, #b71c1c 100%)`,
-        shadowColor: 'rgba(244, 67, 54, 0.4)',
-        action: 'Pagar Ahora',
-        actionIcon: <Payment />
-      };
-    }
-
-    if (isBefore(dueDate, threeDaysFromNow)) {
-      return {
-        label: 'Próximo',
-        color: theme.palette.warning.main,
-        chipColor: 'warning',
-        icon: <Schedule />,
-        gradient: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
-        shadowColor: 'rgba(255, 152, 0, 0.3)',
-        action: 'Programar Pago',
-        actionIcon: <NotificationAdd />
-      };
-    }
-
-    return {
-      label: 'Pendiente',
-      color: theme.palette.info.main,
-      chipColor: 'info',
-      icon: <CalendarToday />,
-      gradient: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
-      shadowColor: 'rgba(33, 150, 243, 0.3)',
-      action: 'Ver Detalles',
-      actionIcon: <Visibility />
-    };
+    // Usar la función mejorada que incluye lógica básica de fallback
+    return getEnhancedStatusInfo(commitment, theme);
   };
 
   const formatCurrency = (amount) => {
@@ -2227,25 +2131,12 @@ const CommitmentsList = ({
                 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
                     <Box sx={{ mr: 1.5 }}>
-                      {showTooltips ? (
-                        <Tooltip title={`Estado: ${statusInfo.label}`} arrow>
-                          <Chip 
-                            icon={statusInfo.icon}
-                            label={statusInfo.label}
-                            variant="outlined"
-                            size="small"
-                            sx={getTransparentChipStyles(statusInfo.color)}
-                          />
-                        </Tooltip>
-                      ) : (
-                        <Chip 
-                          icon={statusInfo.icon}
-                          label={statusInfo.label}
-                          variant="outlined"
-                          size="small"
-                          sx={getTransparentChipStyles(statusInfo.color)}
-                        />
-                      )}
+                      {/* 🔥 COMPONENTE MEJORADO QUE CONSIDERA PAGOS PARCIALES */}
+                      <CommitmentStatusChip 
+                        commitment={commitment} 
+                        showTooltip={showTooltips}
+                        variant="outlined"
+                      />
                     </Box>
                     
                     <Box sx={{ flex: 1 }}>
@@ -2847,37 +2738,12 @@ const CommitmentsList = ({
                         zIndex: 2
                       }}>
                         <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={spacing.card}>
-                          {showTooltips ? (
-                            <Tooltip title={`Estado: ${statusInfo.label}`} arrow>
-                              <Chip
-                                icon={statusInfo.icon}
-                                label={statusInfo.label}
-                                variant="outlined"
-                                size="small"
-                                sx={getTransparentChipStyles(statusInfo.color)}
-                              />
-                            </Tooltip>
-                          ) : (
-                            <Chip
-                              icon={statusInfo.icon}
-                              label={statusInfo.label}
-                              variant="outlined"
-                              size="small"
-                              sx={{
-                                fontWeight: 500,
-                                borderRadius: '20px',
-                                borderColor: statusInfo.color,
-                                color: statusInfo.color,
-                                backgroundColor: 'transparent !important',
-                                '& .MuiChip-icon': {
-                                  color: statusInfo.color
-                                },
-                                '& .MuiChip-label': {
-                                  fontSize: '0.75rem'
-                                }
-                              }}
-                            />
-                          )}
+                          {/* 🔥 COMPONENTE MEJORADO QUE CONSIDERA PAGOS PARCIALES */}
+                          <CommitmentStatusChip 
+                            commitment={commitment} 
+                            showTooltip={showTooltips}
+                            variant="outlined"
+                          />
                           <Box sx={{
                             display: 'flex',
                             gap: 0.5,
@@ -3136,49 +3002,12 @@ const CommitmentsList = ({
                       zIndex: 2
                     }}>
                       <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={spacing.card}>
-                        {showTooltips ? (
-                          <Tooltip title={`Estado: ${statusInfo.label}`} arrow>
-                            <Chip
-                              icon={statusInfo.icon}
-                              label={statusInfo.label}
-                              variant="outlined"
-                              size="small"
-                              sx={{
-                                fontWeight: 500,
-                                borderRadius: '20px',
-                                borderColor: statusInfo.color,
-                                color: statusInfo.color,
-                                backgroundColor: 'transparent !important',
-                                '& .MuiChip-icon': {
-                                  color: statusInfo.color
-                                },
-                                '& .MuiChip-label': {
-                                  fontSize: '0.75rem'
-                                }
-                              }}
-                            />
-                          </Tooltip>
-                        ) : (
-                          <Chip
-                            icon={statusInfo.icon}
-                            label={statusInfo.label}
-                            variant="outlined"
-                            size="small"
-                            sx={{
-                              fontWeight: 500,
-                              borderRadius: '20px',
-                              borderColor: statusInfo.color,
-                              color: statusInfo.color,
-                              backgroundColor: 'transparent !important',
-                              '& .MuiChip-icon': {
-                                color: statusInfo.color
-                              },
-                              '& .MuiChip-label': {
-                                fontSize: '0.75rem'
-                              }
-                            }}
-                          />
-                        )}
+                        {/* 🔥 COMPONENTE MEJORADO QUE CONSIDERA PAGOS PARCIALES */}
+                        <CommitmentStatusChip 
+                          commitment={commitment} 
+                          showTooltip={showTooltips}
+                          variant="outlined"
+                        />
                         <Box sx={{
                           display: 'flex',
                           gap: 0.5,
