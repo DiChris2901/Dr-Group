@@ -22,9 +22,11 @@ import {
   MenuItem,
   TablePagination,
   useTheme,
-  alpha
+  alpha,
+  CircularProgress
 } from '@mui/material';
-import { useCommitments } from '../../hooks/useFirestore';
+import { useCommitments, useCompanies } from '../../hooks/useFirestore';
+import { useSettings } from '../../context/SettingsContext';
 import {
   DateRange,
   GetApp,
@@ -33,7 +35,10 @@ import {
   AttachMoney,
   Assignment
 } from '@mui/icons-material';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
+import { determineCommitmentStatus } from '../../utils/commitmentStatusUtils';
 // Comentamos DatePicker temporalmente para evitar errores
 // import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 // import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -43,6 +48,29 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 const ReportsPeriodPage = () => {
   const theme = useTheme();
   const { logActivity } = useActivityLogs();
+  const { settings } = useSettings();
+  
+  // 🎯 ESTADOS DE FILTROS (igual que ReportsCompanyPage)
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCompanies, setSelectedCompanies] = useState([]);
+  const [timeRange, setTimeRange] = useState('currentYear');
+  const [statusFilter, setStatusFilter] = useState('all');
+  
+  // Estados para fechas personalizadas
+  const [customStartDate, setCustomStartDate] = useState(null);
+  const [customEndDate, setCustomEndDate] = useState(null);
+  const [showCustomDates, setShowCustomDates] = useState(false);
+  
+  // Estados para sistema de filtros aplicados
+  const [appliedFilters, setAppliedFilters] = useState({
+    searchTerm: '',
+    selectedCompanies: [],
+    timeRange: 'currentYear',
+    statusFilter: 'all',
+    customStartDate: null,
+    customEndDate: null
+  });
+  const [filtersApplied, setFiltersApplied] = useState(false);
   
   const [startDate, setStartDate] = useState(new Date(2025, 0, 1)); // 1 enero 2025
   const [endDate, setEndDate] = useState(new Date(2025, 6, 31)); // 31 julio 2025
@@ -53,33 +81,197 @@ const ReportsPeriodPage = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  // Conectar con Firebase para obtener compromisos reales
-  const { commitments, loading } = useCommitments();
+  // 🔥 CONECTAR CON FIREBASE PARA OBTENER DATOS REALES
+  const { commitments, loading: commitmentsLoading } = useCommitments();
+  const { companies, loading: companiesLoading } = useCompanies();
+  
+  const loading = commitmentsLoading || companiesLoading;
+
+  // 🐛 DEBUG: Logging de datos recibidos
+  useEffect(() => {
+    if (commitments && commitments.length > 0) {
+      console.log('🔥 DATOS DE COMPROMISOS RECIBIDOS:', {
+        total: commitments.length,
+        primeros3: commitments.slice(0, 3).map(c => ({
+          id: c.id,
+          amount: c.amount,
+          totalAmount: c.totalAmount,
+          createdAt: c.createdAt,
+          dueDate: c.dueDate,
+          companyId: c.companyId
+        }))
+      });
+    }
+    
+    if (companies && companies.length > 0) {
+      console.log('🏢 DATOS DE EMPRESAS RECIBIDOS:', {
+        total: companies.length,
+        nombres: companies.slice(0, 5).map(c => c.name)
+      });
+    }
+  }, [commitments, companies]);
+
+  //  FUNCIÓN DE UTILIDAD PARA FORMATO DE FECHAS
+  const formatDate = (date) => {
+    if (!date) return 'N/A';
+    const dateObj = date.toDate ? date.toDate() : new Date(date);
+    return dateObj.toLocaleDateString('es-ES');
+  };
+
+  // 🔄 FUNCIÓN PARA GENERAR NOMBRE DE ARCHIVO ÚNICO
+  const generateFileName = () => {
+    const dateStr = new Date().toLocaleDateString('es-ES').replace(/\//g, '-');
+    const timeStr = new Date().toLocaleTimeString('es-ES', { hour12: false }).replace(/:/g, '-');
+    return `DR-Group-Analisis-Temporal-${dateStr}-${timeStr}.xlsx`;
+  };
 
   // Memoizar fecha actual para evitar recálculos constantes
   const currentDate = useMemo(() => new Date(), []);
 
-  // Calcular datos mensuales desde Firebase
+  // 🎯 FUNCIÓN PARA FILTRAR COMPROMISOS SEGÚN CONFIGURACIÓN DEL DRAWER
+  const getFilteredCommitments = useMemo(() => {
+    if (!commitments || commitments.length === 0) return [];
+
+    // Usar filtros aplicados si están activos, sino usar filtros actuales
+    const filters = filtersApplied ? appliedFilters : {
+      searchTerm,
+      selectedCompanies,
+      timeRange,
+      statusFilter,
+      customStartDate,
+      customEndDate
+    };
+
+    console.log('🎯 Aplicando filtros a compromisos:', filters);
+
+    return commitments.filter(commitment => {
+      // Filtro por término de búsqueda
+      if (filters.searchTerm) {
+        const searchLower = filters.searchTerm.toLowerCase();
+        const matchesSearch = 
+          commitment.description?.toLowerCase().includes(searchLower) ||
+          commitment.concept?.toLowerCase().includes(searchLower) ||
+          commitment.companyName?.toLowerCase().includes(searchLower);
+        if (!matchesSearch) return false;
+      }
+
+      // Filtro por empresas seleccionadas
+      if (filters.selectedCompanies.length > 0) {
+        if (!filters.selectedCompanies.includes(commitment.companyId)) {
+          return false;
+        }
+      }
+
+      // Filtro por rango de fechas personalizado
+      if (filters.customStartDate || filters.customEndDate) {
+        const commitmentDate = commitment.dueDate?.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate);
+        if (filters.customStartDate && commitmentDate < new Date(filters.customStartDate)) return false;
+        if (filters.customEndDate && commitmentDate > new Date(filters.customEndDate)) return false;
+      }
+
+      // Filtro por rango de tiempo predefinido
+      if (filters.timeRange && filters.timeRange !== 'all' && !filters.customStartDate && !filters.customEndDate) {
+        const commitmentDate = commitment.dueDate?.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate);
+        const today = new Date();
+        
+        switch (filters.timeRange) {
+          case 'currentYear':
+            if (commitmentDate.getFullYear() !== today.getFullYear()) return false;
+            break;
+          case 'lastYear':
+            if (commitmentDate.getFullYear() !== today.getFullYear() - 1) return false;
+            break;
+          case 'last6months':
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(today.getMonth() - 6);
+            if (commitmentDate < sixMonthsAgo || commitmentDate > today) return false;
+            break;
+          case 'last3months':
+            const threeMonthsAgo = new Date();
+            threeMonthsAgo.setMonth(today.getMonth() - 3);
+            if (commitmentDate < threeMonthsAgo || commitmentDate > today) return false;
+            break;
+        }
+      }
+
+      return true;
+    });
+  }, [commitments, filtersApplied, appliedFilters, searchTerm, selectedCompanies, timeRange, statusFilter, customStartDate, customEndDate]);
+
+  // 🔥 CALCULAR DATOS MENSUALES REALES DESDE FIREBASE CON CLASIFICACIÓN CORRECTA Y FILTROS
   const monthlyData = useMemo(() => {
-    if (!commitments) return [];
+    const filteredCommitments = getFilteredCommitments;
+    
+    if (!filteredCommitments || filteredCommitments.length === 0) {
+      console.log('⏳ Esperando datos de compromisos filtrados...');
+      return [];
+    }
+    
+    console.log(`📊 Procesando ${filteredCommitments.length} compromisos filtrados para análisis mensual...`);
+    
+    // 🐛 DEBUG: Mostrar fechas de compromisos filtrados para entender el problema
+    console.log('🔍 FECHAS DE COMPROMISOS FILTRADOS (primeros 10):');
+    filteredCommitments.slice(0, 10).forEach((c, index) => {
+      const createdDate = c.createdAt?.toDate ? c.createdAt.toDate() : new Date(c.createdAt);
+      const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
+      console.log(`${index + 1}. ID: ${c.id?.slice(0, 8)}... - Creado: ${createdDate.toLocaleDateString('es-ES')} - Vence: ${dueDate.toLocaleDateString('es-ES')}`);
+    });
     
     const months = [];
     
-    // Generar últimos 12 meses
-    for (let i = 11; i >= 0; i--) {
-      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-      const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
-      const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    // 📅 GENERAR 12 MESES DEL AÑO ACTUAL (enero - diciembre)
+    const currentYear = currentDate.getFullYear();
+    
+    for (let month = 0; month < 12; month++) {
+      const date = new Date(currentYear, month, 1);
+      const monthStart = new Date(currentYear, month, 1);
+      const monthEnd = new Date(currentYear, month + 1, 0);
       
-      const monthCommitments = commitments.filter(c => {
-        const commitmentDate = new Date(c.dueDate);
-        return commitmentDate >= monthStart && commitmentDate <= monthEnd;
+      console.log(`📅 Buscando compromisos para ${date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })} (${monthStart.toLocaleDateString('es-ES')} - ${monthEnd.toLocaleDateString('es-ES')})`);
+      
+      // 🔄 USAR dueDate (fecha de vencimiento) para clasificar compromisos por período
+      const monthCommitments = filteredCommitments.filter(c => {
+        const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
+        
+        // Verificar que la fecha de vencimiento esté en el rango del mes
+        const isInMonth = dueDate >= monthStart && dueDate <= monthEnd;
+        
+        if (isInMonth) {
+          console.log(`  ✅ Compromiso incluido: ${c.id?.slice(0, 8)}... - Vence: ${dueDate.toLocaleDateString('es-ES')}`);
+        }
+        
+        return isInMonth;
       });
       
-      const totalAmount = monthCommitments.reduce((sum, c) => sum + (c.amount || 0), 0);
-      const completed = monthCommitments.filter(c => c.status === 'completed').length;
-      const pending = monthCommitments.filter(c => c.status === 'pending').length;
-      const overdue = monthCommitments.filter(c => c.status === 'overdue').length;
+      console.log(`� ${date.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })}: ${monthCommitments.length} compromisos encontrados`);
+      
+      // Calcular monto total usando totalAmount o amount
+      const totalAmount = monthCommitments.reduce((sum, c) => {
+        const amount = parseFloat(c.totalAmount) || parseFloat(c.amount) || 0;
+        return sum + amount;
+      }, 0);
+      
+      // 🔥 USAR CLASIFICACIÓN REAL DE ESTADOS (no los campos status obsoletos)
+      let completed = 0;
+      let pending = 0;
+      let overdue = 0;
+      
+      monthCommitments.forEach(commitment => {
+        const status = determineCommitmentStatus(commitment);
+        switch (status) {
+          case 'completed':
+            completed++;
+            break;
+          case 'pending':
+            pending++;
+            break;
+          case 'overdue':
+            overdue++;
+            break;
+          default:
+            pending++; // Default a pendiente
+        }
+      });
       
       months.push({
         period: date.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }),
@@ -92,46 +284,92 @@ const ReportsPeriodPage = () => {
       });
     }
     
+    console.log(`✅ Análisis mensual completado: ${months.length} períodos procesados`);
+    console.log('📈 Resumen por mes:', months.map(m => `${m.period}: ${m.commitments} compromisos`));
     return months;
-  }, [commitments, currentDate]);
+  }, [getFilteredCommitments, currentDate]);
 
-  // Calcular datos semanales desde Firebase
+  // 🔥 CALCULAR DATOS SEMANALES REALES DESDE FIREBASE CON FILTROS
   const weeklyData = useMemo(() => {
-    if (!commitments) return [];
+    const filteredCommitments = getFilteredCommitments;
     
+    if (!filteredCommitments || filteredCommitments.length === 0) {
+      console.log('⏳ Esperando datos de compromisos filtrados para análisis semanal...');
+      return [];
+    }
+    
+    console.log(`📊 Procesando ${filteredCommitments.length} compromisos filtrados para análisis semanal...`);
     const weeks = [];
     
     // Generar últimas 8 semanas
     for (let i = 7; i >= 0; i--) {
-      const weekStart = new Date(currentDate);
-      weekStart.setDate(currentDate.getDate() - (i * 7) - currentDate.getDay());
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekStart.getDate() + 6);
+      const weekEnd = new Date(currentDate);
+      weekEnd.setDate(currentDate.getDate() - (i * 7));
+      const weekStart = new Date(weekEnd);
+      weekStart.setDate(weekEnd.getDate() - 6);
       
-      const weekCommitments = commitments.filter(c => {
-        const commitmentDate = new Date(c.dueDate);
-        return commitmentDate >= weekStart && commitmentDate <= weekEnd;
+      console.log(`📅 Buscando compromisos para semana ${8 - i} (${weekStart.toLocaleDateString('es-ES')} - ${weekEnd.toLocaleDateString('es-ES')})`);
+      
+      // 🔄 Usar dueDate (fecha de vencimiento) para consistencia con análisis mensual
+      const weekCommitments = filteredCommitments.filter(c => {
+        const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
+        return dueDate >= weekStart && dueDate <= weekEnd;
       });
       
-      const totalAmount = weekCommitments.reduce((sum, c) => sum + (c.amount || 0), 0);
+      console.log(`📊 Semana ${8 - i}: ${weekCommitments.length} compromisos encontrados`);
+      
+      const totalAmount = weekCommitments.reduce((sum, c) => {
+        const amount = parseFloat(c.totalAmount) || parseFloat(c.amount) || 0;
+        return sum + amount;
+      }, 0);
+      
+      // Clasificación real de estados
+      let completed = 0;
+      let pending = 0;
+      let overdue = 0;
+      
+      weekCommitments.forEach(commitment => {
+        const status = determineCommitmentStatus(commitment);
+        switch (status) {
+          case 'completed':
+            completed++;
+            break;
+          case 'pending':
+            pending++;
+            break;
+          case 'overdue':
+            overdue++;
+            break;
+          default:
+            pending++;
+        }
+      });
       
       weeks.push({
-        period: `Sem ${8 - i}`,
+        period: `Sem ${8 - i} (${weekStart.getDate()}/${weekStart.getMonth() + 1})`,
         amount: totalAmount,
-        commitments: weekCommitments.length
+        commitments: weekCommitments.length,
+        completed,
+        pending,
+        overdue,
+        avgTicket: weekCommitments.length > 0 ? totalAmount / weekCommitments.length : 0
       });
     }
     
+    console.log(`✅ Análisis semanal completado: ${weeks.length} períodos procesados`);
+    console.log('📈 Resumen por semana:', weeks.map(w => `${w.period}: ${w.commitments} compromisos`));
     return weeks;
-  }, [commitments, currentDate]);
+  }, [getFilteredCommitments, currentDate]);
 
   const currentData = periodType === 'weekly' ? weeklyData : monthlyData;
 
+  // 💰 FORMATO DE MONEDA COLOMBIANA
   const formatCurrency = useMemo(() => (amount) => {
-    return new Intl.NumberFormat('es-MX', {
+    return new Intl.NumberFormat('es-CO', {
       style: 'currency',
-      currency: 'MXN',
-      minimumFractionDigits: 0
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(amount || 0);
   }, []);
 
@@ -153,11 +391,303 @@ const ReportsPeriodPage = () => {
 
   const stats = getTotalStats();
 
-  const exportReport = async () => {
-    console.log('Exportando reporte por período...');
+  // 🎨 FUNCIÓN PARA OBTENER ESQUEMAS DE COLORES SEGÚN CONFIGURACIÓN
+  const getColorScheme = (scheme = 'default') => {
+    switch (scheme) {
+      case 'blue':
+        return ['#1976d2', '#42a5f5', '#64b5f6', '#90caf9', '#bbdefb', '#e3f2fd', '#0d47a1', '#1565c0'];
+      case 'green':
+        return ['#388e3c', '#66bb6a', '#81c784', '#a5d6a7', '#c8e6c9', '#e8f5e8', '#1b5e20', '#2e7d32'];
+      case 'purple':
+        return ['#7b1fa2', '#ba68c8', '#ce93d8', '#e1bee7', '#f3e5f5', '#fce4ec', '#4a148c', '#6a1b9a'];
+      case 'orange':
+        return ['#f57c00', '#ffb74d', '#ffcc02', '#ffd54f', '#fff176', '#fff9c4', '#e65100', '#ef6c00'];
+      case 'teal':
+        return ['#00695c', '#4db6ac', '#80cbc4', '#b2dfdb', '#e0f2f1', '#f3e5f5', '#004d40', '#00796b'];
+      case 'pink':
+        return ['#c2185b', '#f06292', '#f48fb1', '#f8bbd9', '#fce4ec', '#fff0f5', '#880e4f', '#ad1457'];
+      default:
+        return [
+          theme.palette.primary.main, 
+          theme.palette.secondary.main,
+          theme.palette.error.main,
+          theme.palette.warning.main,
+          theme.palette.info.main,
+          theme.palette.success.main,
+          theme.palette.primary.dark,
+          theme.palette.secondary.dark
+        ];
+    }
+  };
+
+  // 🎨 FUNCIÓN PARA RENDERIZAR GRÁFICA DE TENDENCIA DE MONTOS SEGÚN CONFIGURACIÓN
+  const renderTrendChart = (data, chartType = 'area') => {
+    const { animations, colorScheme, showDataLabels, gridLines } = settings.dashboard.charts || {};
+    const colors = getColorScheme(colorScheme);
+    const isAnimated = animations !== 'none';
+    const animationDuration = isAnimated ? (animations === 'smooth' ? 300 : animations === 'bounce' ? 500 : 800) : 0;
     
-    // 📝 Registrar actividad de auditoría - Exportación de reporte
+    const commonProps = {
+      data,
+      margin: { top: 20, right: 30, left: 20, bottom: 5 }
+    };
+
+    const commonAxisProps = {
+      axisLine: { stroke: theme.palette.text.secondary, strokeWidth: 1 },
+      tickLine: { stroke: theme.palette.text.secondary },
+      tick: { fill: theme.palette.text.primary, fontSize: 12 }
+    };
+
+    const yAxisProps = {
+      ...commonAxisProps,
+      tickFormatter: (value) => {
+        if (value === 0) return '$0';
+        if (value >= 1000000000) return `$${(value / 1000000000).toFixed(1)}B`;
+        if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+        if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+        return `$${Math.round(value)}`;
+      }
+    };
+
+    const tooltipProps = {
+      formatter: (value) => [formatCurrency(value), 'Monto'],
+      contentStyle: {
+        backgroundColor: theme.palette.background.paper,
+        border: `1px solid ${colors[0]}`,
+        borderRadius: 8,
+        fontSize: '14px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+      }
+    };
+
+    switch (chartType) {
+      case 'line':
+        return (
+          <LineChart {...commonProps}>
+            {gridLines && <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />}
+            <XAxis dataKey="period" {...commonAxisProps} />
+            <YAxis {...yAxisProps} />
+            <Tooltip {...tooltipProps} />
+            <Line 
+              type="monotone" 
+              dataKey="amount" 
+              stroke={colors[0]}
+              strokeWidth={3}
+              dot={{ fill: colors[0], strokeWidth: 2, r: 4 }}
+              activeDot={{ r: 6, stroke: colors[0], strokeWidth: 2, fill: '#fff' }}
+              animationDuration={animationDuration}
+            />
+          </LineChart>
+        );
+
+      case 'bar':
+        return (
+          <BarChart {...commonProps}>
+            <defs>
+              <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={colors[0]} stopOpacity={0.9}/>
+                <stop offset="95%" stopColor={colors[0]} stopOpacity={0.6}/>
+              </linearGradient>
+            </defs>
+            {gridLines && <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />}
+            <XAxis dataKey="period" {...commonAxisProps} />
+            <YAxis {...yAxisProps} />
+            <Tooltip {...tooltipProps} />
+            <Bar 
+              dataKey="amount" 
+              fill="url(#barGradient)"
+              radius={[4, 4, 0, 0]}
+              animationDuration={animationDuration}
+            />
+          </BarChart>
+        );
+
+      default: // 'area'
+        return (
+          <AreaChart {...commonProps}>
+            <defs>
+              <linearGradient id="amountGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={colors[0]} stopOpacity={0.8}/>
+                <stop offset="95%" stopColor={colors[0]} stopOpacity={0.1}/>
+              </linearGradient>
+            </defs>
+            {gridLines && <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />}
+            <XAxis dataKey="period" {...commonAxisProps} />
+            <YAxis {...yAxisProps} />
+            <Tooltip {...tooltipProps} />
+            <Area 
+              type="monotone" 
+              dataKey="amount" 
+              stroke={colors[0]}
+              strokeWidth={3}
+              fillOpacity={1} 
+              fill="url(#amountGradient)"
+              animationDuration={animationDuration}
+            />
+          </AreaChart>
+        );
+    }
+  };
+
+  // 🎨 FUNCIÓN PARA RENDERIZAR GRÁFICA DE COMPROMISOS SEGÚN CONFIGURACIÓN
+  const renderCommitmentsChart = (data, chartType = 'line') => {
+    const { animations, colorScheme, showDataLabels, gridLines } = settings.dashboard.charts || {};
+    const colors = getColorScheme(colorScheme);
+    const isAnimated = animations !== 'none';
+    const animationDuration = isAnimated ? (animations === 'smooth' ? 300 : animations === 'bounce' ? 500 : 800) : 0;
+    
+    const commonProps = {
+      data,
+      margin: { top: 20, right: 30, left: 20, bottom: 5 }
+    };
+
+    const commonAxisProps = {
+      axisLine: { stroke: theme.palette.text.secondary, strokeWidth: 1 },
+      tickLine: { stroke: theme.palette.text.secondary },
+      tick: { fill: theme.palette.text.primary, fontSize: 12 }
+    };
+
+    const tooltipProps = {
+      formatter: (value) => [value, 'Compromisos'],
+      contentStyle: {
+        backgroundColor: theme.palette.background.paper,
+        border: `1px solid ${colors[1]}`,
+        borderRadius: 8,
+        fontSize: '14px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+      }
+    };
+
+    switch (chartType) {
+      case 'area':
+        return (
+          <AreaChart {...commonProps}>
+            <defs>
+              <linearGradient id="commitmentsGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={colors[1]} stopOpacity={0.8}/>
+                <stop offset="95%" stopColor={colors[1]} stopOpacity={0.1}/>
+              </linearGradient>
+            </defs>
+            {gridLines && <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />}
+            <XAxis dataKey="period" {...commonAxisProps} />
+            <YAxis {...commonAxisProps} />
+            <Tooltip {...tooltipProps} />
+            <Area 
+              type="monotone" 
+              dataKey="commitments" 
+              stroke={colors[1]}
+              strokeWidth={3}
+              fillOpacity={1} 
+              fill="url(#commitmentsGradient)"
+              animationDuration={animationDuration}
+            />
+          </AreaChart>
+        );
+
+      case 'bar':
+        return (
+          <BarChart {...commonProps}>
+            <defs>
+              <linearGradient id="commitmentsBarGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={colors[1]} stopOpacity={0.9}/>
+                <stop offset="95%" stopColor={colors[1]} stopOpacity={0.6}/>
+              </linearGradient>
+            </defs>
+            {gridLines && <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />}
+            <XAxis dataKey="period" {...commonAxisProps} />
+            <YAxis {...commonAxisProps} />
+            <Tooltip {...tooltipProps} />
+            <Bar 
+              dataKey="commitments" 
+              fill="url(#commitmentsBarGradient)"
+              radius={[4, 4, 0, 0]}
+              animationDuration={animationDuration}
+            />
+          </BarChart>
+        );
+
+      default: // 'line'
+        return (
+          <LineChart {...commonProps}>
+            {gridLines && <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />}
+            <XAxis dataKey="period" {...commonAxisProps} />
+            <YAxis {...commonAxisProps} />
+            <Tooltip {...tooltipProps} />
+            <Line 
+              type="monotone" 
+              dataKey="commitments" 
+              stroke={colors[1]}
+              strokeWidth={3}
+              dot={{ fill: colors[1], strokeWidth: 2, r: 4 }}
+              activeDot={{ r: 6, stroke: colors[1], strokeWidth: 2, fill: '#fff' }}
+              animationDuration={animationDuration}
+            />
+          </LineChart>
+        );
+    }
+  };
+
+  // 🎯 FUNCIONES PARA MANEJAR FILTROS (igual que ReportsCompanyPage)
+  const handleApplyFilters = () => {
+    setAppliedFilters({
+      searchTerm,
+      selectedCompanies,
+      timeRange,
+      statusFilter,
+      customStartDate,
+      customEndDate
+    });
+    setFiltersApplied(true);
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setSelectedCompanies([]);
+    setTimeRange('currentYear');
+    setStatusFilter('all');
+    setCustomStartDate(null);
+    setCustomEndDate(null);
+    setShowCustomDates(false);
+    setAppliedFilters({
+      searchTerm: '',
+      selectedCompanies: [],
+      timeRange: 'currentYear',
+      statusFilter: 'all',
+      customStartDate: null,
+      customEndDate: null
+    });
+    setFiltersApplied(false);
+  };
+
+  // Función para verificar si los filtros han cambiado
+  const hasFiltersChanged = () => {
+    return (
+      searchTerm !== appliedFilters.searchTerm ||
+      JSON.stringify(selectedCompanies.sort()) !== JSON.stringify(appliedFilters.selectedCompanies.sort()) ||
+      timeRange !== appliedFilters.timeRange ||
+      statusFilter !== appliedFilters.statusFilter ||
+      customStartDate !== appliedFilters.customStartDate ||
+      customEndDate !== appliedFilters.customEndDate
+    );
+  };
+
+  // 🐛 DEBUG: Logging de estadísticas calculadas
+  useEffect(() => {
+    if (currentData && currentData.length > 0) {
+      console.log('📊 ESTADÍSTICAS CALCULADAS:', {
+        totalPeriods: currentData.length,
+        stats: stats,
+        periodType: periodType,
+        sampleData: currentData.slice(0, 3)
+      });
+    }
+  }, [currentData, stats, periodType]);
+
+  const exportReport = async () => {
+    console.log('🚀 Iniciando exportación de reporte temporal...');
+    
     try {
+      // 📝 Registrar actividad de auditoría - Exportación de reporte
       await logActivity('export_report', 'report', 'period_report', {
         reportType: 'Análisis Temporal',
         periodType: periodType,
@@ -165,20 +695,256 @@ const ReportsPeriodPage = () => {
         comparisonMode: comparisonMode,
         totalRecords: currentData.length,
         totalAmount: stats.totalAmount,
-        exportFormat: 'Excel' // o el formato que se implemente
+        exportFormat: 'Excel'
       });
-    } catch (logError) {
-      console.error('Error logging report export activity:', logError);
-    }
-    
-    // Aquí se implementaría la exportación real
-  };
 
-  const getGrowthRate = () => {
-    if (currentData.length < 2) return 0;
-    const lastPeriod = currentData[currentData.length - 1];
-    const previousPeriod = currentData[currentData.length - 2];
-    return ((lastPeriod.amount - previousPeriod.amount) / previousPeriod.amount * 100).toFixed(1);
+      // 🔥 CREAR WORKBOOK DE EXCEL
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'DR Group Dashboard';
+      workbook.lastModifiedBy = 'Sistema DR Group';
+      workbook.created = new Date();
+      workbook.modified = new Date();
+
+      // 📊 HOJA 1: RESUMEN EJECUTIVO TEMPORAL
+      const summarySheet = workbook.addWorksheet('Resumen Temporal');
+      
+      // Header principal
+      summarySheet.mergeCells('A1:H1');
+      const titleCell = summarySheet.getCell('A1');
+      titleCell.value = '📈 DR GROUP - ANÁLISIS TEMPORAL DE COMPROMISOS';
+      titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1565C0' } };
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      titleCell.border = {
+        top: { style: 'thick', color: { argb: 'FFFFFFFF' } },
+        bottom: { style: 'thick', color: { argb: 'FFFFFFFF' } },
+        left: { style: 'thick', color: { argb: 'FFFFFFFF' } },
+        right: { style: 'thick', color: { argb: 'FFFFFFFF' } }
+      };
+      summarySheet.getRow(1).height = 35;
+      
+      // Información del reporte
+      summarySheet.mergeCells('A2:H2');
+      const infoCell = summarySheet.getCell('A2');
+      const reportInfo = [
+        `📅 Generado: ${new Date().toLocaleDateString('es-ES', { 
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+        })} a las ${new Date().toLocaleTimeString('es-ES', { 
+          hour: '2-digit', minute: '2-digit'
+        })}`,
+        `⏰ Período: ${periodType === 'monthly' ? 'Mensual' : periodType === 'weekly' ? 'Semanal' : 'Diario'}`,
+        `🔄 Modo: ${comparisonMode === 'previous' ? 'Comparación con período anterior' : 'Análisis absoluto'}`
+      ].join(' | ');
+      
+      infoCell.value = reportInfo;
+      infoCell.font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FF1565C0' } };
+      infoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } };
+      infoCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      summarySheet.getRow(2).height = 25;
+
+      // === KPIs PRINCIPALES ===
+      summarySheet.mergeCells('A4:H4');
+      const kpiHeader = summarySheet.getCell('A4');
+      kpiHeader.value = '📊 MÉTRICAS CONSOLIDADAS DEL PERÍODO';
+      kpiHeader.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF1565C0' } };
+      kpiHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } };
+      kpiHeader.alignment = { horizontal: 'center', vertical: 'middle' };
+      kpiHeader.border = {
+        top: { style: 'medium', color: { argb: 'FF1565C0' } },
+        bottom: { style: 'medium', color: { argb: 'FF1565C0' } }
+      };
+      summarySheet.getRow(4).height = 30;
+
+      // Headers de métricas
+      const metricsHeaders = ['MÉTRICA', 'VALOR', 'FORMATO', 'MÉTRICA', 'VALOR', 'FORMATO'];
+      const metricsHeaderRow = summarySheet.getRow(6);
+      metricsHeaders.forEach((header, index) => {
+        const cell = metricsHeaderRow.getCell(index + 1);
+        cell.value = header;
+        cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF424242' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = {
+          top: { style: 'medium', color: { argb: 'FF424242' } },
+          bottom: { style: 'medium', color: { argb: 'FF424242' } }
+        };
+      });
+      metricsHeaderRow.height = 25;
+
+      // Datos de métricas
+      const metricsData = [
+        ['Total Períodos', currentData.length, 'unidades', 'Monto Total Período', formatCurrency(stats.totalAmount), 'COP'],
+        ['Total Compromisos', stats.totalCommitments, 'unidades', 'Compromisos Completados', stats.totalCompleted, 'unidades'],
+        ['Compromisos Pendientes', stats.totalPending, 'unidades', 'Compromisos Vencidos', stats.totalOverdue, 'unidades'],
+        ['Tasa de Completado', `${Math.round((stats.totalCompleted / stats.totalCommitments) * 100)}%`, 'porcentaje', 'Ticket Promedio', formatCurrency(stats.totalAmount / stats.totalCommitments), 'COP'],
+        ['Período Analizado', `${periodType.charAt(0).toUpperCase() + periodType.slice(1)}`, 'texto', 'Períodos con Datos', currentData.length, 'unidades']
+      ];
+
+      metricsData.forEach((rowData, rowIndex) => {
+        const row = summarySheet.getRow(7 + rowIndex);
+        rowData.forEach((value, colIndex) => {
+          const cell = row.getCell(colIndex + 1);
+          cell.value = value;
+          
+          const bgColor = (rowIndex % 2 === 0) ? 'FFFAFAFA' : 'FFFFFFFF';
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+          cell.font = { name: 'Arial', size: 10, color: { argb: 'FF424242' } };
+          
+          if (colIndex === 0 || colIndex === 3) {
+            cell.alignment = { horizontal: 'left', vertical: 'center' };
+            cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF1565C0' } };
+          } else if (colIndex === 1 || colIndex === 4) {
+            cell.alignment = { horizontal: 'right', vertical: 'center' };
+            if (typeof value === 'string' && value.includes('$')) {
+              cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF2E7D32' } };
+            }
+          } else {
+            cell.alignment = { horizontal: 'center', vertical: 'center' };
+          }
+          
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+          };
+        });
+        row.height = 20;
+      });
+
+      // Configurar anchos de columna para resumen
+      summarySheet.columns = [
+        { width: 25 }, { width: 20 }, { width: 15 }, { width: 25 }, { width: 20 }, { width: 15 }
+      ];
+
+      // 📈 HOJA 2: SERIE TEMPORAL DETALLADA
+      const timeSeriesSheet = workbook.addWorksheet('Serie Temporal');
+      
+      // Header
+      timeSeriesSheet.mergeCells('A1:H1');
+      const timeSeriesTitleCell = timeSeriesSheet.getCell('A1');
+      timeSeriesTitleCell.value = '📈 SERIE TEMPORAL - ANÁLISIS POR PERÍODO';
+      timeSeriesTitleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
+      timeSeriesTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF6F00' } };
+      timeSeriesTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      timeSeriesSheet.getRow(1).height = 30;
+
+      // Subtítulo
+      timeSeriesSheet.mergeCells('A2:H2');
+      const timeSeriesSubtitleCell = timeSeriesSheet.getCell('A2');
+      timeSeriesSubtitleCell.value = `🕐 Análisis ${periodType} detallado | Total períodos: ${currentData.length} | Generado: ${new Date().toLocaleDateString('es-ES')}`;
+      timeSeriesSubtitleCell.font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FFFF6F00' } };
+      timeSeriesSubtitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3E0' } };
+      timeSeriesSubtitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      timeSeriesSheet.getRow(2).height = 22;
+
+      // Headers detallados
+      const timeSeriesHeaders = [
+        'PERÍODO', 'MONTO TOTAL', 'COMPROMISOS', 'COMPLETADOS', 'PENDIENTES', 'VENCIDOS', 'TICKET PROMEDIO', '% COMPLETADO'
+      ];
+      
+      const timeSeriesHeaderRow = timeSeriesSheet.getRow(4);
+      timeSeriesHeaders.forEach((header, index) => {
+        const cell = timeSeriesHeaderRow.getCell(index + 1);
+        cell.value = header;
+        cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE65100' } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = {
+          top: { style: 'medium', color: { argb: 'FFE65100' } },
+          bottom: { style: 'medium', color: { argb: 'FFE65100' } }
+        };
+      });
+      timeSeriesHeaderRow.height = 25;
+
+      // Datos de serie temporal
+      let timeSeriesTotal = 0;
+      currentData.forEach((period, index) => {
+        const row = timeSeriesSheet.getRow(5 + index);
+        timeSeriesTotal += period.amount;
+        
+        const completionRate = period.commitments > 0 ? ((period.completed / period.commitments) * 100).toFixed(1) : 0;
+        
+        const rowData = [
+          period.period,
+          period.amount,
+          period.commitments,
+          period.completed,
+          period.pending,
+          period.overdue,
+          period.avgTicket,
+          `${completionRate}%`
+        ];
+        
+        rowData.forEach((value, colIndex) => {
+          const cell = row.getCell(colIndex + 1);
+          cell.value = value;
+          
+          const bgColor = (index % 2 === 0) ? 'FFFFFBF0' : 'FFFFFFFF';
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+          cell.font = { name: 'Arial', size: 9, color: { argb: 'FF424242' } };
+          
+          if (colIndex === 0) {
+            cell.alignment = { horizontal: 'center', vertical: 'center' };
+            cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FFFF6F00' } };
+          } else if (colIndex === 1 || colIndex === 6) {
+            cell.alignment = { horizontal: 'right', vertical: 'center' };
+            cell.numFmt = '$#,##0';
+            cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF2E7D32' } };
+          } else if (colIndex >= 2 && colIndex <= 5) {
+            cell.alignment = { horizontal: 'center', vertical: 'center' };
+            cell.numFmt = '#,##0';
+            if (value > 0) {
+              cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF1565C0' } };
+            }
+          } else {
+            cell.alignment = { horizontal: 'center', vertical: 'center' };
+          }
+          
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+          };
+        });
+        row.height = 18;
+      });
+
+      // Fila de totales
+      const totalTimeSeriesRow = timeSeriesSheet.getRow(5 + currentData.length);
+      totalTimeSeriesRow.getCell(1).value = 'TOTAL PERÍODOS';
+      totalTimeSeriesRow.getCell(1).font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+      totalTimeSeriesRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF6F00' } };
+      totalTimeSeriesRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      
+      totalTimeSeriesRow.getCell(2).value = timeSeriesTotal;
+      totalTimeSeriesRow.getCell(2).font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+      totalTimeSeriesRow.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF6F00' } };
+      totalTimeSeriesRow.getCell(2).numFmt = '$#,##0';
+      totalTimeSeriesRow.getCell(2).alignment = { horizontal: 'right', vertical: 'middle' };
+
+      // Configurar anchos de columna para serie temporal
+      timeSeriesSheet.columns = [
+        { width: 15 }, { width: 15 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 15 }, { width: 15 }
+      ];
+
+      // 💾 GENERAR Y DESCARGAR ARCHIVO
+      const fileName = generateFileName();
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      
+      saveAs(blob, fileName);
+      
+      console.log(`✅ Reporte temporal exportado exitosamente: ${fileName}`);
+      console.log(`📊 Estadísticas: ${currentData.length} períodos, ${stats.totalCommitments} compromisos, ${formatCurrency(stats.totalAmount)} monto total`);
+
+    } catch (logError) {
+      console.error('❌ Error exportando reporte temporal:', logError);
+      alert('Error al exportar el reporte. Por favor intente nuevamente.');
+    }
   };
 
   // Funciones para manejar paginación
@@ -197,6 +963,38 @@ const ReportsPeriodPage = () => {
     return currentData.slice(startIndex, startIndex + rowsPerPage);
   }, [currentData, page, rowsPerPage]);
 
+  // 🎯 ASIGNAR FUNCIONES PARA QUE EL DRAWER PUEDA ACCEDER A ELLAS
+  useEffect(() => {
+    ReportsPeriodPage.filterFunctions = {
+      handleApplyFilters,
+      handleClearFilters,
+      hasFiltersChanged,
+      setSearchTerm,
+      setSelectedCompanies,
+      setTimeRange,
+      setStatusFilter,
+      setCustomStartDate,
+      setCustomEndDate,
+      searchTerm,
+      selectedCompanies,
+      timeRange,
+      statusFilter,
+      customStartDate,
+      customEndDate,
+      hasActiveFilters: searchTerm || selectedCompanies.length > 0 || timeRange !== 'currentYear' || statusFilter !== 'all' || customStartDate || customEndDate
+    };
+  }, [
+    searchTerm,
+    selectedCompanies,
+    timeRange,
+    statusFilter,
+    customStartDate,
+    customEndDate,
+    handleApplyFilters,
+    handleClearFilters,
+    hasFiltersChanged
+  ]);
+
   return (
     <Box sx={{ 
       p: { xs: 2, sm: 3, md: 4 },
@@ -204,9 +1002,36 @@ const ReportsPeriodPage = () => {
       mx: 'auto'
     }}>
       {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          minHeight: '60vh',
+          gap: 2
+        }}>
+          <CircularProgress size={60} thickness={4} />
           <Typography variant="h6" color="text.secondary">
-            Cargando datos de períodos...
+            🔄 Cargando datos temporales desde Firebase...
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+            Analizando compromisos y clasificando por período
+          </Typography>
+        </Box>
+      ) : currentData.length === 0 ? (
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          justifyContent: 'center', 
+          alignItems: 'center', 
+          minHeight: '60vh',
+          gap: 2
+        }}>
+          <Typography variant="h6" color="text.secondary">
+            📊 No se encontraron datos para el período seleccionado
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+            Intenta ajustar los filtros o verifica que existan compromisos en el período
           </Typography>
         </Box>
       ) : (
@@ -361,39 +1186,32 @@ const ReportsPeriodPage = () => {
           </Button>
         </Box>
 
-        {/* Tarjetas de resumen sobrias */}
+        {/* Tarjetas de resumen con datos reales de Firebase */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {[
             { 
-              label: 'Monto Total', 
+              label: 'Monto Total Período', 
               value: formatCurrency(stats.totalAmount), 
               color: theme.palette.success.main,
               icon: AttachMoney,
-              growth: getGrowthRate()
+              subtitle: `${periodType === 'monthly' ? 'Últimos 12 meses' : 'Últimas 8 semanas'}`
             },
             { 
               label: 'Total Compromisos', 
               value: stats.totalCommitments, 
               color: theme.palette.primary.main,
               icon: Assignment,
-              growth: '+12'
-            },
-            { 
-              label: 'Tasa Completado', 
-              value: `${Math.round((stats.totalCompleted / stats.totalCommitments) * 100)}%`, 
-              color: theme.palette.info.main,
-              icon: TrendingUp,
-              growth: '+5.2'
+              subtitle: `En ${currentData.length} períodos`
             },
             { 
               label: 'Ticket Promedio', 
-              value: formatCurrency(stats.totalAmount / stats.totalCommitments), 
+              value: stats.totalCommitments > 0 ? formatCurrency(stats.totalAmount / stats.totalCommitments) : formatCurrency(0), 
               color: theme.palette.warning.main,
               icon: CalendarMonth,
-              growth: '-2.1'
+              subtitle: `Promedio por compromiso`
             }
           ].map((stat, index) => (
-            <Grid item xs={12} sm={6} md={3} key={index}>
+            <Grid item xs={12} sm={6} md={4} key={index}>
               <Card sx={{
                 borderRadius: 2,
                 border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
@@ -413,19 +1231,15 @@ const ReportsPeriodPage = () => {
                     }}>
                       <stat.icon sx={{ fontSize: 24 }} />
                     </Box>
-                    <Chip 
-                      label={`${stat.growth > 0 ? '+' : ''}${stat.growth}%`}
-                      size="small"
-                      color={stat.growth > 0 ? 'success' : 'error'}
-                      variant="outlined"
-                      sx={{ borderRadius: 1 }}
-                    />
                   </Box>
                   <Typography variant="h5" sx={{ fontWeight: 600, color: 'text.primary', mb: 1 }}>
                     {stat.value}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, mb: 0.5 }}>
                     {stat.label}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                    {stat.subtitle}
                   </Typography>
                 </CardContent>
               </Card>
@@ -448,25 +1262,7 @@ const ReportsPeriodPage = () => {
                   Tendencia de Montos ({periodType === 'monthly' ? 'Mensual' : 'Semanal'})
                 </Typography>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart 
-                    key={`area-chart-${periodType}`}
-                    data={currentData}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
-                    <XAxis dataKey="period" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => formatCurrency(value)} />
-                    <Legend />
-                    <Area 
-                      type="monotone" 
-                      dataKey="amount" 
-                      stroke={theme.palette.primary.main}
-                      fill={theme.palette.primary.main}
-                      fillOpacity={0.1}
-                      strokeWidth={2}
-                      name="Monto"
-                    />
-                  </AreaChart>
+                  {renderTrendChart(currentData, settings.dashboard.charts?.trendChart?.type || 'area')}
                 </ResponsiveContainer>
               </CardContent>
             </Card>
@@ -485,24 +1281,7 @@ const ReportsPeriodPage = () => {
                   Compromisos por Período
                 </Typography>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart 
-                    key={`line-chart-${periodType}`}
-                    data={currentData}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
-                    <XAxis dataKey="period" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="commitments" 
-                      stroke={theme.palette.secondary.main}
-                      strokeWidth={2}
-                      dot={{ fill: theme.palette.secondary.main, strokeWidth: 2, r: 4 }}
-                      name="Compromisos"
-                    />
-                  </LineChart>
+                  {renderCommitmentsChart(currentData, settings.dashboard.charts?.statusChart?.type || 'line')}
                 </ResponsiveContainer>
               </CardContent>
             </Card>
@@ -635,6 +1414,26 @@ const ReportsPeriodPage = () => {
       </Box>
     // </LocalizationProvider>
   );
+};
+
+// 🎯 EXPORTAR FUNCIONES PARA EL DRAWER DE CONFIGURACIÓN
+ReportsPeriodPage.filterFunctions = {
+  handleApplyFilters: null, // Se asignará desde el componente
+  handleClearFilters: null, // Se asignará desde el componente
+  hasFiltersChanged: null,  // Se asignará desde el componente
+  setSearchTerm: null,
+  setSelectedCompanies: null,
+  setTimeRange: null,
+  setStatusFilter: null,
+  setCustomStartDate: null,
+  setCustomEndDate: null,
+  searchTerm: '',
+  selectedCompanies: [],
+  timeRange: 'currentYear',
+  statusFilter: 'all',
+  customStartDate: null,
+  customEndDate: null,
+  hasActiveFilters: false
 };
 
 export default ReportsPeriodPage;
