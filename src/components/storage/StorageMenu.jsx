@@ -87,15 +87,15 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
 
   const storageStatus = getStorageStatus();
 
-  // Datos de tipos de archivos con mejores descripciones
+  // ✅ IMPROVED: Datos con descripciones más precisas
   const fileTypes = [
     {
       id: 'documents',
-      title: 'Documentos',
+      title: 'Documentos BD',
       count: storageStats.documents || 0,
       icon: Description,
       color: '#2196f3',
-      description: 'PDFs, contratos, reportes',
+      description: 'Registros en Firestore',
       percentage: storageStats.documents ? ((storageStats.documents / (storageStats.documents + storageStats.images + storageStats.files)) * 100) : 0
     },
     {
@@ -272,7 +272,10 @@ const StorageMenu = ({ anchorEl, open, onClose }) => {
           }}
         >
           <Typography variant="body2" fontWeight="600" color="text.primary" sx={{ mb: 1.5 }}>
-            Distribución de Archivos
+            Estadísticas del Sistema
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: 'block' }}>
+            Documentos BD: registros en Firestore • Archivos: ficheros en Storage
           </Typography>
           <Grid container spacing={1.5}>
             {fileTypes.map((type, index) => (

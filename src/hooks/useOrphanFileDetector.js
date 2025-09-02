@@ -23,7 +23,19 @@ export const useOrphanFileDetector = () => {
     
     const files = [];
     let totalSize = 0;
-    const folders = ['commitments', 'payments', 'users', 'companies', 'reports'];
+    // ✅ FIXED: Agregadas todas las carpetas existentes en Storage
+    const folders = [
+      'commitments', 
+      'payments', 
+      'users', 
+      'companies', 
+      'reports',
+      'bank-certifications',
+      'incomes',
+      'invoices',
+      'logos',
+      'profile-photos'
+    ];
     let processedFolders = 0;
     
     try {
@@ -109,55 +121,123 @@ export const useOrphanFileDetector = () => {
     console.log('🔍 Iniciando escaneo de referencias en Firestore...');
     
     const references = new Set();
-    const collections = ['commitments', 'payments', 'users', 'companies', 'files'];
+    // ✅ FIXED: Agregada colección 'incomes' que también maneja attachments
+    const collections = ['commitments', 'payments', 'users', 'companies', 'files', 'incomes'];
     let processedCollections = 0;
     
     try {
-      // Función helper para extraer paths de URLs
+      // ✅ IMPROVED: Función mejorada para extraer paths de URLs de Firebase Storage
       const extractFilePathFromUrl = (url) => {
-        if (!url || typeof url !== 'string' || !url.includes('firebase')) return null;
+        if (!url || typeof url !== 'string') return null;
         
-        const pathMatch = url.match(/o\/(.+?)\?/);
-        if (pathMatch) {
-          return decodeURIComponent(pathMatch[1]);
+        // Verificar que sea una URL de Firebase Storage
+        if (!url.includes('firebasestorage.googleapis.com')) return null;
+        
+        try {
+          // Formato: https://firebasestorage.googleapis.com/v0/b/bucket/o/path%2Ffile?alt=media&token=...
+          const pathMatch = url.match(/o\/(.+?)\?/);
+          if (pathMatch) {
+            const decodedPath = decodeURIComponent(pathMatch[1]);
+            // Solo log en modo debug
+            // console.log(`🔍 Path extraído: ${url} -> ${decodedPath}`);
+            return decodedPath;
+          }
+          
+          // Formato alternativo sin parámetros
+          const altMatch = url.match(/o\/(.+)$/);
+          if (altMatch) {
+            const decodedPath = decodeURIComponent(altMatch[1]);
+            // Solo log en modo debug
+            // console.log(`🔍 Path extraído (alt): ${url} -> ${decodedPath}`);
+            return decodedPath;
+          }
+        } catch (error) {
+          console.warn(`⚠️ Error extrayendo path de URL: ${url}`, error);
         }
+        
         return null;
       };
       
-      // Campos que pueden contener URLs de archivos
-      const urlFields = [
-        'receiptUrl', 'receiptUrls', 'attachments', 'invoiceUrl', 'invoiceUrls',
-        'profileImage', 'logo', 'companyLogo', 'fileUrl', 'fileUrls',
-        'receiptMetadata', 'attachmentMetadata'
-      ];
+      // ✅ IMPROVED: Función recursiva mejorada para extraer URLs de cualquier estructura
+      const extractUrlsFromData = (data, path = '') => {
+        const urls = [];
+        
+        if (!data) return urls;
+        
+        // Si es string y parece una URL de Firebase Storage
+        if (typeof data === 'string' && data.includes('firebasestorage.googleapis.com')) {
+          const filePath = extractFilePathFromUrl(data);
+          if (filePath) {
+            urls.push(filePath);
+            console.log(`📎 URL encontrada en ${path}: ${filePath}`);
+          }
+        }
+        // Si es array, procesar cada elemento
+        else if (Array.isArray(data)) {
+          data.forEach((item, index) => {
+            urls.push(...extractUrlsFromData(item, `${path}[${index}]`));
+          });
+        }
+        // Si es objeto, procesar recursivamente
+        else if (typeof data === 'object' && data !== null) {
+          // ✅ CASOS ESPECIALES PARA FACTURAS - CAMPOS CRÍTICOS
+          if (data.url && typeof data.url === 'string') {
+            const filePath = extractFilePathFromUrl(data.url);
+            if (filePath) {
+              urls.push(filePath);
+              console.log(`📎 URL encontrada en ${path}.url: ${filePath}`);
+            }
+          }
+          if (data.downloadURL && typeof data.downloadURL === 'string') {
+            const filePath = extractFilePathFromUrl(data.downloadURL);
+            if (filePath) {
+              urls.push(filePath);
+              console.log(`📎 DownloadURL encontrada en ${path}.downloadURL: ${filePath}`);
+            }
+          }
+          if (data.path && typeof data.path === 'string' && data.path.includes('/')) {
+            // Path directo al archivo
+            urls.push(data.path);
+            console.log(`📎 Path directo encontrado en ${path}.path: ${data.path}`);
+          }
+          
+          // ✅ CASOS ESPECÍFICOS PARA FACTURAS
+          if (path.includes('invoice') || path.includes('Invoice')) {
+            console.log(`🧾 Procesando campo de factura: ${path}`, data);
+          }
+          
+          // Procesar todos los campos del objeto recursivamente
+          Object.keys(data).forEach(key => {
+            // No reprocesar campos ya manejados arriba
+            if (!['url', 'downloadURL', 'path'].includes(key)) {
+              urls.push(...extractUrlsFromData(data[key], path ? `${path}.${key}` : key));
+            }
+          });
+        }
+        
+        return urls;
+      };
 
       for (const collectionName of collections) {
         try {
+          console.log(`🔍 Escaneando colección: ${collectionName}`);
           const q = query(collection(db, collectionName));
           const snapshot = await getDocs(q);
           
+          let documentsProcessed = 0;
+          let totalFoundUrls = 0;
+          
           snapshot.docs.forEach(doc => {
             const data = doc.data();
+            documentsProcessed++;
             
-            urlFields.forEach(field => {
-              const value = data[field];
-              
-              if (typeof value === 'string') {
-                const path = extractFilePathFromUrl(value);
-                if (path) references.add(path);
-              } else if (Array.isArray(value)) {
-                value.forEach(item => {
-                  if (typeof item === 'string') {
-                    const path = extractFilePathFromUrl(item);
-                    if (path) references.add(path);
-                  } else if (typeof item === 'object' && item?.url) {
-                    const path = extractFilePathFromUrl(item.url);
-                    if (path) references.add(path);
-                  }
-                });
-              }
-            });
+            // ✅ IMPROVED: Escanear todo el documento de forma recursiva
+            const foundUrls = extractUrlsFromData(data, `${collectionName}/${doc.id}`);
+            foundUrls.forEach(url => references.add(url));
+            totalFoundUrls += foundUrls.length;
           });
+          
+          console.log(`✅ ${collectionName}: ${documentsProcessed} documentos, ${totalFoundUrls} referencias encontradas`);
           
           processedCollections++;
           onProgress(50 + (processedCollections / collections.length) * 30); // 30% del progreso total
@@ -199,9 +279,39 @@ export const useOrphanFileDetector = () => {
       const references = await scanFirestoreReferences(setScanProgress);
       setFirestoreRefs(references);
       
-      // Paso 3: Identificar archivos huérfanos
+      // Paso 3: Identificar archivos huérfanos con comparación mejorada
       setScanProgress(85);
-      const orphans = files.filter(file => !references.has(file.path));
+      console.log('🔍 Iniciando identificación de archivos huérfanos...');
+      console.log(`📁 Total archivos en Storage: ${files.length}`);
+      console.log(`📋 Total referencias en Firestore: ${references.size}`);
+      
+      // ✅ IMPROVED: Comparación más robusta para detectar huérfanos
+      const orphans = files.filter(file => {
+        // Normalizar el path del archivo
+        const normalizedFilePath = file.path.replace(/\\/g, '/');
+        
+        // Verificar si existe una referencia exacta
+        if (references.has(normalizedFilePath)) {
+          // console.log(`✅ Archivo referenciado: ${normalizedFilePath}`);
+          return false; // No es huérfano
+        }
+        
+        // Verificar si existe una referencia similar (por si hay variaciones)
+        const hasReference = Array.from(references).some(ref => {
+          const normalizedRef = ref.replace(/\\/g, '/');
+          return normalizedRef === normalizedFilePath || 
+                 normalizedRef.endsWith(file.name) && normalizedRef.includes(file.name);
+        });
+        
+        if (hasReference) {
+          // console.log(`✅ Archivo con referencia similar: ${normalizedFilePath}`);
+          return false; // No es huérfano
+        }
+        
+        console.log(`❌ Archivo huérfano detectado: ${normalizedFilePath}`);
+        return true; // Es huérfano
+      });
+      
       const orphanSize = orphans.reduce((sum, file) => sum + file.size, 0);
       
       setOrphanFiles(orphans);

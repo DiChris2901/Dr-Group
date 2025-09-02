@@ -389,11 +389,13 @@ const CommitmentsFilters = ({
                   value={companies.find(c => c.id === companyFilter) || { id: 'all', name: 'Todas las empresas' }}
                   onChange={handleCompanyChange}
                   getOptionLabel={(option) => option.name || ''}
-                  renderOption={(props, option) => (
-                    <Box {...props} component="li" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {option.id === 'all' ? (
-                        <Business sx={{ color: 'text.secondary', fontSize: 20 }} />
-                      ) : option.logoURL ? (
+                  renderOption={(props, option) => {
+                    const { key, ...otherProps } = props;
+                    return (
+                      <Box key={key} {...otherProps} component="li" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {option.id === 'all' ? (
+                          <Business sx={{ color: 'text.secondary', fontSize: 20 }} />
+                        ) : option.logoURL ? (
                         <Box
                           sx={{
                             width: 24,
@@ -433,7 +435,8 @@ const CommitmentsFilters = ({
                         {option.name}
                       </Typography>
                     </Box>
-                  )}
+                    );
+                  }}
                   renderInput={(params) => (
                     <TextField
                       {...params}
@@ -505,12 +508,15 @@ const CommitmentsFilters = ({
                   value={monthsData.find(m => m.value === selectedMonth) || monthsData[0]}
                   onChange={handleMonthAutoChange}
                   getOptionLabel={(o) => o.label}
-                  renderOption={(props, month) => (
-                    <Box {...props} sx={{ display:'flex', alignItems:'center', gap:1 }}>
-                      <Avatar sx={{ width:24, height:24, fontSize:'0.75rem', bgcolor: month.value==='all' ? 'grey.400':'primary.main', fontWeight:600 }}>{month.initial}</Avatar>
-                      <Typography variant="body2" sx={{ fontWeight: month.value==='all'?400:500 }}>{month.label}</Typography>
-                    </Box>
-                  )}
+                  renderOption={(props, month) => {
+                    const { key, ...otherProps } = props;
+                    return (
+                      <Box key={key} {...otherProps} sx={{ display:'flex', alignItems:'center', gap:1 }}>
+                        <Avatar sx={{ width:24, height:24, fontSize:'0.75rem', bgcolor: month.value==='all' ? 'grey.400':'primary.main', fontWeight:600 }}>{month.initial}</Avatar>
+                        <Typography variant="body2" sx={{ fontWeight: month.value==='all'?400:500 }}>{month.label}</Typography>
+                      </Box>
+                    );
+                  }}
                   renderInput={(params) => (
                     <TextField
                       {...params}

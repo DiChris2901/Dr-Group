@@ -40,7 +40,7 @@ import {
   Speed as SpeedIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import { useTheme } from '@mui/material/styles';
+import { useTheme, alpha } from '@mui/material/styles';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { useOrphanFileDetector } from '../hooks/useOrphanFileDetector';
@@ -183,7 +183,7 @@ const OrphanFilesPage = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header */}
+      {/* Header sobrio simplificado */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -191,31 +191,59 @@ const OrphanFilesPage = () => {
       >
         <Paper
           sx={{
-            background: `linear-gradient(135deg, ${theme.palette.error.dark} 0%, ${theme.palette.warning.dark} 100%)`,
-            color: 'white',
-            p: 3,
-            mb: 3,
-            borderRadius: 2
+            background: theme.palette.mode === 'dark' 
+              ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+              : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+            borderRadius: 1,
+            overflow: 'hidden',
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            mb: 3
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <StorageIcon sx={{ fontSize: 40 }} />
-            <Box>
-              <Typography variant="h4" fontWeight={700}>
-                🧹 Limpieza de Storage
-              </Typography>
-              <Typography variant="subtitle1" sx={{ opacity: 0.9 }}>
-                Sistema de detección y eliminación de archivos huérfanos
-              </Typography>
-            </Box>
+          <Box sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+            <Typography variant="overline" sx={{
+              fontWeight: 600, 
+              fontSize: '0.7rem', 
+              color: 'rgba(255, 255, 255, 0.8)',
+              letterSpacing: 1.2
+            }}>
+              ADMINISTRACIÓN • ARCHIVOS
+            </Typography>
+            <Typography variant="h4" sx={{
+              fontWeight: 700, 
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              mb: 1
+            }}>
+              🗂️ Archivos Huérfanos
+            </Typography>
+            <Typography variant="body1" sx={{ 
+              color: 'rgba(255, 255, 255, 0.9)'
+            }}>
+              Detecta y gestiona archivos sin referencias en la base de datos
+            </Typography>
           </Box>
         </Paper>
       </motion.div>
 
-      {/* Estadísticas */}
+      {/* Estadísticas con bordes dinámicos */}
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} md={3}>
-          <Card sx={{ height: '100%' }}>
+          <Card sx={{ 
+            height: '100%',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+            borderRadius: 1,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            '&:hover': {
+              borderColor: alpha(theme.palette.primary.main, 0.8),
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              transition: 'all 0.2s ease'
+            }
+          }}>
             <CardContent sx={{ textAlign: 'center' }}>
               <StorageIcon color="primary" sx={{ fontSize: 40, mb: 1 }} />
               <Typography variant="h6" color="primary" fontWeight={600}>
@@ -232,7 +260,17 @@ const OrphanFilesPage = () => {
         </Grid>
         
         <Grid item xs={12} md={3}>
-          <Card sx={{ height: '100%' }}>
+          <Card sx={{ 
+            height: '100%',
+            border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
+            borderRadius: 1,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            '&:hover': {
+              borderColor: alpha(theme.palette.success.main, 0.8),
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              transition: 'all 0.2s ease'
+            }
+          }}>
             <CardContent sx={{ textAlign: 'center' }}>
               <CheckCircleIcon color="success" sx={{ fontSize: 40, mb: 1 }} />
               <Typography variant="h6" color="success.main" fontWeight={600}>
@@ -246,7 +284,17 @@ const OrphanFilesPage = () => {
         </Grid>
         
         <Grid item xs={12} md={3}>
-          <Card sx={{ height: '100%' }}>
+          <Card sx={{ 
+            height: '100%',
+            border: `1px solid ${alpha(theme.palette.warning.main, 0.6)}`,
+            borderRadius: 1,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            '&:hover': {
+              borderColor: alpha(theme.palette.warning.main, 0.8),
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              transition: 'all 0.2s ease'
+            }
+          }}>
             <CardContent sx={{ textAlign: 'center' }}>
               <WarningIcon color="warning" sx={{ fontSize: 40, mb: 1 }} />
               <Typography variant="h6" color="warning.main" fontWeight={600}>
@@ -263,7 +311,17 @@ const OrphanFilesPage = () => {
         </Grid>
         
         <Grid item xs={12} md={3}>
-          <Card sx={{ height: '100%' }}>
+          <Card sx={{ 
+            height: '100%',
+            border: `1px solid ${alpha(theme.palette.error.main, 0.6)}`,
+            borderRadius: 1,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            '&:hover': {
+              borderColor: alpha(theme.palette.error.main, 0.8),
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              transition: 'all 0.2s ease'
+            }
+          }}>
             <CardContent sx={{ textAlign: 'center' }}>
               <Badge badgeContent={selectedFiles.size} color="error">
                 <DeleteSweepIcon color="error" sx={{ fontSize: 40, mb: 1 }} />
@@ -280,7 +338,18 @@ const OrphanFilesPage = () => {
       </Grid>
 
       {/* Controles */}
-      <Paper sx={{ p: 3, mb: 3 }}>
+      <Paper sx={{ 
+        p: 3, 
+        mb: 3,
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+        borderRadius: 1,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        '&:hover': {
+          borderColor: alpha(theme.palette.primary.main, 0.8),
+          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+          transition: 'all 0.2s ease'
+        }
+      }}>
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
           <Button
             variant="contained"
@@ -352,7 +421,18 @@ const OrphanFilesPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
         >
-          <Paper sx={{ p: 3, mb: 3 }}>
+          <Paper sx={{ 
+            p: 3, 
+            mb: 3,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+            borderRadius: 1,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            '&:hover': {
+              borderColor: alpha(theme.palette.primary.main, 0.8),
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              transition: 'all 0.2s ease'
+            }
+          }}>
             <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
               <TrendingUpIcon color="primary" />
               Estadísticas del Escaneo
@@ -442,7 +522,17 @@ const OrphanFilesPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <Paper sx={{ p: 2 }}>
+          <Paper sx={{ 
+            p: 2,
+            border: `1px solid ${alpha(theme.palette.warning.main, 0.6)}`,
+            borderRadius: 1,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            '&:hover': {
+              borderColor: alpha(theme.palette.warning.main, 0.8),
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              transition: 'all 0.2s ease'
+            }
+          }}>
             <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
               <WarningIcon color="warning" />
               Archivos Huérfanos Detectados ({orphanFiles.length})
@@ -458,11 +548,16 @@ const OrphanFilesPage = () => {
                 >
                   <ListItem
                     sx={{
-                      border: 1,
-                      borderColor: selectedFiles.has(file.path) ? 'error.main' : 'divider',
+                      border: `1px solid ${selectedFiles.has(file.path) ? alpha(theme.palette.error.main, 0.8) : alpha(theme.palette.divider, 0.6)}`,
                       borderRadius: 1,
                       mb: 1,
-                      backgroundColor: selectedFiles.has(file.path) ? 'error.50' : 'transparent'
+                      backgroundColor: selectedFiles.has(file.path) ? alpha(theme.palette.error.main, 0.05) : 'transparent',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                      '&:hover': {
+                        borderColor: selectedFiles.has(file.path) ? alpha(theme.palette.error.main, 1) : alpha(theme.palette.primary.main, 0.6),
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        transition: 'all 0.2s ease'
+                      }
                     }}
                   >
                     <ListItemText
@@ -478,15 +573,14 @@ const OrphanFilesPage = () => {
                         </Box>
                       }
                       secondary={
-                        <Box sx={{ mt: 0.5 }}>
-                          <Typography variant="caption" color="text.secondary">
+                        <React.Fragment>
+                          <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block', mt: 0.5 }}>
                             📁 {file.path}
                           </Typography>
-                          <br />
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block' }}>
                             📊 {formatFileSize(file.size)} • 📅 {new Date(file.created).toLocaleDateString()}
                           </Typography>
-                        </Box>
+                        </React.Fragment>
                       }
                     />
                     <ListItemSecondaryAction>
@@ -526,7 +620,18 @@ const OrphanFilesPage = () => {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
         >
-          <Paper sx={{ p: 4, textAlign: 'center' }}>
+          <Paper sx={{ 
+            p: 4, 
+            textAlign: 'center',
+            border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
+            borderRadius: 1,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            '&:hover': {
+              borderColor: alpha(theme.palette.success.main, 0.8),
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              transition: 'all 0.2s ease'
+            }
+          }}>
             <CheckCircleIcon color="success" sx={{ fontSize: 60, mb: 2 }} />
             <Typography variant="h5" color="success.main" fontWeight={600} sx={{ mb: 1 }}>
               ¡Storage Limpio!

@@ -68,14 +68,17 @@ export const useStorageStats = () => {
 
   const getFirestoreStats = async () => {
     try {
-      const collections = ['commitments', 'companies', 'users', 'payments'];
+      // ✅ FIXED: Incluir todas las colecciones para conteo completo
+      const collections = ['commitments', 'companies', 'users', 'payments', 'files', 'incomes'];
       let totalDocs = 0;
 
       for (const collectionName of collections) {
         const snapshot = await getDocs(collection(db, collectionName));
+        console.log(`📄 ${collectionName}: ${snapshot.size} documentos`);
         totalDocs += snapshot.size;
       }
 
+      console.log(`📊 Total documentos Firestore: ${totalDocs}`);
       return totalDocs;
     } catch (error) {
       console.error('Error counting Firestore documents:', error);

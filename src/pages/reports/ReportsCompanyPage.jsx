@@ -121,7 +121,10 @@ const ReportsCompanyPage = () => {
     
     const result = companiesData.map(company => {
       const companyCommitments = commitments.filter(c => c.companyId === company.id);
-      const totalAmount = companyCommitments.reduce((sum, c) => sum + (c.totalAmount || c.amount || 0), 0);
+      const totalAmount = companyCommitments.reduce((sum, c) => {
+        const amount = parseFloat(c.totalAmount) || parseFloat(c.amount) || 0;
+        return sum + amount;
+      }, 0);
       const completed = companyCommitments.filter(c => c.status === 'completed').length;
       const pending = companyCommitments.filter(c => c.status === 'pending').length;
       const overdue = companyCommitments.filter(c => c.status === 'overdue').length;
@@ -251,7 +254,10 @@ const ReportsCompanyPage = () => {
                  c.companyId === company.id;
         });
         
-        monthData[company.name] = monthCommitments.reduce((sum, c) => sum + (c.totalAmount || c.amount || 0), 0);
+        monthData[company.name] = monthCommitments.reduce((sum, c) => {
+          const amount = parseFloat(c.totalAmount) || parseFloat(c.amount) || 0;
+          return sum + amount;
+        }, 0);
       });
       
       return monthData;
@@ -465,7 +471,7 @@ const ReportsCompanyPage = () => {
     }
   };
 
-  const filteredCompanies = companies.filter(company => {
+  const filteredCompanies = enrichedCompanies.filter(company => {
     // Aplicar filtros solo cuando estén aplicados
     const filters = filtersApplied ? appliedFilters : {
       searchTerm,
@@ -494,26 +500,27 @@ const ReportsCompanyPage = () => {
 
   // Estadísticas globales para el header
   const globalStats = useMemo(() => {
-    const totalAmount = companies.reduce((sum, company) => sum + company.totalAmount, 0);
-    const totalCommitments = companies.reduce((sum, company) => sum + company.commitments, 0);
-    const totalCompleted = companies.reduce((sum, company) => sum + company.completed, 0);
-    const totalPending = companies.reduce((sum, company) => sum + company.pending, 0);
+    const totalAmount = enrichedCompanies.reduce((sum, company) => sum + company.totalAmount, 0);
+    const totalCommitments = enrichedCompanies.reduce((sum, company) => sum + company.commitments, 0);
+    const totalCompleted = enrichedCompanies.reduce((sum, company) => sum + company.completed, 0);
+    const totalPending = enrichedCompanies.reduce((sum, company) => sum + company.pending, 0);
     
     return {
       totalAmount,
       totalCommitments,
       totalCompleted,
       totalPending,
-      totalCompanies: companies.length
+      totalCompanies: enrichedCompanies.length
     };
-  }, [companies]);
+  }, [enrichedCompanies]);
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-MX', {
+    return new Intl.NumberFormat('es-CO', {
       style: 'currency',
-      currency: 'MXN',
-      minimumFractionDigits: 0
-    }).format(amount);
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount || 0);
   };
 
   const getCompletionRate = (company) => {
@@ -1933,12 +1940,15 @@ const ReportsCompanyPage = () => {
                 py: 1.2,
                 px: 3,
                 background: exportingExcel 
-                  ? `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.6)}, ${alpha(theme.palette.success.dark, 0.6)})` 
-                  : `linear-gradient(135deg, ${theme.palette.success.main}, ${theme.palette.success.dark})`,
+                  ? `linear-gradient(135deg, ${theme.palette.primary.dark}99, ${theme.palette.secondary.dark}99)` 
+                  : `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.secondary.dark})`,
                 transition: 'all 0.3s ease',
                 '&:hover': {
                   transform: exportingExcel ? 'none' : 'translateY(-2px)',
-                  boxShadow: exportingExcel ? 'none' : `0 8px 25px ${alpha(theme.palette.success.main, 0.3)}`
+                  background: exportingExcel 
+                    ? `linear-gradient(135deg, ${theme.palette.primary.dark}99, ${theme.palette.secondary.dark}99)` 
+                    : `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                  boxShadow: exportingExcel ? 'none' : `0 8px 25px ${alpha(theme.palette.primary.main, 0.3)}`
                 },
                 '&:disabled': {
                   background: alpha(theme.palette.action.disabled, 0.12),

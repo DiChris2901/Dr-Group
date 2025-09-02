@@ -1072,206 +1072,277 @@ const UserManagementPage = () => {
       <Dialog
         open={openModal}
         onClose={handleCloseModal}
-        maxWidth="md"
         fullWidth
+        maxWidth="md"
         PaperProps={{
           sx: {
-            borderRadius: 3,
-            background: 'linear-gradient(145deg, rgba(255,255,255,0.98) 0%, rgba(250,250,250,0.95) 100%)',
-            backdropFilter: 'blur(20px)',
+            borderRadius: 2,
+            background: theme.palette.background.paper,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
           }
         }}
       >
         <DialogTitle sx={{ 
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white',
-          fontWeight: 600,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
+          pb: 2,
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          background: theme.palette.mode === 'dark' 
+            ? theme.palette.grey[900]
+            : theme.palette.grey[50],
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          color: 'text.primary'
         }}>
-          <Box>
-            {editingUser ? 'Editar Usuario' : 'Crear Nuevo Usuario'}
-            {editingUser && (
-              <Box component="div" sx={{ 
-                display: 'block', 
-                opacity: 0.8, 
-                mt: 0.5,
-                fontSize: '0.75rem',
-                lineHeight: 1.66
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+              {editingUser ? <EditIcon /> : <PersonAddIcon />}
+            </Avatar>
+            <Box>
+              <Typography variant="h6" sx={{ 
+                fontWeight: 700,
+                mb: 0,
+                color: 'text.primary' 
               }}>
-                {formData.email}
-              </Box>
-            )}
+                {editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
+              </Typography>
+              {editingUser && (
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {formData.email}
+                </Typography>
+              )}
+            </Box>
           </Box>
           {editingUser && hasUnsavedChanges && (
             <Chip 
               label="● Cambios sin guardar" 
               size="small" 
-              sx={{ 
-                backgroundColor: 'rgba(255,193,7,0.9)', 
-                color: 'rgba(0,0,0,0.87)',
-                fontWeight: 600,
-                animation: 'pulse 2s infinite'
-              }} 
+              color="warning"
+              variant="outlined"
             />
           )}
         </DialogTitle>
         
-        <DialogContent sx={{ p: 3 }}>
-          <Grid container spacing={3} sx={{ mt: 1 }}>
-            {/* Información básica */}
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => updateFormData({ email: e.target.value })}
-                disabled={!!editingUser}
-                required
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Nombre completo"
-                value={formData.displayName}
-                onChange={(e) => updateFormData({ displayName: e.target.value })}
-                required
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Teléfono"
-                value={formData.phone}
-                onChange={(e) => updateFormData({ phone: e.target.value })}
-              />
-            </Grid>
-            
-            {/* Campo de contraseña temporal - Solo para usuarios nuevos */}
-            {!editingUser && (
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Contraseña Temporal"
-                  type={showPassword ? 'text' : 'password'}
-                  value={formData.temporalPassword}
-                  onChange={(e) => updateFormData({ temporalPassword: e.target.value })}
-                  helperText="Se enviará email para cambiar contraseña"
-                  InputProps={{
-                    endAdornment: (
-                      <IconButton
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                      >
-                        {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                      </IconButton>
-                    )
-                  }}
-                />
-              </Grid>
-            )}
-            
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Departamento"
-                value={formData.department}
-                onChange={(e) => updateFormData({ department: e.target.value })}
-              />
-            </Grid>
-
-            {/* Rol */}
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth required>
-                <InputLabel>Rol</InputLabel>
-                <Select
-                  value={formData.role}
-                  onChange={(e) => handleRoleChange(e.target.value)}
-                  label="Rol"
-                >
-                  {Object.entries(USER_ROLES).map(([key, role]) => (
-                    <MenuItem key={key} value={key}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {key === 'ADMIN' ? <AdminIcon /> : <SecurityIcon />}
-                        {role.name}
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            {/* Estado activo */}
-            <Grid item xs={12} md={6}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formData.isActive}
-                    onChange={(e) => updateFormData({ isActive: e.target.checked })}
-                  />
-                }
-                label="Usuario activo"
-              />
-            </Grid>
-
-            {/* Notas */}
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Notas adicionales"
-                multiline
-                rows={3}
-                value={formData.notes}
-                onChange={(e) => updateFormData({ notes: e.target.value })}
-              />
-            </Grid>
-
-            {/* Permisos personalizados */}
-            <Grid item xs={12}>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                Permisos Específicos
-              </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                Los permisos se asignan automáticamente según el rol, pero puedes personalizarlos:
-              </Typography>
+        <DialogContent sx={{ 
+          p: 3,
+          pt: 5
+        }}>
+          <Box sx={{ mt: 3 }}>
+            <Grid container spacing={3}>
               
-              {Object.entries(getPermissionGroups()).map(([groupName, permissions]) => (
-                <Box key={groupName} sx={{ mb: 3 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-                    {groupName}
+              {/* INFORMACIÓN PRINCIPAL */}
+              <Grid item xs={12} md={7}>
+                <Paper sx={{
+                  p: 3,
+                  borderRadius: 2,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                  background: theme.palette.background.paper,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                }}>
+                  <Typography variant="overline" sx={{
+                    fontWeight: 600,
+                    color: 'primary.main',
+                    letterSpacing: 0.8,
+                    fontSize: '0.75rem'
+                  }}>
+                    <PersonAddIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
+                    Información General
                   </Typography>
-                  <Grid container spacing={1}>
-                    {permissions.map((permission) => (
-                      <Grid item xs={12} sm={6} key={permission}>
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              checked={formData.permissions.includes(permission)}
-                              onChange={() => handlePermissionToggle(permission)}
-                              size="small"
-                            />
-                          }
-                          label={
-                            <Typography variant="body2">
-                              {permission.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase())}
-                            </Typography>
-                          }
+                  
+                  <Grid container spacing={3} sx={{ mt: 1 }}>
+                    {/* Información básica */}
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => updateFormData({ email: e.target.value })}
+                        disabled={!!editingUser}
+                        required
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Nombre completo"
+                        value={formData.displayName}
+                        onChange={(e) => updateFormData({ displayName: e.target.value })}
+                        required
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Teléfono"
+                        value={formData.phone}
+                        onChange={(e) => updateFormData({ phone: e.target.value })}
+                      />
+                    </Grid>
+                    
+                    {/* Campo de contraseña temporal - Solo para usuarios nuevos */}
+                    {!editingUser && (
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Contraseña Temporal"
+                          type={showPassword ? 'text' : 'password'}
+                          value={formData.temporalPassword}
+                          onChange={(e) => updateFormData({ temporalPassword: e.target.value })}
+                          helperText="Se enviará email para cambiar contraseña"
+                          InputProps={{
+                            endAdornment: (
+                              <IconButton
+                                onClick={() => setShowPassword(!showPassword)}
+                                edge="end"
+                              >
+                                {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                              </IconButton>
+                            )
+                          }}
                         />
                       </Grid>
-                    ))}
+                    )}
+                    
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="Departamento"
+                        value={formData.department}
+                        onChange={(e) => updateFormData({ department: e.target.value })}
+                      />
+                    </Grid>
+
+                    {/* Rol */}
+                    <Grid item xs={12} md={6}>
+                      <FormControl fullWidth required>
+                        <InputLabel>Rol</InputLabel>
+                        <Select
+                          value={formData.role}
+                          onChange={(e) => handleRoleChange(e.target.value)}
+                          label="Rol"
+                        >
+                          {Object.entries(USER_ROLES).map(([key, role]) => (
+                            <MenuItem key={key} value={key}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {key === 'ADMIN' ? <AdminIcon /> : <SecurityIcon />}
+                                {role.name}
+                              </Box>
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+
+                    {/* Estado activo */}
+                    <Grid item xs={12} md={6}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={formData.isActive}
+                            onChange={(e) => updateFormData({ isActive: e.target.checked })}
+                          />
+                        }
+                        label="Usuario activo"
+                      />
+                    </Grid>
+
+                    {/* Notas */}
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Notas adicionales"
+                        multiline
+                        rows={3}
+                        value={formData.notes}
+                        onChange={(e) => updateFormData({ notes: e.target.value })}
+                      />
+                    </Grid>
                   </Grid>
-                  <Divider sx={{ mt: 2 }} />
-                </Box>
-              ))}
+                </Paper>
+              </Grid>
+
+              {/* INFORMACIÓN LATERAL - PERMISOS */}
+              <Grid item xs={12} md={5}>
+                <Paper sx={{
+                  p: 3.5,
+                  borderRadius: 2,
+                  border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                  background: theme.palette.background.paper,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                }}>
+                  <Typography variant="overline" sx={{
+                    fontWeight: 600,
+                    color: 'secondary.main',
+                    letterSpacing: 0.8,
+                    fontSize: '0.75rem'
+                  }}>
+                    <SecurityIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
+                    Permisos Específicos
+                  </Typography>
+                  
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 3 }}>
+                    Los permisos se asignan automáticamente según el rol, pero puedes personalizarlos:
+                  </Typography>
+                  
+                  {Object.entries(getPermissionGroups()).map(([groupName, permissions]) => (
+                    <Box key={groupName} sx={{ mb: 3 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'text.primary' }}>
+                        {groupName}
+                      </Typography>
+                      <Grid container spacing={1}>
+                        {permissions.map((permission) => (
+                          <Grid item xs={12} key={permission}>
+                            <FormControlLabel
+                              control={
+                                <Checkbox
+                                  checked={formData.permissions.includes(permission)}
+                                  onChange={() => handlePermissionToggle(permission)}
+                                  size="small"
+                                />
+                              }
+                              label={
+                                <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                                  {permission.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase())}
+                                </Typography>
+                              }
+                              sx={{ '& .MuiFormControlLabel-label': { fontSize: '0.875rem' } }}
+                            />
+                          </Grid>
+                        ))}
+                      </Grid>
+                      {groupName !== Object.keys(getPermissionGroups())[Object.keys(getPermissionGroups()).length - 1] && (
+                        <Divider sx={{ mt: 2 }} />
+                      )}
+                    </Box>
+                  ))}
+                </Paper>
+              </Grid>
+              
             </Grid>
-          </Grid>
+          </Box>
         </DialogContent>
 
-        <DialogActions sx={{ p: 3, pt: 0 }}>
-          <Button onClick={handleCloseModal}>
+        <DialogActions sx={{ 
+          p: 3, 
+          pt: 2,
+          borderTop: `1px solid ${theme.palette.divider}`,
+          background: theme.palette.mode === 'dark' 
+            ? theme.palette.grey[900]
+            : theme.palette.grey[50]
+        }}>
+          <Button 
+            onClick={handleCloseModal}
+            sx={{ 
+              borderRadius: 1,
+              px: 3,
+              py: 1,
+              textTransform: 'none',
+              fontWeight: 500
+            }}
+          >
             Cancelar
           </Button>
           <Button
@@ -1280,29 +1351,30 @@ const UserManagementPage = () => {
             disabled={
               !formData.email || 
               !formData.displayName || 
-              (editingUser && !hasUnsavedChanges) || // Para usuarios existentes, solo habilitar si hay cambios
-              modalLoading // Deshabilitar durante el guardado
+              (editingUser && !hasUnsavedChanges) || 
+              modalLoading
             }
             sx={{
-              background: hasUnsavedChanges || !editingUser ? 
-                'linear-gradient(135deg, #28a745 0%, #20c997 100%)' : 
-                'rgba(0, 0, 0, 0.12)',
+              borderRadius: 1,
+              px: 3,
+              py: 1,
+              textTransform: 'none',
+              fontWeight: 600,
+              background: theme.palette.primary.main,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
               '&:hover': {
-                background: hasUnsavedChanges || !editingUser ? 
-                  'linear-gradient(135deg, #218838 0%, #1ea085 100%)' :
-                  'rgba(0, 0, 0, 0.12)',
+                background: theme.palette.primary.dark,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                transition: 'all 0.2s ease'
               },
               '&:disabled': {
-                background: 'rgba(0, 0, 0, 0.12)',
+                background: alpha(theme.palette.primary.main, 0.3),
                 color: 'rgba(0, 0, 0, 0.26)'
               }
             }}
+            startIcon={modalLoading ? <CircularProgress size={16} color="inherit" /> : null}
           >
-            {modalLoading ? (
-              <CircularProgress size={20} color="inherit" />
-            ) : (
-              `${editingUser ? 'Actualizar' : 'Crear'} Usuario`
-            )}
+            {modalLoading ? 'Guardando...' : `${editingUser ? 'Actualizar' : 'Crear'} Usuario`}
           </Button>
         </DialogActions>
       </Dialog>
