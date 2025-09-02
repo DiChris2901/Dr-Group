@@ -26,10 +26,7 @@ import {
   CheckCircle,
   AttachMoney,
   Business as BusinessIcon,
-  Notifications,
-  Assessment,
   AccountBalance,
-  AccessTime,
   Person,
   Refresh
 } from '@mui/icons-material';
@@ -105,27 +102,7 @@ const WelcomeDashboardSimple = () => {
     return 'Buenas noches';
   };
 
-  //   // 🎯 Funcionalidades esenciales no redundantes
-  const quickActions = [
-    {
-      title: 'Análisis Inteligente',
-      description: 'Reportes automáticos y proyecciones financieras',
-      icon: Assessment,
-      color: 'primary.main',
-      action: () => navigate('/reports'),
-      gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      category: 'analytics'
-    },
-    {
-      title: 'KPIs Financieros',
-      description: 'Indicadores clave y métricas de gestión',
-      icon: AttachMoney,
-      color: 'primary.dark',
-      action: () => navigate('/kpis'),
-      gradient: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
-      category: 'kpis'
-    }
-  ];
+
 
   // Estadísticas rápidas con datos reales de Firebase
   const quickStats = [
@@ -316,101 +293,7 @@ const WelcomeDashboardSimple = () => {
           ))}
         </Grid>
 
-        {/* Centro de Comando Empresarial */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-        >
-          <Box sx={{ mb: 4 }}>
-            <Typography 
-              variant="h4" 
-              fontWeight="bold" 
-              sx={{ 
-                mb: 2,
-                color: theme.palette.text.primary
-              }}
-            >
-              Centro de Comando Empresarial
-            </Typography>
-            <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 3 }}>
-              Acceso directo a todas las funcionalidades profesionales del sistema
-            </Typography>
 
-            <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
-              {quickActions.map((action, index) => (
-                <Grid item xs={12} sm={6} md={6} lg={6} key={index}>
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5, delay: index * 0.1 }}
-                    whileHover={{ y: -5, scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <Card
-                      onClick={action.action}
-                      sx={{
-                        background: theme.palette.mode === 'dark' 
-                          ? theme.palette.background.paper
-                          : '#ffffff',
-                        color: theme.palette.text.primary,
-                        cursor: 'pointer',
-                        height: '200px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        textAlign: 'center',
-                        border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-                        boxShadow: theme.palette.mode === 'dark'
-                          ? '0 4px 20px rgba(0, 0, 0, 0.3)'
-                          : '0 4px 20px rgba(0, 0, 0, 0.08)',
-                        position: 'relative',
-                        overflow: 'hidden',
-                        '&:hover': {
-                          boxShadow: theme.palette.mode === 'dark'
-                            ? '0 8px 25px rgba(0, 0, 0, 0.4)'
-                            : '0 8px 25px rgba(0, 0, 0, 0.12)',
-                          borderColor: alpha(theme.palette.primary.main, 0.8),
-                          transform: 'translateY(-2px)'
-                        },
-                        transition: 'all 0.3s ease'
-                      }}
-                    >
-                      <CardContent sx={{ 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        height: '100%'
-                      }}>
-                        <Box sx={{ 
-                          background: alpha(theme.palette.primary.main, 0.1), 
-                          borderRadius: 2, 
-                          p: 2, 
-                          mb: 2,
-                          color: theme.palette.primary.main
-                        }}>
-                          <action.icon sx={{ fontSize: 40 }} />
-                        </Box>
-                        <Typography variant="h6" fontWeight="600" sx={{ mb: 1, color: theme.palette.text.primary }}>
-                          {action.title}
-                        </Typography>
-                        <Typography variant="body2" sx={{ 
-                          color: theme.palette.text.secondary, 
-                          lineHeight: 1.4,
-                          fontSize: '0.875rem'
-                        }}>
-                          {action.description}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                </Grid>
-              ))}
-            </Grid>
-          </Box>
-        </motion.div>
       </Box>
 
       {/* Modal de Alertas Críticas - Diseño Sobrio */}

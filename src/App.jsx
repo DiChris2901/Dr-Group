@@ -40,7 +40,6 @@ import BankAccountsPage from './pages/BankAccountsPage';
 
 // Nuevos módulos profesionales
 import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
-import FinancialKPIsPage from './pages/FinancialKPIsPage';
 
 // Módulo de Auditoría
 import ActivityLogsPage from './pages/ActivityLogsPage';
@@ -214,14 +213,6 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Dashboard Ejecutivo" breadcrumbs={['Reportes', 'Ejecutivo']}>
             <ExecutiveDashboardPage />
-          </MainLayout>
-        }
-      />
-      <Route 
-        path="/kpis" 
-        element={
-          <MainLayout title="KPIs Financieros" breadcrumbs={['KPIs']}>
-            <FinancialKPIsPage />
           </MainLayout>
         }
       />

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import useActivityLogs from '../../hooks/useActivityLogs';
+import ExcelJS from 'exceljs';
+import { determineCommitmentStatus } from '../../utils/commitmentStatusUtils';
 import {
   Box,
   Card,
@@ -26,13 +28,13 @@ import {
   Tab,
   useTheme,
   alpha,
-  IconButton
+  IconButton,
+  Collapse
 } from '@mui/material';
 import {
   Category,
   Search,
   GetApp,
-  TrendingUp,
   AttachMoney,
   Assignment,
   LocalAtm,
@@ -41,10 +43,16 @@ import {
   Build,
   Group,
   FilterList,
-  Clear
+  Clear,
+  DateRange,
+  CalendarToday
 } from '@mui/icons-material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { es } from 'date-fns/locale';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, AreaChart, Area, ScatterChart, Scatter } from 'recharts';
-import { useCommitments } from '../../hooks/useFirestore';
+import { useCommitments, useCompanies } from '../../hooks/useFirestore';
 import { useSettings } from '../../context/SettingsContext';
 import { motion } from 'framer-motion';
 
@@ -54,8 +62,14 @@ const ReportsConceptPage = () => {
   const { settings } = useSettings();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [timeRange, setTimeRange] = useState('last6months');
+  // Período por defecto ahora: último mes (ventana móvil de 1 mes hacia atrás desde hoy)
+  const [timeRange, setTimeRange] = useState('lastmonth');
   const [tabValue, setTabValue] = useState(0);
+  
+  // Estados para fechas personalizadas
+  const [customStartDate, setCustomStartDate] = useState(null);
+  const [customEndDate, setCustomEndDate] = useState(null);
+  const [showCustomDates, setShowCustomDates] = useState(false);
 
   // Sistema de esquemas de colores dinámicos
   const getColorScheme = (scheme = 'corporate') => {
@@ -89,73 +103,156 @@ const ReportsConceptPage = () => {
     }
   };
 
-  // Conectar con Firebase para obtener compromisos reales
-  const { commitments, loading } = useCommitments();
+  // Conectar con Firebase para obtener compromisos y empresas reales
+  const { commitments, loading: commitmentsLoading } = useCommitments();
+  const { companies: companiesData, loading: companiesLoading } = useCompanies();
+  
+  const loading = commitmentsLoading || companiesLoading;
 
-  // Análisis real por conceptos de Firebase
-  const conceptsData = useMemo(() => {
-    if (!commitments) return [];
-
-    // Agrupar compromisos por concepto real
-    const conceptGroups = commitments.reduce((acc, commitment) => {
-      const conceptName = commitment.concept || 'Sin Concepto';
-      if (!acc[conceptName]) {
-        acc[conceptName] = [];
+  // Función para filtrar compromisos por rango de tiempo
+  const filterCommitmentsByTimeRange = useMemo(() => {
+    return (commitmentsArray) => {
+      if (!commitmentsArray || commitmentsArray.length === 0) return [];
+      
+      const now = new Date();
+      let startDate, endDate;
+      
+      switch (timeRange) {
+        case 'lastmonth':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+          endDate = now;
+          break;
+        case 'last3months':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+          endDate = now;
+          break;
+        case 'last6months':
+          startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
+          endDate = now;
+          break;
+        case 'last12months':
+          startDate = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+          endDate = now;
+          break;
+        case 'custom':
+          if (!customStartDate || !customEndDate) return commitmentsArray;
+          startDate = new Date(customStartDate);
+          endDate = new Date(customEndDate);
+          // Ajustar hora de fin del día
+          endDate.setHours(23, 59, 59, 999);
+          break;
+        default:
+          return commitmentsArray;
       }
-      acc[conceptName].push(commitment);
-      return acc;
-    }, {});
-
-    // Calcular estadísticas por concepto
-    const concepts = Object.entries(conceptGroups).map(([conceptName, conceptCommitments]) => {
-      const totalAmount = conceptCommitments.reduce((sum, c) => sum + (c.amount || 0), 0);
-      const completed = conceptCommitments.filter(c => c.status === 'completed').length;
-      const pending = conceptCommitments.filter(c => c.status === 'pending').length;
-      const overdue = conceptCommitments.filter(c => c.status === 'overdue').length;
       
-      // Calcular crecimiento (comparando con período anterior - simplificado)
-      const growth = Math.random() * 40 - 20; // TODO: Implementar cálculo real de crecimiento
-      
-      // Función para obtener icono y color basado en el concepto
-      const getConceptIcon = (concept) => {
-        const conceptLower = concept.toLowerCase();
-        if (conceptLower.includes('servicio') || conceptLower.includes('consultoría')) return { icon: '🔧', color: '#667eea' };
-        if (conceptLower.includes('marketing') || conceptLower.includes('publicidad')) return { icon: '📢', color: '#f093fb' };
-        if (conceptLower.includes('tecnología') || conceptLower.includes('software')) return { icon: '💻', color: '#ff9800' };
-        if (conceptLower.includes('financiero') || conceptLower.includes('banco')) return { icon: '🏦', color: '#9c27b0' };
-        if (conceptLower.includes('suministro') || conceptLower.includes('material')) return { icon: '📝', color: '#4caf50' };
-        if (conceptLower.includes('transporte') || conceptLower.includes('logística')) return { icon: '🚚', color: '#795548' };
-        if (conceptLower.includes('mantenimiento') || conceptLower.includes('limpieza')) return { icon: '🔧', color: '#607d8b' };
-        if (conceptLower.includes('rrhh') || conceptLower.includes('personal')) return { icon: '👥', color: '#e91e63' };
-        if (conceptLower.includes('legal') || conceptLower.includes('jurídico')) return { icon: '⚖️', color: '#795548' };
-        if (conceptLower.includes('seguridad') || conceptLower.includes('vigilancia')) return { icon: '🛡️', color: '#607d8b' };
-        if (conceptLower.includes('salud') || conceptLower.includes('médico')) return { icon: '🏥', color: '#4caf50' };
-        if (conceptLower.includes('educación') || conceptLower.includes('formación')) return { icon: '📚', color: '#2196f3' };
-        return { icon: '📋', color: '#9e9e9e' }; // Default
-      };
+      return commitmentsArray.filter(commitment => {
+        const dueDate = commitment.dueDate?.toDate?.() || new Date(commitment.dueDate);
+        return dueDate >= startDate && dueDate <= endDate;
+      });
+    };
+  }, [timeRange, customStartDate, customEndDate]);
 
-      const conceptInfo = getConceptIcon(conceptName);
-      
-      return {
-        id: conceptName.replace(/\s+/g, '_').toLowerCase(),
-        name: conceptName,
-        concept: conceptName,
-        totalAmount,
-        commitments: conceptCommitments.length,
-        completed,
-        pending,
-        overdue,
-        avgAmount: conceptCommitments.length > 0 ? totalAmount / conceptCommitments.length : 0,
-        growth,
-        icon: conceptInfo.icon,
-        color: conceptInfo.color
-      };
-    });
+  // Manejar cambio de rango de tiempo
+  const handleTimeRangeChange = (newTimeRange) => {
+    setTimeRange(newTimeRange);
+    setShowCustomDates(newTimeRange === 'custom');
+    
+    if (newTimeRange !== 'custom') {
+      setCustomStartDate(null);
+      setCustomEndDate(null);
+    }
+  };
 
-    return concepts
-      .filter(concept => concept.commitments > 0) // Solo mostrar conceptos con datos
-      .sort((a, b) => b.totalAmount - a.totalAmount); // Ordenar por monto total descendente
-  }, [commitments]);
+  // Análisis real por conceptos de Firebase con estados corregidos
+  const [conceptsData, setConceptsData] = useState([]);
+
+  useEffect(() => {
+    const calculateConceptsWithCorrectStatus = async () => {
+      if (!commitments || commitments.length === 0) {
+        setConceptsData([]);
+        return;
+      }
+
+      // ✅ APLICAR FILTRO DE FECHAS PRIMERO
+      const filteredCommitments = filterCommitmentsByTimeRange(commitments);
+      
+      if (filteredCommitments.length === 0) {
+        setConceptsData([]);
+        return;
+      }
+
+      // Agrupar compromisos filtrados por concepto real
+      const conceptGroups = filteredCommitments.reduce((acc, commitment) => {
+        const conceptName = commitment.concept || 'Sin Concepto';
+        if (!acc[conceptName]) {
+          acc[conceptName] = [];
+        }
+        acc[conceptName].push(commitment);
+        return acc;
+      }, {});
+
+      // Calcular estadísticas por concepto con estados correctos
+      const concepts = await Promise.all(
+        Object.entries(conceptGroups).map(async ([conceptName, conceptCommitments]) => {
+          const totalAmount = conceptCommitments.reduce((sum, c) => sum + (c.amount || 0), 0);
+          
+          // ✅ USAR LÓGICA CORRECTA DE ESTADOS CON determineCommitmentStatus
+          const statusResults = await Promise.all(
+            conceptCommitments.map(async (commitment) => {
+              const status = await determineCommitmentStatus(commitment);
+              return { ...commitment, calculatedStatus: status };
+            })
+          );
+          
+          const completed = statusResults.filter(c => c.calculatedStatus === 'completed').length;
+          const pending = statusResults.filter(c => c.calculatedStatus === 'pending' || c.calculatedStatus === 'partial').length;
+          const overdue = statusResults.filter(c => c.calculatedStatus === 'overdue').length;
+      
+          // Función para obtener icono y color basado en el concepto
+          const getConceptIcon = (concept) => {
+            const conceptLower = concept.toLowerCase();
+            if (conceptLower.includes('servicio') || conceptLower.includes('consultoría')) return { icon: '🔧', color: '#667eea' };
+            if (conceptLower.includes('marketing') || conceptLower.includes('publicidad')) return { icon: '📢', color: '#f093fb' };
+            if (conceptLower.includes('tecnología') || conceptLower.includes('software')) return { icon: '💻', color: '#ff9800' };
+            if (conceptLower.includes('financiero') || conceptLower.includes('banco')) return { icon: '🏦', color: '#9c27b0' };
+            if (conceptLower.includes('suministro') || conceptLower.includes('material')) return { icon: '📝', color: '#4caf50' };
+            if (conceptLower.includes('transporte') || conceptLower.includes('logística')) return { icon: '🚚', color: '#795548' };
+            if (conceptLower.includes('mantenimiento') || conceptLower.includes('limpieza')) return { icon: '🔧', color: '#607d8b' };
+            if (conceptLower.includes('rrhh') || conceptLower.includes('personal')) return { icon: '👥', color: '#e91e63' };
+            if (conceptLower.includes('legal') || conceptLower.includes('jurídico')) return { icon: '⚖️', color: '#795548' };
+            if (conceptLower.includes('seguridad') || conceptLower.includes('vigilancia')) return { icon: '🛡️', color: '#607d8b' };
+            if (conceptLower.includes('salud') || conceptLower.includes('médico')) return { icon: '🏥', color: '#4caf50' };
+            if (conceptLower.includes('educación') || conceptLower.includes('formación')) return { icon: '📚', color: '#2196f3' };
+            return { icon: '📋', color: '#9e9e9e' }; // Default
+          };
+
+          const conceptInfo = getConceptIcon(conceptName);
+          
+          return {
+            id: conceptName.replace(/\s+/g, '_').toLowerCase(),
+            name: conceptName,
+            concept: conceptName,
+            totalAmount,
+            commitments: conceptCommitments.length,
+            completed,
+            pending,
+            overdue,
+            avgAmount: conceptCommitments.length > 0 ? totalAmount / conceptCommitments.length : 0,
+            icon: conceptInfo.icon,
+            color: conceptInfo.color
+          };
+        })
+      );
+
+      const sortedConcepts = concepts
+        .filter(concept => concept.commitments > 0) // Solo mostrar conceptos con datos
+        .sort((a, b) => b.totalAmount - a.totalAmount); // Ordenar por monto total descendente
+        
+      setConceptsData(sortedConcepts);
+    };
+
+    calculateConceptsWithCorrectStatus();
+  }, [commitments, timeRange, customStartDate, customEndDate, filterCommitmentsByTimeRange]);
 
   // Generar categorías dinámicamente basándose en los conceptos reales
   const categories = useMemo(() => {
@@ -179,17 +276,35 @@ const ReportsConceptPage = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const chartData = filteredConcepts.map((concept, index) => ({
-    name: concept.name.substring(0, 15) + (concept.name.length > 15 ? '...' : ''),
+  // Limitar datos para mejor visualización - Solo mostrar top 8 conceptos más importantes
+  const sortedConcepts = [...filteredConcepts].sort((a, b) => b.totalAmount - a.totalAmount);
+  const topConcepts = sortedConcepts.slice(0, 8);
+  const otherConcepts = sortedConcepts.slice(8);
+  
+  // Si hay conceptos adicionales, agregar categoría "Otros"
+  const conceptsForChart = [...topConcepts];
+  if (otherConcepts.length > 0) {
+    const otherTotal = otherConcepts.reduce((sum, concept) => sum + concept.totalAmount, 0);
+    const otherCommitments = otherConcepts.reduce((sum, concept) => sum + concept.commitments, 0);
+    conceptsForChart.push({
+      name: `Otros (${otherConcepts.length})`,
+      totalAmount: otherTotal,
+      commitments: otherCommitments,
+      isOther: true
+    });
+  }
+
+  const chartData = conceptsForChart.map((concept, index) => ({
+    name: concept.isOther ? concept.name : (concept.name.substring(0, 20) + (concept.name.length > 20 ? '...' : '')),
     amount: concept.totalAmount,
     commitments: concept.commitments,
-    color: getColorScheme(settings?.dashboard?.charts?.colorScheme || 'corporate')[index % 8] || theme.palette.grey[400]
+    color: concept.isOther ? '#9e9e9e' : getColorScheme(settings?.dashboard?.charts?.colorScheme || 'corporate')[index % 8] || theme.palette.grey[400]
   }));
 
-  const pieData = filteredConcepts.map((concept, index) => ({
-    name: concept.name,
+  const pieData = conceptsForChart.map((concept, index) => ({
+    name: concept.isOther ? concept.name : concept.name,
     value: concept.totalAmount,
-    color: getColorScheme(settings?.dashboard?.charts?.colorScheme || 'corporate')[index % 8] || theme.palette.grey[400]
+    color: concept.isOther ? '#9e9e9e' : getColorScheme(settings?.dashboard?.charts?.colorScheme || 'corporate')[index % 8] || theme.palette.grey[400]
   }));
 
   const formatCurrency = useMemo(() => (amount) => {
@@ -199,6 +314,18 @@ const ReportsConceptPage = () => {
       minimumFractionDigits: 0
     }).format(amount || 0);
   }, []);
+
+  // Función para formatear valores del eje Y
+  const formatYAxisValue = (value) => {
+    if (value >= 1000000000) {
+      return `$${(value / 1000000000).toFixed(1)}B`;
+    } else if (value >= 1000000) {
+      return `$${(value / 1000000).toFixed(0)}M`;
+    } else if (value >= 1000) {
+      return `$${(value / 1000).toFixed(0)}K`;
+    }
+    return `$${value}`;
+  };
 
   const getTotalStats = () => {
     return filteredConcepts.reduce((acc, concept) => ({
@@ -221,8 +348,19 @@ const ReportsConceptPage = () => {
   const exportReport = async () => {
     console.log('Exportando reporte por concepto...');
     
-    // 📝 Registrar actividad de auditoría - Exportación de reporte
+    // ✅ VALIDAR QUE LOS DATOS ESTÉN DISPONIBLES
+    if (!companiesData || companiesData.length === 0) {
+      alert('Error: No se han cargado los datos de empresas. Inténtalo de nuevo en unos segundos.');
+      return;
+    }
+    
+    if (!commitments || commitments.length === 0) {
+      alert('Error: No hay compromisos para exportar.');
+      return;
+    }
+    
     try {
+      // 📝 Registrar actividad de auditoría - Exportación de reporte
       await logActivity('export_report', 'report', 'concept_report', {
         reportType: 'Análisis por Concepto',
         category: selectedCategory,
@@ -232,11 +370,272 @@ const ReportsConceptPage = () => {
         totalAmount: stats.totalAmount,
         exportFormat: 'Excel'
       });
-    } catch (logError) {
-      console.error('Error logging report export activity:', logError);
+
+      // 📊 CREAR WORKBOOK SIGUIENDO EXCEL_EXPORT_DESIGN_SYSTEM
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'DR Group Dashboard';
+      workbook.created = new Date();
+      workbook.properties.title = "DR Group - Análisis por Concepto";
+      workbook.properties.subject = "Reporte Detallado de Compromisos por Concepto";
+
+      // 🎨 PALETA DE COLORES CORPORATIVA PREMIUM (Siguiendo design system)
+      const BRAND_COLORS = {
+        primary: '0D47A1',      // Azul corporativo profundo
+        primaryLight: '1976D2', // Azul corporativo claro
+        headerBg: '0D47A1',     // Azul profundo para headers
+        subHeaderBg: 'E3F2FD',  // Azul muy claro para sub-headers
+        success: '2E7D32',      // Verde corporativo
+        warning: 'E65100',      // Naranja ejecutivo
+        error: 'C62828',        // Rojo corporativo
+        white: 'FFFFFF',        // Blanco puro
+        tableStripe: 'F8F9FA',  // Gris para filas alternas
+        gold: 'FFD700'          // Dorado para elementos premium
+      };
+
+      // 📋 HOJA 1: RESUMEN POR CONCEPTOS
+      const summarySheet = workbook.addWorksheet('Resumen por Conceptos', {
+        pageSetup: { 
+          paperSize: 9, // A4
+          orientation: 'landscape',
+          horizontalCentered: true,
+          margins: { top: 0.75, bottom: 0.75, left: 0.25, right: 0.25 }
+        }
+      });
+      
+      // Header principal según design system
+      summarySheet.mergeCells('A1:H1');
+      const titleCell = summarySheet.getCell('A1');
+      titleCell.value = '🏢 DR GROUP - ANÁLISIS POR CONCEPTO';
+      titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.headerBg}` } };
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      titleCell.border = {
+        top: { style: 'thick', color: { argb: `FF${BRAND_COLORS.gold}` } },
+        bottom: { style: 'thick', color: { argb: `FF${BRAND_COLORS.gold}` } },
+        left: { style: 'thick', color: { argb: `FF${BRAND_COLORS.gold}` } },
+        right: { style: 'thick', color: { argb: `FF${BRAND_COLORS.gold}` } }
+      };
+      summarySheet.getRow(1).height = 35;
+
+      // Información del reporte (Header secundario)
+      summarySheet.mergeCells('A2:H2');
+      const infoCell = summarySheet.getCell('A2');
+      infoCell.value = `📅 Generado: ${new Date().toLocaleDateString('es-ES')} | 🏷️ Categoría: ${selectedCategory} | ⏰ Período: ${timeRange}`;
+      infoCell.font = { name: 'Arial', size: 12, bold: true, color: { argb: `FF${BRAND_COLORS.primary}` } };
+      infoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.subHeaderBg}` } };
+      infoCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      summarySheet.getRow(2).height = 25;
+
+      // Headers de la tabla (SIN columna descripción)
+      const headers = ['CONCEPTO', 'MONTO TOTAL', 'COMPROMISOS', 'COMPLETADOS', 'PENDIENTES', 'VENCIDOS', 'PROMEDIO', 'ICONO'];
+      headers.forEach((header, index) => {
+        const cell = summarySheet.getCell(4, index + 1);
+        cell.value = header;
+        cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.primaryLight}` } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = {
+          top: { style: 'medium', color: { argb: 'FF000000' } },
+          left: { style: 'medium', color: { argb: 'FF000000' } },
+          bottom: { style: 'medium', color: { argb: 'FF000000' } },
+          right: { style: 'medium', color: { argb: 'FF000000' } }
+        };
+      });
+      summarySheet.getRow(4).height = 25;
+
+      // Datos de conceptos (SIN columna descripción)
+      filteredConcepts.forEach((concept, index) => {
+        const row = index + 5;
+        summarySheet.getCell(row, 1).value = concept.name;
+        summarySheet.getCell(row, 2).value = concept.totalAmount;
+        summarySheet.getCell(row, 3).value = concept.commitments;
+        summarySheet.getCell(row, 4).value = concept.completed;
+        summarySheet.getCell(row, 5).value = concept.pending;
+        summarySheet.getCell(row, 6).value = concept.overdue;
+        summarySheet.getCell(row, 7).value = concept.avgAmount;
+        summarySheet.getCell(row, 8).value = concept.icon;
+
+        // Formatear montos como moneda (diseño system)
+        summarySheet.getCell(row, 2).numFmt = '"$"#,##0.00';
+        summarySheet.getCell(row, 7).numFmt = '"$"#,##0.00';
+
+        // Aplicar estilos según design system
+        const fillColor = index % 2 === 0 ? BRAND_COLORS.tableStripe : BRAND_COLORS.white;
+        for (let col = 1; col <= 8; col++) {
+          const cell = summarySheet.getCell(row, col);
+          cell.font = { name: 'Arial', size: 9, color: { argb: 'FF424242' } };
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${fillColor}` } };
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+            right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+          };
+          cell.alignment = { 
+            horizontal: col === 1 ? 'left' : col === 8 ? 'center' : 'right',
+            vertical: 'middle' 
+          };
+        }
+        summarySheet.getRow(row).height = 18;
+      });
+
+      // Ajustar ancho de columnas según design system
+      summarySheet.getColumn(1).width = 25; // Concepto
+      summarySheet.getColumn(2).width = 15; // Monto Total  
+      summarySheet.getColumn(3).width = 12; // Compromisos
+      summarySheet.getColumn(4).width = 12; // Completados
+      summarySheet.getColumn(5).width = 12; // Pendientes
+      summarySheet.getColumn(6).width = 12; // Vencidos
+      summarySheet.getColumn(7).width = 15; // Promedio
+      summarySheet.getColumn(8).width = 8;  // Icono
+
+      // 📋 HOJA 2: DETALLE DE COMPROMISOS CON ESTADOS CORRECTOS
+      const detailSheet = workbook.addWorksheet('Detalle de Compromisos', {
+        pageSetup: { 
+          paperSize: 9,
+          orientation: 'landscape',
+          horizontalCentered: true
+        }
+      });
+      
+      // Header de detalle según design system
+      detailSheet.mergeCells('A1:G1');
+      const detailTitleCell = detailSheet.getCell('A1');
+      detailTitleCell.value = '📊 DETALLE DE COMPROMISOS POR CONCEPTO';
+      detailTitleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      detailTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.success}` } };
+      detailTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      detailTitleCell.border = {
+        top: { style: 'thick', color: { argb: `FF${BRAND_COLORS.gold}` } },
+        bottom: { style: 'thick', color: { argb: `FF${BRAND_COLORS.gold}` } },
+        left: { style: 'thick', color: { argb: `FF${BRAND_COLORS.gold}` } },
+        right: { style: 'thick', color: { argb: `FF${BRAND_COLORS.gold}` } }
+      };
+      detailSheet.getRow(1).height = 35;
+
+      // Headers del detalle (SIN descripción del concepto, enfocado en compromiso)
+      const detailHeaders = ['CONCEPTO', 'MONTO', 'EMPRESA', 'ESTADO', 'FECHA CREACIÓN', 'FECHA VENCIMIENTO', 'BENEFICIARIO'];
+      detailHeaders.forEach((header, index) => {
+        const cell = detailSheet.getCell(3, index + 1);
+        cell.value = header;
+        cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.success}` } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.border = {
+          top: { style: 'medium', color: { argb: 'FF000000' } },
+          left: { style: 'medium', color: { argb: 'FF000000' } },
+          bottom: { style: 'medium', color: { argb: 'FF000000' } },
+          right: { style: 'medium', color: { argb: 'FF000000' } }
+        };
+      });
+      detailSheet.getRow(3).height = 25;
+
+      // Llenar detalle de compromisos con estados calculados correctamente
+      let detailRow = 4;
+      for (const concept of filteredConcepts) {
+        // Buscar compromisos que pertenezcan a este concepto
+        const conceptCommitments = commitments.filter(c => 
+          (c.concept === concept.name) || 
+          (c.description && c.description.toLowerCase().includes(concept.name.toLowerCase()))
+        );
+
+        for (const commitment of conceptCommitments) {
+          // ✅ USAR ESTADO CALCULADO CORRECTAMENTE
+          const calculatedStatus = await determineCommitmentStatus(commitment);
+          let statusText, statusColor;
+          
+          switch (calculatedStatus) {
+            case 'completed':
+              statusText = 'Completado';
+              statusColor = 'FFE8F5E8'; // Verde claro
+              break;
+            case 'partial':
+              statusText = 'Pago Parcial (Pendiente)';
+              statusColor = 'FFFFF3E0'; // Amarillo claro
+              break;
+            case 'pending':
+              statusText = 'Pendiente';
+              statusColor = 'FFFFF3E0'; // Amarillo claro
+              break;
+            case 'overdue':
+              statusText = 'Vencido';
+              statusColor = 'FFFFE8E8'; // Rojo claro
+              break;
+            default:
+              statusText = 'Desconocido';
+              statusColor = 'FFF0F0F0'; // Gris claro
+          }
+
+          // Llenar fila con datos
+          detailSheet.getCell(detailRow, 1).value = concept.name;
+          detailSheet.getCell(detailRow, 2).value = commitment.amount || 0;
+          
+          // ✅ BUSCAR NOMBRE DE EMPRESA CORRECTAMENTE
+          const company = companiesData?.find(comp => comp.id === commitment.companyId);
+          detailSheet.getCell(detailRow, 3).value = company?.name || commitment.companyName || commitment.company || 'N/A';
+          
+          detailSheet.getCell(detailRow, 4).value = statusText;
+          detailSheet.getCell(detailRow, 5).value = commitment.createdAt ? 
+            new Date(commitment.createdAt.toDate ? commitment.createdAt.toDate() : commitment.createdAt).toLocaleDateString('es-ES') : 'N/A';
+          detailSheet.getCell(detailRow, 6).value = commitment.dueDate ? 
+            new Date(commitment.dueDate.toDate ? commitment.dueDate.toDate() : commitment.dueDate).toLocaleDateString('es-ES') : 'N/A';
+          detailSheet.getCell(detailRow, 7).value = commitment.beneficiary || 'N/A';
+
+          // Formatear monto
+          detailSheet.getCell(detailRow, 2).numFmt = '"$"#,##0.00';
+
+          // Aplicar formato según design system
+          for (let col = 1; col <= 7; col++) {
+            const cell = detailSheet.getCell(detailRow, col);
+            cell.font = { name: 'Arial', size: 9, color: { argb: 'FF424242' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusColor } };
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+              left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+              bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+              right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+            };
+            cell.alignment = { 
+              horizontal: col === 1 ? 'left' : col === 4 ? 'center' : 'right',
+              vertical: 'middle' 
+            };
+          }
+          detailSheet.getRow(detailRow).height = 18;
+          detailRow++;
+        }
+      }
+
+      // Ajustar ancho de columnas del detalle
+      detailSheet.getColumn(1).width = 20; // Concepto
+      detailSheet.getColumn(2).width = 15; // Monto
+      detailSheet.getColumn(3).width = 20; // Empresa
+      detailSheet.getColumn(4).width = 20; // Estado
+      detailSheet.getColumn(5).width = 15; // Fecha Creación
+      detailSheet.getColumn(6).width = 15; // Fecha Vencimiento
+      detailSheet.getColumn(7).width = 25; // Beneficiario
+
+      // � GENERAR Y DESCARGAR ARCHIVO
+      const timestamp = new Date().toISOString().replace(/[:]/g, '-').slice(0, 19);
+      const filename = `DR-Group-Reporte-Conceptos-${timestamp}.xlsx`;
+      
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+      
+      URL.revokeObjectURL(link.href);
+      
+      console.log('✅ Reporte de conceptos exportado exitosamente');
+      
+    } catch (error) {
+      console.error('❌ Error al exportar reporte:', error);
+      alert('Error al generar el reporte Excel. Verifica la consola para más detalles.');
     }
-    
-    // Aquí se implementaría la exportación real
   };
 
   // Función para renderizar gráfica principal dinámicamente
@@ -249,7 +648,7 @@ const ReportsConceptPage = () => {
     
     const commonProps = {
       data: data,
-      margin: { top: 20, right: 30, left: 20, bottom: 5 }
+      margin: { top: 20, right: 30, left: 80, bottom: 5 }
     };
 
     const animationProps = animations ? {
@@ -265,7 +664,10 @@ const ReportsConceptPage = () => {
           <LineChart {...commonProps} key={`line-${chartKey}-${tabValue}`}>
             {showGridLines && <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />}
             <XAxis dataKey="name" />
-            <YAxis />
+            <YAxis 
+              tickFormatter={tabValue === 0 ? formatYAxisValue : undefined}
+              width={80}
+            />
             <Tooltip 
               formatter={(value, name) => [
                 tabValue === 0 ? formatCurrency(value) : value,
@@ -290,7 +692,10 @@ const ReportsConceptPage = () => {
           <AreaChart {...commonProps} key={`area-${chartKey}-${tabValue}`}>
             {showGridLines && <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />}
             <XAxis dataKey="name" />
-            <YAxis />
+            <YAxis 
+              tickFormatter={tabValue === 0 ? formatYAxisValue : undefined}
+              width={80}
+            />
             <Tooltip 
               formatter={(value, name) => [
                 tabValue === 0 ? formatCurrency(value) : value,
@@ -320,7 +725,12 @@ const ReportsConceptPage = () => {
           <ScatterChart {...commonProps} key={`scatter-${chartKey}-${tabValue}`}>
             {showGridLines && <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />}
             <XAxis dataKey="commitments" name="Compromisos" />
-            <YAxis dataKey="amount" name="Monto" />
+            <YAxis 
+              dataKey="amount" 
+              name="Monto"
+              tickFormatter={formatYAxisValue}
+              width={80}
+            />
             <Tooltip 
               formatter={(value, name) => [
                 name === 'Monto' ? formatCurrency(value) : value,
@@ -341,13 +751,24 @@ const ReportsConceptPage = () => {
         return (
           <BarChart {...commonProps} key={`bar-${chartKey}-${tabValue}`}>
             {showGridLines && <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />}
-            <XAxis dataKey="name" />
-            <YAxis />
+            <XAxis 
+              dataKey="name" 
+              angle={-45}
+              textAnchor="end"
+              height={80}
+              interval={0}
+              fontSize={11}
+            />
+            <YAxis 
+              tickFormatter={tabValue === 0 ? formatYAxisValue : undefined}
+              width={80}
+            />
             <Tooltip 
               formatter={(value, name) => [
                 tabValue === 0 ? formatCurrency(value) : value,
-                tabValue === 0 ? 'Monto' : 'Compromisos'
+                tabValue === 0 ? 'Monto Total' : 'Cantidad de Compromisos'
               ]}
+              labelFormatter={(label) => `Concepto: ${label}`}
             />
             <Legend />
             <Bar 
@@ -380,10 +801,10 @@ const ReportsConceptPage = () => {
         <PieChart key={`donut-${chartKey}-${tabValue}`}>
           <Pie
             data={data}
-            cx="50%"
+            cx="35%"
             cy="50%"
-            innerRadius={60}
-            outerRadius={100}
+            innerRadius={45}
+            outerRadius={75}
             paddingAngle={2}
             dataKey="value"
             {...animationProps}
@@ -392,8 +813,21 @@ const ReportsConceptPage = () => {
               <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
             ))}
           </Pie>
-          <Tooltip formatter={(value) => formatCurrency(value)} />
-          <Legend />
+          <Tooltip 
+            formatter={(value) => formatCurrency(value)}
+            labelFormatter={(label) => `Concepto: ${label}`}
+          />
+          <Legend 
+            wrapperStyle={{ 
+              fontSize: '10px',
+              maxWidth: '45%',
+              paddingLeft: '10px' 
+            }}
+            layout="vertical"
+            align="right"
+            verticalAlign="middle"
+            iconSize={8}
+          />
         </PieChart>
       );
     }
@@ -403,10 +837,10 @@ const ReportsConceptPage = () => {
       <PieChart key={`pie-${chartKey}-${tabValue}`}>
         <Pie
           data={data}
-          cx="50%"
+          cx="35%"
           cy="50%"
-          innerRadius={40}
-          outerRadius={100}
+          innerRadius={30}
+          outerRadius={75}
           paddingAngle={2}
           dataKey="value"
           {...animationProps}
@@ -415,8 +849,21 @@ const ReportsConceptPage = () => {
             <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
           ))}
         </Pie>
-        <Tooltip formatter={(value) => formatCurrency(value)} />
-        <Legend />
+        <Tooltip 
+          formatter={(value) => formatCurrency(value)}
+          labelFormatter={(label) => `Concepto: ${label}`}
+        />
+        <Legend 
+          wrapperStyle={{ 
+            fontSize: '10px',
+            maxWidth: '45%',
+            paddingLeft: '10px' 
+          }}
+          layout="vertical"
+          align="right"
+          verticalAlign="middle"
+          iconSize={8}
+        />
       </PieChart>
     );
   };
@@ -541,7 +988,7 @@ const ReportsConceptPage = () => {
                   onClick={() => {
                     setSearchTerm('');
                     setSelectedCategory('all');
-                    setTimeRange('last6months');
+                    setTimeRange('lastmonth');
                   }}
                   sx={{
                     backgroundColor: alpha(theme.palette.error.main, 0.1),
@@ -618,7 +1065,7 @@ const ReportsConceptPage = () => {
                   <InputLabel>Período</InputLabel>
                   <Select
                     value={timeRange}
-                    onChange={(e) => setTimeRange(e.target.value)}
+                    onChange={(e) => handleTimeRangeChange(e.target.value)}
                     label="Período"
                     sx={{
                       borderRadius: 1,
@@ -628,9 +1075,10 @@ const ReportsConceptPage = () => {
                       }
                     }}
                   >
-                    <MenuItem value="last3months">Últimos 3 meses</MenuItem>
-                    <MenuItem value="last6months">Últimos 6 meses</MenuItem>
-                    <MenuItem value="last12months">Último año</MenuItem>
+        <MenuItem value="lastmonth">Último mes</MenuItem>
+        <MenuItem value="last3months">Últimos 3 meses</MenuItem>
+        <MenuItem value="last6months">Últimos 6 meses</MenuItem>
+        <MenuItem value="last12months">Último año</MenuItem>
                     <MenuItem value="custom">Personalizado</MenuItem>
                   </Select>
                 </FormControl>
@@ -638,7 +1086,7 @@ const ReportsConceptPage = () => {
             </Grid>
 
             {/* Chips de filtros aplicados */}
-            {(searchTerm || selectedCategory !== 'all' || timeRange !== 'last6months') && (
+      {(searchTerm || selectedCategory !== 'all' || timeRange !== 'lastmonth') && (
               <Box sx={{ mt: 3, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 {searchTerm && (
                   <Chip
@@ -658,11 +1106,19 @@ const ReportsConceptPage = () => {
                     variant="outlined"
                   />
                 )}
-                {timeRange !== 'last6months' && (
+                {timeRange !== 'lastmonth' && (
                   <Chip
-                    label={`Período: ${timeRange}`}
+                    label={`Período: ${
+                      timeRange === 'lastmonth' ? 'Último mes' :
+                      timeRange === 'last3months' ? 'Últimos 3 meses' :
+                      timeRange === 'last6months' ? 'Últimos 6 meses' :
+                      timeRange === 'last12months' ? 'Último año' :
+                      timeRange === 'custom' && customStartDate && customEndDate ? 
+                        `${customStartDate.toLocaleDateString('es-ES')} - ${customEndDate.toLocaleDateString('es-ES')}` :
+                        timeRange
+                    }`}
                     size="small"
-                    onDelete={() => setTimeRange('last6months')}
+                    onDelete={() => handleTimeRangeChange('lastmonth')}
                     color="info"
                     variant="outlined"
                   />
@@ -672,6 +1128,133 @@ const ReportsConceptPage = () => {
           </Box>
         </Paper>
       </motion.div>
+
+      {/* ✨ SELECTOR DE FECHAS PERSONALIZADAS - DISEÑO SOBRIO */}
+      <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
+        <Collapse in={showCustomDates}>
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                mb: 4,
+                borderRadius: 2,
+                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                backgroundColor: theme.palette.background.paper,
+                position: 'relative',
+                '&:hover': {
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                  transition: 'all 0.2s ease'
+                }
+              }}
+            >
+              {/* Header minimalista */}
+              <Typography variant="subtitle1" sx={{ 
+                fontWeight: 500,
+                color: 'text.secondary',
+                mb: 3,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}>
+                <DateRange fontSize="small" sx={{ color: 'text.secondary' }} />
+                Rango de fechas personalizado
+              </Typography>
+
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <DatePicker
+                    label="Fecha de inicio"
+                    value={customStartDate}
+                    onChange={(newValue) => setCustomStartDate(newValue)}
+                    maxDate={customEndDate || new Date()}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        size: 'medium',
+                        sx: {
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1,
+                            backgroundColor: theme.palette.background.paper,
+                            '&:hover .MuiOutlinedInput-notchedOutline': {
+                              borderColor: alpha(theme.palette.primary.main, 0.3)
+                            },
+                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                              borderColor: theme.palette.primary.main,
+                              borderWidth: 1
+                            }
+                          },
+                          '& .MuiInputLabel-root': {
+                            color: 'text.secondary',
+                            fontSize: '0.875rem'
+                          }
+                        }
+                      }
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <DatePicker
+                    label="Fecha de fin"
+                    value={customEndDate}
+                    onChange={(newValue) => setCustomEndDate(newValue)}
+                    minDate={customStartDate}
+                    maxDate={new Date()}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        size: 'medium',
+                        sx: {
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 1,
+                            backgroundColor: theme.palette.background.paper,
+                            '&:hover .MuiOutlinedInput-notchedOutline': {
+                              borderColor: alpha(theme.palette.primary.main, 0.3)
+                            },
+                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                              borderColor: theme.palette.primary.main,
+                              borderWidth: 1
+                            }
+                          },
+                          '& .MuiInputLabel-root': {
+                            color: 'text.secondary',
+                            fontSize: '0.875rem'
+                          }
+                        }
+                      }
+                    }}
+                  />
+                </Grid>
+              </Grid>
+
+              {/* Información de rango - diseño sobrio */}
+              {customStartDate && customEndDate && (
+                <Box sx={{ 
+                  mt: 2.5, 
+                  pt: 2,
+                  borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+                }}>
+                  <Typography variant="body2" sx={{ 
+                    color: 'text.secondary',
+                    fontSize: '0.8rem',
+                    fontWeight: 400
+                  }}>
+                    Período seleccionado: <Box component="span" sx={{ fontWeight: 500, color: 'text.primary' }}>
+                      {customStartDate.toLocaleDateString('es-ES')} - {customEndDate.toLocaleDateString('es-ES')}
+                    </Box>
+                    {' '}({Math.ceil((customEndDate - customStartDate) / (1000 * 60 * 60 * 24))} días)
+                  </Typography>
+                </Box>
+              )}
+            </Paper>
+          </motion.div>
+        </Collapse>
+      </LocalizationProvider>
 
       {/* Botón de exportar Premium */}
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'flex-end' }}>
@@ -724,15 +1307,9 @@ const ReportsConceptPage = () => {
             value: stats.totalCommitments, 
             color: theme.palette.info.main,
             icon: Assignment
-          },
-          { 
-            label: 'Ticket Promedio', 
-            value: formatCurrency(stats.totalAmount / stats.totalCommitments || 0), 
-            color: theme.palette.warning.main,
-            icon: TrendingUp
           }
         ].map((stat, index) => (
-          <Grid item xs={12} sm={6} md={3} key={index}>
+          <Grid item xs={12} sm={6} md={4} key={index}>
             <Card sx={{
               borderRadius: 2,
               border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
@@ -795,7 +1372,7 @@ const ReportsConceptPage = () => {
         </Tabs>
 
         <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
+          <Grid item xs={12} md={7}>
             <Card sx={{
               borderRadius: 2,
               border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
@@ -803,17 +1380,22 @@ const ReportsConceptPage = () => {
               height: '400px'
             }}>
               <CardContent sx={{ p: 3, height: '100%' }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
                   {tabValue === 0 ? 'Montos por Concepto' : 'Cantidad de Compromisos por Concepto'}
                 </Typography>
-                <ResponsiveContainer width="100%" height={300}>
+                {otherConcepts.length > 0 && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+                    Mostrando los 8 conceptos principales. Los {otherConcepts.length} conceptos restantes están agrupados en "Otros"
+                  </Typography>
+                )}
+                <ResponsiveContainer width="100%" height={otherConcepts.length > 0 ? 280 : 300}>
                   {renderConceptChart(chartData, 'main')}
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           </Grid>
 
-          <Grid item xs={12} md={4}>
+          <Grid item xs={12} md={5}>
             <Card sx={{
               borderRadius: 2,
               border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
@@ -821,10 +1403,15 @@ const ReportsConceptPage = () => {
               height: '400px'
             }}>
               <CardContent sx={{ p: 3, height: '100%' }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
                   Distribución de Montos
                 </Typography>
-                <ResponsiveContainer width="100%" height={300}>
+                {otherConcepts.length > 0 && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+                    Top 8 conceptos + otros agrupados
+                  </Typography>
+                )}
+                <ResponsiveContainer width="100%" height={otherConcepts.length > 0 ? 280 : 300}>
                   {renderDistributionChart(pieData, 'distribution')}
                 </ResponsiveContainer>
                 </CardContent>
@@ -863,7 +1450,6 @@ const ReportsConceptPage = () => {
                   <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Pendientes</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Vencidos</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Promedio</TableCell>
-                  <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Crecimiento</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -918,23 +1504,6 @@ const ReportsConceptPage = () => {
                     </TableCell>
                     <TableCell>
                       {formatCurrency(concept.avgAmount)}
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {concept.growth > 0 ? (
-                          <TrendingUp sx={{ color: '#4caf50', fontSize: 16 }} />
-                        ) : (
-                          <TrendingUp sx={{ color: '#f44336', fontSize: 16, transform: 'rotate(180deg)' }} />
-                        )}
-                        <Typography 
-                          sx={{ 
-                            fontWeight: 600,
-                            color: concept.growth > 0 ? '#4caf50' : '#f44336'
-                          }}
-                        >
-                          {concept.growth > 0 ? '+' : ''}{concept.growth}%
-                        </Typography>
-                      </Box>
                     </TableCell>
                   </TableRow>
                 ))}
