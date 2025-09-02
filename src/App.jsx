@@ -47,6 +47,9 @@ import ActivityLogsPage from './pages/ActivityLogsPage';
 // Centro de Alertas
 import AlertsCenterPage from './pages/AlertsCenterPage';
 
+// Administración avanzada
+import OrphanFilesPage from './pages/OrphanFilesPage';
+
 // Hook de autenticación
 import { useAuth } from './context/AuthContext';
 
@@ -247,6 +250,14 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Auditoría del Sistema" breadcrumbs={['Administración', 'Auditoría']}>
             <ActivityLogsPage />
+          </MainLayout>
+        }
+      />
+      <Route 
+        path="/admin/orphan-files" 
+        element={
+          <MainLayout title="Limpieza de Storage" breadcrumbs={['Administración', 'Archivos Huérfanos']}>
+            <OrphanFilesPage />
           </MainLayout>
         }
       />

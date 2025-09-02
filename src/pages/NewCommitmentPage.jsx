@@ -1,74 +1,69 @@
-import React, { useState, useEffect } from 'react';
 import {
+  Assignment as AssignmentIcon,
+  AttachFile as AttachFileIcon,
+  Business as BusinessIcon,
+  CalendarToday as CalendarIcon,
+  Cancel as CancelIcon,
+  CloudUpload as CloudUploadIcon,
+  Delete as DeleteIcon,
+  Description as DescriptionIcon,
+  InsertDriveFile as FileIcon,
+  AttachMoney as MoneyIcon,
+  Payment as PaymentIcon,
+  Person as PersonIcon,
+  Repeat as RepeatIcon,
+  Save as SaveIcon,
+  Schedule as ScheduleIcon
+} from '@mui/icons-material';
+import {
+  Alert,
+  Autocomplete,
   Box,
   Button,
   Card,
   CardContent,
-  CardHeader,
-  Typography,
-  Grid,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  InputAdornment,
-  Alert,
-  CircularProgress,
-  Chip,
-  Paper,
-  Divider,
-  FormControlLabel,
   Checkbox,
-  Autocomplete,
-  Switch,
+  Chip,
+  CircularProgress,
+  Divider,
+  FormControl,
+  FormControlLabel,
+  Grid,
   IconButton,
+  InputAdornment,
+  InputLabel,
   LinearProgress,
-  Stack
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  TextField,
+  Typography
 } from '@mui/material';
-import {
-  Save as SaveIcon,
-  Cancel as CancelIcon,
-  AttachMoney as MoneyIcon,
-  Business as BusinessIcon,
-  CalendarToday as CalendarIcon,
-  Description as DescriptionIcon,
-  Assignment as AssignmentIcon,
-  AccountBalance as BankIcon,
-  Person as PersonIcon,
-  Payment as PaymentIcon,
-  Schedule as ScheduleIcon,
-  Tune as TuneIcon,
-  Repeat as RepeatIcon,
-  Timeline as TimelineIcon,
-  Event as EventIcon,
-  AttachFile as AttachFileIcon,
-  CloudUpload as CloudUploadIcon,
-  Delete as DeleteIcon,
-  InsertDriveFile as FileIcon
-} from '@mui/icons-material';
+import { alpha, useTheme } from '@mui/material/styles';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { addDoc, collection, getDocs, onSnapshot, orderBy, query, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { motion } from 'framer-motion';
-import { useTheme, alpha } from '@mui/material/styles';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, getDocs, where, updateDoc, writeBatch } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import React, { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { db, storage } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
+import { useSettings } from '../context/SettingsContext';
 import useActivityLogs from '../hooks/useActivityLogs';
 import { getPaymentMethodOptions } from '../utils/formatUtils';
-import { 
-  generateRecurringCommitments, 
-  saveRecurringCommitments, 
+import {
+  calculateNextDueDates,
+  generateRecurringCommitments,
   getPeriodicityDescription,
-  calculateNextDueDates 
+  saveRecurringCommitments
 } from '../utils/recurringCommitments';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { useSettings } from '../context/SettingsContext';
 // 🗜️ IMPORTAR SISTEMA DE COMPRESIÓN
 import PDFCompressionPreview from '../components/common/PDFCompressionPreview';
-import { drGroupCompressor } from '../utils/pdfCompressor';
+// 📄 IMPORTAR SISTEMA DE COMBINACIÓN
+import { combineFilesToPDF } from '../utils/pdfCombiner';
 
 const NewCommitmentPage = () => {
   const { currentUser, userProfile } = useAuth();
@@ -719,7 +714,9 @@ const NewCommitmentPage = () => {
     const files = Array.from(event.target.files);
     if (files.length === 0) return;
 
-    // Procesar cada archivo individualmente
+    // Procesar cada archivo individualmente para validación
+    const validFiles = [];
+    
     files.forEach(file => {
       // Validar tipo de archivo
       const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -760,15 +757,26 @@ const NewCommitmentPage = () => {
         return;
       }
 
-      // 🗜️ VERIFICAR SI ES PDF Y NECESITA COMPRESIÓN
-      if (file.type === 'application/pdf' && compressionEnabled && file.size > 100 * 1024) { // PDFs > 100KB
-        setPendingPDFFile(file);
-        setCompressionPreviewOpen(true);
-      } else {
-        // Archivo no-PDF o PDF pequeño
-        processSelectedFile(file);
-      }
+      // Archivo válido - agregar para combinación posterior
+      validFiles.push(file);
     });
+
+    // Agregar archivos válidos a la lista (se combinarán al guardar)
+    if (validFiles.length > 0) {
+      setFormData(prev => ({
+        ...prev,
+        invoiceFiles: [...prev.invoiceFiles, ...validFiles],
+        invoiceFileNames: [...prev.invoiceFileNames, ...validFiles.map(f => f.name)]
+      }));
+
+      addNotification({
+        type: 'success',
+        title: `${validFiles.length} Archivo${validFiles.length !== 1 ? 's' : ''} Agregado${validFiles.length !== 1 ? 's' : ''}`,
+        message: `Se agregaron a la lista para combinación. Total: ${formData.invoiceFiles.length + validFiles.length} archivos`,
+        icon: 'success',
+        color: 'success'
+      });
+    }
 
     // Limpiar input
     event.target.value = '';
@@ -830,63 +838,71 @@ const NewCommitmentPage = () => {
 
     setUploadingFile(true);
     setUploadProgress(0);
-    const uploadResults = [];
-    const totalFiles = files.length;
 
     try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const fileProgress = (i / totalFiles) * 90; // 90% para subidas, 10% buffer
+      // 📄 COMBINAR TODOS LOS ARCHIVOS EN UN SOLO PDF
+      console.log('🔄 Iniciando combinación de archivos...', files.length);
+      setUploadProgress(20); // 20% - Iniciando combinación
 
-        // Generar nombre único para el archivo
-        const timestamp = new Date().getTime();
-        const extension = file.name.split('.').pop();
-        const fileName = `invoices/${timestamp}_${Math.random().toString(36).substr(2, 9)}.${extension}`;
-        
-        // Crear referencia en Firebase Storage
-        const storageRef = ref(storage, fileName);
-        
-        // Actualizar progreso por archivo
-        setUploadProgress(Math.floor(fileProgress));
+      // Obtener información del compromiso para metadatos
+      const selectedCompany = companies.find(company => company.id === formData.companyId);
+      const commitmentMetadata = {
+        commitmentTitle: `Factura ${formData.title || 'Sin título'} - ${selectedCompany?.name || 'Sin empresa'}`,
+        companyName: selectedCompany?.name,
+        commitmentDate: formData.dueDate,
+        amount: formData.totalAmount
+      };
 
-        // Subir archivo individual
-        const snapshot = await uploadBytes(storageRef, file);
-        const downloadURL = await getDownloadURL(snapshot.ref);
-        
-        uploadResults.push({
-          fileName: file.name,
-          downloadURL: downloadURL,
-          size: file.size,
-          type: file.type
-        });
+      const combinationResult = await combineFilesToPDF(files, commitmentMetadata);
+      setUploadProgress(60); // 60% - Combinación completada
 
-        // Notificación por archivo subido
-        addNotification({
-          type: 'success',
-          title: 'Archivo subido',
-          message: `"${file.name}" subido correctamente (${i + 1}/${totalFiles})`,
-          icon: 'success',
-          color: 'success'
-        });
-      }
+      // Generar nombre único para el archivo combinado
+      const timestamp = new Date().getTime();
+      const fileName = `invoices/combined_${timestamp}_${Math.random().toString(36).substr(2, 9)}.pdf`;
+      
+      // Crear referencia en Firebase Storage
+      const storageRef = ref(storage, fileName);
+      
+      setUploadProgress(80); // 80% - Preparando subida
 
+      // Subir archivo combinado único
+      const snapshot = await uploadBytes(storageRef, combinationResult.combinedPDF);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
       setUploadProgress(100);
+
+      // Mostrar estadísticas de combinación
+      addNotification({
+        type: 'success',
+        title: 'Archivos Combinados Exitosamente',
+        message: `${combinationResult.stats.processedFiles} archivo${combinationResult.stats.processedFiles !== 1 ? 's' : ''} combinado${combinationResult.stats.processedFiles !== 1 ? 's' : ''} en ${combinationResult.stats.totalPages} página${combinationResult.stats.totalPages !== 1 ? 's' : ''} (${combinationResult.stats.sizeFormatted})`,
+        icon: 'success',
+        color: 'success'
+      });
+
       setTimeout(() => {
         setUploadingFile(false);
         setUploadProgress(0);
       }, 500);
 
-      return uploadResults;
+      // Retornar información del archivo único combinado
+      return [{
+        fileName: `Factura_Combinada_${timestamp}.pdf`,
+        downloadURL: downloadURL,
+        size: combinationResult.combinedPDF.size,
+        type: 'application/pdf',
+        combinationStats: combinationResult.stats // Estadísticas adicionales
+      }];
 
     } catch (error) {
-      console.error('Error uploading files:', error);
+      console.error('Error combining/uploading files:', error);
       setUploadingFile(false);
       setUploadProgress(0);
       
       addNotification({
         type: 'error',
-        title: 'Error al subir archivos',
-        message: 'No se pudieron subir algunos archivos. Inténtalo de nuevo.',
+        title: 'Error al Combinar Archivos',
+        message: `No se pudieron combinar los archivos: ${error.message}`,
         icon: 'error',
         color: 'error'
       });
@@ -2584,6 +2600,17 @@ const NewCommitmentPage = () => {
                           disabled={saving}
                           multiline
                           rows={3}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              const missing = getMissingFields();
+                              if (missing.length > 0) {
+                                showMissingFieldsAlert();
+                                return;
+                              }
+                              if (!saving) handleSaveCommitment();
+                            }
+                          }}
                           placeholder="Información adicional, notas importantes, condiciones especiales..."
                         />
                       </Grid>
@@ -2680,7 +2707,8 @@ const NewCommitmentPage = () => {
                                       gap: 1
                                     }}>
                                       <FileIcon sx={{ fontSize: 18 }} />
-                                      {formData.invoiceFiles.length} archivo{formData.invoiceFiles.length !== 1 ? 's' : ''} adjunto{formData.invoiceFiles.length !== 1 ? 's' : ''}
+                                      {formData.invoiceFiles.length} archivo{formData.invoiceFiles.length !== 1 ? 's' : ''} adjunto{formData.invoiceFiles.length !== 1 ? 's' : ''} 
+                                      {formData.invoiceFiles.length > 1 && <span style={{ color: theme.palette.primary.main, fontWeight: 600 }}>→ Se combinarán</span>}
                                     </Typography>
                                     
                                     {formData.invoiceFiles.length > 1 && (
@@ -2751,6 +2779,35 @@ const NewCommitmentPage = () => {
                                       </Box>
                                     ))}
                                   </Stack>
+
+                                  {/* Botón para agregar más archivos */}
+                                  <Box sx={{ mt: 2 }}>
+                                    <Button
+                                      variant="outlined"
+                                      startIcon={<AttachFileIcon />}
+                                      onClick={() => {
+                                        const input = document.createElement('input');
+                                        input.type = 'file';
+                                        input.accept = '.pdf,.jpg,.jpeg,.png';
+                                        input.multiple = true;
+                                        input.onchange = (event) => {
+                                          handleFileSelect(event);
+                                        };
+                                        input.click();
+                                      }}
+                                      disabled={saving || uploadingFile}
+                                      sx={{
+                                        borderColor: alpha(primaryColor, 0.3),
+                                        color: primaryColor,
+                                        '&:hover': {
+                                          borderColor: primaryColor,
+                                          backgroundColor: alpha(primaryColor, 0.05)
+                                        }
+                                      }}
+                                    >
+                                      Agregar más archivos
+                                    </Button>
+                                  </Box>
                                 </Box>
 
                                 {uploadingFile && (
@@ -2774,7 +2831,7 @@ const NewCommitmentPage = () => {
                             )}
 
                             <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: 'block' }}>
-                              PDF, JPG, PNG • Max. 10MB
+                              PDF, JPG, PNG • Max. 10MB • Se combinarán en un solo PDF
                             </Typography>
                           </Box>
                         </motion.div>
@@ -2880,9 +2937,7 @@ const NewCommitmentPage = () => {
                           px: 3,
                           py: 1.5,
                           minWidth: 180,
-                          background: getMissingFields().length > 0 && !saving 
-                            ? 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)' // Naranja cuando faltan campos
-                            : getGradientBackground(),
+                          background: getGradientBackground(), // Siempre usar gradiente principal
                           fontWeight: 600,
                           textTransform: 'none',
                           fontSize: `${fontSize + 2}px`,

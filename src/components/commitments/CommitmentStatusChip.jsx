@@ -95,15 +95,31 @@ const CommitmentStatusChip = ({ commitment, showTooltip = true, variant = 'fille
       size="small"
       icon={icon}
       label={status.label}
-      color={color}
-      variant={variant}
+      variant="outlined"
       sx={{
-        fontWeight: 600,
-        minWidth: 100,
-        background: variant === 'filled' ? gradient : undefined,
-        boxShadow: variant === 'filled' ? `0 2px 8px ${shadowColor}` : undefined,
+        // Diseño Sobrio - Chips de Estado con alpha values
+        fontWeight: 500,
+        minWidth: 88,
+        height: 28,
+        fontSize: '0.75rem',
+        borderRadius: 1.5,
+        backgroundColor: 'transparent',
+        border: `1px solid ${theme.palette[color].main}40`,
+        color: theme.palette[color].main,
+        transition: 'all 0.2s ease',
         '& .MuiChip-icon': {
-          fontSize: '16px'
+          fontSize: '14px',
+          color: theme.palette[color].main
+        },
+        '& .MuiChip-label': {
+          paddingLeft: '6px',
+          paddingRight: '8px',
+          letterSpacing: '0.02em'
+        },
+        '&:hover': {
+          backgroundColor: `${theme.palette[color].main}08`,
+          borderColor: `${theme.palette[color].main}60`,
+          boxShadow: 'none'
         }
       }}
     />

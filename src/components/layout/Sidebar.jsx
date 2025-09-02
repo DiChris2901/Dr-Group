@@ -7,6 +7,7 @@ import {
     AttachMoney,
     Business,
     Dashboard,
+    DeleteSweep,
     ExpandLess,
     ExpandMore,
     Notifications,
@@ -178,6 +179,13 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       icon: Assessment,
       path: '/admin/activity-logs',
       color: '#9c27b0'
+    },
+    {
+      title: 'Limpieza de Storage',
+      icon: DeleteSweep,
+      path: '/admin/orphan-files',
+      color: '#f44336',
+      adminOnly: true // Solo para administradores específicos
     }
   ];
 
@@ -453,7 +461,15 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                 </>
               )}
 
-              {adminMenuItems.map((item, index) => (
+              {adminMenuItems
+                .filter(item => {
+                  // Si tiene adminOnly, solo mostrar para el usuario específico
+                  if (item.adminOnly) {
+                    return currentUser?.email === 'daruedagu@gmail.com';
+                  }
+                  return true;
+                })
+                .map((item, index) => (
                 <motion.div
                   key={item.title}
                   initial={{ opacity: 0, x: -20 }}

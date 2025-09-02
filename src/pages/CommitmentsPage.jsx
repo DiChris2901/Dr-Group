@@ -37,6 +37,7 @@ const CommitmentsPage = () => {
   const [companyFilter, setCompanyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [yearFilter, setYearFilter] = useState('all');
+  const [monthFilter, setMonthFilter] = useState('all');
   const [commitmentsData, setCommitmentsData] = useState([]);
   const [extendModalOpen, setExtendModalOpen] = useState(false);
   const [commitmentsToExtend, setCommitmentsToExtend] = useState(null);
@@ -46,7 +47,8 @@ const CommitmentsPage = () => {
     searchTerm: '',
     companyFilter: 'all',
     statusFilter: 'all',
-    yearFilter: 'all'
+    yearFilter: 'all',
+    monthFilter: 'all'
   });
   const [filtersApplied, setFiltersApplied] = useState(false);
 
@@ -72,7 +74,19 @@ const CommitmentsPage = () => {
   };
 
   const handleYearChange = (value) => {
+    console.log('🗓️ [PAGE] *** handleYearChange received ***:', value);
     setYearFilter(value);
+    // Extraer mes del valor combinado si existe
+    if (value.includes('-')) {
+      const [year, month] = value.split('-');
+      console.log('🗓️ [PAGE] *** Extracting month from yearFilter ***:', { year, month });
+      setMonthFilter(month);
+    }
+  };
+
+  const handleMonthChange = (value) => {
+    console.log('🗓️ [PAGE] *** handleMonthChange received ***:', value);
+    setMonthFilter(value);
   };
 
   const handleCommitmentsDataChange = (newCommitmentsData) => {
@@ -85,23 +99,32 @@ const CommitmentsPage = () => {
       searchTerm,
       companyFilter,
       statusFilter,
-      yearFilter
+      yearFilter,
+      monthFilter
     });
     setFiltersApplied(true);
   };
 
   const handleClearFilters = () => {
+  console.log('🧹 [PAGE] *** CLEAR FILTERS ACTION ***');
     setSearchTerm('');
     setCompanyFilter('all');
     setStatusFilter('all');
     setYearFilter('all');
-    setAppliedFilters({
+    setMonthFilter('all');
+    
+    // ✅ Aplicar filtros limpos inmediatamente
+    const clearedFilters = {
       searchTerm: '',
       companyFilter: 'all',
       statusFilter: 'all',
-      yearFilter: 'all'
-    });
-    setFiltersApplied(false);
+      yearFilter: 'all',
+      monthFilter: 'all'
+    };
+    
+  // Estado: filtros limpios pero NO aplicados => no se debe cargar nada hasta que el usuario presione "Aplicar Filtros"
+  setAppliedFilters(clearedFilters);
+  setFiltersApplied(false); // Mantener falso para que shouldLoadData sea false y la lista se vacíe
   };
 
   const hasFiltersChanged = () => {
@@ -109,7 +132,8 @@ const CommitmentsPage = () => {
       appliedFilters.searchTerm !== searchTerm ||
       appliedFilters.companyFilter !== companyFilter ||
       appliedFilters.statusFilter !== statusFilter ||
-      appliedFilters.yearFilter !== yearFilter
+      appliedFilters.yearFilter !== yearFilter ||
+      appliedFilters.monthFilter !== monthFilter
     );
   };
 
@@ -319,10 +343,12 @@ const CommitmentsPage = () => {
         companyFilter={companyFilter}
         statusFilter={statusFilter}
         yearFilter={yearFilter}
+        monthFilter={monthFilter}
         onSearchChange={handleSearchChange}
         onCompanyChange={handleCompanyChange}
         onStatusChange={handleStatusChange}
         onYearChange={handleYearChange}
+        onMonthChange={handleMonthChange}
         onApplyFilters={handleApplyFilters}
         onClearFilters={handleClearFilters}
         hasFiltersChanged={hasFiltersChanged()}
@@ -331,10 +357,12 @@ const CommitmentsPage = () => {
 
       {/* Lista de compromisos con control condicional */}
       <CommitmentsList
+        key={filtersApplied ? `${appliedFilters.searchTerm}|${appliedFilters.companyFilter}|${appliedFilters.statusFilter}|${appliedFilters.yearFilter}|${appliedFilters.monthFilter}` : 'pending-filters'}
         searchTerm={appliedFilters.searchTerm}
         companyFilter={appliedFilters.companyFilter}
         statusFilter={appliedFilters.statusFilter}
         yearFilter={appliedFilters.yearFilter}
+        monthFilter={appliedFilters.monthFilter}
         viewMode={settings.dashboard?.layout?.viewMode || 'cards'}
         onCommitmentsChange={handleCommitmentsDataChange}
         shouldLoadData={filtersApplied}

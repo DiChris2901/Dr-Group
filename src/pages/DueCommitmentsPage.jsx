@@ -66,13 +66,11 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, differenceInDays, isAfter, isBefore, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
-
-// Hooks y Context
-import { useAuth } from '../context/AuthContext';
-import { useDueCommitments } from '../hooks/useDueCommitments';
 import { useSettings } from '../context/SettingsContext';
 import { useNotifications } from '../context/NotificationsContext';
 import useActivityLogs from '../hooks/useActivityLogs';
+import { useAuth } from '../context/AuthContext';
+import { useDueCommitments } from '../hooks/useDueCommitments';
 
 // Componentes personalizados
 import CommitmentStatusChip from '../components/commitments/CommitmentStatusChip';
@@ -81,25 +79,21 @@ import CommitmentStatusChip from '../components/commitments/CommitmentStatusChip
 import { doc, updateDoc, deleteDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
-
 // Componentes de compromisos
 import CommitmentEditFormComplete from '../components/commitments/CommitmentEditFormComplete';
 import CommitmentDetailDialog from '../components/commitments/CommitmentDetailDialog';
 import PaymentReceiptViewer from '../components/commitments/PaymentReceiptViewer';
 
-// Función para obtener colores de status (copiada de CommitmentsList)
 const getStatusColor = (status, theme) => {
   // Validación de seguridad
   if (!theme || !theme.palette) {
     console.warn('Theme no está disponible en getStatusColor, usando colores por defecto');
     return {
       main: '#666',
-      light: '#999', 
+      light: '#999',
       dark: '#333'
     };
   }
-  
-  // Mejoramos los colores basándose en el chipColor para mejor consistencia
   switch (status.chipColor) {
     case 'success':
       return {
@@ -132,65 +126,6 @@ const getStatusColor = (status, theme) => {
         dark: theme.palette.grey[800]
       };
   }
-};
-
-// Componentes especializados DS3 (copiados de CommitmentsList)
-const StatusChipDS3 = ({ status, showTooltip = false, theme }) => {
-  // status ya viene procesado como statusInfo
-  const colors = getStatusColor(status, theme);
-  
-  const ChipComponent = (
-    <motion.div
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
-    >
-  <Chip 
-        icon={status.icon}
-        label={status.label}
-        size="small"
-        sx={{ 
-          fontWeight: 600,
-          fontSize: '0.75rem',
-          height: 28,
-          minWidth: 80,
-          borderRadius: '14px',
-          backgroundColor: 'transparent !important',
-          color: colors.main,
-          border: `1px solid ${alpha(colors.main, 0.25)}`,
-          boxShadow: 'none',
-          transition: 'all 0.2s ease',
-          '& .MuiChip-icon': {
-            color: colors.main,
-            fontSize: 16,
-            marginLeft: '4px'
-          },
-          '& .MuiChip-label': {
-            paddingLeft: '6px',
-            paddingRight: '12px',
-            letterSpacing: '0.3px',
-            fontWeight: 600
-          },
-          '&:hover': {
-            backgroundColor: 'transparent !important',
-            borderColor: alpha(colors.main, 0.35),
-            boxShadow: `0 2px 4px ${alpha(colors.main, 0.15)}`,
-            transform: 'scale(1.02)'
-          }
-        }}
-      />
-  </motion.div>
-  );
-
-  return showTooltip ? (
-    <Tooltip 
-      title={`Estado: ${status.label}`} 
-      arrow
-      placement="top"
-    >
-      {ChipComponent}
-    </Tooltip>
-  ) : ChipComponent;
 };
 
 // Componente para fechas mejoradas DS 3.0
@@ -1017,25 +952,26 @@ const DueCommitmentsPage = () => {
               Gestión proactiva de vencimientos • {overdueCounts.total} compromisos activos
             </Typography>
             
-            {/* Indicadores compactos con Chips - Diseño sobrio para header */}
+            {/* Indicadores compactos con Chips - Diseño sobrio completo */}
             <Box display="flex" gap={1.5} flexWrap="wrap">
               <Chip
                 icon={<Warning sx={{ fontSize: 16 }} />}
                 label={`${overdueCounts.overdue} vencidos`}
                 size="small"
+                variant="outlined"
                 sx={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  backgroundColor: 'transparent',
                   color: 'white',
                   fontWeight: 500,
-                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  border: '1px solid rgba(244, 67, 54, 0.4)',
                   fontSize: '0.75rem',
                   height: 28,
                   '& .MuiChip-icon': {
-                    color: 'rgba(255, 193, 7, 1)'
+                    color: 'rgba(244, 67, 54, 0.9)'
                   },
                   '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                    borderColor: 'rgba(255, 255, 255, 0.35)'
+                    backgroundColor: 'rgba(244, 67, 54, 0.08)',
+                    borderColor: 'rgba(244, 67, 54, 0.6)'
                   }
                 }}
               />
@@ -1043,19 +979,20 @@ const DueCommitmentsPage = () => {
                 icon={<Schedule sx={{ fontSize: 16 }} />}
                 label={`${overdueCounts.dueSoon} próximos`}
                 size="small"
+                variant="outlined"
                 sx={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  backgroundColor: 'transparent',
                   color: 'white',
                   fontWeight: 500,
-                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  border: '1px solid rgba(76, 175, 80, 0.4)',
                   fontSize: '0.75rem',
                   height: 28,
                   '& .MuiChip-icon': {
-                    color: 'rgba(76, 175, 80, 1)'
+                    color: 'rgba(76, 175, 80, 0.9)'
                   },
                   '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                    borderColor: 'rgba(255, 255, 255, 0.35)'
+                    backgroundColor: 'rgba(76, 175, 80, 0.08)',
+                    borderColor: 'rgba(76, 175, 80, 0.6)'
                   }
                 }}
               />
@@ -1063,19 +1000,20 @@ const DueCommitmentsPage = () => {
                 icon={<AttachMoney sx={{ fontSize: 16 }} />}
                 label={formatCurrency(overdueCounts.totalAmount)}
                 size="small"
+                variant="outlined"
                 sx={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  backgroundColor: 'transparent',
                   color: 'white',
                   fontWeight: 500,
-                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  border: '1px solid rgba(255, 152, 0, 0.4)',
                   fontSize: '0.75rem',
                   height: 28,
                   '& .MuiChip-icon': {
-                    color: 'rgba(255, 152, 0, 1)'
+                    color: 'rgba(255, 152, 0, 0.9)'
                   },
                   '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                    borderColor: 'rgba(255, 255, 255, 0.35)'
+                    backgroundColor: 'rgba(255, 152, 0, 0.08)',
+                    borderColor: 'rgba(255, 152, 0, 0.6)'
                   }
                 }}
               />
@@ -1165,19 +1103,13 @@ const DueCommitmentsPage = () => {
                 sx={{
                   p: 2.5,
                   height: 130,
-                  background: theme.palette.mode === 'dark' 
-                    ? alpha(theme.palette.background.paper, 0.7)
-                    : 'white',
-                  borderRadius: 2,
+                  background: '#ffffff',
+                  borderRadius: 0.75,
                   border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-                  boxShadow: theme.palette.mode === 'dark'
-                    ? '0 2px 8px rgba(0,0,0,0.3)'
-                    : '0 2px 8px rgba(0,0,0,0.06)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                   transition: 'all 0.3s ease',
                   '&:hover': {
-                    boxShadow: theme.palette.mode === 'dark'
-                      ? '0 8px 24px rgba(0,0,0,0.5)'
-                      : '0 8px 24px rgba(0,0,0,0.12)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
                     transform: 'translateY(-2px)',
                     borderColor: alpha(theme.palette.primary.main, 0.8)
                   }
@@ -1214,15 +1146,18 @@ const DueCommitmentsPage = () => {
                     <Chip
                       label={stat.trend}
                       size="small"
+                      variant="outlined"
                       sx={{
-                        backgroundColor: stat.trendColor === '#4caf50' 
-                          ? (theme.palette.mode === 'dark' ? alpha('#4caf50', 0.2) : '#e8f5e8')
-                          : (theme.palette.mode === 'dark' ? alpha('#f44336', 0.2) : '#ffebee'),
+                        backgroundColor: 'transparent',
                         color: stat.trendColor,
                         fontWeight: 600,
                         fontSize: '0.75rem',
                         height: 24,
-                        border: 'none'
+                        border: `1px solid ${stat.trendColor}40`,
+                        '&:hover': {
+                          backgroundColor: `${stat.trendColor}08`,
+                          borderColor: `${stat.trendColor}60`
+                        }
                       }}
                     />
                   </Box>
@@ -1230,7 +1165,7 @@ const DueCommitmentsPage = () => {
                     sx={{
                       width: 44,
                       height: 44,
-                      borderRadius: 1,
+                      borderRadius: 0.75,
                       backgroundColor: theme.palette.mode === 'dark'
                         ? alpha(stat.iconColor, 0.15)
                         : stat.iconBg,
@@ -1260,14 +1195,10 @@ const DueCommitmentsPage = () => {
             sx={{
               p: 2.5,
               mb: 3,
-              borderRadius: 2,
+              borderRadius: 0.75,
               border: `1px solid ${alpha(theme.palette.error.main, 0.6)}`,
-              background: theme.palette.mode === 'dark' 
-                ? alpha(theme.palette.background.paper, 0.8)
-                : 'white',
-              boxShadow: theme.palette.mode === 'dark'
-                ? '0 2px 8px rgba(0,0,0,0.3)'
-                : '0 2px 8px rgba(0,0,0,0.06)'
+              background: '#ffffff',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
             }}
           >
             <Stack direction="row" alignItems="center" spacing={2}>
@@ -1296,14 +1227,10 @@ const DueCommitmentsPage = () => {
           sx={{
             p: 2.5,
             mb: 3,
-            borderRadius: 2,
+            borderRadius: 0.75,
             border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-            background: theme.palette.mode === 'dark' 
-              ? alpha(theme.palette.background.paper, 0.8)
-              : 'white',
-            boxShadow: theme.palette.mode === 'dark'
-              ? '0 2px 8px rgba(0,0,0,0.3)'
-              : '0 2px 8px rgba(0,0,0,0.06)'
+            background: '#ffffff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
           }}
         >
           <Stack direction="column" spacing={2.5}>
@@ -1338,6 +1265,7 @@ const DueCommitmentsPage = () => {
                       <Chip
                         label={priorityConfig[filter].label}
                         onClick={() => setPriorityFilter(filter)}
+                        variant="outlined"
                         sx={{ 
                           borderRadius: 2,
                           fontWeight: 600,
@@ -1345,19 +1273,18 @@ const DueCommitmentsPage = () => {
                           height: 34,
                           paddingX: 1,
                           backgroundColor: priorityFilter === filter 
-                            ? priorityConfig[filter].color 
+                            ? `${priorityConfig[filter].color}12` 
                             : 'transparent',
-                          color: priorityFilter === filter 
-                            ? 'white' 
-                            : priorityConfig[filter].color,
-                          border: `2px solid ${priorityConfig[filter].color}`,
+                          color: priorityConfig[filter].color,
+                          border: `1px solid ${priorityFilter === filter 
+                            ? priorityConfig[filter].color 
+                            : `${priorityConfig[filter].color}40`}`,
                           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                           '&:hover': {
-                            backgroundColor: priorityFilter === filter 
-                              ? priorityConfig[filter].color
-                              : alpha(priorityConfig[filter].color, 0.1),
-                            transform: 'translateY(-2px)',
-                            boxShadow: `0 4px 20px ${alpha(priorityConfig[filter].color, 0.3)}`
+                            backgroundColor: `${priorityConfig[filter].color}08`,
+                            borderColor: `${priorityConfig[filter].color}60`,
+                            transform: 'translateY(-1px)',
+                            boxShadow: 'none'
                           }
                         }}
                       />
@@ -1506,93 +1433,57 @@ const DueCommitmentsPage = () => {
         </Paper>
       </motion.div>
 
-      {/* Tabla de Compromisos */}
+      {/* Tabla de Compromisos - Diseño Sobrio */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, delay: 0.6 }}
       >
-        <Paper 
+        <Paper
           elevation={0}
           sx={{
-            borderRadius: 2,
+            borderRadius: 0.5,
             overflow: 'hidden',
-            border: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-            background: theme.palette.mode === 'dark' 
-              ? alpha(theme.palette.background.paper, 0.8)
-              : 'white',
-            boxShadow: theme.palette.mode === 'dark'
-              ? '0 4px 20px rgba(0,0,0,0.4)'
-              : '0 4px 20px rgba(0,0,0,0.1)',
             position: 'relative',
-            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: -2,
-              left: -2,
-              right: -2,
-              bottom: -2,
-              background: `linear-gradient(45deg, 
-                ${theme.palette.primary.main}, 
-                ${theme.palette.secondary.main}, 
-                ${theme.palette.primary.light},
-                ${theme.palette.secondary.light}
-              )`,
-              borderRadius: 'inherit',
-              zIndex: -1,
-              opacity: 0,
-              transition: 'opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-              animation: 'gradientShift 8s ease-in-out infinite'
-            },
+            background: theme.palette.background.paper,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            transition: 'border-color .25s ease, box-shadow .25s ease',
             '&:hover': {
-              transform: 'translateY(-2px)',
-              borderColor: theme.palette.primary.main,
-              boxShadow: theme.palette.mode === 'dark'
-                ? `0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px ${alpha(theme.palette.primary.main, 0.4)}`
-                : `0 8px 40px rgba(0,0,0,0.15), 0 0 0 1px ${alpha(theme.palette.primary.main, 0.4)}`,
-              '&::before': {
-                opacity: 0.1
-              }
-            },
-            '@keyframes gradientShift': {
-              '0%, 100%': {
-                backgroundPosition: '0% 50%'
-              },
-              '50%': {
-                backgroundPosition: '100% 50%'
-              }
+              borderColor: alpha(theme.palette.primary.main, 0.8),
+              boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
             }
           }}
         >
           {/* Grid Layout igual que CommitmentsList */}
           <Box>
-            {/* Header usando Grid */}
+            {/* Header usando Grid - Diseño Sobrio */}
             <Box sx={{
               display: 'grid',
               gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 0.8fr',
               gap: 2,
-              p: 2.5,
-              bgcolor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.5) : 'white',
-              borderBottom: theme.palette.mode === 'dark' ? `1px solid ${alpha(theme.palette.divider, 0.3)}` : `1px solid #f0f0f0`,
+              px: 2.25,
+              py: 1.75,
+              backgroundColor: 'transparent',
+              borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
               alignItems: 'center'
             }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: theme.palette.text.primary }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem', letterSpacing: '.25px', color: theme.palette.text.primary }}>
                 Estado
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: theme.palette.text.primary }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem', letterSpacing: '.25px', color: theme.palette.text.primary }}>
                 Compromiso
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: theme.palette.text.primary }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem', letterSpacing: '.25px', color: theme.palette.text.primary }}>
                 Empresa
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: theme.palette.text.primary, textAlign: 'center' }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem', letterSpacing: '.25px', color: theme.palette.text.primary, textAlign: 'center' }}>
                 Monto
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: theme.palette.text.primary, textAlign: 'center' }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem', letterSpacing: '.25px', color: theme.palette.text.primary, textAlign: 'center' }}>
                 Vencimiento
               </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.875rem', color: theme.palette.text.primary, textAlign: 'center' }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.8rem', letterSpacing: '.25px', color: theme.palette.text.primary, textAlign: 'center' }}>
                 Acciones
               </Typography>
             </Box>
@@ -1611,25 +1502,27 @@ const DueCommitmentsPage = () => {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
                     transition={{ duration: 0.3, delay: index * 0.05 }}
-                    whileHover={{ backgroundColor: alpha(theme.palette.primary.main, 0.02) }}
+                    whileHover={{ backgroundColor: alpha(theme.palette.action.hover, 0.02) }}
                   >
                     <Box sx={{
                       display: 'grid',
                       gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 0.8fr',
                       gap: 2,
-                      p: 2.5,
-                      borderBottom: index === paginatedCommitments.length - 1 ? 'none' : `1px solid ${alpha(theme.palette.divider, 0.8)}`,
+                      px: 2.25,
+                      py: 1.75,
+                      borderBottom: index === paginatedCommitments.length - 1 ? 'none' : `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                      backgroundColor: 'transparent',
                       '&:hover': {
-                        backgroundColor: alpha(theme.palette.primary.main, 0.02),
+                        backgroundColor: alpha(theme.palette.action.hover, 0.04),
                         cursor: 'pointer'
                       },
                       alignItems: 'center'
                     }}>
-                      {/* 🔥 COMPONENTE MEJORADO QUE CONSIDERA PAGOS PARCIALES */}
+                      {/* Estado con Chip Sobrio */}
                       <CommitmentStatusChip 
                         commitment={commitment}
                         showTooltip={true}
-                        variant="filled"
+                        variant="outlined"
                       />
 
                       {/* Descripción igual que CommitmentsList */}
@@ -1807,15 +1700,17 @@ const DueCommitmentsPage = () => {
                 elevation={0}
                 sx={{
                   p: 2,
-                  borderRadius: 2,
+                  borderRadius: 0.5,
                   border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-                  background: theme.palette.mode === 'dark'
-                    ? 'linear-gradient(135deg, rgba(30, 30, 30, 0.8) 0%, rgba(50, 50, 50, 0.6) 100%)'
-                    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.8) 100%)',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                  background: theme.palette.background.paper,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 2
+                  gap: 2,
+                  transition: 'border-color .25s ease',
+                  '&:hover': {
+                    borderColor: alpha(theme.palette.primary.main, 0.8)
+                  }
                 }}
               >
                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
@@ -1834,17 +1729,16 @@ const DueCommitmentsPage = () => {
                     '& .MuiPaginationItem-root': {
                       borderRadius: 1,
                       fontWeight: 500,
-                      transition: 'all 0.3s ease',
+                      transition: 'all 0.2s ease',
                       '&:hover': {
-                        transform: 'translateY(-1px)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                        backgroundColor: alpha(theme.palette.action.hover, 0.08)
                       },
                       '&.Mui-selected': {
-                        background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.primary.dark})`,
+                        backgroundColor: theme.palette.primary.main,
                         color: 'white',
                         fontWeight: 600,
                         '&:hover': {
-                          background: `linear-gradient(135deg, ${theme.palette.primary.dark}, ${theme.palette.primary.main})`
+                          backgroundColor: alpha(theme.palette.primary.main, 0.8)
                         }
                       }
                     }
@@ -1864,14 +1758,14 @@ const DueCommitmentsPage = () => {
             sx={{
               p: 8,
               textAlign: 'center',
-              borderRadius: 2,
-              border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
-              background: theme.palette.mode === 'dark' 
-                ? alpha(theme.palette.background.paper, 0.8)
-                : 'white',
-              boxShadow: theme.palette.mode === 'dark'
-                ? '0 2px 8px rgba(0,0,0,0.3)'
-                : '0 2px 8px rgba(0,0,0,0.06)'
+              borderRadius: 0.5,
+              border: `1px solid ${theme.palette.primary.main}`,
+              background: theme.palette.background.paper,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+              transition: 'border-color .25s ease',
+              '&:hover': {
+                borderColor: theme.palette.primary.dark
+              }
             }}
           >
             <CheckCircle sx={{ fontSize: 64, color: theme.palette.success.main, mb: 2 }} />

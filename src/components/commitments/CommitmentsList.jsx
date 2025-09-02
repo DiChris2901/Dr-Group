@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -74,6 +74,30 @@ import {
   Info
 } from '@mui/icons-material';
 import CommitmentDetailDialog from './CommitmentDetailDialog';
+
+// Función helper para validar y crear fechas seguras
+const createSafeDate = (year, month, day = 1, hours = 0, minutes = 0, seconds = 0) => {
+  const yearNum = parseInt(year);
+  const monthNum = parseInt(month);
+  
+  // Validar que los valores sean números válidos
+  if (isNaN(yearNum) || isNaN(monthNum) || 
+      yearNum < 1900 || yearNum > 2100 || 
+      monthNum < 0 || monthNum > 11) {
+    console.warn('🚨 Valores de fecha inválidos:', { year: yearNum, month: monthNum, day });
+    return null;
+  }
+  
+  const date = new Date(yearNum, monthNum, day, hours, minutes, seconds);
+  
+  // Verificar que la fecha creada sea válida
+  if (isNaN(date.getTime())) {
+    console.warn('🚨 Fecha inválida generada:', { year: yearNum, month: monthNum, day, date });
+    return null;
+  }
+  
+  return date;
+};
 
 // ================= Helper & UI Sub-Components Restored =================
 // (Recovered after extraction patch accidentally removed them)
@@ -171,14 +195,14 @@ const DateDisplayDS3 = ({ date, showDaysRemaining = false, variant = 'standard',
   );
 };
 
-// Encabezado tabla (reintroducido)
-const TableHeaderDS3 = ({ columns = ['Concepto', 'Vence', 'Monto', 'Estado', 'Acciones'] }) => {
+// Encabezado tabla (reintroducido) - ✅ Corregido para coincidir con contenido
+const TableHeaderDS3 = ({ columns = ['Estado', 'Concepto', 'Empresa', 'Monto', 'Vence', 'Acciones'] }) => {
   const theme = useTheme();
   return (
     <Box sx={{
       display: 'grid',
-      gridTemplateColumns: '1fr 120px 130px 120px 120px',
-      gap: 1,
+      gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 0.8fr', // ✅ Igual que las filas
+      gap: 2, // ✅ Mismo gap que las filas
       alignItems: 'center',
       px: 2,
       py: 1.5,
@@ -249,11 +273,22 @@ const CommitmentsList = ({
   statusFilter,
   searchTerm,
   yearFilter,
+  monthFilter,
   viewMode = 'cards',
   onCommitmentsChange,
   shouldLoadData = true,
   showEmptyState = false
 }) => {
+  console.log('🧾 [LIST INIT] Filtros recibidos:', { companyFilter, statusFilter, searchTerm, yearFilter, monthFilter, shouldLoadData });
+
+  // Si no debemos cargar datos (filtros no aplicados), limpiar visualmente
+  useEffect(() => {
+    if (!shouldLoadData) {
+      setCommitments([]);
+      setAllCommitments && setAllCommitments([]); // defensivo si refactor
+      setTotalCommitments(0);
+    }
+  }, [shouldLoadData]);
   // Context & hooks
   const { currentUser } = useAuth();
   const { addNotification, addAlert } = useNotifications();
@@ -316,15 +351,15 @@ const CommitmentsList = ({
     }
   });
 
-  const getPaginationConfig = () => {
+  // ✅ Usar useMemo para evitar recrear paginationConfig en cada render
+  const paginationConfig = useMemo(() => {
     switch (effectiveViewMode) {
       case 'table': return { itemsPerPage: ITEMS_PER_PAGE, label: 'filas por página' };
       case 'list': return { itemsPerPage: ITEMS_PER_PAGE, label: 'elementos por página' };
       case 'cards':
       default: return { itemsPerPage: ITEMS_PER_PAGE, label: 'tarjetas por página' };
     }
-  };
-  const paginationConfig = getPaginationConfig();
+  }, [effectiveViewMode]);
 
   // ================= Filter values (no debounce restoration) =================
   // Refactor: original file applied debouncing; for now we map directly to props to restore functionality.
@@ -332,6 +367,45 @@ const CommitmentsList = ({
   const debouncedCompanyFilter = companyFilter;
   const debouncedStatusFilter = statusFilter;
   const debouncedYearFilter = yearFilter;
+  
+  // ✅ Parsear monthFilter correctamente - puede venir como string "YYYY-MM", "MM" o "all"
+  const debouncedMonthFilter = useMemo(() => {
+    console.log('🔍 [MONTH FILTER PARSE] *** PARSEANDO MONTHFILTER ***:', monthFilter);
+    
+    if (!monthFilter || monthFilter === 'all') {
+      return { month: 'all', year: 'all' };
+    }
+    
+    // Si viene como "YYYY-MM", parsearlo
+    if (typeof monthFilter === 'string' && monthFilter.includes('-')) {
+      const [year, month] = monthFilter.split('-');
+      const parsed = { 
+        month: month === 'all' ? 'all' : parseInt(month) - 1, // Convertir de 1-12 a 0-11 para JavaScript Date
+        year: year === 'all' ? 'all' : parseInt(year)
+      };
+      console.log('🔍 [MONTH FILTER PARSE] *** RESULTADO DEL PARSEO ***:', parsed);
+      return parsed;
+    }
+    
+    // ✅ Si viene solo como número de mes (ej: "6"), usar año actual
+    if (typeof monthFilter === 'string' && !isNaN(parseInt(monthFilter))) {
+      const currentYear = new Date().getFullYear();
+      const parsed = { 
+        month: parseInt(monthFilter) - 1, // Convertir de 1-12 a 0-11 para JavaScript Date
+        year: currentYear
+      };
+      console.log('🔍 [MONTH FILTER PARSE] *** RESULTADO DEL PARSEO (solo mes) ***:', parsed);
+      return parsed;
+    }
+    
+    // Si ya es un objeto, usarlo tal como está
+    if (typeof monthFilter === 'object' && monthFilter.month && monthFilter.year) {
+      return monthFilter;
+    }
+    
+    // Default fallback
+    return { month: 'all', year: 'all' };
+  }, [monthFilter]);
 
   // (Duplicated helper block removed after refactor consolidation)
 
@@ -412,9 +486,31 @@ const CommitmentsList = ({
       }
       
       if (debouncedYearFilter && debouncedYearFilter !== 'all') {
-        const startDate = new Date(parseInt(debouncedYearFilter), 0, 1);
-        const endDate = new Date(parseInt(debouncedYearFilter), 11, 31);
-        q = query(q, where('dueDate', '>=', startDate), where('dueDate', '<=', endDate));
+        let startDate, endDate;
+        
+        if (debouncedMonthFilter && debouncedMonthFilter.month !== 'all' && debouncedMonthFilter.year !== 'all') {
+          // Filtro por mes y año específicos
+          startDate = createSafeDate(debouncedMonthFilter.year, debouncedMonthFilter.month, 1);
+          endDate = createSafeDate(debouncedMonthFilter.year, parseInt(debouncedMonthFilter.month) + 1, 0, 23, 59, 59);
+        } else {
+          // Solo filtro por año
+          startDate = createSafeDate(debouncedYearFilter, 0, 1);
+          endDate = createSafeDate(debouncedYearFilter, 11, 31);
+        }
+        
+        // Solo aplicar filtros si las fechas son válidas
+        if (startDate && endDate) {
+          q = query(q, where('dueDate', '>=', startDate), where('dueDate', '<=', endDate));
+        }
+      } else if (debouncedMonthFilter && debouncedMonthFilter.month !== 'all' && debouncedMonthFilter.year !== 'all') {
+        // Solo filtro por mes/año sin filtro de año heredado
+        const startDate = createSafeDate(debouncedMonthFilter.year, debouncedMonthFilter.month, 1);
+        const endDate = createSafeDate(debouncedMonthFilter.year, parseInt(debouncedMonthFilter.month) + 1, 0, 23, 59, 59);
+        
+        // Solo aplicar filtros si las fechas son válidas
+        if (startDate && endDate) {
+          q = query(q, where('dueDate', '>=', startDate), where('dueDate', '<=', endDate));
+        }
       }
 
       let totalCount = 0;
@@ -463,7 +559,7 @@ const CommitmentsList = ({
       setTotalCommitments(0);
       return 0;
     }
-  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter]);
+  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, debouncedMonthFilter]);
 
   // 🚀 OPTIMIZACIÓN FASE 2: Función para cargar página con query optimizer
   // Función simplificada para cargar página sin caché problemático
@@ -480,21 +576,57 @@ const CommitmentsList = ({
       }
       
       if (debouncedYearFilter && debouncedYearFilter !== 'all') {
-        const startDate = new Date(parseInt(debouncedYearFilter), 0, 1);
-        const endDate = new Date(parseInt(debouncedYearFilter), 11, 31);
-        if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
-          q = query(collection(db, 'commitments'), 
-            where('companyId', '==', debouncedCompanyFilter),
-            where('dueDate', '>=', startDate),
-            where('dueDate', '<=', endDate),
-            orderBy('dueDate', 'desc')
-          );
+        let startDate, endDate;
+        
+        if (debouncedMonthFilter && debouncedMonthFilter.month !== 'all' && debouncedMonthFilter.year !== 'all') {
+          // Filtro por mes y año específicos
+          startDate = createSafeDate(debouncedMonthFilter.year, debouncedMonthFilter.month, 1);
+          endDate = createSafeDate(debouncedMonthFilter.year, parseInt(debouncedMonthFilter.month) + 1, 0, 23, 59, 59);
         } else {
-          q = query(collection(db, 'commitments'), 
-            where('dueDate', '>=', startDate),
-            where('dueDate', '<=', endDate),
-            orderBy('dueDate', 'desc')
-          );
+          // Solo filtro por año
+          startDate = createSafeDate(debouncedYearFilter, 0, 1);
+          endDate = createSafeDate(debouncedYearFilter, 11, 31);
+        }
+        
+        // Solo proceder si las fechas son válidas
+        if (startDate && endDate) {
+          if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
+            q = query(collection(db, 'commitments'), 
+              where('companyId', '==', debouncedCompanyFilter),
+              where('dueDate', '>=', startDate),
+              where('dueDate', '<=', endDate),
+              orderBy('dueDate', 'desc')
+            );
+          } else {
+            q = query(collection(db, 'commitments'), 
+              where('dueDate', '>=', startDate),
+              where('dueDate', '<=', endDate),
+              orderBy('dueDate', 'desc')
+            );
+          }
+        }
+      } else if (debouncedMonthFilter && debouncedMonthFilter.month !== 'all' && debouncedMonthFilter.year !== 'all') {
+        // Solo filtro por mes/año sin filtro de año heredado
+        const startDate = createSafeDate(debouncedMonthFilter.year, debouncedMonthFilter.month, 1);
+        const endDate = createSafeDate(debouncedMonthFilter.year, parseInt(debouncedMonthFilter.month) + 1, 0, 23, 59, 59);
+        
+        
+        // Solo proceder si las fechas son válidas
+        if (startDate && endDate) {
+          if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
+            q = query(collection(db, 'commitments'), 
+              where('companyId', '==', debouncedCompanyFilter),
+              where('dueDate', '>=', startDate),
+              where('dueDate', '<=', endDate),
+              orderBy('dueDate', 'desc')
+            );
+          } else {
+            q = query(collection(db, 'commitments'), 
+              where('dueDate', '>=', startDate),
+              where('dueDate', '<=', endDate),
+              orderBy('dueDate', 'desc')
+            );
+          }
         }
       }
 
@@ -590,7 +722,7 @@ const CommitmentsList = ({
       setError('Error al cargar los compromisos');
       setLoading(false);
     }
-  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, paginationConfig.itemsPerPage]); // Removed lastVisibleDoc dependency
+  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, debouncedMonthFilter, paginationConfig]); // ✅ Use whole paginationConfig object que ya está memoized
 
   // SISTEMA DE DATOS EN TIEMPO REAL - Solo para filtros, NO para paginación
   const [allCommitments, setAllCommitments] = useState([]); // Todos los compromisos después de filtros
@@ -610,21 +742,64 @@ const CommitmentsList = ({
     }
     
     if (debouncedYearFilter && debouncedYearFilter !== 'all') {
-      const startDate = new Date(parseInt(debouncedYearFilter), 0, 1);
-      const endDate = new Date(parseInt(debouncedYearFilter), 11, 31);
-      if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
-        q = query(collection(db, 'commitments'), 
-          where('companyId', '==', debouncedCompanyFilter),
-          where('dueDate', '>=', startDate),
-          where('dueDate', '<=', endDate),
-          orderBy('dueDate', 'desc')
-        );
+      let startDate, endDate;
+      
+      if (debouncedMonthFilter && debouncedMonthFilter.month !== 'all' && debouncedMonthFilter.year !== 'all') {
+        // Filtro por mes y año específicos
+        startDate = createSafeDate(debouncedMonthFilter.year, debouncedMonthFilter.month, 1);
+        endDate = createSafeDate(debouncedMonthFilter.year, parseInt(debouncedMonthFilter.month) + 1, 0, 23, 59, 59);
       } else {
-        q = query(collection(db, 'commitments'), 
-          where('dueDate', '>=', startDate),
-          where('dueDate', '<=', endDate),
-          orderBy('dueDate', 'desc')
-        );
+        // Solo filtro por año
+        startDate = createSafeDate(debouncedYearFilter, 0, 1);
+        endDate = createSafeDate(debouncedYearFilter, 11, 31);
+      }
+      
+      // Solo aplicar filtros si las fechas son válidas
+      if (startDate && endDate) {
+        if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
+          q = query(collection(db, 'commitments'), 
+            where('companyId', '==', debouncedCompanyFilter),
+            where('dueDate', '>=', startDate),
+            where('dueDate', '<=', endDate),
+            orderBy('dueDate', 'desc')
+          );
+        } else {
+          q = query(collection(db, 'commitments'), 
+            where('dueDate', '>=', startDate),
+            where('dueDate', '<=', endDate),
+            orderBy('dueDate', 'desc')
+          );
+        }
+      }
+    } else if (debouncedMonthFilter && debouncedMonthFilter.month !== 'all' && debouncedMonthFilter.year !== 'all') {
+      // Solo filtro por mes/año sin filtro de año heredado
+      console.log('🗓️ [MONTH FILTER] *** APLICANDO FILTRO DE MES ***', debouncedMonthFilter);
+      
+      const startDate = createSafeDate(debouncedMonthFilter.year, debouncedMonthFilter.month, 1);
+      const endDate = createSafeDate(debouncedMonthFilter.year, parseInt(debouncedMonthFilter.month) + 1, 0, 23, 59, 59);
+      
+      console.log('🗓️ [MONTH FILTER] *** FECHAS CALCULADAS ***', { 
+        startDate: startDate?.toISOString?.(),
+        endDate: endDate?.toISOString?.(),
+        monthFilterValues: debouncedMonthFilter
+      });
+      
+      // Solo proceder si las fechas son válidas
+      if (startDate && endDate) {
+        if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
+          q = query(collection(db, 'commitments'), 
+            where('companyId', '==', debouncedCompanyFilter),
+            where('dueDate', '>=', startDate),
+            where('dueDate', '<=', endDate),
+            orderBy('dueDate', 'desc')
+          );
+        } else {
+          q = query(collection(db, 'commitments'), 
+            where('dueDate', '>=', startDate),
+            where('dueDate', '<=', endDate),
+            orderBy('dueDate', 'desc')
+          );
+        }
       }
     }
 
@@ -704,30 +879,32 @@ const CommitmentsList = ({
       unsubscribe();
     };
     
-  }, [currentUser, debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, shouldLoadData]); // ✅ Agregado shouldLoadData
+  }, [currentUser, debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, debouncedMonthFilter, shouldLoadData]); // ✅ Agregado shouldLoadData + debouncedMonthFilter para refrescar al limpiar/cambiar mes
 
   // EFECTO SEPARADO SOLO PARA PAGINACIÓN - No reinicia listeners
   useEffect(() => {
     if (allCommitments.length === 0 && !loading) return;
     
-    console.log(`📖 [PAGINATION] Aplicando paginación para página ${currentPage}`);
+    // console.log(`📖 [PAGINATION] Aplicando paginación para página ${currentPage}`); // ✅ Desactivado temporalmente
     
     // Aplicar paginación local a los datos ya filtrados
     const startIndex = (currentPage - 1) * paginationConfig.itemsPerPage;
     const endIndex = startIndex + paginationConfig.itemsPerPage;
     const paginatedCommitments = allCommitments.slice(startIndex, endIndex);
 
-    console.log(`📖 [PAGINATION] Página ${currentPage}: ${paginatedCommitments.length} compromisos (${startIndex}-${endIndex} de ${filteredTotal})`);
+    // console.log(`📖 [PAGINATION] Página ${currentPage}: ${paginatedCommitments.length} compromisos (${startIndex}-${endIndex} de ${filteredTotal})`); // ✅ Desactivado temporalmente
 
     setCommitments(paginatedCommitments);
     setTotalCommitments(filteredTotal);
-
-    // Notificar al componente padre
-    if (onCommitmentsChange) {
-      onCommitmentsChange(paginatedCommitments);
-    }
     
-  }, [allCommitments, currentPage, filteredTotal, paginationConfig.itemsPerPage, onCommitmentsChange]);
+  }, [allCommitments, currentPage, filteredTotal, paginationConfig]); // ✅ Use whole paginationConfig object
+  
+  // ✅ Efecto separado para notificar cambios al padre
+  useEffect(() => {
+    if (onCommitmentsChange && commitments.length > 0) {
+      onCommitmentsChange(commitments);
+    }
+  }, [commitments, onCommitmentsChange]);
 
   // Reset página cuando cambien SOLO los filtros (no la página) - CON DEBOUNCE
   useEffect(() => {
@@ -742,7 +919,7 @@ const CommitmentsList = ({
     }, 100); // Pequeño debounce para evitar resets múltiples
 
     return () => clearTimeout(resetTimer);
-  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter]); // NO incluir currentPage aquí
+  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, debouncedMonthFilter]); // NO incluir currentPage aquí
 
   // 🔥 FUNCIÓN DE ESTADO MEJORADA QUE CONSIDERA PAGOS PARCIALES
   const getStatusInfo = (commitment) => {
@@ -2452,7 +2629,8 @@ const CommitmentsList = ({
                     display: 'grid',
                     gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 0.8fr',
                     gap: 2,
-                    p: 2.5,
+                    px: 2,
+                    py: 2,
                     borderBottom: index === commitments.length - 1 ? 'none' : '1px solid rgba(0, 0, 0, 0.04)',
                     '&:hover': {
                       backgroundColor: 'rgba(0, 0, 0, 0.03)'
@@ -2526,8 +2704,8 @@ const CommitmentsList = ({
                       </Typography>
                     </Box>
 
-                    {/* Monto con AmountDisplayDS3 */}
-                    <Box sx={{ textAlign: 'center' }}>
+                    {/* Monto con AmountDisplayDS3 (alineado a la izquierda) */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
                       <AmountDisplayDS3 
                         amount={commitment.amount}
                         animate={animationsEnabled}
@@ -2535,8 +2713,8 @@ const CommitmentsList = ({
                       />
                     </Box>
 
-                    {/* Fecha con DateDisplayDS3 */}
-                    <Box sx={{ textAlign: 'center' }}>
+                    {/* Fecha con DateDisplayDS3 (alineada a la izquierda) */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                       <DateDisplayDS3
                         date={commitment.dueDate}
                         variant="standard"
