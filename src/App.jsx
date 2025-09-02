@@ -39,12 +39,14 @@ import IncomeHistoryPage from './pages/IncomeHistoryPage';
 import BankAccountsPage from './pages/BankAccountsPage';
 
 // Nuevos módulos profesionales
-import AdvancedToolsPage from './pages/AdvancedToolsPage';
 import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
 import FinancialKPIsPage from './pages/FinancialKPIsPage';
 
 // Módulo de Auditoría
 import ActivityLogsPage from './pages/ActivityLogsPage';
+
+// Centro de Alertas
+import AlertsCenterPage from './pages/AlertsCenterPage';
 
 // Hook de autenticación
 import { useAuth } from './context/AuthContext';
@@ -216,14 +218,6 @@ const DashboardLayout = () => {
         }
       />
       <Route 
-        path="/tools" 
-        element={
-          <MainLayout title="Herramientas Avanzadas" breadcrumbs={['Herramientas']}>
-            <AdvancedToolsPage />
-          </MainLayout>
-        }
-      />
-      <Route 
         path="/kpis" 
         element={
           <MainLayout title="KPIs Financieros" breadcrumbs={['KPIs']}>
@@ -262,6 +256,14 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Auditoría del Sistema" breadcrumbs={['Administración', 'Auditoría']}>
             <ActivityLogsPage />
+          </MainLayout>
+        }
+      />
+      <Route 
+        path="/alerts" 
+        element={
+          <MainLayout title="Centro de Alertas" breadcrumbs={['Alertas']}>
+            <AlertsCenterPage />
           </MainLayout>
         }
       />

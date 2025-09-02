@@ -61,8 +61,8 @@ export const useDashboardStats = () => {
           amounts.total += amount;
           
           // Agregar empresa al set de empresas únicas
-          if (commitment.company) {
-            uniqueCompanies.add(commitment.company);
+          if (commitment.companyId) {
+            uniqueCompanies.add(commitment.companyId);
           }
 
           // Debug: log de cada compromiso con TODOS los campos
@@ -77,7 +77,8 @@ export const useDashboardStats = () => {
             amount: amount,
             dueDate: commitment.dueDate,
             isOverdue: commitment.dueDate < now,
-            company: commitment.company,
+            companyId: commitment.companyId,
+            companyName: commitment.companyName,
             allFields: Object.keys(commitment)
           });
 
@@ -124,6 +125,12 @@ export const useDashboardStats = () => {
         
         const totalCompanies = uniqueCompanies.size;
         const totalCommitments = commitments.length;
+
+        console.log('🏢 DEBUG EMPRESAS:', {
+          uniqueCompaniesSet: Array.from(uniqueCompanies),
+          totalCompanies: totalCompanies,
+          totalCommitments: totalCommitments
+        });
 
         console.log('📈 Estadísticas finales:', {
           totalCommitments,

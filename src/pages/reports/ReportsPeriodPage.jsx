@@ -16,10 +16,6 @@ import {
   Paper,
   Chip,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   TablePagination,
   useTheme,
   alpha,
@@ -35,7 +31,7 @@ import {
   AttachMoney,
   Assignment
 } from '@mui/icons-material';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar, ScatterChart, Scatter } from 'recharts';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { determineCommitmentStatus } from '../../utils/commitmentStatusUtils';
@@ -75,7 +71,6 @@ const ReportsPeriodPage = () => {
   const [startDate, setStartDate] = useState(new Date(2025, 0, 1)); // 1 enero 2025
   const [endDate, setEndDate] = useState(new Date(2025, 6, 31)); // 31 julio 2025
   const [periodType, setPeriodType] = useState('monthly');
-  const [comparisonMode, setComparisonMode] = useState('previous');
   
   // Estados para paginación
   const [page, setPage] = useState(0);
@@ -394,6 +389,25 @@ const ReportsPeriodPage = () => {
   // 🎨 FUNCIÓN PARA OBTENER ESQUEMAS DE COLORES SEGÚN CONFIGURACIÓN
   const getColorScheme = (scheme = 'default') => {
     switch (scheme) {
+      case 'corporate':
+        return [
+          theme.palette.primary.main,
+          theme.palette.secondary.main,
+          theme.palette.success.main,
+          theme.palette.warning.main,
+          theme.palette.error.main,
+          theme.palette.info.main,
+          '#8E24AA',
+          '#00796B'
+        ];
+      case 'vibrant':
+        return ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9'];
+      case 'pastel':
+        return ['#FFD1DC', '#E6E6FA', '#F0F8FF', '#F5FFFA', '#FFF8DC', '#FFE4E1', '#F0FFF0', '#F8F8FF'];
+      case 'monochrome':
+        return ['#212121', '#424242', '#616161', '#757575', '#9E9E9E', '#BDBDBD', '#E0E0E0', '#EEEEEE'];
+      case 'ocean':
+        return ['#1565C0', '#0277BD', '#0288D1', '#039BE5', '#03A9F4', '#29B6F6', '#4FC3F7', '#81D4FA'];
       case 'blue':
         return ['#1976d2', '#42a5f5', '#64b5f6', '#90caf9', '#bbdefb', '#e3f2fd', '#0d47a1', '#1565c0'];
       case 'green':
@@ -947,6 +961,230 @@ const ReportsPeriodPage = () => {
     }
   };
 
+  // Funciones para renderizar gráficas dinámicamente
+  const renderPeriodChart = (data, chartKey = 'main') => {
+    const chartType = settings?.dashboard?.charts?.defaultType || 'line';
+    const colors = getColorScheme(settings?.dashboard?.charts?.colorScheme || 'default');
+    const animations = settings?.dashboard?.charts?.animations !== false;
+    const showGridLines = settings?.dashboard?.charts?.gridLines !== false;
+    
+    const commonProps = {
+      data: data,
+      margin: { top: 20, right: 30, left: 20, bottom: 5 }
+    };
+
+    const animationProps = animations ? {
+      animationBegin: 0,
+      animationDuration: 800
+    } : {
+      isAnimationActive: false
+    };
+
+    console.log('🔍 DEBUG renderPeriodChart:', {
+      chartType,
+      dataLength: data?.length,
+      firstDataItem: data?.[0],
+      colors: colors.slice(0, 3)
+    });
+
+    switch (chartType) {
+      case 'area':
+        return (
+          <AreaChart {...commonProps} key={`area-${chartKey}`}>
+            {showGridLines && <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />}
+            <XAxis dataKey="period" stroke={theme.palette.text.secondary} fontSize={12} />
+            <YAxis stroke={theme.palette.text.secondary} fontSize={12} />
+            <Tooltip 
+              formatter={(value) => [formatCurrency(value), 'Monto']}
+              contentStyle={{
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${colors[0]}`,
+                borderRadius: 8,
+                fontSize: '14px'
+              }}
+            />
+            <Area
+              type="monotone"
+              dataKey="amount"
+              stroke={colors[0]}
+              fill={`url(#colorGradient-${chartKey})`}
+              strokeWidth={2}
+              {...animationProps}
+            />
+            <defs>
+              <linearGradient id={`colorGradient-${chartKey}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={colors[0]} stopOpacity={0.8}/>
+                <stop offset="95%" stopColor={colors[0]} stopOpacity={0.1}/>
+              </linearGradient>
+            </defs>
+          </AreaChart>
+        );
+
+      case 'bar':
+        return (
+          <BarChart {...commonProps} key={`bar-${chartKey}`}>
+            {showGridLines && <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />}
+            <XAxis dataKey="period" stroke={theme.palette.text.secondary} fontSize={12} />
+            <YAxis stroke={theme.palette.text.secondary} fontSize={12} />
+            <Tooltip 
+              formatter={(value) => [formatCurrency(value), 'Monto']}
+              contentStyle={{
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${colors[0]}`,
+                borderRadius: 8,
+                fontSize: '14px'
+              }}
+            />
+            <Bar 
+              dataKey="amount" 
+              fill={colors[0]}
+              radius={[4, 4, 0, 0]}
+              {...animationProps}
+            />
+          </BarChart>
+        );
+
+      default: // line
+        return (
+          <LineChart {...commonProps} key={`line-${chartKey}`}>
+            {showGridLines && <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />}
+            <XAxis dataKey="period" stroke={theme.palette.text.secondary} fontSize={12} />
+            <YAxis stroke={theme.palette.text.secondary} fontSize={12} />
+            <Tooltip 
+              formatter={(value) => [formatCurrency(value), 'Monto']}
+              contentStyle={{
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${colors[0]}`,
+                borderRadius: 8,
+                fontSize: '14px'
+              }}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="amount" 
+              stroke={colors[0]} 
+              strokeWidth={3}
+              dot={{ fill: colors[0], strokeWidth: 2, r: 5 }}
+              activeDot={{ r: 7, stroke: colors[0], strokeWidth: 2, fill: theme.palette.background.paper }}
+              {...animationProps}
+            />
+          </LineChart>
+        );
+    }
+  };
+
+  // Función para renderizar gráfica de compromisos por período
+  const renderCommitmentChart = (data, chartKey = 'commitments') => {
+    const chartType = settings?.dashboard?.charts?.statusType || 'line';
+    const colors = getColorScheme(settings?.dashboard?.charts?.colorScheme || 'default');
+    const animations = settings?.dashboard?.charts?.animations !== false;
+    const showGridLines = settings?.dashboard?.charts?.gridLines !== false;
+    
+    const commonProps = {
+      data: data,
+      margin: { top: 20, right: 30, left: 20, bottom: 5 }
+    };
+
+    const animationProps = animations ? {
+      animationBegin: 0,
+      animationDuration: 800
+    } : {
+      isAnimationActive: false
+    };
+
+    console.log('🔍 DEBUG renderCommitmentChart:', {
+      chartType,
+      dataLength: data?.length,
+      firstDataItem: data?.[0],
+      colors: colors.slice(0, 3)
+    });
+
+    switch (chartType) {
+      case 'area':
+        return (
+          <AreaChart {...commonProps} key={`commitment-area-${chartKey}`}>
+            {showGridLines && <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />}
+            <XAxis dataKey="period" stroke={theme.palette.text.secondary} fontSize={12} />
+            <YAxis stroke={theme.palette.text.secondary} fontSize={12} />
+            <Tooltip 
+              formatter={(value) => [value, 'Compromisos']}
+              contentStyle={{
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${colors[1]}`,
+                borderRadius: 8,
+                fontSize: '14px'
+              }}
+            />
+            <Area
+              type="monotone"
+              dataKey="commitments"
+              stroke={colors[1]}
+              fill={`url(#commitmentGradient-${chartKey})`}
+              strokeWidth={2}
+              {...animationProps}
+            />
+            <defs>
+              <linearGradient id={`commitmentGradient-${chartKey}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={colors[1]} stopOpacity={0.8}/>
+                <stop offset="95%" stopColor={colors[1]} stopOpacity={0.1}/>
+              </linearGradient>
+            </defs>
+          </AreaChart>
+        );
+
+      case 'bar':
+        return (
+          <BarChart {...commonProps} key={`commitment-bar-${chartKey}`}>
+            {showGridLines && <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />}
+            <XAxis dataKey="period" stroke={theme.palette.text.secondary} fontSize={12} />
+            <YAxis stroke={theme.palette.text.secondary} fontSize={12} />
+            <Tooltip 
+              formatter={(value) => [value, 'Compromisos']}
+              contentStyle={{
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${colors[1]}`,
+                borderRadius: 8,
+                fontSize: '14px'
+              }}
+            />
+            <Bar 
+              dataKey="commitments" 
+              fill={colors[1]}
+              radius={[4, 4, 0, 0]}
+              {...animationProps}
+            />
+          </BarChart>
+        );
+
+      default: // line
+        return (
+          <LineChart {...commonProps} key={`commitment-line-${chartKey}`}>
+            {showGridLines && <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />}
+            <XAxis dataKey="period" stroke={theme.palette.text.secondary} fontSize={12} />
+            <YAxis stroke={theme.palette.text.secondary} fontSize={12} />
+            <Tooltip 
+              formatter={(value) => [value, 'Compromisos']}
+              contentStyle={{
+                backgroundColor: theme.palette.background.paper,
+                border: `1px solid ${colors[1]}`,
+                borderRadius: 8,
+                fontSize: '14px'
+              }}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="commitments" 
+              stroke={colors[1]} 
+              strokeWidth={3}
+              dot={{ fill: colors[1], strokeWidth: 2, r: 4 }}
+              activeDot={{ r: 6, stroke: colors[1], strokeWidth: 2, fill: theme.palette.background.paper }}
+              {...animationProps}
+            />
+          </LineChart>
+        );
+    }
+  };
+
   // Funciones para manejar paginación
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -1093,78 +1331,73 @@ const ReportsPeriodPage = () => {
             <Typography variant="h6" sx={{ fontWeight: 600, mb: 3 }}>
               Filtros de Período
             </Typography>
-            <Grid container spacing={3} alignItems="center">
-              <Grid item xs={12} md={3}>
-                <TextField
-                  fullWidth
-                  label="Fecha Inicio"
-                  type="date"
-                  value="2025-01-01"
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1
-                    }
-                  }}
-                />
-              </Grid>
+            <Box sx={{ 
+              display: 'flex', 
+              gap: 3, 
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexWrap: 'wrap'
+            }}>
+              <TextField
+                label="Fecha Inicio"
+                type="date"
+                value="2025-01-01"
+                InputLabelProps={{
+                  shrink: true,
+                }}
+                sx={{
+                  minWidth: 180,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
+                  }
+                }}
+              />
               
-              <Grid item xs={12} md={3}>
-                <TextField
-                  fullWidth
-                  label="Fecha Fin"
-                  type="date"
-                  value="2025-07-31"
-                  InputLabelProps={{
-                    shrink: true,
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1
-                    }
-                  }}
-                />
-              </Grid>
+              <TextField
+                label="Fecha Fin"
+                type="date"
+                value="2025-07-31"
+                InputLabelProps={{
+                  shrink: true,
+                }}
+                sx={{
+                  minWidth: 180,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
+                  }
+                }}
+              />
 
-              <Grid item xs={12} md={3}>
-                <FormControl fullWidth>
-                  <InputLabel>Período</InputLabel>
-                  <Select
-                    value={periodType}
-                    onChange={(e) => setPeriodType(e.target.value)}
-                    label="Período"
-                    sx={{
-                      borderRadius: 1
-                    }}
-                  >
-                    <MenuItem value="daily">Diario</MenuItem>
-                    <MenuItem value="weekly">Semanal</MenuItem>
-                    <MenuItem value="monthly">Mensual</MenuItem>
-                    <MenuItem value="quarterly">Trimestral</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} md={3}>
-                <FormControl fullWidth>
-                  <InputLabel>Comparar con</InputLabel>
-                  <Select
-                    value={comparisonMode}
-                    onChange={(e) => setComparisonMode(e.target.value)}
-                    label="Comparar con"
-                    sx={{
-                      borderRadius: 1
-                    }}
-                  >
-                    <MenuItem value="previous">Período anterior</MenuItem>
-                    <MenuItem value="year">Mismo período año anterior</MenuItem>
-                    <MenuItem value="none">Sin comparación</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-            </Grid>
+              <Button
+                variant="contained"
+                onClick={() => {
+                  // Funcionalidad para aplicar filtros
+                  console.log('Aplicando filtros de fecha...');
+                }}
+                sx={{
+                  borderRadius: 1,
+                  px: 3,
+                  py: 1.5,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  color: 'white',
+                  border: 'none',
+                  boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.25)}`,
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '&:hover': {
+                    background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`,
+                    transform: 'translateY(-2px)',
+                    boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.35)}`
+                  },
+                  '&:active': {
+                    transform: 'translateY(0px)'
+                  }
+                }}
+              >
+                Aplicar
+              </Button>
+            </Box>
           </CardContent>
         </Card>
 
@@ -1262,7 +1495,7 @@ const ReportsPeriodPage = () => {
                   Tendencia de Montos ({periodType === 'monthly' ? 'Mensual' : 'Semanal'})
                 </Typography>
                 <ResponsiveContainer width="100%" height={300}>
-                  {renderTrendChart(currentData, settings.dashboard.charts?.trendChart?.type || 'area')}
+                  {renderPeriodChart(currentData, 'trend')}
                 </ResponsiveContainer>
               </CardContent>
             </Card>
@@ -1281,7 +1514,7 @@ const ReportsPeriodPage = () => {
                   Compromisos por Período
                 </Typography>
                 <ResponsiveContainer width="100%" height={300}>
-                  {renderCommitmentsChart(currentData, settings.dashboard.charts?.statusChart?.type || 'line')}
+                  {renderCommitmentChart(currentData, 'commitments')}
                 </ResponsiveContainer>
               </CardContent>
             </Card>

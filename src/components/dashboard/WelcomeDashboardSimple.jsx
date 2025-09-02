@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Grid,
@@ -15,15 +15,17 @@ import {
   Avatar,
   IconButton,
   Tooltip,
-  alpha
+  alpha,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import {
-  TrendingUp,
   Warning,
   CheckCircle,
   AttachMoney,
   Business as BusinessIcon,
-  Add,
   Notifications,
   Assessment,
   AccountBalance,
@@ -35,6 +37,7 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useDashboardStats } from '../../hooks/useDashboardStats';
 import { useFirestore } from '../../hooks/useFirestore';
+import { useCommitments } from '../../hooks/useFirestore';
 import { fCurrency } from '../../utils/formatNumber';
 import { useNavigate } from 'react-router-dom';
 
@@ -43,8 +46,44 @@ const WelcomeDashboardSimple = () => {
   const navigate = useNavigate();
   const { currentUser, userProfile } = useAuth();
   const stats = useDashboardStats();
+  const { commitments } = useCommitments();
   const [currentTime] = useState(new Date().getHours());
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [alertsModalOpen, setAlertsModalOpen] = useState(false);
+
+  // Obtener compromisos vencidos - Usando la misma lógica que useDashboardStats
+  const getOverdueCommitments = useCallback(() => {
+    if (!commitments || commitments.length === 0) return [];
+    
+    const now = new Date();
+    return commitments.filter(commitment => {
+      const dueDate = commitment.dueDate?.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate);
+      
+      // Verificar si está vencido
+      const isOverdue = dueDate && dueDate < now;
+      
+      // Verificar múltiples formas de identificar un compromiso PAGADO (misma lógica que useDashboardStats)
+      const isPaid = commitment.status === 'completed' || 
+                    commitment.status === 'paid' || 
+                    commitment.status === 'Pagado' ||
+                    commitment.status === 'pagado' ||
+                    commitment.status === 'PAGADO' ||
+                    commitment.paid === true ||
+                    commitment.isPaid === true ||
+                    commitment.paymentStatus === 'paid' ||
+                    commitment.paymentStatus === 'Pagado' ||
+                    commitment.paymentStatus === 'pagado' ||
+                    commitment.completed === true;
+      
+      // Solo mostrar compromisos vencidos Y no pagados
+      return isOverdue && !isPaid;
+    }).map(commitment => ({
+      ...commitment,
+      dueDate: commitment.dueDate?.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate)
+    })).sort((a, b) => a.dueDate - b.dueDate); // Ordenar por fecha de vencimiento
+  }, [commitments]);
+
+  const overdueCommitments = getOverdueCommitments();
 
   // Actualizar timestamp cada minuto
   useEffect(() => {
@@ -66,7 +105,7 @@ const WelcomeDashboardSimple = () => {
     return 'Buenas noches';
   };
 
-  // Centro de Comando Empresarial - 7 categorías profesionales
+  //   // 🎯 Funcionalidades esenciales no redundantes
   const quickActions = [
     {
       title: 'Análisis Inteligente',
@@ -76,33 +115,6 @@ const WelcomeDashboardSimple = () => {
       action: () => navigate('/reports'),
       gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       category: 'analytics'
-    },
-    {
-      title: 'Dashboard Ejecutivo',
-      description: 'KPIs y métricas de rendimiento empresarial',
-      icon: TrendingUp,
-      color: 'success.main',
-      action: () => navigate('/reports/executive'),
-      gradient: 'linear-gradient(135deg, #4caf50 0%, #81c784 100%)',
-      category: 'reports'
-    },
-    {
-      title: 'Herramientas Avanzadas',
-      description: 'Búsqueda inteligente y exportación de datos',
-      icon: BusinessIcon,
-      color: 'info.main',
-      action: () => navigate('/tools'),
-      gradient: 'linear-gradient(135deg, #2196f3 0%, #64b5f6 100%)',
-      category: 'tools'
-    },
-    {
-      title: 'Acceso Rápido',
-      description: 'Nuevo compromiso, pagos y gestión empresas',
-      icon: Add,
-      color: 'secondary.main',
-      action: () => navigate('/commitments'),
-      gradient: 'linear-gradient(135deg, #9c27b0 0%, #ba68c8 100%)',
-      category: 'quickAccess'
     },
     {
       title: 'KPIs Financieros',
@@ -143,7 +155,9 @@ const WelcomeDashboardSimple = () => {
       value: stats?.loading ? '...' : (stats?.overDueCommitments || '0'),
       icon: Warning,
       color: '#f44336',
-      trend: stats?.overDueCommitments > 0 ? '¡Revisar!' : 'Sin alertas'
+      trend: stats?.overDueCommitments > 0 ? '¡Revisar!' : 'Sin alertas',
+      onClick: () => setAlertsModalOpen(true),
+      isAlert: true
     }
   ];
 
@@ -261,8 +275,11 @@ const WelcomeDashboardSimple = () => {
                       : '0 8px 25px rgba(0, 0, 0, 0.12)',
                     borderColor: alpha(theme.palette.primary.main, 0.8)
                   },
-                  transition: 'all 0.3s ease'
-                }}>
+                  transition: 'all 0.3s ease',
+                  cursor: stat.onClick ? 'pointer' : 'default'
+                }}
+                onClick={stat.onClick}
+                >
                   <CardContent>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <Box>
@@ -320,9 +337,9 @@ const WelcomeDashboardSimple = () => {
               Acceso directo a todas las funcionalidades profesionales del sistema
             </Typography>
 
-            <Grid container spacing={3}>
+            <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
               {quickActions.map((action, index) => (
-                <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
+                <Grid item xs={12} sm={6} md={6} lg={6} key={index}>
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -395,6 +412,205 @@ const WelcomeDashboardSimple = () => {
           </Box>
         </motion.div>
       </Box>
+
+      {/* Modal de Alertas Críticas - Diseño Sobrio */}
+      <Dialog
+        open={alertsModalOpen}
+        onClose={() => setAlertsModalOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          pb: 2,
+          pt: 3,
+          px: 3,
+          background: 'transparent',
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5
+        }}>
+          <Warning sx={{ color: 'error.main', fontSize: 20 }} />
+          <Box>
+            <Typography variant="subtitle2" sx={{ 
+              color: 'text.secondary',
+              fontSize: '0.75rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              fontWeight: 500,
+              mb: 0.5
+            }}>
+              ESTADO CRÍTICO
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
+              Compromisos Vencidos
+            </Typography>
+          </Box>
+        </DialogTitle>
+        
+        <DialogContent sx={{ p: 0 }}>
+          {overdueCommitments.length === 0 ? (
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+              <CheckCircle sx={{ fontSize: 32, color: 'success.main', mb: 1.5 }} />
+              <Typography variant="subtitle1" color="success.main" sx={{ fontWeight: 600 }}>
+                ¡No hay compromisos vencidos!
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Todos los compromisos están al día
+              </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ p: 2 }}>
+              {overdueCommitments.map((commitment, index) => (
+                <React.Fragment key={commitment.id}>
+                  <Box sx={{ 
+                    p: 1.5,
+                    border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+                    borderRadius: 1,
+                    backgroundColor: alpha(theme.palette.error.main, 0.04),
+                    mb: index < overdueCommitments.length - 1 ? 1.5 : 0
+                  }}>
+                    {/* Header compacto */}
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                      <Typography variant="subtitle2" sx={{ 
+                        fontWeight: 600,
+                        color: 'text.primary',
+                        flex: 1,
+                        mr: 2
+                      }}>
+                        {commitment.concept || commitment.description || commitment.title || commitment.name || 'Compromiso sin descripción'}
+                      </Typography>
+                      <Chip 
+                        label={fCurrency(commitment.amount || 0)}
+                        size="small"
+                        sx={{
+                          backgroundColor: alpha(theme.palette.error.main, 0.08),
+                          color: 'error.main',
+                          border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+                          fontWeight: 600,
+                          fontSize: '0.75rem'
+                        }}
+                      />
+                    </Box>
+                    
+                    {/* Información compacta */}
+                    <Box sx={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: '1fr 1fr', 
+                      gap: 1,
+                      fontSize: '0.8rem'
+                    }}>
+                      <Box>
+                        <Typography variant="caption" sx={{ 
+                          color: 'text.secondary',
+                          fontSize: '0.7rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          fontWeight: 500
+                        }}>
+                          EMPRESA
+                        </Typography>
+                        <Typography variant="body2" sx={{ 
+                          fontSize: '0.8rem',
+                          fontWeight: 500,
+                          color: 'text.primary',
+                          mt: 0.25
+                        }}>
+                          {commitment.companyName || commitment.company || 'No especificada'}
+                        </Typography>
+                      </Box>
+                      
+                      <Box>
+                        <Typography variant="caption" sx={{ 
+                          color: 'text.secondary',
+                          fontSize: '0.7rem',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          fontWeight: 500
+                        }}>
+                          VENCIDO
+                        </Typography>
+                        <Typography variant="body2" sx={{ 
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          color: 'error.main',
+                          mt: 0.25
+                        }}>
+                          {Math.floor((new Date() - commitment.dueDate) / (1000 * 60 * 60 * 24))} días
+                        </Typography>
+                      </Box>
+                    </Box>
+                    
+                    {/* Fecha de vencimiento */}
+                    <Box sx={{ mt: 1, pt: 1, borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+                      <Typography variant="caption" sx={{ 
+                        color: 'text.secondary',
+                        fontSize: '0.7rem'
+                      }}>
+                        Fecha límite: {commitment.dueDate.toLocaleDateString('es-ES', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </React.Fragment>
+              ))}
+            </Box>
+          )}
+        </DialogContent>
+        
+        <DialogActions sx={{ 
+          p: 2, 
+          gap: 1.5,
+          borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+          backgroundColor: alpha(theme.palette.background.default, 0.5)
+        }}>
+          <Button
+            onClick={() => {
+              setAlertsModalOpen(false);
+              navigate('/commitments');
+            }}
+            variant="contained"
+            disabled={overdueCommitments.length === 0}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              borderRadius: 1,
+              px: 3
+            }}
+          >
+            Gestionar Compromisos
+          </Button>
+          <Button
+            onClick={() => setAlertsModalOpen(false)}
+            variant="outlined"
+            sx={{
+              textTransform: 'none',
+              fontWeight: 500,
+              borderRadius: 1,
+              px: 3,
+              borderColor: alpha(theme.palette.primary.main, 0.2),
+              '&:hover': {
+                borderColor: alpha(theme.palette.primary.main, 0.4),
+                backgroundColor: alpha(theme.palette.primary.main, 0.04)
+              }
+            }}
+          >
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </motion.div>
   );
 };
