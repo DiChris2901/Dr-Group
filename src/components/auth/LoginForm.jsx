@@ -272,11 +272,11 @@ const LoginForm = () => {
       sx={{
         minHeight: '100vh',
         background: `linear-gradient(135deg, 
-          ${primaryColor}08 0%, 
-          ${secondaryColor}12 50%, 
+          ${primaryColor}35 0%, 
+          ${primaryColor}45 35%, 
+          ${secondaryColor}40 70%, 
           ${theme.palette.background.default} 100%
         )`,
-        backdropFilter: 'blur(2px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
