@@ -29,6 +29,108 @@ const defaultSettings = {
     animations: false, // ⚡ MODO EMPRESARIAL: Animaciones deshabilitadas por defecto para máximo rendimiento
   },
 
+  // 🎨 TEMAS PREDEFINIDOS COMPLETOS
+  predefinedThemes: {
+    'corporate-professional': {
+      name: 'Corporate Professional',
+      description: 'Elegante y profesional para entornos corporativos',
+      primaryColor: '#1976D2',
+      secondaryColor: '#424242',
+      mode: 'light',
+      borderRadius: 4,
+      fontFamily: 'Inter',
+      fontSize: 14,
+      fontWeight: 500,
+      backgroundType: 'solid',
+      compactMode: true,
+      animations: false
+    },
+    'creative-studio': {
+      name: 'Creative Studio',
+      description: 'Vibrante y moderno para equipos creativos',
+      primaryColor: '#E91E63',
+      secondaryColor: '#FF5722',
+      mode: 'light',
+      borderRadius: 12,
+      fontFamily: 'Poppins',
+      fontSize: 15,
+      fontWeight: 400,
+      backgroundType: 'gradient',
+      compactMode: false,
+      animations: true
+    },
+    'dark-executive': {
+      name: 'Dark Executive',
+      description: 'Oscuro premium para ejecutivos',
+      primaryColor: '#BB86FC',
+      secondaryColor: '#03DAC6',
+      mode: 'dark',
+      borderRadius: 8,
+      fontFamily: 'Inter',
+      fontSize: 14,
+      fontWeight: 600,
+      backgroundType: 'gradient',
+      compactMode: true,
+      animations: false
+    },
+    'minimalist-white': {
+      name: 'Minimalist White',
+      description: 'Limpio y espacioso, máxima legibilidad',
+      primaryColor: '#2196F3',
+      secondaryColor: '#9E9E9E',
+      mode: 'light',
+      borderRadius: 2,
+      fontFamily: 'Roboto',
+      fontSize: 13,
+      fontWeight: 300,
+      backgroundType: 'solid',
+      compactMode: false,
+      animations: false
+    },
+    'warm-finance': {
+      name: 'Warm Finance',
+      description: 'Cálido y acogedor para finanzas',
+      primaryColor: '#FF9800',
+      secondaryColor: '#8D6E63',
+      mode: 'light',
+      borderRadius: 16,
+      fontFamily: 'Montserrat',
+      fontSize: 14,
+      fontWeight: 500,
+      backgroundType: 'gradient',
+      compactMode: false,
+      animations: true
+    },
+    'ocean-breeze': {
+      name: 'Ocean Breeze',
+      description: 'Fresco y relajante como el mar',
+      primaryColor: '#26A69A',
+      secondaryColor: '#00BCD4',
+      mode: 'light',
+      borderRadius: 10,
+      fontFamily: 'Inter',
+      fontSize: 14,
+      fontWeight: 400,
+      backgroundType: 'gradient',
+      compactMode: false,
+      animations: true
+    },
+    'royal-luxury': {
+      name: 'Royal Luxury',
+      description: 'Lujoso y sofisticado',
+      primaryColor: '#9C27B0',
+      secondaryColor: '#673AB7',
+      mode: 'light',
+      borderRadius: 6,
+      fontFamily: 'Playfair Display',
+      fontSize: 15,
+      fontWeight: 600,
+      backgroundType: 'gradient',
+      compactMode: true,
+      animations: true
+    }
+  },
+
   // Configuración del Sidebar
   sidebar: {
     compactMode: true, // Modo compacto global del sidebar
@@ -111,6 +213,318 @@ const defaultSettings = {
     instantAlerts: true, // Alertas instantáneas
     batchNotifications: false, // Agrupar notificaciones
   },
+
+  // 🎨 Temas Predefinidos - Configuraciones completas aplicables con un clic
+  predefinedThemes: {
+    corporativo: {
+      name: 'Corporativo Azul',
+      description: 'Tema profesional con azul corporativo y tipografía elegante',
+      mode: 'light',
+      primaryColor: '#1976d2',
+      secondaryColor: '#42a5f5',
+      borderRadius: 8,
+      fontFamily: 'Roboto',
+      fontSize: 14,
+      fontWeight: 400,
+      backgroundType: 'gradient',
+      compactMode: false,
+      animations: true
+    },
+    elegante: {
+      name: 'Elegante Oscuro',
+      description: 'Diseño sofisticado con modo oscuro y acentos púrpura',
+      mode: 'dark',
+      primaryColor: '#7c4dff',
+      secondaryColor: '#b39ddb',
+      borderRadius: 12,
+      fontFamily: 'Inter',
+      fontSize: 14,
+      fontWeight: 500,
+      backgroundType: 'solid',
+      compactMode: false,
+      animations: true
+    },
+    minimalista: {
+      name: 'Minimalista Verde',
+      description: 'Interfaz limpia y moderna con toques de verde natural',
+      mode: 'light',
+      primaryColor: '#4caf50',
+      secondaryColor: '#81c784',
+      borderRadius: 16,
+      fontFamily: 'Inter',
+      fontSize: 13,
+      fontWeight: 400,
+      backgroundType: 'solid',
+      compactMode: true,
+      animations: false
+    },
+    ejecutivo: {
+      name: 'Ejecutivo Dorado',
+      description: 'Tema premium con acabados dorados para ejecutivos',
+      mode: 'light',
+      primaryColor: '#ff9800',
+      secondaryColor: '#ffb74d',
+      borderRadius: 6,
+      fontFamily: 'Roboto',
+      fontSize: 14,
+      fontWeight: 600,
+      backgroundType: 'gradient',
+      compactMode: false,
+      animations: true
+    },
+    creativo: {
+      name: 'Creativo Rosa',
+      description: 'Diseño vibrante y creativo con paleta rosa moderna',
+      mode: 'light',
+      primaryColor: '#e91e63',
+      secondaryColor: '#f06292',
+      borderRadius: 20,
+      fontFamily: 'Inter',
+      fontSize: 14,
+      fontWeight: 500,
+      backgroundType: 'gradient',
+      compactMode: false,
+      animations: true
+    },
+    nocturno: {
+      name: 'Nocturno Índigo',
+      description: 'Tema oscuro con índigo profundo para trabajo nocturno',
+      mode: 'dark',
+      primaryColor: '#3f51b5',
+      secondaryColor: '#7986cb',
+      borderRadius: 10,
+      fontFamily: 'Roboto',
+      fontSize: 14,
+      fontWeight: 400,
+      backgroundType: 'solid',
+      compactMode: false,
+      animations: true
+    },
+    moderno: {
+      name: 'Moderno Cian',
+      description: 'Interfaz contemporánea con cian vibrante y animaciones fluidas',
+      mode: 'light',
+      primaryColor: '#00bcd4',
+      secondaryColor: '#4dd0e1',
+      borderRadius: 14,
+      fontFamily: 'Inter',
+      fontSize: 14,
+      fontWeight: 500,
+      backgroundType: 'gradient',
+      compactMode: false,
+      animations: true
+    },
+    titanio: {
+      name: 'Titanio Plateado',
+      description: 'Elegancia metálica con grises sofisticados y detalles plateados',
+      mode: 'light',
+      primaryColor: '#607d8b',
+      secondaryColor: '#90a4ae',
+      borderRadius: 8,
+      fontFamily: 'Roboto',
+      fontSize: 14,
+      fontWeight: 500,
+      backgroundType: 'solid',
+      compactMode: false,
+      animations: true
+    },
+    sunset: {
+      name: 'Sunset Naranja',
+      description: 'Calidez del atardecer con naranjas vibrantes y rojos suaves',
+      mode: 'light',
+      primaryColor: '#ff5722',
+      secondaryColor: '#ff8a65',
+      borderRadius: 16,
+      fontFamily: 'Inter',
+      fontSize: 14,
+      fontWeight: 500,
+      backgroundType: 'gradient',
+      compactMode: false,
+      animations: true
+    },
+    forest: {
+      name: 'Forest Verde Oscuro',
+      description: 'Serenidad del bosque con verdes profundos en modo oscuro',
+      mode: 'dark',
+      primaryColor: '#2e7d32',
+      secondaryColor: '#66bb6a',
+      borderRadius: 12,
+      fontFamily: 'Roboto',
+      fontSize: 14,
+      fontWeight: 400,
+      backgroundType: 'solid',
+      compactMode: false,
+      animations: true
+    },
+    royal: {
+      name: 'Royal Púrpura',
+      description: 'Majestuosidad real con púrpuras profundos y detalles dorados',
+      mode: 'dark',
+      primaryColor: '#673ab7',
+      secondaryColor: '#9575cd',
+      borderRadius: 10,
+      fontFamily: 'Inter',
+      fontSize: 14,
+      fontWeight: 600,
+      backgroundType: 'gradient',
+      compactMode: false,
+      animations: true
+    },
+    ocean: {
+      name: 'Ocean Azul Profundo',
+      description: 'Profundidad oceánica con azules marinos y aguamarinas',
+      mode: 'dark',
+      primaryColor: '#0277bd',
+      secondaryColor: '#4fc3f7',
+      borderRadius: 14,
+      fontFamily: 'Roboto',
+      fontSize: 14,
+      fontWeight: 400,
+      backgroundType: 'gradient',
+      compactMode: false,
+      animations: true
+    },
+    cherry: {
+      name: 'Cherry Blossom',
+      description: 'Delicadeza japonesa con rosas suaves y blancos puros',
+      mode: 'light',
+      primaryColor: '#ad1457',
+      secondaryColor: '#f48fb1',
+      borderRadius: 18,
+      fontFamily: 'Inter',
+      fontSize: 13,
+      fontWeight: 400,
+      backgroundType: 'solid',
+      compactMode: true,
+      animations: true
+    },
+    arctic: {
+      name: 'Arctic Blanco',
+      description: 'Pureza ártica con blancos cristalinos y azules helados',
+      mode: 'light',
+      primaryColor: '#37474f',
+      secondaryColor: '#78909c',
+      borderRadius: 6,
+      fontFamily: 'Roboto',
+      fontSize: 14,
+      fontWeight: 300,
+      backgroundType: 'solid',
+      compactMode: true,
+      animations: false
+    },
+    volcanic: {
+      name: 'Volcanic Rojo',
+      description: 'Intensidad volcánica con rojos ardientes y grises carbón',
+      mode: 'dark',
+      primaryColor: '#c62828',
+      secondaryColor: '#ef5350',
+      borderRadius: 8,
+      fontFamily: 'Inter',
+      fontSize: 14,
+      fontWeight: 600,
+      backgroundType: 'solid',
+      compactMode: false,
+      animations: true
+    },
+    emerald: {
+      name: 'Emerald Luxury',
+      description: 'Lujo esmeralda con verdes joya y dorados elegantes',
+      mode: 'light',
+      primaryColor: '#00695c',
+      secondaryColor: '#4db6ac',
+      borderRadius: 12,
+      fontFamily: 'Roboto',
+      fontSize: 14,
+      fontWeight: 500,
+      backgroundType: 'gradient',
+      compactMode: false,
+      animations: true
+    },
+    cosmic: {
+      name: 'Cosmic Violeta',
+      description: 'Misterio cósmico con violetas profundos y estrellas plateadas',
+      mode: 'dark',
+      primaryColor: '#512da8',
+      secondaryColor: '#9575cd',
+      borderRadius: 20,
+      fontFamily: 'Inter',
+      fontSize: 14,
+      fontWeight: 500,
+      backgroundType: 'gradient',
+      compactMode: false,
+      animations: true
+    },
+    autumn: {
+      name: 'Autumn Gold',
+      description: 'Calidez otoñal con dorados brillantes y marrones terra',
+      mode: 'light',
+      primaryColor: '#f57900',
+      secondaryColor: '#ffb74d',
+      borderRadius: 10,
+      fontFamily: 'Roboto',
+      fontSize: 14,
+      fontWeight: 400,
+      backgroundType: 'gradient',
+      compactMode: false,
+      animations: true
+    },
+    midnight: {
+      name: 'Midnight Blue',
+      description: 'Elegancia de medianoche con azules oscuros y plateados',
+      mode: 'dark',
+      primaryColor: '#1a237e',
+      secondaryColor: '#5c6bc0',
+      borderRadius: 8,
+      fontFamily: 'Inter',
+      fontSize: 14,
+      fontWeight: 400,
+      backgroundType: 'solid',
+      compactMode: false,
+      animations: true
+    },
+    spring: {
+      name: 'Spring Fresh',
+      description: 'Frescura primaveral con verdes lima y amarillos suaves',
+      mode: 'light',
+      primaryColor: '#689f38',
+      secondaryColor: '#aed581',
+      borderRadius: 15,
+      fontFamily: 'Inter',
+      fontSize: 13,
+      fontWeight: 400,
+      backgroundType: 'gradient',
+      compactMode: true,
+      animations: true
+    },
+    steel: {
+      name: 'Steel Industrial',
+      description: 'Fortaleza industrial con grises metálicos y azules acero',
+      mode: 'dark',
+      primaryColor: '#455a64',
+      secondaryColor: '#90a4ae',
+      borderRadius: 6,
+      fontFamily: 'Roboto',
+      fontSize: 14,
+      fontWeight: 500,
+      backgroundType: 'solid',
+      compactMode: false,
+      animations: false
+    },
+    sunrise: {
+      name: 'Sunrise Amarillo',
+      description: 'Energía del amanecer con amarillos brillantes y naranjas cálidos',
+      mode: 'light',
+      primaryColor: '#f9a825',
+      secondaryColor: '#ffcc02',
+      borderRadius: 12,
+      fontFamily: 'Inter',
+      fontSize: 14,
+      fontWeight: 500,
+      backgroundType: 'gradient',
+      compactMode: false,
+      animations: true
+    }
+  }
 };
 
 // Presets de colores corporativos y creativos
@@ -378,10 +792,80 @@ const SettingsProvider = ({ children }) => {
     }
   };
 
+  // 🎨 Función para aplicar tema predefinido completo
+  const applyPredefinedTheme = async (themeKey) => {
+    try {
+      const predefinedTheme = defaultSettings.predefinedThemes[themeKey];
+      if (!predefinedTheme) {
+        throw new Error(`Tema ${themeKey} no encontrado`);
+      }
+
+      // Aplicar todas las configuraciones del tema
+      const newSettings = {
+        ...settings,
+        theme: {
+          ...settings.theme,
+          mode: predefinedTheme.mode,
+          primaryColor: predefinedTheme.primaryColor,
+          secondaryColor: predefinedTheme.secondaryColor,
+          borderRadius: predefinedTheme.borderRadius,
+          fontFamily: predefinedTheme.fontFamily,
+          fontSize: predefinedTheme.fontSize,
+          fontWeight: predefinedTheme.fontWeight,
+          backgroundType: predefinedTheme.backgroundType,
+          compactMode: predefinedTheme.compactMode,
+          animations: predefinedTheme.animations
+        },
+        sidebar: {
+          ...settings.sidebar,
+          compactMode: predefinedTheme.compactMode,
+          animationSpeed: predefinedTheme.animations ? 'normal' : 'none'
+        },
+        dashboard: {
+          ...settings.dashboard,
+          behavior: {
+            ...settings.dashboard.behavior,
+            animationsEnabled: predefinedTheme.animations
+          },
+          appearance: {
+            ...settings.dashboard.appearance,
+            compactMode: predefinedTheme.compactMode
+          }
+        }
+      };
+
+      setSettings(newSettings);
+
+      // Guardar en localStorage
+      localStorage.setItem('drgroup-settings', JSON.stringify(newSettings));
+
+      // Guardar en Firebase si hay usuario autenticado
+      if (user) {
+        const userSettingsRef = doc(db, 'userSettings', user.uid);
+        await updateDoc(userSettingsRef, {
+          ...newSettings,
+          lastUpdated: new Date(),
+          appliedTheme: {
+            key: themeKey,
+            name: predefinedTheme.name,
+            appliedAt: new Date()
+          }
+        });
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error aplicando tema predefinido:', error);
+      setError('Error al aplicar el tema');
+      return false;
+    }
+  };
+
   const value = {
     settings,
     updateSettings,
     resetSettings,
+    applyPredefinedTheme,
     defaultSettings,
     loading,
     error,

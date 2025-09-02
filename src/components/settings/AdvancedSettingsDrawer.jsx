@@ -149,7 +149,8 @@ import {
   ExitToApp as LogoutIcon,
   AccessTime as TimeIcon,
   LocationOn as LocationIcon,
-  Contrast as ContrastIcon
+  Contrast as ContrastIcon,
+  AutoAwesome as AutoAwesomeIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
@@ -242,7 +243,7 @@ function TabPanel({ children, value, index, ...other }) {
 
 export function AdvancedSettingsDrawer({ open, onClose }) {
   const theme = useTheme();
-  const { settings, updateSettings, resetSettings, loading: settingsLoading, error: settingsError } = useSettings();
+  const { settings, updateSettings, resetSettings, applyPredefinedTheme, defaultSettings, loading: settingsLoading, error: settingsError } = useSettings();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [saveMessage, setSaveMessage] = useState('');
@@ -800,6 +801,145 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
               {/* TEMA TAB */}
               <TabPanel value={activeTab} index={0}>
                 <Stack spacing={3}>
+                  {/* Temas Predefinidos */}
+                  <Card sx={{ 
+                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                    borderRadius: 4,
+                    background: theme.palette.background.paper,
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                    position: 'relative'
+                  }}>
+                    <CardContent>
+                      <Typography variant="h6" sx={{ 
+                        mb: 3, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1.5,
+                        fontWeight: 600,
+                        color: theme.palette.text.primary
+                      }}>
+                        <Box sx={{
+                          p: 1,
+                          borderRadius: 2,
+                          backgroundColor: '#9c27b0', // Purple for themes
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <AutoAwesomeIcon sx={{ fontSize: 20 }} />
+                        </Box>
+                        Temas Predefinidos
+                        <Tooltip title="Aplica configuraciones completas con un solo clic">
+                          <InfoIcon sx={{ fontSize: 16, color: 'text.secondary', ml: 1 }} />
+                        </Tooltip>
+                      </Typography>
+                      <Grid container spacing={2}>
+                        {Object.entries(defaultSettings.predefinedThemes).map(([themeKey, themeConfig]) => (
+                          <Grid item xs={12} sm={6} md={4} key={themeKey}>
+                            <Card
+                              sx={{
+                                cursor: 'pointer',
+                                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
+                                background: theme.palette.background.paper,
+                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                position: 'relative',
+                                overflow: 'hidden',
+                                '&:hover': {
+                                  transform: 'translateY(-4px)',
+                                  boxShadow: '0 8px 25px rgba(0, 0, 0, 0.12)',
+                                  borderColor: themeConfig.primaryColor
+                                }
+                              }}
+                              onClick={() => applyPredefinedTheme(themeKey)}
+                            >
+                              {/* Theme preview background */}
+                              <Box sx={{
+                                height: 60,
+                                background: themeConfig.mode === 'dark' 
+                                  ? `linear-gradient(135deg, ${themeConfig.primaryColor}22 0%, ${themeConfig.secondaryColor}22 100%)`
+                                  : `linear-gradient(135deg, ${themeConfig.primaryColor}33 0%, ${themeConfig.secondaryColor}33 100%)`,
+                                position: 'relative',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}>
+                                <Box sx={{
+                                  display: 'flex',
+                                  gap: 0.5,
+                                  alignItems: 'center'
+                                }}>
+                                  <Box sx={{
+                                    width: 12,
+                                    height: 12,
+                                    borderRadius: '50%',
+                                    backgroundColor: themeConfig.primaryColor
+                                  }} />
+                                  <Box sx={{
+                                    width: 10,
+                                    height: 10,
+                                    borderRadius: '50%',
+                                    backgroundColor: themeConfig.secondaryColor
+                                  }} />
+                                  <Box sx={{
+                                    width: 8,
+                                    height: 8,
+                                    borderRadius: '50%',
+                                    backgroundColor: alpha(themeConfig.primaryColor, 0.6)
+                                  }} />
+                                </Box>
+                              </Box>
+                              <CardContent sx={{ p: 2 }}>
+                                <Typography variant="subtitle2" sx={{ 
+                                  fontWeight: 600,
+                                  color: theme.palette.text.primary,
+                                  mb: 0.5
+                                }}>
+                                  {themeConfig.name}
+                                </Typography>
+                                <Typography variant="caption" sx={{ 
+                                  color: theme.palette.text.secondary,
+                                  fontSize: '0.75rem',
+                                  lineHeight: 1.3
+                                }}>
+                                  {themeConfig.description}
+                                </Typography>
+                                <Box sx={{ 
+                                  display: 'flex', 
+                                  gap: 1, 
+                                  mt: 1,
+                                  alignItems: 'center'
+                                }}>
+                                  <Chip 
+                                    label={themeConfig.mode === 'dark' ? '🌙' : '☀️'}
+                                    size="small"
+                                    sx={{ 
+                                      fontSize: '0.65rem',
+                                      height: 20,
+                                      minWidth: 'auto',
+                                      '& .MuiChip-label': { px: 1 }
+                                    }}
+                                  />
+                                  <Chip 
+                                    label={themeConfig.fontFamily}
+                                    size="small"
+                                    sx={{ 
+                                      fontSize: '0.65rem',
+                                      height: 20,
+                                      backgroundColor: alpha(themeConfig.primaryColor, 0.1),
+                                      color: themeConfig.primaryColor,
+                                      fontWeight: 500
+                                    }}
+                                  />
+                                </Box>
+                              </CardContent>
+                            </Card>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </CardContent>
+                  </Card>
+
                   {/* Color Presets */}
                   <Card sx={{ 
                     border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
