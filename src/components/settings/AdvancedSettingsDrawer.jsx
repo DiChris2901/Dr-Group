@@ -150,7 +150,8 @@ import {
   AccessTime as TimeIcon,
   LocationOn as LocationIcon,
   Contrast as ContrastIcon,
-  AutoAwesome as AutoAwesomeIcon
+  AutoAwesome as AutoAwesomeIcon,
+  ColorLens as ColorLensIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
@@ -493,7 +494,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
       onClose={onClose}
       PaperProps={{
         sx: {
-          width: { xs: '100vw', sm: 520, md: 600, lg: 650 },
+          width: { xs: '100vw', sm: 680, md: 800, lg: 900, xl: 1000 },
           background: theme.palette.background.paper,
           borderLeft: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
           boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
@@ -833,29 +834,30 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           <InfoIcon sx={{ fontSize: 16, color: 'text.secondary', ml: 1 }} />
                         </Tooltip>
                       </Typography>
-                      <Grid container spacing={2}>
+                      <Grid container spacing={1.5}> {/* Reducido de 2 a 1.5 */}
                         {Object.entries(defaultSettings.predefinedThemes).map(([themeKey, themeConfig]) => (
-                          <Grid item xs={12} sm={6} md={4} key={themeKey}>
+                          <Grid item xs={12} sm={6} md={4} lg={3} xl={3} key={themeKey}>
                             <Card
                               sx={{
                                 cursor: 'pointer',
                                 border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
                                 borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
                                 background: theme.palette.background.paper,
-                                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                                 position: 'relative',
                                 overflow: 'hidden',
+                                minHeight: '100px', // Altura mínima compacta
                                 '&:hover': {
-                                  transform: 'translateY(-4px)',
-                                  boxShadow: '0 8px 25px rgba(0, 0, 0, 0.12)',
+                                  transform: 'translateY(-2px)', // Menos movimiento
+                                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.1)', // Sombra más sutil
                                   borderColor: themeConfig.primaryColor
                                 }
                               }}
                               onClick={() => applyPredefinedTheme(themeKey)}
                             >
-                              {/* Theme preview background */}
+                              {/* Theme preview background - más compacto */}
                               <Box sx={{
-                                height: 60,
+                                height: 36, // Reducido de 60 a 36
                                 background: themeConfig.mode === 'dark' 
                                   ? `linear-gradient(135deg, ${themeConfig.primaryColor}22 0%, ${themeConfig.secondaryColor}22 100%)`
                                   : `linear-gradient(135deg, ${themeConfig.primaryColor}33 0%, ${themeConfig.secondaryColor}33 100%)`,
@@ -866,69 +868,87 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                               }}>
                                 <Box sx={{
                                   display: 'flex',
-                                  gap: 0.5,
+                                  gap: 0.3, // Reducido el gap
                                   alignItems: 'center'
                                 }}>
                                   <Box sx={{
-                                    width: 12,
-                                    height: 12,
+                                    width: 8, // Reducido de 12 a 8
+                                    height: 8,
                                     borderRadius: '50%',
                                     backgroundColor: themeConfig.primaryColor
                                   }} />
                                   <Box sx={{
-                                    width: 10,
-                                    height: 10,
+                                    width: 6, // Reducido de 10 a 6
+                                    height: 6,
                                     borderRadius: '50%',
                                     backgroundColor: themeConfig.secondaryColor
                                   }} />
                                   <Box sx={{
-                                    width: 8,
-                                    height: 8,
+                                    width: 5, // Reducido de 8 a 5
+                                    height: 5,
                                     borderRadius: '50%',
                                     backgroundColor: alpha(themeConfig.primaryColor, 0.6)
                                   }} />
                                 </Box>
                               </Box>
-                              <CardContent sx={{ p: 2 }}>
-                                <Typography variant="subtitle2" sx={{ 
+                              <CardContent sx={{ p: 1.2 }}> {/* Reducido padding de 2 a 1.2 */}
+                                <Typography variant="body2" sx={{ // Cambiado de subtitle2 a body2
                                   fontWeight: 600,
                                   color: theme.palette.text.primary,
-                                  mb: 0.5
+                                  mb: 0.3, // Reducido margen
+                                  fontSize: '0.85rem', // Tamaño específico
+                                  lineHeight: 1.2,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap' // Una sola línea
                                 }}>
                                   {themeConfig.name}
                                 </Typography>
                                 <Typography variant="caption" sx={{ 
                                   color: theme.palette.text.secondary,
-                                  fontSize: '0.75rem',
-                                  lineHeight: 1.3
+                                  fontSize: '0.68rem', // Reducido de 0.75rem
+                                  lineHeight: 1.2, // Reducido line height
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2, // Máximo 2 líneas
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  mb: 0.5 // Reducido margen
                                 }}>
                                   {themeConfig.description}
                                 </Typography>
                                 <Box sx={{ 
                                   display: 'flex', 
-                                  gap: 1, 
-                                  mt: 1,
-                                  alignItems: 'center'
+                                  gap: 0.5, // Reducido gap
+                                  alignItems: 'center',
+                                  flexWrap: 'wrap'
                                 }}>
                                   <Chip 
                                     label={themeConfig.mode === 'dark' ? '🌙' : '☀️'}
                                     size="small"
                                     sx={{ 
-                                      fontSize: '0.65rem',
-                                      height: 20,
+                                      fontSize: '0.6rem', // Reducido
+                                      height: 16, // Reducido de 20 a 16
                                       minWidth: 'auto',
-                                      '& .MuiChip-label': { px: 1 }
+                                      '& .MuiChip-label': { 
+                                        px: 0.5, // Reducido padding
+                                        py: 0
+                                      }
                                     }}
                                   />
                                   <Chip 
                                     label={themeConfig.fontFamily}
                                     size="small"
                                     sx={{ 
-                                      fontSize: '0.65rem',
-                                      height: 20,
+                                      fontSize: '0.58rem', // Muy pequeño
+                                      height: 16,
                                       backgroundColor: alpha(themeConfig.primaryColor, 0.1),
                                       color: themeConfig.primaryColor,
-                                      fontWeight: 500
+                                      fontWeight: 500,
+                                      '& .MuiChip-label': { 
+                                        px: 0.5,
+                                        py: 0
+                                      }
                                     }}
                                   />
                                 </Box>
@@ -974,7 +994,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       </Typography>
                       <Grid container spacing={1.5}>
                         {colorOptions.map(({ key, name, colors }) => (
-                          <Grid item xs={6} sm={4} key={key}>
+                          <Grid item xs={6} sm={4} md={3} lg={2.4} xl={2} key={key}>
                             <Tooltip 
                               title={`${name} - Ideal para interfaces ${name.toLowerCase().includes('azul') ? 'corporativas' : name.toLowerCase().includes('verde') ? 'de crecimiento' : name.toLowerCase().includes('morado') ? 'creativas' : 'modernas'}`}
                               placement="top"
@@ -997,7 +1017,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                               onClick={() => {
                                 const newTheme = { 
                                   ...settings.theme, 
-                                  primaryColor: colors.main 
+                                  primaryColor: colors.main,
+                                  secondaryColor: colors.light // Usar el tono light como secundario
                                 };
                                 updateSettings('theme', newTheme);
                               }}
@@ -1008,9 +1029,26 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                     width: '100%',
                                     height: 36,
                                     borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
-                                    background: colors.main,
+                                    background: `linear-gradient(135deg, ${colors.light} 0%, ${colors.main} 50%, ${colors.dark} 100%)`,
                                     mb: 1.5,
-                                    boxShadow: `0 2px 8px ${alpha(colors.main, 0.15)}`
+                                    boxShadow: `0 3px 12px ${alpha(colors.main, 0.3)}`,
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                    transition: 'all 0.3s ease',
+                                    '&::after': {
+                                      content: '""',
+                                      position: 'absolute',
+                                      top: 0,
+                                      left: '-50%',
+                                      width: '50%',
+                                      height: '100%',
+                                      background: `linear-gradient(90deg, transparent 0%, ${alpha(colors.lighter, 0.4)} 50%, transparent 100%)`,
+                                      transform: 'skewX(-25deg)',
+                                      transition: 'left 0.6s ease'
+                                    },
+                                    '&:hover::after': {
+                                      left: '100%'
+                                    }
                                   }}
                                 />
                                 <Typography variant="caption" sx={{ fontWeight: 600 }}>
@@ -1022,6 +1060,229 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           </Grid>
                         ))}
                       </Grid>
+                    </CardContent>
+                  </Card>
+
+                  {/* Selectores de Color Personalizados */}
+                  <Card sx={{ 
+                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                    borderRadius: 4,
+                    background: theme.palette.background.paper,
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                    position: 'relative'
+                  }}>
+                    <CardContent>
+                      <Typography variant="h6" sx={{ 
+                        mb: 3, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1.5,
+                        fontWeight: 600,
+                        color: theme.palette.text.primary
+                      }}>
+                        <Box sx={{
+                          p: 1,
+                          borderRadius: 2,
+                          backgroundColor: '#2196f3', // Blue for custom colors
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <ColorLensIcon sx={{ fontSize: 20 }} />
+                        </Box>
+                        Colores Personalizados
+                        <Tooltip title="Selecciona cualquier color de tu preferencia">
+                          <InfoIcon sx={{ fontSize: 16, color: 'text.secondary', ml: 1 }} />
+                        </Tooltip>
+                      </Typography>
+                      
+                      <Grid container spacing={3}>
+                        {/* Color Primario */}
+                        <Grid item xs={12} sm={6}>
+                          <Box sx={{ 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            gap: 2
+                          }}>
+                            <Typography variant="subtitle2" sx={{ 
+                              fontWeight: 600,
+                              color: theme.palette.text.primary,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1
+                            }}>
+                              🎨 Color Primario
+                            </Typography>
+                            <Box sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 2 
+                            }}>
+                              <TextField
+                                type="color"
+                                value={settings?.theme?.primaryColor || '#1976d2'}
+                                onChange={(e) => updateSettings('theme', {
+                                  ...settings.theme,
+                                  primaryColor: e.target.value
+                                })}
+                                sx={{
+                                  width: 80,
+                                  height: 50,
+                                  '& .MuiInputBase-root': {
+                                    height: 50,
+                                    borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
+                                    border: `2px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                    '&:hover': {
+                                      borderColor: settings?.theme?.primaryColor || '#1976d2'
+                                    }
+                                  },
+                                  '& input[type="color"]': {
+                                    border: 'none',
+                                    borderRadius: `${((settings?.theme?.borderRadius || 8) - 4)}px`,
+                                    cursor: 'pointer',
+                                    '&::-webkit-color-swatch-wrapper': {
+                                      padding: 0,
+                                      borderRadius: `${((settings?.theme?.borderRadius || 8) - 4)}px`
+                                    },
+                                    '&::-webkit-color-swatch': {
+                                      border: 'none',
+                                      borderRadius: `${((settings?.theme?.borderRadius || 8) - 4)}px`
+                                    }
+                                  }
+                                }}
+                              />
+                              <Box sx={{ flex: 1 }}>
+                                <Typography variant="body2" sx={{ 
+                                  fontWeight: 500,
+                                  color: theme.palette.text.primary
+                                }}>
+                                  {settings?.theme?.primaryColor || '#1976d2'}
+                                </Typography>
+                                <Typography variant="caption" sx={{ 
+                                  color: theme.palette.text.secondary 
+                                }}>
+                                  Color principal de la interfaz
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </Box>
+                        </Grid>
+
+                        {/* Color Secundario */}
+                        <Grid item xs={12} sm={6}>
+                          <Box sx={{ 
+                            display: 'flex', 
+                            flexDirection: 'column',
+                            gap: 2
+                          }}>
+                            <Typography variant="subtitle2" sx={{ 
+                              fontWeight: 600,
+                              color: theme.palette.text.primary,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1
+                            }}>
+                              ✨ Color Secundario
+                            </Typography>
+                            <Box sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 2 
+                            }}>
+                              <TextField
+                                type="color"
+                                value={settings?.theme?.secondaryColor || '#42a5f5'}
+                                onChange={(e) => updateSettings('theme', {
+                                  ...settings.theme,
+                                  secondaryColor: e.target.value
+                                })}
+                                sx={{
+                                  width: 80,
+                                  height: 50,
+                                  '& .MuiInputBase-root': {
+                                    height: 50,
+                                    borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
+                                    border: `2px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                    '&:hover': {
+                                      borderColor: settings?.theme?.secondaryColor || '#42a5f5'
+                                    }
+                                  },
+                                  '& input[type="color"]': {
+                                    border: 'none',
+                                    borderRadius: `${((settings?.theme?.borderRadius || 8) - 4)}px`,
+                                    cursor: 'pointer',
+                                    '&::-webkit-color-swatch-wrapper': {
+                                      padding: 0,
+                                      borderRadius: `${((settings?.theme?.borderRadius || 8) - 4)}px`
+                                    },
+                                    '&::-webkit-color-swatch': {
+                                      border: 'none',
+                                      borderRadius: `${((settings?.theme?.borderRadius || 8) - 4)}px`
+                                    }
+                                  }
+                                }}
+                              />
+                              <Box sx={{ flex: 1 }}>
+                                <Typography variant="body2" sx={{ 
+                                  fontWeight: 500,
+                                  color: theme.palette.text.primary
+                                }}>
+                                  {settings?.theme?.secondaryColor || '#42a5f5'}
+                                </Typography>
+                                <Typography variant="caption" sx={{ 
+                                  color: theme.palette.text.secondary 
+                                }}>
+                                  Color de acentos y detalles
+                                </Typography>
+                              </Box>
+                            </Box>
+                          </Box>
+                        </Grid>
+                      </Grid>
+
+                      {/* Preview de la combinación */}
+                      <Box sx={{ 
+                        mt: 3, 
+                        p: 2, 
+                        borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
+                        border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                        background: alpha(settings?.theme?.primaryColor || '#1976d2', 0.05)
+                      }}>
+                        <Typography variant="caption" sx={{ 
+                          color: theme.palette.text.secondary,
+                          mb: 1,
+                          display: 'block'
+                        }}>
+                          Vista previa de tu combinación:
+                        </Typography>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          gap: 1, 
+                          alignItems: 'center' 
+                        }}>
+                          <Box sx={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            backgroundColor: settings?.theme?.primaryColor || '#1976d2',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
+                          }} />
+                          <Box sx={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: '50%',
+                            backgroundColor: settings?.theme?.secondaryColor || '#42a5f5',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)'
+                          }} />
+                          <Typography variant="body2" sx={{ 
+                            ml: 1,
+                            color: theme.palette.text.primary,
+                            fontWeight: 500
+                          }}>
+                            Tu combinación personalizada
+                          </Typography>
+                        </Box>
+                      </Box>
                     </CardContent>
                   </Card>
 
@@ -1295,34 +1556,35 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           </Select>
                         </FormControl>
 
-                        {/* Font Size */}
+                        {/* Font Scale */}
                         <Box sx={{ width: '100%' }}>
                           <Tooltip 
-                            title="Ajusta el tamaño base de la fuente. El resto de elementos se escalarán proporcionalmente" 
+                            title="Ajusta el tamaño global de toda la interfaz. Útil para mejorar la legibilidad según tus preferencias" 
                             placement="top" 
                             arrow
                           >
                             <FormLabel sx={{ mb: 2, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
                               <FormatSizeIcon sx={{ fontSize: 18 }} />
-                              Tamaño de Fuente Base: {settings?.theme?.fontSize || 14}px
+                              Escala Global de Fuente: {settings?.theme?.fontScale || 100}%
                               <InfoIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                             </FormLabel>
                           </Tooltip>
                           <Box sx={{ px: 1 }}>
                             <Slider
-                              value={settings?.theme?.fontSize || 14}
+                              value={settings?.theme?.fontScale || 100}
                               onChange={(e, value) => updateSettings('theme', { 
                                 ...settings.theme, 
-                                fontSize: value 
+                                fontScale: value 
                               })}
-                              min={12}
-                              max={18}
-                              step={1}
+                              min={100}
+                              max={200}
+                              step={25}
                               marks={[
-                                { value: 12, label: '12px' },
-                                { value: 14, label: '14px' },
-                                { value: 16, label: '16px' },
-                                { value: 18, label: '18px' }
+                                { value: 100, label: '100%' },
+                                { value: 125, label: '125%' },
+                                { value: 150, label: '150%' },
+                                { value: 175, label: '175%' },
+                                { value: 200, label: '200%' }
                               ]}
                               sx={{
                                 width: '100%',
@@ -1331,21 +1593,21 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                 },
                                 '& .MuiSlider-rail': {
                                   backgroundColor: alpha(theme.palette.text.secondary, 0.3),
-                                  height: 4,
+                                  height: 6,
                                 },
                                 '& .MuiSlider-track': {
                                   backgroundColor: theme.palette.primary.main,
-                                  height: 4,
+                                  height: 6,
                                   border: 'none',
                                 },
                                 '& .MuiSlider-thumb': {
-                                  height: 20,
-                                  width: 20,
+                                  height: 24,
+                                  width: 24,
                                   backgroundColor: theme.palette.primary.main,
-                                  border: `2px solid ${theme.palette.background.paper}`,
-                                  boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
+                                  border: `3px solid ${theme.palette.background.paper}`,
+                                  boxShadow: `0 3px 12px ${alpha(theme.palette.primary.main, 0.4)}`,
                                   '&:hover': {
-                                    boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}`,
+                                    boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.5)}`,
                                   },
                                   '&.Mui-focusVisible': {
                                     boxShadow: `0 0 0 8px ${alpha(theme.palette.primary.main, 0.16)}`,
@@ -1353,22 +1615,66 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                 },
                                 '& .MuiSlider-mark': {
                                   backgroundColor: theme.palette.text.secondary,
-                                  height: 8,
-                                  width: 2,
+                                  height: 10,
+                                  width: 3,
+                                  borderRadius: 2,
                                   '&.MuiSlider-markActive': {
                                     opacity: 1,
                                     backgroundColor: theme.palette.primary.main,
                                   }
                                 },
                                 '& .MuiSlider-markLabel': {
-                                  fontSize: '0.75rem',
-                                  color: theme.palette.text.secondary,
-                                  fontWeight: 500,
+                                  fontSize: '0.8rem',
+                                  color: theme.palette.text.primary,
+                                  fontWeight: 600,
                                   transform: 'translateX(-50%)',
                                   whiteSpace: 'nowrap',
+                                  marginTop: '8px'
                                 }
                               }}
                             />
+                          </Box>
+                          
+                          {/* Vista previa de la escala */}
+                          <Box sx={{ 
+                            mt: 2, 
+                            p: 2, 
+                            borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
+                            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                            backgroundColor: alpha(theme.palette.primary.main, 0.05)
+                          }}>
+                            <Typography variant="caption" sx={{ 
+                              color: theme.palette.text.secondary,
+                              display: 'block',
+                              mb: 1
+                            }}>
+                              Vista previa del tamaño:
+                            </Typography>
+                            <Box sx={{ 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              gap: 0.5 
+                            }}>
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  fontSize: `${14 * ((settings?.theme?.fontScale || 100) / 100)}px`,
+                                  fontWeight: 500,
+                                  color: theme.palette.text.primary
+                                }}
+                              >
+                                Texto normal al {settings?.theme?.fontScale || 100}%
+                              </Typography>
+                              <Typography 
+                                variant="caption" 
+                                sx={{ 
+                                  fontSize: `${12 * ((settings?.theme?.fontScale || 100) / 100)}px`,
+                                  color: theme.palette.text.secondary
+                                }}
+                              >
+                                Texto pequeño también se escala proporcionalmente
+                              </Typography>
+                            </Box>
                           </Box>
                         </Box>
 

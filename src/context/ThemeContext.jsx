@@ -21,15 +21,15 @@ const getTheme = (settings = {}) => {
   const borderRadius = settings?.theme?.borderRadius || 8;
   const fontFamily = settings?.theme?.fontFamily || 'Inter';
   const fontSize = settings?.theme?.fontSize || 14;
+  const fontScale = (settings?.theme?.fontScale || 100) / 100; // Convertir porcentaje a decimal
   const fontWeight = settings?.theme?.fontWeight || 400;
   // Leer compactMode desde sidebar (fuente principal) con fallback a theme
   const compactMode = settings?.sidebar?.compactMode !== undefined 
     ? settings.sidebar.compactMode 
     : (settings?.theme?.compactMode || false);
 
-  // Calcular escala de tamaños basada en el tamaño base
-  const baseFontSize = fontSize;
-  const fontScale = baseFontSize / 14; // Escala relativa a 14px como base
+  // Aplicar escala global a todos los tamaños de fuente
+  const scaledBaseFontSize = fontSize * fontScale;
 
   return createTheme({
     palette: {
@@ -77,11 +77,13 @@ const getTheme = (settings = {}) => {
     },
     // Campos custom para sandbox DS
     custom: {
-      gradientsV2
+      gradientsV2,
+      fontScale: fontScale, // Hacer disponible la escala para componentes
+      scaledBaseFontSize: scaledBaseFontSize // También el tamaño base escalado
     },
     typography: {
       fontFamily: `"${fontFamily}", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif`,
-      fontSize: baseFontSize,
+      fontSize: scaledBaseFontSize,
       fontWeightRegular: fontWeight,
       h1: {
         fontWeight: Math.max(fontWeight + 200, 800),
@@ -157,7 +159,8 @@ const getTheme = (settings = {}) => {
           root: {
             textTransform: 'none',
             borderRadius: borderRadius,
-            padding: compactMode ? '6px 16px' : '10px 24px',
+            padding: compactMode ? `${6 * fontScale}px ${16 * fontScale}px` : `${10 * fontScale}px ${24 * fontScale}px`,
+            fontSize: `${14 * fontScale}px`,
             fontWeight: 600,
             boxShadow: 'none',
             '&:hover': {
@@ -192,6 +195,12 @@ const getTheme = (settings = {}) => {
       MuiTextField: {
         styleOverrides: {
           root: {
+            '& .MuiInputBase-input': {
+              fontSize: `${14 * fontScale}px`,
+            },
+            '& .MuiInputLabel-root': {
+              fontSize: `${14 * fontScale}px`,
+            },
             '& .MuiOutlinedInput-root': {
               borderRadius: borderRadius,
               '&:hover .MuiOutlinedInput-notchedOutline': {
@@ -206,6 +215,7 @@ const getTheme = (settings = {}) => {
           root: {
             borderRadius: borderRadius / 2,
             fontWeight: 500,
+            fontSize: `${12 * fontScale}px`,
           },
         },
       },
@@ -215,11 +225,13 @@ const getTheme = (settings = {}) => {
             boxSizing: 'border-box',
           },
           html: {
-            backgroundColor: mode === 'light' ? '#e2e8f0' : '#0f172a', // Gris más oscuro y visible
-            transition: 'background-color 0.3s ease',
-            height: '100%',
+            fontSize: `${scaledBaseFontSize}px`, // Aplicar escala al html root
+            WebkitFontSmoothing: 'antialiased',
+            MozOsxFontSmoothing: 'grayscale',
           },
           body: {
+            fontSize: `${14 * fontScale}px`, // Aplicar escala al body
+            lineHeight: 1.5,
             backgroundColor: mode === 'light' ? '#e2e8f0 !important' : '#0f172a !important',
             color: mode === 'light' ? '#1e293b !important' : '#f8fafc !important',
             transition: 'background-color 0.3s ease, color 0.3s ease',

@@ -22,6 +22,7 @@ const defaultSettings = {
     borderRadius: 8, // Radio de bordes (4, 8, 12, 16)
     fontFamily: 'Inter', // Fuente principal
     fontSize: 14, // Tamaño de fuente base en px (12-18)
+    fontScale: 100, // Escala global de fuente en porcentaje (100%, 125%, 150%, 175%, 200%)
     fontWeight: 400, // Peso de fuente base (300, 400, 500, 600)
     backgroundType: 'gradient', // 'solid' | 'gradient' | 'pattern'
     backgroundPreset: 'modern-blue', // Preset de fondo seleccionado
@@ -811,6 +812,7 @@ const SettingsProvider = ({ children }) => {
           borderRadius: predefinedTheme.borderRadius,
           fontFamily: predefinedTheme.fontFamily,
           fontSize: predefinedTheme.fontSize,
+          fontScale: predefinedTheme.fontScale || 100, // Default 100% if not specified
           fontWeight: predefinedTheme.fontWeight,
           backgroundType: predefinedTheme.backgroundType,
           compactMode: predefinedTheme.compactMode,
