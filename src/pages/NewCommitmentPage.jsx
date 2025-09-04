@@ -200,6 +200,35 @@ const NewCommitmentPage = () => {
     invoiceFileNames: []
   });
 
+  // 📅 useEffect para manejar parámetros del calendario
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const fromCalendar = urlParams.get('fromCalendar');
+    
+    if (fromCalendar === 'true') {
+      const dateParam = urlParams.get('date');
+      const conceptParam = urlParams.get('concept');
+      const amountParam = urlParams.get('amount');
+      const companyParam = urlParams.get('company');
+
+      // Pre-llenar formulario con datos del calendario
+      setFormData(prev => ({
+        ...prev,
+        ...(dateParam && { dueDate: new Date(dateParam) }),
+        ...(conceptParam && { concept: decodeURIComponent(conceptParam) }),
+        ...(amountParam && { baseAmount: amountParam }),
+        ...(companyParam && { beneficiary: decodeURIComponent(companyParam) })
+      }));
+
+      // Mostrar notificación informativa
+      addNotification({
+        type: 'info',
+        message: 'Formulario pre-llenado desde el calendario',
+        duration: 3000
+      });
+    }
+  }, [location.search, addNotification]);
+
   // Estados para subida de archivo
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);

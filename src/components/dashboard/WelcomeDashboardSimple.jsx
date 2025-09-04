@@ -37,6 +37,7 @@ import { useFirestore } from '../../hooks/useFirestore';
 import { useCommitments } from '../../hooks/useFirestore';
 import { fCurrency } from '../../utils/formatNumber';
 import { useNavigate } from 'react-router-dom';
+import DashboardCalendar from './DashboardCalendar';
 
 const WelcomeDashboardSimple = () => {
   const theme = useTheme();
@@ -292,6 +293,17 @@ const WelcomeDashboardSimple = () => {
             </Grid>
           ))}
         </Grid>
+
+        {/* Calendario de Compromisos y Festivos */}
+        <Box sx={{ mb: 4 }}>
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+          >
+            <DashboardCalendar />
+          </motion.div>
+        </Box>
 
 
       </Box>
