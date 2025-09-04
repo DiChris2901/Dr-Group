@@ -23,6 +23,7 @@ import {
 } from '@mui/icons-material';
 import { useStorageStats } from '../../hooks/useStorageStats';
 import { useSettings } from '../../context/SettingsContext';
+import { useAuth } from '../../context/AuthContext';
 
 // Estilos CSS para animaciones spectacular
 const shimmerStyles = `
@@ -44,7 +45,13 @@ if (typeof document !== 'undefined' && !document.getElementById('storage-shimmer
 const StorageMenu = ({ anchorEl, open, onClose }) => {
   const theme = useTheme();
   const { settings } = useSettings();
+  const { currentUser, loading: authLoading } = useAuth();
   const storageStats = useStorageStats();
+  
+  // 🔒 No renderizar el menú si no hay usuario autenticado
+  if (!currentUser || authLoading) {
+    return null;
+  }
   
   // Configuraciones dinámicas del Design System
   const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;

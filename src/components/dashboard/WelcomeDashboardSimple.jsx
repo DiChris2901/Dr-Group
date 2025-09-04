@@ -1,34 +1,42 @@
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-    AccountBalance,
-    AttachMoney,
-    Business as BusinessIcon,
-    CheckCircle,
-    Refresh,
-    Warning
-} from '@mui/icons-material';
-import {
-    alpha,
-    Box,
-    Button,
-    Card,
-    CardContent,
-    Chip,
-    CircularProgress,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    Grid,
-    Typography,
-    useTheme
+  Box,
+  Grid,
+  Card,
+  CardContent,
+  Typography,
+  LinearProgress,
+  useTheme,
+  CircularProgress,
+  Alert,
+  Chip,
+  Button,
+  Divider,
+  Avatar,
+  IconButton,
+  Tooltip,
+  alpha,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
+import {
+  Warning,
+  CheckCircle,
+  AttachMoney,
+  Business as BusinessIcon,
+  AccountBalance,
+  Person,
+  Refresh
+} from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useDashboardStats } from '../../hooks/useDashboardStats';
+import { useFirestore } from '../../hooks/useFirestore';
 import { useCommitments } from '../../hooks/useFirestore';
 import { fCurrency } from '../../utils/formatNumber';
+import { useNavigate } from 'react-router-dom';
 
 const WelcomeDashboardSimple = () => {
   const theme = useTheme();

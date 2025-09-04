@@ -102,7 +102,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutos
 /**
  * Obtiene los datos del usuario desde Firebase
  */
-const getUserData = async (email) => {
+export const getUserData = async (email) => {
   const now = Date.now();
   const cacheKey = email.toLowerCase();
   
@@ -308,18 +308,4 @@ export const USER_STRUCTURE_EXAMPLE = {
     createdBy: 'admin_email',
     setupDate: 'timestamp'
   }
-};
-
-// Exportar todo para uso fácil
-export default {
-  PERMISSIONS,
-  PERMISSION_TRANSLATIONS,
-  USER_ROLES,
-  hasPermission,
-  hasAllPermissions,
-  hasAnyPermission,
-  getUserPermissions,
-  isAdmin,
-  getRolePermissions,
-  clearUserCache
 };

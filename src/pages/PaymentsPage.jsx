@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fCurrency } from '../utils/formatNumber';
+import { calculateMonthlyAccountBalance } from '../utils/monthlyBalanceUtils';
 import {
   Box,
   Paper,
@@ -99,6 +100,7 @@ import { usePayments, useCommitments } from '../hooks/useFirestore';
 import { doc, updateDoc, getDoc, deleteDoc, collection, query, orderBy, onSnapshot, addDoc, getDocs, where, deleteField } from 'firebase/firestore';
 import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
+import { managedOnSnapshot } from '../utils/listenerManager';
 // Componente temporal para agregar datos de prueba
 import AddSamplePayments from '../components/debug/AddSamplePayments';
 // Componente para visor de comprobantes de pago
@@ -723,7 +725,7 @@ const PaymentsPage = () => {
           orderBy('name', 'asc')
         );
         
-        const unsubscribe = onSnapshot(companiesQuery, (snapshot) => {
+        const unsubscribe = managedOnSnapshot(companiesQuery, (snapshot) => {
           const companiesData = [];
           snapshot.forEach((doc) => {
             const data = doc.data();
@@ -733,6 +735,9 @@ const PaymentsPage = () => {
             });
           });
           setCompanies(companiesData);
+          setLoadingCompanies(false);
+        }, (error) => {
+          console.error('Error en listener de empresas:', error);
           setLoadingCompanies(false);
         });
 
@@ -781,38 +786,35 @@ const PaymentsPage = () => {
     loadIncomes();
   }, [currentUser]);
 
-  // Cargar cuentas personales desde Firebase
-  useEffect(() => {
-    if (!currentUser?.uid) {
-      setPersonalAccounts([]);
-      return;
-    }
+// Cargar cuentas personales desde Firebase (GLOBALES - visibles para todos los usuarios)
+useEffect(() => {
+  // ✅ CAMBIO: Cargar TODAS las cuentas personales, no filtrar por usuario
+  const q = query(
+    collection(db, 'personal_accounts'),
+    orderBy('createdAt', 'desc')
+  );
 
-    const q = query(
-      collection(db, 'personal_accounts'),
-      where('userId', '==', currentUser.uid)
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const accounts = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          accounts.push({
-            id: doc.id,
-            ...data
-          });
+  const unsubscribe = onSnapshot(
+    q,
+    (snapshot) => {
+      const accounts = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        accounts.push({
+          id: doc.id,
+          ...data
         });
-        setPersonalAccounts(accounts);
-      },
-      (error) => {
-        console.error('Error cargando cuentas personales:', error);
-      }
-    );
+      });
+      console.log('🌍 [PaymentsPage] personal_accounts snapshot (GLOBAL) size:', accounts.length);
+      setPersonalAccounts(accounts);
+    },
+    (error) => {
+      console.error('Error cargando cuentas personales:', error);
+    }
+  );
 
-    return () => unsubscribe();
-  }, [currentUser]);
+  return () => unsubscribe();
+}, []); // ✅ Sin dependencia de currentUser
 
   const paginatedPayments = filteredPayments.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
@@ -1463,23 +1465,13 @@ const PaymentsPage = () => {
     }));
   };
 
-  // Función para calcular balance de una cuenta específica
+  // Función para calcular balance de una cuenta específica (SOLO MES ACTUAL - RESET MENSUAL)
   const calculateAccountBalance = (accountNumber) => {
-    // Ingresos para esta cuenta
-    const accountIncomes = incomes.filter(income => income.account === accountNumber);
-    const totalIncomes = accountIncomes.reduce((sum, income) => sum + (income.amount || 0), 0);
-
-    // Pagos desde esta cuenta (usando todos los pagos cargados)
-    const accountPayments = payments.filter(payment => payment.sourceAccount === accountNumber);
-    const totalPayments = accountPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
-
-    return {
-      incomes: totalIncomes,
-      payments: totalPayments,
-      balance: totalIncomes - totalPayments,
-      incomesCount: accountIncomes.length,
-      paymentsCount: accountPayments.length
-    };
+    // 🗓️ NUEVO: Usar utilidad de balance mensual para reset automático
+    // Calcular balance solo con transacciones del mes actual
+    const monthlyBalance = calculateMonthlyAccountBalance(accountNumber, incomes, payments);
+    
+    return monthlyBalance;
   };
 
   // Función para formatear moneda
@@ -3853,35 +3845,15 @@ const PaymentsPage = () => {
                       <em>Seleccionar cuenta bancaria</em>
                     </MenuItem>
                     {getBankAccounts().map((account, index) => {
-                      const balance = calculateAccountBalance(account.account);
-                      const balanceColor = balance.balance >= 0 ? 'success.main' : 'error.main';
-                      
                       return (
                         <MenuItem key={index} value={account.account}>
-                          <Stack direction="row" alignItems="center" justifyContent="space-between" width="100%">
-                            <Stack direction="column" alignItems="flex-start" flex={1}>
-                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                {account.account}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {account.bank} - {account.companyName} {account.type && `(${account.type})`}
-                              </Typography>
-                            </Stack>
-                            <Stack direction="column" alignItems="flex-end">
-                              <Typography 
-                                variant="body2" 
-                                sx={{ 
-                                  fontWeight: 600,
-                                  color: balanceColor,
-                                  fontSize: '0.875rem'
-                                }}
-                              >
-                                {formatCurrencyBalance(balance.balance)}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                Balance
-                              </Typography>
-                            </Stack>
+                          <Stack direction="column" alignItems="flex-start" width="100%">
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {account.account}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {account.bank} - {account.companyName} {account.type && `(${account.type})`}
+                            </Typography>
                           </Stack>
                         </MenuItem>
                       );

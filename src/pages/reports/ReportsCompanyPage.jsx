@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import useActivityLogs from '../../hooks/useActivityLogs';
 import ExcelJS from 'exceljs';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 import {
   Box,
   Card,
@@ -125,7 +127,12 @@ const ReportsCompanyPage = () => {
         const amount = parseFloat(c.totalAmount) || parseFloat(c.amount) || 0;
         return sum + amount;
       }, 0);
-      const completed = companyCommitments.filter(c => c.status === 'completed').length;
+      // ✅ CORRECCIÓN: Contar correctamente compromisos pagados
+      const completed = companyCommitments.filter(c => {
+        const isPaidByStatus = c.status === 'completed' || c.status === 'paid';
+        const isPaidByFlag = c.paid === true || c.isPaid === true;
+        return isPaidByStatus || isPaidByFlag;
+      }).length;
       const pending = companyCommitments.filter(c => c.status === 'pending').length;
       const overdue = companyCommitments.filter(c => c.status === 'overdue').length;
       
@@ -889,10 +896,28 @@ const ReportsCompanyPage = () => {
       ];
 
       // 📋 HOJA 4: COMPROMISOS COMPLETADOS DETALLADOS
-      const completedCommitments = commitments.filter(c => 
-        c.status === 'completed' && 
-        (selectedCompanies.length === 0 || selectedCompanies.includes(c.companyId))
-      );
+      // ✅ CORRECCIÓN: Incluir TODOS los compromisos pagados, no solo 'completed'
+      const completedCommitments = commitments.filter(c => {
+        const isSelectedCompany = selectedCompanies.length === 0 || selectedCompanies.includes(c.companyId);
+        const isPaidByStatus = c.status === 'completed' || c.status === 'paid';
+        const isPaidByFlag = c.paid === true || c.isPaid === true;
+        const isPaidCommitment = isPaidByStatus || isPaidByFlag;
+        
+        return isSelectedCompany && isPaidCommitment;
+      });
+      
+      console.log(`� [EXCEL DEBUG] Compromisos filtrados para exportación:`, {
+        totalCommitments: commitments.length,
+        selectedCompanies: selectedCompanies.length === 0 ? 'TODAS' : selectedCompanies.length,
+        completedCommitments: completedCommitments.length,
+        sampleCompleted: completedCommitments.slice(0, 3).map(c => ({
+          id: c.id,
+          concept: c.concept,
+          status: c.status,
+          paid: c.paid,
+          isPaid: c.isPaid
+        }))
+      });
       
       if (completedCommitments.length > 0) {
         const completedSheet = workbook.addWorksheet('Compromisos Completados');
@@ -1023,36 +1048,127 @@ const ReportsCompanyPage = () => {
       }
 
       // 📋 HOJA 5: COMPROMISOS PENDIENTES DETALLADOS
-      const pendingCommitments = commitments.filter(c => 
-        c.status === 'pending' && 
-        (selectedCompanies.length === 0 || selectedCompanies.includes(c.companyId))
+      // ✅ NUEVA LÓGICA: Obtener pagos de cada compromiso para determinar correctamente los pendientes
+      const commitmentsWithPayments = await Promise.all(
+        commitments.map(async (commitment) => {
+          try {
+            const paymentsQuery = query(
+              collection(db, 'payments'),
+              where('commitmentId', '==', commitment.id)
+            );
+            const paymentsSnapshot = await getDocs(paymentsQuery);
+            const payments = paymentsSnapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            }));
+            
+            const totalPaid = payments.reduce((sum, payment) => {
+              // Excluir pagos de impuestos 4x1000
+              if (payment.is4x1000Tax) return sum;
+              return sum + (parseFloat(payment.amount) || 0);
+            }, 0);
+            
+            const originalAmount = parseFloat(commitment.totalAmount) || parseFloat(commitment.amount) || 0;
+            const remainingBalance = Math.max(0, originalAmount - totalPaid);
+            
+            // ✅ LÓGICA MÁS ESTRICTA: Un compromiso está completamente pagado si:
+            // 1. El saldo restante es <= 0.01 (tolerancia de centavos) O
+            // 2. Tiene flags de pagado en el documento O
+            // 3. Su status indica que está pagado
+            const isCompletelyPaid = remainingBalance <= 0.01 || 
+                                   commitment.paid === true || 
+                                   commitment.isPaid === true || 
+                                   commitment.status === 'paid' || 
+                                   commitment.status === 'completed';
+            
+            const hasPayments = payments.length > 0;
+            
+            return {
+              ...commitment,
+              payments,
+              totalPaid,
+              remainingBalance,
+              isCompletelyPaid,
+              hasPayments
+            };
+          } catch (error) {
+            console.error('Error obteniendo pagos para compromiso:', commitment.id, error);
+            return {
+              ...commitment,
+              payments: [],
+              totalPaid: 0,
+              remainingBalance: parseFloat(commitment.totalAmount) || parseFloat(commitment.amount) || 0,
+              isCompletelyPaid: false,
+              hasPayments: false
+            };
+          }
+        })
       );
+      
+      // ✅ FILTRO CORRECTO PARA PENDIENTES: Solo compromisos que NO están completamente pagados
+      // Incluye compromisos sin pagos y con pagos parciales
+      const pendingCommitments = commitmentsWithPayments.filter(c => {
+        const isSelectedCompany = selectedCompanies.length === 0 || selectedCompanies.includes(c.companyId);
+        const isNotCompletelyPaid = !c.isCompletelyPaid;
+        return isSelectedCompany && isNotCompletelyPaid;
+      });
+      
+      console.log(`📊 [EXCEL PENDIENTES] Debug filtros detallado:`, {
+        totalCommitments: commitments.length,
+        commitmentsWithPayments: commitmentsWithPayments.length,
+        pendingCommitments: pendingCommitments.length,
+        completedCommitments: commitmentsWithPayments.filter(c => c.isCompletelyPaid).length,
+        samplePending: pendingCommitments.slice(0, 3).map(c => ({
+          id: c.id,
+          concept: c.concept,
+          totalPaid: c.totalPaid,
+          remainingBalance: c.remainingBalance,
+          isCompletelyPaid: c.isCompletelyPaid,
+          hasPayments: c.hasPayments,
+          paymentsCount: c.payments.length,
+          status: c.status,
+          paid: c.paid,
+          isPaid: c.isPaid
+        })),
+        sampleCompleted: commitmentsWithPayments.filter(c => c.isCompletelyPaid).slice(0, 3).map(c => ({
+          id: c.id,
+          concept: c.concept,
+          totalPaid: c.totalPaid,
+          remainingBalance: c.remainingBalance,
+          isCompletelyPaid: c.isCompletelyPaid,
+          status: c.status,
+          paid: c.paid,
+          isPaid: c.isPaid
+        }))
+      });
       
       if (pendingCommitments.length > 0) {
         const pendingSheet = workbook.addWorksheet('Compromisos Pendientes');
         
-        // Header
-        pendingSheet.mergeCells('A1:N1');
+        // Header - Expandir para incluir información de pagos individuales
+        pendingSheet.mergeCells('A1:S1');
         const pendingTitleCell = pendingSheet.getCell('A1');
-        pendingTitleCell.value = '⏳ COMPROMISOS PENDIENTES - DETALLE FINANCIERO';
+        pendingTitleCell.value = '⏳ COMPROMISOS PENDIENTES - DETALLE FINANCIERO Y PAGOS PARCIALES';
         pendingTitleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
         pendingTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF57C00' } };
         pendingTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
         pendingSheet.getRow(1).height = 30;
 
         // Subtítulo
-        pendingSheet.mergeCells('A2:N2');
+        pendingSheet.mergeCells('A2:S2');
         const pendingSubtitleCell = pendingSheet.getCell('A2');
-        pendingSubtitleCell.value = `Total compromisos pendientes: ${pendingCommitments.length} | Monto total: ${formatCurrency(pendingCommitments.reduce((sum, c) => sum + (parseFloat(c.totalAmount) || parseFloat(c.amount) || 0), 0))}`;
+        const totalPendingAmount = pendingCommitments.reduce((sum, c) => sum + c.remainingBalance, 0);
+        pendingSubtitleCell.value = `Total compromisos pendientes: ${pendingCommitments.length} | Saldo pendiente total: ${formatCurrency(totalPendingAmount)}`;
         pendingSubtitleCell.font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FFF57C00' } };
         pendingSubtitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3E0' } };
         pendingSubtitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
         pendingSheet.getRow(2).height = 22;
 
-        // Headers detallados (sin fecha/método de pago)
+        // Headers detallados - Estructura expandida para pagos individuales
         const pendingHeaders = [
           'EMPRESA', 'BENEFICIARIO/PROVEEDOR', 'NIT', 'CONCEPTO', 'VALOR BASE', 'IVA', 'RETEFUENTE', 
-          'ICA', 'DERECHOS EXPLOTACIÓN', 'GASTOS ADMIN', 'INTERESES', 'DESCUENTOS', 'VALOR TOTAL', 'FECHA VENCIMIENTO'
+          'ICA', 'DERECHOS EXPLOTACIÓN', 'GASTOS ADMIN', 'INTERESES', 'DESCUENTOS', 'VALOR TOTAL', 
+          'TOTAL PAGADO', 'SALDO PENDIENTE', 'VALOR PAGO', 'FECHA PAGO', 'MÉTODO PAGO', 'FECHA VENCIMIENTO'
         ];
         
         const pendingHeaderRow = pendingSheet.getRow(4);
@@ -1069,11 +1185,12 @@ const ReportsCompanyPage = () => {
         });
         pendingHeaderRow.height = 25;
 
-        // Datos detallados de compromisos pendientes
+        // Datos detallados de compromisos pendientes - CADA PAGO EN FILA SEPARADA
         let pendingTotal = 0;
-        pendingCommitments.forEach((commitment, index) => {
+        let rowIndex = 5;
+        
+        pendingCommitments.forEach((commitment, commitmentIndex) => {
           const company = companiesData.find(comp => comp.id === commitment.companyId);
-          const row = pendingSheet.getRow(5 + index);
           
           const baseAmount = parseFloat(commitment.baseAmount) || parseFloat(commitment.amount) || 0;
           const iva = parseFloat(commitment.iva) || 0;
@@ -1085,81 +1202,193 @@ const ReportsCompanyPage = () => {
           const descuentos = parseFloat(commitment.discount) || 0;
           const totalAmount = parseFloat(commitment.totalAmount) || baseAmount;
           
-          pendingTotal += totalAmount;
+          pendingTotal += commitment.remainingBalance;
           
-          const rowData = [
-            company?.name || 'N/A',
-            commitment.beneficiary || 'N/A',
-            commitment.beneficiaryNit || 'N/A',
-            commitment.concept || 'N/A',
-            baseAmount,
-            iva,
-            retefuente,
-            ica,
-            derechosExplotacion,
-            gastosAdmin,
-            intereses,
-            descuentos,
-            totalAmount,
-            commitment.dueDate ? new Date(commitment.dueDate.toDate ? commitment.dueDate.toDate() : commitment.dueDate).toLocaleDateString('es-ES') : 'N/A'
-          ];
-          
-          rowData.forEach((value, colIndex) => {
-            const cell = row.getCell(colIndex + 1);
-            cell.value = value;
+          // ✅ LÓGICA NUEVA: Si tiene pagos, mostrar cada pago en fila separada
+          if (commitment.payments && commitment.payments.length > 0) {
+            commitment.payments.forEach((payment, paymentIndex) => {
+              if (payment.is4x1000Tax) return; // Saltar impuestos 4x1000
+              
+              const row = pendingSheet.getRow(rowIndex);
+              const isFirstPayment = paymentIndex === 0;
+              
+              // Solo mostrar datos del compromiso en la primera fila de pagos
+              const rowData = [
+                isFirstPayment ? (company?.name || 'N/A') : '', // EMPRESA
+                isFirstPayment ? (commitment.beneficiary || 'N/A') : '', // BENEFICIARIO
+                isFirstPayment ? (commitment.beneficiaryNit || 'N/A') : '', // NIT
+                isFirstPayment ? (commitment.concept || 'N/A') : '', // CONCEPTO
+                isFirstPayment ? baseAmount : '', // VALOR BASE
+                isFirstPayment ? iva : '', // IVA
+                isFirstPayment ? retefuente : '', // RETEFUENTE
+                isFirstPayment ? ica : '', // ICA
+                isFirstPayment ? derechosExplotacion : '', // DERECHOS EXPLOTACIÓN
+                isFirstPayment ? gastosAdmin : '', // GASTOS ADMIN
+                isFirstPayment ? intereses : '', // INTERESES
+                isFirstPayment ? descuentos : '', // DESCUENTOS
+                isFirstPayment ? totalAmount : '', // VALOR TOTAL
+                isFirstPayment ? commitment.totalPaid : '', // TOTAL PAGADO
+                isFirstPayment ? commitment.remainingBalance : '', // SALDO PENDIENTE
+                parseFloat(payment.amount) || 0, // VALOR PAGO
+                payment.date ? new Date(payment.date.toDate ? payment.date.toDate() : payment.date).toLocaleDateString('es-ES') : 'S/F', // FECHA PAGO
+                payment.method || payment.paymentMethod || 'N/A', // MÉTODO PAGO
+                isFirstPayment ? (commitment.dueDate ? new Date(commitment.dueDate.toDate ? commitment.dueDate.toDate() : commitment.dueDate).toLocaleDateString('es-ES') : 'N/A') : '' // FECHA VENCIMIENTO
+              ];
+              
+              rowData.forEach((value, colIndex) => {
+                const cell = row.getCell(colIndex + 1);
+                cell.value = value;
+                
+                // Formateo visual
+                const bgColor = (commitmentIndex % 2 === 0) ? 'FFFFFBF0' : 'FFFFFFFF';
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+                cell.font = { name: 'Arial', size: 9, color: { argb: 'FF424242' } };
+                
+                // Formateo específico por columna
+                if (colIndex <= 3 || colIndex >= 16) { // Texto
+                  cell.alignment = { horizontal: 'left', vertical: 'center' };
+                } else if (colIndex >= 4 && colIndex <= 15) { // Valores monetarios
+                  cell.alignment = { horizontal: 'right', vertical: 'center' };
+                  if (typeof value === 'number' && value > 0) {
+                    cell.numFmt = '#,##0.00';
+                    // Resaltar pagos realizados
+                    if (colIndex === 15) { // VALOR PAGO
+                      cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF2E7D32' } };
+                    } else if (colIndex === 13 || colIndex === 14) { // TOTAL PAGADO y SALDO PENDIENTE
+                      cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: colIndex === 13 ? 'FF2E7D32' : 'FFF57C00' } };
+                    }
+                  }
+                } else {
+                  cell.alignment = { horizontal: 'center', vertical: 'center' };
+                }
+                
+                cell.border = {
+                  top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                  bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                  left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                  right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+                };
+              });
+              row.height = 18;
+              rowIndex++;
+            });
+          } else {
+            // ✅ Compromiso sin pagos - mostrar fila normal
+            const row = pendingSheet.getRow(rowIndex);
+            const rowData = [
+              company?.name || 'N/A',
+              commitment.beneficiary || 'N/A',
+              commitment.beneficiaryNit || 'N/A',
+              commitment.concept || 'N/A',
+              baseAmount,
+              iva,
+              retefuente,
+              ica,
+              derechosExplotacion,
+              gastosAdmin,
+              intereses,
+              descuentos,
+              totalAmount,
+              0, // TOTAL PAGADO
+              commitment.remainingBalance, // SALDO PENDIENTE
+              '', // VALOR PAGO
+              '', // FECHA PAGO
+              '', // MÉTODO PAGO
+              commitment.dueDate ? new Date(commitment.dueDate.toDate ? commitment.dueDate.toDate() : commitment.dueDate).toLocaleDateString('es-ES') : 'N/A'
+            ];
             
-            const bgColor = (index % 2 === 0) ? 'FFFFFBF0' : 'FFFFFFFF';
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
-            cell.font = { name: 'Arial', size: 9, color: { argb: 'FF424242' } };
-            
-            if (colIndex === 0 || colIndex === 1 || colIndex === 3) {
-              cell.alignment = { horizontal: 'left', vertical: 'center' };
-            } else if (colIndex >= 4 && colIndex <= 12) {
-              cell.alignment = { horizontal: 'right', vertical: 'center' };
-              cell.numFmt = '#,##0.00';
-              if (typeof value === 'number' && value > 0) {
-                cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FFF57C00' } };
+            rowData.forEach((value, colIndex) => {
+              const cell = row.getCell(colIndex + 1);
+              cell.value = value;
+              
+              const bgColor = (commitmentIndex % 2 === 0) ? 'FFFFFBF0' : 'FFFFFFFF';
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+              cell.font = { name: 'Arial', size: 9, color: { argb: 'FF424242' } };
+              
+              if (colIndex <= 3 || colIndex >= 16) {
+                cell.alignment = { horizontal: 'left', vertical: 'center' };
+              } else if (colIndex >= 4 && colIndex <= 15) {
+                cell.alignment = { horizontal: 'right', vertical: 'center' };
+                if (typeof value === 'number' && value > 0) {
+                  cell.numFmt = '#,##0.00';
+                  if (colIndex === 14) { // SALDO PENDIENTE
+                    cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FFF57C00' } };
+                  }
+                }
+              } else {
+                cell.alignment = { horizontal: 'center', vertical: 'center' };
               }
-            } else {
-              cell.alignment = { horizontal: 'center', vertical: 'center' };
-            }
-            
-            cell.border = {
-              top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-              bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-              left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-              right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
-            };
-          });
-          row.height = 18;
+              
+              cell.border = {
+                top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
+                right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+              };
+            });
+            row.height = 18;
+            rowIndex++;
+          }
         });
 
         // Fila de totales
-        const totalPendingRow = pendingSheet.getRow(5 + pendingCommitments.length);
-        totalPendingRow.getCell(1).value = 'TOTAL PENDIENTES';
+        const totalPendingRow = pendingSheet.getRow(rowIndex);
+        totalPendingRow.getCell(1).value = 'TOTAL SALDOS PENDIENTES';
         totalPendingRow.getCell(1).font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
         totalPendingRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF57C00' } };
         totalPendingRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
         
-        totalPendingRow.getCell(13).value = pendingTotal;
-        totalPendingRow.getCell(13).font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
-        totalPendingRow.getCell(13).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF57C00' } };
-        totalPendingRow.getCell(13).numFmt = '$#,##0.00';
-        totalPendingRow.getCell(13).alignment = { horizontal: 'right', vertical: 'middle' };
+        // Total de saldos pendientes en columna 15 (SALDO PENDIENTE)
+        totalPendingRow.getCell(15).value = pendingTotal;
+        totalPendingRow.getCell(15).font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
+        totalPendingRow.getCell(15).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF57C00' } };
+        totalPendingRow.getCell(15).numFmt = '$#,##0.00';
+        totalPendingRow.getCell(15).alignment = { horizontal: 'right', vertical: 'middle' };
         
-        // Configurar anchos de columna
+        // Configurar anchos de columna optimizados para la nueva estructura con pagos individuales
         pendingSheet.columns = [
-          { width: 20 }, { width: 25 }, { width: 15 }, { width: 25 }, { width: 15 },
-          { width: 12 }, { width: 12 }, { width: 12 }, { width: 15 }, { width: 12 },
-          { width: 12 }, { width: 12 }, { width: 15 }, { width: 15 }
+          { width: 20 }, // EMPRESA
+          { width: 25 }, // BENEFICIARIO/PROVEEDOR
+          { width: 15 }, // NIT
+          { width: 25 }, // CONCEPTO
+          { width: 15 }, // VALOR BASE
+          { width: 12 }, // IVA
+          { width: 12 }, // RETEFUENTE
+          { width: 12 }, // ICA
+          { width: 15 }, // DERECHOS EXPLOTACIÓN
+          { width: 12 }, // GASTOS ADMIN
+          { width: 12 }, // INTERESES
+          { width: 12 }, // DESCUENTOS
+          { width: 15 }, // VALOR TOTAL
+          { width: 15 }, // TOTAL PAGADO
+          { width: 15 }, // SALDO PENDIENTE
+          { width: 15 }, // VALOR PAGO
+          { width: 15 }, // FECHA PAGO
+          { width: 18 }, // MÉTODO PAGO
+          { width: 15 }  // FECHA VENCIMIENTO
         ];
       }
 
       // 📋 HOJA 6: COMPROMISOS VENCIDOS DETALLADOS
-      const overdueCommitments = commitments.filter(c => 
-        c.status === 'overdue' && 
-        (selectedCompanies.length === 0 || selectedCompanies.includes(c.companyId))
-      );
+      // ✅ NUEVA LÓGICA: Solo compromisos SIN pagos y vencidos por fecha
+      const overdueCommitments = commitmentsWithPayments.filter(c => {
+        const isSelectedCompany = selectedCompanies.length === 0 || selectedCompanies.includes(c.companyId);
+        const hasNoPayments = !c.hasPayments; // Sin pagos en absoluto
+        const isOverdueByDate = c.dueDate && new Date(c.dueDate.toDate ? c.dueDate.toDate() : c.dueDate) < new Date();
+        return isSelectedCompany && hasNoPayments && isOverdueByDate;
+      });
+      
+      console.log(`📊 [EXCEL VENCIDOS] Debug filtros:`, {
+        totalCommitmentsWithPayments: commitmentsWithPayments.length,
+        overdueCommitments: overdueCommitments.length,
+        sample: overdueCommitments.slice(0, 3).map(c => ({
+          id: c.id,
+          concept: c.concept,
+          hasPayments: c.hasPayments,
+          dueDate: c.dueDate,
+          isOverdueByDate: c.dueDate && new Date(c.dueDate.toDate ? c.dueDate.toDate() : c.dueDate) < new Date()
+        }))
+      });
       
       if (overdueCommitments.length > 0) {
         const overdueSheet = workbook.addWorksheet('Compromisos Vencidos');

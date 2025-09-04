@@ -362,29 +362,35 @@ const NewPaymentPage = () => {
     formData.interesesGastosAdministracion
   ]);
 
-  // Cargar cuentas personales desde Firebase
+  // Cargar cuentas personales desde Firebase (GLOBALES - visibles para todos los usuarios)
   useEffect(() => {
-    if (!user?.uid) {
-      setPersonalAccounts([]);
-      return;
-    }
-
+    // ✅ CAMBIO: Cargar TODAS las cuentas personales, no filtrar por usuario
     const q = query(
       collection(db, 'personal_accounts'),
-      where('userId', '==', user.uid)
+      orderBy('createdAt', 'desc')
     );
 
     const unsubscribe = onSnapshot(
       q,
-      (snapshot) => {
-        const accounts = [];
-        snapshot.forEach((doc) => {
+      async (snapshot) => {
+        console.log('🌍 [NewPaymentPage] personal_accounts snapshot (GLOBAL) size:', snapshot.size);
+        let accounts = snapshot.docs.map(doc => {
           const data = doc.data();
-          accounts.push({
+          return {
             id: doc.id,
-            ...data
-          });
+            ...data,
+            bankName: data.bankName || data.bank || data.bank_name || '',
+            bank: data.bank || data.bankName || data.bank_name || '',
+            accountNumber: data.accountNumber || data.account || data.bankAccount || '',
+            accountOwner: data.accountOwner || data.holderName || data.ownerName || '',
+            holderName: data.holderName || data.accountOwner || data.ownerName || '',
+            currentBalance: typeof data.currentBalance === 'number' ? data.currentBalance : 0,
+            accountType: data.accountType || 'Cuenta Personal',
+            rawUserId: data.userId,
+            rawUserID: data.userID
+          };
         });
+
         setPersonalAccounts(accounts);
       },
       (error) => {
@@ -393,7 +399,7 @@ const NewPaymentPage = () => {
     );
 
     return () => unsubscribe();
-  }, [user]);
+  }, []); // ✅ Sin dependencia de user
 
   const loadPendingCommitments = async () => {
     try {
@@ -629,25 +635,34 @@ const NewPaymentPage = () => {
   const getBankAccounts = () => {
     // Cuentas empresariales
     const businessAccounts = companies
-      .filter(company => company.bankAccount && company.bankName)
-      .map(company => ({
-        id: company.id,
-        type: 'business',
-        companyName: company.name,
-        bankAccount: company.bankAccount,
-        bankName: company.bankName,
-        displayText: `${company.bankAccount} - ${company.bankName} (${company.name})`
-      }));
+      .filter(company => (company.bankAccount || company.accountNumber) && (company.bankName || company.bank))
+      .map(company => {
+        const bankAccount = company.bankAccount || company.accountNumber || '';
+        const bankName = company.bankName || company.bank || '';
+        return {
+          id: company.id,
+            type: 'business',
+            companyName: company.name,
+            bankAccount,
+            bankName,
+            displayText: `${bankAccount} - ${bankName} (${company.name})`
+        };
+      });
 
-    // Cuentas personales  
-    const personalAccountsList = personalAccounts.map(account => ({
-      id: account.id,
-      type: 'personal',
-      companyName: account.holderName,
-      bankAccount: account.accountNumber, // Mapear accountNumber a bankAccount para consistencia
-      bankName: account.bankName,
-      displayText: `${account.accountNumber} - ${account.bankName} (${account.holderName})`
-    }));
+    // Cuentas personales normalizadas
+    const personalAccountsList = personalAccounts.map(account => {
+      const bankAccount = account.accountNumber || account.bankAccount || account.account || '';
+      const bankName = account.bankName || account.bank || '';
+      const owner = account.holderName || account.accountOwner || account.ownerName || 'Titular';
+      return {
+        id: account.id,
+        type: 'personal',
+        companyName: owner,
+        bankAccount,
+        bankName,
+        displayText: `${bankAccount} - ${bankName} (${owner})`
+      };
+    });
 
     return [...businessAccounts, ...personalAccountsList];
   };

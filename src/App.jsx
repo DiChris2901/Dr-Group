@@ -44,11 +44,11 @@ import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
 // Módulo de Auditoría
 import ActivityLogsPage from './pages/ActivityLogsPage';
 
+// Verificador de Acceso Admin
+import AdminAccessVerifierPage from './pages/AdminAccessVerifierPage';
+
 // Centro de Alertas
 import AlertsCenterPage from './pages/AlertsCenterPage';
-
-// Administración avanzada
-import OrphanFilesPage from './pages/OrphanFilesPage';
 
 // Hook de autenticación
 import { useAuth } from './context/AuthContext';
@@ -254,10 +254,10 @@ const DashboardLayout = () => {
         }
       />
       <Route 
-        path="/admin/orphan-files" 
+        path="/admin/access-verifier" 
         element={
-          <MainLayout title="Limpieza de Storage" breadcrumbs={['Administración', 'Archivos Huérfanos']}>
-            <OrphanFilesPage />
+          <MainLayout title="Verificador de Acceso Admin" breadcrumbs={['Administración', 'Acceso Admin']}>
+            <AdminAccessVerifierPage />
           </MainLayout>
         }
       />

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth, db } from '../config/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { clearAllListeners } from '../utils/listenerManager';
 
 // Helper function para logs de auditoría (no podemos usar hooks dentro del provider)
 const logAuthActivity = async (action, userId, details = {}) => {
@@ -150,6 +151,10 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       const userId = currentUser?.uid;
+      
+      // 🧹 Limpiar listeners ANTES del signOut para evitar permission-denied
+      console.log('🧹 Limpiando listeners antes del logout...');
+      clearAllListeners();
       
       // 🆕 Limpiar sesiones activas antes de cerrar sesión
       if (userId) {
@@ -454,6 +459,9 @@ export const AuthProvider = ({ children }) => {
       if (user) {
         await loadUserProfile(user);
       } else {
+        // 🧹 Limpiar listeners cuando el usuario se desautentica
+        console.log('🧹 Usuario desautenticado, limpiando listeners...');
+        clearAllListeners();
         setUserProfile(null);
       }
       

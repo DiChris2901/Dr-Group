@@ -274,16 +274,12 @@ const IncomePage = () => {
     return () => unsubscribe();
   }, [currentUser]);
 
-  // Cargar cuentas personales desde Firebase
+  // Cargar cuentas personales desde Firebase (GLOBALES - visibles para todos los usuarios)
   useEffect(() => {
-    if (!currentUser?.uid) {
-      setPersonalAccounts([]);
-      return;
-    }
-
+    // ✅ CAMBIO: Cargar TODAS las cuentas personales, no filtrar por usuario
     const q = query(
       collection(db, 'personal_accounts'),
-      where('userId', '==', currentUser.uid)
+      orderBy('createdAt', 'desc')
     );
 
     const unsubscribe = onSnapshot(
@@ -297,6 +293,7 @@ const IncomePage = () => {
             ...data
           });
         });
+        console.log('🌍 [IncomePage] personal_accounts snapshot (GLOBAL) size:', accounts.length);
         setPersonalAccounts(accounts);
       },
       (error) => {
@@ -305,7 +302,7 @@ const IncomePage = () => {
     );
 
     return () => unsubscribe();
-  }, [currentUser]);
+  }, []); // ✅ Sin dependencia de currentUser
 
   // Calcular estadÃ­sticas
   const stats = React.useMemo(() => {

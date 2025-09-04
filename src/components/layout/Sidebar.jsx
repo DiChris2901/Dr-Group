@@ -181,6 +181,13 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       color: '#9c27b0'
     },
     {
+      title: 'Verificador Acceso Admin',
+      icon: Analytics,
+      path: '/admin/access-verifier',
+      color: '#ff9800',
+      adminOnly: true // Solo para administradores específicos
+    },
+    {
       title: 'Limpieza de Storage',
       icon: DeleteSweep,
       path: '/admin/orphan-files',

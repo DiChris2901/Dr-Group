@@ -6,6 +6,17 @@ service firebase.storage {
       allow read, write: if request.auth != null;
     }
     
+    // Logos públicos (necesarios para pantalla de login)
+    match /logos/{fileName} {
+      allow read: if true;
+      allow write: if request.auth != null && 
+        request.auth.token.email in [
+          'admin@drgroup.com', 
+          'diego@drgroup.com',
+          'daruedagu@gmail.com'
+        ];
+    }
+    
     // Carpeta específica para comprobantes - ADMINISTRADORES pueden ver todos los archivos
     match /receipts/{userId}/{fileName} {
       allow read, write: if request.auth != null && 

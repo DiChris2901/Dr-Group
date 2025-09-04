@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import useActivityLogs from '../hooks/useActivityLogs';
+import { calculateMonthlyAccountBalance } from '../utils/monthlyBalanceUtils';
 import {
   Box,
   Paper,
@@ -196,37 +197,48 @@ const BankAccountsPage = () => {
     };
   }, [currentUser]);
 
-  // Cargar cuentas personales
+  // Cargar cuentas personales (GLOBALES - visibles para todos los usuarios)
   useEffect(() => {
-    if (!currentUser?.uid) {
-      setPersonalAccounts([]);
-      return;
-    }
-
+    // ✅ CAMBIO: Cargar TODAS las cuentas personales, no filtrar por usuario
     const q = query(
       collection(db, 'personal_accounts'),
-      where('userId', '==', currentUser.uid)
+      orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const accounts = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      // Ordenar en el cliente
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      console.log('🌍 [BankAccountsPage] Personal accounts snapshot (GLOBAL) size:', snapshot.size);
+      let accounts = snapshot.docs.map(doc => {
+        const data = doc.data();
+        const normalized = {
+          id: doc.id,
+          ...data,
+          bankName: data.bankName || data.bank || data.bank_name || '',
+          bank: data.bank || data.bankName || data.bank_name || '',
+          accountNumber: data.accountNumber || data.account || data.bankAccount || '',
+          accountOwner: data.accountOwner || data.holderName || data.ownerName || '',
+          holderName: data.holderName || data.accountOwner || data.ownerName || '',
+          currentBalance: typeof data.currentBalance === 'number' ? data.currentBalance : 0,
+          accountType: data.accountType || 'Cuenta Personal',
+          rawUserId: data.userId,
+          rawUserID: data.userID
+        };
+        return normalized;
+      });
+
       accounts.sort((a, b) => {
-        if (a.bank !== b.bank) return a.bank.localeCompare(b.bank);
+        if ((a.bankName || '').localeCompare(b.bankName || '') !== 0) {
+          return (a.bankName || '').localeCompare(b.bankName || '');
+        }
         return (a.accountNumber || '').localeCompare(b.accountNumber || '');
       });
-      
+
       setPersonalAccounts(accounts);
     }, (error) => {
       console.error('Error loading personal accounts:', error);
     });
 
     return () => unsubscribe();
-  }, [currentUser?.uid]);
+  }, []); // ✅ Sin dependencia de currentUser
 
   // Calcular estadísticas globales para el header
   const stats = React.useMemo(() => {
@@ -254,10 +266,15 @@ const BankAccountsPage = () => {
   };
 
   // Calcular balance por cuenta
+  // 🗓️ FUNCIÓN TEMPORAL - CALCULAR BALANCE MENSUAL
+  const calculateMonthlyBalance = (accountNumber) => {
+    return calculateMonthlyAccountBalance(accountNumber, incomes, payments);
+  };
+
   const calculateAccountBalance = (accountNumber) => {
-    // Ingresos para esta cuenta
-    const accountIncomes = incomes.filter(income => income.account === accountNumber);
-    const totalIncomes = accountIncomes.reduce((sum, income) => sum + (income.amount || 0), 0);
+    // 🗓️ NUEVO: Usar utilidad de balance mensual para reset automático
+    // Calcular balance solo con transacciones del mes actual
+    return calculateMonthlyAccountBalance(accountNumber, incomes, payments);
 
     // Pagos desde esta cuenta (excluyendo 4x1000)
     const accountPayments = payments.filter(payment => 
@@ -271,14 +288,18 @@ const BankAccountsPage = () => {
     );
     const total4x1000 = account4x1000.reduce((sum, payment) => sum + (payment.amount || 0), 0);
 
-    // Debug logging para cuentas específicas
-    if (account4x1000.length > 0) {
-      console.log(`🔍 Debug Account ${accountNumber} 4x1000:`, {
-        account4x1000: account4x1000.length,
-        total4x1000: total4x1000,
-        sampleTax: account4x1000[0]
-      });
-    }
+    // 🔍 DEBUG: Log para cuentas personales
+    console.log(`� [DEBUG] Balance para cuenta ${accountNumber}:`, {
+      accountNumber,
+      totalIncomes,
+      totalPayments,
+      total4x1000,
+      finalBalance: totalIncomes - totalPayments - total4x1000,
+      incomesCount: accountIncomes.length,
+      paymentsCount: accountPayments.length,
+      sampleIncome: accountIncomes[0],
+      samplePayment: accountPayments[0]
+    });
 
     return {
       incomes: totalIncomes,
@@ -346,7 +367,7 @@ const BankAccountsPage = () => {
 
   // Abrir modal de movimientos
   const handleOpenMovementsModal = (account) => {
-    const balance = calculateAccountBalance(account.account);
+    const balance = calculateMonthlyBalance(account.account);
     const movements = getAccountMovements(account.account);
     
     setSelectedAccountForModal(account);
@@ -669,7 +690,7 @@ const BankAccountsPage = () => {
         {companies.length > 0 ? (
           <Grid container spacing={3}>
             {companies.map((company) => {
-                const balance = calculateAccountBalance(company.bankAccount);
+                const balance = calculateMonthlyBalance(company.bankAccount);
                 return (
                   <Grid item xs={12} sm={6} md={4} key={company.id}>
                   <Card sx={{
@@ -868,16 +889,22 @@ const BankAccountsPage = () => {
 
                     {/* Balance */}
                     <Box mb={2}>
-                      <Typography 
-                        variant="h4" 
-                        sx={{ 
-                          fontWeight: 600,
-                          color: (account.currentBalance || 0) >= 0 ? 'success.main' : 'error.main',
-                          mb: 1
-                        }}
-                      >
-                        {fCurrency(account.currentBalance || 0)}
-                      </Typography>
+                      {(() => {
+                        // ✅ CORRECCIÓN: Calcular balance dinámicamente como las cuentas empresariales
+                        const balance = calculateMonthlyBalance(account.accountNumber);
+                        return (
+                          <Typography 
+                            variant="h4" 
+                            sx={{ 
+                              fontWeight: 600,
+                              color: balance.balance >= 0 ? 'success.main' : 'error.main',
+                              mb: 1
+                            }}
+                          >
+                            {fCurrency(balance.balance)}
+                          </Typography>
+                        );
+                      })()}
                       <Chip
                         label="Personal"
                         size="small"

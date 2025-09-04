@@ -700,6 +700,11 @@ const UserManagementPage = () => {
         'generate_reports',
         'export_data'
       ],
+      'Empresas': [
+        'view_company_data',
+        'manage_companies',
+        'assign_companies'
+      ],
       'Administración': [
         'manage_users',
         'view_users',

@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { getStorage, ref, listAll, getMetadata } from 'firebase/storage';
 import { collection, getDocs, getDoc, doc } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { useAuth } from '../context/AuthContext';
 
 export const useStorageStats = () => {
+  const { currentUser, loading: authLoading } = useAuth();
   const [storageData, setStorageData] = useState({
     used: 0,
     total: 5.0, // GB - límite de Firebase Spark plan
@@ -15,8 +17,22 @@ export const useStorageStats = () => {
   });
 
   useEffect(() => {
+    // 🔒 No ejecutar si no hay usuario autenticado o si aún está cargando auth
+    if (!currentUser || authLoading) {
+      setStorageData(prev => ({ ...prev, loading: authLoading }));
+      return;
+    }
+
+    console.log('🔒 useStorageStats: Usuario autenticado, ejecutando fetch...');
+
     const fetchStorageStats = async () => {
       try {
+        // ✅ Verificación adicional de seguridad
+        if (!currentUser) {
+          console.warn('🔒 useStorageStats: Usuario no autenticado en fetch, abortando');
+          return;
+        }
+
         setStorageData(prev => ({ ...prev, loading: true, error: null }));
 
         // Contar documentos en Firestore
@@ -64,7 +80,7 @@ export const useStorageStats = () => {
     };
 
     fetchStorageStats();
-  }, []);
+  }, [currentUser, authLoading]); // 🔒 Dependencias de autenticación
 
   const getFirestoreStats = async () => {
     try {
