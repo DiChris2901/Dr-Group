@@ -40,14 +40,28 @@ const CalendarEventDetails = ({ selectedDate, events, onClose }) => {
   }
 
   const handleCreateCommitment = (event = null) => {
+    // Detectar si hay evento de Coljuegos en la fecha
+    const coljuegosEvent = events.find(e => e.type === 'coljuegos');
+    
     // Preparar datos para pre-llenar el formulario
     const queryParams = new URLSearchParams({
       fromCalendar: 'true',
-      date: format(selectedDate, 'yyyy-MM-dd'),
-      ...(event?.title && { concept: event.title }),
-      ...(event?.amount && { amount: event.amount }),
-      ...(event?.company && { company: event.company })
+      date: format(selectedDate, 'yyyy-MM-dd')
     });
+
+    // Si hay evento de Coljuegos, pre-llenar datos específicos
+    if (coljuegosEvent) {
+      queryParams.append('concept', 'Pago Coljuegos');
+      queryParams.append('provider', 'Coljuegos');
+      queryParams.append('category', 'Impuestos y Tasas');
+      queryParams.append('priority', 'high');
+      queryParams.append('isColjuegos', 'true');
+    } else if (event) {
+      // Usar datos del evento específico si se proporciona
+      if (event.title) queryParams.append('concept', event.title);
+      if (event.amount) queryParams.append('amount', event.amount);
+      if (event.company) queryParams.append('company', event.company);
+    }
 
     navigate(`/commitments/new?${queryParams.toString()}`);
   };
@@ -60,6 +74,8 @@ const CalendarEventDetails = ({ selectedDate, events, onClose }) => {
         if (event.status === 'paid') return <CheckCircle sx={{ fontSize: 16 }} />;
         if (event.status === 'overdue') return <Cancel sx={{ fontSize: 16 }} />;
         return <Warning sx={{ fontSize: 16 }} />;
+      case 'coljuegos':
+        return <AttachMoney sx={{ fontSize: 16 }} />; // Ícono de dinero para Coljuegos
       case 'custom':
         switch (event.subType) {
           case 'business':
@@ -86,6 +102,9 @@ const CalendarEventDetails = ({ selectedDate, events, onClose }) => {
         case 'pending': return 'Pendiente';
         default: return 'Pendiente';
       }
+    }
+    if (event.type === 'coljuegos') {
+      return 'Pago Obligatorio - Décimo Día Hábil';
     }
     if (event.type === 'custom') {
       const typeLabels = {
@@ -151,13 +170,15 @@ const CalendarEventDetails = ({ selectedDate, events, onClose }) => {
             {(() => {
               const hasCommitments = events.some(event => event.type === 'commitment');
               const hasCustomEvents = events.some(event => event.type === 'custom');
+              const hasColjuegosEvents = events.some(event => event.type === 'coljuegos');
               const hasOnlyHolidays = events.every(event => event.type === 'holiday');
               
               // Mostrar botón si:
               // 1. Solo hay festivos (sin eventos personalizados ni compromisos)
               // 2. Hay eventos personalizados (sin importar si hay compromisos)
+              // 3. Hay eventos de Coljuegos (décimo día hábil)
               // NO mostrar si SOLO hay compromisos sin eventos personalizados
-              const shouldShowButton = hasOnlyHolidays || hasCustomEvents || (!hasCommitments && !hasCustomEvents);
+              const shouldShowButton = hasOnlyHolidays || hasCustomEvents || hasColjuegosEvents || (!hasCommitments && !hasCustomEvents);
               
               return shouldShowButton ? (
                 <Button
