@@ -120,8 +120,8 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentDate);
     const monthEnd = endOfMonth(currentDate);
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 }); // Lunes
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
+    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 }); // 0 = Domingo
+    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
 
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
   }, [currentDate]);
@@ -322,7 +322,7 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
     setNewEvent({ title: '', description: '' });
   };
 
-  const weekDays = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  const weekDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
   return (
     <Card sx={{ 
