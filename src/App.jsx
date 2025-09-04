@@ -11,6 +11,7 @@ import ToastProvider from './context/ToastContext';
 
 // Components
 import LoginForm from './components/auth/LoginForm';
+import AdminOnlyRoute from './components/auth/AdminOnlyRoute';
 import BackgroundProvider from './components/layout/BackgroundProvider';
 import MainLayout from './components/layout/MainLayout';
 
@@ -44,8 +45,8 @@ import ExecutiveDashboardPage from './pages/ExecutiveDashboardPage';
 // Módulo de Auditoría
 import ActivityLogsPage from './pages/ActivityLogsPage';
 
-// Verificador de Acceso Admin
-import AdminAccessVerifierPage from './pages/AdminAccessVerifierPage';
+// Administración - Limpieza de Storage
+import OrphanFilesPage from './pages/OrphanFilesPage';
 
 // Centro de Alertas
 import AlertsCenterPage from './pages/AlertsCenterPage';
@@ -248,16 +249,18 @@ const DashboardLayout = () => {
       <Route 
         path="/admin/activity-logs" 
         element={
-          <MainLayout title="Auditoría del Sistema" breadcrumbs={['Administración', 'Auditoría']}>
-            <ActivityLogsPage />
-          </MainLayout>
+          <AdminOnlyRoute>
+            <MainLayout title="Auditoría del Sistema" breadcrumbs={['Administración', 'Auditoría']}>
+              <ActivityLogsPage />
+            </MainLayout>
+          </AdminOnlyRoute>
         }
       />
       <Route 
-        path="/admin/access-verifier" 
+        path="/admin/orphan-files" 
         element={
-          <MainLayout title="Verificador de Acceso Admin" breadcrumbs={['Administración', 'Acceso Admin']}>
-            <AdminAccessVerifierPage />
+          <MainLayout title="Limpieza de Storage" breadcrumbs={['Administración', 'Storage']}>
+            <OrphanFilesPage />
           </MainLayout>
         }
       />

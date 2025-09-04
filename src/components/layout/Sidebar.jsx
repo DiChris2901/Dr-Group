@@ -178,14 +178,8 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       title: 'Auditoría del Sistema',
       icon: Assessment,
       path: '/admin/activity-logs',
-      color: '#9c27b0'
-    },
-    {
-      title: 'Verificador Acceso Admin',
-      icon: Analytics,
-      path: '/admin/access-verifier',
-      color: '#ff9800',
-      adminOnly: true // Solo para administradores específicos
+      color: '#9c27b0',
+      adminOnly: true // Solo para daruedagu@gmail.com
     },
     {
       title: 'Limpieza de Storage',
