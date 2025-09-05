@@ -1,109 +1,74 @@
 import { useMemo } from 'react';
+import festivosColombianos from 'festivos-colombianos';
+import { parseISO, getDay, addDays } from 'date-fns';
 
-// Hook para obtener días festivos de Colombia
+// Hook para obtener días festivos de Colombia aplicando manualmente la Ley Emiliani
 export const useColombianHolidays = (year = new Date().getFullYear()) => {
   const holidays = useMemo(() => {
-    const holidays = [];
-
-    // Días festivos fijos
-    const fixedHolidays = [
-      { date: `${year}-01-01`, name: 'Año Nuevo', type: 'civil' },
-      { date: `${year}-05-01`, name: 'Día del Trabajo', type: 'civil' },
-      { date: `${year}-07-20`, name: 'Día de la Independencia', type: 'civil' },
-      { date: `${year}-08-07`, name: 'Batalla de Boyacá', type: 'civil' },
-      { date: `${year}-12-08`, name: 'Inmaculada Concepción', type: 'religious' },
-      { date: `${year}-12-25`, name: 'Navidad', type: 'religious' }
+    // Obtener festivos usando el paquete oficial
+    const festivosOficiales = festivosColombianos(year);
+    
+    // Festivos que deben regirse por la Ley Emiliani (traslado al lunes)
+    const festivosEmiliani = [
+      "San José",
+      "San Pedro y San Pablo", 
+      "Asunción de la Virgen",
+      "Día de la Raza",
+      "Todos los Santos",
+      "Independencia de Cartagena",
+      "Sagrado Corazón",
+      "Ascensión del Señor",
+      "Corpus Christi"
     ];
 
-    // Días festivos móviles que se mueven al lunes siguiente
-    const movableToMonday = [
-      { month: 1, day: 6, name: 'Día de los Reyes Magos' },
-      { month: 3, day: 19, name: 'Día de San José' },
-      { month: 6, day: 29, name: 'San Pedro y San Pablo' },
-      { month: 8, day: 15, name: 'Asunción de la Virgen' },
-      { month: 10, day: 12, name: 'Día de la Raza' },
-      { month: 11, day: 1, name: 'Todos los Santos' },
-      { month: 11, day: 11, name: 'Independencia de Cartagena' }
-    ];
-
-    // Calcular días festivos móviles
-    movableToMonday.forEach(holiday => {
-      const date = new Date(year, holiday.month - 1, holiday.day);
+    // Función para aplicar la Ley Emiliani
+    const aplicarLeyEmiliani = (fechaISO) => {
+      const fecha = parseISO(fechaISO);
+      const diaSemana = getDay(fecha); // 0 = domingo, 1 = lunes, etc.
       
-      // Si no es lunes, mover al siguiente lunes
-      if (date.getDay() !== 1) {
-        const daysToAdd = (8 - date.getDay()) % 7;
-        if (daysToAdd === 0) {
-          date.setDate(date.getDate() + 7);
-        } else {
-          date.setDate(date.getDate() + daysToAdd);
-        }
+      if (diaSemana === 0) { // Si cae domingo
+        return addDays(fecha, 1); // Mover al lunes (día siguiente)
+      } else if (diaSemana > 1) { // Si cae martes a sábado
+        return addDays(fecha, 8 - diaSemana); // Mover al lunes siguiente
+      } else {
+        return fecha; // Si ya es lunes, no se mueve
       }
+    };
 
-      holidays.push({
-        date: date.toISOString().split('T')[0],
-        name: holiday.name,
-        type: 'religious'
-      });
+    // Convertir y aplicar Ley Emiliani donde corresponda
+    const formattedHolidays = festivosOficiales.map(festivo => {
+      const aplicaEmiliani = festivosEmiliani.some(nombre => 
+        festivo.celebration.includes(nombre)
+      );
+
+      if (aplicaEmiliani) {
+        const fechaCorregida = aplicarLeyEmiliani(festivo.holiday);
+        return {
+          date: fechaCorregida.toISOString().split('T')[0],
+          name: festivo.celebration,
+          type: 'religious',
+          originalDate: festivo.holiday // Guardar fecha original para referencia
+        };
+      } else {
+        return {
+          date: festivo.holiday,
+          name: festivo.celebration,
+          type: 'civil'
+        };
+      }
     });
 
-    // Calcular Semana Santa (fechas móviles basadas en la Pascua)
-    const easter = calculateEaster(year);
-    const easterHolidays = [
-      { offset: -3, name: 'Jueves Santo' },
-      { offset: -2, name: 'Viernes Santo' },
-      { offset: 39, name: 'Ascensión del Señor' }, // Se mueve al lunes
-      { offset: 60, name: 'Corpus Christi' }, // Se mueve al lunes
-      { offset: 68, name: 'Sagrado Corazón de Jesús' } // Se mueve al lunes
-    ];
-
-    easterHolidays.forEach(holiday => {
-      const date = new Date(easter);
-      date.setDate(date.getDate() + holiday.offset);
-      
-      // Para algunos festivos, mover al lunes más cercano
-      if (holiday.offset > 0 && date.getDay() !== 1) {
-        const daysToAdd = (8 - date.getDay()) % 7;
-        if (daysToAdd === 0) {
-          date.setDate(date.getDate() + 7);
-        } else {
-          date.setDate(date.getDate() + daysToAdd);
-        }
-      }
-
-      holidays.push({
-        date: date.toISOString().split('T')[0],
-        name: holiday.name,
-        type: 'religious'
+    // Debug para verificar festivos de noviembre 2025
+    if (year === 2025) {
+      const novemberHolidays = formattedHolidays.filter(h => h.date.startsWith('2025-11'));
+      console.log('🎉 [FESTIVOS OFICIALES] Noviembre 2025 (con Ley Emiliani aplicada):');
+      novemberHolidays.forEach(h => {
+        console.log(`   ${h.date} - ${h.name}${h.originalDate ? ` (original: ${h.originalDate})` : ''}`);
       });
-    });
+    }
 
-    // Agregar días festivos fijos
-    holidays.push(...fixedHolidays);
-
-    // Ordenar por fecha
-    return holidays.sort((a, b) => new Date(a.date) - new Date(b.date));
+    return formattedHolidays;
   }, [year]);
 
   return holidays;
 };
-
-// Algoritmo para calcular la fecha de Pascua (algoritmo de Gregorian)
-function calculateEaster(year) {
-  const a = year % 19;
-  const b = Math.floor(year / 100);
-  const c = year % 100;
-  const d = Math.floor(b / 4);
-  const e = b % 4;
-  const f = Math.floor((b + 8) / 25);
-  const g = Math.floor((b - f + 1) / 3);
-  const h = (19 * a + b - d - g + 15) % 30;
-  const i = Math.floor(c / 4);
-  const k = c % 4;
-  const l = (32 + 2 * e + 2 * i - h - k) % 7;
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const month = Math.floor((h + l - 7 * m + 114) / 31);
-  const day = ((h + l - 7 * m + 114) % 31) + 1;
-  
-  return new Date(year, month - 1, day);
-}

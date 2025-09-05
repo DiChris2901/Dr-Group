@@ -40,8 +40,10 @@ const CalendarEventDetails = ({ selectedDate, events, onClose }) => {
   }
 
   const handleCreateCommitment = (event = null) => {
-    // Detectar si hay evento de Coljuegos en la fecha
+    // Detectar tipos de eventos especiales en la fecha
     const coljuegosEvent = events.find(e => e.type === 'coljuegos');
+    const uiafEvent = events.find(e => e.type === 'uiaf');
+    const parafiscalesEvent = events.find(e => e.type === 'parafiscales');
     
     // Preparar datos para pre-llenar el formulario
     const queryParams = new URLSearchParams({
@@ -49,13 +51,25 @@ const CalendarEventDetails = ({ selectedDate, events, onClose }) => {
       date: format(selectedDate, 'yyyy-MM-dd')
     });
 
-    // Si hay evento de Coljuegos, pre-llenar datos específicos
+    // Pre-llenar datos según el tipo de evento automático
     if (coljuegosEvent) {
       queryParams.append('concept', 'Pago Coljuegos');
       queryParams.append('provider', 'Coljuegos');
       queryParams.append('category', 'Impuestos y Tasas');
       queryParams.append('priority', 'high');
       queryParams.append('isColjuegos', 'true');
+    } else if (uiafEvent) {
+      queryParams.append('concept', 'Reporte UIAF');
+      queryParams.append('provider', 'UIAF');
+      queryParams.append('category', 'Reportes y Declaraciones');
+      queryParams.append('priority', 'medium');
+      queryParams.append('isUiaf', 'true');
+    } else if (parafiscalesEvent) {
+      queryParams.append('concept', 'Pago de Parafiscales');
+      queryParams.append('provider', 'Entidades Parafiscales');
+      queryParams.append('category', 'Seguridad Social');
+      queryParams.append('priority', 'high');
+      queryParams.append('isParafiscales', 'true');
     } else if (event) {
       // Usar datos del evento específico si se proporciona
       if (event.title) queryParams.append('concept', event.title);
@@ -76,6 +90,10 @@ const CalendarEventDetails = ({ selectedDate, events, onClose }) => {
         return <Warning sx={{ fontSize: 16 }} />;
       case 'coljuegos':
         return <AttachMoney sx={{ fontSize: 16 }} />; // Ícono de dinero para Coljuegos
+      case 'uiaf':
+        return <Business sx={{ fontSize: 16 }} />; // Ícono de negocio para UIAF
+      case 'parafiscales':
+        return <AttachMoney sx={{ fontSize: 16 }} />; // Ícono de dinero para Parafiscales
       case 'custom':
         switch (event.subType) {
           case 'business':
@@ -171,14 +189,16 @@ const CalendarEventDetails = ({ selectedDate, events, onClose }) => {
               const hasCommitments = events.some(event => event.type === 'commitment');
               const hasCustomEvents = events.some(event => event.type === 'custom');
               const hasColjuegosEvents = events.some(event => event.type === 'coljuegos');
+              const hasUiafEvents = events.some(event => event.type === 'uiaf');
+              const hasParafiscalesEvents = events.some(event => event.type === 'parafiscales');
               const hasOnlyHolidays = events.every(event => event.type === 'holiday');
               
               // Mostrar botón si:
               // 1. Solo hay festivos (sin eventos personalizados ni compromisos)
               // 2. Hay eventos personalizados (sin importar si hay compromisos)
-              // 3. Hay eventos de Coljuegos (décimo día hábil)
+              // 3. Hay eventos automáticos (Coljuegos, UIAF, Parafiscales)
               // NO mostrar si SOLO hay compromisos sin eventos personalizados
-              const shouldShowButton = hasOnlyHolidays || hasCustomEvents || hasColjuegosEvents || (!hasCommitments && !hasCustomEvents);
+              const shouldShowButton = hasOnlyHolidays || hasCustomEvents || hasColjuegosEvents || hasUiafEvents || hasParafiscalesEvents || (!hasCommitments && !hasCustomEvents);
               
               return shouldShowButton ? (
                 <Button
