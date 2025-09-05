@@ -88,7 +88,7 @@
   "workbench.tree.renderIndentGuides": "onHover",
   "workbench.tree.indent": 15,
   "workbench.list.smoothScrolling": true,
-  "workbench.editor.enablePreview": false,
+  "workbench.editor.enablePreview": true,
   "workbench.editor.enablePreviewFromQuickOpen": false,
   "workbench.editor.closeEmptyGroups": false,
   "workbench.editor.highlightModifiedTabs": true,

@@ -65,6 +65,13 @@ try {
 let functions;
 try {
   functions = getFunctions(app);
+  
+  // Conectar al emulador en desarrollo
+  if (import.meta.env.DEV) {
+    console.log('🔧 Conectando Functions al emulador local...');
+    connectFunctionsEmulator(functions, 'localhost', 5001);
+  }
+  
   console.log('✅ Firebase Functions initialized successfully');
 } catch (error) {
   console.error('🚨 Error initializing Firebase Functions:', error);

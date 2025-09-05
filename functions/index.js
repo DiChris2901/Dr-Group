@@ -6,6 +6,20 @@ const { getFirestore } = require('firebase-admin/firestore');
 // Inicializar Firebase Admin
 initializeApp();
 
+// Importar funciones de WhatsApp
+const {
+  notifyNewCommitment,
+  dailyNotificationCheck,
+  testWhatsAppNotification,
+  sendWhatsAppTemplate
+} = require('./whatsapp-notifications');
+
+// Exportar funciones de WhatsApp
+exports.notifyNewCommitment = notifyNewCommitment;
+exports.dailyNotificationCheck = dailyNotificationCheck;
+exports.testWhatsAppNotification = testWhatsAppNotification;
+exports.sendWhatsAppTemplate = sendWhatsAppTemplate;
+
 /**
  * Cloud Function para eliminar usuario completo (Auth + Firestore)
  * Solo disponible para administradores

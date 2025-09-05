@@ -49,7 +49,8 @@ import {
   CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
   Visibility as VisibilityIcon,
-  VisibilityOff as VisibilityOffIcon
+  VisibilityOff as VisibilityOffIcon,
+  Notifications as NotificationsIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -77,6 +78,7 @@ import {
 import { db, auth } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
+import NotificationSettingsModal from '../components/notifications/NotificationSettingsModal';
 
 // Permisos y roles simplificados
 import { 
@@ -99,6 +101,10 @@ const UserManagementPage = () => {
   const [editingUser, setEditingUser] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
+  
+  // Estados del modal de notificaciones
+  const [openNotificationsModal, setOpenNotificationsModal] = useState(false);
+  const [selectedUserForNotifications, setSelectedUserForNotifications] = useState(null);
   
   // Estados del formulario
   const [formData, setFormData] = useState({
@@ -233,6 +239,18 @@ const UserManagementPage = () => {
     setEditingUser(null);
     setShowPassword(false);
     setHasUnsavedChanges(false);
+  };
+
+  // Funciones para manejar el modal de notificaciones
+  const handleOpenNotificationsModal = (user) => {
+    console.log('🔔 Abriendo modal de notificaciones para:', user.email);
+    setSelectedUserForNotifications(user);
+    setOpenNotificationsModal(true);
+  };
+
+  const handleCloseNotificationsModal = () => {
+    setOpenNotificationsModal(false);
+    setSelectedUserForNotifications(null);
   };
 
   // Función para detectar cambios en el formulario
@@ -1042,6 +1060,15 @@ const UserManagementPage = () => {
                             </IconButton>
                           </Tooltip>
                         )}
+                        <Tooltip title="Configurar notificaciones">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenNotificationsModal(user)}
+                            sx={{ color: 'warning.main' }}
+                          >
+                            <NotificationsIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                         <Tooltip title="Editar usuario">
                           <IconButton
                             size="small"
@@ -1138,7 +1165,7 @@ const UserManagementPage = () => {
             <Grid container spacing={3}>
               
               {/* INFORMACIÓN PRINCIPAL */}
-              <Grid item xs={12} md={7}>
+              <Grid item xs={12} md={12}>
                 <Paper sx={{
                   p: 3,
                   borderRadius: 2,
@@ -1269,62 +1296,7 @@ const UserManagementPage = () => {
                 </Paper>
               </Grid>
 
-              {/* INFORMACIÓN LATERAL - PERMISOS */}
-              <Grid item xs={12} md={5}>
-                <Paper sx={{
-                  p: 3.5,
-                  borderRadius: 2,
-                  border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
-                  background: theme.palette.background.paper,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                }}>
-                  <Typography variant="overline" sx={{
-                    fontWeight: 600,
-                    color: 'secondary.main',
-                    letterSpacing: 0.8,
-                    fontSize: '0.75rem'
-                  }}>
-                    <SecurityIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
-                    Permisos Específicos
-                  </Typography>
-                  
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 3 }}>
-                    Los permisos se asignan automáticamente según el rol, pero puedes personalizarlos:
-                  </Typography>
-                  
-                  {Object.entries(getPermissionGroups()).map(([groupName, permissions]) => (
-                    <Box key={groupName} sx={{ mb: 3 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'text.primary' }}>
-                        {groupName}
-                      </Typography>
-                      <Grid container spacing={1}>
-                        {permissions.map((permission) => (
-                          <Grid item xs={12} key={permission}>
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  checked={formData.permissions.includes(permission)}
-                                  onChange={() => handlePermissionToggle(permission)}
-                                  size="small"
-                                />
-                              }
-                              label={
-                                <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                                  {permission.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase())}
-                                </Typography>
-                              }
-                              sx={{ '& .MuiFormControlLabel-label': { fontSize: '0.875rem' } }}
-                            />
-                          </Grid>
-                        ))}
-                      </Grid>
-                      {groupName !== Object.keys(getPermissionGroups())[Object.keys(getPermissionGroups()).length - 1] && (
-                        <Divider sx={{ mt: 2 }} />
-                      )}
-                    </Box>
-                  ))}
-                </Paper>
-              </Grid>
+
               
             </Grid>
           </Box>
@@ -1383,6 +1355,13 @@ const UserManagementPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Modal de configuración de notificaciones */}
+      <NotificationSettingsModal
+        open={openNotificationsModal}
+        onClose={handleCloseNotificationsModal}
+        user={selectedUserForNotifications}
+      />
     </Box>
   );
 };
