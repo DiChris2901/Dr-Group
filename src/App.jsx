@@ -57,6 +57,11 @@ import LauncherPage from './pages/LauncherPage';
 // System Center
 import SystemLoginForm from './components/auth/SystemLoginForm';
 import SystemCenterPage from './pages/SystemCenterPage';
+import SystemUserManagementPage from './pages/SystemUserManagementPage';
+import SystemActivityLogsPage from './pages/SystemActivityLogsPage';
+import SystemOrphanFilesPage from './pages/SystemOrphanFilesPage';
+import SystemSettingsPageWithLayout from './pages/SystemSettingsPageWithLayout';
+import CompaniesManagementPageWithLayout from './pages/CompaniesManagementPageWithLayout';
 
 // Hook de autenticación
 import { useAuth } from './context/AuthContext';
@@ -299,9 +304,11 @@ const AppContent = () => {
           {/* System Center - Acceso exclusivo */}
           <Route path="/system-login" element={<SystemLoginForm />} />
           <Route path="/system-center" element={<SystemCenterPage />} />
-          <Route path="/system-center/users" element={<UserManagementPage />} />
-          <Route path="/system-center/activity-logs" element={<ActivityLogsPage />} />
-          <Route path="/system-center/orphan-files" element={<OrphanFilesPage />} />
+          <Route path="/system-center/users" element={<SystemUserManagementPage />} />
+          <Route path="/system-center/activity-logs" element={<SystemActivityLogsPage />} />
+          <Route path="/system-center/orphan-files" element={<SystemOrphanFilesPage />} />
+          <Route path="/system-center/settings" element={<SystemSettingsPageWithLayout />} />
+          <Route path="/system-center/companies" element={<CompaniesManagementPageWithLayout />} />
           
           {/* Login para acceder al dashboard */}
           <Route path="/login" element={currentUser ? <DashboardLayout /> : <LoginForm />} />
