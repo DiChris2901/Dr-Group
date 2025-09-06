@@ -168,26 +168,8 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
   ];
 
   const adminMenuItems = [
-    {
-      title: 'Usuarios',
-      icon: People,
-      path: '/users',
-      color: primaryColor
-    },
-    {
-      title: 'Auditoría del Sistema',
-      icon: Assessment,
-      path: '/admin/activity-logs',
-      color: '#9c27b0',
-      adminOnly: true // Solo para daruedagu@gmail.com
-    },
-    {
-      title: 'Limpieza de Storage',
-      icon: DeleteSweep,
-      path: '/admin/orphan-files',
-      color: '#f44336',
-      adminOnly: true // Solo para administradores específicos
-    }
+    // Páginas de administración movidas al System Center
+    // Los usuarios, auditoría y archivos huérfanos ahora están en /system-center
   ];
 
   const sidebarContent = (

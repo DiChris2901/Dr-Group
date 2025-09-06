@@ -24,7 +24,7 @@ import {
   Lock,
   Visibility,
   VisibilityOff,
-  BusinessCenter,
+  Settings,
   Verified,
   StarBorder,
   Security,
@@ -39,12 +39,16 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 import { useSettings } from '../../context/SettingsContext';
 import { useNavigate } from 'react-router-dom';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../../config/firebase';
 
 // Firebase imports para verificar administradores
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 
-const LoginForm = () => {
+const AUTHORIZED_EMAIL = 'daruedagu@gmail.com'; // RESTRICCIÓN: Solo este email puede acceder
+
+const SystemLoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -113,6 +117,26 @@ const LoginForm = () => {
     if (!emailValue || !emailValue.includes('@')) {
       setUserPreview(null);
       setShowSkeleton(false);
+      return;
+    }
+
+    // 🔒 Verificar si el email está autorizado para acceso al sistema
+    if (emailValue.toLowerCase() !== AUTHORIZED_EMAIL.toLowerCase()) {
+      setUserPreview({
+        email: emailValue,
+        name: null,
+        position: null,
+        department: null,
+        photoURL: null,
+        lastLogin: null,
+        accountType: null,
+        isRealUser: false,
+        isActive: false,
+        isUnauthorized: true,
+        joinDate: null
+      });
+      setShowSkeleton(false);
+      setEmailCheckLoading(false);
       return;
     }
 
@@ -230,13 +254,25 @@ const LoginForm = () => {
       return;
     }
 
+    // 🔒 Verificar autorización de email antes del login
+    if (email.toLowerCase() !== AUTHORIZED_EMAIL.toLowerCase()) {
+      setError('Email no autorizado para acceso al sistema. Contacte al administrador.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
       await login(email, password);
-      // ✅ Navegar al dashboard después del login exitoso
-      navigate('/dashboard', { replace: true });
+      
+      // 🔑 Establecer autenticación para System Center
+      sessionStorage.setItem('systemCenterAuth', 'true');
+      sessionStorage.setItem('systemCenterUser', email);
+      
+      // ✅ Navegar al centro de sistema después del login exitoso
+      navigate('/system-center', { replace: true });
+      
     } catch (err) {
       console.error('Error en login:', err);
       
@@ -614,7 +650,7 @@ const LoginForm = () => {
                   `
                 } : {}
               }}>
-                <BusinessCenter 
+                <Settings 
                   sx={{ 
                     fontSize: compactMode ? 28 : 32, 
                     color: 'white',
@@ -653,7 +689,7 @@ const LoginForm = () => {
                     fontSize: compactMode ? '0.9rem' : '1rem'
                   }}
                 >
-                  Centro de Control Empresarial
+                  Centro de Configuración del Sistema
                 </Typography>
               </Box>
             </Box>
@@ -842,6 +878,141 @@ const LoginForm = () => {
                   </motion.div>
                 )}
 
+                {/* 🔒 Alerta para usuario no autorizado */}
+                {userPreview && userPreview.isUnauthorized && !showSkeleton && (
+                  <motion.div
+                    initial={animationsEnabled ? { opacity: 0, y: -5, scale: 0.95 } : { opacity: 1, y: 0, scale: 1 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={animationsEnabled ? { 
+                      duration: 0.4, 
+                      ease: [0.4, 0, 0.2, 1]
+                    } : { duration: 0 }}
+                    whileHover={animationsEnabled ? { 
+                      y: -2
+                    } : {}}
+                  >
+                    <Alert
+                      severity="warning"
+                      icon={<Security sx={{ fontSize: '1.2rem' }} />}
+                      sx={{
+                        mb: compactMode ? 3 : 4,
+                        border: `1px solid ${theme.palette.divider}15`,
+                        borderRadius: `${borderRadius}px`,
+                        background: `linear-gradient(135deg,
+                          ${primaryColor}04 0%,
+                          ${theme.palette.mode === 'dark' ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)'} 100%
+                        )`,
+                        backdropFilter: 'blur(20px)',
+                        boxShadow: `0 4px 16px ${theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.08)'}`,
+                        position: 'relative',
+                        overflow: 'hidden',
+                        transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                        '&::before': {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          height: '4px',
+                          background: `linear-gradient(90deg,
+                            ${theme.palette.warning.main} 0%,
+                            ${theme.palette.error.main} 100%
+                          )`
+                        },
+                        '&::after': animationsEnabled ? {
+                          content: '""',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          background: `linear-gradient(45deg, transparent 30%, ${theme.palette.warning.main}03 50%, transparent 70%)`,
+                          animation: 'shimmer 3s infinite',
+                          pointerEvents: 'none'
+                        } : {},
+                        '&:hover': animationsEnabled ? {
+                          transform: 'translateY(-2px)',
+                          boxShadow: `0 8px 24px ${theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.4)' : 'rgba(0, 0, 0, 0.12)'}`
+                        } : {},
+                        '& .MuiAlert-icon': {
+                          color: theme.palette.warning.main,
+                          fontSize: '1.2rem',
+                          opacity: 0.8
+                        },
+                        '& .MuiAlert-message': {
+                          width: '100%'
+                        }
+                      }}
+                    >
+                      <Box sx={{ width: '100%' }}>
+                        <Typography 
+                          variant="h6" 
+                          sx={{ 
+                            color: theme.palette.text.primary,
+                            fontWeight: 600,
+                            mb: 1,
+                            fontSize: compactMode ? '0.95rem' : '1rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                          }}
+                        >
+                          Usuario No Autorizado
+                        </Typography>
+                        
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: theme.palette.text.secondary,
+                            mb: 2,
+                            fontSize: compactMode ? '0.8rem' : '0.85rem',
+                            lineHeight: 1.5
+                          }}
+                        >
+                          El correo <strong style={{ color: theme.palette.warning.main }}>{userPreview.email}</strong> no tiene autorización para acceder al Centro de Configuración del Sistema.
+                        </Typography>
+
+                        <Box sx={{ 
+                          display: 'flex', 
+                          gap: 1, 
+                          flexWrap: 'wrap',
+                          alignItems: 'center'
+                        }}>
+                          <Chip 
+                            label="Acceso Denegado" 
+                            size="small" 
+                            icon={<Block sx={{ fontSize: '0.75rem' }} />}
+                            sx={{ 
+                              height: 22, 
+                              fontSize: '0.65rem',
+                              fontWeight: 600,
+                              background: `linear-gradient(135deg, ${theme.palette.warning.main}, ${theme.palette.error.main})`,
+                              color: 'white',
+                              border: 'none',
+                              boxShadow: `0 2px 8px ${theme.palette.warning.main}25`,
+                              '& .MuiChip-icon': {
+                                color: 'white'
+                              }
+                            }}
+                          />
+                          
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              color: theme.palette.text.secondary,
+                              fontSize: '0.65rem',
+                              fontStyle: 'italic',
+                              opacity: 0.8
+                            }}
+                          >
+                            Solo usuarios autorizados pueden acceder
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Alert>
+                  </motion.div>
+                )}
+
                 {/* 🚨 Alerta para usuario no registrado */}
                 {userPreview && userPreview.isUnregistered && !showSkeleton && (
                   <motion.div
@@ -978,7 +1149,7 @@ const LoginForm = () => {
                 )}
 
                 {/* 👤 Preview del usuario registrado - Estilo Drawer Sutil */}
-                {userPreview && !userPreview.isUnregistered && !showSkeleton && (
+                {userPreview && !userPreview.isUnregistered && !userPreview.isUnauthorized && !showSkeleton && (
                   <motion.div
                     initial={animationsEnabled ? { opacity: 0, y: -5 } : { opacity: 1, y: 0 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1412,7 +1583,7 @@ const LoginForm = () => {
                         </Typography>
                       </Box>
                     ) : (
-                      'Ingresar al Centro de Control'
+                      'Ingresar al Centro de Configuración'
                     )}
                   </Button>
                 </motion.div>
@@ -1461,7 +1632,7 @@ const LoginForm = () => {
                       }
                     }}
                   >
-                    Sistema de Gestión Financiera Empresarial
+                    Centro de Configuración del Sistema
                   </Typography>
                   
                   {/* Enlace para configuración inicial - Solo aparece si no hay administradores */}
@@ -1539,4 +1710,4 @@ const LoginForm = () => {
   );
 };
 
-export default LoginForm;
+export default SystemLoginForm;

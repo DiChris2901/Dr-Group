@@ -1165,7 +1165,7 @@ const UserManagementPage = () => {
             <Grid container spacing={3}>
               
               {/* INFORMACIÓN PRINCIPAL */}
-              <Grid item xs={12} md={12}>
+              <Grid item xs={12} md={7}>
                 <Paper sx={{
                   p: 3,
                   borderRadius: 2,
@@ -1296,7 +1296,62 @@ const UserManagementPage = () => {
                 </Paper>
               </Grid>
 
-
+              {/* INFORMACIÓN LATERAL - PERMISOS */}
+              <Grid item xs={12} md={5}>
+                <Paper sx={{
+                  p: 3.5,
+                  borderRadius: 2,
+                  border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                  background: theme.palette.background.paper,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                }}>
+                  <Typography variant="overline" sx={{
+                    fontWeight: 600,
+                    color: 'secondary.main',
+                    letterSpacing: 0.8,
+                    fontSize: '0.75rem'
+                  }}>
+                    <SecurityIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
+                    Permisos Específicos
+                  </Typography>
+                  
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 3 }}>
+                    Los permisos se asignan automáticamente según el rol, pero puedes personalizarlos:
+                  </Typography>
+                  
+                  {Object.entries(getPermissionGroups()).map(([groupName, permissions]) => (
+                    <Box key={groupName} sx={{ mb: 3 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'text.primary' }}>
+                        {groupName}
+                      </Typography>
+                      <Grid container spacing={1}>
+                        {permissions.map((permission) => (
+                          <Grid item xs={12} key={permission}>
+                            <FormControlLabel
+                              control={
+                                <Checkbox
+                                  checked={formData.permissions.includes(permission)}
+                                  onChange={() => handlePermissionToggle(permission)}
+                                  size="small"
+                                />
+                              }
+                              label={
+                                <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
+                                  {permission.replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase())}
+                                </Typography>
+                              }
+                              sx={{ '& .MuiFormControlLabel-label': { fontSize: '0.875rem' } }}
+                            />
+                          </Grid>
+                        ))}
+                      </Grid>
+                      {groupName !== Object.keys(getPermissionGroups())[Object.keys(getPermissionGroups()).length - 1] && (
+                        <Divider sx={{ mt: 2 }} />
+                      )}
+                    </Box>
+                  ))}
+                </Paper>
+              </Grid>
               
             </Grid>
           </Box>

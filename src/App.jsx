@@ -51,6 +51,13 @@ import OrphanFilesPage from './pages/OrphanFilesPage';
 // Centro de Alertas
 import AlertsCenterPage from './pages/AlertsCenterPage';
 
+// Launcher Page
+import LauncherPage from './pages/LauncherPage';
+
+// System Center
+import SystemLoginForm from './components/auth/SystemLoginForm';
+import SystemCenterPage from './pages/SystemCenterPage';
+
 // Hook de autenticación
 import { useAuth } from './context/AuthContext';
 
@@ -69,7 +76,7 @@ const DashboardLayout = () => {
         }
       />
       <Route 
-        path="/dashboard" 
+        path="/home" 
         element={
           <MainLayout title="Dashboard Ejecutivo" breadcrumbs={['Inicio']}>
             <WelcomeDashboardSimple />
@@ -229,38 +236,11 @@ const DashboardLayout = () => {
           </MainLayout>
         }
       />
-      {/* Ruta temporal sin restricción de rol */}
-      <Route 
-        path="/users" 
-        element={
-          <MainLayout title="Gestión de Usuarios" breadcrumbs={['Administración', 'Usuarios']}>
-            <UserManagementPage />
-          </MainLayout>
-        }
-      />
       <Route 
         path="/admin/cleanup" 
         element={
           <MainLayout title="Limpieza de Datos" breadcrumbs={['Administración', 'Limpieza']}>
             <CleanupPage />
-          </MainLayout>
-        }
-      />
-      <Route 
-        path="/admin/activity-logs" 
-        element={
-          <AdminOnlyRoute>
-            <MainLayout title="Auditoría del Sistema" breadcrumbs={['Administración', 'Auditoría']}>
-              <ActivityLogsPage />
-            </MainLayout>
-          </AdminOnlyRoute>
-        }
-      />
-      <Route 
-        path="/admin/orphan-files" 
-        element={
-          <MainLayout title="Limpieza de Storage" breadcrumbs={['Administración', 'Storage']}>
-            <OrphanFilesPage />
           </MainLayout>
         }
       />
@@ -313,8 +293,21 @@ const AppContent = () => {
           {/* Ruta de setup inicial - accesible sin autenticación */}
           <Route path="/admin-setup" element={<AdminSetupPage />} />
           
-          {/* Rutas principales */}
-          <Route path="/*" element={currentUser ? <DashboardLayout /> : <LoginForm />} />
+          {/* Launcher como página principal */}
+          <Route path="/" element={<LauncherPage />} />
+          
+          {/* System Center - Acceso exclusivo */}
+          <Route path="/system-login" element={<SystemLoginForm />} />
+          <Route path="/system-center" element={<SystemCenterPage />} />
+          <Route path="/system-center/users" element={<UserManagementPage />} />
+          <Route path="/system-center/activity-logs" element={<ActivityLogsPage />} />
+          <Route path="/system-center/orphan-files" element={<OrphanFilesPage />} />
+          
+          {/* Login para acceder al dashboard */}
+          <Route path="/login" element={currentUser ? <DashboardLayout /> : <LoginForm />} />
+          
+          {/* Dashboard protegido */}
+          <Route path="/dashboard/*" element={currentUser ? <DashboardLayout /> : <LoginForm />} />
         </Routes>
       </BackgroundProvider>
     </Router>
