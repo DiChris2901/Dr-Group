@@ -5,11 +5,10 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import AdminSetupComponent from '../components/admin/AdminSetupComponent';
-import { hasPermission } from '../utils/userPermissions';
 import { Navigate } from 'react-router-dom';
 
 const AdminSetupPage = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, firestoreProfile } = useAuth();
   const theme = useTheme();
   const [isAdmin, setIsAdmin] = useState(false);
   const [needsSetup, setNeedsSetup] = useState(true);
@@ -29,8 +28,8 @@ const AdminSetupPage = () => {
       }
 
       try {
-        // Verificar si el usuario actual ya es admin
-        const hasAdminPerms = await hasPermission(currentUser.email, 'admin_access');
+        // Verificar si el usuario actual ya es admin (NUEVO SISTEMA)
+        const hasAdminPerms = firestoreProfile?.permissions?.includes('usuarios') || false;
         setIsAdmin(hasAdminPerms);
 
         // Verificar si ya existe algún admin en el sistema

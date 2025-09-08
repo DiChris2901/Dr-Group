@@ -117,12 +117,14 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       title: 'Dashboard',
       icon: Dashboard,
       path: '/dashboard',
-      color: primaryColor
+      color: primaryColor,
+      permission: 'dashboard'
     },
     {
       title: 'Compromisos',
       icon: AccountBalance,
       color: secondaryColor,
+      permission: 'compromisos',
       submenu: [
         { title: 'Ver Todos', icon: Assignment, path: '/commitments' },
         { title: 'Agregar Nuevo', icon: AttachMoney, path: '/commitments/new' },
@@ -133,6 +135,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       title: 'Pagos',
       icon: Receipt,
       color: primaryColor,
+      permission: 'pagos',
       submenu: [
         { title: 'Historial', icon: Assessment, path: '/payments' },
         { title: 'Nuevo Pago', icon: AttachMoney, path: '/payments/new' }
@@ -142,6 +145,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       title: 'Ingresos',
       icon: TrendingUp,
       color: '#4caf50',
+      permission: 'ingresos',
       submenu: [
         { title: 'Registrar Ingreso', icon: AddBox, path: '/income' },
         { title: 'Historial', icon: Timeline, path: '/income/history' },
@@ -152,12 +156,14 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       title: 'Empresas',
       icon: Business,
       path: '/companies',
-      color: secondaryColor
+      color: secondaryColor,
+      permission: 'empresas'
     },
     {
       title: 'Reportes',
       icon: Assessment,
       color: primaryColor,
+      permission: 'reportes',
       submenu: [
         { title: 'Resumen General', icon: Assessment, path: '/reports/summary' },
         { title: 'Por Empresa', icon: Business, path: '/reports/company' },
@@ -172,23 +178,69 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       title: 'Usuarios',
       icon: People,
       path: '/users',
-      color: primaryColor
+      color: primaryColor,
+      permission: 'usuarios'
     },
     {
       title: 'Auditoría del Sistema',
       icon: Assessment,
       path: '/admin/activity-logs',
       color: '#9c27b0',
-      adminOnly: true // Solo para daruedagu@gmail.com
+      permission: 'auditoria'
     },
     {
       title: 'Limpieza de Storage',
       icon: DeleteSweep,
       path: '/admin/orphan-files',
       color: '#f44336',
-      adminOnly: true // Solo para administradores específicos
+      permission: 'storage'
     }
   ];
+
+  // Función para verificar si el usuario tiene un permiso específico
+  const hasPermission = (permission) => {
+    // Debug: mostrar información del usuario
+    console.log('🔍 Verificando permiso:', permission);
+    console.log('👤 Usuario:', firestoreProfile?.email);
+    console.log('🔧 Perfil completo:', firestoreProfile);
+    
+    // Si no tiene perfil de Firestore, denegar acceso
+    if (!firestoreProfile) {
+      console.log('❌ No hay perfil de Firestore');
+      return false;
+    }
+
+    // Si no tiene permisos definidos, denegar acceso (cambio importante)
+    if (!firestoreProfile.permissions || !Array.isArray(firestoreProfile.permissions)) {
+      console.log('❌ No tiene permisos definidos o no es array');
+      return false;
+    }
+    
+    console.log('� Permisos del usuario:', firestoreProfile.permissions);
+    
+    // Si tiene el permiso "ALL", permitir todo
+    if (firestoreProfile.permissions.includes('ALL')) {
+      console.log('✅ Usuario tiene permiso ALL');
+      return true;
+    }
+    
+    // SOLO SISTEMA NUEVO: Verificar si tiene el permiso específico
+    const hasPermissionResult = firestoreProfile.permissions.includes(permission);
+    console.log(`${hasPermissionResult ? '✅' : '❌'} Permiso ${permission}:`, hasPermissionResult);
+    
+    return hasPermissionResult;
+  };
+
+  // Filtrar elementos del menú según permisos
+  const filteredMenuItems = menuItems.filter(item => {
+    if (!item.permission) return true; // Si no tiene permiso definido, mostrar
+    return hasPermission(item.permission);
+  });
+
+  const filteredAdminMenuItems = adminMenuItems.filter(item => {
+    if (!item.permission) return true; // Si no tiene permiso definido, mostrar
+    return hasPermission(item.permission);
+  });
 
   const sidebarContent = (
     <Box 
@@ -254,7 +306,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       {/* Menú Principal */}
       <Box sx={{ flex: 1, overflow: 'auto' }}>
         <List sx={{ pt: isCompactMode ? 1 : 2 }}>
-          {menuItems.map((item, index) => (
+          {filteredMenuItems.map((item, index) => (
             <React.Fragment key={item.title}>
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
@@ -462,20 +514,12 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                 </>
               )}
 
-              {adminMenuItems
-                .filter(item => {
-                  // Si tiene adminOnly, solo mostrar para el usuario específico
-                  if (item.adminOnly) {
-                    return currentUser?.email === 'daruedagu@gmail.com';
-                  }
-                  return true;
-                })
-                .map((item, index) => (
+              {filteredAdminMenuItems.map((item, index) => (
                 <motion.div
                   key={item.title}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: (menuItems.length + index) * 0.1 }}
+                  transition={{ duration: 0.3, delay: (filteredMenuItems.length + index) * 0.1 }}
                 >
                   <ListItem disablePadding sx={{ mb: 0.5 }}>
                     {(isCompactMode && !isHoverExpanded) ? (

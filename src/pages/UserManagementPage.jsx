@@ -50,7 +50,12 @@ import {
   Cancel as CancelIcon,
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
-  Notifications as NotificationsIcon
+  Notifications as NotificationsIcon,
+  Dashboard,
+  AccountBalance,
+  Receipt,
+  TrendingUp,
+  Assessment
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -79,11 +84,6 @@ import { db, auth } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import NotificationSettingsModal from '../components/notifications/NotificationSettingsModal';
-
-// Permisos y roles simplificados
-import { 
-  USER_ROLES
-} from '../utils/userPermissions';
 
 const UserManagementPage = () => {
   const theme = useTheme();
@@ -180,12 +180,18 @@ const UserManagementPage = () => {
         // Editar usuario existente
         setEditingUser(user);
         
+        // Filtrar solo permisos del nuevo sistema
+        const newSystemPermissions = ['dashboard', 'compromisos', 'pagos', 'ingresos', 'empresas', 'reportes', 'usuarios', 'auditoria', 'storage'];
+        const filteredPermissions = (user.permissions || []).filter(permission => 
+          newSystemPermissions.includes(permission)
+        );
+        
         const userData = {
           email: user.email || '',
           displayName: user.displayName || user.name || '',
           phone: user.phone || '',
-          role: user.role || 'EMPLOYEE',
-          permissions: user.permissions || [],
+          role: user.role || 'USER',
+          permissions: filteredPermissions,
           companies: user.companies || [],
           isActive: user.isActive !== false,
           department: user.department || '',
@@ -202,11 +208,10 @@ const UserManagementPage = () => {
           email: '',
           displayName: '',
           phone: '',
-          role: 'EMPLOYEE',
+          role: 'USER',
           permissions: [
-            'view_commitments',
-            'view_receipts'
-          ], // Permisos básicos simplificados
+            'dashboard'
+          ], // Permisos básicos del nuevo sistema
           companies: [],
           isActive: true,
           department: '',
@@ -290,40 +295,22 @@ const UserManagementPage = () => {
     
     let newPermissions = [];
     
-    // Permisos simplificados por rol
+    // Permisos del nuevo sistema simplificado por rol
     if (newRole === 'ADMIN') {
       newPermissions = [
-        'admin_access',
-        'system_config',
-        'manage_users',
-        'view_users',
-        'view_commitments',
-        'create_commitments',
-        'edit_commitments',
-        'delete_commitments',
-        'view_receipts',
-        'download_receipts',
-        'upload_receipts',
-        'delete_receipts',
-        'generate_reports',
-        'export_data'
-      ];
-    } else if (newRole === 'MANAGER') {
-      newPermissions = [
-        'view_commitments',
-        'create_commitments',
-        'edit_commitments',
-        'view_receipts',
-        'download_receipts',
-        'upload_receipts',
-        'generate_reports',
-        'export_data'
+        'dashboard',
+        'compromisos',
+        'pagos',
+        'ingresos',
+        'empresas',
+        'reportes',
+        'usuarios',
+        'auditoria',
+        'storage'
       ];
     } else {
       newPermissions = [
-        'view_commitments',
-        'view_receipts',
-        'download_receipts'
+        'dashboard'
       ];
     }
     
@@ -392,12 +379,18 @@ const UserManagementPage = () => {
       setModalLoading(true);
       setError(null);
       
+      // Filtrar permisos para asegurar que solo se guarden los del nuevo sistema
+      const newSystemPermissions = ['dashboard', 'compromisos', 'pagos', 'ingresos', 'empresas', 'reportes', 'usuarios', 'auditoria', 'storage'];
+      const filteredPermissions = formData.permissions.filter(permission => 
+        newSystemPermissions.includes(permission)
+      );
+      
       const userData = {
         email: formData.email.toLowerCase(),
         displayName: formData.displayName,
         phone: formData.phone,
         role: formData.role,
-        permissions: formData.permissions,
+        permissions: filteredPermissions,
         companies: formData.companies,
         isActive: formData.isActive,
         department: formData.department,
@@ -700,39 +693,6 @@ const UserManagementPage = () => {
     }
   };
 
-  const getPermissionGroups = () => {
-    const groups = {
-      'Comprobantes': [
-        'view_receipts',
-        'download_receipts',
-        'upload_receipts',
-        'delete_receipts'
-      ],
-      'Compromisos': [
-        'view_commitments',
-        'create_commitments',
-        'edit_commitments',
-        'delete_commitments'
-      ],
-      'Reportes': [
-        'generate_reports',
-        'export_data'
-      ],
-      'Empresas': [
-        'view_company_data',
-        'manage_companies',
-        'assign_companies'
-      ],
-      'Administración': [
-        'manage_users',
-        'view_users',
-        'admin_access',
-        'system_config'
-      ]
-    };
-    return groups;
-  };
-
   if (loading && users.length === 0) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -1019,7 +979,7 @@ const UserManagementPage = () => {
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={USER_ROLES[user.role]?.name || user.role}
+                        label={user.role || 'Usuario'}
                         color={getRoleChipColor(user.role)}
                         size="small"
                         icon={user.role === 'ADMIN' ? <AdminIcon /> : <SecurityIcon />}
@@ -1256,14 +1216,18 @@ const UserManagementPage = () => {
                           onChange={(e) => handleRoleChange(e.target.value)}
                           label="Rol"
                         >
-                          {Object.entries(USER_ROLES).map(([key, role]) => (
-                            <MenuItem key={key} value={key}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                {key === 'ADMIN' ? <AdminIcon /> : <SecurityIcon />}
-                                {role.name}
-                              </Box>
-                            </MenuItem>
-                          ))}
+                          <MenuItem value="ADMIN">
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <AdminIcon />
+                              Administrador
+                            </Box>
+                          </MenuItem>
+                          <MenuItem value="USER">
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <SecurityIcon />
+                              Usuario
+                            </Box>
+                          </MenuItem>
                         </Select>
                       </FormControl>
                     </Grid>
@@ -1293,6 +1257,137 @@ const UserManagementPage = () => {
                       />
                     </Grid>
                   </Grid>
+                </Paper>
+              </Grid>
+
+              {/* PERMISOS DEL SISTEMA */}
+              <Grid item xs={12} md={12}>
+                <Paper sx={{
+                  p: 3,
+                  borderRadius: 2,
+                  border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                  background: theme.palette.background.paper,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                }}>
+                  <Typography variant="overline" sx={{
+                    fontWeight: 600,
+                    color: 'secondary.main',
+                    letterSpacing: 0.8,
+                    fontSize: '0.75rem'
+                  }}>
+                    <SecurityIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
+                    Permisos de Acceso
+                  </Typography>
+                  
+                  <Typography variant="body2" sx={{ 
+                    mt: 1, 
+                    mb: 3, 
+                    color: 'text.secondary' 
+                  }}>
+                    Selecciona las secciones del sistema a las que el usuario tendrá acceso
+                  </Typography>
+
+                  <Grid container spacing={2}>
+                    {[
+                      { key: 'dashboard', label: 'Dashboard', icon: <Dashboard />, color: theme.palette.primary.main },
+                      { key: 'compromisos', label: 'Compromisos', icon: <AccountBalance />, color: theme.palette.secondary.main },
+                      { key: 'pagos', label: 'Pagos', icon: <Receipt />, color: theme.palette.primary.main },
+                      { key: 'ingresos', label: 'Ingresos', icon: <TrendingUp />, color: '#4caf50' },
+                      { key: 'empresas', label: 'Empresas', icon: <BusinessIcon />, color: theme.palette.secondary.main },
+                      { key: 'reportes', label: 'Reportes', icon: <Assessment />, color: theme.palette.primary.main },
+                      { key: 'usuarios', label: 'Usuarios', icon: <PersonAddIcon />, color: '#ff9800' },
+                      { key: 'auditoria', label: 'Auditoría del Sistema', icon: <SecurityIcon />, color: '#9c27b0' },
+                      { key: 'storage', label: 'Limpieza de Storage', icon: <DeleteIcon />, color: '#f44336' }
+                    ].map((permission) => (
+                      <Grid item xs={12} sm={6} md={4} key={permission.key}>
+                        <Card sx={{
+                          border: formData.permissions.includes(permission.key) 
+                            ? `2px solid ${permission.color}` 
+                            : `1px solid ${theme.palette.divider}`,
+                          background: formData.permissions.includes(permission.key)
+                            ? alpha(permission.color, 0.08)
+                            : theme.palette.background.paper,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          '&:hover': {
+                            transform: 'translateY(-2px)',
+                            boxShadow: `0 4px 12px ${alpha(permission.color, 0.2)}`
+                          }
+                        }}
+                        onClick={() => {
+                          const newPermissions = formData.permissions.includes(permission.key)
+                            ? formData.permissions.filter(p => p !== permission.key)
+                            : [...formData.permissions, permission.key];
+                          updateFormData({ permissions: newPermissions });
+                        }}
+                        >
+                          <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                            <Box sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'space-between' 
+                            }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ 
+                                  color: formData.permissions.includes(permission.key) 
+                                    ? permission.color 
+                                    : 'text.secondary',
+                                  transition: 'color 0.2s ease'
+                                }}>
+                                  {permission.icon}
+                                </Box>
+                                <Typography variant="body2" sx={{ 
+                                  fontWeight: formData.permissions.includes(permission.key) ? 600 : 400,
+                                  color: formData.permissions.includes(permission.key) 
+                                    ? 'text.primary' 
+                                    : 'text.secondary'
+                                }}>
+                                  {permission.label}
+                                </Typography>
+                              </Box>
+                              
+                              <Switch
+                                checked={formData.permissions.includes(permission.key)}
+                                size="small"
+                                sx={{
+                                  '& .MuiSwitch-switchBase.Mui-checked': {
+                                    color: permission.color,
+                                  },
+                                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                    backgroundColor: permission.color,
+                                  },
+                                }}
+                              />
+                            </Box>
+                          </CardContent>
+                        </Card>
+                      </Grid>
+                    ))}
+                  </Grid>
+
+                  {/* Resumen de permisos seleccionados */}
+                  <Box sx={{ mt: 3, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                      Permisos seleccionados ({formData.permissions.length}):
+                    </Typography>
+                    <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      {formData.permissions.length > 0 ? (
+                        formData.permissions.map((perm) => (
+                          <Chip
+                            key={perm}
+                            label={perm.charAt(0).toUpperCase() + perm.slice(1)}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                          />
+                        ))
+                      ) : (
+                        <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
+                          No se han seleccionado permisos
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
                 </Paper>
               </Grid>
 
