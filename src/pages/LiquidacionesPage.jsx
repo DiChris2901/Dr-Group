@@ -106,6 +106,18 @@ const LiquidacionesPage = () => {
   const dropZoneRef = useRef(null);
   const logIdCounter = useRef(0);
 
+  // Debug: Monitorear cambios en metricsData
+  console.log('🎯 COMPONENT RENDER - metricsData:', metricsData);
+  
+  // Debug adicional: mostrar valores específicos cuando metricsData existe
+  if (metricsData) {
+    console.log('📊 VALORES ESPECÍFICOS EN RENDER:');
+    console.log('  - totalDerechos:', metricsData.totalDerechos);
+    console.log('  - totalGastos:', metricsData.totalGastos);
+    console.log('  - totalProduccion:', metricsData.totalProduccion);
+    console.log('  - totalImpuestos:', metricsData.totalImpuestos);
+  }
+
   // Función para agregar logs
   const addLog = useCallback((message, type = 'info') => {
     const timestamp = new Date().toLocaleTimeString();
@@ -171,6 +183,11 @@ const LiquidacionesPage = () => {
     
     // La empresa se obtendrá automáticamente del archivo al procesarlo
     addLog('🏢 La empresa se detectará automáticamente del archivo...', 'info');
+    
+    // Procesar automáticamente después de un breve delay
+    setTimeout(() => {
+      procesarLiquidacion(file);
+    }, 500);
   };
 
   // Drag & Drop handlers
@@ -195,8 +212,10 @@ const LiquidacionesPage = () => {
   }, []);
 
   // Procesamiento principal
-  const procesarLiquidacion = async () => {
-    if (!selectedFile) {
+  const procesarLiquidacion = async (archivoManual = null) => {
+    const archivo = archivoManual || selectedFile;
+    
+    if (!archivo) {
       addNotification('Error: Seleccione un archivo primero', 'error');
       return;
     }
@@ -206,12 +225,18 @@ const LiquidacionesPage = () => {
       return;
     }
 
+    // Si no hay archivo manual, verificar que el selectedFile esté establecido
+    if (!archivoManual && !selectedFile) {
+      addNotification('Error: No hay archivo seleccionado', 'error');
+      return;
+    }
+
     setProcessing(true);
-    addLog('⚙️ Iniciando procesamiento...', 'info');
+    addLog('⚙️ Iniciando procesamiento automático...', 'info');
 
     try {
       // Leer archivo
-      const data = await readFile(selectedFile);
+      const data = await readFile(archivo);
       addLog('✅ Archivo leído correctamente', 'success');
       
       // Extraer número de contrato del archivo (primera columna de datos)
@@ -682,10 +707,28 @@ const LiquidacionesPage = () => {
   // Confirmar validación y finalizar procesamiento
   const confirmarValidacion = () => {
     if (validationData) {
+      console.log('🔍 CONFIRMAR VALIDACIÓN - Datos recibidos:');
+      console.log('validationData.metrics:', validationData.metrics);
+      console.log('validationData.totalDerechos:', validationData.totalDerechos);
+      console.log('validationData.totalGastos:', validationData.totalGastos);
+      
+      // Crear métricas finales usando los valores actualizados individuales
+      const metricasFinales = {
+        ...validationData.metrics,
+        totalProduccion: validationData.totalProduccion,
+        totalDerechos: validationData.totalDerechos,
+        totalGastos: validationData.totalGastos,
+        totalImpuestos: validationData.totalImpuestos
+      };
+      
+      console.log('🎯 MÉTRICAS FINALES PARA APLICAR:', metricasFinales);
+      
       // Aplicar datos validados
       setConsolidatedData(validationData.consolidated);
       setReporteBySala(validationData.reporteSala);
-      setMetricsData(validationData.metrics);
+      setMetricsData(metricasFinales);
+      
+      console.log('✅ Estados actualizados en confirmarValidacion');
       
       addLog(`📊 ${validationData.totalMaquinas} máquinas consolidadas`, 'success');
       addLog(`🏢 ${validationData.totalEstablecimientos} establecimientos procesados`, 'success');
@@ -894,10 +937,26 @@ const LiquidacionesPage = () => {
         console.log('Gastos:', nuevoTotalGastos, `(+$${totalGastosAdicionales.toLocaleString()} adicionales)`);
         console.log('Total Impuestos:', nuevoTotalImpuestos);
 
+        // Recalcular métricas con los nuevos totales
+        const nuevasMetricas = {
+          ...validationData.metrics,
+          totalProduccion: nuevoTotalProduccion,
+          totalDerechos: nuevoTotalDerechos,
+          totalGastos: nuevoTotalGastos,
+          totalImpuestos: nuevoTotalImpuestos
+        };
+
+        console.log('🔍 ACTUALIZACIÓN DE MÉTRICAS DESPUÉS DE TARIFAS:');
+        console.log('Métricas originales:', validationData.metrics);
+        console.log('Nuevas métricas calculadas:', nuevasMetricas);
+        console.log('nuevoTotalDerechos calculado:', nuevoTotalDerechos);
+        console.log('nuevoTotalGastos calculado:', nuevoTotalGastos);
+
         // Actualizar validation data con ajustes
-        setValidationData({
+        const nuevoValidationData = {
           ...validationData,
           consolidated: datosAjustados,
+          metrics: nuevasMetricas,
           totalMaquinas: datosAjustados.length,
           totalEstablecimientos: validationData.totalEstablecimientos,
           totalProduccion: nuevoTotalProduccion,
@@ -907,11 +966,46 @@ const LiquidacionesPage = () => {
           ajusteTarifaFijaAplicado: true,
           derechosAdicionales: totalDerechosAdicionales,
           gastosAdicionales: totalGastosAdicionales
-        });
+        };
 
-        // Actualizar también los datos consolidados globales
-        setConsolidatedData(datosAjustados);
-        setOriginalData(datosAjustados);
+        console.log('🔍 NUEVO VALIDATION DATA COMPLETO:', nuevoValidationData);
+        setValidationData(nuevoValidationData);
+
+        // TEMPORAL: Comentado para debug - podría estar causando inconsistencias
+        // setConsolidatedData(datosAjustados);
+        // setOriginalData(datosAjustados);
+
+        // Auto-confirmar después de 2 segundos con los valores correctos
+        setTimeout(() => {
+          console.log('🚀 AUTO-CONFIRMANDO CON VALORES AJUSTADOS...');
+          
+          // Crear métricas finales con los valores calculados directamente
+          const metricasFinalesDirectas = {
+            ...validationData.metrics,
+            totalProduccion: nuevoTotalProduccion,
+            totalDerechos: nuevoTotalDerechos,
+            totalGastos: nuevoTotalGastos,
+            totalImpuestos: nuevoTotalImpuestos
+          };
+          
+          console.log('🎯 MÉTRICAS FINALES DIRECTAS:', metricasFinalesDirectas);
+          
+          // Aplicar datos validados directamente
+          setConsolidatedData(datosAjustados);
+          setReporteBySala(nuevoValidationData.reporteSala);
+          setMetricsData(metricasFinalesDirectas);
+          
+          addLog(`📊 ${datosAjustados.length} máquinas consolidadas con tarifas ajustadas`, 'success');
+          addLog(`🏢 ${nuevoValidationData.totalEstablecimientos} establecimientos procesados`, 'success');
+          addLog('✅ Procesamiento con tarifas completado exitosamente', 'success');
+          
+          // Cambiar a pestaña de resumen
+          setActiveTab(0);
+          
+          // Cerrar modal
+          setShowValidationModal(false);
+          setValidationData(null);
+        }, 2000);
       }
 
       setTarifasOficiales(nuevasTarifas);
@@ -927,6 +1021,15 @@ const LiquidacionesPage = () => {
       // Ocultar opciones de tarifas y mostrar que se aplicaron ajustes
       setShowTarifasOptions(false);
       setLiquidacionCoincide(true); // Ahora coincide porque se aplicaron las tarifas oficiales
+      
+      // CERRAR MODAL Y APLICAR DATOS FINALES después de procesamiento exitoso
+      // COMENTADO: Ahora se maneja directamente en el procesamiento de tarifas fijas
+      // setTimeout(() => {
+      //   // Primero confirmar validación para aplicar datos finales
+      //   confirmarValidacion();
+      //   addLog('✨ Procesamiento completado - Mostrando resumen final con ajustes', 'success');
+      //   addNotification('Liquidación completada con ajustes de tarifa fija', 'success');
+      // }, 2000); // 2 segundos para que el usuario vea el mensaje de éxito
       
     } catch (error) {
       addLog(`❌ Error procesando archivo de tarifas: ${error.message}`, 'error');
@@ -948,9 +1051,19 @@ const LiquidacionesPage = () => {
       console.log('📄 Archivo seleccionado:', archivo);
       
       if (archivo) {
-        console.log('✅ Archivo válido, procesando...', archivo.name);
-        addLog(`📄 Archivo seleccionado: ${archivo.name}`, 'info');
+        // VALIDAR: No debe ser el mismo archivo inicial
+        if (selectedFile && archivo.name === selectedFile.name && archivo.size === selectedFile.size) {
+          console.log('❌ Archivo duplicado detectado');
+          addLog('❌ Error: No puede subir el mismo archivo inicial', 'error');
+          addNotification('Error: Debe subir un archivo de tarifas diferente al archivo inicial', 'error');
+          return;
+        }
+        
+        console.log('✅ Archivo válido, procesando automáticamente...', archivo.name);
+        addLog(`📄 Archivo de tarifas seleccionado: ${archivo.name}`, 'info');
         setArchivoTarifas(archivo);
+        
+        // PROCESAR AUTOMÁTICAMENTE
         procesarArchivoTarifas(archivo);
       } else {
         console.log('❌ No se seleccionó archivo');
@@ -1164,16 +1277,45 @@ const LiquidacionesPage = () => {
   // Reiniciar aplicación
   const reiniciarAplicacion = () => {
     if (window.confirm('¿Está seguro que desea reiniciar? Se perderán todos los datos cargados.')) {
+      // Resetear estados de archivos y empresa
       setSelectedFile(null);
       setEmpresa('');
+      
+      // Resetear estados de datos
       setOriginalData(null);
       setConsolidatedData(null);
       setReporteBySala(null);
       setMetricsData(null);
+      
+      // Resetear estados de UI
       setLogs([]);
       logIdCounter.current = 0;
       setActiveTab(0);
+      setProcessing(false);
+      setDragActive(false);
+      
+      // Resetear estados de validación y tarifas
+      setShowValidationModal(false);
+      setValidationData(null);
+      setTarifasOficiales({});
+      setArchivoTarifas(null);
+      setLiquidacionCoincide(true);
+      setShowTarifasOptions(false);
+      setProcesandoTarifas(false);
+      
+      // Resetear estados del selector de establecimientos
+      setShowEstablecimientoSelector(false);
+      setSelectedEstablecimientos([]);
+      
+      // Resetear input de archivo con un pequeño retraso
+      setTimeout(() => {
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }, 100);
+      
       addLog('🔄 Aplicación reiniciada correctamente', 'info');
+      addLog('📁 Listo para cargar un nuevo archivo', 'info');
     }
   };
 
@@ -1324,6 +1466,14 @@ const LiquidacionesPage = () => {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                           <CircularProgress size={20} sx={{ color: 'white' }} />
                           <Typography sx={{ color: 'white' }}>Procesando archivo de tarifas...</Typography>
+                        </Box>
+                      )}
+                      
+                      {liquidacionCoincide && !procesandoTarifas && showTarifasOptions && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, p: 2, background: 'rgba(76, 175, 80, 0.3)', borderRadius: 1 }}>
+                          <Typography sx={{ color: 'white', textAlign: 'center' }}>
+                            ✅ Tarifas procesadas correctamente. El modal se cerrará automáticamente en unos segundos...
+                          </Typography>
                         </Box>
                       )}
                       
@@ -1495,23 +1645,54 @@ const LiquidacionesPage = () => {
                 helperText="La empresa se detecta automáticamente del número de contrato en el archivo"
               />
               
-              {/* Procesamiento */}
+              {/* Procesamiento automático */}
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                ⚙️ 2. Procesamiento
+                ⚙️ 2. Procesamiento Automático
               </Typography>
               
-              <Button
-                fullWidth
-                variant="contained"
-                startIcon={<Assessment />}
-                onClick={procesarLiquidacion}
-                disabled={!selectedFile || processing}
-                sx={{ mb: 2 }}
-              >
-                {processing ? 'Procesando...' : 'Procesar Liquidación'}
-              </Button>
+              {/* Estado del procesamiento automático */}
+              {!selectedFile ? (
+                <Box sx={{ 
+                  p: 3, 
+                  border: '2px dashed', 
+                  borderColor: theme.palette.grey[300],
+                  borderRadius: 2,
+                  textAlign: 'center',
+                  mb: 2
+                }}>
+                  <Typography variant="body1" color="text.secondary">
+                    ⏳ Seleccione un archivo para iniciar el procesamiento automático
+                  </Typography>
+                </Box>
+              ) : processing ? (
+                <Box sx={{ 
+                  p: 3, 
+                  background: theme.palette.primary.main + '20',
+                  borderRadius: 2,
+                  textAlign: 'center',
+                  mb: 2
+                }}>
+                  <Typography variant="body1" color="primary" sx={{ mb: 1 }}>
+                    ⚙️ Procesando automáticamente...
+                  </Typography>
+                  <LinearProgress />
+                </Box>
+              ) : (
+                <Box sx={{ 
+                  p: 3, 
+                  background: theme.palette.success.main + '20',
+                  borderRadius: 2,
+                  textAlign: 'center',
+                  mb: 2
+                }}>
+                  <Typography variant="body1" color="success.main">
+                    ✅ Archivo procesado correctamente
+                  </Typography>
+                </Box>
+              )}
               
-              {processing && <LinearProgress sx={{ mb: 2 }} />}
+              {/* Línea separadora */}
+              <Divider sx={{ my: 3 }} />
               
               {/* Botón reiniciar */}
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
