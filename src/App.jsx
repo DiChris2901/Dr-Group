@@ -48,6 +48,10 @@ import ActivityLogsPage from './pages/ActivityLogsPage';
 // Administración - Limpieza de Storage
 import OrphanFilesPage from './pages/OrphanFilesPage';
 
+// Módulo de Liquidaciones
+import LiquidacionesPage from './pages/LiquidacionesPage';
+import LiquidacionesHistorialPage from './pages/LiquidacionesHistorialPage';
+
 // Centro de Alertas
 import AlertsCenterPage from './pages/AlertsCenterPage';
 
@@ -163,6 +167,24 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Cuentas Bancarias" breadcrumbs={['Ingresos', 'Cuentas Bancarias']}>
             <BankAccountsPage />
+          </MainLayout>
+        }
+      />
+      
+      {/* Rutas de Liquidaciones */}
+      <Route 
+        path="/liquidaciones" 
+        element={
+          <MainLayout title="Liquidaciones" breadcrumbs={['Liquidaciones']}>
+            <LiquidacionesPage />
+          </MainLayout>
+        }
+      />
+      <Route 
+        path="/liquidaciones/historico" 
+        element={
+          <MainLayout title="Histórico de Liquidaciones" breadcrumbs={['Liquidaciones', 'Histórico']}>
+            <LiquidacionesHistorialPage />
           </MainLayout>
         }
       />

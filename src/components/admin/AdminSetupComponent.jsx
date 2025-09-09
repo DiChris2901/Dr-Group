@@ -64,6 +64,7 @@ const AdminSetupComponent = ({ onSetupComplete }) => {
           'pagos',
           'ingresos',
           'empresas',
+          'liquidaciones',
           'reportes',
           'usuarios',
           'auditoria',

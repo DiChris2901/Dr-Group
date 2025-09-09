@@ -160,6 +160,16 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       permission: 'empresas'
     },
     {
+      title: 'Liquidaciones',
+      icon: Receipt,
+      color: '#ff9800',
+      permission: 'liquidaciones',
+      submenu: [
+        { title: 'Liquidaciones', icon: Receipt, path: '/liquidaciones' },
+        { title: 'Histórico de Liquidaciones', icon: Assessment, path: '/liquidaciones/historico' }
+      ]
+    },
+    {
       title: 'Reportes',
       icon: Assessment,
       color: primaryColor,
@@ -199,34 +209,23 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
 
   // Función para verificar si el usuario tiene un permiso específico
   const hasPermission = (permission) => {
-    // Debug: mostrar información del usuario
-    console.log('🔍 Verificando permiso:', permission);
-    console.log('👤 Usuario:', firestoreProfile?.email);
-    console.log('🔧 Perfil completo:', firestoreProfile);
-    
     // Si no tiene perfil de Firestore, denegar acceso
     if (!firestoreProfile) {
-      console.log('❌ No hay perfil de Firestore');
       return false;
     }
 
     // Si no tiene permisos definidos, denegar acceso (cambio importante)
     if (!firestoreProfile.permissions || !Array.isArray(firestoreProfile.permissions)) {
-      console.log('❌ No tiene permisos definidos o no es array');
       return false;
     }
     
-    console.log('� Permisos del usuario:', firestoreProfile.permissions);
-    
     // Si tiene el permiso "ALL", permitir todo
     if (firestoreProfile.permissions.includes('ALL')) {
-      console.log('✅ Usuario tiene permiso ALL');
       return true;
     }
     
     // SOLO SISTEMA NUEVO: Verificar si tiene el permiso específico
     const hasPermissionResult = firestoreProfile.permissions.includes(permission);
-    console.log(`${hasPermissionResult ? '✅' : '❌'} Permiso ${permission}:`, hasPermissionResult);
     
     return hasPermissionResult;
   };

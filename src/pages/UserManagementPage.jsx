@@ -181,7 +181,7 @@ const UserManagementPage = () => {
         setEditingUser(user);
         
         // Filtrar solo permisos del nuevo sistema
-        const newSystemPermissions = ['dashboard', 'compromisos', 'pagos', 'ingresos', 'empresas', 'reportes', 'usuarios', 'auditoria', 'storage'];
+        const newSystemPermissions = ['dashboard', 'compromisos', 'pagos', 'ingresos', 'empresas', 'liquidaciones', 'reportes', 'usuarios', 'auditoria', 'storage'];
         const filteredPermissions = (user.permissions || []).filter(permission => 
           newSystemPermissions.includes(permission)
         );
@@ -303,6 +303,7 @@ const UserManagementPage = () => {
         'pagos',
         'ingresos',
         'empresas',
+        'liquidaciones',
         'reportes',
         'usuarios',
         'auditoria',
@@ -380,7 +381,7 @@ const UserManagementPage = () => {
       setError(null);
       
       // Filtrar permisos para asegurar que solo se guarden los del nuevo sistema
-      const newSystemPermissions = ['dashboard', 'compromisos', 'pagos', 'ingresos', 'empresas', 'reportes', 'usuarios', 'auditoria', 'storage'];
+      const newSystemPermissions = ['dashboard', 'compromisos', 'pagos', 'ingresos', 'empresas', 'liquidaciones', 'reportes', 'usuarios', 'auditoria', 'storage'];
       const filteredPermissions = formData.permissions.filter(permission => 
         newSystemPermissions.includes(permission)
       );
@@ -1294,6 +1295,7 @@ const UserManagementPage = () => {
                       { key: 'pagos', label: 'Pagos', icon: <Receipt />, color: theme.palette.primary.main },
                       { key: 'ingresos', label: 'Ingresos', icon: <TrendingUp />, color: '#4caf50' },
                       { key: 'empresas', label: 'Empresas', icon: <BusinessIcon />, color: theme.palette.secondary.main },
+                      { key: 'liquidaciones', label: 'Liquidaciones', icon: <Receipt />, color: '#ff9800' },
                       { key: 'reportes', label: 'Reportes', icon: <Assessment />, color: theme.palette.primary.main },
                       { key: 'usuarios', label: 'Usuarios', icon: <PersonAddIcon />, color: '#ff9800' },
                       { key: 'auditoria', label: 'Auditoría del Sistema', icon: <SecurityIcon />, color: '#9c27b0' },
