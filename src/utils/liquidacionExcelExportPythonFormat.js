@@ -7,7 +7,7 @@ import { saveAs } from 'file-saver';
 // Orden y nombres EXACTOS de columnas Python
 // Empresa, Serial, NUC, Establecimiento, Días transmitidos, Días del mes,
 // Primer día transmitido, Último día transmitido, Período Texto, Tipo apuesta,
-// Producción, Derechos de Explotación, Gastos de Administración, Total Impuestos, Novedad
+// Tarifa, Producción, Derechos de Explotación, Gastos de Administración, Total Impuestos, Novedad
 
 const COLUMN_DEFS = [
   { header: 'Empresa', key: 'empresa', width: 18 },
@@ -20,6 +20,7 @@ const COLUMN_DEFS = [
   { header: 'Último día transmitido', key: 'ultimoDia', width: 18 },
   { header: 'Período Texto', key: 'periodoTexto', width: 16 },
   { header: 'Tipo apuesta', key: 'tipoApuesta', width: 16 },
+  { header: 'Tarifa', key: 'tarifa', width: 14 },
   { header: 'Producción', key: 'produccion', width: 16 },
   { header: 'Derechos de Explotación', key: 'derechosExplotacion', width: 20 },
   { header: 'Gastos de Administración', key: 'gastosAdministracion', width: 20 },
@@ -40,6 +41,17 @@ const mapItem = (item, index) => {
     ultimoDia: item.ultimoDia || item['Último día transmitido'] || '',
     periodoTexto: item.periodoTexto || item.periodo || item['Período Texto'] || '',
     tipoApuesta: item.tipoApuesta || item['Tipo apuesta'] || item.tipo || '',
+    tarifa: (() => {
+      // Determinar fija / variable basándonos en los campos asignados durante el procesamiento
+      if (item.tipoTarifa === 'Tarifa fija') return 'Fija';
+      if (item.tipoTarifa === 'Tarifa variable') return 'Variable';
+      if (typeof item.tarifa === 'string') {
+        if (/fija/i.test(item.tarifa)) return 'Fija';
+        if (/variable/i.test(item.tarifa)) return 'Variable';
+      }
+      // Si no hay info explícita asumimos que no se aplicó ajuste (variable / cálculo original)
+      return 'Variable';
+    })(),
     produccion: toNumber(item.produccion || item['Producción'] || item.baseLiquidacion || 0),
     derechosExplotacion: toNumber(item.derechosExplotacion || item['Derechos de Explotación'] || (toNumber(item.produccion) * 0.12)),
     gastosAdministracion: toNumber(item.gastosAdministracion || item['Gastos de Administración'] || (toNumber(item.derechosExplotacion || item.derechos || 0) * 0.01)),
@@ -68,11 +80,12 @@ const fmtTitle = { font: { name: 'Segoe UI', size: 18, bold: true, color: { argb
 const fmtSubTitle = { font: { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FFFFFFFF' } }, alignment: { horizontal: 'center', vertical: 'middle', wrapText: true }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A5F7A' } } };
 const fmtHeader = { font: { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFFFFFFF' } }, alignment: { horizontal: 'center', vertical: 'middle', wrapText: true }, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B3040' } }, border: { top: { style: 'thin', color: { argb: 'FFCCCCCC' } }, left: { style: 'thin', color: { argb: 'FFCCCCCC' } }, bottom: { style: 'thin', color: { argb: 'FF666666' } }, right: { style: 'thin', color: { argb: 'FFCCCCCC' } } } };
 const fmtDataBase = { font: { name: 'Segoe UI', size: 9, color: { argb: 'FF223344' } }, alignment: { vertical: 'middle', horizontal: 'center', wrapText: false }, border: { top: { style: 'thin', color: { argb: 'FFE2E8F0' } }, left: { style: 'thin', color: { argb: 'FFE2E8F0' } }, bottom: { style: 'thin', color: { argb: 'FFC0CCDA' } }, right: { style: 'thin', color: { argb: 'FFE2E8F0' } } } };
-const fmtDataMoney = { ...fmtDataBase, alignment: { horizontal: 'right', vertical: 'middle' }, numFmt: '#,##0.00' };
+// Formato monetario COP sin decimales con símbolo $
+const fmtDataMoney = { ...fmtDataBase, alignment: { horizontal: 'right', vertical: 'middle' }, numFmt: '"$"#,##0' };
 const fmtTotalsLabel = { font: { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF0B3040' } }, alignment: { horizontal: 'right', vertical: 'middle' } };
-const fmtTotalsNumber = { font: { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF0B3040' } }, alignment: { horizontal: 'right', vertical: 'middle' }, numFmt: '#,##0.00', fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }, border: { top: { style: 'thin', color: { argb: 'FF94A3B8' } }, bottom: { style: 'thin', color: { argb: 'FF64748B' } } } };
+const fmtTotalsNumber = { font: { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF0B3040' } }, alignment: { horizontal: 'right', vertical: 'middle' }, numFmt: '"$"#,##0', fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }, border: { top: { style: 'thin', color: { argb: 'FF94A3B8' } }, bottom: { style: 'thin', color: { argb: 'FF64748B' } } } };
 
-export const exportarLiquidacionPythonFormat = async (data, empresaFallback = 'DR GROUP') => {
+export const exportarLiquidacionPythonFormat = async (data, empresaFallback = 'DR GROUP', options = {}) => {
   try {
     if (!Array.isArray(data) || data.length === 0) {
       throw new Error('No hay datos para exportar');
@@ -121,7 +134,12 @@ export const exportarLiquidacionPythonFormat = async (data, empresaFallback = 'D
     // Subtítulo (fila 2)
     ws.mergeCells(2, 1, 2, COLUMN_DEFS.length);
     const subTitleCell = ws.getCell(2, 1);
-    subTitleCell.value = 'Reporte consolidado de liquidación por máquinas';
+    const { salaNombre } = options || {};
+    if (salaNombre) {
+      subTitleCell.value = `Liquidación Establecimiento: ${salaNombre}`;
+    } else {
+      subTitleCell.value = 'Reporte consolidado de liquidación por máquinas';
+    }
     Object.assign(subTitleCell, { style: fmtSubTitle });
     ws.getRow(2).height = 22;
 
@@ -133,7 +151,15 @@ export const exportarLiquidacionPythonFormat = async (data, empresaFallback = 'D
   const derInt = roundInt(totalDerechos);
   const gasInt = roundInt(totalGastos);
   const totalImpInt = derInt + gasInt; // suma explícita requerida
-  infoCell.value = `Máquinas: ${mapped.length} | Producción Total: ${prodInt.toLocaleString('es-CO')} | Derechos de Explotación: ${derInt.toLocaleString('es-CO')} | Gastos de Administración: ${gasInt.toLocaleString('es-CO')} | Total Impuestos: ${totalImpInt.toLocaleString('es-CO')}`;
+  const totalSalas = new Set(mapped.map(r => r.establecimiento)).size;
+  // Métricas de novedad
+  const sinCambios = mapped.reduce((acc, r) => acc + (((r.novedad || '').toLowerCase().includes('sin cambios')) ? 1 : 0), 0);
+  const retiroAdicion = mapped.reduce((acc, r) => {
+    const nv = (r.novedad || '').toLowerCase();
+    return acc + ((nv.includes('retiro') || nv.includes('adición') || nv.includes('adicion')) ? 1 : 0);
+  }, 0);
+  const fmtCOP = (n) => `$${n.toLocaleString('es-CO')}`;
+  infoCell.value = `Máquinas: ${mapped.length} | Salas: ${totalSalas} | Producción Total: ${fmtCOP(prodInt)} | Derechos de Explotación: ${fmtCOP(derInt)} | Gastos de Administración: ${fmtCOP(gasInt)} | Total Impuestos: ${fmtCOP(totalImpInt)} | Sin cambios: ${sinCambios} | Retiro/Adición: ${retiroAdicion}`;
   Object.assign(infoCell, { style: { ...fmtSubTitle, fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } }, font: { ...fmtSubTitle.font, size: 10 } } });
   ws.getRow(3).height = 22;
 
@@ -180,9 +206,13 @@ export const exportarLiquidacionPythonFormat = async (data, empresaFallback = 'D
           }
         }
         const cell = row.getCell(idx + 1);
+        // Redondear valores monetarios antes de asignar
+        if (['produccion','derechosExplotacion','gastosAdministracion','totalImpuestos'].includes(col.key) && typeof value === 'number') {
+          value = Math.round(value);
+        }
         cell.value = value;
         // Estilo alternado
-        const baseStyle = (idx >= 10 && idx <= 13) ? fmtDataMoney : fmtDataBase; // columnas monetarias
+  const baseStyle = (idx >= 11 && idx <= 14) ? fmtDataMoney : fmtDataBase; // columnas monetarias (Producción..Total Impuestos)
         cell.style = { ...baseStyle };
         if (i % 2 === 0) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
@@ -198,10 +228,74 @@ export const exportarLiquidacionPythonFormat = async (data, empresaFallback = 'D
         if (col.key === 'establecimiento') {
           cell.alignment = { horizontal: 'left', vertical: 'middle' };
         }
+
+        // Columna novedad: coloreado condicional
+        if (col.key === 'novedad') {
+          const novStr = (value || '').toString().toLowerCase();
+          if (novStr.includes('sin cambios')) {
+            cell.font = { ...cell.font, color: { argb: 'FF15803D' }, bold: true }; // verde
+          } else if (novStr.includes('retiro') || novStr.includes('adición') || novStr.includes('adicion')) {
+            cell.font = { ...cell.font, color: { argb: 'FFDC2626' }, bold: true }; // rojo
+          } else if (novStr.includes('sin información')) {
+            cell.font = { ...cell.font, color: { argb: 'FFB45309' }, italic: true }; // ámbar
+          } else if (novStr.includes('extra')) {
+            cell.font = { ...cell.font, color: { argb: 'FF7C3AED' }, bold: true }; // púrpura para días extra
+          }
+        }
+
+        // --- Coloreado condicional ---
+        // Columnas monetarias: produccion, derechosExplotacion, gastosAdministracion, totalImpuestos
+        if (['produccion','derechosExplotacion','gastosAdministracion','totalImpuestos'].includes(col.key) && typeof value === 'number') {
+          if (value < 0) {
+            cell.font = { ...cell.font, color: { argb: 'FFDC2626' } }; // rojo
+          } else { // >= 0 (incluye cero)
+            cell.font = { ...cell.font, color: { argb: 'FF15803D' } }; // verde
+          }
+        }
+        // Columna tarifa: Fija -> rojo, Variable -> verde
+        if (col.key === 'tarifa') {
+          const vStr = (value || '').toString().toLowerCase();
+            if (vStr.includes('fija')) {
+              cell.font = { ...cell.font, color: { argb: 'FFDC2626' }, bold: true };
+            } else if (vStr.includes('variable')) {
+              cell.font = { ...cell.font, color: { argb: 'FF15803D' }, bold: true };
+            }
+        }
       });
       row.height = 18;
       currentRow++;
     });
+
+    // Auto-ajustar anchos de columnas según contenido (después de escribir los datos)
+    try {
+      const MIN_WIDTH = 8;
+      const MAX_WIDTH = 50; // evitar columnas gigantes
+      COLUMN_DEFS.forEach((col, idx) => {
+        const colIndex = idx + 1;
+        const headerLength = (col.header || '').toString().length;
+        let maxLen = headerLength;
+        // Recorrer filas de datos (desde headerRowIndex+1 hasta currentRow-1)
+        for (let rIndex = headerRowIndex + 1; rIndex < currentRow; rIndex++) {
+          const cell = ws.getRow(rIndex).getCell(colIndex);
+          let text = '';
+            if (cell.value == null) text = '';
+            else if (cell.value.richText) text = cell.value.richText.map(rt => rt.text).join('');
+            else if (cell.value.text) text = cell.value.text;
+            else if (cell.value instanceof Date) text = '00/00/0000';
+            else text = cell.value.toString();
+          if (['produccion','derechosExplotacion','gastosAdministracion','totalImpuestos'].includes(col.key) && text) {
+            // Formato moneda suele agregar separadores
+            text = `$${text}`;
+          }
+          if (text.length > maxLen) maxLen = text.length;
+        }
+        // Heurística: ancho = maxLen + 2
+        const computed = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, maxLen + 2));
+        ws.getColumn(colIndex).width = computed;
+      });
+    } catch (autoErr) {
+      console.warn('[AutoWidth] No se pudo calcular anchos dinámicos:', autoErr);
+    }
 
     // Totales (fila después de los datos + 1 espacio)
     const totalsStart = currentRow + 1;
@@ -210,7 +304,7 @@ export const exportarLiquidacionPythonFormat = async (data, empresaFallback = 'D
 
     const totalsRow = ws.getRow(currentRow);
     const labelCell = totalsRow.getCell(1);
-    ws.mergeCells(currentRow, 1, currentRow, 10); // Merge A..J para etiqueta
+  ws.mergeCells(currentRow, 1, currentRow, 11); // Merge A..K para etiqueta (nueva columna Tarifa)
     labelCell.value = 'TOTALES GENERALES';
     Object.assign(labelCell, { style: fmtTotalsLabel });
 
@@ -220,18 +314,13 @@ export const exportarLiquidacionPythonFormat = async (data, empresaFallback = 'D
       c.style = fmtTotalsNumber;
     };
 
-    // Producción (K), Derechos (L), Gastos (M), Total (N)
-    setTotal(11, totalProduccion);
-    setTotal(12, totalDerechos);
-    setTotal(13, totalGastos);
-    setTotal(14, totalImpuestos);
+  // Producción (L), Derechos (M), Gastos (N), Total (O) según nueva posición (Tarifa en K)
+  setTotal(12, totalProduccion);
+  setTotal(13, totalDerechos);
+  setTotal(14, totalGastos);
+  setTotal(15, totalImpuestos);
 
-    // Ajustar ancho automático para algunas columnas (solo si se quedan pequeñas)
-    ws.columns.forEach(col => {
-      if (!col.width || col.width < 10) {
-        col.width = 12;
-      }
-    });
+  // (El ajuste genérico previo se reemplazó por auto-fit dinámico)
 
     // Aplicar autofiltro en header
     ws.autoFilter = { from: { row: headerRowIndex, column: 1 }, to: { row: headerRowIndex, column: COLUMN_DEFS.length } };

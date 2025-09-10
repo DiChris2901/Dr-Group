@@ -38,6 +38,8 @@ import {
   Divider,
   CircularProgress,
   Avatar,
+  FormControlLabel,
+  Radio,
   alpha
 } from '@mui/material';
 import {
@@ -69,6 +71,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { exportarLiquidacionSpectacular, exportarLiquidacionSimple } from '../utils/liquidacionExcelExportSpectacularFixed';
 import { exportarLiquidacionPythonFormat } from '../utils/liquidacionExcelExportPythonFormat';
+import { exportarReporteDiarioSala } from '../utils/liquidacionExcelExportDiarioSala';
 import useCompanies from '../hooks/useCompanies';
 import * as XLSX from 'xlsx';
 
@@ -105,6 +108,53 @@ const LiquidacionesPage = () => {
   const [liquidacionCoincide, setLiquidacionCoincide] = useState(true);
   const [showTarifasOptions, setShowTarifasOptions] = useState(false);
   const [procesandoTarifas, setProcesandoTarifas] = useState(false);
+  // Modal exportar por sala
+  const [showSalaModal, setShowSalaModal] = useState(false);
+  const [salaSeleccionada, setSalaSeleccionada] = useState('');
+  const [salaSearchTerm, setSalaSearchTerm] = useState('');
+  const [exportandoSala, setExportandoSala] = useState(false);
+  // Modal reporte diario
+  const [showDailyModal, setShowDailyModal] = useState(false);
+  const [salaDailySeleccionada, setSalaDailySeleccionada] = useState('');
+  const [dailySearchTerm, setDailySearchTerm] = useState('');
+  const [exportandoDaily, setExportandoDaily] = useState(false);
+
+  const abrirModalSala = () => {
+    if (!reporteBySala) {
+      addNotification('No hay reporte por sala para exportar', 'warning');
+      return;
+    }
+    setSalaSeleccionada('');
+    setShowSalaModal(true);
+  };
+
+  const confirmarExportarSala = async () => {
+    if (!salaSeleccionada) return;
+    try {
+      if (!consolidatedData || !Array.isArray(consolidatedData)) {
+        addNotification('No hay datos consolidados para filtrar la sala', 'warning');
+        return;
+      }
+      setExportandoSala(true);
+      addLog(`🏢 Exportando sala (estructura consolidado): ${salaSeleccionada}`, 'info');
+      // Filtrar filas originales de la sala seleccionada
+      const dataSala = consolidatedData.filter(r => (r.establecimiento || r.sala) === salaSeleccionada);
+      if (!dataSala.length) {
+        throw new Error('No se encontraron filas detalladas de la sala seleccionada');
+      }
+      // Reutilizamos el exportador consolidado para mantener EXACTA estructura y estilos
+  await exportarLiquidacionPythonFormat(dataSala, empresa || 'GENERAL', { salaNombre: salaSeleccionada });
+      addLog('✅ Exportación sala (formato consolidado) completa', 'success');
+      addNotification('Sala exportada con estructura consolidada', 'success');
+      setShowSalaModal(false);
+    } catch (e) {
+      console.error(e);
+      addLog(`❌ Error exportando sala: ${e.message}`,'error');
+      addNotification('Error exportando sala','error');
+    } finally {
+      setExportandoSala(false);
+    }
+  };
   
   // Referencias
   const fileInputRef = useRef(null);
@@ -1224,53 +1274,76 @@ const LiquidacionesPage = () => {
     }
   };
 
-  const exportarReporteDiario = () => {
+  const abrirModalDaily = () => {
     if (!consolidatedData) {
       addNotification('No hay datos para exportar reporte diario', 'warning');
       return;
     }
+    const establecimientosUnicos = [...new Set(consolidatedData.map(i => i.establecimiento).filter(Boolean))];
+    if (establecimientosUnicos.length === 0) {
+      addNotification('No se detectaron establecimientos en los datos', 'error');
+      return;
+    }
+    if (establecimientosUnicos.length === 1) {
+      // Exportación directa
+      exportarReporteDiario(establecimientosUnicos[0]);
+    } else {
+      setSalaDailySeleccionada('');
+      setShowDailyModal(true);
+    }
+  };
+
+  const confirmarExportarDaily = async () => {
+    if (!salaDailySeleccionada) return;
+    await exportarReporteDiario(salaDailySeleccionada);
+  };
+
+  const exportarReporteDiario = async (establecimientoForzado) => {
+    if (!consolidatedData || !consolidatedData.length) {
+      addNotification('No hay datos para exportar reporte diario', 'warning');
+      return;
+    }
+
+    // Si el usuario seleccionó solo un establecimiento previamente (por sala export), usamos ese; de lo contrario pedimos el primero.
+    const establecimientosUnicos = [...new Set(consolidatedData.map(item => item.establecimiento).filter(Boolean))];
+    if (!establecimientosUnicos.length) {
+      addNotification('No se detectaron establecimientos en los datos', 'error');
+      return;
+    }
+
+    let establecimientoTarget;
+    if (establecimientoForzado) {
+      establecimientoTarget = establecimientoForzado;
+    } else if (selectedEstablecimientos && selectedEstablecimientos.length === 1) {
+      establecimientoTarget = selectedEstablecimientos[0];
+    } else if (selectedEstablecimientos && selectedEstablecimientos.length > 1) {
+      // Por ahora tomamos el primero y avisamos; se podría abrir modal de selección específica.
+      establecimientoTarget = selectedEstablecimientos[0];
+      addNotification(`Se seleccionó el primer establecimiento (${establecimientoTarget}) para el reporte diario (multi no soportado aún)`, 'info');
+    } else {
+      establecimientoTarget = establecimientosUnicos[0];
+      if (establecimientosUnicos.length > 1) {
+        addNotification(`Usando el primer establecimiento (${establecimientoTarget}).`, 'info');
+      }
+    }
 
     try {
-      addLog('📅 Iniciando exportación de reporte diario...', 'info');
-      
-      const wb = XLSX.utils.book_new();
-      
-      // Agrupar datos por establecimiento y crear una hoja por establecimiento
-      const establecimientosUnicos = [...new Set(consolidatedData.map(item => item.establecimiento))];
-      
-      establecimientosUnicos.forEach(establecimiento => {
-        const datosEstablecimiento = consolidatedData.filter(item => item.establecimiento === establecimiento);
-        
-        // Crear reporte diario expandido
-        const datosExpandidos = [];
-        datosEstablecimiento.forEach(maquina => {
-          // Para cada máquina, crear una entrada por cada día transmitido
-          for (let dia = 1; dia <= maquina.diasTransmitidos; dia++) {
-            datosExpandidos.push({
-              'Día': dia,
-              'Fecha': maquina.ultimoDia, // Simplificado - en Python sería más elaborado
-              'NUC': maquina.nuc,
-              'Serial': maquina.serial,
-              'Producción Diaria': (maquina.produccion / maquina.diasTransmitidos).toFixed(2),
-              'Derechos Diarios': (maquina.derechosExplotacion / maquina.diasTransmitidos).toFixed(2),
-              'Gastos Diarios': (maquina.gastosAdministracion / maquina.diasTransmitidos).toFixed(2),
-              'Total Impuestos Diarios': (maquina.totalImpuestos / maquina.diasTransmitidos).toFixed(2)
-            });
-          }
-        });
-        
-        const ws = XLSX.utils.json_to_sheet(datosExpandidos);
-        XLSX.utils.book_append_sheet(wb, ws, establecimiento.substring(0, 31)); // Límite de caracteres para nombre de hoja
-      });
-
-      const timestamp = new Date().toLocaleString('es-CO').replace(/[/:]/g, '-').replace(', ', '_');
-      const filename = `Reporte_Diario_${empresa || 'General'}_${timestamp}.xlsx`;
-      
-      XLSX.writeFile(wb, filename);
-      
-      addLog(`✅ Reporte diario exportado como: ${filename}`, 'success');
-      addNotification('Reporte diario exportado exitosamente', 'success');
-      
+      // Usar exclusivamente el primer archivo (originalData) para datos diarios reales
+      if (!originalData || !Array.isArray(originalData) || originalData.length === 0) {
+        addNotification('No hay archivo original con datos diarios', 'warning');
+        return;
+      }
+      const hayFechasReales = originalData.some(r => r['Fecha reporte'] || r.fechaReporte || r['Fecha'] || r.fecha);
+      if (!hayFechasReales) {
+        addLog('⚠️ No se encontraron fechas diarias explícitas en el archivo original. No se genera reporte.', 'warning');
+        addNotification('No hay registros diarios reales en el archivo original', 'warning');
+        return;
+      }
+      addLog(`📅 Generando reporte diario multi-hoja (solo datos reales) para ${establecimientoTarget}...`, 'info');
+      await exportarReporteDiarioSala(originalData, establecimientoTarget, empresa || 'General');
+      addLog('✅ Reporte diario exportado (multi-hoja por día)', 'success');
+      addNotification('Reporte diario exportado', 'success');
+      setShowDailyModal(false);
     } catch (error) {
       console.error('Error exportando reporte diario:', error);
       addLog(`❌ Error exportando: ${error.message}`, 'error');
@@ -1788,6 +1861,7 @@ const LiquidacionesPage = () => {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     {/* Avatar con logo de la empresa o inicial */}
                     {empresaCompleta?.logoURL ? (
+
                       <Avatar
                         src={empresaCompleta.logoURL}
                         alt={`Logo de ${empresaCompleta.name}`}
@@ -2647,7 +2721,7 @@ const LiquidacionesPage = () => {
                               variant="contained"
                               startIcon={<Download />}
                               size="small"
-                              onClick={exportarReporteSala}
+                              onClick={abrirModalSala}
                               disabled={!reporteBySala}
                               sx={{
                                 borderRadius: 1,
@@ -2662,7 +2736,7 @@ const LiquidacionesPage = () => {
                               variant="outlined"
                               startIcon={<DateRange />}
                               size="small"
-                              onClick={exportarReporteDiario}
+                              onClick={abrirModalDaily}
                               disabled={!consolidatedData}
                               sx={{
                                 borderRadius: 1,
@@ -2752,6 +2826,929 @@ const LiquidacionesPage = () => {
           </Card>
         </Grid>
       </Grid>
+  {/* Modal Selección Sala */}
+    <Dialog 
+      open={showSalaModal} 
+      onClose={() => setShowSalaModal(false)} 
+      maxWidth="md" 
+      fullWidth
+      PaperProps={{
+        sx: { 
+          borderRadius: 2,
+          overflow: 'hidden',
+          boxShadow: theme => theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+            : '0 4px 20px rgba(0, 0, 0, 0.08)'
+        }
+      }}
+    >
+      {/* Header sobrio con gradiente controlado */}
+      <Box sx={{ 
+        background: theme => theme.palette.mode === 'dark' 
+          ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+          : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+        color: 'white',
+        p: 3,
+        position: 'relative',
+        zIndex: 1
+      }}>
+        <Typography variant="overline" sx={{
+          fontWeight: 600, 
+          fontSize: '0.8rem', 
+          color: 'rgba(255, 255, 255, 0.8)',
+          letterSpacing: 1.2,
+          display: 'block',
+          mb: 1
+        }}>
+          SELECTOR • EXPORTAR POR SALA
+        </Typography>
+        <Typography variant="h4" sx={{
+          fontWeight: 700, 
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          fontSize: '1.75rem'
+        }}>
+          📊 Establecimientos
+        </Typography>
+        <Typography variant="body1" sx={{ 
+          color: 'rgba(255, 255, 255, 0.9)',
+          fontSize: '1rem',
+          mt: 1
+        }}>
+          Empresa: {empresa || 'DR Group'}
+        </Typography>
+      </Box>
+
+      <DialogContent sx={{ p: 0 }}>
+        {reporteBySala && (
+          <Box>
+            {/* Info header sobrio */}
+            <Box sx={{ 
+              background: theme => alpha(theme.palette.primary.main, 0.08),
+              borderBottom: theme => `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+              p: 2.5, 
+              display: 'flex', 
+              alignItems: 'center',
+              gap: 2
+            }}>
+              <Typography variant="body2" sx={{ 
+                fontWeight: 500,
+                color: 'text.primary',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                fontSize: '0.9rem'
+              }}>
+                <Box sx={{ 
+                  width: 8, 
+                  height: 8, 
+                  borderRadius: '50%', 
+                  background: theme => theme.palette.primary.main 
+                }} />
+                Establecimientos disponibles: {reporteBySala.map(r => r.establecimiento).filter((v, i, arr) => arr.indexOf(v) === i).length}
+              </Typography>
+              <Box sx={{ 
+                display: 'flex', 
+                gap: 1.5,
+                ml: 'auto'
+              }}>
+                <Button 
+                  size="small" 
+                  variant="contained" 
+                  sx={{ 
+                    minWidth: 'auto',
+                    px: 2,
+                    py: 0.5,
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    borderRadius: 1,
+                    background: theme => theme.palette.success.main,
+                    '&:hover': {
+                      background: theme => theme.palette.success.dark
+                    },
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Seleccionar Todos
+                </Button>
+                <Button 
+                  size="small" 
+                  variant="outlined"
+                  sx={{ 
+                    minWidth: 'auto',
+                    px: 2,
+                    py: 0.5,
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    borderRadius: 1,
+                    borderColor: theme => alpha(theme.palette.primary.main, 0.6),
+                    color: 'text.primary',
+                    '&:hover': {
+                      borderColor: theme => alpha(theme.palette.primary.main, 0.8),
+                      background: theme => alpha(theme.palette.primary.main, 0.04)
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Deseleccionar Todos
+                </Button>
+              </Box>
+            </Box>
+
+            {/* Search sobrio */}
+            <Box sx={{ p: 3, background: 'background.paper' }}>
+              <Typography variant="body2" sx={{ 
+                fontWeight: 500,
+                mb: 1.5,
+                color: 'text.primary',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                fontSize: '0.9rem'
+              }}>
+                <Box sx={{ 
+                  width: 6, 
+                  height: 6, 
+                  borderRadius: '50%', 
+                  background: theme => theme.palette.secondary.main 
+                }} />
+                Buscar establecimiento
+              </Typography>
+              <Box sx={{ position: 'relative' }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Escriba para filtrar establecimientos"
+                  variant="outlined"
+                  value={salaSearchTerm}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1,
+                      background: theme => alpha(theme.palette.primary.main, 0.02),
+                      border: theme => `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                      '&:hover': {
+                        borderColor: theme => alpha(theme.palette.primary.main, 0.4)
+                      },
+                      '&.Mui-focused': {
+                        borderColor: theme => theme.palette.primary.main
+                      },
+                      transition: 'all 0.2s ease'
+                    },
+                    '& input': {
+                      fontSize: '0.9rem'
+                    }
+                  }}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSalaSearchTerm(val);
+                    if (val.trim()) {
+                      const firstMatch = reporteBySala?.find(r => r.establecimiento.toLowerCase().includes(val.toLowerCase()));
+                      if (firstMatch) setSalaSeleccionada(firstMatch.establecimiento);
+                    }
+                  }}
+                />
+                {/* Autocomplete dropdown */}
+                {salaSearchTerm && reporteBySala && !salaSeleccionada && (
+                  <Box sx={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    zIndex: 1000,
+                    background: 'background.paper',
+                    border: theme => `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                    borderTop: 'none',
+                    borderRadius: '0 0 4px 4px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                    maxHeight: 200,
+                    overflowY: 'auto'
+                  }}>
+                    {reporteBySala
+                      .map(r => r.establecimiento)
+                      .filter((v, i, arr) => arr.indexOf(v) === i)
+                      .filter(est => est.toLowerCase().includes(salaSearchTerm.toLowerCase()))
+                      .sort()
+                      .slice(0, 5)
+                      .map(est => (
+                        <Box
+                          key={est}
+                          sx={{
+                            p: 1.5,
+                            cursor: 'pointer',
+                            borderBottom: theme => `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                            '&:hover': {
+                              background: theme => alpha(theme.palette.primary.main, 0.04)
+                            },
+                            '&:last-child': {
+                              borderBottom: 'none'
+                            }
+                          }}
+                          onClick={() => {
+                            setSalaSeleccionada(est);
+                            setSalaSearchTerm(est);
+                          }}
+                        >
+                          <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                            {est}
+                          </Typography>
+                        </Box>
+                      ))
+                    }
+                  </Box>
+                )}
+              </Box>
+              <Button 
+                size="small" 
+                sx={{ 
+                  mt: 1.5, 
+                  fontSize: '0.8rem',
+                  fontWeight: 500,
+                  borderRadius: 1,
+                  background: theme => alpha(theme.palette.secondary.main, 0.08),
+                  color: 'text.secondary',
+                  border: theme => `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                  '&:hover': { 
+                    background: theme => alpha(theme.palette.secondary.main, 0.12),
+                    borderColor: theme => alpha(theme.palette.secondary.main, 0.4)
+                  },
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => {
+                  setSalaSearchTerm('');
+                  setSalaSeleccionada('');
+                }}
+              >
+                Limpiar
+              </Button>
+            </Box>
+
+            {/* Establishments list sobrio */}
+            <Box sx={{ 
+              maxHeight: 300, 
+              overflowY: 'auto', 
+              background: 'background.paper',
+              px: 3,
+              pb: 2
+            }}>
+              {reporteBySala
+                .map(r => r.establecimiento)
+                .filter((v, i, arr) => arr.indexOf(v) === i)
+                .filter(est => !salaSearchTerm || est.toLowerCase().includes(salaSearchTerm.toLowerCase()))
+                .sort()
+                .map(est => {
+                  // Calculate metrics for this establishment
+                  const estData = reporteBySala.filter(r => r.establecimiento === est);
+                  const maquinas = estData.length;
+                  const produccionTotal = Math.round(estData.reduce((sum, r) => sum + (Number(r.produccion) || 0), 0));
+                  const promedioPorMaquina = maquinas > 0 ? Math.round(produccionTotal / maquinas) : 0;
+                  const derechos = Math.round(produccionTotal * 0.12);
+                  const gastos = Math.round(derechos * 0.01);
+                  const totalImpuestos = Math.round(derechos + gastos);
+
+                  return (
+                    <Box 
+                      key={est} 
+                      sx={{ 
+                        border: theme => salaSeleccionada === est 
+                          ? `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+                          : `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                        borderRadius: 2,
+                        mb: 1.5,
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        background: theme => salaSeleccionada === est 
+                          ? alpha(theme.palette.primary.main, 0.04)
+                          : 'background.paper',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                        '&:hover': {
+                          borderColor: theme => alpha(theme.palette.primary.main, 0.6),
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                          background: theme => alpha(theme.palette.primary.main, 0.04)
+                        },
+                        transition: 'all 0.2s ease'
+                      }}
+                      onClick={() => setSalaSeleccionada(est)}
+                    >
+                      {/* Header sobrio */}
+                      <Box sx={{ 
+                        background: theme => salaSeleccionada === est 
+                          ? alpha(theme.palette.primary.main, 0.1)
+                          : alpha(theme.palette.secondary.main, 0.08),
+                        p: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        borderBottom: theme => `1px solid ${alpha(theme.palette.divider, 0.12)}`
+                      }}>
+                        <Radio 
+                          checked={salaSeleccionada === est} 
+                          onChange={() => setSalaSeleccionada(est)}
+                          size="small"
+                          sx={{ 
+                            color: theme => alpha(theme.palette.primary.main, 0.6),
+                            '&.Mui-checked': { 
+                              color: theme => theme.palette.primary.main 
+                            }
+                          }}
+                        />
+                        <Typography variant="subtitle2" sx={{ 
+                          fontWeight: 600, 
+                          fontSize: '1rem',
+                          color: 'text.primary'
+                        }}>
+                          {est}
+                        </Typography>
+                      </Box>
+
+                      {/* Metrics sobrios */}
+                      <Box sx={{ p: 2 }}>
+                        <Box sx={{ display: 'flex', gap: 3, mb: 1.5, flexWrap: 'wrap' }}>
+                          <Typography variant="caption" sx={{ 
+                            color: theme => theme.palette.success.main, 
+                            fontWeight: 500,
+                            fontSize: '0.8rem'
+                          }}>
+                            {maquinas} máquinas
+                          </Typography>
+                          <Typography variant="caption" sx={{ 
+                            color: theme => theme.palette.success.main, 
+                            fontWeight: 500,
+                            fontSize: '0.8rem'
+                          }}>
+                            ${produccionTotal.toLocaleString()} producción
+                          </Typography>
+                          <Typography variant="caption" sx={{ 
+                            color: theme => theme.palette.success.main, 
+                            fontWeight: 500,
+                            fontSize: '0.8rem'
+                          }}>
+                            ${promedioPorMaquina.toLocaleString()} promedio/máquina
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                          <Typography variant="caption" sx={{ 
+                            color: 'text.secondary',
+                            fontSize: '0.75rem'
+                          }}>
+                            ${derechos.toLocaleString()} derechos
+                          </Typography>
+                          <Typography variant="caption" sx={{ 
+                            color: 'text.secondary',
+                            fontSize: '0.75rem'
+                          }}>
+                            ${gastos.toLocaleString()} gastos
+                          </Typography>
+                          <Typography variant="caption" sx={{ 
+                            color: 'text.secondary',
+                            fontSize: '0.75rem'
+                          }}>
+                            ${totalImpuestos.toLocaleString()} total impuestos
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  );
+                })}
+            </Box>
+
+            {/* Selected info sobrio */}
+            <Box sx={{ 
+              background: theme => alpha(theme.palette.secondary.main, 0.08),
+              borderTop: theme => `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+              p: 2,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5
+            }}>
+              <Box sx={{ 
+                width: 8, 
+                height: 8, 
+                borderRadius: '50%', 
+                background: theme => theme.palette.secondary.main 
+              }} />
+              <Typography variant="body2" sx={{ 
+                fontWeight: 500,
+                color: 'text.primary',
+                fontSize: '0.9rem'
+              }}>
+                Seleccionados: {salaSeleccionada ? 1 : 0} de {reporteBySala.map(r => r.establecimiento).filter((v, i, arr) => arr.indexOf(v) === i).length}
+              </Typography>
+            </Box>
+          </Box>
+        )}
+      </DialogContent>
+
+      <DialogActions sx={{ 
+        p: 3, 
+        background: 'background.paper',
+        borderTop: theme => `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+        gap: 1.5
+      }}>
+        <Button 
+          onClick={() => setShowSalaModal(false)} 
+          disabled={exportandoSala}
+          sx={{ 
+            borderRadius: 1,
+            fontWeight: 500,
+            color: 'text.secondary',
+            border: theme => `1px solid ${alpha(theme.palette.divider, 0.15)}`,
+            '&:hover': { 
+              background: theme => alpha(theme.palette.secondary.main, 0.04),
+              borderColor: theme => alpha(theme.palette.secondary.main, 0.3)
+            },
+            transition: 'all 0.2s ease'
+          }}
+        >
+          Cancelar
+        </Button>
+        <Button 
+          onClick={confirmarExportarSala} 
+          disabled={!salaSeleccionada || exportandoSala} 
+          variant="contained"
+          sx={{
+            borderRadius: 1,
+            fontWeight: 600,
+            px: 3,
+            background: theme => theme.palette.primary.main,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            '&:hover': {
+              background: theme => theme.palette.primary.dark,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+            },
+            '&:disabled': {
+              background: theme => alpha(theme.palette.primary.main, 0.3)
+            },
+            transition: 'all 0.2s ease'
+          }}
+        >
+          {exportandoSala ? 'Exportando...' : 'Exportar'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+    {/* Modal Selección Sala para Reporte Diario */}
+    <Dialog 
+      open={showDailyModal} 
+      onClose={() => setShowDailyModal(false)} 
+      maxWidth="md" 
+      fullWidth
+      PaperProps={{
+        sx: { 
+          borderRadius: 2,
+          overflow: 'hidden',
+          boxShadow: theme => theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+            : '0 4px 20px rgba(0, 0, 0, 0.08)'
+        }
+      }}
+    >
+      {/* Header sobrio con gradiente controlado */}
+      <Box sx={{ 
+        background: theme => theme.palette.mode === 'dark' 
+          ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+          : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+        color: 'white',
+        p: 3,
+        position: 'relative',
+        zIndex: 1
+      }}>
+        <Typography variant="overline" sx={{
+          fontWeight: 600, 
+          fontSize: '0.8rem', 
+          color: 'rgba(255, 255, 255, 0.8)',
+          letterSpacing: 1.2,
+          display: 'block',
+          mb: 1
+        }}>
+          SELECTOR • REPORTE DIARIO
+        </Typography>
+        <Typography variant="h4" sx={{
+          fontWeight: 700, 
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          fontSize: '1.75rem'
+        }}>
+          📊 Establecimientos
+        </Typography>
+        <Typography variant="body1" sx={{ 
+          color: 'rgba(255, 255, 255, 0.9)',
+          fontSize: '1rem',
+          mt: 1
+        }}>
+          Empresa: {empresa || 'DR Group'}
+        </Typography>
+      </Box>
+
+      <DialogContent sx={{ p: 0 }}>
+        {consolidatedData && (
+          <Box>
+            {/* Info header sobrio */}
+            <Box sx={{ 
+              background: theme => alpha(theme.palette.primary.main, 0.08),
+              borderBottom: theme => `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+              p: 2.5, 
+              display: 'flex', 
+              alignItems: 'center',
+              gap: 2
+            }}>
+              <Typography variant="body2" sx={{ 
+                fontWeight: 500,
+                color: 'text.primary',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1
+              }}>
+                <Box sx={{ 
+                  width: 8, 
+                  height: 8, 
+                  borderRadius: '50%', 
+                  background: theme => theme.palette.primary.main 
+                }} />
+                Establecimientos disponibles: {[...new Set(consolidatedData.map(r => r.establecimiento).filter(Boolean))].length}
+              </Typography>
+              <Box sx={{ 
+                display: 'flex', 
+                gap: 1.5,
+                ml: 'auto'
+              }}>
+                <Button 
+                  size="small" 
+                  variant="contained" 
+                  sx={{ 
+                    minWidth: 'auto',
+                    px: 2,
+                    py: 0.5,
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    borderRadius: 1,
+                    background: theme => theme.palette.success.main,
+                    '&:hover': {
+                      background: theme => theme.palette.success.dark
+                    },
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Seleccionar Todos
+                </Button>
+                <Button 
+                  size="small" 
+                  variant="outlined"
+                  sx={{ 
+                    minWidth: 'auto',
+                    px: 2,
+                    py: 0.5,
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    borderRadius: 1,
+                    borderColor: theme => alpha(theme.palette.primary.main, 0.6),
+                    color: 'text.primary',
+                    '&:hover': {
+                      borderColor: theme => alpha(theme.palette.primary.main, 0.8),
+                      background: theme => alpha(theme.palette.primary.main, 0.04)
+                    },
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Deseleccionar Todos
+                </Button>
+              </Box>
+            </Box>
+
+            {/* Search sobrio */}
+            <Box sx={{ p: 3, background: 'background.paper' }}>
+              <Typography variant="body2" sx={{ 
+                fontWeight: 500,
+                mb: 1.5,
+                color: 'text.primary',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                fontSize: '0.9rem'
+              }}>
+                <Box sx={{ 
+                  width: 6, 
+                  height: 6, 
+                  borderRadius: '50%', 
+                  background: theme => theme.palette.secondary.main 
+                }} />
+                Buscar establecimiento
+              </Typography>
+              <Box sx={{ position: 'relative' }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Escriba para filtrar establecimientos"
+                  variant="outlined"
+                  value={dailySearchTerm}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1,
+                      background: theme => alpha(theme.palette.primary.main, 0.02),
+                      border: theme => `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                      '&:hover': {
+                        borderColor: theme => alpha(theme.palette.primary.main, 0.4)
+                      },
+                      '&.Mui-focused': {
+                        borderColor: theme => theme.palette.primary.main
+                      },
+                      transition: 'all 0.2s ease'
+                    },
+                    '& input': {
+                      fontSize: '0.9rem'
+                    }
+                  }}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setDailySearchTerm(val);
+                    if (val.trim()) {
+                      const establecimientosUnicos = [...new Set(consolidatedData.map(r => r.establecimiento).filter(Boolean))];
+                      const firstMatch = establecimientosUnicos.find(r => r.toLowerCase().includes(val.toLowerCase()));
+                      if (firstMatch) setSalaDailySeleccionada(firstMatch);
+                    }
+                  }}
+                />
+                {/* Autocomplete dropdown */}
+                {dailySearchTerm && consolidatedData && !salaDailySeleccionada && (
+                  <Box sx={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    zIndex: 1000,
+                    background: 'background.paper',
+                    border: theme => `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                    borderTop: 'none',
+                    borderRadius: '0 0 4px 4px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                    maxHeight: 200,
+                    overflowY: 'auto'
+                  }}>
+                    {[...new Set(consolidatedData.map(r => r.establecimiento).filter(Boolean))]
+                      .filter(est => est.toLowerCase().includes(dailySearchTerm.toLowerCase()))
+                      .sort()
+                      .slice(0, 5)
+                      .map(est => (
+                        <Box
+                          key={est}
+                          sx={{
+                            p: 1.5,
+                            cursor: 'pointer',
+                            borderBottom: theme => `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                            '&:hover': {
+                              background: theme => alpha(theme.palette.primary.main, 0.04)
+                            },
+                            '&:last-child': {
+                              borderBottom: 'none'
+                            }
+                          }}
+                          onClick={() => {
+                            setSalaDailySeleccionada(est);
+                            setDailySearchTerm(est);
+                          }}
+                        >
+                          <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
+                            {est}
+                          </Typography>
+                        </Box>
+                      ))
+                    }
+                  </Box>
+                )}
+              </Box>
+              <Button 
+                size="small" 
+                sx={{ 
+                  mt: 1.5, 
+                  fontSize: '0.8rem',
+                  fontWeight: 500,
+                  borderRadius: 1,
+                  background: theme => alpha(theme.palette.secondary.main, 0.08),
+                  color: 'text.secondary',
+                  border: theme => `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                  '&:hover': { 
+                    background: theme => alpha(theme.palette.secondary.main, 0.12),
+                    borderColor: theme => alpha(theme.palette.secondary.main, 0.4)
+                  },
+                  transition: 'all 0.2s ease'
+                }}
+                onClick={() => {
+                  setDailySearchTerm('');
+                  setSalaDailySeleccionada('');
+                }}
+              >
+                Limpiar
+              </Button>
+            </Box>
+
+            {/* Establishments list sobrio */}
+            <Box sx={{ 
+              maxHeight: 300, 
+              overflowY: 'auto', 
+              background: 'background.paper',
+              px: 3,
+              pb: 2
+            }}>
+              {[...new Set(consolidatedData.map(r => r.establecimiento).filter(Boolean))]
+                .filter(est => {
+                  if (!dailySearchTerm) return true;
+                  return est.toLowerCase().includes(dailySearchTerm.toLowerCase());
+                })
+                .sort()
+                .map(est => {
+                  // Calculate metrics for this establishment
+                  const estData = consolidatedData.filter(r => r.establecimiento === est);
+                  const maquinas = estData.length;
+                  const produccionTotal = Math.round(estData.reduce((sum, r) => sum + (Number(r.produccion) || 0), 0));
+                  const promedioPorMaquina = maquinas > 0 ? Math.round(produccionTotal / maquinas) : 0;
+                  const derechos = Math.round(produccionTotal * 0.12);
+                  const gastos = Math.round(derechos * 0.01);
+                  const totalImpuestos = Math.round(derechos + gastos);
+
+                  return (
+                    <Box 
+                      key={est} 
+                      sx={{ 
+                        border: theme => salaDailySeleccionada === est 
+                          ? `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+                          : `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                        borderRadius: 2,
+                        mb: 1.5,
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        background: theme => salaDailySeleccionada === est 
+                          ? alpha(theme.palette.primary.main, 0.04)
+                          : 'background.paper',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                        '&:hover': {
+                          borderColor: theme => alpha(theme.palette.primary.main, 0.6),
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                          background: theme => alpha(theme.palette.primary.main, 0.04)
+                        },
+                        transition: 'all 0.2s ease'
+                      }}
+                      onClick={() => setSalaDailySeleccionada(est)}
+                    >
+                      {/* Header sobrio */}
+                      <Box sx={{ 
+                        background: theme => salaDailySeleccionada === est 
+                          ? alpha(theme.palette.primary.main, 0.1)
+                          : alpha(theme.palette.secondary.main, 0.08),
+                        p: 2,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        borderBottom: theme => `1px solid ${alpha(theme.palette.divider, 0.12)}`
+                      }}>
+                        <Radio 
+                          checked={salaDailySeleccionada === est} 
+                          onChange={() => setSalaDailySeleccionada(est)}
+                          size="small"
+                          sx={{ 
+                            color: theme => alpha(theme.palette.primary.main, 0.6),
+                            '&.Mui-checked': { 
+                              color: theme => theme.palette.primary.main 
+                            }
+                          }}
+                        />
+                        <Typography variant="subtitle2" sx={{ 
+                          fontWeight: 600, 
+                          fontSize: '1rem',
+                          color: 'text.primary'
+                        }}>
+                          {est}
+                        </Typography>
+                      </Box>
+
+                      {/* Metrics sobrios */}
+                      <Box sx={{ p: 2 }}>
+                        <Box sx={{ display: 'flex', gap: 3, mb: 1.5, flexWrap: 'wrap' }}>
+                          <Typography variant="caption" sx={{ 
+                            color: theme => theme.palette.success.main, 
+                            fontWeight: 500,
+                            fontSize: '0.8rem'
+                          }}>
+                            {maquinas} máquinas
+                          </Typography>
+                          <Typography variant="caption" sx={{ 
+                            color: theme => theme.palette.success.main, 
+                            fontWeight: 500,
+                            fontSize: '0.8rem'
+                          }}>
+                            ${produccionTotal.toLocaleString()} producción
+                          </Typography>
+                          <Typography variant="caption" sx={{ 
+                            color: theme => theme.palette.success.main, 
+                            fontWeight: 500,
+                            fontSize: '0.8rem'
+                          }}>
+                            ${promedioPorMaquina.toLocaleString()} promedio/máquina
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                          <Typography variant="caption" sx={{ 
+                            color: 'text.secondary',
+                            fontSize: '0.75rem'
+                          }}>
+                            ${derechos.toLocaleString()} derechos
+                          </Typography>
+                          <Typography variant="caption" sx={{ 
+                            color: 'text.secondary',
+                            fontSize: '0.75rem'
+                          }}>
+                            ${gastos.toLocaleString()} gastos
+                          </Typography>
+                          <Typography variant="caption" sx={{ 
+                            color: 'text.secondary',
+                            fontSize: '0.75rem'
+                          }}>
+                            ${totalImpuestos.toLocaleString()} total impuestos
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  );
+                })}
+            </Box>
+
+            {/* Selected info sobrio */}
+            <Box sx={{ 
+              background: theme => alpha(theme.palette.secondary.main, 0.08),
+              borderTop: theme => `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+              p: 2,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5
+            }}>
+              <Box sx={{ 
+                width: 8, 
+                height: 8, 
+                borderRadius: '50%', 
+                background: theme => theme.palette.secondary.main 
+              }} />
+              <Typography variant="body2" sx={{ 
+                fontWeight: 500,
+                color: 'text.primary',
+                fontSize: '0.9rem'
+              }}>
+                Seleccionados: {salaDailySeleccionada ? 1 : 0} de {[...new Set(consolidatedData.map(r => r.establecimiento).filter(Boolean))].length}
+              </Typography>
+            </Box>
+          </Box>
+        )}
+      </DialogContent>
+
+      <DialogActions sx={{ 
+        p: 3, 
+        background: 'background.paper',
+        borderTop: theme => `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+        gap: 1.5
+      }}>
+        <Button 
+          onClick={() => setShowDailyModal(false)} 
+          disabled={exportandoDaily}
+          sx={{ 
+            borderRadius: 1,
+            fontWeight: 500,
+            color: 'text.secondary',
+            border: theme => `1px solid ${alpha(theme.palette.divider, 0.15)}`,
+            '&:hover': { 
+              background: theme => alpha(theme.palette.secondary.main, 0.04),
+              borderColor: theme => alpha(theme.palette.secondary.main, 0.3)
+            },
+            transition: 'all 0.2s ease'
+          }}
+        >
+          Cancelar
+        </Button>
+        <Button 
+          onClick={confirmarExportarDaily} 
+          disabled={!salaDailySeleccionada || exportandoDaily} 
+          variant="contained"
+          sx={{
+            borderRadius: 1,
+            fontWeight: 600,
+            px: 3,
+            background: theme => theme.palette.primary.main,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            '&:hover': {
+              background: theme => theme.palette.primary.dark,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+            },
+            '&:disabled': {
+              background: theme => alpha(theme.palette.primary.main, 0.3)
+            },
+            transition: 'all 0.2s ease'
+          }}
+        >
+          {exportandoDaily ? 'Exportando...' : 'Exportar Seleccionados'}
+        </Button>
+      </DialogActions>
+    </Dialog>
     </Container>
     </>
   );

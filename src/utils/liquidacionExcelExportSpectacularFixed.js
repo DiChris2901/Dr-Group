@@ -93,6 +93,12 @@ const crearDatosExcel = (datosConsolidados) => {
   const totalDerechos = datosConsolidados.reduce((sum, item) => sum + (item.derechos || 0), 0);
   const totalGastos = datosConsolidados.reduce((sum, item) => sum + (item.gastos || 0), 0);
   const totalImpuestos = datosConsolidados.reduce((sum, item) => sum + (item.totalImpuestos || 0), 0);
+  // Métricas de novedad
+  const sinCambios = datosConsolidados.reduce((acc, item) => acc + (((item.novedad || '').toLowerCase().includes('sin cambios')) ? 1 : 0), 0);
+  const retiroAdicion = datosConsolidados.reduce((acc, item) => {
+    const nv = (item.novedad || '').toLowerCase();
+    return acc + ((nv.includes('retiro') || nv.includes('adición') || nv.includes('adicion')) ? 1 : 0);
+  }, 0);
   
   const empresa = datosConsolidados[0]?.empresa || 'DR GROUP';
   const fechaActual = new Date().toLocaleDateString('es-ES', { 
@@ -124,7 +130,7 @@ const crearDatosExcel = (datosConsolidados) => {
     [`📅 ${fechaActual} | 🎰 ${totalMaquinas} máquinas procesadas | 💎 Sistema DR Group Spectacular`, '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
     
     // FILA 4: Métricas generales (merged A:P)
-    [`📊 MÉTRICAS GENERALES | 🎰 ${totalMaquinas} máquinas | 📈 Producción Total: $${totalProduccion.toLocaleString('es-CO')} COP`, '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
+  [`📊 MÉTRICAS GENERALES | 🎰 ${totalMaquinas} máquinas | 📈 Producción: $${totalProduccion.toLocaleString('es-CO')} | ⚖️ Derechos: $${totalDerechos.toLocaleString('es-CO')} | 💸 Gastos: $${totalGastos.toLocaleString('es-CO')} | 💰 Total Impuestos: $${totalImpuestos.toLocaleString('es-CO')} | ✅ Sin cambios: ${sinCambios} | 🔄 Retiro/Adición: ${retiroAdicion}`,'', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
     
     // FILA 5: Descripción reporte (merged A:P)
     [`💎 Reporte consolidado de liquidación por máquinas de juego | Sistema DR Group | Fecha de generación: ${fechaActual}`, '', '', '', '', '', '', '', '', '', '', '', '', '', '', ''],
