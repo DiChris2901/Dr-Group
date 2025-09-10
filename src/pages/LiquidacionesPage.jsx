@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -63,7 +63,8 @@ import {
   Storage,
   PieChart,
   BarChart,
-  DateRange
+  DateRange,
+  Save
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -73,6 +74,10 @@ import { exportarLiquidacionSpectacular, exportarLiquidacionSimple } from '../ut
 import { exportarLiquidacionPythonFormat } from '../utils/liquidacionExcelExportPythonFormat';
 import { exportarReporteDiarioSala } from '../utils/liquidacionExcelExportDiarioSala';
 import useCompanies from '../hooks/useCompanies';
+import ExportarPorSalaModal from '../components/modals/ExportarPorSalaModal';
+import ReporteDiarioModal from '../components/modals/ReporteDiarioModal';
+import ConfirmarGuardadoModal from '../components/modals/ConfirmarGuardadoModal';
+import liquidacionPersistenceService from '../services/liquidacionPersistenceService';
 import * as XLSX from 'xlsx';
 
 const LiquidacionesPage = () => {
@@ -110,56 +115,233 @@ const LiquidacionesPage = () => {
   const [procesandoTarifas, setProcesandoTarifas] = useState(false);
   // Modal exportar por sala
   const [showSalaModal, setShowSalaModal] = useState(false);
-  const [salaSeleccionada, setSalaSeleccionada] = useState('');
-  const [salaSearchTerm, setSalaSearchTerm] = useState('');
-  const [exportandoSala, setExportandoSala] = useState(false);
   // Modal reporte diario
   const [showDailyModal, setShowDailyModal] = useState(false);
-  const [salaDailySeleccionada, setSalaDailySeleccionada] = useState('');
-  const [dailySearchTerm, setDailySearchTerm] = useState('');
-  const [exportandoDaily, setExportandoDaily] = useState(false);
+  // Modal confirmar guardado
+  const [showConfirmarGuardadoModal, setShowConfirmarGuardadoModal] = useState(false);
+
+  // Estados para persistencia Firebase
+  const [guardandoLiquidacion, setGuardandoLiquidacion] = useState(false);
+  const [liquidacionGuardadaId, setLiquidacionGuardadaId] = useState(null);
+  const [historialLiquidaciones, setHistorialLiquidaciones] = useState([]);
+  const [cargandoHistorial, setCargandoHistorial] = useState(false);
 
   const abrirModalSala = () => {
     if (!reporteBySala) {
       addNotification('No hay reporte por sala para exportar', 'warning');
       return;
     }
-    setSalaSeleccionada('');
     setShowSalaModal(true);
   };
 
-  const confirmarExportarSala = async () => {
-    if (!salaSeleccionada) return;
+  // Función para detectar período de liquidación
+  const detectarPeriodoLiquidacion = () => {
+    if (!originalData) return 'No detectado';
+    
     try {
-      if (!consolidatedData || !Array.isArray(consolidatedData)) {
-        addNotification('No hay datos consolidados para filtrar la sala', 'warning');
-        return;
-      }
-      setExportandoSala(true);
-      addLog(`🏢 Exportando sala (estructura consolidado): ${salaSeleccionada}`, 'info');
-      // Filtrar filas originales de la sala seleccionada
-      const dataSala = consolidatedData.filter(r => (r.establecimiento || r.sala) === salaSeleccionada);
-      if (!dataSala.length) {
-        throw new Error('No se encontraron filas detalladas de la sala seleccionada');
-      }
-      // Reutilizamos el exportador consolidado para mantener EXACTA estructura y estilos
-  await exportarLiquidacionPythonFormat(dataSala, empresa || 'GENERAL', { salaNombre: salaSeleccionada });
-      addLog('✅ Exportación sala (formato consolidado) completa', 'success');
-      addNotification('Sala exportada con estructura consolidada', 'success');
-      setShowSalaModal(false);
-    } catch (e) {
-      console.error(e);
-      addLog(`❌ Error exportando sala: ${e.message}`,'error');
-      addNotification('Error exportando sala','error');
-    } finally {
-      setExportandoSala(false);
+      const periodoInfo = liquidacionPersistenceService.extractPeriodoInfo(originalData);
+      return `${periodoInfo.mesLiquidacion} ${periodoInfo.añoLiquidacion}`;
+    } catch (error) {
+      return 'No detectado';
     }
   };
+
+  // Función para mostrar modal de confirmación de guardado
+  const mostrarConfirmacionGuardado = () => {
+    if (!originalData || !consolidatedData) {
+      addNotification('No hay datos suficientes para guardar', 'warning');
+      return;
+    }
+    setShowConfirmarGuardadoModal(true);
+  };
+
+  // Función para guardar liquidación en Firebase (con confirmación)
+  const confirmarGuardadoLiquidacion = async () => {
+    if (!currentUser?.uid) {
+      addNotification('Debes estar autenticado para guardar liquidaciones', 'warning');
+      return;
+    }
+
+    try {
+      setGuardandoLiquidacion(true);
+      addLog('💾 Guardando liquidación en Firebase...', 'info');
+
+      const liquidacionData = {
+        empresa: empresa || 'Sin Empresa',
+        originalData,
+        consolidatedData,
+        reporteBySala,
+        metricsData,
+        tarifasOficiales,
+        originalFile: selectedFile
+      };
+
+      // Extraer y mostrar información del período antes de guardar
+      try {
+        const periodoInfo = liquidacionPersistenceService.extractPeriodoInfo(originalData);
+        addLog(`📅 Período detectado: ${periodoInfo.mesLiquidacion} ${periodoInfo.añoLiquidacion} (procesado el ${periodoInfo.fechaProcesamiento})`, 'info');
+      } catch (error) {
+        addLog(`⚠️ No se pudo detectar el período automáticamente: ${error.message}`, 'warning');
+      }
+
+      const liquidacionId = await liquidacionPersistenceService.saveLiquidacion(
+        liquidacionData, 
+        currentUser.uid
+      );
+
+      setLiquidacionGuardadaId(liquidacionId);
+      addLog(`✅ Liquidación guardada con ID: ${liquidacionId}`, 'success');
+      addNotification('Liquidación guardada exitosamente en Firebase', 'success');
+
+      // Actualizar historial
+      await cargarHistorialLiquidaciones();
+      
+      // Cerrar modal
+      setShowConfirmarGuardadoModal(false);
+    } catch (error) {
+      console.error('Error guardando liquidación:', error);
+      addLog(`❌ Error guardando liquidación: ${error.message}`, 'error');
+      addNotification('Error al guardar liquidación en Firebase', 'error');
+    } finally {
+      setGuardandoLiquidacion(false);
+    }
+  };
+
+  // Función para guardar liquidación en Firebase (automática - sin modal)
+  const guardarLiquidacionEnFirebase = async () => {
+    if (!currentUser?.uid) {
+      addNotification('Debes estar autenticado para guardar liquidaciones', 'warning');
+      return;
+    }
+
+    if (!originalData || !consolidatedData) {
+      addNotification('No hay datos suficientes para guardar', 'warning');
+      return;
+    }
+
+    try {
+      setGuardandoLiquidacion(true);
+      addLog('💾 Guardando liquidación en Firebase...', 'info');
+
+      const liquidacionData = {
+        empresa: empresa || 'Sin Empresa',
+        originalData,
+        consolidatedData,
+        reporteBySala,
+        metricsData,
+        tarifasOficiales,
+        originalFile: selectedFile
+      };
+
+      // Extraer y mostrar información del período antes de guardar
+      try {
+        const periodoInfo = liquidacionPersistenceService.extractPeriodoInfo(originalData);
+        addLog(`📅 Período detectado: ${periodoInfo.mesLiquidacion} ${periodoInfo.añoLiquidacion} (procesado el ${periodoInfo.fechaProcesamiento})`, 'info');
+      } catch (error) {
+        addLog(`⚠️ No se pudo detectar el período automáticamente: ${error.message}`, 'warning');
+      }
+
+      const liquidacionId = await liquidacionPersistenceService.saveLiquidacion(
+        liquidacionData, 
+        currentUser.uid
+      );
+
+      setLiquidacionGuardadaId(liquidacionId);
+      addLog(`✅ Liquidación guardada con ID: ${liquidacionId}`, 'success');
+      addNotification('Liquidación guardada exitosamente en Firebase', 'success');
+
+      // Actualizar historial
+      await cargarHistorialLiquidaciones();
+
+    } catch (error) {
+      console.error('Error guardando liquidación:', error);
+      addLog(`❌ Error guardando liquidación: ${error.message}`, 'error');
+      addNotification('Error al guardar liquidación en Firebase', 'error');
+    } finally {
+      setGuardandoLiquidacion(false);
+    }
+  };
+
+  // Función para cargar historial de liquidaciones
+  const cargarHistorialLiquidaciones = async () => {
+    if (!currentUser?.uid) return;
+
+    try {
+      setCargandoHistorial(true);
+      const historial = await liquidacionPersistenceService.getUserLiquidaciones(currentUser.uid, 10);
+      setHistorialLiquidaciones(historial);
+    } catch (error) {
+      console.error('Error cargando historial:', error);
+      
+      // Si es un error de índices, mostrar mensaje más amigable
+      if (error.message.includes('requires an index')) {
+        addNotification('Los índices de la base de datos se están configurando. El historial estará disponible en unos minutos.', 'warning');
+      } else {
+        addNotification('Error al cargar historial de liquidaciones', 'error');
+      }
+      
+      // En caso de error, dejar el historial vacío pero no romper la app
+      setHistorialLiquidaciones([]);
+    } finally {
+      setCargandoHistorial(false);
+    }
+  };
+
+  // Función para cargar una liquidación específica
+  const cargarLiquidacion = async (liquidacionId) => {
+    if (!currentUser?.uid) return;
+
+    try {
+      setProcessing(true);
+      addLog(`📂 Cargando liquidación ${liquidacionId}...`, 'info');
+
+      const liquidacionData = await liquidacionPersistenceService.loadLiquidacion(
+        liquidacionId, 
+        currentUser.uid
+      );
+
+      // Restaurar estados
+      setEmpresa(liquidacionData.empresa);
+      setOriginalData(liquidacionData.consolidated || []); // Usar consolidated como originalData
+      setConsolidatedData(liquidacionData.consolidated || []);
+      setReporteBySala(liquidacionData.reporteBySala || []);
+      setMetricsData(liquidacionData.metrics || null);
+      setTarifasOficiales(liquidacionData.tarifasOficiales || {});
+      setLiquidacionGuardadaId(liquidacionId);
+
+      // Restaurar información del archivo (simulado)
+      setSelectedFile({
+        name: liquidacionData.archivoOriginal?.originalName || 'Archivo cargado',
+        size: liquidacionData.archivoOriginal?.size || 0,
+        type: liquidacionData.archivoOriginal?.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      });
+
+      setActiveTab(0); // Ir a pestaña de resumen
+      addLog('✅ Liquidación cargada exitosamente', 'success');
+      addNotification(`Liquidación ${liquidacionData.periodoLiquidacion} cargada`, 'success');
+
+    } catch (error) {
+      console.error('Error cargando liquidación:', error);
+      addLog(`❌ Error cargando liquidación: ${error.message}`, 'error');
+      addNotification('Error al cargar liquidación', 'error');
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   
   // Referencias
   const fileInputRef = useRef(null);
   const dropZoneRef = useRef(null);
   const logIdCounter = useRef(0);
+
+  // Efectos
+  useEffect(() => {
+    // Cargar historial de liquidaciones cuando el usuario se autentique
+    if (currentUser?.uid) {
+      cargarHistorialLiquidaciones();
+    }
+  }, [currentUser?.uid]);
 
   // Debug: Monitorear cambios en metricsData
   console.log('🎯 COMPONENT RENDER - metricsData:', metricsData);
@@ -795,6 +977,11 @@ const LiquidacionesPage = () => {
       
       // Cambiar a pestaña de resumen
       setActiveTab(0);
+
+      // GUARDADO AUTOMÁTICO DESHABILITADO - Solo guardado manual con confirmación
+      // setTimeout(() => {
+      //   guardarLiquidacionEnFirebase();
+      // }, 1000); 
     }
     
     // Cerrar modal
@@ -1146,14 +1333,8 @@ const LiquidacionesPage = () => {
       // Exportación directa
       exportarReporteDiario(establecimientosUnicos[0]);
     } else {
-      setSalaDailySeleccionada('');
       setShowDailyModal(true);
     }
-  };
-
-  const confirmarExportarDaily = async () => {
-    if (!salaDailySeleccionada) return;
-    await exportarReporteDiario(salaDailySeleccionada);
   };
 
   const exportarReporteDiario = async (establecimientoForzado) => {
@@ -1172,12 +1353,6 @@ const LiquidacionesPage = () => {
     let establecimientoTarget;
     if (establecimientoForzado) {
       establecimientoTarget = establecimientoForzado;
-    } else if (selectedEstablecimientos && selectedEstablecimientos.length === 1) {
-      establecimientoTarget = selectedEstablecimientos[0];
-    } else if (selectedEstablecimientos && selectedEstablecimientos.length > 1) {
-      // Por ahora tomamos el primero y avisamos; se podría abrir modal de selección específica.
-      establecimientoTarget = selectedEstablecimientos[0];
-      addNotification(`Se seleccionó el primer establecimiento (${establecimientoTarget}) para el reporte diario (multi no soportado aún)`, 'info');
     } else {
       establecimientoTarget = establecimientosUnicos[0];
       if (establecimientosUnicos.length > 1) {
@@ -1241,6 +1416,13 @@ const LiquidacionesPage = () => {
       // Resetear estados del selector de establecimientos
       setShowEstablecimientoSelector(false);
       setSelectedEstablecimientos([]);
+      
+      // Resetear estados de Firebase
+      setGuardandoLiquidacion(false);
+      setLiquidacionGuardadaId(null);
+      setHistorialLiquidaciones([]);
+      setCargandoHistorial(false);
+      setShowConfirmarGuardadoModal(false);
       
       // Resetear input de archivo con un pequeño retraso
       setTimeout(() => {
@@ -1589,6 +1771,19 @@ const LiquidacionesPage = () => {
             gap: 1
           }}>
             🏢 Procesador de Liquidaciones
+            {liquidacionGuardadaId && (
+              <Chip 
+                label="Sincronizado" 
+                size="small" 
+                sx={{ 
+                  backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  fontWeight: 500,
+                  '& .MuiChip-icon': { color: 'white' }
+                }}
+                icon={<Storage />}
+              />
+            )}
           </Typography>
           <Typography variant="body1" sx={{ 
             color: 'rgba(255, 255, 255, 0.9)'
@@ -1597,6 +1792,71 @@ const LiquidacionesPage = () => {
           </Typography>
         </Box>
       </Paper>
+
+      {/* Sección de Historial de Liquidaciones - Solo si hay datos */}
+      {historialLiquidaciones.length > 0 && (
+        <Card sx={{ 
+          mb: 3,
+          borderRadius: 1,
+          border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+        }}>
+          <CardContent sx={{ p: 2.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+              <Storage sx={{ color: theme.palette.info.main, fontSize: '1.2rem' }} />
+              <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                Liquidaciones Guardadas
+              </Typography>
+              {guardandoLiquidacion && (
+                <CircularProgress size={16} />
+              )}
+              {liquidacionGuardadaId && (
+                <Chip 
+                  label="Guardado" 
+                  size="small" 
+                  color="success" 
+                  variant="outlined"
+                />
+              )}
+            </Box>
+            
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              {historialLiquidaciones.slice(0, 5).map((liquidacion) => (
+                <Chip
+                  key={liquidacion.id}
+                  label={`${liquidacion.empresa} - ${liquidacion.mesLiquidacion} ${liquidacion.añoLiquidacion}`}
+                  onClick={() => cargarLiquidacion(liquidacion.id)}
+                  sx={{
+                    cursor: 'pointer',
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.08)
+                    }
+                  }}
+                  deleteIcon={liquidacion.id === liquidacionGuardadaId ? <CheckCircle /> : undefined}
+                  onDelete={liquidacion.id === liquidacionGuardadaId ? () => {} : undefined}
+                />
+              ))}
+              {historialLiquidaciones.length > 5 && (
+                <Chip 
+                  label={`+${historialLiquidaciones.length - 5} más`} 
+                  variant="outlined"
+                  size="small"
+                />
+              )}
+            </Box>
+
+            {liquidacionGuardadaId && (
+              <Alert 
+                severity="success" 
+                sx={{ mt: 2, py: 0.5 }}
+                icon={<Storage />}
+              >
+                Esta liquidación está sincronizada con Firebase (ID: {liquidacionGuardadaId.slice(-8)})
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Grid container spacing={3}>
         {/* Panel de Control - Diseño Sobrio */}
@@ -1896,6 +2156,55 @@ const LiquidacionesPage = () => {
                   </Typography>
                 </Box>
               )}
+
+              {/* Botón Guardar Liquidación */}
+              {originalData && consolidatedData && !processing && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                    💾 Guardar en Firebase
+                  </Typography>
+                  
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    startIcon={<Save />}
+                    onClick={mostrarConfirmacionGuardado}
+                    disabled={guardandoLiquidacion}
+                    sx={{
+                      borderRadius: 1,
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #5a67d8 0%, #6c5ce7 100%)',
+                        transform: 'translateY(-1px)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                      },
+                      '&:disabled': {
+                        background: alpha(theme.palette.action.disabled, 0.12),
+                        color: theme.palette.action.disabled
+                      },
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    {guardandoLiquidacion ? 'Guardando...' : 'Guardar Liquidación'}
+                  </Button>
+                  
+                  {liquidacionGuardadaId && (
+                    <Box sx={{
+                      mt: 1,
+                      p: 1,
+                      bgcolor: alpha(theme.palette.success.main, 0.1),
+                      borderRadius: 1,
+                      textAlign: 'center'
+                    }}>
+                      <Typography variant="caption" color="success.main">
+                        ✅ Guardada: {liquidacionGuardadaId.slice(0, 8)}...
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              )}
               
               {/* Línea separadora */}
               <Divider sx={{ my: 3 }} />
@@ -1975,6 +2284,70 @@ const LiquidacionesPage = () => {
                   </Box>
                 ))}
               </Box>
+
+              {/* Sección de Gestión Firebase */}
+              {(originalData || consolidatedData) && (
+                <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${alpha(theme.palette.divider, 0.3)}` }}>
+                  <Typography variant="subtitle2" sx={{ 
+                    fontWeight: 600, 
+                    mb: 1.5,
+                    color: 'text.primary',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}>
+                    <Storage sx={{ fontSize: '1rem' }} />
+                    Sincronización Firebase
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <Button
+                      onClick={guardarLiquidacionEnFirebase}
+                      disabled={guardandoLiquidacion || !currentUser?.uid}
+                      variant="outlined"
+                      size="small"
+                      startIcon={guardandoLiquidacion ? <CircularProgress size={16} /> : <Storage />}
+                      sx={{
+                        borderRadius: 1,
+                        fontWeight: 500,
+                        textTransform: 'none',
+                        borderColor: alpha(theme.palette.primary.main, 0.6),
+                        '&:hover': {
+                          borderColor: theme.palette.primary.main,
+                          backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                        }
+                      }}
+                    >
+                      {guardandoLiquidacion ? 'Guardando...' : 'Guardar en Firebase'}
+                    </Button>
+
+                    <Button
+                      onClick={cargarHistorialLiquidaciones}
+                      disabled={cargandoHistorial || !currentUser?.uid}
+                      variant="text"
+                      size="small"
+                      startIcon={cargandoHistorial ? <CircularProgress size={16} /> : <Refresh />}
+                      sx={{
+                        borderRadius: 1,
+                        fontWeight: 500,
+                        textTransform: 'none',
+                        color: 'text.secondary',
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.secondary.main, 0.04)
+                        }
+                      }}
+                    >
+                      {cargandoHistorial ? 'Cargando...' : 'Actualizar Historial'}
+                    </Button>
+                  </Box>
+
+                  {!currentUser?.uid && (
+                    <Alert severity="warning" sx={{ mt: 1, py: 0.5 }}>
+                      Debes estar autenticado para guardar liquidaciones
+                    </Alert>
+                  )}
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -2873,937 +3246,36 @@ const LiquidacionesPage = () => {
           </Card>
         </Grid>
       </Grid>
-  {/* Modal Selección Sala */}
-    <Dialog 
-      open={showSalaModal} 
-      onClose={() => setShowSalaModal(false)} 
-      maxWidth="md" 
-      fullWidth
-      PaperProps={{
-        sx: { 
-          borderRadius: 2,
-          overflow: 'hidden',
-          boxShadow: theme => theme.palette.mode === 'dark'
-            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
-            : '0 4px 20px rgba(0, 0, 0, 0.08)'
-        }
-      }}
-    >
-      {/* Header sobrio con gradiente controlado */}
-      <Box sx={{ 
-        background: theme => theme.palette.mode === 'dark' 
-          ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
-          : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-        color: 'white',
-        p: 3,
-        position: 'relative',
-        zIndex: 1
-      }}>
-        <Typography variant="overline" sx={{
-          fontWeight: 600, 
-          fontSize: '0.8rem', 
-          color: 'rgba(255, 255, 255, 0.8)',
-          letterSpacing: 1.2,
-          display: 'block',
-          mb: 1
-        }}>
-          SELECTOR • EXPORTAR POR SALA
-        </Typography>
-        <Typography variant="h4" sx={{
-          fontWeight: 700, 
-          color: 'white',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          fontSize: '1.75rem'
-        }}>
-          📊 Establecimientos
-        </Typography>
-        <Typography variant="body1" sx={{ 
-          color: 'rgba(255, 255, 255, 0.9)',
-          fontSize: '1rem',
-          mt: 1
-        }}>
-          Empresa: {empresa || 'DR Group'}
-        </Typography>
-      </Box>
+  {/* Modal Exportar por Sala */}
+    <ExportarPorSalaModal
+      open={showSalaModal}
+      onClose={() => setShowSalaModal(false)}
+      reporteBySala={reporteBySala}
+      consolidatedData={consolidatedData}
+      empresa={empresa}
+      addLog={addLog}
+      addNotification={addNotification}
+    />
+    
+    {/* Modal Reporte Diario */}
+    <ReporteDiarioModal
+      open={showDailyModal}
+      onClose={() => setShowDailyModal(false)}
+      consolidatedData={consolidatedData}
+      originalData={originalData}
+      empresa={empresa}
+      addLog={addLog}
+      addNotification={addNotification}
+    />
 
-      <DialogContent sx={{ p: 0 }}>
-        {reporteBySala && (
-          <Box>
-            {/* Info header sobrio */}
-            <Box sx={{ 
-              background: theme => alpha(theme.palette.primary.main, 0.08),
-              borderBottom: theme => `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-              p: 2.5, 
-              display: 'flex', 
-              alignItems: 'center',
-              gap: 2
-            }}>
-              <Box sx={{ 
-                fontWeight: 500,
-                color: 'text.primary',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                fontSize: '0.9rem'
-              }}>
-                <Box sx={{ 
-                  width: 8, 
-                  height: 8, 
-                  borderRadius: '50%', 
-                  background: theme => theme.palette.primary.main 
-                }} />
-                <Typography component="span" variant="body2" sx={{ fontSize: '0.9rem', fontWeight: 500 }}>
-                  Establecimientos disponibles: {reporteBySala.map(r => r.establecimiento).filter((v, i, arr) => arr.indexOf(v) === i).length}
-                </Typography>
-              </Box>
-              <Box sx={{ 
-                display: 'flex', 
-                gap: 1.5,
-                ml: 'auto'
-              }}>
-                <Button 
-                  size="small" 
-                  variant="contained" 
-                  sx={{ 
-                    minWidth: 'auto',
-                    px: 2,
-                    py: 0.5,
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    borderRadius: 1,
-                    background: theme => theme.palette.success.main,
-                    '&:hover': {
-                      background: theme => theme.palette.success.dark
-                    },
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  Seleccionar Todos
-                </Button>
-                <Button 
-                  size="small" 
-                  variant="outlined"
-                  sx={{ 
-                    minWidth: 'auto',
-                    px: 2,
-                    py: 0.5,
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    borderRadius: 1,
-                    borderColor: theme => alpha(theme.palette.primary.main, 0.6),
-                    color: 'text.primary',
-                    '&:hover': {
-                      borderColor: theme => alpha(theme.palette.primary.main, 0.8),
-                      background: theme => alpha(theme.palette.primary.main, 0.04)
-                    },
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  Deseleccionar Todos
-                </Button>
-              </Box>
-            </Box>
-
-            {/* Search sobrio */}
-            <Box sx={{ p: 3, background: 'background.paper' }}>
-              <Box sx={{ 
-                fontWeight: 500,
-                mb: 1.5,
-                color: 'text.primary',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                fontSize: '0.9rem'
-              }}>
-                <Box sx={{ 
-                  width: 6, 
-                  height: 6, 
-                  borderRadius: '50%', 
-                  background: theme => theme.palette.secondary.main 
-                }} />
-                <Typography component="span" variant="body2" sx={{ fontSize: '0.9rem', fontWeight: 500 }}>
-                  Buscar establecimiento
-                </Typography>
-              </Box>
-              <Box sx={{ position: 'relative' }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Escriba para filtrar establecimientos"
-                  variant="outlined"
-                  value={salaSearchTerm}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                      background: theme => alpha(theme.palette.primary.main, 0.02),
-                      border: theme => `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                      '&:hover': {
-                        borderColor: theme => alpha(theme.palette.primary.main, 0.4)
-                      },
-                      '&.Mui-focused': {
-                        borderColor: theme => theme.palette.primary.main
-                      },
-                      transition: 'all 0.2s ease'
-                    },
-                    '& input': {
-                      fontSize: '0.9rem'
-                    }
-                  }}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setSalaSearchTerm(val);
-                    if (val.trim()) {
-                      const firstMatch = reporteBySala?.find(r => r.establecimiento.toLowerCase().includes(val.toLowerCase()));
-                      if (firstMatch) setSalaSeleccionada(firstMatch.establecimiento);
-                    }
-                  }}
-                />
-                {/* Autocomplete dropdown */}
-                {salaSearchTerm && reporteBySala && !salaSeleccionada && (
-                  <Box sx={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    zIndex: 1000,
-                    background: 'background.paper',
-                    border: theme => `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                    borderTop: 'none',
-                    borderRadius: '0 0 4px 4px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                    maxHeight: 200,
-                    overflowY: 'auto'
-                  }}>
-                    {reporteBySala
-                      .map(r => r.establecimiento)
-                      .filter((v, i, arr) => arr.indexOf(v) === i)
-                      .filter(est => est.toLowerCase().includes(salaSearchTerm.toLowerCase()))
-                      .sort()
-                      .slice(0, 5)
-                      .map(est => (
-                        <Box
-                          key={est}
-                          sx={{
-                            p: 1.5,
-                            cursor: 'pointer',
-                            borderBottom: theme => `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                            '&:hover': {
-                              background: theme => alpha(theme.palette.primary.main, 0.04)
-                            },
-                            '&:last-child': {
-                              borderBottom: 'none'
-                            }
-                          }}
-                          onClick={() => {
-                            setSalaSeleccionada(est);
-                            setSalaSearchTerm(est);
-                          }}
-                        >
-                          <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
-                            {est}
-                          </Typography>
-                        </Box>
-                      ))
-                    }
-                  </Box>
-                )}
-              </Box>
-              <Button 
-                size="small" 
-                sx={{ 
-                  mt: 1.5, 
-                  fontSize: '0.8rem',
-                  fontWeight: 500,
-                  borderRadius: 1,
-                  background: theme => alpha(theme.palette.secondary.main, 0.08),
-                  color: 'text.secondary',
-                  border: theme => `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
-                  '&:hover': { 
-                    background: theme => alpha(theme.palette.secondary.main, 0.12),
-                    borderColor: theme => alpha(theme.palette.secondary.main, 0.4)
-                  },
-                  transition: 'all 0.2s ease'
-                }}
-                onClick={() => {
-                  setSalaSearchTerm('');
-                  setSalaSeleccionada('');
-                }}
-              >
-                Limpiar
-              </Button>
-            </Box>
-
-            {/* Establishments list sobrio */}
-            <Box sx={{ 
-              maxHeight: 300, 
-              overflowY: 'auto', 
-              background: 'background.paper',
-              px: 3,
-              pb: 2
-            }}>
-              {reporteBySala
-                .map(r => r.establecimiento)
-                .filter((v, i, arr) => arr.indexOf(v) === i)
-                .filter(est => !salaSearchTerm || est.toLowerCase().includes(salaSearchTerm.toLowerCase()))
-                .sort()
-                .map(est => {
-                  // Calculate metrics for this establishment
-                  const estData = reporteBySala.filter(r => r.establecimiento === est);
-                  const maquinas = estData.length;
-                  const produccionTotal = Math.round(estData.reduce((sum, r) => sum + (Number(r.produccion) || 0), 0));
-                  const promedioPorMaquina = maquinas > 0 ? Math.round(produccionTotal / maquinas) : 0;
-                  const derechos = Math.round(produccionTotal * 0.12);
-                  const gastos = Math.round(derechos * 0.01);
-                  const totalImpuestos = Math.round(derechos + gastos);
-
-                  return (
-                    <Box 
-                      key={est} 
-                      sx={{ 
-                        border: theme => salaSeleccionada === est 
-                          ? `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
-                          : `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-                        borderRadius: 2,
-                        mb: 1.5,
-                        overflow: 'hidden',
-                        cursor: 'pointer',
-                        background: theme => salaSeleccionada === est 
-                          ? alpha(theme.palette.primary.main, 0.04)
-                          : 'background.paper',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                        '&:hover': {
-                          borderColor: theme => alpha(theme.palette.primary.main, 0.6),
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                          background: theme => alpha(theme.palette.primary.main, 0.04)
-                        },
-                        transition: 'all 0.2s ease'
-                      }}
-                      onClick={() => setSalaSeleccionada(est)}
-                    >
-                      {/* Header sobrio */}
-                      <Box sx={{ 
-                        background: theme => salaSeleccionada === est 
-                          ? alpha(theme.palette.primary.main, 0.1)
-                          : alpha(theme.palette.secondary.main, 0.08),
-                        p: 2,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1.5,
-                        borderBottom: theme => `1px solid ${alpha(theme.palette.divider, 0.12)}`
-                      }}>
-                        <Radio 
-                          checked={salaSeleccionada === est} 
-                          onChange={() => setSalaSeleccionada(est)}
-                          size="small"
-                          sx={{ 
-                            color: theme => alpha(theme.palette.primary.main, 0.6),
-                            '&.Mui-checked': { 
-                              color: theme => theme.palette.primary.main 
-                            }
-                          }}
-                        />
-                        <Typography variant="subtitle2" sx={{ 
-                          fontWeight: 600, 
-                          fontSize: '1rem',
-                          color: 'text.primary'
-                        }}>
-                          {est}
-                        </Typography>
-                      </Box>
-
-                      {/* Metrics sobrios */}
-                      <Box sx={{ p: 2 }}>
-                        <Box sx={{ display: 'flex', gap: 3, mb: 1.5, flexWrap: 'wrap' }}>
-                          <Typography variant="caption" sx={{ 
-                            color: theme => theme.palette.success.main, 
-                            fontWeight: 500,
-                            fontSize: '1rem'
-                          }}>
-                            {maquinas} máquinas
-                          </Typography>
-                          <Typography variant="caption" sx={{ 
-                            color: theme => theme.palette.success.main, 
-                            fontWeight: 500,
-                            fontSize: '1rem'
-                          }}>
-                            ${produccionTotal.toLocaleString()} producción
-                          </Typography>
-                          <Typography variant="caption" sx={{ 
-                            color: theme => theme.palette.success.main, 
-                            fontWeight: 500,
-                            fontSize: '1rem'
-                          }}>
-                            ${promedioPorMaquina.toLocaleString()} promedio/máquina
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                          <Typography variant="caption" sx={{ 
-                            color: 'text.secondary',
-                            fontSize: '0.9rem'
-                          }}>
-                            ${derechos.toLocaleString()} derechos
-                          </Typography>
-                          <Typography variant="caption" sx={{ 
-                            color: 'text.secondary',
-                            fontSize: '0.9rem'
-                          }}>
-                            ${gastos.toLocaleString()} gastos
-                          </Typography>
-                          <Typography variant="caption" sx={{ 
-                            color: 'text.secondary',
-                            fontSize: '0.9rem'
-                          }}>
-                            ${totalImpuestos.toLocaleString()} total impuestos
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Box>
-                  );
-                })}
-            </Box>
-
-            {/* Selected info sobrio */}
-            <Box sx={{ 
-              background: theme => alpha(theme.palette.secondary.main, 0.08),
-              borderTop: theme => `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
-              p: 2,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.5
-            }}>
-              <Box sx={{ 
-                width: 8, 
-                height: 8, 
-                borderRadius: '50%', 
-                background: theme => theme.palette.secondary.main 
-              }} />
-              <Typography variant="body2" sx={{ 
-                fontWeight: 500,
-                color: 'text.primary',
-                fontSize: '0.9rem'
-              }}>
-                Seleccionados: {salaSeleccionada ? 1 : 0} de {reporteBySala.map(r => r.establecimiento).filter((v, i, arr) => arr.indexOf(v) === i).length}
-              </Typography>
-            </Box>
-          </Box>
-        )}
-      </DialogContent>
-
-      <DialogActions sx={{ 
-        p: 3, 
-        background: 'background.paper',
-        borderTop: theme => `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-        gap: 1.5
-      }}>
-        <Button 
-          onClick={() => setShowSalaModal(false)} 
-          disabled={exportandoSala}
-          sx={{ 
-            borderRadius: 1,
-            fontWeight: 500,
-            color: 'text.secondary',
-            border: theme => `1px solid ${alpha(theme.palette.divider, 0.15)}`,
-            '&:hover': { 
-              background: theme => alpha(theme.palette.secondary.main, 0.04),
-              borderColor: theme => alpha(theme.palette.secondary.main, 0.3)
-            },
-            transition: 'all 0.2s ease'
-          }}
-        >
-          Cancelar
-        </Button>
-        <Button 
-          onClick={confirmarExportarSala} 
-          disabled={!salaSeleccionada || exportandoSala} 
-          variant="contained"
-          sx={{
-            borderRadius: 1,
-            fontWeight: 600,
-            px: 3,
-            background: theme => theme.palette.primary.main,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            '&:hover': {
-              background: theme => theme.palette.primary.dark,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-            },
-            '&:disabled': {
-              background: theme => alpha(theme.palette.primary.main, 0.3)
-            },
-            transition: 'all 0.2s ease'
-          }}
-        >
-          {exportandoSala ? 'Exportando...' : 'Exportar'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-    {/* Modal Selección Sala para Reporte Diario */}
-    <Dialog 
-      open={showDailyModal} 
-      onClose={() => setShowDailyModal(false)} 
-      maxWidth="md" 
-      fullWidth
-      PaperProps={{
-        sx: { 
-          borderRadius: 2,
-          overflow: 'hidden',
-          boxShadow: theme => theme.palette.mode === 'dark'
-            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
-            : '0 4px 20px rgba(0, 0, 0, 0.08)'
-        }
-      }}
-    >
-      {/* Header sobrio con gradiente controlado */}
-      <Box sx={{ 
-        background: theme => theme.palette.mode === 'dark' 
-          ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
-          : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-        color: 'white',
-        p: 3,
-        position: 'relative',
-        zIndex: 1
-      }}>
-        <Typography variant="overline" sx={{
-          fontWeight: 600, 
-          fontSize: '0.8rem', 
-          color: 'rgba(255, 255, 255, 0.8)',
-          letterSpacing: 1.2,
-          display: 'block',
-          mb: 1
-        }}>
-          SELECTOR • REPORTE DIARIO
-        </Typography>
-        <Typography variant="h4" sx={{
-          fontWeight: 700, 
-          color: 'white',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          fontSize: '1.75rem'
-        }}>
-          📊 Establecimientos
-        </Typography>
-        <Typography variant="body1" sx={{ 
-          color: 'rgba(255, 255, 255, 0.9)',
-          fontSize: '1rem',
-          mt: 1
-        }}>
-          Empresa: {empresa || 'DR Group'}
-        </Typography>
-      </Box>
-
-      <DialogContent sx={{ p: 0 }}>
-        {consolidatedData && (
-          <Box>
-            {/* Info header sobrio */}
-            <Box sx={{ 
-              background: theme => alpha(theme.palette.primary.main, 0.08),
-              borderBottom: theme => `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-              p: 2.5, 
-              display: 'flex', 
-              alignItems: 'center',
-              gap: 2
-            }}>
-              <Box sx={{ 
-                fontWeight: 500,
-                color: 'text.primary',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
-              }}>
-                <Box sx={{ 
-                  width: 8, 
-                  height: 8, 
-                  borderRadius: '50%', 
-                  background: theme => theme.palette.primary.main 
-                }} />
-                <Typography component="span" variant="body2" sx={{ fontWeight: 500 }}>
-                  Establecimientos disponibles: {[...new Set(consolidatedData.map(r => r.establecimiento).filter(Boolean))].length}
-                </Typography>
-              </Box>
-              <Box sx={{ 
-                display: 'flex', 
-                gap: 1.5,
-                ml: 'auto'
-              }}>
-                <Button 
-                  size="small" 
-                  variant="contained" 
-                  sx={{ 
-                    minWidth: 'auto',
-                    px: 2,
-                    py: 0.5,
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    borderRadius: 1,
-                    background: theme => theme.palette.success.main,
-                    '&:hover': {
-                      background: theme => theme.palette.success.dark
-                    },
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  Seleccionar Todos
-                </Button>
-                <Button 
-                  size="small" 
-                  variant="outlined"
-                  sx={{ 
-                    minWidth: 'auto',
-                    px: 2,
-                    py: 0.5,
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                    borderRadius: 1,
-                    borderColor: theme => alpha(theme.palette.primary.main, 0.6),
-                    color: 'text.primary',
-                    '&:hover': {
-                      borderColor: theme => alpha(theme.palette.primary.main, 0.8),
-                      background: theme => alpha(theme.palette.primary.main, 0.04)
-                    },
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  Deseleccionar Todos
-                </Button>
-              </Box>
-            </Box>
-
-            {/* Search sobrio */}
-            <Box sx={{ p: 3, background: 'background.paper' }}>
-              <Box sx={{ 
-                fontWeight: 500,
-                mb: 1.5,
-                color: 'text.primary',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                fontSize: '0.9rem'
-              }}>
-                <Box sx={{ 
-                  width: 6, 
-                  height: 6, 
-                  borderRadius: '50%', 
-                  background: theme => theme.palette.secondary.main 
-                }} />
-                <Typography component="span" variant="body2" sx={{ fontSize: '0.9rem', fontWeight: 500 }}>
-                  Buscar establecimiento
-                </Typography>
-              </Box>
-              <Box sx={{ position: 'relative' }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Escriba para filtrar establecimientos"
-                  variant="outlined"
-                  value={dailySearchTerm}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 1,
-                      background: theme => alpha(theme.palette.primary.main, 0.02),
-                      border: theme => `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                      '&:hover': {
-                        borderColor: theme => alpha(theme.palette.primary.main, 0.4)
-                      },
-                      '&.Mui-focused': {
-                        borderColor: theme => theme.palette.primary.main
-                      },
-                      transition: 'all 0.2s ease'
-                    },
-                    '& input': {
-                      fontSize: '0.9rem'
-                    }
-                  }}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setDailySearchTerm(val);
-                    if (val.trim()) {
-                      const establecimientosUnicos = [...new Set(consolidatedData.map(r => r.establecimiento).filter(Boolean))];
-                      const firstMatch = establecimientosUnicos.find(r => r.toLowerCase().includes(val.toLowerCase()));
-                      if (firstMatch) setSalaDailySeleccionada(firstMatch);
-                    }
-                  }}
-                />
-                {/* Autocomplete dropdown */}
-                {dailySearchTerm && consolidatedData && !salaDailySeleccionada && (
-                  <Box sx={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    zIndex: 1000,
-                    background: 'background.paper',
-                    border: theme => `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                    borderTop: 'none',
-                    borderRadius: '0 0 4px 4px',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                    maxHeight: 200,
-                    overflowY: 'auto'
-                  }}>
-                    {[...new Set(consolidatedData.map(r => r.establecimiento).filter(Boolean))]
-                      .filter(est => est.toLowerCase().includes(dailySearchTerm.toLowerCase()))
-                      .sort()
-                      .slice(0, 5)
-                      .map(est => (
-                        <Box
-                          key={est}
-                          sx={{
-                            p: 1.5,
-                            cursor: 'pointer',
-                            borderBottom: theme => `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                            '&:hover': {
-                              background: theme => alpha(theme.palette.primary.main, 0.04)
-                            },
-                            '&:last-child': {
-                              borderBottom: 'none'
-                            }
-                          }}
-                          onClick={() => {
-                            setSalaDailySeleccionada(est);
-                            setDailySearchTerm(est);
-                          }}
-                        >
-                          <Typography variant="body2" sx={{ fontSize: '0.85rem' }}>
-                            {est}
-                          </Typography>
-                        </Box>
-                      ))
-                    }
-                  </Box>
-                )}
-              </Box>
-              <Button 
-                size="small" 
-                sx={{ 
-                  mt: 1.5, 
-                  fontSize: '0.8rem',
-                  fontWeight: 500,
-                  borderRadius: 1,
-                  background: theme => alpha(theme.palette.secondary.main, 0.08),
-                  color: 'text.secondary',
-                  border: theme => `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
-                  '&:hover': { 
-                    background: theme => alpha(theme.palette.secondary.main, 0.12),
-                    borderColor: theme => alpha(theme.palette.secondary.main, 0.4)
-                  },
-                  transition: 'all 0.2s ease'
-                }}
-                onClick={() => {
-                  setDailySearchTerm('');
-                  setSalaDailySeleccionada('');
-                }}
-              >
-                Limpiar
-              </Button>
-            </Box>
-
-            {/* Establishments list sobrio */}
-            <Box sx={{ 
-              maxHeight: 300, 
-              overflowY: 'auto', 
-              background: 'background.paper',
-              px: 3,
-              pb: 2
-            }}>
-              {[...new Set(consolidatedData.map(r => r.establecimiento).filter(Boolean))]
-                .filter(est => {
-                  if (!dailySearchTerm) return true;
-                  return est.toLowerCase().includes(dailySearchTerm.toLowerCase());
-                })
-                .sort()
-                .map(est => {
-                  // Calculate metrics for this establishment
-                  const estData = consolidatedData.filter(r => r.establecimiento === est);
-                  const maquinas = estData.length;
-                  const produccionTotal = Math.round(estData.reduce((sum, r) => sum + (Number(r.produccion) || 0), 0));
-                  const promedioPorMaquina = maquinas > 0 ? Math.round(produccionTotal / maquinas) : 0;
-                  const derechos = Math.round(produccionTotal * 0.12);
-                  const gastos = Math.round(derechos * 0.01);
-                  const totalImpuestos = Math.round(derechos + gastos);
-
-                  return (
-                    <Box 
-                      key={est} 
-                      sx={{ 
-                        border: theme => salaDailySeleccionada === est 
-                          ? `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
-                          : `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-                        borderRadius: 2,
-                        mb: 1.5,
-                        overflow: 'hidden',
-                        cursor: 'pointer',
-                        background: theme => salaDailySeleccionada === est 
-                          ? alpha(theme.palette.primary.main, 0.04)
-                          : 'background.paper',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                        '&:hover': {
-                          borderColor: theme => alpha(theme.palette.primary.main, 0.6),
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                          background: theme => alpha(theme.palette.primary.main, 0.04)
-                        },
-                        transition: 'all 0.2s ease'
-                      }}
-                      onClick={() => setSalaDailySeleccionada(est)}
-                    >
-                      {/* Header sobrio */}
-                      <Box sx={{ 
-                        background: theme => salaDailySeleccionada === est 
-                          ? alpha(theme.palette.primary.main, 0.1)
-                          : alpha(theme.palette.secondary.main, 0.08),
-                        p: 2,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 1.5,
-                        borderBottom: theme => `1px solid ${alpha(theme.palette.divider, 0.12)}`
-                      }}>
-                        <Radio 
-                          checked={salaDailySeleccionada === est} 
-                          onChange={() => setSalaDailySeleccionada(est)}
-                          size="small"
-                          sx={{ 
-                            color: theme => alpha(theme.palette.primary.main, 0.6),
-                            '&.Mui-checked': { 
-                              color: theme => theme.palette.primary.main 
-                            }
-                          }}
-                        />
-                        <Typography variant="subtitle2" sx={{ 
-                          fontWeight: 600, 
-                          fontSize: '1rem',
-                          color: 'text.primary'
-                        }}>
-                          {est}
-                        </Typography>
-                      </Box>
-
-                      {/* Metrics sobrios */}
-                      <Box sx={{ p: 2 }}>
-                        <Box sx={{ display: 'flex', gap: 3, mb: 1.5, flexWrap: 'wrap' }}>
-                          <Typography variant="caption" sx={{ 
-                            color: theme => theme.palette.success.main, 
-                            fontWeight: 500,
-                            fontSize: '1rem'
-                          }}>
-                            {maquinas} máquinas
-                          </Typography>
-                          <Typography variant="caption" sx={{ 
-                            color: theme => theme.palette.success.main, 
-                            fontWeight: 500,
-                            fontSize: '1rem'
-                          }}>
-                            ${produccionTotal.toLocaleString()} producción
-                          </Typography>
-                          <Typography variant="caption" sx={{ 
-                            color: theme => theme.palette.success.main, 
-                            fontWeight: 500,
-                            fontSize: '1rem'
-                          }}>
-                            ${promedioPorMaquina.toLocaleString()} promedio/máquina
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                          <Typography variant="caption" sx={{ 
-                            color: 'text.secondary',
-                            fontSize: '0.9rem'
-                          }}>
-                            ${derechos.toLocaleString()} derechos
-                          </Typography>
-                          <Typography variant="caption" sx={{ 
-                            color: 'text.secondary',
-                            fontSize: '0.9rem'
-                          }}>
-                            ${gastos.toLocaleString()} gastos
-                          </Typography>
-                          <Typography variant="caption" sx={{ 
-                            color: 'text.secondary',
-                            fontSize: '0.9rem'
-                          }}>
-                            ${totalImpuestos.toLocaleString()} total impuestos
-                          </Typography>
-                        </Box>
-                      </Box>
-                    </Box>
-                  );
-                })}
-            </Box>
-
-            {/* Selected info sobrio */}
-            <Box sx={{ 
-              background: theme => alpha(theme.palette.secondary.main, 0.08),
-              borderTop: theme => `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
-              p: 2,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.5
-            }}>
-              <Box sx={{ 
-                width: 8, 
-                height: 8, 
-                borderRadius: '50%', 
-                background: theme => theme.palette.secondary.main 
-              }} />
-              <Typography variant="body2" sx={{ 
-                fontWeight: 500,
-                color: 'text.primary',
-                fontSize: '0.9rem'
-              }}>
-                Seleccionados: {salaDailySeleccionada ? 1 : 0} de {[...new Set(consolidatedData.map(r => r.establecimiento).filter(Boolean))].length}
-              </Typography>
-            </Box>
-          </Box>
-        )}
-      </DialogContent>
-
-      <DialogActions sx={{ 
-        p: 3, 
-        background: 'background.paper',
-        borderTop: theme => `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-        gap: 1.5
-      }}>
-        <Button 
-          onClick={() => setShowDailyModal(false)} 
-          disabled={exportandoDaily}
-          sx={{ 
-            borderRadius: 1,
-            fontWeight: 500,
-            color: 'text.secondary',
-            border: theme => `1px solid ${alpha(theme.palette.divider, 0.15)}`,
-            '&:hover': { 
-              background: theme => alpha(theme.palette.secondary.main, 0.04),
-              borderColor: theme => alpha(theme.palette.secondary.main, 0.3)
-            },
-            transition: 'all 0.2s ease'
-          }}
-        >
-          Cancelar
-        </Button>
-        <Button 
-          onClick={confirmarExportarDaily} 
-          disabled={!salaDailySeleccionada || exportandoDaily} 
-          variant="contained"
-          sx={{
-            borderRadius: 1,
-            fontWeight: 600,
-            px: 3,
-            background: theme => theme.palette.primary.main,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-            '&:hover': {
-              background: theme => theme.palette.primary.dark,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-            },
-            '&:disabled': {
-              background: theme => alpha(theme.palette.primary.main, 0.3)
-            },
-            transition: 'all 0.2s ease'
-          }}
-        >
-          {exportandoDaily ? 'Exportando...' : 'Exportar Seleccionados'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+    {/* Modal Confirmar Guardado */}
+    <ConfirmarGuardadoModal
+      open={showConfirmarGuardadoModal}
+      onClose={() => setShowConfirmarGuardadoModal(false)}
+      onConfirm={confirmarGuardadoLiquidacion}
+      periodoDetectado={detectarPeriodoLiquidacion()}
+      loading={guardandoLiquidacion}
+    />
     </Container>
     </>
   );
