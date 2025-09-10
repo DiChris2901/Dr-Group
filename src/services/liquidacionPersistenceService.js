@@ -243,16 +243,18 @@ class LiquidacionPersistenceService {
         metricsData,
         tarifasOficiales,
         originalFile,
-        archivoTarifas // Nuevo: segundo archivo si existe
+        archivoTarifas, // Nuevo: segundo archivo si existe
+        periodoDetectado, // Nuevo: período detectado del modal
+        periodoInfo // Nuevo: información adicional del período
       } = liquidacionData;
 
       // Extraer información del período
-      const periodoInfo = this.extractPeriodoInfo(originalData);
+      const periodoInfoExtracted = periodoInfo || this.extractPeriodoInfo(originalData);
       
       // Generar ID único
       const liquidacionId = this.generateLiquidacionId(
         empresa, 
-        periodoInfo.periodoLiquidacion, 
+        periodoInfoExtracted.periodoLiquidacion, 
         userId
       );
 
@@ -279,12 +281,15 @@ class LiquidacionPersistenceService {
         // Información temporal detallada
         fechas: {
           // El período que se está liquidando (ej: "junio_2025")
-          periodoLiquidacion: periodoInfo.periodoLiquidacion,
-          mesLiquidacion: periodoInfo.mesLiquidacion,
-          añoLiquidacion: periodoInfo.añoLiquidacion,
+          periodoLiquidacion: periodoInfoExtracted.periodoLiquidacion,
+          mesLiquidacion: periodoInfoExtracted.mesLiquidacion,
+          añoLiquidacion: periodoInfoExtracted.añoLiquidacion,
+          
+          // Período detectado en el modal (para mostrar en UI)
+          periodoDetectadoModal: periodoDetectado || periodoInfoExtracted.periodoLiquidacion,
           
           // Cuándo se procesa la liquidación (fecha actual)
-          fechaProcesamiento: periodoInfo.fechaProcesamiento,
+          fechaProcesamiento: periodoInfoExtracted.fechaProcesamiento,
           timestampProcesamiento: new Date().getTime(),
           
           // Timestamps de Firebase
@@ -384,8 +389,9 @@ class LiquidacionPersistenceService {
       console.log('✅ LIQUIDACIÓN GUARDADA EXITOSAMENTE');
       console.log('📋 RESUMEN DE DATOS GUARDADOS:');
       console.log(`   🏢 Empresa: ${empresa}`);
-      console.log(`   📅 Período Liquidado: ${periodoInfo.mesLiquidacion} ${periodoInfo.añoLiquidacion}`);
-      console.log(`   🗓️ Fecha Procesamiento: ${periodoInfo.fechaProcesamiento}`);
+      console.log(`   📅 Período Liquidado: ${periodoInfoExtracted.mesLiquidacion} ${periodoInfoExtracted.añoLiquidacion}`);
+      console.log(`   📅 Período Detectado (Modal): ${periodoDetectado || 'No especificado'}`);
+      console.log(`   🗓️ Fecha Procesamiento: ${periodoInfoExtracted.fechaProcesamiento}`);
       console.log(`   📊 Métricas guardadas:`);
       console.log(`      - Máquinas: ${liquidacionDoc.metricas.maquinasConsolidadas}`);
       console.log(`      - Establecimientos: ${liquidacionDoc.metricas.totalEstablecimientos}`);
@@ -712,45 +718,103 @@ class LiquidacionPersistenceService {
    */
   async deleteLiquidacion(liquidacionId, userId) {
     try {
+      console.log('🔍 [Service] Iniciando eliminación - ID:', liquidacionId, 'Usuario:', userId);
+      
       // Verificar permisos
       const docRef = doc(db, 'liquidaciones', liquidacionId);
       const docSnap = await getDoc(docRef);
 
       if (!docSnap.exists()) {
+        console.log('❌ [Service] Liquidación no encontrada');
         throw new Error('Liquidación no encontrada');
       }
 
       const liquidacionData = docSnap.data();
+      console.log('📄 [Service] Documento encontrado:', liquidacionData.userId, 'vs', userId);
+      console.log('📁 [Service] Estructura completa del documento:', JSON.stringify(liquidacionData, null, 2));
+      
       if (liquidacionData.userId !== userId) {
+        console.log('❌ [Service] Sin permisos - Usuario del documento:', liquidacionData.userId, 'Usuario solicitante:', userId);
         throw new Error('No tienes permisos para eliminar esta liquidación');
       }
 
+      console.log('🗂️ [Service] Eliminando archivos de Storage...');
       // Eliminar archivos de Storage
       const deletePromises = [];
       
-      // Archivo original
+      // Verificar todas las posibles ubicaciones de archivos
+      console.log('🔍 [Service] Verificando archivos en diferentes campos:');
+      console.log('📁 archivos.archivoOriginal:', liquidacionData.archivos?.archivoOriginal);
+      console.log('📁 archivos.archivoTarifas:', liquidacionData.archivos?.archivoTarifas);
+      console.log('📁 archivoOriginal (legacy):', liquidacionData.archivoOriginal);
+      console.log('📁 archivoTarifas (legacy):', liquidacionData.archivoTarifas);
+      console.log('📁 archivosStorage (legacy):', liquidacionData.archivosStorage);
+      
+      // Archivo original (nueva estructura - estructura principal actual)
+      if (liquidacionData.archivos?.archivoOriginal?.nombreStorage) {
+        console.log('📁 [Service] Eliminando archivo original (nueva estructura):', liquidacionData.archivos.archivoOriginal.nombreStorage);
+        deletePromises.push(
+          deleteObject(ref(storage, liquidacionData.archivos.archivoOriginal.nombreStorage))
+            .catch(error => console.warn('Error eliminando archivo original (nueva):', error))
+        );
+      }
+      
+      // Archivo de tarifas (nueva estructura - estructura principal actual)
+      if (liquidacionData.archivos?.archivoTarifas?.nombreStorage) {
+        console.log('📄 [Service] Eliminando archivo de tarifas (nueva estructura):', liquidacionData.archivos.archivoTarifas.nombreStorage);
+        deletePromises.push(
+          deleteObject(ref(storage, liquidacionData.archivos.archivoTarifas.nombreStorage))
+            .catch(error => console.warn('Error eliminando archivo de tarifas (nueva):', error))
+        );
+      }
+      
+      // Archivo original (estructura legacy - para compatibilidad)
       if (liquidacionData.archivoOriginal?.fileName) {
+        console.log('📁 [Service] Eliminando archivo original (legacy):', liquidacionData.archivoOriginal.fileName);
         deletePromises.push(
           deleteObject(ref(storage, liquidacionData.archivoOriginal.fileName))
-            .catch(error => console.warn('Error eliminando archivo original:', error))
+            .catch(error => console.warn('Error eliminando archivo original (legacy):', error))
         );
       }
 
-      // Archivo de tarifas (si existe)
+      // Archivo de tarifas (estructura legacy - para compatibilidad)
       if (liquidacionData.archivoTarifas?.fileName) {
+        console.log('📄 [Service] Eliminando archivo de tarifas (legacy):', liquidacionData.archivoTarifas.fileName);
         deletePromises.push(
           deleteObject(ref(storage, liquidacionData.archivoTarifas.fileName))
-            .catch(error => console.warn('Error eliminando archivo de tarifas:', error))
+            .catch(error => console.warn('Error eliminando archivo de tarifas (legacy):', error))
         );
       }
 
+      // Archivos en archivosStorage (estructura antigua - para compatibilidad)
+      if (liquidacionData.archivosStorage?.original?.fileName) {
+        console.log('📁 [Service] Eliminando archivo original (archivosStorage):', liquidacionData.archivosStorage.original.fileName);
+        deletePromises.push(
+          deleteObject(ref(storage, liquidacionData.archivosStorage.original.fileName))
+            .catch(error => console.warn('Error eliminando archivo original (archivosStorage):', error))
+        );
+      }
+      
+      if (liquidacionData.archivosStorage?.tarifas?.fileName) {
+        console.log('📄 [Service] Eliminando archivo de tarifas (archivosStorage):', liquidacionData.archivosStorage.tarifas.fileName);
+        deletePromises.push(
+          deleteObject(ref(storage, liquidacionData.archivosStorage.tarifas.fileName))
+            .catch(error => console.warn('Error eliminando archivo de tarifas (archivosStorage):', error))
+        );
+      }
+
+      console.log('⏳ [Service] Esperando eliminación de archivos...');
+      console.log('📊 [Service] Total de archivos a eliminar:', deletePromises.length);
       await Promise.all(deletePromises);
+      console.log('✅ [Service] Archivos eliminados');
 
       // Eliminar documento principal (ya no hay subcolecciones)
+      console.log('📄 [Service] Eliminando documento de Firestore...');
       await deleteDoc(docRef);
+      console.log('✅ [Service] Documento eliminado exitosamente');
 
     } catch (error) {
-      console.error('Error eliminando liquidación:', error);
+      console.error('❌ [Service] Error eliminando liquidación:', error);
       throw new Error(`Error al eliminar liquidación: ${error.message}`);
     }
   }

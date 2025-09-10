@@ -18,7 +18,8 @@ const COLUMN_DEFS = [
   { header: 'Días del mes', key: 'diasMes', width: 14 },
   { header: 'Primer día transmitido', key: 'primerDia', width: 18 },
   { header: 'Último día transmitido', key: 'ultimoDia', width: 18 },
-  { header: 'Período Texto', key: 'periodoTexto', width: 16 },
+  // Renombrado: antes 'Período Texto' -> ahora 'Periodo' (requerimiento)
+  { header: 'Periodo', key: 'periodoTexto', width: 16 },
   { header: 'Tipo apuesta', key: 'tipoApuesta', width: 16 },
   { header: 'Tarifa', key: 'tarifa', width: 14 },
   { header: 'Producción', key: 'produccion', width: 16 },
@@ -39,7 +40,7 @@ const mapItem = (item, index) => {
     diasMes: item.diasMes ?? item['Días del mes'] ?? 0,
     primerDia: item.primerDia || item['Primer día transmitido'] || '',
     ultimoDia: item.ultimoDia || item['Último día transmitido'] || '',
-    periodoTexto: item.periodoTexto || item.periodo || item['Período Texto'] || '',
+  periodoTexto: item.periodoTexto || item.periodo || item.Periodo || item['Periodo'] || item['Período Texto'] || '',
     tipoApuesta: item.tipoApuesta || item['Tipo apuesta'] || item.tipo || '',
     tarifa: (() => {
       // Determinar fija / variable basándonos en los campos asignados durante el procesamiento

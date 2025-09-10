@@ -32,7 +32,7 @@ const mapearDatosConsolidados = (data) => {
     const diasMes = parseInt(item.diasMes || item['Días del mes'] || item.diasM || 30);
     const primerDia = item.primerDia || item['Primer día transmitido'] || item.fechaInicio || '01/09/2025';
     const ultimoDia = item.ultimoDia || item['Último día transmitido'] || item.fechaFin || '30/09/2025';
-    const periodo = item.periodo || item.Periodo || item['Período Texto'] || 'SEP-2025';
+  const periodo = item.periodo || item.Periodo || item['Periodo'] || item['Período Texto'] || 'SEP-2025';
     
     // Tipo de apuesta/máquina
     const tipo = item.tipo || item['Tipo apuesta'] || item.tipoMaquina || 'Tragamonedas';

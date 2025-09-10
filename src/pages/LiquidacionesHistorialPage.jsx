@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -57,9 +58,11 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
+import liquidacionPersistenceService from '../services/liquidacionPersistenceService';
 
 const LiquidacionesHistorialPage = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const { currentUser, firestoreProfile } = useAuth();
   const { addNotification } = useNotifications();
 
@@ -79,6 +82,7 @@ const LiquidacionesHistorialPage = () => {
   const [selectedLiquidacion, setSelectedLiquidacion] = useState(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [liquidacionToDelete, setLiquidacionToDelete] = useState(null); // Estado específico para eliminación
 
   // Datos de ejemplo para el histórico
   const [mockData] = useState([
@@ -154,19 +158,63 @@ const LiquidacionesHistorialPage = () => {
   }, []);
 
   const cargarHistorial = async () => {
+    if (!currentUser?.uid) {
+      addNotification('Usuario no autenticado', 'error');
+      return;
+    }
+
     setLoading(true);
     try {
-      // Aquí cargarías desde Firestore
-      // const snapshot = await getDocs(collection(db, 'liquidaciones'));
-      // const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // setLiquidaciones(data);
+      console.log('🔍 Cargando historial de liquidaciones para usuario:', currentUser.uid);
       
-      // Por ahora usamos datos mock
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simular carga
-      setLiquidaciones(mockData);
+      // Cargar liquidaciones desde Firebase
+      const liquidacionesFirebase = await liquidacionPersistenceService.getUserLiquidaciones(
+        currentUser.uid, 
+        50 // Cargar hasta 50 liquidaciones
+      );
+
+      console.log('📊 Liquidaciones cargadas desde Firebase:', liquidacionesFirebase.length);
+
+      // Mapear datos de Firebase al formato esperado por la UI
+      const liquidacionesMapeadas = liquidacionesFirebase.map(liq => ({
+        id: liq.id,
+        fecha: liq.fechas?.createdAt?.toDate() || new Date(liq.fechas?.fechaProcesamiento || Date.now()),
+        empresa: liq.empresa?.nombre || liq.empresa || 'Sin Empresa',
+        archivo: liq.archivos?.archivoOriginal?.nombre || 'archivo_liquidacion.xlsx',
+        archivoTarifas: liq.archivos?.archivoTarifas?.nombre || null,
+        totalMaquinas: liq.metricas?.maquinasConsolidadas || 0,
+        totalProduccion: liq.metricas?.totalProduccion || 0,
+        totalImpuestos: liq.metricas?.totalImpuestos || 0,
+        totalDerechos: liq.metricas?.derechosExplotacion || 0,
+        totalGastos: liq.metricas?.gastosAdministracion || 0,
+        establecimientos: liq.metricas?.totalEstablecimientos || 0,
+        estado: 'completado', // Las liquidaciones guardadas están completas
+        procesadoPor: currentUser.email,
+        notas: `Liquidación ${liq.fechas?.mesLiquidacion} ${liq.fechas?.añoLiquidacion}`,
+        periodo: liq.fechas?.periodoDetectadoModal || `${liq.fechas?.mesLiquidacion} ${liq.fechas?.añoLiquidacion}`,
+        archivosStorage: {
+          original: liq.archivos?.archivoOriginal,
+          tarifas: liq.archivos?.archivoTarifas
+        },
+        metadatosCompletos: liq // Guardar metadatos completos para detalles
+      }));
+
+      setLiquidaciones(liquidacionesMapeadas);
+      
+      if (liquidacionesMapeadas.length === 0) {
+        addNotification('No se encontraron liquidaciones guardadas', 'info');
+      } else {
+        addNotification(`${liquidacionesMapeadas.length} liquidaciones cargadas`, 'success');
+      }
+
     } catch (error) {
       console.error('Error cargando historial:', error);
-      addNotification('Error cargando historial de liquidaciones', 'error');
+      addNotification('Error cargando historial de liquidaciones: ' + error.message, 'error');
+      
+      // En caso de error, usar datos mock como fallback para testing
+      console.log('🔄 Usando datos mock como fallback');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setLiquidaciones(mockData);
     } finally {
       setLoading(false);
     }
@@ -235,6 +283,19 @@ const LiquidacionesHistorialPage = () => {
     setSelectedLiquidacion(null);
   };
 
+  // Cargar liquidación en el procesador
+  const cargarLiquidacionEnProcesador = () => {
+    if (!selectedLiquidacion) return;
+    
+    // Navegar a la página de liquidaciones con el ID de la liquidación a cargar
+    const liquidacionId = selectedLiquidacion.id;
+    addNotification(`Cargando liquidación ${selectedLiquidacion.periodo}...`, 'info');
+    
+    // Redirigir a la página de liquidaciones con parámetro para cargar
+    navigate(`/liquidaciones?cargar=${liquidacionId}`);
+    handleMenuClose();
+  };
+
   // Ver detalle
   const verDetalle = () => {
     setShowDetailDialog(true);
@@ -242,23 +303,92 @@ const LiquidacionesHistorialPage = () => {
   };
 
   // Descargar liquidación
-  const descargarLiquidacion = () => {
-    addNotification(`Descargando ${selectedLiquidacion?.archivo}...`, 'info');
-    // Aquí implementarías la descarga real
-    handleMenuClose();
+  const descargarLiquidacion = async () => {
+    if (!selectedLiquidacion?.archivosStorage?.original) {
+      addNotification('No hay archivo disponible para descargar', 'warning');
+      handleMenuClose();
+      return;
+    }
+
+    try {
+      addNotification(`Descargando ${selectedLiquidacion.archivo}...`, 'info');
+      
+      // Descargar archivo original desde Firebase Storage
+      const response = await fetch(selectedLiquidacion.archivosStorage.original.url);
+      const blob = await response.blob();
+      
+      // Crear enlace de descarga
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = selectedLiquidacion.archivo;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      addNotification('Archivo descargado correctamente', 'success');
+      
+    } catch (error) {
+      console.error('Error descargando archivo:', error);
+      addNotification('Error al descargar archivo: ' + error.message, 'error');
+    } finally {
+      handleMenuClose();
+    }
   };
 
-  // Eliminar liquidación
   const eliminarLiquidacion = () => {
+    console.log('🔗 Abriendo modal de eliminación para:', selectedLiquidacion);
+    setLiquidacionToDelete(selectedLiquidacion); // Guardar en estado específico
     setShowDeleteDialog(true);
     handleMenuClose();
   };
 
-  const confirmarEliminacion = () => {
-    setLiquidaciones(prev => prev.filter(l => l.id !== selectedLiquidacion.id));
-    addNotification('Liquidación eliminada correctamente', 'success');
-    setShowDeleteDialog(false);
-    setSelectedLiquidacion(null);
+  const confirmarEliminacion = async (event) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    
+    console.log('🗑️ CLICK DETECTADO - Iniciando eliminación...');
+    console.log('📋 Estado selectedLiquidacion:', selectedLiquidacion);
+    console.log('📋 Estado liquidacionToDelete:', liquidacionToDelete);
+    
+    if (!liquidacionToDelete) {
+      console.log('❌ No hay liquidación para eliminar en liquidacionToDelete');
+      addNotification('No hay liquidación seleccionada', 'error');
+      return;
+    }
+    
+    if (!currentUser?.uid) {
+      console.log('❌ No hay usuario autenticado');
+      addNotification('Usuario no autenticado', 'error');
+      return;
+    }
+    
+    try {
+      console.log('🔄 Eliminando liquidación:', liquidacionToDelete.id, 'para usuario:', currentUser.uid);
+      
+      await liquidacionPersistenceService.deleteLiquidacion(
+        liquidacionToDelete.id, 
+        currentUser.uid
+      );
+      
+      console.log('✅ Liquidación eliminada exitosamente');
+      
+      // Actualizar la lista local
+      setLiquidaciones(prev => prev.filter(l => l.id !== liquidacionToDelete.id));
+      addNotification('Liquidación eliminada correctamente', 'success');
+      
+    } catch (error) {
+      console.error('❌ Error eliminando liquidación:', error);
+      addNotification('Error al eliminar liquidación: ' + error.message, 'error');
+    } finally {
+      console.log('🔄 Cerrando modal y limpiando selección');
+      setShowDeleteDialog(false);
+      setSelectedLiquidacion(null);
+      setLiquidacionToDelete(null); // Limpiar estado específico
+    }
   };
 
   // Limpiar filtros
@@ -495,13 +625,13 @@ const LiquidacionesHistorialPage = () => {
                   <TableHead>
                     <TableRow>
                       <TableCell><strong>Fecha</strong></TableCell>
+                      <TableCell><strong>Período</strong></TableCell>
                       <TableCell><strong>Empresa</strong></TableCell>
                       <TableCell><strong>Archivo</strong></TableCell>
                       <TableCell><strong>Máquinas</strong></TableCell>
                       <TableCell><strong>Producción</strong></TableCell>
                       <TableCell><strong>Total Impuestos</strong></TableCell>
                       <TableCell><strong>Estado</strong></TableCell>
-                      <TableCell><strong>Procesado por</strong></TableCell>
                       <TableCell><strong>Acciones</strong></TableCell>
                     </TableRow>
                   </TableHead>
@@ -513,14 +643,29 @@ const LiquidacionesHistorialPage = () => {
                         </TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <DateRange sx={{ mr: 1, fontSize: 16, color: 'primary.main' }} />
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {liquidacion.periodo || 'No detectado'}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
                             <Business sx={{ mr: 1, fontSize: 16 }} />
                             {liquidacion.empresa}
                           </Box>
                         </TableCell>
                         <TableCell>
-                          <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
-                            {liquidacion.archivo}
-                          </Typography>
+                          <Box>
+                            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                              {liquidacion.archivo}
+                            </Typography>
+                            {liquidacion.archivoTarifas && (
+                              <Typography variant="caption" color="primary.main" sx={{ display: 'block' }}>
+                                + {liquidacion.archivoTarifas}
+                              </Typography>
+                            )}
+                          </Box>
                         </TableCell>
                         <TableCell>
                           <Chip 
@@ -545,11 +690,6 @@ const LiquidacionesHistorialPage = () => {
                             color={getStatusColor(liquidacion.estado)}
                             size="small"
                           />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" color="textSecondary">
-                            {liquidacion.procesadoPor}
-                          </Typography>
                         </TableCell>
                         <TableCell>
                           <IconButton
@@ -589,6 +729,9 @@ const LiquidacionesHistorialPage = () => {
       >
         <MenuItem onClick={verDetalle}>
           <Visibility sx={{ mr: 1 }} /> Ver Detalle
+        </MenuItem>
+        <MenuItem onClick={cargarLiquidacionEnProcesador}>
+          <Restore sx={{ mr: 1 }} /> Cargar para Procesar
         </MenuItem>
         <MenuItem onClick={descargarLiquidacion}>
           <CloudDownload sx={{ mr: 1 }} /> Descargar
@@ -689,18 +832,24 @@ const LiquidacionesHistorialPage = () => {
         </DialogTitle>
         <DialogContent>
           <Typography>
-            ¿Está seguro que desea eliminar la liquidación de <strong>{selectedLiquidacion?.empresa}</strong>?
+            ¿Está seguro que desea eliminar la liquidación de <strong>{liquidacionToDelete?.empresa}</strong>?
           </Typography>
           <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
             Esta acción no se puede deshacer.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowDeleteDialog(false)}>
+          <Button onClick={() => {
+            setShowDeleteDialog(false);
+            setLiquidacionToDelete(null);
+          }}>
             Cancelar
           </Button>
           <Button 
-            onClick={confirmarEliminacion}
+            onClick={(e) => {
+              console.log('🖱️ CLICK EN BOTÓN ELIMINAR DETECTADO!');
+              confirmarEliminacion(e);
+            }}
             color="error"
             variant="contained"
           >

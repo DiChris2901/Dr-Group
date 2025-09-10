@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -82,6 +83,7 @@ import * as XLSX from 'xlsx';
 
 const LiquidacionesPage = () => {
   const theme = useTheme();
+  const [searchParams] = useSearchParams();
   const { currentUser, firestoreProfile } = useAuth();
   const { addNotification } = useNotifications();
   const { companies, loading: companiesLoading } = useCompanies();
@@ -134,14 +136,70 @@ const LiquidacionesPage = () => {
     setShowSalaModal(true);
   };
 
-  // Función para detectar período de liquidación
+  // Función para detectar período de liquidación (derivado de la última fecha reporte del archivo ORIGINAL)
   const detectarPeriodoLiquidacion = () => {
-    if (!originalData) return 'No detectado';
-    
+    if (!originalData || !Array.isArray(originalData) || originalData.length === 0) return 'No detectado';
     try {
-      const periodoInfo = liquidacionPersistenceService.extractPeriodoInfo(originalData);
-      return `${periodoInfo.mesLiquidacion} ${periodoInfo.añoLiquidacion}`;
-    } catch (error) {
+      // 1. Identificar la clave que representa la fecha de reporte (busca coincidencias flexibles)
+      const posiblesClavesFecha = [
+        'fecha reporte','fecha_reporte','fecha','fecha reporte ', 'fecha  reporte'
+      ];
+      // Tomar la primera fila con contenido para inspeccionar claves
+      const sample = originalData.find(r => r && Object.keys(r).length > 0);
+      if (!sample) return 'No detectado';
+      const claves = Object.keys(sample);
+      let claveFecha = null;
+      for (const c of claves) {
+        const cLower = c.toLowerCase().trim();
+        if (posiblesClavesFecha.some(pk => cLower.includes(pk.replace(/\s+/g,' ').trim()))) {
+          claveFecha = c;
+          break;
+        }
+      }
+      if (!claveFecha) {
+        // fallback: cualquier clave que contenga 'fecha'
+        claveFecha = claves.find(c => c.toLowerCase().includes('fecha'));
+        if (!claveFecha) return 'No detectado';
+      }
+      // 2. Extraer todas las fechas válidas
+      const fechas = [];
+      for (const row of originalData) {
+        if (!row || row[claveFecha] === undefined || row[claveFecha] === null || row[claveFecha] === '') continue;
+        let valor = row[claveFecha];
+        let fechaObj = null;
+        if (typeof valor === 'number') {
+          // Excel serial (asumiendo base 1900)
+            fechaObj = new Date((valor - 25569) * 86400 * 1000);
+        } else if (typeof valor === 'string') {
+          // Normalizar separadores
+          const vTrim = valor.trim();
+          // Intento directo
+          const directo = new Date(vTrim);
+          if (!isNaN(directo.getTime())) {
+            fechaObj = directo;
+          } else {
+            // Intentar DD/MM/YYYY
+            const m = vTrim.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+            if (m) {
+              const d = parseInt(m[1]);
+              const mo = parseInt(m[2]) - 1;
+              let y = parseInt(m[3]);
+              if (y < 100) y += 2000; // normalizar años cortos
+              fechaObj = new Date(y, mo, d);
+            }
+          }
+        }
+        if (fechaObj && !isNaN(fechaObj.getTime())) fechas.push(fechaObj);
+      }
+      if (fechas.length === 0) return 'No detectado';
+      // 3. Tomar la fecha máxima (último día reportado)
+      const fechaFin = new Date(Math.max(...fechas.map(f => f.getTime())));
+      if (isNaN(fechaFin.getTime())) return 'No detectado';
+      // 4. Formatear a "Mes Año" con mayúscula inicial
+      const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+      return `${meses[fechaFin.getMonth()]} ${fechaFin.getFullYear()}`;
+    } catch (e) {
+      console.warn('Error detectando período liquidación:', e);
       return 'No detectado';
     }
   };
@@ -166,6 +224,9 @@ const LiquidacionesPage = () => {
       setGuardandoLiquidacion(true);
       addLog('💾 Guardando solo archivos originales en Firebase...', 'info');
       
+      // Detectar período antes de guardar
+      const periodoDetectado = detectarPeriodoLiquidacion();
+      
       // Mostrar qué archivos se van a guardar
       addLog(`📁 Archivo principal: ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`, 'info');
       if (archivoTarifas) {
@@ -182,13 +243,17 @@ const LiquidacionesPage = () => {
         metricsData,
         tarifasOficiales,
         originalFile: selectedFile,
-        archivoTarifas: archivoTarifas // Incluir archivo de tarifas si existe
+        archivoTarifas: archivoTarifas, // Incluir archivo de tarifas si existe
+        periodoDetectado: periodoDetectado // Incluir período detectado
       };
 
       // Extraer y mostrar información del período antes de guardar
       try {
         const periodoInfo = liquidacionPersistenceService.extractPeriodoInfo(originalData);
         addLog(`📅 Período detectado: ${periodoInfo.mesLiquidacion} ${periodoInfo.añoLiquidacion} (procesado el ${periodoInfo.fechaProcesamiento})`, 'info');
+        
+        // Agregar información del período a los datos
+        liquidacionData.periodoInfo = periodoInfo;
       } catch (error) {
         addLog(`⚠️ No se pudo detectar el período automáticamente: ${error.message}`, 'warning');
       }
@@ -337,6 +402,19 @@ const LiquidacionesPage = () => {
       cargarHistorialLiquidaciones();
     }
   }, [currentUser?.uid]);
+
+  // Effect para carga automática desde histórico
+  useEffect(() => {
+    const liquidacionId = searchParams.get('cargar');
+    if (liquidacionId && currentUser?.uid && !processing) {
+      addLog(`🔄 Carga automática solicitada para liquidación: ${liquidacionId}`, 'info');
+      cargarLiquidacion(liquidacionId);
+      
+      // Limpiar parámetro URL después de iniciar la carga
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [searchParams, currentUser?.uid, processing]);
 
   // Debug: Monitorear cambios en metricsData
   console.log('🎯 COMPONENT RENDER - metricsData:', metricsData);
@@ -1868,7 +1946,7 @@ const LiquidacionesPage = () => {
               {historialLiquidaciones.slice(0, 5).map((liquidacion) => (
                 <Chip
                   key={liquidacion.id}
-                  label={`${liquidacion.empresa} - ${liquidacion.mesLiquidacion} ${liquidacion.añoLiquidacion}`}
+                  label={`${liquidacion.empresa?.nombre || 'Sin Empresa'} - ${liquidacion.fechas?.periodoDetectadoModal || `${liquidacion.fechas?.mesLiquidacion} ${liquidacion.fechas?.añoLiquidacion}`}`}
                   onClick={() => cargarLiquidacion(liquidacion.id)}
                   sx={{
                     cursor: 'pointer',
