@@ -822,30 +822,25 @@ const LiquidacionesPage = () => {
       return;
     }
 
-    console.log('📄 Iniciando procesamiento de archivo de tarifas:', archivo.name);
     setProcesandoTarifas(true);
     addLog('📄 Procesando archivo de tarifas...', 'info');
 
     try {
-      console.log('📖 Leyendo archivo...');
+      // Procesamiento optimizado
       const data = await archivo.arrayBuffer();
       const workbook = XLSX.read(data, { type: 'array' });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-      console.log('📊 Datos del archivo de tarifas:', jsonData.length, 'filas');
-      addLog(`📊 Archivo de tarifas cargado: ${jsonData.length} filas`, 'info');
-
-      // Detectar fila de encabezados en archivo de tarifas
+      // Detectar encabezados rápidamente (solo primeras 5 filas)
       let headerRow = -1;
-      for (let i = 0; i < Math.min(10, jsonData.length); i++) {
+      for (let i = 0; i < Math.min(5, jsonData.length); i++) {
         const row = jsonData[i];
         if (Array.isArray(row) && row.some(cell => 
           cell && typeof cell === 'string' && 
           (cell.toLowerCase().includes('nuc') || cell.toLowerCase().includes('tarifa'))
         )) {
           headerRow = i;
-          console.log('✅ Encabezados de tarifas encontrados en fila:', i);
           break;
         }
       }
@@ -857,236 +852,99 @@ const LiquidacionesPage = () => {
       const headers = jsonData[headerRow];
       const dataRows = jsonData.slice(headerRow + 1);
 
-      console.log('📋 Headers de tarifas:', headers);
-
-      // Mapear columnas de tarifas basado en la estructura real del archivo
+      // Mapear columnas optimizado
       const nucIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('nuc'));
       const tarifaIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('tarifa'));
-      const entradasIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('entradas'));
-      const salidasIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('salidas'));
       const derechosIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('derechos'));
       const gastosIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('gastos'));
-
-      console.log('🔍 Índices encontrados:', {
-        NUC: nucIndex,
-        Tarifa: tarifaIndex,
-        Entradas: entradasIndex,
-        Salidas: salidasIndex,
-        Derechos: derechosIndex,
-        Gastos: gastosIndex
-      });
 
       if (nucIndex === -1 || tarifaIndex === -1) {
         throw new Error('No se encontraron columnas NUC o Tarifa en el archivo. Verifique que el archivo tenga estas columnas.');
       }
 
-      console.log('🔧 Creando mapeo de tarifas basado en tipo de tarifa...');
-
-      // Crear mapeo de tarifas - SOLO para agregar valores de tarifa fija
+      // Procesamiento rápido - solo tarifas fijas necesarias
       const nuevasTarifas = {};
       let tarífasEncontradas = 0;
 
-      dataRows.forEach((row, index) => {
-        if (row[nucIndex] && row[tarifaIndex]) {
+      dataRows.forEach((row) => {
+        if (row[nucIndex] && row[tarifaIndex] === 'Tarifa fija') {
           const nuc = row[nucIndex].toString();
-          const tipoTarifa = row[tarifaIndex]?.toString();
-          
-          // Extraer datos adicionales
-          const entradas = parseFloat(row[entradasIndex]) || 0;
-          const salidas = parseFloat(row[salidasIndex]) || 0;
           const derechos = parseFloat(row[derechosIndex]) || 0;
           const gastos = parseFloat(row[gastosIndex]) || 0;
           
-          // SOLO procesar máquinas con "Tarifa fija"
-          if (tipoTarifa === 'Tarifa fija') {
-            if (derechos > 0 || gastos > 0) {
-              nuevasTarifas[nuc] = {
-                tipo: tipoTarifa,
-                metodo: 'Suma directa de derechos y gastos',
-                entradas,
-                salidas,
-                derechos,
-                gastos,
-                // Valores a SUMAR a la liquidación existente
-                derechosAdicionales: derechos,
-                gastosAdicionales: gastos
-              };
-              tarífasEncontradas++;
-              
-              // Debug: mostrar primeras 5 tarifas fijas
-              if (index < 5) {
-                console.log(`✅ Tarifa fija encontrada - NUC: ${nuc}, Derechos: $${derechos.toLocaleString()}, Gastos: $${gastos.toLocaleString()}`);
-              }
-            }
-          } else if (tipoTarifa === 'Tarifa variable') {
-            // Para tarifa variable: NO hacer nada, mantener cálculo original
-            console.log(`ℹ️ Tarifa variable - NUC: ${nuc} - Se mantiene cálculo original`);
+          if (derechos > 0 || gastos > 0) {
+            nuevasTarifas[nuc] = {
+              derechosAdicionales: derechos,
+              gastosAdicionales: gastos
+            };
+            tarífasEncontradas++;
           }
         }
       });
-
-      console.log(`📊 Total de tarifas cargadas: ${tarífasEncontradas}`);
-      addLog(`📊 Tarifas cargadas: ${tarífasEncontradas} NUCs con tarifa definida`, 'info');
 
       if (tarífasEncontradas === 0) {
         throw new Error('No se encontraron tarifas válidas en el archivo. Verifique que las columnas contengan datos numéricos.');
       }
 
-      // Aplicar ajustes a datos consolidados - SUMAR valores de tarifa fija
-      console.log('🔄 Aplicando ajustes de tarifas fijas...');
-      let ajustesAplicados = 0;
-      let totalDerechosAdicionales = 0;
-      let totalGastosAdicionales = 0;
-
+      // Aplicar ajustes optimizado
       if (validationData?.consolidated) {
         const datosAjustados = validationData.consolidated.map(maquina => {
           const nucString = maquina.nuc.toString();
           
           if (nuevasTarifas[nucString]) {
             const infoTarifa = nuevasTarifas[nucString];
-            
-            // SUMAR los valores adicionales de tarifa fija
-            const derechosOriginales = maquina.derechosExplotacion;
-            const gastosOriginales = maquina.gastosAdministracion;
-            
-            const nuevosDerechos = derechosOriginales + infoTarifa.derechosAdicionales;
-            const nuevosGastos = gastosOriginales + infoTarifa.gastosAdicionales;
-            const nuevosTotalImpuestos = nuevosDerechos + nuevosGastos;
-            
-            ajustesAplicados++;
-            totalDerechosAdicionales += infoTarifa.derechosAdicionales;
-            totalGastosAdicionales += infoTarifa.gastosAdicionales;
-            
-            console.log(`✅ Ajuste aplicado - NUC: ${nucString}, Tipo: ${infoTarifa.tipo}`);
-            console.log(`   Derechos: $${derechosOriginales.toLocaleString()} + $${infoTarifa.derechosAdicionales.toLocaleString()} = $${nuevosDerechos.toLocaleString()}`);
-            console.log(`   Gastos: $${gastosOriginales.toLocaleString()} + $${infoTarifa.gastosAdicionales.toLocaleString()} = $${nuevosGastos.toLocaleString()}`);
+            const nuevosDerechos = maquina.derechosExplotacion + infoTarifa.derechosAdicionales;
+            const nuevosGastos = maquina.gastosAdministracion + infoTarifa.gastosAdicionales;
             
             return {
               ...maquina,
-              // Mantener producción original
-              produccion: maquina.produccion,
-              // SUMAR derechos y gastos adicionales
               derechosExplotacion: nuevosDerechos,
               gastosAdministracion: nuevosGastos,
-              totalImpuestos: nuevosTotalImpuestos,
-              // Información de ajuste
-              tarifa: 'Tarifa fija (valores sumados)',
-              tipoTarifa: infoTarifa.tipo,
-              metodoCalculo: infoTarifa.metodo,
-              derechosAdicionales: infoTarifa.derechosAdicionales,
-              gastosAdicionales: infoTarifa.gastosAdicionales
+              totalImpuestos: nuevosDerechos + nuevosGastos,
+              tarifa: 'Tarifa fija (valores sumados)'
             };
           }
           
-          // Si no tiene tarifa fija, mantener valores originales
           return { ...maquina, tarifa: 'Cálculo original (sin ajuste)' };
         });
 
-        // Recalcular totales
-        const nuevoTotalProduccion = datosAjustados.reduce((sum, item) => sum + item.produccion, 0);
+        // Recalcular totales rápido
         const nuevoTotalDerechos = datosAjustados.reduce((sum, item) => sum + item.derechosExplotacion, 0);
         const nuevoTotalGastos = datosAjustados.reduce((sum, item) => sum + item.gastosAdministracion, 0);
-        const nuevoTotalImpuestos = nuevoTotalDerechos + nuevoTotalGastos;
 
-        console.log('📊 NUEVOS TOTALES DESPUÉS DE SUMAR TARIFA FIJA:');
-        console.log('Producción:', nuevoTotalProduccion, '(sin cambios)');
-        console.log('Derechos:', nuevoTotalDerechos, `(+$${totalDerechosAdicionales.toLocaleString()} adicionales)`);
-        console.log('Gastos:', nuevoTotalGastos, `(+$${totalGastosAdicionales.toLocaleString()} adicionales)`);
-        console.log('Total Impuestos:', nuevoTotalImpuestos);
-
-        // Recalcular métricas con los nuevos totales
         const nuevasMetricas = {
           ...validationData.metrics,
-          totalProduccion: nuevoTotalProduccion,
           totalDerechos: nuevoTotalDerechos,
           totalGastos: nuevoTotalGastos,
-          totalImpuestos: nuevoTotalImpuestos
+          totalImpuestos: nuevoTotalDerechos + nuevoTotalGastos
         };
 
-        console.log('🔍 ACTUALIZACIÓN DE MÉTRICAS DESPUÉS DE TARIFAS:');
-        console.log('Métricas originales:', validationData.metrics);
-        console.log('Nuevas métricas calculadas:', nuevasMetricas);
-        console.log('nuevoTotalDerechos calculado:', nuevoTotalDerechos);
-        console.log('nuevoTotalGastos calculado:', nuevoTotalGastos);
-
-        // Actualizar validation data con ajustes
+        // Actualizar validation data con ajustes rápido
         const nuevoValidationData = {
           ...validationData,
           consolidated: datosAjustados,
-          metrics: nuevasMetricas,
-          totalMaquinas: datosAjustados.length,
-          totalEstablecimientos: validationData.totalEstablecimientos,
-          totalProduccion: nuevoTotalProduccion,
-          totalDerechos: nuevoTotalDerechos,
-          totalGastos: nuevoTotalGastos,
-          totalImpuestos: nuevoTotalImpuestos,
-          ajusteTarifaFijaAplicado: true,
-          derechosAdicionales: totalDerechosAdicionales,
-          gastosAdicionales: totalGastosAdicionales
+          metrics: nuevasMetricas
         };
 
-        console.log('🔍 NUEVO VALIDATION DATA COMPLETO:', nuevoValidationData);
         setValidationData(nuevoValidationData);
 
-        // TEMPORAL: Comentado para debug - podría estar causando inconsistencias
-        // setConsolidatedData(datosAjustados);
-        // setOriginalData(datosAjustados);
-
-        // Auto-confirmar después de 2 segundos con los valores correctos
+        // Auto-confirmar rápidamente con los valores correctos
         setTimeout(() => {
-          console.log('🚀 AUTO-CONFIRMANDO CON VALORES AJUSTADOS...');
-          
-          // Crear métricas finales con los valores calculados directamente
-          const metricasFinalesDirectas = {
-            ...validationData.metrics,
-            totalProduccion: nuevoTotalProduccion,
-            totalDerechos: nuevoTotalDerechos,
-            totalGastos: nuevoTotalGastos,
-            totalImpuestos: nuevoTotalImpuestos
-          };
-          
-          console.log('🎯 MÉTRICAS FINALES DIRECTAS:', metricasFinalesDirectas);
-          
-          // Aplicar datos validados directamente
           setConsolidatedData(datosAjustados);
           setReporteBySala(nuevoValidationData.reporteSala);
-          setMetricsData(metricasFinalesDirectas);
+          setMetricsData(nuevasMetricas);
           
-          addLog(`📊 ${datosAjustados.length} máquinas consolidadas con tarifas ajustadas`, 'success');
-          addLog(`🏢 ${nuevoValidationData.totalEstablecimientos} establecimientos procesados`, 'success');
-          addLog('✅ Procesamiento con tarifas completado exitosamente', 'success');
-          
-          // Cambiar a pestaña de resumen
+          addLog(`✅ ${tarífasEncontradas} tarifas aplicadas correctamente`, 'success');
           setActiveTab(0);
-          
-          // Cerrar modal
           setShowValidationModal(false);
           setValidationData(null);
-        }, 2000);
+        }, 500); // Reducido a 500ms para mayor velocidad
       }
 
       setTarifasOficiales(nuevasTarifas);
-      
-      addLog(`🔄 Ajustes aplicados: ${ajustesAplicados} máquinas con tarifa fija`, 'success');
-      addLog(`💰 Derechos adicionales sumados: $ ${totalDerechosAdicionales.toLocaleString()}`, 'info');
-      addLog(`💰 Gastos adicionales sumados: $ ${totalGastosAdicionales.toLocaleString()}`, 'info');
-      addLog('✅ Archivo de tarifas procesado correctamente', 'success');
-      
-      // Mostrar mensaje de éxito
-      addNotification(`Tarifas fijas aplicadas: ${ajustesAplicados} máquinas ajustadas`, 'success');
-      
-      // Ocultar opciones de tarifas y mostrar que se aplicaron ajustes
+      addLog(`✅ Archivo de tarifas procesado: ${tarífasEncontradas} ajustes aplicados`, 'success');
       setShowTarifasOptions(false);
-      setLiquidacionCoincide(true); // Ahora coincide porque se aplicaron las tarifas oficiales
-      
-      // CERRAR MODAL Y APLICAR DATOS FINALES después de procesamiento exitoso
-      // COMENTADO: Ahora se maneja directamente en el procesamiento de tarifas fijas
-      // setTimeout(() => {
-      //   // Primero confirmar validación para aplicar datos finales
-      //   confirmarValidacion();
-      //   addLog('✨ Procesamiento completado - Mostrando resumen final con ajustes', 'success');
-      //   addNotification('Liquidación completada con ajustes de tarifa fija', 'success');
-      // }, 2000); // 2 segundos para que el usuario vea el mensaje de éxito
+      setLiquidacionCoincide(true);
       
     } catch (error) {
       addLog(`❌ Error procesando archivo de tarifas: ${error.message}`, 'error');
@@ -2634,6 +2492,7 @@ const LiquidacionesPage = () => {
                                 <TableCell>Último Día</TableCell>
                                 <TableCell>Período</TableCell>
                                 <TableCell>Tipo Apuesta</TableCell>
+                                <TableCell>Tarifa</TableCell>
                                 <TableCell>Producción</TableCell>
                                 <TableCell>Derechos (12%)</TableCell>
                                 <TableCell>Gastos (1%)</TableCell>
@@ -2654,6 +2513,25 @@ const LiquidacionesPage = () => {
                                   <TableCell>{row.ultimoDia}</TableCell>
                                   <TableCell>{row.periodoTexto}</TableCell>
                                   <TableCell>{row.tipoApuesta}</TableCell>
+                                  <TableCell>
+                                    <Chip 
+                                      label={
+                                        tarifasOficiales && tarifasOficiales[row.nuc.toString()] 
+                                          ? 'Tarifa Fija' 
+                                          : 'Tarifa Variable'
+                                      }
+                                      color={
+                                        tarifasOficiales && tarifasOficiales[row.nuc.toString()] 
+                                          ? 'secondary' 
+                                          : 'primary'
+                                      }
+                                      size="small"
+                                      sx={{ 
+                                        fontWeight: 500,
+                                        fontSize: '0.75rem'
+                                      }}
+                                    />
+                                  </TableCell>
                                   <TableCell>{formatCurrency(row.produccion)}</TableCell>
                                   <TableCell>{formatCurrency(row.derechosExplotacion)}</TableCell>
                                   <TableCell>{formatCurrency(row.gastosAdministracion)}</TableCell>
@@ -2893,7 +2771,7 @@ const LiquidacionesPage = () => {
               alignItems: 'center',
               gap: 2
             }}>
-              <Typography variant="body2" sx={{ 
+              <Box sx={{ 
                 fontWeight: 500,
                 color: 'text.primary',
                 display: 'flex',
@@ -2907,8 +2785,10 @@ const LiquidacionesPage = () => {
                   borderRadius: '50%', 
                   background: theme => theme.palette.primary.main 
                 }} />
-                Establecimientos disponibles: {reporteBySala.map(r => r.establecimiento).filter((v, i, arr) => arr.indexOf(v) === i).length}
-              </Typography>
+                <Typography component="span" variant="body2" sx={{ fontSize: '0.9rem', fontWeight: 500 }}>
+                  Establecimientos disponibles: {reporteBySala.map(r => r.establecimiento).filter((v, i, arr) => arr.indexOf(v) === i).length}
+                </Typography>
+              </Box>
               <Box sx={{ 
                 display: 'flex', 
                 gap: 1.5,
@@ -2960,7 +2840,7 @@ const LiquidacionesPage = () => {
 
             {/* Search sobrio */}
             <Box sx={{ p: 3, background: 'background.paper' }}>
-              <Typography variant="body2" sx={{ 
+              <Box sx={{ 
                 fontWeight: 500,
                 mb: 1.5,
                 color: 'text.primary',
@@ -2975,8 +2855,10 @@ const LiquidacionesPage = () => {
                   borderRadius: '50%', 
                   background: theme => theme.palette.secondary.main 
                 }} />
-                Buscar establecimiento
-              </Typography>
+                <Typography component="span" variant="body2" sx={{ fontSize: '0.9rem', fontWeight: 500 }}>
+                  Buscar establecimiento
+                </Typography>
+              </Box>
               <Box sx={{ position: 'relative' }}>
                 <TextField
                   fullWidth
@@ -3169,21 +3051,21 @@ const LiquidacionesPage = () => {
                           <Typography variant="caption" sx={{ 
                             color: theme => theme.palette.success.main, 
                             fontWeight: 500,
-                            fontSize: '0.8rem'
+                            fontSize: '1rem'
                           }}>
                             {maquinas} máquinas
                           </Typography>
                           <Typography variant="caption" sx={{ 
                             color: theme => theme.palette.success.main, 
                             fontWeight: 500,
-                            fontSize: '0.8rem'
+                            fontSize: '1rem'
                           }}>
                             ${produccionTotal.toLocaleString()} producción
                           </Typography>
                           <Typography variant="caption" sx={{ 
                             color: theme => theme.palette.success.main, 
                             fontWeight: 500,
-                            fontSize: '0.8rem'
+                            fontSize: '1rem'
                           }}>
                             ${promedioPorMaquina.toLocaleString()} promedio/máquina
                           </Typography>
@@ -3191,19 +3073,19 @@ const LiquidacionesPage = () => {
                         <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                           <Typography variant="caption" sx={{ 
                             color: 'text.secondary',
-                            fontSize: '0.75rem'
+                            fontSize: '0.9rem'
                           }}>
                             ${derechos.toLocaleString()} derechos
                           </Typography>
                           <Typography variant="caption" sx={{ 
                             color: 'text.secondary',
-                            fontSize: '0.75rem'
+                            fontSize: '0.9rem'
                           }}>
                             ${gastos.toLocaleString()} gastos
                           </Typography>
                           <Typography variant="caption" sx={{ 
                             color: 'text.secondary',
-                            fontSize: '0.75rem'
+                            fontSize: '0.9rem'
                           }}>
                             ${totalImpuestos.toLocaleString()} total impuestos
                           </Typography>
@@ -3355,7 +3237,7 @@ const LiquidacionesPage = () => {
               alignItems: 'center',
               gap: 2
             }}>
-              <Typography variant="body2" sx={{ 
+              <Box sx={{ 
                 fontWeight: 500,
                 color: 'text.primary',
                 display: 'flex',
@@ -3368,8 +3250,10 @@ const LiquidacionesPage = () => {
                   borderRadius: '50%', 
                   background: theme => theme.palette.primary.main 
                 }} />
-                Establecimientos disponibles: {[...new Set(consolidatedData.map(r => r.establecimiento).filter(Boolean))].length}
-              </Typography>
+                <Typography component="span" variant="body2" sx={{ fontWeight: 500 }}>
+                  Establecimientos disponibles: {[...new Set(consolidatedData.map(r => r.establecimiento).filter(Boolean))].length}
+                </Typography>
+              </Box>
               <Box sx={{ 
                 display: 'flex', 
                 gap: 1.5,
@@ -3421,7 +3305,7 @@ const LiquidacionesPage = () => {
 
             {/* Search sobrio */}
             <Box sx={{ p: 3, background: 'background.paper' }}>
-              <Typography variant="body2" sx={{ 
+              <Box sx={{ 
                 fontWeight: 500,
                 mb: 1.5,
                 color: 'text.primary',
@@ -3436,8 +3320,10 @@ const LiquidacionesPage = () => {
                   borderRadius: '50%', 
                   background: theme => theme.palette.secondary.main 
                 }} />
-                Buscar establecimiento
-              </Typography>
+                <Typography component="span" variant="body2" sx={{ fontSize: '0.9rem', fontWeight: 500 }}>
+                  Buscar establecimiento
+                </Typography>
+              </Box>
               <Box sx={{ position: 'relative' }}>
                 <TextField
                   fullWidth
@@ -3630,21 +3516,21 @@ const LiquidacionesPage = () => {
                           <Typography variant="caption" sx={{ 
                             color: theme => theme.palette.success.main, 
                             fontWeight: 500,
-                            fontSize: '0.8rem'
+                            fontSize: '1rem'
                           }}>
                             {maquinas} máquinas
                           </Typography>
                           <Typography variant="caption" sx={{ 
                             color: theme => theme.palette.success.main, 
                             fontWeight: 500,
-                            fontSize: '0.8rem'
+                            fontSize: '1rem'
                           }}>
                             ${produccionTotal.toLocaleString()} producción
                           </Typography>
                           <Typography variant="caption" sx={{ 
                             color: theme => theme.palette.success.main, 
                             fontWeight: 500,
-                            fontSize: '0.8rem'
+                            fontSize: '1rem'
                           }}>
                             ${promedioPorMaquina.toLocaleString()} promedio/máquina
                           </Typography>
@@ -3652,19 +3538,19 @@ const LiquidacionesPage = () => {
                         <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                           <Typography variant="caption" sx={{ 
                             color: 'text.secondary',
-                            fontSize: '0.75rem'
+                            fontSize: '0.9rem'
                           }}>
                             ${derechos.toLocaleString()} derechos
                           </Typography>
                           <Typography variant="caption" sx={{ 
                             color: 'text.secondary',
-                            fontSize: '0.75rem'
+                            fontSize: '0.9rem'
                           }}>
                             ${gastos.toLocaleString()} gastos
                           </Typography>
                           <Typography variant="caption" sx={{ 
                             color: 'text.secondary',
-                            fontSize: '0.75rem'
+                            fontSize: '0.9rem'
                           }}>
                             ${totalImpuestos.toLocaleString()} total impuestos
                           </Typography>
