@@ -36,7 +36,9 @@ import {
   ListItemIcon,
   Checkbox,
   Divider,
-  CircularProgress
+  CircularProgress,
+  Avatar,
+  alpha
 } from '@mui/material';
 import {
   CloudUpload,
@@ -65,6 +67,8 @@ import { useTheme } from '@mui/material/styles';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
+import { exportarLiquidacionSpectacular, exportarLiquidacionSimple } from '../utils/liquidacionExcelExportSpectacularFixed';
+import { exportarLiquidacionPythonFormat } from '../utils/liquidacionExcelExportPythonFormat';
 import useCompanies from '../hooks/useCompanies';
 import * as XLSX from 'xlsx';
 
@@ -77,6 +81,7 @@ const LiquidacionesPage = () => {
   // Estados principales
   const [selectedFile, setSelectedFile] = useState(null);
   const [empresa, setEmpresa] = useState('');
+  const [empresaCompleta, setEmpresaCompleta] = useState(null); // Estado para empresa completa con logo
   const [processing, setProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [dragActive, setDragActive] = useState(false);
@@ -149,10 +154,12 @@ const LiquidacionesPage = () => {
 
     if (empresaEncontrada) {
       console.log(`✅ Empresa encontrada: ${empresaEncontrada.name} (Contrato: ${empresaEncontrada.contractNumber})`);
+      setEmpresaCompleta(empresaEncontrada); // Guardar empresa completa
       return empresaEncontrada.name;
     } else {
       console.log(`❌ No se encontró empresa con contrato: ${numeroContrato}`);
       console.log('📝 Contratos disponibles:', companies.map(c => c.contractNumber));
+      setEmpresaCompleta(null); // Limpiar empresa completa
       return null;
     }
   }, [companies]);
@@ -292,7 +299,7 @@ const LiquidacionesPage = () => {
       const metrics = calcularMetricas(consolidated, reporteSala);
       
       // Debug: Log de los datos consolidados
-      console.log('🔍 DATOS CONSOLIDADOS PARA VALIDACIÓN:');
+      console.log('🔍 DATOS CONSOLIDAS PARA VALIDACIÓN:');
       console.log('Número de máquinas consolidadas:', consolidated.length);
       console.log('Primera máquina consolidada:', consolidated[0]);
       console.log('Últimas 3 máquinas:', consolidated.slice(-3));
@@ -1135,50 +1142,47 @@ const LiquidacionesPage = () => {
   };
 
   // Funciones de exportación
-  const exportarConsolidado = () => {
+  const exportarConsolidado = async () => {
     if (!consolidatedData) {
       addNotification('No hay datos consolidados para exportar', 'warning');
       return;
     }
 
     try {
-      addLog('📊 Iniciando exportación de datos consolidados...', 'info');
-      
-      // Crear workbook con formato profesional
-      const ws = XLSX.utils.json_to_sheet(consolidatedData.map(row => ({
-        'Empresa': row.empresa,
-        'Serial': row.serial,
-        'NUC': row.nuc,
-        'Establecimiento': row.establecimiento,
-        'Días Transmitidos': row.diasTransmitidos,
-        'Días del Mes': row.diasMes,
-        'Primer Día Transmitido': row.primerDia,
-        'Último Día Transmitido': row.ultimoDia,
-        'Período': row.periodoTexto,
-        'Tipo Apuesta': row.tipoApuesta,
-        'Producción': row.produccion,
-        'Derechos de Explotación (12%)': row.derechosExplotacion,
-        'Gastos de Administración (1%)': row.gastosAdministracion,
-        'Total Impuestos': row.totalImpuestos,
-        'Novedad': row.novedad
-      })));
+      addLog('📦 Exportando con formato Python exacto...', 'info');
+      const result = await exportarLiquidacionPythonFormat(consolidatedData, empresa || 'GENERAL');
+      if (result.success) {
+        addLog(`✅ ${result.message}`, 'success');
+        addNotification('Liquidación exportada (formato Python exacto)', 'success');
+        return;
+      }
+    } catch (e) {
+      console.error('Error formato Python:', e);
+      addLog('⚠️ Falló formato Python, usando versión spectacular...', 'warning');
+    }
 
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Datos Consolidados');
-
-      // Generar archivo con timestamp
-      const timestamp = new Date().toLocaleString('es-CO').replace(/[/:]/g, '-').replace(', ', '_');
-      const filename = `Liquidacion_Consolidada_${empresa || 'General'}_${timestamp}.xlsx`;
-      
-      XLSX.writeFile(wb, filename);
-      
-      addLog(`✅ Datos consolidados exportados como: ${filename}`, 'success');
-      addNotification('Datos consolidados exportados exitosamente', 'success');
-      
+    try {
+      addLog('✨ Iniciando exportación spectacular...', 'info');
+      const result = await exportarLiquidacionSpectacular(consolidatedData, empresa || 'GENERAL');
+      if (result.success) {
+        addLog(`✅ ${result.message}`, 'success');
+        addNotification('Liquidación exportada con diseño SPECTACULAR 💎', 'success');
+      }
     } catch (error) {
       console.error('Error exportando datos consolidados:', error);
       addLog(`❌ Error exportando: ${error.message}`, 'error');
-      addNotification('Error al exportar datos consolidados', 'error');
+      try {
+        addLog('🔄 Intentando exportación simple...', 'info');
+        const fallbackResult = exportarLiquidacionSimple(consolidatedData, empresa || 'GENERAL');
+        if (fallbackResult.success) {
+          addLog(`✅ ${fallbackResult.message}`, 'success');
+          addNotification('Datos exportados (formato simple)', 'warning');
+        }
+      } catch (fallbackError) {
+        console.error('Error en exportación de respaldo:', fallbackError);
+        addLog(`❌ Error en exportación de respaldo: ${fallbackError.message}`, 'error');
+        addNotification('Error al exportar datos consolidados', 'error');
+      }
     }
   };
 
@@ -1331,7 +1335,7 @@ const LiquidacionesPage = () => {
   // Renderizar modal de validación dentro del return principal
   return (
     <>
-      {/* Modal de validación */}
+      {/* Modal de validación - Diseño Sobrio */}
       <Dialog
         open={showValidationModal}
         onClose={() => {}} // Prevenir cierre accidental
@@ -1339,206 +1343,282 @@ const LiquidacionesPage = () => {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: 2,
-            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-            color: 'white'
+            borderRadius: 1,
+            background: theme.palette.background.paper,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
           }
         }}
       >
-        <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Assessment sx={{ fontSize: 32 }} />
+        <DialogTitle sx={{ 
+          pb: 2,
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          background: theme.palette.mode === 'dark' 
+            ? theme.palette.grey[900]
+            : theme.palette.grey[50],
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          color: 'text.primary'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+              <Assessment />
+            </Avatar>
             <Box>
-              <Typography variant="h5" fontWeight="bold">
+              <Typography variant="h6" sx={{ 
+                fontWeight: 700,
+                mb: 0,
+                color: 'text.primary' 
+              }}>
                 🔍 Validación de Liquidación
               </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 Revise los cálculos antes de finalizar el procesamiento
               </Typography>
             </Box>
           </Box>
         </DialogTitle>
         
-        <DialogContent>
+        <DialogContent sx={{ p: 3, pt: 5 }}>
           {validationData && (
             <Grid container spacing={3}>
-              {/* Resumen de máquinas */}
+              {/* Resumen de máquinas - Diseño Sobrio */}
               <Grid item xs={12} md={6}>
-                <Card sx={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom sx={{ color: 'white' }}>
-                      📊 Resumen de Consolidación
-                    </Typography>
-                    <Typography sx={{ color: 'white' }}>
-                      🎰 Máquinas consolidadas: <strong>{validationData.totalMaquinas}</strong>
-                    </Typography>
-                    <Typography sx={{ color: 'white' }}>
-                      🏢 Establecimientos: <strong>{validationData.totalEstablecimientos}</strong>
-                    </Typography>
-                    <Typography sx={{ color: 'white' }}>
-                      🏢 Empresa: <strong>{empresa || 'No detectada'}</strong>
-                    </Typography>
-                  </CardContent>
-                </Card>
+                <Paper sx={{ 
+                  p: 3,
+                  borderRadius: 1,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                  background: alpha(theme.palette.primary.main, 0.08),
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                }}>
+                  <Typography variant="overline" sx={{ 
+                    fontWeight: 600, 
+                    color: 'primary.main',
+                    letterSpacing: 0.8,
+                    fontSize: '0.75rem'
+                  }}>
+                    Información General
+                  </Typography>
+                  <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', mb: 2 }}>
+                    📊 Resumen de Consolidación
+                  </Typography>
+                  <Typography sx={{ color: 'text.primary', mb: 1 }}>
+                    🎰 Máquinas consolidadas: <strong>{validationData.totalMaquinas}</strong>
+                  </Typography>
+                  <Typography sx={{ color: 'text.primary', mb: 1 }}>
+                    🏢 Establecimientos: <strong>{validationData.totalEstablecimientos}</strong>
+                  </Typography>
+                  <Typography sx={{ color: 'text.primary' }}>
+                    🏢 Empresa: <strong>{empresa || 'No detectada'}</strong>
+                  </Typography>
+                </Paper>
               </Grid>
               
-              {/* Totales financieros */}
+              {/* Totales financieros - Diseño Sobrio */}
               <Grid item xs={12} md={6}>
-                <Card sx={{ background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)' }}>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom sx={{ color: 'white' }}>
-                      💰 Totales Financieros
-                    </Typography>
-                    <Typography sx={{ color: 'white' }}>
-                      Producción: <strong>$ {validationData.totalProduccion.toLocaleString()}</strong>
-                    </Typography>
-                    <Typography sx={{ color: 'white' }}>
-                      Derechos (12%): <strong>$ {validationData.totalDerechos.toLocaleString()}</strong>
-                    </Typography>
-                    <Typography sx={{ color: 'white' }}>
-                      Gastos (1%): <strong>$ {validationData.totalGastos.toLocaleString()}</strong>
-                    </Typography>
-                    <Typography sx={{ color: 'white', fontSize: '1.1em' }}>
-                      <strong>Total Impuestos: $ {validationData.totalImpuestos.toLocaleString()}</strong>
-                    </Typography>
-                  </CardContent>
-                </Card>
+                <Paper sx={{ 
+                  p: 3,
+                  borderRadius: 1,
+                  border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                  background: alpha(theme.palette.secondary.main, 0.08),
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                }}>
+                  <Typography variant="overline" sx={{ 
+                    fontWeight: 600, 
+                    color: 'secondary.main',
+                    letterSpacing: 0.8,
+                    fontSize: '0.75rem'
+                  }}>
+                    Información Financiera
+                  </Typography>
+                  <Typography variant="h6" gutterBottom sx={{ color: 'text.primary', mb: 2 }}>
+                    💰 Totales Financieros
+                  </Typography>
+                  <Typography sx={{ color: 'text.primary', mb: 1 }}>
+                    Producción: <strong>$ {validationData.totalProduccion.toLocaleString()}</strong>
+                  </Typography>
+                  <Typography sx={{ color: 'text.primary', mb: 1 }}>
+                    Derechos (12%): <strong>$ {validationData.totalDerechos.toLocaleString()}</strong>
+                  </Typography>
+                  <Typography sx={{ color: 'text.primary', mb: 1 }}>
+                    Gastos (1%): <strong>$ {validationData.totalGastos.toLocaleString()}</strong>
+                  </Typography>
+                  <Typography sx={{ color: 'text.primary', fontSize: '1.1em', fontWeight: 600 }}>
+                    <strong>Total Impuestos: $ {validationData.totalImpuestos.toLocaleString()}</strong>
+                  </Typography>
+                </Paper>
               </Grid>
               
-              {/* Pregunta de coincidencia de tarifas */}
+              {/* Pregunta de coincidencia de tarifas - Diseño Sobrio */}
               {!showTarifasOptions && (
                 <Grid item xs={12}>
-                  <Card sx={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)' }}>
-                    <CardContent>
-                      <Typography variant="h6" sx={{ color: 'white', textAlign: 'center', mb: 2 }}>
-                        🔍 ¿Los cálculos coinciden con las tarifas oficiales?
-                      </Typography>
-                      <Typography variant="body1" sx={{ color: 'white', textAlign: 'center', mb: 3 }}>
-                        Si tiene un archivo de tarifas oficial para verificar, puede seleccionar "No Coincide" para hacer ajustes.
-                      </Typography>
-                      <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-                        <Button 
-                          onClick={handleLiquidacionCoincide}
-                          variant="contained"
-                          size="large"
-                          sx={{ 
-                            background: 'rgba(46, 125, 50, 0.8)', 
-                            color: 'white',
-                            '&:hover': { background: 'rgba(46, 125, 50, 1)' },
-                            minWidth: 140
-                          }}
-                        >
-                          ✅ Sí Coincide
-                        </Button>
-                        <Button 
-                          onClick={handleLiquidacionNoCoincide}
-                          variant="contained"
-                          size="large"
-                          sx={{ 
-                            background: 'rgba(211, 47, 47, 0.8)', 
-                            color: 'white',
-                            '&:hover': { background: 'rgba(211, 47, 47, 1)' },
-                            minWidth: 140
-                          }}
-                        >
-                          ❌ No Coincide
-                        </Button>
-                      </Box>
-                    </CardContent>
-                  </Card>
+                  <Paper sx={{ 
+                    p: 3,
+                    borderRadius: 1,
+                    border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                    background: alpha(theme.palette.info.main, 0.08),
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                  }}>
+                    <Typography variant="h6" sx={{ color: 'text.primary', textAlign: 'center', mb: 2 }}>
+                      🔍 ¿Los cálculos coinciden con las tarifas oficiales?
+                    </Typography>
+                    <Typography variant="body1" sx={{ color: 'text.secondary', textAlign: 'center', mb: 3 }}>
+                      Si tiene un archivo de tarifas oficial para verificar, puede seleccionar "No Coincide" para hacer ajustes.
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+                      <Button 
+                        onClick={handleLiquidacionCoincide}
+                        variant="contained"
+                        size="large"
+                        color="success"
+                        sx={{ 
+                          minWidth: 140,
+                          borderRadius: 1,
+                          fontWeight: 600,
+                          textTransform: 'none',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+                        }}
+                      >
+                        ✅ Sí Coincide
+                      </Button>
+                      <Button 
+                        onClick={handleLiquidacionNoCoincide}
+                        variant="contained"
+                        size="large"
+                        color="error"
+                        sx={{ 
+                          minWidth: 140,
+                          borderRadius: 1,
+                          fontWeight: 600,
+                          textTransform: 'none',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+                        }}
+                      >
+                        ❌ No Coincide
+                      </Button>
+                    </Box>
+                  </Paper>
                 </Grid>
               )}
 
-              {/* Opciones de tarifas */}
+              {/* Opciones de tarifas - Diseño Sobrio */}
               {showTarifasOptions && (
                 <Grid item xs={12}>
-                  <Card sx={{ background: 'rgba(255, 193, 7, 0.2)', border: '1px solid rgba(255, 193, 7, 0.5)' }}>
-                    <CardContent>
-                      <Typography variant="h6" sx={{ color: 'white', mb: 2 }}>
-                        ⚙️ Ajuste de Tarifas Oficiales
-                      </Typography>
-                      <Typography variant="body1" sx={{ color: 'white', mb: 3 }}>
-                        Seleccione un archivo Excel con las tarifas oficiales para ajustar automáticamente los cálculos.
-                        El archivo debe contener columnas "NUC" y "Tarifa".
-                      </Typography>
-                      
-                      {procesandoTarifas && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                          <CircularProgress size={20} sx={{ color: 'white' }} />
-                          <Typography sx={{ color: 'white' }}>Procesando archivo de tarifas...</Typography>
-                        </Box>
-                      )}
-                      
-                      {liquidacionCoincide && !procesandoTarifas && showTarifasOptions && (
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2, p: 2, background: 'rgba(76, 175, 80, 0.3)', borderRadius: 1 }}>
-                          <Typography sx={{ color: 'white', textAlign: 'center' }}>
-                            ✅ Tarifas procesadas correctamente. El modal se cerrará automáticamente en unos segundos...
-                          </Typography>
-                        </Box>
-                      )}
-                      
-                      <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-                        <Button 
-                          onClick={seleccionarArchivoTarifas}
-                          variant="contained"
-                          disabled={procesandoTarifas}
-                          sx={{ 
-                            background: 'rgba(25, 118, 210, 0.8)', 
-                            color: 'white',
-                            '&:hover': { background: 'rgba(25, 118, 210, 1)' }
-                          }}
-                        >
-                          📁 Seleccionar Archivo de Tarifas
-                        </Button>
-                        <Button 
-                          onClick={continuarSinTarifas}
-                          variant="outlined"
-                          disabled={procesandoTarifas}
-                          sx={{ 
-                            color: 'white', 
-                            borderColor: 'white',
-                            '&:hover': { 
-                              borderColor: 'white', 
-                              background: 'rgba(255,255,255,0.1)' 
-                            }
-                          }}
-                        >
-                          ➡️ Continuar Sin Ajustes
-                        </Button>
+                  <Paper sx={{ 
+                    p: 3,
+                    borderRadius: 1,
+                    border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                    background: alpha(theme.palette.warning.main, 0.08),
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                  }}>
+                    <Typography variant="h6" sx={{ color: 'text.primary', mb: 2 }}>
+                      ⚙️ Ajuste de Tarifas Oficiales
+                    </Typography>
+                    <Typography variant="body1" sx={{ color: 'text.secondary', mb: 3 }}>
+                      Seleccione un archivo Excel con las tarifas oficiales para ajustar automáticamente los cálculos.
+                      El archivo debe contener columnas "NUC" y "Tarifa".
+                    </Typography>
+                    
+                    {procesandoTarifas && (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 2, 
+                        mb: 2,
+                        p: 2,
+                        borderRadius: 1,
+                        background: alpha(theme.palette.info.main, 0.08),
+                        border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+                      }}>
+                        <CircularProgress size={20} color="info" />
+                        <Typography sx={{ color: 'text.primary' }}>Procesando archivo de tarifas...</Typography>
                       </Box>
-                    </CardContent>
-                  </Card>
+                    )}
+                    
+                    {liquidacionCoincide && !procesandoTarifas && showTarifasOptions && (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 2, 
+                        mb: 2, 
+                        p: 2, 
+                        borderRadius: 1,
+                        background: alpha(theme.palette.success.main, 0.08),
+                        border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
+                      }}>
+                        <Typography sx={{ color: 'text.primary', textAlign: 'center' }}>
+                          ✅ Tarifas procesadas correctamente. El modal se cerrará automáticamente en unos segundos...
+                        </Typography>
+                      </Box>
+                    )}
+                    
+                    <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <Button 
+                        onClick={seleccionarArchivoTarifas}
+                        variant="contained"
+                        disabled={procesandoTarifas}
+                        sx={{ 
+                          borderRadius: 1,
+                          fontWeight: 600,
+                          textTransform: 'none',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+                        }}
+                      >
+                        📁 Seleccionar Archivo de Tarifas
+                      </Button>
+                      <Button 
+                        onClick={continuarSinTarifas}
+                        variant="outlined"
+                        disabled={procesandoTarifas}
+                        sx={{ 
+                          borderRadius: 1,
+                          fontWeight: 500,
+                          textTransform: 'none'
+                        }}
+                      >
+                        ➡️ Continuar Sin Ajustes
+                      </Button>
+                    </Box>
+                  </Paper>
                 </Grid>
               )}
               
-              {/* Advertencia final */}
+              {/* Advertencia final - Diseño Sobrio */}
               {!showTarifasOptions && (
                 <Grid item xs={12}>
-                  <Card sx={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)' }}>
-                    <CardContent>
-                      <Typography variant="body1" sx={{ color: 'white', textAlign: 'center' }}>
-                        ⚠️ <strong>Importante:</strong> Una vez confirmada la validación, los datos estarán listos para exportar.
-                        <br />Revise cuidadosamente los totales antes de continuar.
-                      </Typography>
-                    </CardContent>
-                  </Card>
+                  <Paper sx={{ 
+                    p: 3,
+                    borderRadius: 1,
+                    border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                    background: alpha(theme.palette.info.main, 0.04),
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                  }}>
+                    <Typography variant="body1" sx={{ color: 'text.primary', textAlign: 'center' }}>
+                      ⚠️ <strong>Importante:</strong> Una vez confirmada la validación, los datos estarán listos para exportar.
+                      <br />Revise cuidadosamente los totales antes de continuar.
+                    </Typography>
+                  </Paper>
                 </Grid>
               )}
             </Grid>
           )}
         </DialogContent>
         
-        <DialogActions sx={{ p: 3 }}>
+        <DialogActions sx={{ p: 3, justifyContent: 'space-between' }}>
+          <Typography variant="caption" color="text.secondary">
+            Validación de liquidación en proceso
+          </Typography>
           <Button 
             onClick={cancelarValidacion}
             variant="outlined"
             sx={{ 
-              color: 'white', 
-              borderColor: 'white',
-              '&:hover': { 
-                borderColor: 'white', 
-                background: 'rgba(255,255,255,0.1)' 
-              }
+              borderRadius: 1,
+              fontWeight: 500,
+              textTransform: 'none',
+              px: 3
             }}
           >
             ❌ Cancelar
@@ -1547,35 +1627,69 @@ const LiquidacionesPage = () => {
       </Dialog>
 
       <Container maxWidth="xl" sx={{ py: 3 }}>
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <Box sx={{ 
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          borderRadius: 2,
-          p: 3,
-          mb: 3,
-          color: 'white',
-          position: 'relative',
-          overflow: 'hidden'
-        }}>
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+      {/* Header - Diseño Sobrio */}
+      <Paper sx={{ 
+        background: theme.palette.mode === 'dark' 
+          ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+          : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+        borderRadius: 1,
+        overflow: 'hidden',
+        boxShadow: theme.palette.mode === 'dark'
+          ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+          : '0 4px 20px rgba(0, 0, 0, 0.08)',
+        mb: 6
+      }}>
+        <Box sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+          <Typography variant="overline" sx={{ 
+            fontWeight: 600, 
+            fontSize: '0.7rem', 
+            color: 'rgba(255, 255, 255, 0.8)',
+            letterSpacing: 1.2
+          }}>
+            SISTEMA • PROCESAMIENTO
+          </Typography>
+          <Typography variant="h4" sx={{ 
+            fontWeight: 700, 
+            mt: 0.5, 
+            mb: 0.5,
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1
+          }}>
             🏢 Procesador de Liquidaciones
           </Typography>
-          <Typography variant="body1" sx={{ opacity: 0.9 }}>
+          <Typography variant="body1" sx={{ 
+            color: 'rgba(255, 255, 255, 0.9)'
+          }}>
             Sistema avanzado de procesamiento y análisis de liquidaciones de máquinas
           </Typography>
         </Box>
-      </motion.div>
+      </Paper>
 
       <Grid container spacing={3}>
-        {/* Panel de Control */}
+        {/* Panel de Control - Diseño Sobrio */}
         <Grid item xs={12} md={4}>
-          <Card sx={{ height: 'fit-content' }}>
+          <Card sx={{ 
+            height: 'fit-content',
+            borderRadius: 1,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            transition: 'box-shadow 0.2s ease',
+            '&:hover': {
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            }
+          }}>
             <CardContent>
+              <Typography variant="overline" sx={{ 
+                fontWeight: 600, 
+                color: 'primary.main',
+                letterSpacing: 0.8,
+                fontSize: '0.75rem'
+              }}>
+                Gestión de Archivos
+              </Typography>
+              
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
                 📁 1. Seleccionar Archivo
               </Typography>
@@ -1585,7 +1699,13 @@ const LiquidacionesPage = () => {
                 variant="contained"
                 startIcon={<CloudUpload />}
                 onClick={() => fileInputRef.current?.click()}
-                sx={{ mb: 2, mr: 1 }}
+                sx={{ 
+                  mb: 2, 
+                  mr: 1,
+                  borderRadius: 1,
+                  fontWeight: 600,
+                  textTransform: 'none'
+                }}
               >
                 Seleccionar Archivo
               </Button>
@@ -1598,7 +1718,7 @@ const LiquidacionesPage = () => {
                 style={{ display: 'none' }}
               />
               
-              {/* Zona drag & drop */}
+              {/* Zona drag & drop - Diseño Sobrio */}
               <Paper
                 ref={dropZoneRef}
                 onDragEnter={handleDrag}
@@ -1607,58 +1727,210 @@ const LiquidacionesPage = () => {
                 onDrop={handleDrop}
                 sx={{
                   p: 3,
-                  border: `2px dashed ${dragActive ? theme.palette.primary.main : theme.palette.grey[300]}`,
-                  backgroundColor: dragActive ? theme.palette.primary.light + '20' : theme.palette.grey[50],
+                  border: `2px dashed ${dragActive ? alpha(theme.palette.primary.main, 0.6) : alpha(theme.palette.divider, 0.15)}`,
+                  backgroundColor: dragActive 
+                    ? alpha(theme.palette.primary.main, 0.08) 
+                    : alpha(theme.palette.primary.main, 0.04),
                   textAlign: 'center',
                   cursor: 'pointer',
                   mb: 2,
-                  transition: 'all 0.3s ease'
+                  borderRadius: 1,
+                  transition: 'all 0.2s ease'
                 }}
               >
-                <CloudUpload sx={{ fontSize: 40, color: theme.palette.grey[400], mb: 1 }} />
+                <CloudUpload sx={{ 
+                  fontSize: 40, 
+                  color: alpha(theme.palette.text.secondary, 0.7), 
+                  mb: 1 
+                }} />
                 <Typography variant="body2" color="textSecondary">
                   También puedes arrastrar archivos Excel/CSV aquí
                 </Typography>
               </Paper>
               
               {selectedFile && (
-                <Alert severity="success" sx={{ mb: 2 }}>
+                <Alert 
+                  severity="success" 
+                  sx={{ 
+                    mb: 2,
+                    backgroundColor: alpha(theme.palette.success.main, 0.08),
+                    border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
+                  }}
+                >
                   <strong>Archivo seleccionado:</strong><br />
                   {selectedFile.name}
                 </Alert>
               )}
               
-              {/* Campo empresa - Detectado automáticamente */}
-              <TextField
-                fullWidth
-                label="🏢 Empresa (Detectada automáticamente)"
-                value={empresa || 'Se detectará del archivo...'}
-                InputProps={{
-                  readOnly: true,
-                }}
-                sx={{ 
-                  mb: 3,
-                  '& .MuiInputBase-input': {
-                    color: empresa ? theme.palette.text.primary : theme.palette.text.secondary,
-                  }
-                }}
-                helperText="La empresa se detecta automáticamente del número de contrato en el archivo"
-              />
+              {/* Campo empresa - Detectado automáticamente con Avatar y tipografía mejorada */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" sx={{ 
+                  mb: 1.5, 
+                  fontWeight: 600,
+                  color: theme.palette.text.secondary,
+                  fontSize: '0.9rem'
+                }}>
+                  🏢 Empresa (Detectada automáticamente)
+                </Typography>
+                
+                <Paper
+                  sx={{
+                    p: 2.5,
+                    borderRadius: 1,
+                    backgroundColor: empresa ? alpha(theme.palette.success.main, 0.04) : alpha(theme.palette.grey[500], 0.04),
+                    border: `1px solid ${empresa ? alpha(theme.palette.success.main, 0.2) : alpha(theme.palette.grey[500], 0.2)}`,
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: empresa ? alpha(theme.palette.success.main, 0.08) : alpha(theme.palette.grey[500], 0.08),
+                    }
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    {/* Avatar con logo de la empresa o inicial */}
+                    {empresaCompleta?.logoURL ? (
+                      <Avatar
+                        src={empresaCompleta.logoURL}
+                        alt={`Logo de ${empresaCompleta.name}`}
+                        sx={{
+                          width: 48,
+                          height: 48,
+                          border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                          backgroundColor: theme.palette.background.paper,
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                        }}
+                      />
+                    ) : empresa ? (
+                      <Avatar
+                        sx={{
+                          width: 48,
+                          height: 48,
+                          backgroundColor: alpha(theme.palette.success.main, 0.15),
+                          color: theme.palette.success.main,
+                          fontWeight: 700,
+                          fontSize: '1.2rem',
+                          border: `2px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                        }}
+                      >
+                        {empresa.charAt(0).toUpperCase()}
+                      </Avatar>
+                    ) : (
+                      <Avatar
+                        sx={{
+                          width: 48,
+                          height: 48,
+                          backgroundColor: alpha(theme.palette.grey[500], 0.15),
+                          color: theme.palette.grey[600],
+                          fontWeight: 600,
+                          fontSize: '1.2rem',
+                          border: `2px solid ${alpha(theme.palette.grey[500], 0.3)}`,
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                        }}
+                      >
+                        ?
+                      </Avatar>
+                    )}
+                    
+                    {/* Información de la empresa */}
+                    <Box sx={{ flex: 1 }}>
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          fontWeight: 700,
+                          fontSize: '1.1rem',
+                          color: empresa ? theme.palette.text.primary : theme.palette.text.secondary,
+                          mb: 0.5,
+                          lineHeight: 1.2
+                        }}
+                      >
+                        {empresa || 'Se detectará del archivo...'}
+                      </Typography>
+                      
+                      {empresaCompleta && (
+                        <Box>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color: theme.palette.text.secondary,
+                              fontWeight: 500,
+                              fontSize: '0.85rem',
+                              mb: 0.3
+                            }}
+                          >
+                            NIT: {empresaCompleta.nit}
+                          </Typography>
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color: theme.palette.success.main,
+                              fontWeight: 600,
+                              fontSize: '0.8rem'
+                            }}
+                          >
+                            Contrato: {empresaCompleta.contractNumber}
+                          </Typography>
+                        </Box>
+                      )}
+                      
+                      {!empresa && (
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color: theme.palette.text.secondary,
+                            fontStyle: 'italic',
+                            fontSize: '0.85rem'
+                          }}
+                        >
+                          La empresa se detectará automáticamente del número de contrato en el archivo
+                        </Typography>
+                      )}
+                    </Box>
+                    
+                    {/* Indicador de estado */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      {empresa ? (
+                        <Chip
+                          label="Detectada"
+                          color="success"
+                          size="small"
+                          sx={{
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                            boxShadow: '0 1px 4px rgba(0,0,0,0.1)'
+                          }}
+                        />
+                      ) : (
+                        <Chip
+                          label="Pendiente"
+                          color="default"
+                          size="small"
+                          sx={{
+                            fontWeight: 600,
+                            fontSize: '0.75rem',
+                            backgroundColor: alpha(theme.palette.grey[500], 0.1),
+                            color: theme.palette.grey[600]
+                          }}
+                        />
+                      )}
+                    </Box>
+                  </Box>
+                </Paper>
+              </Box>
               
               {/* Procesamiento automático */}
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
                 ⚙️ 2. Procesamiento Automático
               </Typography>
               
-              {/* Estado del procesamiento automático */}
+              {/* Estado del procesamiento automático - Diseño Sobrio */}
               {!selectedFile ? (
                 <Box sx={{ 
                   p: 3, 
-                  border: '2px dashed', 
-                  borderColor: theme.palette.grey[300],
-                  borderRadius: 2,
+                  border: `2px dashed ${alpha(theme.palette.divider, 0.15)}`,
+                  borderRadius: 1,
                   textAlign: 'center',
-                  mb: 2
+                  mb: 2,
+                  backgroundColor: alpha(theme.palette.background.default, 0.5)
                 }}>
                   <Typography variant="body1" color="text.secondary">
                     ⏳ Seleccione un archivo para iniciar el procesamiento automático
@@ -1667,10 +1939,11 @@ const LiquidacionesPage = () => {
               ) : processing ? (
                 <Box sx={{ 
                   p: 3, 
-                  background: theme.palette.primary.main + '20',
-                  borderRadius: 2,
+                  background: alpha(theme.palette.primary.main, 0.08),
+                  borderRadius: 1,
                   textAlign: 'center',
-                  mb: 2
+                  mb: 2,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
                 }}>
                   <Typography variant="body1" color="primary" sx={{ mb: 1 }}>
                     ⚙️ Procesando automáticamente...
@@ -1680,10 +1953,11 @@ const LiquidacionesPage = () => {
               ) : (
                 <Box sx={{ 
                   p: 3, 
-                  background: theme.palette.success.main + '20',
-                  borderRadius: 2,
+                  background: alpha(theme.palette.success.main, 0.08),
+                  borderRadius: 1,
                   textAlign: 'center',
-                  mb: 2
+                  mb: 2,
+                  border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
                 }}>
                   <Typography variant="body1" color="success.main">
                     ✅ Archivo procesado correctamente
@@ -1705,15 +1979,38 @@ const LiquidacionesPage = () => {
                 startIcon={<Refresh />}
                 onClick={reiniciarAplicacion}
                 color="secondary"
+                sx={{
+                  borderRadius: 1,
+                  fontWeight: 500,
+                  textTransform: 'none'
+                }}
               >
                 Reiniciar Aplicación
               </Button>
             </CardContent>
           </Card>
           
-          {/* Log de actividades */}
-          <Card sx={{ mt: 2 }}>
+          {/* Log de actividades - Diseño Sobrio */}
+          <Card sx={{ 
+            mt: 2,
+            borderRadius: 1,
+            border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            transition: 'box-shadow 0.2s ease',
+            '&:hover': {
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            }
+          }}>
             <CardContent>
+              <Typography variant="overline" sx={{ 
+                fontWeight: 600, 
+                color: 'secondary.main',
+                letterSpacing: 0.8,
+                fontSize: '0.75rem'
+              }}>
+                Registro de Actividades
+              </Typography>
+              
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
                 📋 Log de Actividades
               </Typography>
@@ -1721,44 +2018,58 @@ const LiquidacionesPage = () => {
               <Box sx={{ 
                 maxHeight: 300, 
                 overflow: 'auto',
-                border: `1px solid ${theme.palette.grey[300]}`,
+                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
                 borderRadius: 1,
                 p: 1,
-                backgroundColor: theme.palette.grey[50]
+                backgroundColor: alpha(theme.palette.background.default, 0.5)
               }}>
-                {logs.length === 0 ? (
+                {logs.length === 0 && (
                   <Typography variant="body2" color="textSecondary">
                     No hay actividades registradas
                   </Typography>
-                ) : (
-                  logs.map(log => (
-                    <Box key={log.id} sx={{ mb: 1, fontSize: '0.875rem' }}>
-                      <span style={{ color: theme.palette.grey[600] }}>
-                        [{log.timestamp}]
-                      </span>{' '}
-                      <span style={{ 
-                        color: log.type === 'error' ? theme.palette.error.main : 
-                               log.type === 'success' ? theme.palette.success.main : 
-                               theme.palette.text.primary 
-                      }}>
-                        {log.message}
-                      </span>
-                    </Box>
-                  ))
                 )}
+                {logs.length > 0 && logs.map(log => (
+                  <Box key={log.id} sx={{ mb: 1, fontSize: '0.875rem' }}>
+                    <span style={{ color: alpha(theme.palette.text.secondary, 0.8) }}>
+                      [{log.timestamp}]
+                    </span>{' '}
+                    <span style={{ 
+                      color: log.type === 'error' ? theme.palette.error.main : 
+                             log.type === 'success' ? theme.palette.success.main : 
+                             theme.palette.text.primary 
+                    }}>
+                      {log.message}
+                    </span>
+                  </Box>
+                ))}
               </Box>
             </CardContent>
           </Card>
         </Grid>
         
-        {/* Panel de Resultados */}
+        {/* Panel de Resultados - Diseño Sobrio */}
         <Grid item xs={12} md={8}>
-          <Card>
-            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Card sx={{
+            borderRadius: 1,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            transition: 'box-shadow 0.2s ease',
+            '&:hover': {
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            }
+          }}>
+            <Box sx={{ borderBottom: `1px solid ${theme.palette.divider}` }}>
               <Tabs 
                 value={activeTab} 
                 onChange={(e, newValue) => setActiveTab(newValue)}
                 variant="fullWidth"
+                sx={{
+                  '& .MuiTab-root': {
+                    fontWeight: 500,
+                    textTransform: 'none',
+                    fontSize: '0.875rem'
+                  }
+                }}
               >
                 <Tab 
                   label="📊 Resumen" 
@@ -1778,9 +2089,9 @@ const LiquidacionesPage = () => {
               </Tabs>
             </Box>
             
-            <CardContent>
+            <CardContent sx={{ p: 3 }}>
               <AnimatePresence mode="wait">
-                {/* Pestaña Resumen */}
+                {/* Pestaña Resumen - Diseño Sobrio */}
                 {activeTab === 0 && (
                   <motion.div
                     key="resumen"
@@ -1790,125 +2101,346 @@ const LiquidacionesPage = () => {
                     transition={{ duration: 0.3 }}
                   >
                     {!metricsData ? (
-                      <Box sx={{ textAlign: 'center', py: 4 }}>
-                        <Assessment sx={{ fontSize: 60, color: theme.palette.grey[400], mb: 2 }} />
+                      <Box sx={{ textAlign: 'center', py: 6 }}>
+                        <Assessment sx={{ 
+                          fontSize: 60, 
+                          color: alpha(theme.palette.text.secondary, 0.7), 
+                          mb: 2 
+                        }} />
                         <Typography variant="h6" color="textSecondary">
                           Resumen de datos aparecerá aquí después del procesamiento
                         </Typography>
                       </Box>
                     ) : (
-                      <Grid container spacing={2}>
-                        {/* Métricas principales */}
+                      <Grid container spacing={3}>
+                        {/* Métricas principales - Diseño Sobrio */}
                         <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ p: 2, textAlign: 'center', bgcolor: theme.palette.primary.main, color: 'white' }}>
-                            <Casino sx={{ fontSize: 30, mb: 1 }} />
-                            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                          <Paper sx={{ 
+                            p: 3, 
+                            textAlign: 'center',
+                            borderRadius: 1,
+                            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                            background: alpha(theme.palette.primary.main, 0.08),
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              background: alpha(theme.palette.primary.main, 0.12)
+                            }
+                          }}>
+                            <Casino sx={{ 
+                              fontSize: 32, 
+                              mb: 1.5, 
+                              color: theme.palette.primary.main 
+                            }} />
+                            <Typography variant="h4" sx={{ 
+                              fontWeight: 600,
+                              color: theme.palette.text.primary,
+                              mb: 0.5
+                            }}>
                               {metricsData.totalMaquinas}
                             </Typography>
-                            <Typography variant="body2">
+                            <Typography variant="body2" sx={{
+                              color: theme.palette.text.secondary,
+                              fontWeight: 500
+                            }}>
                               Máquinas Consolidadas
                             </Typography>
                           </Paper>
                         </Grid>
                         
                         <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ p: 2, textAlign: 'center', bgcolor: theme.palette.secondary.main, color: 'white' }}>
-                            <Business sx={{ fontSize: 30, mb: 1 }} />
-                            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                          <Paper sx={{ 
+                            p: 3, 
+                            textAlign: 'center',
+                            borderRadius: 1,
+                            border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                            background: alpha(theme.palette.secondary.main, 0.08),
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              background: alpha(theme.palette.secondary.main, 0.12)
+                            }
+                          }}>
+                            <Business sx={{ 
+                              fontSize: 32, 
+                              mb: 1.5, 
+                              color: theme.palette.secondary.main 
+                            }} />
+                            <Typography variant="h4" sx={{ 
+                              fontWeight: 600,
+                              color: theme.palette.text.primary,
+                              mb: 0.5
+                            }}>
                               {metricsData.totalEstablecimientos}
                             </Typography>
-                            <Typography variant="body2">
+                            <Typography variant="body2" sx={{
+                              color: theme.palette.text.secondary,
+                              fontWeight: 500
+                            }}>
                               Total Establecimientos
                             </Typography>
                           </Paper>
                         </Grid>
                         
                         <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#4caf50', color: 'white' }}>
-                            <TrendingUp sx={{ fontSize: 30, mb: 1 }} />
-                            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                          <Paper sx={{ 
+                            p: 3, 
+                            textAlign: 'center',
+                            borderRadius: 1,
+                            border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+                            background: alpha(theme.palette.success.main, 0.08),
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              background: alpha(theme.palette.success.main, 0.12)
+                            }
+                          }}>
+                            <TrendingUp sx={{ 
+                              fontSize: 32, 
+                              mb: 1.5, 
+                              color: theme.palette.success.main 
+                            }} />
+                            <Typography variant="h4" sx={{ 
+                              fontWeight: 600,
+                              color: theme.palette.text.primary,
+                              mb: 0.5
+                            }}>
                               {formatCurrency(metricsData.totalProduccion)}
                             </Typography>
-                            <Typography variant="body2">
+                            <Typography variant="body2" sx={{
+                              color: theme.palette.text.secondary,
+                              fontWeight: 500
+                            }}>
                               Total Producción
                             </Typography>
                           </Paper>
                         </Grid>
                         
                         <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#ff9800', color: 'white' }}>
-                            <Assessment sx={{ fontSize: 30, mb: 1 }} />
-                            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                          <Paper sx={{ 
+                            p: 3, 
+                            textAlign: 'center',
+                            borderRadius: 1,
+                            border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                            background: alpha(theme.palette.warning.main, 0.08),
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              background: alpha(theme.palette.warning.main, 0.12)
+                            }
+                          }}>
+                            <Assessment sx={{ 
+                              fontSize: 32, 
+                              mb: 1.5, 
+                              color: theme.palette.warning.main 
+                            }} />
+                            <Typography variant="h4" sx={{ 
+                              fontWeight: 600,
+                              color: theme.palette.text.primary,
+                              mb: 0.5
+                            }}>
                               {formatCurrency(metricsData.totalDerechos)}
                             </Typography>
-                            <Typography variant="body2">
+                            <Typography variant="body2" sx={{
+                              color: theme.palette.text.secondary,
+                              fontWeight: 500
+                            }}>
                               Derechos de Explotación
                             </Typography>
                           </Paper>
                         </Grid>
                         
                         <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#9c27b0', color: 'white' }}>
-                            <Receipt sx={{ fontSize: 30, mb: 1 }} />
-                            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                          <Paper sx={{ 
+                            p: 3, 
+                            textAlign: 'center',
+                            borderRadius: 1,
+                            border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                            background: alpha(theme.palette.info.main, 0.08),
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              background: alpha(theme.palette.info.main, 0.12)
+                            }
+                          }}>
+                            <Receipt sx={{ 
+                              fontSize: 32, 
+                              mb: 1.5, 
+                              color: theme.palette.info.main 
+                            }} />
+                            <Typography variant="h4" sx={{ 
+                              fontWeight: 600,
+                              color: theme.palette.text.primary,
+                              mb: 0.5
+                            }}>
                               {formatCurrency(metricsData.totalGastos)}
                             </Typography>
-                            <Typography variant="body2">
+                            <Typography variant="body2" sx={{
+                              color: theme.palette.text.secondary,
+                              fontWeight: 500
+                            }}>
                               Gastos de Administración
                             </Typography>
                           </Paper>
                         </Grid>
                         
                         <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#f44336', color: 'white' }}>
-                            <Storage sx={{ fontSize: 30, mb: 1 }} />
-                            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                          <Paper sx={{ 
+                            p: 3, 
+                            textAlign: 'center',
+                            borderRadius: 1,
+                            border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+                            background: alpha(theme.palette.error.main, 0.08),
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              background: alpha(theme.palette.error.main, 0.12)
+                            }
+                          }}>
+                            <Storage sx={{ 
+                              fontSize: 32, 
+                              mb: 1.5, 
+                              color: theme.palette.error.main 
+                            }} />
+                            <Typography variant="h4" sx={{ 
+                              fontWeight: 700,
+                              color: theme.palette.text.primary,
+                              mb: 0.5
+                            }}>
                               {formatCurrency(metricsData.totalImpuestos)}
                             </Typography>
-                            <Typography variant="body2">
+                            <Typography variant="body2" sx={{
+                              color: theme.palette.text.secondary,
+                              fontWeight: 600,
+                              textTransform: 'uppercase',
+                              letterSpacing: 0.5
+                            }}>
                               TOTAL IMPUESTOS
                             </Typography>
                           </Paper>
                         </Grid>
                         
-                        {/* Estadísticas de novedades */}
+                        {/* Estadísticas de novedades - Diseño Sobrio */}
                         <Grid item xs={12}>
-                          <Typography variant="h6" sx={{ mt: 2, mb: 2, fontWeight: 600 }}>
+                          <Typography variant="overline" sx={{ 
+                            fontWeight: 600, 
+                            color: 'text.secondary',
+                            letterSpacing: 0.8,
+                            fontSize: '0.75rem'
+                          }}>
+                            Análisis Detallado
+                          </Typography>
+                          <Typography variant="h6" sx={{ mt: 1, mb: 3, fontWeight: 600 }}>
                             📈 Estadísticas de Novedades
                           </Typography>
                         </Grid>
                         
                         <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#4caf50', color: 'white' }}>
-                            <CheckCircle sx={{ fontSize: 30, mb: 1 }} />
-                            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                          <Paper sx={{ 
+                            p: 3, 
+                            textAlign: 'center',
+                            borderRadius: 1,
+                            border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+                            background: alpha(theme.palette.success.main, 0.08),
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              background: alpha(theme.palette.success.main, 0.12)
+                            }
+                          }}>
+                            <CheckCircle sx={{ 
+                              fontSize: 32, 
+                              mb: 1.5, 
+                              color: theme.palette.success.main 
+                            }} />
+                            <Typography variant="h4" sx={{ 
+                              fontWeight: 600,
+                              color: theme.palette.text.primary,
+                              mb: 0.5
+                            }}>
                               {metricsData.sinCambios}
                             </Typography>
-                            <Typography variant="body2">
+                            <Typography variant="body2" sx={{
+                              color: theme.palette.text.secondary,
+                              fontWeight: 500
+                            }}>
                               Sin Cambios ({metricsData.porcentajeSinCambios.toFixed(1)}%)
                             </Typography>
                           </Paper>
                         </Grid>
                         
                         <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#ff5722', color: 'white' }}>
-                            <Warning sx={{ fontSize: 30, mb: 1 }} />
-                            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                          <Paper sx={{ 
+                            p: 3, 
+                            textAlign: 'center',
+                            borderRadius: 1,
+                            border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                            background: alpha(theme.palette.warning.main, 0.08),
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              background: alpha(theme.palette.warning.main, 0.12)
+                            }
+                          }}>
+                            <Warning sx={{ 
+                              fontSize: 32, 
+                              mb: 1.5, 
+                              color: theme.palette.warning.main 
+                            }} />
+                            <Typography variant="h4" sx={{ 
+                              fontWeight: 600,
+                              color: theme.palette.text.primary,
+                              mb: 0.5
+                            }}>
                               {metricsData.conNovedades}
                             </Typography>
-                            <Typography variant="body2">
+                            <Typography variant="body2" sx={{
+                              color: theme.palette.text.secondary,
+                              fontWeight: 500
+                            }}>
                               Con Novedades ({(100 - metricsData.porcentajeSinCambios).toFixed(1)}%)
                             </Typography>
                           </Paper>
                         </Grid>
                         
                         <Grid item xs={12} sm={6} md={4}>
-                          <Paper sx={{ p: 2, textAlign: 'center', bgcolor: '#607d8b', color: 'white' }}>
-                            <BarChart sx={{ fontSize: 30, mb: 1 }} />
-                            <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                          <Paper sx={{ 
+                            p: 3, 
+                            textAlign: 'center',
+                            borderRadius: 1,
+                            border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                            background: alpha(theme.palette.info.main, 0.08),
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            transition: 'all 0.2s ease',
+                            '&:hover': {
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                              background: alpha(theme.palette.info.main, 0.12)
+                            }
+                          }}>
+                            <BarChart sx={{ 
+                              fontSize: 32, 
+                              mb: 1.5, 
+                              color: theme.palette.info.main 
+                            }} />
+                            <Typography variant="h4" sx={{ 
+                              fontWeight: 600,
+                              color: theme.palette.text.primary,
+                              mb: 0.5
+                            }}>
                               {formatCurrency(metricsData.promedioEstablecimiento)}
                             </Typography>
-                            <Typography variant="body2">
+                            <Typography variant="body2" sx={{
+                              color: theme.palette.text.secondary,
+                              fontWeight: 500
+                            }}>
                               Promedio/Establecimiento
                             </Typography>
                           </Paper>
@@ -1918,7 +2450,7 @@ const LiquidacionesPage = () => {
                   </motion.div>
                 )}
                 
-                {/* Pestaña Consolidado */}
+                {/* Pestaña Consolidado - Diseño Sobrio */}
                 {activeTab === 1 && (
                   <motion.div
                     key="consolidado"
@@ -1928,48 +2460,111 @@ const LiquidacionesPage = () => {
                     transition={{ duration: 0.3 }}
                   >
                     {!consolidatedData ? (
-                      <Box sx={{ textAlign: 'center', py: 4 }}>
-                        <Receipt sx={{ fontSize: 60, color: theme.palette.grey[400], mb: 2 }} />
+                      <Box sx={{ textAlign: 'center', py: 6 }}>
+                        <Receipt sx={{ 
+                          fontSize: 60, 
+                          color: alpha(theme.palette.text.secondary, 0.7), 
+                          mb: 2 
+                        }} />
                         <Typography variant="h6" color="textSecondary">
                           Datos consolidados aparecerán aquí después del procesamiento
                         </Typography>
                       </Box>
                     ) : (
                       <>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                            📋 Datos Consolidados por Máquina
-                          </Typography>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center', 
+                          mb: 3 
+                        }}>
+                          <Box>
+                            <Typography variant="overline" sx={{ 
+                              fontWeight: 600, 
+                              color: 'primary.main',
+                              letterSpacing: 0.8,
+                              fontSize: '0.75rem'
+                            }}>
+                              Información Detallada
+                            </Typography>
+                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                              📋 Datos Consolidados por Máquina
+                            </Typography>
+                          </Box>
                           <Button
                             variant="contained"
                             startIcon={<Download />}
                             size="small"
                             onClick={exportarConsolidado}
                             disabled={!consolidatedData}
+                            sx={{
+                              borderRadius: 1,
+                              fontWeight: 600,
+                              textTransform: 'none',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+                            }}
                           >
                             Exportar Consolidado
                           </Button>
                         </Box>
                         
-                        <TableContainer component={Paper} sx={{ maxHeight: 600 }}>
-                          <Table stickyHeader>
+                        <TableContainer 
+                          component={Paper} 
+                          sx={{ 
+                            maxHeight: 600,
+                            borderRadius: 1,
+                            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                          }}
+                        >
+                          <Table 
+                            stickyHeader
+                            sx={{
+                              '& .MuiTableCell-root': {
+                                borderColor: theme.palette.divider,
+                                borderBottom: `1px solid ${theme.palette.divider}`
+                              },
+                              '& .MuiTableHead-root': {
+                                '& .MuiTableRow-root': {
+                                  backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+                                  '& .MuiTableCell-root': {
+                                    fontWeight: 600,
+                                    fontSize: '0.875rem',
+                                    paddingY: 2,
+                                    borderColor: theme.palette.divider
+                                  }
+                                }
+                              },
+                              '& .MuiTableBody-root': {
+                                '& .MuiTableRow-root': {
+                                  '&:hover': { backgroundColor: theme.palette.action.hover },
+                                  '&:last-child .MuiTableCell-root': { borderBottom: 'none' },
+                                  '& .MuiTableCell-root': {
+                                    paddingY: 1.8,
+                                    fontSize: '0.85rem',
+                                    borderColor: theme.palette.divider
+                                  }
+                                }
+                              }
+                            }}
+                          >
                             <TableHead>
                               <TableRow>
-                                <TableCell><strong>Empresa</strong></TableCell>
-                                <TableCell><strong>Serial</strong></TableCell>
-                                <TableCell><strong>NUC</strong></TableCell>
-                                <TableCell><strong>Establecimiento</strong></TableCell>
-                                <TableCell><strong>Días Transmitidos</strong></TableCell>
-                                <TableCell><strong>Días del Mes</strong></TableCell>
-                                <TableCell><strong>Primer Día</strong></TableCell>
-                                <TableCell><strong>Último Día</strong></TableCell>
-                                <TableCell><strong>Período</strong></TableCell>
-                                <TableCell><strong>Tipo Apuesta</strong></TableCell>
-                                <TableCell><strong>Producción</strong></TableCell>
-                                <TableCell><strong>Derechos (12%)</strong></TableCell>
-                                <TableCell><strong>Gastos (1%)</strong></TableCell>
-                                <TableCell><strong>Total Impuestos</strong></TableCell>
-                                <TableCell><strong>Novedad</strong></TableCell>
+                                <TableCell>Empresa</TableCell>
+                                <TableCell>Serial</TableCell>
+                                <TableCell>NUC</TableCell>
+                                <TableCell>Establecimiento</TableCell>
+                                <TableCell>Días Transmitidos</TableCell>
+                                <TableCell>Días del Mes</TableCell>
+                                <TableCell>Primer Día</TableCell>
+                                <TableCell>Último Día</TableCell>
+                                <TableCell>Período</TableCell>
+                                <TableCell>Tipo Apuesta</TableCell>
+                                <TableCell>Producción</TableCell>
+                                <TableCell>Derechos (12%)</TableCell>
+                                <TableCell>Gastos (1%)</TableCell>
+                                <TableCell>Total Impuestos</TableCell>
+                                <TableCell>Novedad</TableCell>
                               </TableRow>
                             </TableHead>
                             <TableBody>
@@ -2006,7 +2601,7 @@ const LiquidacionesPage = () => {
                   </motion.div>
                 )}
                 
-                {/* Pestaña Por Sala */}
+                {/* Pestaña Por Sala - Diseño Sobrio */}
                 {activeTab === 2 && (
                   <motion.div
                     key="sala"
@@ -2016,25 +2611,50 @@ const LiquidacionesPage = () => {
                     transition={{ duration: 0.3 }}
                   >
                     {!reporteBySala ? (
-                      <Box sx={{ textAlign: 'center', py: 4 }}>
-                        <Business sx={{ fontSize: 60, color: theme.palette.grey[400], mb: 2 }} />
+                      <Box sx={{ textAlign: 'center', py: 6 }}>
+                        <Business sx={{ 
+                          fontSize: 60, 
+                          color: alpha(theme.palette.text.secondary, 0.7), 
+                          mb: 2 
+                        }} />
                         <Typography variant="h6" color="textSecondary">
                           Reporte por establecimiento aparecerá aquí después del procesamiento
                         </Typography>
                       </Box>
                     ) : (
                       <>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                            🏢 Reporte por Establecimiento
-                          </Typography>
-                          <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center', 
+                          mb: 3 
+                        }}>
+                          <Box>
+                            <Typography variant="overline" sx={{ 
+                              fontWeight: 600, 
+                              color: 'secondary.main',
+                              letterSpacing: 0.8,
+                              fontSize: '0.75rem'
+                            }}>
+                              Información por Ubicación
+                            </Typography>
+                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                              🏢 Reporte por Establecimiento
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', gap: 1.5 }}>
                             <Button
                               variant="contained"
                               startIcon={<Download />}
                               size="small"
                               onClick={exportarReporteSala}
                               disabled={!reporteBySala}
+                              sx={{
+                                borderRadius: 1,
+                                fontWeight: 600,
+                                textTransform: 'none',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+                              }}
                             >
                               Exportar por Sala
                             </Button>
@@ -2044,36 +2664,79 @@ const LiquidacionesPage = () => {
                               size="small"
                               onClick={exportarReporteDiario}
                               disabled={!consolidatedData}
+                              sx={{
+                                borderRadius: 1,
+                                fontWeight: 500,
+                                textTransform: 'none'
+                              }}
                             >
                               Reporte Diario
                             </Button>
                           </Box>
                         </Box>
                         
-                        <TableContainer component={Paper} sx={{ maxHeight: 600 }}>
-                          <Table stickyHeader>
+                        <TableContainer 
+                          component={Paper} 
+                          sx={{ 
+                            maxHeight: 600,
+                            borderRadius: 1,
+                            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                          }}
+                        >
+                          <Table 
+                            stickyHeader
+                            sx={{
+                              '& .MuiTableCell-root': {
+                                borderColor: theme.palette.divider,
+                                borderBottom: `1px solid ${theme.palette.divider}`
+                              },
+                              '& .MuiTableHead-root': {
+                                '& .MuiTableRow-root': {
+                                  backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+                                  '& .MuiTableCell-root': {
+                                    fontWeight: 600,
+                                    fontSize: '0.875rem',
+                                    paddingY: 2,
+                                    borderColor: theme.palette.divider
+                                  }
+                                }
+                              },
+                              '& .MuiTableBody-root': {
+                                '& .MuiTableRow-root': {
+                                  '&:hover': { backgroundColor: theme.palette.action.hover },
+                                  '&:last-child .MuiTableCell-root': { borderBottom: 'none' },
+                                  '& .MuiTableCell-root': {
+                                    paddingY: 1.8,
+                                    fontSize: '0.85rem',
+                                    borderColor: theme.palette.divider
+                                  }
+                                }
+                              }
+                            }}
+                          >
                             <TableHead>
                               <TableRow>
-                                <TableCell><strong>Establecimiento</strong></TableCell>
-                                <TableCell><strong>Empresa</strong></TableCell>
-                                <TableCell><strong>Total Máquinas</strong></TableCell>
-                                <TableCell><strong>Producción</strong></TableCell>
-                                <TableCell><strong>Derechos</strong></TableCell>
-                                <TableCell><strong>Gastos</strong></TableCell>
-                                <TableCell><strong>Total Impuestos</strong></TableCell>
-                                <TableCell><strong>Promedio/Establecimiento</strong></TableCell>
+                                <TableCell>Establecimiento</TableCell>
+                                <TableCell>Empresa</TableCell>
+                                <TableCell>Total Máquinas</TableCell>
+                                <TableCell>Producción</TableCell>
+                                <TableCell>Derechos</TableCell>
+                                <TableCell>Gastos</TableCell>
+                                <TableCell>Total Impuestos</TableCell>
+                                <TableCell>Promedio/Establecimiento</TableCell>
                               </TableRow>
                             </TableHead>
                             <TableBody>
                               {reporteBySala.map((row, index) => (
-                                <TableRow key={`sala-${row.establecimiento}-${index}`} hover>
-                                  <TableCell><strong>{row.establecimiento}</strong></TableCell>
+                                <TableRow key={`sala-${row.establecimiento}-${index}`}>
+                                  <TableCell sx={{ fontWeight: 600 }}>{row.establecimiento}</TableCell>
                                   <TableCell>{row.empresa}</TableCell>
                                   <TableCell>{row.totalMaquinas}</TableCell>
                                   <TableCell>{formatCurrency(row.produccion)}</TableCell>
                                   <TableCell>{formatCurrency(row.derechosExplotacion)}</TableCell>
                                   <TableCell>{formatCurrency(row.gastosAdministracion)}</TableCell>
-                                  <TableCell><strong>{formatCurrency(row.totalImpuestos)}</strong></TableCell>
+                                  <TableCell sx={{ fontWeight: 600 }}>{formatCurrency(row.totalImpuestos)}</TableCell>
                                   <TableCell>{formatCurrency(row.promedioEstablecimiento)}</TableCell>
                                 </TableRow>
                               ))}
