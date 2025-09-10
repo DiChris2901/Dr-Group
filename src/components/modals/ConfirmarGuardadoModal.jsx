@@ -49,8 +49,8 @@ const ConfirmarGuardadoModal = ({
       <DialogContent sx={{ py: 2 }}>
         <Box sx={{ mb: 3 }}>
           <Typography variant="body1" sx={{ mb: 2, color: 'text.secondary' }}>
-            Estás a punto de guardar la liquidación procesada en Firebase Storage y Firestore.
-            Esta acción permitirá que puedas acceder a los datos desde cualquier dispositivo.
+            Se guardarán únicamente los archivos originales en Firebase Storage, junto con metadatos básicos en Firestore.
+            Al cargar del historial, los archivos se procesarán automáticamente con la lógica más actualizada.
           </Typography>
           
           <Box sx={{ 
@@ -82,8 +82,10 @@ const ConfirmarGuardadoModal = ({
           </Box>
           
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            💡 Una vez guardada, podrás encontrar esta liquidación en el historial y 
-            exportar reportes específicos cuando lo necesites.
+            ✅ <strong>Ventajas del nuevo sistema:</strong><br/>
+            • Menor uso de almacenamiento<br/>
+            • Datos siempre actualizados con la última lógica<br/>
+            • Flexibilidad total para mejoras futuras
           </Typography>
         </Box>
       </DialogContent>

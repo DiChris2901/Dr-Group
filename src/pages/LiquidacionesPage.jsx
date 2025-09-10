@@ -164,7 +164,15 @@ const LiquidacionesPage = () => {
 
     try {
       setGuardandoLiquidacion(true);
-      addLog('💾 Guardando liquidación en Firebase...', 'info');
+      addLog('💾 Guardando solo archivos originales en Firebase...', 'info');
+      
+      // Mostrar qué archivos se van a guardar
+      addLog(`📁 Archivo principal: ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`, 'info');
+      if (archivoTarifas) {
+        addLog(`📄 Archivo de tarifas: ${archivoTarifas.name} (${(archivoTarifas.size / 1024 / 1024).toFixed(2)} MB)`, 'info');
+      } else {
+        addLog('📊 Sin archivo de tarifas - usando tarifas del archivo principal', 'info');
+      }
 
       const liquidacionData = {
         empresa: empresa || 'Sin Empresa',
@@ -173,7 +181,8 @@ const LiquidacionesPage = () => {
         reporteBySala,
         metricsData,
         tarifasOficiales,
-        originalFile: selectedFile
+        originalFile: selectedFile,
+        archivoTarifas: archivoTarifas // Incluir archivo de tarifas si existe
       };
 
       // Extraer y mostrar información del período antes de guardar
@@ -191,6 +200,8 @@ const LiquidacionesPage = () => {
 
       setLiquidacionGuardadaId(liquidacionId);
       addLog(`✅ Liquidación guardada con ID: ${liquidacionId}`, 'success');
+      addLog(`📦 Archivos guardados: ${archivoTarifas ? '2 archivos' : '1 archivo'} (solo originales)`, 'info');
+      addLog(`💡 Ventaja: Al cargar del historial se procesarán con la lógica más actualizada`, 'info');
       addNotification('Liquidación guardada exitosamente en Firebase', 'success');
 
       // Actualizar historial
@@ -198,61 +209,6 @@ const LiquidacionesPage = () => {
       
       // Cerrar modal
       setShowConfirmarGuardadoModal(false);
-    } catch (error) {
-      console.error('Error guardando liquidación:', error);
-      addLog(`❌ Error guardando liquidación: ${error.message}`, 'error');
-      addNotification('Error al guardar liquidación en Firebase', 'error');
-    } finally {
-      setGuardandoLiquidacion(false);
-    }
-  };
-
-  // Función para guardar liquidación en Firebase (automática - sin modal)
-  const guardarLiquidacionEnFirebase = async () => {
-    if (!currentUser?.uid) {
-      addNotification('Debes estar autenticado para guardar liquidaciones', 'warning');
-      return;
-    }
-
-    if (!originalData || !consolidatedData) {
-      addNotification('No hay datos suficientes para guardar', 'warning');
-      return;
-    }
-
-    try {
-      setGuardandoLiquidacion(true);
-      addLog('💾 Guardando liquidación en Firebase...', 'info');
-
-      const liquidacionData = {
-        empresa: empresa || 'Sin Empresa',
-        originalData,
-        consolidatedData,
-        reporteBySala,
-        metricsData,
-        tarifasOficiales,
-        originalFile: selectedFile
-      };
-
-      // Extraer y mostrar información del período antes de guardar
-      try {
-        const periodoInfo = liquidacionPersistenceService.extractPeriodoInfo(originalData);
-        addLog(`📅 Período detectado: ${periodoInfo.mesLiquidacion} ${periodoInfo.añoLiquidacion} (procesado el ${periodoInfo.fechaProcesamiento})`, 'info');
-      } catch (error) {
-        addLog(`⚠️ No se pudo detectar el período automáticamente: ${error.message}`, 'warning');
-      }
-
-      const liquidacionId = await liquidacionPersistenceService.saveLiquidacion(
-        liquidacionData, 
-        currentUser.uid
-      );
-
-      setLiquidacionGuardadaId(liquidacionId);
-      addLog(`✅ Liquidación guardada con ID: ${liquidacionId}`, 'success');
-      addNotification('Liquidación guardada exitosamente en Firebase', 'success');
-
-      // Actualizar historial
-      await cargarHistorialLiquidaciones();
-
     } catch (error) {
       console.error('Error guardando liquidación:', error);
       addLog(`❌ Error guardando liquidación: ${error.message}`, 'error');
@@ -287,38 +243,77 @@ const LiquidacionesPage = () => {
     }
   };
 
-  // Función para cargar una liquidación específica
+  // Función para cargar liquidación del historial con procesamiento en tiempo real
   const cargarLiquidacion = async (liquidacionId) => {
     if (!currentUser?.uid) return;
 
     try {
       setProcessing(true);
       addLog(`📂 Cargando liquidación ${liquidacionId}...`, 'info');
+      addLog(`⚙️ Descargando y procesando archivos originales...`, 'info');
 
-      const liquidacionData = await liquidacionPersistenceService.loadLiquidacion(
-        liquidacionId, 
-        currentUser.uid
+      // Función de procesamiento que reutiliza la lógica existente
+      const processFunction = async (originalFile, tarifasFile = null) => {
+        // Leer archivo principal
+        const originalData = await readFile(originalFile);
+        
+        // Extraer empresa automáticamente
+        let empresaDetectada = null;
+        for (let i = 1; i < Math.min(10, originalData.length); i++) {
+          const fila = originalData[i];
+          if (fila && fila[0]) {
+            const posibleContrato = fila[0].toString().trim();
+            if (posibleContrato.length >= 3) {
+              const companiaEncontrada = companies.find(comp => 
+                comp.contracts && comp.contracts.some(contract => 
+                  contract.toLowerCase().includes(posibleContrato.toLowerCase())
+                )
+              );
+              if (companiaEncontrada) {
+                empresaDetectada = companiaEncontrada.name;
+                break;
+              }
+            }
+          }
+        }
+
+        // Procesar datos completos
+        const processed = await procesarDatosCompletos(originalData, empresaDetectada || 'GENERAL');
+        
+        // Si hay archivo de tarifas, incluirlo en los datos
+        if (tarifasFile) {
+          addLog('📄 Archivo de tarifas incluido en la carga', 'info');
+          processed.archivoTarifas = tarifasFile;
+        }
+
+        return processed;
+      };
+
+      // Cargar y procesar usando el servicio optimizado
+      const liquidacionCompleta = await liquidacionPersistenceService.loadAndProcessLiquidacion(
+        liquidacionId,
+        currentUser.uid,
+        processFunction
       );
 
-      // Restaurar estados
-      setEmpresa(liquidacionData.empresa);
-      setOriginalData(liquidacionData.consolidated || []); // Usar consolidated como originalData
-      setConsolidatedData(liquidacionData.consolidated || []);
-      setReporteBySala(liquidacionData.reporteBySala || []);
-      setMetricsData(liquidacionData.metrics || null);
-      setTarifasOficiales(liquidacionData.tarifasOficiales || {});
+      // Restaurar estados con datos procesados en tiempo real
+      const { metadata, originalFile, tarifasFile, ...processedData } = liquidacionCompleta;
+      
+      setEmpresa(metadata.empresa);
+      setSelectedFile(originalFile);
+      if (tarifasFile) {
+        setArchivoTarifas(tarifasFile);
+      }
+      setOriginalData(processedData.originalData || []);
+      setConsolidatedData(processedData.consolidatedData || []);
+      setReporteBySala(processedData.reporteBySala || []);
+      setMetricsData(processedData.metricsData || null);
+      setTarifasOficiales(processedData.tarifasOficiales || {});
       setLiquidacionGuardadaId(liquidacionId);
 
-      // Restaurar información del archivo (simulado)
-      setSelectedFile({
-        name: liquidacionData.archivoOriginal?.originalName || 'Archivo cargado',
-        size: liquidacionData.archivoOriginal?.size || 0,
-        type: liquidacionData.archivoOriginal?.type || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      });
-
       setActiveTab(0); // Ir a pestaña de resumen
-      addLog('✅ Liquidación cargada exitosamente', 'success');
-      addNotification(`Liquidación ${liquidacionData.periodoLiquidacion} cargada`, 'success');
+      addLog('✅ Liquidación cargada y procesada exitosamente', 'success');
+      addNotification(`Liquidación ${metadata.periodoLiquidacion} cargada y procesada`, 'success');
 
     } catch (error) {
       console.error('Error cargando liquidación:', error);
@@ -449,6 +444,59 @@ const LiquidacionesPage = () => {
       processSelectedFile(e.dataTransfer.files[0]);
     }
   }, []);
+
+  // Función de procesamiento completo reutilizable
+  const procesarDatosCompletos = async (data, empresaParam = null) => {
+    try {
+      // Detectar empresa si no se proporciona
+      let empresaDetectada = empresaParam;
+      if (!empresaDetectada) {
+        let numeroContrato = null;
+        for (let i = 1; i < Math.min(10, data.length); i++) {
+          const fila = data[i];
+          if (fila && fila[0]) {
+            const posibleContrato = fila[0].toString().trim();
+            if (posibleContrato && posibleContrato !== '') {
+              numeroContrato = posibleContrato;
+              break;
+            }
+          }
+        }
+        
+        if (numeroContrato) {
+          empresaDetectada = buscarEmpresaPorContrato(numeroContrato);
+        }
+        empresaDetectada = empresaDetectada || 'Empresa no detectada';
+      }
+
+      // Detectar encabezados
+      const headerRow = detectarFilaEncabezados(data);
+      
+      // Procesar datos
+      const processedData = procesarDatos(data, headerRow);
+      
+      // Consolidar por NUC
+      const consolidated = consolidarPorNuc(processedData);
+      
+      // Agrupar por establecimiento
+      const reporteSala = agruparPorEstablecimiento(consolidated);
+      
+      // Calcular métricas
+      const metrics = calcularMetrics(consolidated);
+
+      return {
+        originalData: processedData,
+        consolidatedData: consolidated,
+        reporteBySala: reporteSala,
+        metricsData: metrics,
+        tarifasOficiales: {} // Se llenarían con archivo de tarifas
+      };
+
+    } catch (error) {
+      console.error('Error en procesarDatosCompletos:', error);
+      throw error;
+    }
+  };
 
   // Procesamiento principal
   const procesarLiquidacion = async (archivoManual = null) => {
@@ -978,10 +1026,6 @@ const LiquidacionesPage = () => {
       // Cambiar a pestaña de resumen
       setActiveTab(0);
 
-      // GUARDADO AUTOMÁTICO DESHABILITADO - Solo guardado manual con confirmación
-      // setTimeout(() => {
-      //   guardarLiquidacionEnFirebase();
-      // }, 1000); 
     }
     
     // Cerrar modal
@@ -2284,70 +2328,6 @@ const LiquidacionesPage = () => {
                   </Box>
                 ))}
               </Box>
-
-              {/* Sección de Gestión Firebase */}
-              {(originalData || consolidatedData) && (
-                <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${alpha(theme.palette.divider, 0.3)}` }}>
-                  <Typography variant="subtitle2" sx={{ 
-                    fontWeight: 600, 
-                    mb: 1.5,
-                    color: 'text.primary',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1
-                  }}>
-                    <Storage sx={{ fontSize: '1rem' }} />
-                    Sincronización Firebase
-                  </Typography>
-                  
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                    <Button
-                      onClick={guardarLiquidacionEnFirebase}
-                      disabled={guardandoLiquidacion || !currentUser?.uid}
-                      variant="outlined"
-                      size="small"
-                      startIcon={guardandoLiquidacion ? <CircularProgress size={16} /> : <Storage />}
-                      sx={{
-                        borderRadius: 1,
-                        fontWeight: 500,
-                        textTransform: 'none',
-                        borderColor: alpha(theme.palette.primary.main, 0.6),
-                        '&:hover': {
-                          borderColor: theme.palette.primary.main,
-                          backgroundColor: alpha(theme.palette.primary.main, 0.04)
-                        }
-                      }}
-                    >
-                      {guardandoLiquidacion ? 'Guardando...' : 'Guardar en Firebase'}
-                    </Button>
-
-                    <Button
-                      onClick={cargarHistorialLiquidaciones}
-                      disabled={cargandoHistorial || !currentUser?.uid}
-                      variant="text"
-                      size="small"
-                      startIcon={cargandoHistorial ? <CircularProgress size={16} /> : <Refresh />}
-                      sx={{
-                        borderRadius: 1,
-                        fontWeight: 500,
-                        textTransform: 'none',
-                        color: 'text.secondary',
-                        '&:hover': {
-                          backgroundColor: alpha(theme.palette.secondary.main, 0.04)
-                        }
-                      }}
-                    >
-                      {cargandoHistorial ? 'Cargando...' : 'Actualizar Historial'}
-                    </Button>
-                  </Box>
-
-                  {!currentUser?.uid && (
-                    <Alert severity="warning" sx={{ mt: 1, py: 0.5 }}>
-                      Debes estar autenticado para guardar liquidaciones
-                    </Alert>
-                  )}
-                </Box>
-              )}
             </CardContent>
           </Card>
         </Grid>
