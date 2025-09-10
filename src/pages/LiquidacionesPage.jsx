@@ -2018,6 +2018,13 @@ const LiquidacionesPage = () => {
                   icon={<Business />}
                   iconPosition="start"
                 />
+                {tarifasOficiales && Object.keys(tarifasOficiales).length > 0 && (
+                  <Tab 
+                    label="🏷️ Tarifa Fija" 
+                    icon={<Receipt />}
+                    iconPosition="start"
+                  />
+                )}
               </Tabs>
             </Box>
             
@@ -2695,6 +2702,168 @@ const LiquidacionesPage = () => {
                             </TableBody>
                           </Table>
                         </TableContainer>
+                      </>
+                    )}
+                  </motion.div>
+                )}
+
+                {/* Pestaña Tarifa Fija - Solo si hay tarifas oficiales */}
+                {activeTab === 3 && tarifasOficiales && Object.keys(tarifasOficiales).length > 0 && (
+                  <motion.div
+                    key="tarifaFija"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    {!consolidatedData ? (
+                      <Box sx={{ textAlign: 'center', py: 6 }}>
+                        <Receipt sx={{ 
+                          fontSize: 60, 
+                          color: alpha(theme.palette.text.secondary, 0.7), 
+                          mb: 2 
+                        }} />
+                        <Typography variant="h6" color="textSecondary">
+                          Información de tarifa fija aparecerá aquí después del procesamiento
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center', 
+                          mb: 3 
+                        }}>
+                          <Box>
+                            <Typography variant="overline" sx={{ 
+                              fontWeight: 600, 
+                              color: 'secondary.main',
+                              letterSpacing: 0.8,
+                              fontSize: '0.75rem'
+                            }}>
+                              Máquinas con Tarifa Oficial
+                            </Typography>
+                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                              🏷️ Máquinas con Tarifa Fija
+                            </Typography>
+                          </Box>
+                        </Box>
+                        
+                        <TableContainer 
+                          component={Paper} 
+                          sx={{ 
+                            maxHeight: 600,
+                            borderRadius: 1,
+                            border: `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`,
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                          }}
+                        >
+                          <Table 
+                            stickyHeader
+                            sx={{
+                              '& .MuiTableCell-root': {
+                                borderColor: theme.palette.divider,
+                                borderBottom: `1px solid ${theme.palette.divider}`
+                              },
+                              '& .MuiTableHead-root': {
+                                '& .MuiTableRow-root': {
+                                  backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+                                  '& .MuiTableCell-root': {
+                                    fontWeight: 600,
+                                    fontSize: '0.875rem',
+                                    paddingY: 2,
+                                    borderColor: theme.palette.divider
+                                  }
+                                }
+                              },
+                              '& .MuiTableBody-root': {
+                                '& .MuiTableRow-root': {
+                                  '&:hover': { backgroundColor: theme.palette.action.hover },
+                                  '&:last-child .MuiTableCell-root': { borderBottom: 'none' },
+                                  '& .MuiTableCell-root': {
+                                    paddingY: 1.8,
+                                    fontSize: '0.85rem',
+                                    borderColor: theme.palette.divider
+                                  }
+                                }
+                              }
+                            }}
+                          >
+                            <TableHead>
+                              <TableRow>
+                                <TableCell>Establecimiento</TableCell>
+                                <TableCell>Serial</TableCell>
+                                <TableCell>NUC</TableCell>
+                                <TableCell>Derechos Fijos</TableCell>
+                                <TableCell>Gastos Fijos</TableCell>
+                                <TableCell>Total Impuestos Fijos</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {consolidatedData
+                                .filter(row => tarifasOficiales && tarifasOficiales[row.nuc.toString()])
+                                .map((row, index) => (
+                                  <TableRow key={`tarifa-fija-${row.nuc}-${index}`} hover>
+                                    <TableCell sx={{ fontWeight: 600 }}>{row.establecimiento}</TableCell>
+                                    <TableCell>{row.serial}</TableCell>
+                                    <TableCell>{row.nuc}</TableCell>
+                                    <TableCell>{formatCurrency(tarifasOficiales[row.nuc.toString()]?.derechosAdicionales || 0)}</TableCell>
+                                    <TableCell>{formatCurrency(tarifasOficiales[row.nuc.toString()]?.gastosAdicionales || 0)}</TableCell>
+                                    <TableCell sx={{ fontWeight: 600 }}>
+                                      {formatCurrency(
+                                        (tarifasOficiales[row.nuc.toString()]?.derechosAdicionales || 0) +
+                                        (tarifasOficiales[row.nuc.toString()]?.gastosAdicionales || 0)
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                        
+                        {/* Resumen de tarifa fija */}
+                        <Box sx={{ 
+                          mt: 3, 
+                          p: 3, 
+                          background: theme => alpha(theme.palette.secondary.main, 0.08),
+                          borderRadius: 2,
+                          border: theme => `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`
+                        }}>
+                          <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                            📊 Resumen Tarifa Fija
+                          </Typography>
+                          <Grid container spacing={3}>
+                            <Grid item xs={12} sm={4}>
+                              <Typography variant="body2" color="textSecondary">
+                                Total Máquinas con Tarifa Fija
+                              </Typography>
+                              <Typography variant="h6" sx={{ fontWeight: 600, color: 'secondary.main' }}>
+                                {consolidatedData.filter(row => tarifasOficiales && tarifasOficiales[row.nuc.toString()]).length}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={4}>
+                              <Typography variant="body2" color="textSecondary">
+                                Total Derechos Fijos
+                              </Typography>
+                              <Typography variant="h6" sx={{ fontWeight: 600, color: 'secondary.main' }}>
+                                {formatCurrency(
+                                  Object.values(tarifasOficiales).reduce((sum, tarifa) => sum + (tarifa.derechosAdicionales || 0), 0)
+                                )}
+                              </Typography>
+                            </Grid>
+                            <Grid item xs={12} sm={4}>
+                              <Typography variant="body2" color="textSecondary">
+                                Total Gastos Fijos
+                              </Typography>
+                              <Typography variant="h6" sx={{ fontWeight: 600, color: 'secondary.main' }}>
+                                {formatCurrency(
+                                  Object.values(tarifasOficiales).reduce((sum, tarifa) => sum + (tarifa.gastosAdicionales || 0), 0)
+                                )}
+                              </Typography>
+                            </Grid>
+                          </Grid>
+                        </Box>
                       </>
                     )}
                   </motion.div>
