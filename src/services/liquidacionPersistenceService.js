@@ -675,20 +675,27 @@ class LiquidacionPersistenceService {
 
       // 3. Descargar archivos originales de Storage
       console.log('📁 Descargando archivo original...');
-      const originalResponse = await fetch(liquidacionData.archivoOriginal.downloadURL);
+      console.log('📄 Estructura de archivos:', JSON.stringify(liquidacionData.archivos, null, 2));
+      
+      // Verificar que existan los archivos en la estructura correcta
+      if (!liquidacionData.archivos?.archivoOriginal?.url) {
+        throw new Error('No se encontró el archivo original en la liquidación');
+      }
+      
+      const originalResponse = await fetch(liquidacionData.archivos.archivoOriginal.url);
       const originalBlob = await originalResponse.blob();
-      const originalFile = new File([originalBlob], liquidacionData.archivoOriginal.originalName, {
-        type: liquidacionData.archivoOriginal.type
+      const originalFile = new File([originalBlob], liquidacionData.archivos.archivoOriginal.nombre, {
+        type: liquidacionData.archivos.archivoOriginal.tipo
       });
 
       // Archivo de tarifas (si existe)
       let tarifasFile = null;
-      if (liquidacionData.archivoTarifas) {
+      if (liquidacionData.archivos?.archivoTarifas?.url) {
         console.log('📄 Descargando archivo de tarifas...');
-        const tarifasResponse = await fetch(liquidacionData.archivoTarifas.downloadURL);
+        const tarifasResponse = await fetch(liquidacionData.archivos.archivoTarifas.url);
         const tarifasBlob = await tarifasResponse.blob();
-        tarifasFile = new File([tarifasBlob], liquidacionData.archivoTarifas.originalName, {
-          type: liquidacionData.archivoTarifas.type
+        tarifasFile = new File([tarifasBlob], liquidacionData.archivos.archivoTarifas.nombre, {
+          type: liquidacionData.archivos.archivoTarifas.tipo
         });
       }
 
