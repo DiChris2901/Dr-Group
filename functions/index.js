@@ -1,7 +1,8 @@
-const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore } = require('firebase-admin/firestore');
+const { getStorage } = require('firebase-admin/storage');
 
 // Inicializar Firebase Admin
 initializeApp();
@@ -158,5 +159,48 @@ exports.deleteUserComplete = onCall(async (request) => {
     }
     
     throw new HttpsError('internal', `Error interno: ${errorMessage}`);
+  }
+});
+
+/**
+ * HTTP proxy para descargar archivos de Storage evitando CORS en el cliente.
+ * Uso: GET /storageProxy?path=<ruta en el bucket>
+ */
+exports.storageProxy = onRequest(async (req, res) => {
+  // Permitir CORS básico
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+
+  try {
+    const path = req.query.path;
+    if (!path || typeof path !== 'string') {
+      return res.status(400).json({ error: 'Missing required query param: path' });
+    }
+
+    const bucket = getStorage().bucket();
+    const file = bucket.file(path);
+    const [exists] = await file.exists();
+    if (!exists) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const [metadata] = await file.getMetadata();
+    res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'private, max-age=0, no-cache');
+
+    file.createReadStream()
+      .on('error', (err) => {
+        console.error('storageProxy stream error:', err);
+        res.status(500).json({ error: 'Stream error', details: err.message });
+      })
+      .pipe(res);
+  } catch (err) {
+    console.error('storageProxy error:', err);
+    res.status(500).json({ error: 'Internal error', details: err.message });
   }
 });

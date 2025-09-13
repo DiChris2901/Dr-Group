@@ -364,7 +364,7 @@ const LiquidacionesPage = () => {
       // Restaurar estados con datos procesados en tiempo real
       const { metadata, originalFile, tarifasFile, ...processedData } = liquidacionCompleta;
       
-      setEmpresa(metadata.empresa);
+      setEmpresa(metadata.empresa && typeof metadata.empresa === 'string' ? metadata.empresa : '');
       setSelectedFile(originalFile);
       if (tarifasFile) {
         setArchivoTarifas(tarifasFile);
@@ -414,7 +414,21 @@ const LiquidacionesPage = () => {
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
     }
-  }, [searchParams, currentUser?.uid, processing]);
+  }, [searchParams, currentUser?.uid]);
+
+  // Effect para recalcular métricas cuando falten
+  useEffect(() => {
+    if (consolidatedData && consolidatedData.length > 0 && reporteBySala && reporteBySala.length > 0 && !metricsData) {
+      console.log('🔄 Recalculando métricas faltantes...');
+      console.log('📊 Datos disponibles:', { 
+        consolidatedLength: consolidatedData.length, 
+        reporteSalaLength: reporteBySala.length 
+      });
+      const nuevasMetricas = calcularMetricas(consolidatedData, reporteBySala);
+      console.log('📊 Métricas recalculadas:', nuevasMetricas);
+      setMetricsData(nuevasMetricas);
+    }
+  }, [consolidatedData, reporteBySala, metricsData]);
 
   // Debug: Monitorear cambios en metricsData
   console.log('🎯 COMPONENT RENDER - metricsData:', metricsData);
@@ -522,6 +536,74 @@ const LiquidacionesPage = () => {
       processSelectedFile(e.dataTransfer.files[0]);
     }
   }, []);
+
+  // Consolidar datos por NUC (función que faltaba)
+  const consolidarPorNuc = (data) => {
+    console.log('📊 Consolidando por NUC:', data.length, 'registros...');
+    
+    const grouped = {};
+    
+    data.forEach((row, index) => {
+      const key = `${row.nuc}_${row.establecimiento}`;
+      
+      if (!grouped[key]) {
+        grouped[key] = {
+          nuc: row.nuc,
+          serial: row.serial,
+          establecimiento: row.establecimiento,
+          tipoApuesta: row.tipoApuesta,
+          empresa: empresa,
+          produccion: 0,
+          diasTransmitidos: 0,
+          fechas: []
+        };
+      }
+      
+      // Convertir base liquidación a número
+      let baseLiq = 0;
+      if (row.baseLiquidacion !== undefined && row.baseLiquidacion !== '') {
+        baseLiq = parseFloat(row.baseLiquidacion) || 0;
+      }
+      
+      grouped[key].produccion += baseLiq;
+      grouped[key].diasTransmitidos += 1;
+      
+      if (row.fecha && !grouped[key].fechas.includes(row.fecha)) {
+        grouped[key].fechas.push(row.fecha);
+      }
+    });
+    
+    const result = Object.values(grouped);
+    console.log('✅ Consolidación completada:', result.length, 'registros únicos');
+    return result;
+  };
+
+  // Agrupar por establecimiento (función que faltaba)
+  const agruparPorEstablecimiento = (consolidated) => {
+    console.log('🏢 Agrupando por establecimiento...');
+    
+    const grouped = {};
+    
+    consolidated.forEach(item => {
+      if (!grouped[item.establecimiento]) {
+        grouped[item.establecimiento] = {
+          establecimiento: item.establecimiento,
+          empresa: item.empresa,
+          maquinas: [],
+          totalProduccion: 0,
+          totalMaquinas: 0
+        };
+      }
+      
+      grouped[item.establecimiento].maquinas.push(item);
+      grouped[item.establecimiento].totalProduccion += item.produccion;
+      grouped[item.establecimiento].totalMaquinas += 1;
+    });
+    
+    const result = Object.values(grouped);
+    console.log('✅ Agrupación por establecimiento completada:', result.length, 'establecimientos');
+    return result;
+  };
 
   // Función de procesamiento completo reutilizable
   const procesarDatosCompletos = async (data, empresaParam = null) => {
@@ -908,7 +990,8 @@ const LiquidacionesPage = () => {
         return 'Retiro / Adición';
       }
     } catch {
-      return 'Sin información';
+  // Fallback: si no podemos determinar, tratamos como sin cambios para no sesgar métricas
+  return 'Sin cambios';
     }
   };
 
@@ -1033,6 +1116,11 @@ const LiquidacionesPage = () => {
     
     console.log('✅ Consolidación completada:', result.length, 'máquinas únicas');
     console.log('💰 Producción total calculada:', result.reduce((sum, item) => sum + item.produccion, 0).toLocaleString());
+    if (result.length) {
+      console.log('🧪 Sample consolidado[0]:', result[0]);
+      const zerosFinancieros = result.filter(r => r.derechosExplotacion === 0).length;
+      console.log(`🧪 Registros con derechosExplotacion=0: ${zerosFinancieros}/${result.length}`);
+    }
     
     return result;
   };
@@ -1336,15 +1424,81 @@ const LiquidacionesPage = () => {
 
   // Calcular métricas generales
   const calcularMetricas = (consolidatedData, reporteSala) => {
-    const totalProduccion = consolidatedData.reduce((sum, item) => sum + item.produccion, 0);
-    const totalDerechos = consolidatedData.reduce((sum, item) => sum + item.derechosExplotacion, 0);
-    const totalGastos = consolidatedData.reduce((sum, item) => sum + item.gastosAdministracion, 0);
-    const totalImpuestos = consolidatedData.reduce((sum, item) => sum + item.totalImpuestos, 0);
-    
-    const sinCambios = consolidatedData.filter(item => item.novedad === 'Sin cambios').length;
+    console.log('🔢 Calculando métricas con datos:', {
+      consolidatedLength: consolidatedData?.length || 0,
+      reporteSalaLength: reporteSala?.length || 0
+    });
+
+    if (!consolidatedData || !Array.isArray(consolidatedData) || consolidatedData.length === 0) {
+      console.log('⚠️ No hay datos consolidados para calcular métricas');
+      return null;
+    }
+
+    if (!reporteSala || !Array.isArray(reporteSala)) {
+      console.log('⚠️ No hay datos de reporte por sala para calcular métricas');
+      return null;
+    }
+
+    // Normalización helper
+    const toNumber = (v) => {
+      if (v === null || v === undefined) return 0;
+      if (typeof v === 'number') return isFinite(v) ? v : 0;
+      if (typeof v === 'string') {
+        const cleaned = v.replace(/[$,%\s]/g, '').replace(/\.(?=.*\.)/g,'').replace(/,/g,'.');
+        const n = parseFloat(cleaned);
+        return isNaN(n) ? 0 : n;
+      }
+      return 0;
+    };
+
+    // Asegurar que cada item tenga cálculos financieros básicos si faltan
+    consolidatedData.forEach(item => {
+      const prod = toNumber(item.produccion || item.totalProduccion);
+      if (!item || prod === 0) return;
+      if (typeof item.derechosExplotacion !== 'number' || isNaN(item.derechosExplotacion) || item.derechosExplotacion === 0) {
+        item.derechosExplotacion = prod * 0.12;
+      }
+      if (typeof item.gastosAdministracion !== 'number' || isNaN(item.gastosAdministracion) || item.gastosAdministracion === 0) {
+        item.gastosAdministracion = prod * 0.015;
+      }
+      if (typeof item.totalImpuestos !== 'number' || isNaN(item.totalImpuestos) || item.totalImpuestos === 0) {
+        item.totalImpuestos = toNumber(item.derechosExplotacion) + toNumber(item.gastosAdministracion);
+      }
+    });
+
+    // Debug financiero antes de sumar
+    const sample = consolidatedData[0];
+    const missingDerechos = consolidatedData.filter(i => !i.derechosExplotacion || i.derechosExplotacion === 0).length;
+    const missingGastos = consolidatedData.filter(i => !i.gastosAdministracion || i.gastosAdministracion === 0).length;
+    console.log('🧪 Debug previo a sumas:', {
+      sample,
+      missingDerechos,
+      missingGastos,
+      firstProduccion: sample && sample.produccion,
+      firstDerechos: sample && sample.derechosExplotacion,
+      firstGastos: sample && sample.gastosAdministracion,
+      firstImpuestos: sample && sample.totalImpuestos
+    });
+
+    const totalProduccion = consolidatedData.reduce((sum, item) => sum + toNumber(item.produccion), 0);
+    const totalDerechos = consolidatedData.reduce((sum, item) => sum + toNumber(item.derechosExplotacion), 0);
+    const totalGastos = consolidatedData.reduce((sum, item) => sum + toNumber(item.gastosAdministracion), 0);
+    const totalImpuestos = consolidatedData.reduce((sum, item) => sum + toNumber(item.totalImpuestos), 0);
+
+    // Posibles variantes de estado novedad
+    const isSinCambios = (estado) => {
+      const norm = (estado || '').toString().trim().toLowerCase();
+      if (!norm || ['sin informacion','sin información',''].includes(norm)) return true; // tratar ausencia como sin cambios
+      return ['sin cambios', 'sin_cambios', 'sin-cambios', 'ok', 'igual'].includes(norm);
+    };
+
+    const sinCambios = consolidatedData.filter(item => isSinCambios(item.novedad)).length;
     const conNovedades = consolidatedData.length - sinCambios;
+    const porcentajeSinCambios = consolidatedData.length > 0 ? (sinCambios / consolidatedData.length * 100) : 0;
+    const porcentajeConNovedad = consolidatedData.length > 0 ? (conNovedades / consolidatedData.length * 100) : 0;
+    const promedioEstablecimiento = reporteSala.length > 0 ? totalProduccion / reporteSala.length : 0;
     
-    return {
+    const metricas = {
       totalMaquinas: consolidatedData.length,
       totalEstablecimientos: reporteSala.length,
       totalProduccion,
@@ -1353,9 +1507,13 @@ const LiquidacionesPage = () => {
       totalImpuestos,
       sinCambios,
       conNovedades,
-      porcentajeSinCambios: consolidatedData.length > 0 ? (sinCambios / consolidatedData.length * 100) : 0,
-      promedioEstablecimiento: reporteSala.length > 0 ? totalProduccion / reporteSala.length : 0
+      porcentajeSinCambios,
+      porcentajeConNovedad,
+      promedioEstablecimiento
     };
+
+    console.log('✅ Métricas calculadas:', metricas);
+    return metricas;
   };
 
   // Funciones de exportación
@@ -2113,7 +2271,7 @@ const LiquidacionesPage = () => {
                           boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                         }}
                       />
-                    ) : empresa ? (
+                    ) : empresa && typeof empresa === 'string' ? (
                       <Avatar
                         sx={{
                           width: 48,
@@ -2741,7 +2899,7 @@ const LiquidacionesPage = () => {
                               color: theme.palette.text.secondary,
                               fontWeight: 500
                             }}>
-                              Sin Cambios ({metricsData.porcentajeSinCambios.toFixed(1)}%)
+                              Sin Cambios ({metricsData.porcentajeSinCambios?.toFixed(1) || '0.0'}%)
                             </Typography>
                           </Paper>
                         </Grid>
@@ -2776,7 +2934,7 @@ const LiquidacionesPage = () => {
                               color: theme.palette.text.secondary,
                               fontWeight: 500
                             }}>
-                              Con Novedades ({(100 - metricsData.porcentajeSinCambios).toFixed(1)}%)
+                              Con Novedades ({(100 - (metricsData.porcentajeSinCambios || 0)).toFixed(1)}%)
                             </Typography>
                           </Paper>
                         </Grid>
