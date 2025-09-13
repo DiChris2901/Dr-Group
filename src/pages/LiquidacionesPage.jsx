@@ -247,15 +247,38 @@ const LiquidacionesPage = () => {
         periodoDetectado: periodoDetectado // Incluir período detectado
       };
 
-      // Extraer y mostrar información del período antes de guardar
+      // Usar el período correcto del modal en lugar de extraer de originalData
+      const periodoDetectadoModal = detectarPeriodoLiquidacion();
+      addLog(`📅 Período del modal: ${periodoDetectadoModal}`, 'info');
+      
+      // Parsear el período del modal para extraer mes y año correctamente
+      let periodoInfo;
       try {
-        const periodoInfo = liquidacionPersistenceService.extractPeriodoInfo(originalData);
-        addLog(`📅 Período detectado: ${periodoInfo.mesLiquidacion} ${periodoInfo.añoLiquidacion} (procesado el ${periodoInfo.fechaProcesamiento})`, 'info');
+        const match = periodoDetectadoModal.match(/(\w+)\s+(\d{4})/);
+        if (match) {
+          const mesTexto = match[1].toLowerCase();
+          const año = parseInt(match[2]);
+          
+          periodoInfo = {
+            periodoLiquidacion: `${mesTexto}_${año}`,
+            mesLiquidacion: mesTexto,
+            añoLiquidacion: año,
+            fechaProcesamiento: new Date().toISOString().split('T')[0]
+          };
+          
+          addLog(`📅 Período parseado correctamente: ${mesTexto} ${año}`, 'success');
+        } else {
+          throw new Error('No se pudo parsear el período del modal');
+        }
         
         // Agregar información del período a los datos
         liquidacionData.periodoInfo = periodoInfo;
+        liquidacionData.periodoDetectado = periodoDetectadoModal; // También pasar el período del modal
       } catch (error) {
-        addLog(`⚠️ No se pudo detectar el período automáticamente: ${error.message}`, 'warning');
+        addLog(`⚠️ Error parseando período del modal, usando fallback: ${error.message}`, 'warning');
+        // Fallback a extractPeriodoInfo solo si falla el parseo del modal
+        periodoInfo = liquidacionPersistenceService.extractPeriodoInfo(originalData);
+        liquidacionData.periodoInfo = periodoInfo;
       }
 
       const liquidacionId = await liquidacionPersistenceService.saveLiquidacion(
@@ -370,24 +393,30 @@ const LiquidacionesPage = () => {
         // Consolidar por NUC (siguiendo lógica original)
         const consolidated = consolidarDatos(processedData);
         
+        // CORREGIR: Actualizar empresa en todos los registros consolidados
+        const consolidatedConEmpresa = consolidated.map(item => ({
+          ...item,
+          empresa: empresaDetectada || 'Empresa no detectada'
+        }));
+        
         // Generar reporte por sala (siguiendo lógica original)
-        const reporteSala = generarReporteSala(consolidated);
+        const reporteSala = generarReporteSala(consolidatedConEmpresa);
         
         // Calcular métricas (siguiendo lógica original)
-        const metrics = calcularMetricas(consolidated, reporteSala);
+        const metrics = calcularMetricas(consolidatedConEmpresa, reporteSala);
         
         // Debug: Calcular totales paso a paso (siguiendo lógica original)
-        const totalProduccion = consolidated.reduce((sum, item) => {
+        const totalProduccion = consolidatedConEmpresa.reduce((sum, item) => {
           const produccion = Number(item.produccion) || 0;
           return sum + produccion;
         }, 0);
         
-        const totalDerechos = consolidated.reduce((sum, item) => {
+        const totalDerechos = consolidatedConEmpresa.reduce((sum, item) => {
           const derechos = Number(item.derechosExplotacion) || 0;
           return sum + derechos;
         }, 0);
         
-        const totalGastos = consolidated.reduce((sum, item) => {
+        const totalGastos = consolidatedConEmpresa.reduce((sum, item) => {
           const gastos = Number(item.gastosAdministracion) || 0;
           return sum + gastos;
         }, 0);
@@ -399,7 +428,7 @@ const LiquidacionesPage = () => {
         
         // Inicializar variables para procesamiento de tarifas
         let tarifasOficialesCalculadas = {};
-        let consolidatedConTarifas = consolidated;
+        let consolidatedConTarifas = consolidatedConEmpresa;
         let metricasConTarifas = metrics;
         
         if (tarifasFile) {
@@ -636,9 +665,32 @@ const LiquidacionesPage = () => {
           totalImpuestos: validationData.totalImpuestos
         };
         
-        // Aplicar datos validados (siguiendo lógica de confirmarValidacion)
-        setConsolidatedData(validationData.consolidated);
-        setReporteBySala(validationData.reporteSala);
+        // IMPORTANTE: Actualizar empresa y período en datos consolidados antes de aplicar
+        // Obtener el período correcto desde Firebase
+        const periodoFirebase = metadata?.fechas?.periodoDetectadoModal || 
+                               metadata?.fechas?.periodoLiquidacion ||
+                               metadata?.periodoLiquidacion ||
+                               metadata?.periodo;
+        
+        addLog(`📅 Período desde Firebase: ${periodoFirebase}`, 'info');
+        
+        const consolidatedConEmpresa = validationData.consolidated.map(item => ({
+          ...item,
+          empresa: empresaFinal,
+          // Sobrescribir el período con el valor correcto de Firebase
+          periodoTexto: periodoFirebase || item.periodoTexto
+        }));
+        
+        const reporteSalaConEmpresa = validationData.reporteSala.map(sala => ({
+          ...sala,
+          empresa: empresaFinal,
+          // También actualizar período en reporte por sala si existe
+          periodoTexto: periodoFirebase || sala.periodoTexto
+        }));
+        
+        // Aplicar datos validados con empresa corregida
+        setConsolidatedData(consolidatedConEmpresa);
+        setReporteBySala(reporteSalaConEmpresa);
         setMetricsData(metricasFinales);
         
         // Establecer tarifas oficiales si existen
@@ -1040,31 +1092,37 @@ const LiquidacionesPage = () => {
       // Consolidar por NUC
       const consolidated = consolidarDatos(processedData);
       
+      // Agregar información de empresa a los datos consolidados
+      const consolidatedConEmpresa = consolidated.map(item => ({
+        ...item,
+        empresa: empresaDetectada || empresa || 'Empresa no detectada'
+      }));
+      
       // Generar reporte por sala
-      const reporteSala = generarReporteSala(consolidated);
+      const reporteSala = generarReporteSala(consolidatedConEmpresa);
       
       // Calcular métricas
-      const metrics = calcularMetricas(consolidated, reporteSala);
+      const metrics = calcularMetricas(consolidatedConEmpresa, reporteSala);
       
       // Debug: Log de los datos consolidados
       console.log('🔍 DATOS CONSOLIDAS PARA VALIDACIÓN:');
-      console.log('Número de máquinas consolidadas:', consolidated.length);
-      console.log('Primera máquina consolidada:', consolidated[0]);
-      console.log('Últimas 3 máquinas:', consolidated.slice(-3));
+      console.log('Número de máquinas consolidadas:', consolidatedConEmpresa.length);
+      console.log('Primera máquina consolidada:', consolidatedConEmpresa[0]);
+      console.log('Últimas 3 máquinas:', consolidatedConEmpresa.slice(-3));
       
       // Debug: Calcular totales paso a paso
-      const totalProduccion = consolidated.reduce((sum, item) => {
+      const totalProduccion = consolidatedConEmpresa.reduce((sum, item) => {
         const produccion = Number(item.produccion) || 0;
         console.log(`Máquina ${item.nuc}: producción = ${produccion}`);
         return sum + produccion;
       }, 0);
       
-      const totalDerechos = consolidated.reduce((sum, item) => {
+      const totalDerechos = consolidatedConEmpresa.reduce((sum, item) => {
         const derechos = Number(item.derechosExplotacion) || 0;
         return sum + derechos;
       }, 0);
       
-      const totalGastos = consolidated.reduce((sum, item) => {
+      const totalGastos = consolidatedConEmpresa.reduce((sum, item) => {
         const gastos = Number(item.gastosAdministracion) || 0;
         return sum + gastos;
       }, 0);
@@ -1076,10 +1134,10 @@ const LiquidacionesPage = () => {
       
       // Preparar datos de validación
       const validacion = {
-        consolidated,
+        consolidated: consolidatedConEmpresa,
         reporteSala,
         metrics,
-        totalMaquinas: consolidated.length,
+        totalMaquinas: consolidatedConEmpresa.length,
         totalEstablecimientos: reporteSala.length,
         totalProduccion: totalProduccion,
         totalDerechos: totalDerechos,
@@ -1434,10 +1492,10 @@ const LiquidacionesPage = () => {
   };
 
   // Generar reporte por sala
-  const generarReporteSala = (consolidatedData) => {
+  const generarReporteSala = (consolidatedConEmpresa) => {
     const grouped = {};
     
-    consolidatedData.forEach(item => {
+    consolidatedConEmpresa.forEach(item => {
       if (!grouped[item.establecimiento]) {
         grouped[item.establecimiento] = {
           establecimiento: item.establecimiento,
@@ -2486,7 +2544,7 @@ const LiquidacionesPage = () => {
                 variant="contained"
                 startIcon={<CloudUpload />}
                 onClick={() => fileInputRef.current?.click()}
-                disabled={selectedFile || liquidacionGuardadaId} // Deshabilitar si ya hay archivo seleccionado o viene del histórico
+                disabled={!!(selectedFile || liquidacionGuardadaId)} // Deshabilitar si ya hay archivo seleccionado o viene del histórico
                 sx={{ 
                   mb: 2, 
                   mr: 1,
@@ -2518,7 +2576,7 @@ const LiquidacionesPage = () => {
                 ref={fileInputRef}
                 onChange={handleFileSelect}
                 accept=".xlsx,.xls,.csv"
-                disabled={selectedFile || liquidacionGuardadaId} // Deshabilitar si ya hay archivo o viene del histórico
+                disabled={!!(selectedFile || liquidacionGuardadaId)} // Deshabilitar si ya hay archivo o viene del histórico
                 style={{ display: 'none' }}
               />
               
@@ -2801,7 +2859,7 @@ const LiquidacionesPage = () => {
                     variant="contained"
                     startIcon={<Save />}
                     onClick={mostrarConfirmacionGuardado}
-                    disabled={guardandoLiquidacion || liquidacionGuardadaId} // Deshabilitar si ya está guardada (cargada desde histórico)
+                    disabled={!!(guardandoLiquidacion || liquidacionGuardadaId)} // Deshabilitar si ya está guardada (cargada desde histórico)
                     sx={{
                       borderRadius: 1,
                       fontWeight: 600,

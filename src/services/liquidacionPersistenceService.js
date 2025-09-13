@@ -27,7 +27,8 @@ import {
   orderBy, 
   limit,
   deleteDoc,
-  serverTimestamp 
+  serverTimestamp,
+  writeBatch 
 } from 'firebase/firestore';
 import { 
   ref, 
@@ -229,6 +230,146 @@ class LiquidacionPersistenceService {
   }
 
   /**
+   * 🆕 NUEVO: Guarda automáticamente liquidaciones separadas por sala
+   * Se ejecuta automáticamente después de guardar la liquidación completa
+   * @param {Object} liquidacionData - Datos originales de la liquidación
+   * @param {string} userId - ID del usuario
+   * @param {string} liquidacionOriginalId - ID de la liquidación completa (referencia)
+   * @param {Object} liquidacionCompleta - Documento completo de la liquidación
+   */
+  async saveLiquidacionesPorSala(liquidacionData, userId, liquidacionOriginalId, liquidacionCompleta) {
+    try {
+      console.log('🏢 INICIO saveLiquidacionesPorSala');
+      console.log('📊 liquidacionData recibida:', {
+        hasReporteBySala: Boolean(liquidacionData?.reporteBySala),
+        reporteBySalaLength: liquidacionData?.reporteBySala?.length || 0,
+        empresa: liquidacionData?.empresa,
+        hasConsolidatedData: Boolean(liquidacionData?.consolidatedData),
+        consolidatedDataLength: liquidacionData?.consolidatedData?.length || 0
+      });
+      
+      const { reporteBySala, empresa, consolidatedData } = liquidacionData;
+      
+      if (!reporteBySala || !Array.isArray(reporteBySala) || reporteBySala.length === 0) {
+        console.log('⚠️ No hay datos por sala para guardar - reporteBySala:', reporteBySala);
+        return [];
+      }
+
+      console.log(`🏢 Guardando ${reporteBySala.length} liquidaciones por sala...`);
+      console.log('📋 Salas encontradas:', reporteBySala.map(s => s.establecimiento));
+      
+      const salaIds = [];
+      
+      // Procesar cada sala individualmente
+      for (const sala of reporteBySala) {
+        try {
+          // Generar ID único para esta sala
+          const salaId = this.generateLiquidacionSalaId(
+            empresa, 
+            sala.establecimiento, 
+            liquidacionCompleta.fechas.periodoLiquidacion, 
+            userId
+          );
+
+          // Filtrar datos consolidados solo para esta sala
+          const datosSala = consolidatedData.filter(
+            maquina => maquina.establecimiento === sala.establecimiento
+          );
+
+          // Calcular métricas específicas de la sala
+          const metricasSala = {
+            totalMaquinas: datosSala.length,
+            totalProduccion: datosSala.reduce((sum, m) => sum + (Number(m.produccion) || 0), 0),
+            derechosExplotacion: datosSala.reduce((sum, m) => sum + (Number(m.derechosExplotacion) || 0), 0),
+            gastosAdministracion: datosSala.reduce((sum, m) => sum + (Number(m.gastosAdministracion) || 0), 0)
+          };
+          metricasSala.totalImpuestos = metricasSala.derechosExplotacion + metricasSala.gastosAdministracion;
+
+          // Crear documento de liquidación por sala
+          const liquidacionSalaDoc = {
+            id: salaId,
+            userId,
+            
+            // Referencia a la liquidación original
+            liquidacionOriginalId,
+            
+            // Información de empresa y sala
+            empresa: liquidacionCompleta.empresa,
+            sala: {
+              nombre: sala.establecimiento,
+              normalizado: sala.establecimiento.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
+            },
+            
+            // Misma información temporal que la liquidación original
+            fechas: liquidacionCompleta.fechas,
+            
+            // Referencias a los mismos archivos (no duplicar en Storage)
+            archivos: liquidacionCompleta.archivos,
+            
+            // Métricas específicas de esta sala
+            metricas: metricasSala,
+            
+            // Datos consolidados solo de esta sala
+            datosConsolidados: datosSala,
+            
+            // Información de la sala desde reporteBySala
+            reporteSala: sala,
+            
+            // Estado de facturación (nuevo)
+            facturacion: {
+              estado: 'pendiente', // 'pendiente', 'generada', 'enviada', 'pagada'
+              fechaGeneracion: null,
+              fechaEnvio: null,
+              fechaPago: null,
+              numeroCuentaCobro: null,
+              urlPdf: null
+            },
+            
+            // Procesamiento y metadatos
+            procesamiento: {
+              ...liquidacionCompleta.procesamiento,
+              tipoLiquidacion: 'por_sala'
+            },
+            
+            metadatos: {
+              ...liquidacionCompleta.metadatos,
+              salaNormalizada: sala.establecimiento.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase(),
+              empresaSala: `${empresa}_${sala.establecimiento}`.replace(/[^a-zA-Z0-9_]/g, '_').toLowerCase()
+            }
+          };
+
+          // Guardar en colección separada
+          await setDoc(doc(db, 'liquidaciones_por_sala', salaId), liquidacionSalaDoc);
+          salaIds.push(salaId);
+          
+          console.log(`✅ Sala guardada: ${sala.establecimiento} (${datosSala.length} máquinas)`);
+          
+        } catch (error) {
+          console.error(`❌ Error guardando sala ${sala.establecimiento}:`, error);
+          // Continuar con las demás salas aunque una falle
+        }
+      }
+
+      console.log(`🎉 ${salaIds.length} liquidaciones por sala guardadas exitosamente`);
+      return salaIds;
+      
+    } catch (error) {
+      console.error('Error guardando liquidaciones por sala:', error);
+      throw new Error(`Error al guardar liquidaciones por sala: ${error.message}`);
+    }
+  }
+
+  /**
+   * Genera ID único para liquidación por sala
+   */
+  generateLiquidacionSalaId(empresa, sala, periodo, userId) {
+    const empresaNorm = empresa.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+    const salaNorm = sala.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+    const timestamp = new Date().getTime();
+    return `${empresaNorm}_${salaNorm}_${periodo}_${userId}_${timestamp}`;
+  }
+
+  /**
    * Guarda solo los archivos originales y metadatos básicos
    * @param {Object} liquidacionData - Datos de la liquidación
    * @param {string} userId - ID del usuario
@@ -250,7 +391,34 @@ class LiquidacionPersistenceService {
       } = liquidacionData;
 
       // Extraer información del período
-      const periodoInfoExtracted = periodoInfo || this.extractPeriodoInfo(originalData);
+      let periodoInfoExtracted = periodoInfo;
+      
+      // Si no hay periodoInfo pero sí periodoDetectado del modal, parsearlo
+      if (!periodoInfoExtracted && periodoDetectado) {
+        try {
+          const match = periodoDetectado.match(/(\w+)\s+(\d{4})/);
+          if (match) {
+            const mesTexto = match[1].toLowerCase();
+            const año = parseInt(match[2]);
+            
+            periodoInfoExtracted = {
+              periodoLiquidacion: `${mesTexto}_${año}`,
+              mesLiquidacion: mesTexto,
+              añoLiquidacion: año,
+              fechaProcesamiento: new Date().toISOString().split('T')[0]
+            };
+            
+            console.log('📅 Período parseado desde modal en servicio:', periodoInfoExtracted);
+          }
+        } catch (error) {
+          console.error('Error parseando período del modal en servicio:', error);
+        }
+      }
+      
+      // Fallback a extractPeriodoInfo solo si no hay nada
+      if (!periodoInfoExtracted) {
+        periodoInfoExtracted = this.extractPeriodoInfo(originalData);
+      }
       
       // Generar ID único
       const liquidacionId = this.generateLiquidacionId(
@@ -386,6 +554,16 @@ class LiquidacionPersistenceService {
 
       // Guardar documento principal en Firestore
       await setDoc(doc(db, 'liquidaciones', liquidacionId), liquidacionDoc);
+
+      // 🆕 NUEVO: Guardar automáticamente liquidaciones separadas por sala
+      console.log('🔄 Iniciando guardado de liquidaciones por sala...');
+      try {
+        const salaIds = await this.saveLiquidacionesPorSala(liquidacionData, userId, liquidacionId, liquidacionDoc);
+        console.log('✅ Liquidaciones por sala guardadas:', salaIds);
+      } catch (error) {
+        console.error('❌ ERROR guardando liquidaciones por sala:', error);
+        // No lanzar error para no interrumpir el flujo principal
+      }
 
       console.log('✅ LIQUIDACIÓN GUARDADA EXITOSAMENTE');
       console.log('📋 RESUMEN DE DATOS GUARDADOS:');
@@ -983,10 +1161,34 @@ class LiquidacionPersistenceService {
       await Promise.all(deletePromises);
       console.log('✅ [Service] Archivos eliminados');
 
-      // Eliminar documento principal (ya no hay subcolecciones)
-      console.log('📄 [Service] Eliminando documento de Firestore...');
+      // Eliminar registros de liquidaciones por sala relacionados
+      console.log('🏢 [Service] Eliminando registros de liquidaciones por sala...');
+      try {
+        const liquidacionesPorSalaQuery = query(
+          collection(db, 'liquidacionesPorSala'),
+          where('liquidacionOriginalId', '==', liquidacionId),
+          where('userId', '==', userId)
+        );
+        
+        const liquidacionesPorSalaSnapshot = await getDocs(liquidacionesPorSalaQuery);
+        console.log(`🔍 [Service] Encontrados ${liquidacionesPorSalaSnapshot.docs.length} registros por sala para eliminar`);
+        
+        const deleteSalaPromises = liquidacionesPorSalaSnapshot.docs.map(async (salaDoc) => {
+          console.log(`🗑️ [Service] Eliminando sala: ${salaDoc.id}`);
+          return deleteDoc(doc(db, 'liquidacionesPorSala', salaDoc.id));
+        });
+        
+        await Promise.all(deleteSalaPromises);
+        console.log('✅ [Service] Registros por sala eliminados');
+      } catch (salaError) {
+        console.warn('⚠️ [Service] Error eliminando registros por sala:', salaError);
+        // No lanzar error aquí para no interrumpir la eliminación principal
+      }
+
+      // Eliminar documento principal
+      console.log('📄 [Service] Eliminando documento principal de Firestore...');
       await deleteDoc(docRef);
-      console.log('✅ [Service] Documento eliminado exitosamente');
+      console.log('✅ [Service] Documento principal eliminado exitosamente');
 
     } catch (error) {
       console.error('❌ [Service] Error eliminando liquidación:', error);
@@ -1025,6 +1227,341 @@ class LiquidacionPersistenceService {
     } catch (error) {
       console.error('Error buscando liquidaciones por período:', error);
       throw new Error(`Error al buscar liquidaciones: ${error.message}`);
+    }
+  }
+
+  // ========================================
+  // 🆕 NUEVAS FUNCIONES PARA LIQUIDACIONES POR SALA
+  // ========================================
+
+  /**
+   * Obtiene todas las liquidaciones por sala para un usuario
+   * @param {string} userId - ID del usuario
+   * @param {Object} filtros - Filtros opcionales { empresa, periodo, sala, estado }
+   * @returns {Promise<Array>} - Array de liquidaciones por sala
+   */
+  async getLiquidacionesPorSala(userId, filtros = {}) {
+    try {
+      // Consulta simplificada sin orderBy para evitar índice compuesto
+      let q = query(
+        collection(db, 'liquidaciones_por_sala'),
+        where('userId', '==', userId)
+      );
+
+      // Aplicar filtros adicionales si se proporcionan
+      if (filtros.empresa) {
+        q = query(q, where('empresa.nombre', '==', filtros.empresa));
+      }
+
+      const querySnapshot = await getDocs(q);
+      let liquidacionesSala = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        
+        // Aplicar filtros adicionales (que no se pueden hacer con Firestore)
+        let incluir = true;
+        
+        // Solo filtrar si el filtro tiene un valor válido (no vacío)
+        if (filtros.periodo && filtros.periodo.trim() && data.fechas.periodoLiquidacion !== filtros.periodo) {
+          incluir = false;
+        }
+        
+        if (filtros.sala && filtros.sala.trim() && data.sala.nombre !== filtros.sala) {
+          incluir = false;
+        }
+        
+        if (filtros.estado && filtros.estado.trim() && data.facturacion.estado !== filtros.estado) {
+          incluir = false;
+        }
+        
+        if (incluir) {
+          liquidacionesSala.push({
+            id: doc.id,
+            ...data
+          });
+        }
+      });
+
+      // Ordenar por timestamp en JavaScript (más recientes primero)
+      liquidacionesSala.sort((a, b) => {
+        const timestampA = a.fechas?.timestampProcesamiento || 0;
+        const timestampB = b.fechas?.timestampProcesamiento || 0;
+        return timestampB - timestampA;
+      });
+
+      console.log(`📋 Encontradas ${liquidacionesSala.length} liquidaciones por sala`);
+      return liquidacionesSala;
+
+    } catch (error) {
+      console.error('Error obteniendo liquidaciones por sala:', error);
+      throw new Error(`Error al obtener liquidaciones por sala: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtiene una liquidación por sala específica
+   * @param {string} salaId - ID de la liquidación por sala
+   * @returns {Promise<Object>} - Datos de la liquidación por sala
+   */
+  async getLiquidacionSala(salaId) {
+    try {
+      const docRef = doc(db, 'liquidaciones_por_sala', salaId);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        throw new Error('Liquidación por sala no encontrada');
+      }
+
+      return {
+        id: docSnap.id,
+        ...docSnap.data()
+      };
+    } catch (error) {
+      console.error('Error obteniendo liquidación por sala:', error);
+      throw new Error(`Error al obtener liquidación por sala: ${error.message}`);
+    }
+  }
+
+  /**
+   * Actualiza el estado de facturación de una liquidación por sala
+   * @param {string} salaId - ID de la liquidación por sala
+   * @param {Object} datosFacturacion - Datos de facturación a actualizar
+   * @returns {Promise<void>}
+   */
+  async actualizarEstadoFacturacion(salaId, datosFacturacion) {
+    try {
+      const docRef = doc(db, 'liquidaciones_por_sala', salaId);
+      
+      await setDoc(docRef, {
+        facturacion: {
+          ...datosFacturacion,
+          fechaActualizacion: new Date().toISOString()
+        },
+        fechas: {
+          updatedAt: serverTimestamp()
+        }
+      }, { merge: true });
+
+      console.log(`✅ Estado de facturación actualizado para sala ${salaId}`);
+    } catch (error) {
+      console.error('Error actualizando estado de facturación:', error);
+      throw new Error(`Error al actualizar estado de facturación: ${error.message}`);
+    }
+  }
+
+  /**
+   * Elimina una liquidación por sala
+   * @param {string} salaId - ID de la liquidación por sala
+   * @returns {Promise<void>}
+   */
+  async deleteLiquidacionSala(salaId) {
+    try {
+      const docRef = doc(db, 'liquidaciones_por_sala', salaId);
+      await deleteDoc(docRef);
+      console.log(`✅ Liquidación por sala eliminada: ${salaId}`);
+    } catch (error) {
+      console.error('Error eliminando liquidación por sala:', error);
+      throw new Error(`Error al eliminar liquidación por sala: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtiene resumen estadístico de liquidaciones por sala
+   * @param {string} userId - ID del usuario
+   * @param {Object} filtros - Filtros opcionales
+   * @returns {Promise<Object>} - Estadísticas resumidas
+   */
+  async getEstadisticasLiquidacionesSala(userId, filtros = {}) {
+    try {
+      const liquidaciones = await this.getLiquidacionesPorSala(userId, filtros);
+      
+      const estadisticas = {
+        total: liquidaciones.length,
+        porEstado: {
+          pendiente: 0,
+          generada: 0,
+          enviada: 0,
+          pagada: 0
+        },
+        montos: {
+          totalProduccion: 0,
+          totalDerechos: 0,
+          totalGastos: 0,
+          totalImpuestos: 0
+        },
+        salas: new Set(),
+        empresas: new Set(),
+        periodos: new Set()
+      };
+
+      liquidaciones.forEach(liq => {
+        // Contar por estado
+        estadisticas.porEstado[liq.facturacion.estado]++;
+        
+        // Sumar montos
+        estadisticas.montos.totalProduccion += liq.metricas.totalProduccion || 0;
+        estadisticas.montos.totalDerechos += liq.metricas.derechosExplotacion || 0;
+        estadisticas.montos.totalGastos += liq.metricas.gastosAdministracion || 0;
+        estadisticas.montos.totalImpuestos += liq.metricas.totalImpuestos || 0;
+        
+        // Recopilar dimensiones únicas
+        estadisticas.salas.add(liq.sala.nombre);
+        estadisticas.empresas.add(liq.empresa.nombre);
+        estadisticas.periodos.add(liq.fechas.periodoLiquidacion);
+      });
+
+      // Convertir Sets a arrays
+      estadisticas.salas = Array.from(estadisticas.salas);
+      estadisticas.empresas = Array.from(estadisticas.empresas);
+      estadisticas.periodos = Array.from(estadisticas.periodos);
+
+      return estadisticas;
+    } catch (error) {
+      console.error('Error obteniendo estadísticas:', error);
+      throw new Error(`Error al obtener estadísticas: ${error.message}`);
+    }
+  }
+
+  /**
+   * 🧹 LIMPIEZA: Eliminar registros con períodos malformados
+   * que contienen números de fecha Excel (como enero_45900)
+   */
+  async limpiarRegistrosMalformados(userId) {
+    try {
+      console.log('🧹 Iniciando limpieza de registros malformados...');
+      
+      // Obtener todas las liquidaciones por sala del usuario
+      const q = query(
+        collection(db, 'liquidaciones_por_sala'),
+        where('userId', '==', userId)
+      );
+      
+      const querySnapshot = await getDocs(q);
+      console.log(`📋 Encontrados ${querySnapshot.size} registros para revisar`);
+      
+      let eliminados = 0;
+      const batch = writeBatch(db);
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const periodo = data.fechas?.periodoLiquidacion;
+        
+        // Detectar períodos malformados que contienen números (como enero_45900)
+        if (periodo && /\d{4,5}/.test(periodo)) {
+          console.log(`❌ Período malformado detectado: ${periodo} - Eliminando ${doc.id}`);
+          batch.delete(doc.ref);
+          eliminados++;
+        }
+      });
+      
+      if (eliminados > 0) {
+        await batch.commit();
+        console.log(`✅ ${eliminados} registros malformados eliminados`);
+      } else {
+        console.log('✨ No se encontraron registros malformados para eliminar');
+      }
+      
+      return { eliminados, total: querySnapshot.size };
+      
+    } catch (error) {
+      console.error('Error limpiando registros malformados:', error);
+      throw new Error(`Error en limpieza: ${error.message}`);
+    }
+  }
+
+  /**
+   * Limpia registros huérfanos y malformados de liquidaciones por sala
+   * @param {string} userId - ID del usuario
+   * @returns {Promise<Object>} - Resultado de la limpieza
+   */
+  async limpiarRegistrosHuerfanos(userId) {
+    try {
+      console.log('🧹 Iniciando limpieza de registros huérfanos...');
+      
+      // 1. Obtener todos los registros de liquidaciones por sala del usuario
+      const liquidacionesPorSalaRef = collection(db, 'liquidacionesPorSala');
+      const q = query(liquidacionesPorSalaRef, where('userId', '==', userId));
+      const snapshot = await getDocs(q);
+      
+      console.log(`📊 Encontrados ${snapshot.docs.length} registros por sala`);
+      
+      const registrosHuerfanos = [];
+      const registrosMalformados = [];
+      const registrosValidos = [];
+      
+      // 2. Verificar cada registro
+      for (const doc of snapshot.docs) {
+        const data = doc.data();
+        const docId = doc.id;
+        
+        // Verificar si tiene período malformado (contiene números grandes como 45900)
+        const periodoTexto = data.fechas?.periodoLiquidacion || '';
+        const esMalformado = periodoTexto.includes('45900') || 
+                           periodoTexto.includes('43503') || 
+                           /\d{5,}/.test(periodoTexto); // números de 5+ dígitos
+        
+        if (esMalformado) {
+          registrosMalformados.push({ id: docId, periodo: periodoTexto, data });
+          continue;
+        }
+        
+        // Verificar si la liquidación original existe
+        if (data.liquidacionOriginalId) {
+          try {
+            const liquidacionOriginalRef = doc(db, 'liquidaciones', data.liquidacionOriginalId);
+            const liquidacionOriginalDoc = await getDoc(liquidacionOriginalRef);
+            
+            if (!liquidacionOriginalDoc.exists()) {
+              registrosHuerfanos.push({ id: docId, liquidacionOriginalId: data.liquidacionOriginalId, data });
+            } else {
+              registrosValidos.push({ id: docId, data });
+            }
+          } catch (error) {
+            console.warn(`Error verificando liquidación original ${data.liquidacionOriginalId}:`, error);
+            registrosHuerfanos.push({ id: docId, liquidacionOriginalId: data.liquidacionOriginalId, data });
+          }
+        } else {
+          // Sin liquidacionOriginalId - es huérfano
+          registrosHuerfanos.push({ id: docId, liquidacionOriginalId: 'N/A', data });
+        }
+      }
+      
+      console.log(`🔍 Análisis completo:`);
+      console.log(`   • Registros válidos: ${registrosValidos.length}`);
+      console.log(`   • Registros huérfanos: ${registrosHuerfanos.length}`);
+      console.log(`   • Registros malformados: ${registrosMalformados.length}`);
+      
+      // 3. Eliminar registros huérfanos y malformados
+      const registrosAEliminar = [...registrosHuerfanos, ...registrosMalformados];
+      const promesasEliminacion = [];
+      
+      registrosAEliminar.forEach(registro => {
+        console.log(`🗑️ Eliminando: ${registro.id} (${registro.periodo || 'Sin período'})`);
+        promesasEliminacion.push(
+          deleteDoc(doc(db, 'liquidacionesPorSala', registro.id))
+            .catch(error => console.warn(`Error eliminando ${registro.id}:`, error))
+        );
+      });
+      
+      await Promise.all(promesasEliminacion);
+      
+      const resultado = {
+        totalRegistros: snapshot.docs.length,
+        registrosValidos: registrosValidos.length,
+        registrosEliminados: registrosAEliminar.length,
+        huerfanos: registrosHuerfanos.length,
+        malformados: registrosMalformados.length,
+        detalleHuerfanos: registrosHuerfanos.map(r => ({ id: r.id, liquidacionOriginalId: r.liquidacionOriginalId })),
+        detalleMalformados: registrosMalformados.map(r => ({ id: r.id, periodo: r.periodo }))
+      };
+      
+      console.log('✅ Limpieza completada:', resultado);
+      return resultado;
+      
+    } catch (error) {
+      console.error('Error en limpieza de registros:', error);
+      throw new Error(`Error en limpieza: ${error.message}`);
     }
   }
 }

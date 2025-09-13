@@ -51,6 +51,7 @@ import OrphanFilesPage from './pages/OrphanFilesPage';
 // Módulo de Liquidaciones
 import LiquidacionesPage from './pages/LiquidacionesPage';
 import LiquidacionesHistorialPage from './pages/LiquidacionesHistorialPage';
+import LiquidacionesPorSalaPage from './pages/LiquidacionesPorSalaPage';
 
 // Centro de Alertas
 import AlertsCenterPage from './pages/AlertsCenterPage';
@@ -185,6 +186,14 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Histórico de Liquidaciones" breadcrumbs={['Liquidaciones', 'Histórico']}>
             <LiquidacionesHistorialPage />
+          </MainLayout>
+        }
+      />
+      <Route 
+        path="/liquidaciones/por-sala" 
+        element={
+          <MainLayout title="Liquidaciones por Sala" breadcrumbs={['Liquidaciones', 'Por Sala']}>
+            <LiquidacionesPorSalaPage />
           </MainLayout>
         }
       />
