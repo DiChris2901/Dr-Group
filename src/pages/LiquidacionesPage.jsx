@@ -315,6 +315,11 @@ const LiquidacionesPage = () => {
     try {
       setProcessing(true);
       addLog(`📂 Cargando liquidación ${liquidacionId}...`, 'info');
+      
+      // Verificar disponibilidad de empresas (sin esperas largas)
+      const empresasDisponibles = companies && companies.length > 0;
+      addLog(`🏢 Estado empresas: ${empresasDisponibles ? `${companies.length} disponibles` : 'no disponibles'}`, 'info');
+      
       addLog(`⚙️ Descargando y procesando archivos originales...`, 'info');
 
       // Función de procesamiento que sigue el flujo completo normal
@@ -546,16 +551,65 @@ const LiquidacionesPage = () => {
       // Extraer datos procesados
       const { metadata, originalFile, tarifasFile, ...processedData } = liquidacionCompleta;
       
-      // Establecer empresa (siguiendo lógica original)
-      const empresaFinal = processedData.empresaDetectada || metadata.empresa || 'GENERAL';
+      // Debug: Mostrar metadatos recibidos (convertir a string para evitar errores de renderizado)
+      addLog(`🔍 DEBUG - Metadatos recibidos:`, 'info');
+      addLog(`   • metadata.empresa: "${typeof metadata.empresa === 'object' ? JSON.stringify(metadata.empresa) : metadata.empresa}"`, 'info');
+      addLog(`   • processedData.empresaDetectada: "${typeof processedData.empresaDetectada === 'object' ? JSON.stringify(processedData.empresaDetectada) : processedData.empresaDetectada}"`, 'info');
+      addLog(`   • Companies disponibles: ${companies.length}`, 'info');
+      
+      // Establecer empresa (priorizar metadatos guardados del histórico)
+      // Manejar caso donde empresa puede ser string u objeto
+      let empresaMetadata = metadata.empresa;
+      if (typeof empresaMetadata === 'object' && empresaMetadata?.nombre) {
+        empresaMetadata = empresaMetadata.nombre;
+      } else if (typeof empresaMetadata === 'object' && empresaMetadata?.name) {
+        empresaMetadata = empresaMetadata.name;
+      }
+      
+      let empresaDetectada = processedData.empresaDetectada;
+      if (typeof empresaDetectada === 'object' && empresaDetectada?.nombre) {
+        empresaDetectada = empresaDetectada.nombre;
+      } else if (typeof empresaDetectada === 'object' && empresaDetectada?.name) {
+        empresaDetectada = empresaDetectada.name;
+      }
+      
+      let empresaFinal = empresaMetadata || empresaDetectada || 'GENERAL';
+      
+      // Si la empresa de metadatos no se encuentra en companies, intentar detectar nuevamente
+      if (empresaMetadata && companies.length > 0) {
+        const empresaEnMetadatos = companies.find(comp => comp.name === empresaMetadata);
+        if (empresaEnMetadatos) {
+          empresaFinal = empresaMetadata;
+          addLog(`🏢 Empresa restaurada desde metadatos: ${empresaFinal}`, 'success');
+        } else {
+          // Si no se encuentra, usar la empresa detectada del procesamiento
+          empresaFinal = empresaDetectada || empresaMetadata || 'GENERAL';
+          addLog(`⚠️ Empresa de metadatos no encontrada, usando detectada: ${empresaFinal}`, 'warning');
+        }
+      } else {
+        addLog(`🏢 Empresa detectada desde archivo: ${empresaFinal}`, 'info');
+      }
+      
       setEmpresa(empresaFinal);
       
       // Establecer empresa completa con logo
-      if (companies.length > 0) {
+      if (companies && companies.length > 0) {
         const empresaCompleta = companies.find(comp => comp.name === empresaFinal);
         if (empresaCompleta) {
           setEmpresaCompleta(empresaCompleta);
-          addLog(`🏢 Empresa completa establecida: ${empresaCompleta.name}`, 'info');
+          addLog(`🏢 Empresa completa establecida: ${empresaCompleta.name}`, 'success');
+          addLog(`🖼️ Logo empresa: ${empresaCompleta.logo ? 'SÍ disponible' : 'NO disponible'}`, empresaCompleta.logo ? 'success' : 'warning');
+        } else {
+          // Intentar búsqueda más flexible
+          const empresaFlexible = companies.find(comp => 
+            comp.name.toLowerCase().trim() === empresaFinal.toLowerCase().trim()
+          );
+          if (empresaFlexible) {
+            setEmpresaCompleta(empresaFlexible);
+            addLog(`� Empresa establecida: ${empresaFlexible.name}`, 'success');
+          } else {
+            addLog(`⚠️ Empresa "${empresaFinal}" no encontrada en catálogo`, 'warning');
+          }
         }
       }
 
@@ -600,6 +654,12 @@ const LiquidacionesPage = () => {
         setLiquidacionGuardadaId(liquidacionId);
       }
 
+      // CRÍTICO: Establecer validationData para habilitar pestañas de resultados
+      if (processedData.validationData) {
+        setValidationData(processedData.validationData);
+        addLog(`✅ Datos de validación establecidos - pestañas habilitadas`, 'success');
+      }
+      
       setActiveTab(0); // Ir a pestaña de resumen
       addLog('✅ Liquidación cargada y procesada exitosamente', 'success');
       addNotification(`Liquidación ${metadata.periodoLiquidacion} cargada y procesada`, 'success');
@@ -709,6 +769,12 @@ const LiquidacionesPage = () => {
 
   // Manejo de archivos
   const handleFileSelect = (event) => {
+    // Prevenir carga si ya hay archivos procesados o viene del histórico
+    if (selectedFile || liquidacionGuardadaId) {
+      addNotification('Ya hay archivos procesados. Reinicia la aplicación para cargar otros.', 'warning');
+      return;
+    }
+    
     const file = event.target.files[0];
     if (file) {
       processSelectedFile(file);
@@ -729,6 +795,12 @@ const LiquidacionesPage = () => {
     }
 
     setSelectedFile(file);
+    
+    // Limpiar estados previos para nuevo archivo local
+    setLiquidacionGuardadaId(null);
+    setEmpresa(''); // Limpiar empresa anterior
+    setEmpresaCompleta(null); // Limpiar empresa completa anterior
+    
     addLog(`📁 Archivo seleccionado: ${file.name}`, 'success');
     
     // La empresa se obtendrá automáticamente del archivo al procesarlo
@@ -744,22 +816,34 @@ const LiquidacionesPage = () => {
   const handleDrag = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    // No cambiar estado visual si ya hay archivos procesados
+    if (selectedFile || liquidacionGuardadaId) {
+      return;
+    }
+    
     if (e.type === 'dragenter' || e.type === 'dragover') {
       setDragActive(true);
     } else if (e.type === 'dragleave') {
       setDragActive(false);
     }
-  }, []);
+  }, [selectedFile, liquidacionGuardadaId]);
 
   const handleDrop = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
 
+    // Prevenir drop si ya hay archivos procesados o viene del histórico
+    if (selectedFile || liquidacionGuardadaId) {
+      addNotification('Ya hay archivos procesados. Reinicia la aplicación para cargar otros.', 'warning');
+      return;
+    }
+
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       processSelectedFile(e.dataTransfer.files[0]);
     }
-  }, []);
+  }, [selectedFile, liquidacionGuardadaId, addNotification]);
 
   // Consolidar datos por NUC (función que faltaba)
   const consolidarPorNuc = (data) => {
@@ -1894,6 +1978,7 @@ const LiquidacionesPage = () => {
       // Resetear estados de archivos y empresa
       setSelectedFile(null);
       setEmpresa('');
+      setEmpresaCompleta(null); // Limpiar empresa completa con logo
       
       // Resetear estados de datos
       setOriginalData(null);
@@ -1935,8 +2020,11 @@ const LiquidacionesPage = () => {
         }
       }, 100);
       
-      addLog('🔄 Aplicación reiniciada correctamente', 'info');
-      addLog('📁 Listo para cargar un nuevo archivo', 'info');
+      // Forzar re-render después del reset con un pequeño delay
+      setTimeout(() => {
+        addLog('🔄 Aplicación reiniciada correctamente', 'info');
+        addLog('📁 Listo para cargar un nuevo archivo', 'info');
+      }, 150);
     }
   };
 
@@ -2328,7 +2416,11 @@ const LiquidacionesPage = () => {
               {historialLiquidaciones.slice(0, 5).map((liquidacion) => (
                 <Chip
                   key={liquidacion.id}
-                  label={`${liquidacion.empresa?.nombre || 'Sin Empresa'} - ${liquidacion.fechas?.periodoDetectadoModal || `${liquidacion.fechas?.mesLiquidacion} ${liquidacion.fechas?.añoLiquidacion}`}`}
+                  label={`${
+                    typeof liquidacion.empresa === 'string' 
+                      ? liquidacion.empresa 
+                      : liquidacion.empresa?.nombre || liquidacion.empresa?.name || 'Sin Empresa'
+                  } - ${liquidacion.fechas?.periodoDetectadoModal || `${liquidacion.fechas?.mesLiquidacion} ${liquidacion.fechas?.añoLiquidacion}`}`}
                   onClick={() => cargarLiquidacion(liquidacion.id)}
                   sx={{
                     cursor: 'pointer',
@@ -2389,20 +2481,36 @@ const LiquidacionesPage = () => {
                 📁 1. Seleccionar Archivo
               </Typography>
               
-              {/* Botón seleccionar archivo */}
+              {/* Botón seleccionar archivo - Deshabilitar si ya hay archivos procesados o viene del histórico */}
               <Button
                 variant="contained"
                 startIcon={<CloudUpload />}
                 onClick={() => fileInputRef.current?.click()}
+                disabled={selectedFile || liquidacionGuardadaId} // Deshabilitar si ya hay archivo seleccionado o viene del histórico
                 sx={{ 
                   mb: 2, 
                   mr: 1,
                   borderRadius: 1,
                   fontWeight: 600,
-                  textTransform: 'none'
+                  textTransform: 'none',
+                  background: (selectedFile || liquidacionGuardadaId)
+                    ? alpha(theme.palette.action.disabled, 0.12)
+                    : undefined,
+                  color: (selectedFile || liquidacionGuardadaId)
+                    ? theme.palette.action.disabled
+                    : undefined,
+                  '&:disabled': {
+                    background: alpha(theme.palette.action.disabled, 0.12),
+                    color: theme.palette.action.disabled
+                  }
                 }}
               >
-                Seleccionar Archivo
+                {selectedFile 
+                  ? 'Archivo Ya Seleccionado'
+                  : liquidacionGuardadaId 
+                    ? 'Liquidación del Histórico'
+                    : 'Seleccionar Archivo'
+                }
               </Button>
               
               <input
@@ -2410,36 +2518,56 @@ const LiquidacionesPage = () => {
                 ref={fileInputRef}
                 onChange={handleFileSelect}
                 accept=".xlsx,.xls,.csv"
+                disabled={selectedFile || liquidacionGuardadaId} // Deshabilitar si ya hay archivo o viene del histórico
                 style={{ display: 'none' }}
               />
               
-              {/* Zona drag & drop - Diseño Sobrio */}
+              {/* Zona drag & drop - Diseño Sobrio - Deshabilitar si ya hay archivos */}
               <Paper
                 ref={dropZoneRef}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
+                onDragEnter={selectedFile || liquidacionGuardadaId ? undefined : handleDrag}
+                onDragLeave={selectedFile || liquidacionGuardadaId ? undefined : handleDrag}
+                onDragOver={selectedFile || liquidacionGuardadaId ? undefined : handleDrag}
+                onDrop={selectedFile || liquidacionGuardadaId ? undefined : handleDrop}
                 sx={{
                   p: 3,
-                  border: `2px dashed ${dragActive ? alpha(theme.palette.primary.main, 0.6) : alpha(theme.palette.divider, 0.15)}`,
-                  backgroundColor: dragActive 
-                    ? alpha(theme.palette.primary.main, 0.08) 
-                    : alpha(theme.palette.primary.main, 0.04),
+                  border: `2px dashed ${
+                    selectedFile || liquidacionGuardadaId
+                      ? alpha(theme.palette.action.disabled, 0.3)
+                      : dragActive 
+                        ? alpha(theme.palette.primary.main, 0.6) 
+                        : alpha(theme.palette.divider, 0.15)
+                  }`,
+                  backgroundColor: selectedFile || liquidacionGuardadaId
+                    ? alpha(theme.palette.action.disabled, 0.05)
+                    : dragActive 
+                      ? alpha(theme.palette.primary.main, 0.08) 
+                      : alpha(theme.palette.primary.main, 0.04),
                   textAlign: 'center',
-                  cursor: 'pointer',
+                  cursor: selectedFile || liquidacionGuardadaId ? 'not-allowed' : 'pointer',
                   mb: 2,
                   borderRadius: 1,
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  opacity: selectedFile || liquidacionGuardadaId ? 0.6 : 1
                 }}
               >
                 <CloudUpload sx={{ 
                   fontSize: 40, 
-                  color: alpha(theme.palette.text.secondary, 0.7), 
+                  color: selectedFile || liquidacionGuardadaId
+                    ? alpha(theme.palette.action.disabled, 0.5)
+                    : alpha(theme.palette.text.secondary, 0.7), 
                   mb: 1 
                 }} />
-                <Typography variant="body2" color="textSecondary">
-                  También puedes arrastrar archivos Excel/CSV aquí
+                <Typography 
+                  variant="body2" 
+                  color={selectedFile || liquidacionGuardadaId ? "textDisabled" : "textSecondary"}
+                >
+                  {selectedFile
+                    ? 'Archivo ya seleccionado - Reinicia para cargar otro'
+                    : liquidacionGuardadaId
+                      ? 'Liquidación del histórico - No requiere archivos'
+                      : 'También puedes arrastrar archivos Excel/CSV aquí'
+                  }
                 </Typography>
               </Paper>
               
@@ -2661,7 +2789,7 @@ const LiquidacionesPage = () => {
                 </Box>
               )}
 
-              {/* Botón Guardar Liquidación */}
+              {/* Botón Guardar Liquidación - Solo para liquidaciones nuevas (no desde histórico) */}
               {originalData && consolidatedData && !processing && (
                 <Box sx={{ mb: 3 }}>
                   <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
@@ -2673,13 +2801,18 @@ const LiquidacionesPage = () => {
                     variant="contained"
                     startIcon={<Save />}
                     onClick={mostrarConfirmacionGuardado}
-                    disabled={guardandoLiquidacion}
+                    disabled={guardandoLiquidacion || liquidacionGuardadaId} // Deshabilitar si ya está guardada (cargada desde histórico)
                     sx={{
                       borderRadius: 1,
                       fontWeight: 600,
                       textTransform: 'none',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      '&:hover': {
+                      background: liquidacionGuardadaId 
+                        ? alpha(theme.palette.action.disabled, 0.12)
+                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: liquidacionGuardadaId 
+                        ? theme.palette.action.disabled
+                        : 'white',
+                      '&:hover': liquidacionGuardadaId ? {} : {
                         background: 'linear-gradient(135deg, #5a67d8 0%, #6c5ce7 100%)',
                         transform: 'translateY(-1px)',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
@@ -2691,19 +2824,25 @@ const LiquidacionesPage = () => {
                       transition: 'all 0.2s ease'
                     }}
                   >
-                    {guardandoLiquidacion ? 'Guardando...' : 'Guardar Liquidación'}
+                    {guardandoLiquidacion 
+                      ? 'Guardando...' 
+                      : liquidacionGuardadaId 
+                        ? 'Liquidación del Histórico'
+                        : 'Guardar Liquidación'
+                    }
                   </Button>
                   
                   {liquidacionGuardadaId && (
                     <Box sx={{
                       mt: 1,
                       p: 1,
-                      bgcolor: alpha(theme.palette.success.main, 0.1),
+                      bgcolor: alpha(theme.palette.info.main, 0.1),
                       borderRadius: 1,
-                      textAlign: 'center'
+                      textAlign: 'center',
+                      border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`
                     }}>
-                      <Typography variant="caption" color="success.main">
-                        ✅ Guardada: {liquidacionGuardadaId.slice(0, 8)}...
+                      <Typography variant="caption" color="info.main" sx={{ fontWeight: 500 }}>
+                        📋 Liquidación cargada desde histórico: {liquidacionGuardadaId.slice(0, 8)}...
                       </Typography>
                     </Box>
                   )}
