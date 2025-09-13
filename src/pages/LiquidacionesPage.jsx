@@ -317,41 +317,223 @@ const LiquidacionesPage = () => {
       addLog(`📂 Cargando liquidación ${liquidacionId}...`, 'info');
       addLog(`⚙️ Descargando y procesando archivos originales...`, 'info');
 
-      // Función de procesamiento que reutiliza la lógica existente
+      // Función de procesamiento que sigue el flujo completo normal
       const processFunction = async (originalFile, tarifasFile = null) => {
         // Leer archivo principal
-        const originalData = await readFile(originalFile);
+        const data = await readFile(originalFile);
+        addLog('✅ Archivo original leído correctamente', 'success');
         
-        // Extraer empresa automáticamente
+        // Extraer número de contrato del archivo (siguiendo lógica original)
+        let numeroContrato = null;
         let empresaDetectada = null;
-        for (let i = 1; i < Math.min(10, originalData.length); i++) {
-          const fila = originalData[i];
+        
+        addLog('🔍 Buscando número de contrato en el archivo...', 'info');
+        
+        // Buscar en las primeras filas para encontrar el contrato
+        for (let i = 1; i < Math.min(10, data.length); i++) {
+          const fila = data[i];
           if (fila && fila[0]) {
             const posibleContrato = fila[0].toString().trim();
-            if (posibleContrato.length >= 3) {
-              const companiaEncontrada = companies.find(comp => 
-                comp.contracts && comp.contracts.some(contract => 
-                  contract.toLowerCase().includes(posibleContrato.toLowerCase())
-                )
-              );
-              if (companiaEncontrada) {
-                empresaDetectada = companiaEncontrada.name;
-                break;
-              }
+            if (posibleContrato && posibleContrato !== '') {
+              numeroContrato = posibleContrato;
+              addLog(`📋 Número de contrato encontrado: ${numeroContrato}`, 'info');
+              break;
             }
           }
         }
-
-        // Procesar datos completos
-        const processed = await procesarDatosCompletos(originalData, empresaDetectada || 'GENERAL');
         
-        // Si hay archivo de tarifas, incluirlo en los datos
+        if (numeroContrato) {
+          empresaDetectada = buscarEmpresaPorContrato(numeroContrato);
+          if (empresaDetectada) {
+            addLog(`🏢 Empresa detectada: ${empresaDetectada}`, 'success');
+          } else {
+            addLog(`⚠️ No se encontró empresa para el contrato: ${numeroContrato}`, 'warning');
+            empresaDetectada = `Contrato ${numeroContrato} (No encontrado)`;
+          }
+        } else {
+          addLog('⚠️ No se pudo detectar número de contrato', 'warning');
+          empresaDetectada = 'Empresa no detectada';
+        }
+        
+        // Detectar encabezados (siguiendo lógica original)
+        const headerRow = detectarFilaEncabezados(data);
+        addLog(`🔍 Encabezados detectados en fila ${headerRow + 1}`, 'info');
+        
+        // Procesar datos (siguiendo lógica original)
+        const processedData = procesarDatos(data, headerRow);
+        
+        // Consolidar por NUC (siguiendo lógica original)
+        const consolidated = consolidarDatos(processedData);
+        
+        // Generar reporte por sala (siguiendo lógica original)
+        const reporteSala = generarReporteSala(consolidated);
+        
+        // Calcular métricas (siguiendo lógica original)
+        const metrics = calcularMetricas(consolidated, reporteSala);
+        
+        // Debug: Calcular totales paso a paso (siguiendo lógica original)
+        const totalProduccion = consolidated.reduce((sum, item) => {
+          const produccion = Number(item.produccion) || 0;
+          return sum + produccion;
+        }, 0);
+        
+        const totalDerechos = consolidated.reduce((sum, item) => {
+          const derechos = Number(item.derechosExplotacion) || 0;
+          return sum + derechos;
+        }, 0);
+        
+        const totalGastos = consolidated.reduce((sum, item) => {
+          const gastos = Number(item.gastosAdministracion) || 0;
+          return sum + gastos;
+        }, 0);
+        
+        addLog('📊 TOTALES CALCULADOS:', 'info');
+        addLog(`   • Total Producción: ${totalProduccion.toLocaleString()}`, 'info');
+        addLog(`   • Total Derechos: ${totalDerechos.toLocaleString()}`, 'info');
+        addLog(`   • Total Gastos: ${totalGastos.toLocaleString()}`, 'info');
+        
+        // Inicializar variables para procesamiento de tarifas
+        let tarifasOficialesCalculadas = {};
+        let consolidatedConTarifas = consolidated;
+        let metricasConTarifas = metrics;
+        
         if (tarifasFile) {
-          addLog('📄 Archivo de tarifas incluido en la carga', 'info');
-          processed.archivoTarifas = tarifasFile;
+          addLog('📄 Procesando archivo de tarifas...', 'info');
+          
+          try {
+            // Procesar archivo de tarifas (siguiendo lógica de procesarArchivoTarifas)
+            const tarifasData = await tarifasFile.arrayBuffer();
+            const workbook = XLSX.read(tarifasData, { type: 'array' });
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+            // Detectar encabezados (siguiendo lógica original)
+            let headerRow = -1;
+            for (let i = 0; i < Math.min(5, jsonData.length); i++) {
+              const row = jsonData[i];
+              if (Array.isArray(row) && row.some(cell => 
+                cell && typeof cell === 'string' && 
+                (cell.toLowerCase().includes('nuc') || cell.toLowerCase().includes('tarifa'))
+              )) {
+                headerRow = i;
+                break;
+              }
+            }
+
+            if (headerRow !== -1) {
+              const headers = jsonData[headerRow];
+              const dataRows = jsonData.slice(headerRow + 1);
+
+              // Mapear columnas (siguiendo lógica original)
+              const nucIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('nuc'));
+              const tarifaIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('tarifa'));
+              const derechosIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('derechos'));
+              const gastosIndex = headers.findIndex(h => h && h.toString().toLowerCase().includes('gastos'));
+
+              if (nucIndex !== -1 && tarifaIndex !== -1) {
+                // Procesar tarifas fijas (siguiendo lógica original)
+                let tarífasEncontradas = 0;
+
+                dataRows.forEach((row) => {
+                  if (row[nucIndex] && row[tarifaIndex] === 'Tarifa fija') {
+                    const nuc = row[nucIndex].toString();
+                    const derechos = parseFloat(row[derechosIndex]) || 0;
+                    const gastos = parseFloat(row[gastosIndex]) || 0;
+                    
+                    if (derechos > 0 || gastos > 0) {
+                      tarifasOficialesCalculadas[nuc] = {
+                        derechosAdicionales: derechos,
+                        gastosAdicionales: gastos
+                      };
+                      tarífasEncontradas++;
+                    }
+                  }
+                });
+
+                // Aplicar ajustes a los datos consolidados (siguiendo lógica original)
+                if (tarífasEncontradas > 0) {
+                  consolidatedConTarifas = consolidated.map(maquina => {
+                    const nucString = maquina.nuc.toString();
+                    
+                    if (tarifasOficialesCalculadas[nucString]) {
+                      const infoTarifa = tarifasOficialesCalculadas[nucString];
+                      const nuevosDerechos = maquina.derechosExplotacion + infoTarifa.derechosAdicionales;
+                      const nuevosGastos = maquina.gastosAdministracion + infoTarifa.gastosAdicionales;
+                      
+                      return {
+                        ...maquina,
+                        derechosExplotacion: nuevosDerechos,
+                        gastosAdministracion: nuevosGastos,
+                        totalImpuestos: nuevosDerechos + nuevosGastos,
+                        tarifa: 'Tarifa fija (valores sumados)'
+                      };
+                    }
+                    
+                    return { ...maquina, tarifa: 'Cálculo original (sin ajuste)' };
+                  });
+
+                  // Recalcular totales con tarifas aplicadas
+                  const nuevoTotalDerechos = consolidatedConTarifas.reduce((sum, item) => sum + item.derechosExplotacion, 0);
+                  const nuevoTotalGastos = consolidatedConTarifas.reduce((sum, item) => sum + item.gastosAdministracion, 0);
+                  
+                  // Actualizar métricas con tarifas aplicadas
+                  metricasConTarifas = {
+                    ...metrics,
+                    totalDerechos: nuevoTotalDerechos,
+                    totalGastos: nuevoTotalGastos,
+                    totalImpuestos: nuevoTotalDerechos + nuevoTotalGastos
+                  };
+
+                  addLog(`✅ ${tarífasEncontradas} tarifas aplicadas correctamente`, 'success');
+                } else {
+                  addLog('⚠️ No se encontraron tarifas válidas en el archivo', 'warning');
+                }
+              } else {
+                addLog('❌ No se encontraron columnas NUC o Tarifa en el archivo de tarifas', 'error');
+              }
+            } else {
+              addLog('❌ No se encontraron encabezados válidos en el archivo de tarifas', 'error');
+            }
+          } catch (tarifasError) {
+            addLog(`❌ Error procesando archivo de tarifas: ${tarifasError.message}`, 'error');
+          }
         }
 
-        return processed;
+        // Calcular totales finales (con tarifas aplicadas si existen)
+        const totalProduccionFinal = consolidatedConTarifas.reduce((sum, item) => {
+          const produccion = Number(item.produccion) || 0;
+          return sum + produccion;
+        }, 0);
+        
+        const totalDerechosFinal = consolidatedConTarifas.reduce((sum, item) => {
+          const derechos = Number(item.derechosExplotacion) || 0;
+          return sum + derechos;
+        }, 0);
+        
+        const totalGastosFinal = consolidatedConTarifas.reduce((sum, item) => {
+          const gastos = Number(item.gastosAdministracion) || 0;
+          return sum + gastos;
+        }, 0);
+
+        // Preparar datos de validación finales (como en procesamiento normal, con tarifas aplicadas)
+        const validacion = {
+          consolidated: consolidatedConTarifas,
+          reporteSala,
+          metrics: metricasConTarifas,
+          totalMaquinas: consolidatedConTarifas.length,
+          totalEstablecimientos: reporteSala.length,
+          totalProduccion: totalProduccionFinal,
+          totalDerechos: totalDerechosFinal,
+          totalGastos: totalGastosFinal,
+          totalImpuestos: totalDerechosFinal + totalGastosFinal
+        };
+
+        return {
+          originalData: processedData,
+          validationData: validacion,
+          empresaDetectada,
+          tarifasOficiales: tarifasOficialesCalculadas
+        };
       };
 
       // Cargar y procesar usando el servicio optimizado
@@ -361,20 +543,62 @@ const LiquidacionesPage = () => {
         processFunction
       );
 
-      // Restaurar estados con datos procesados en tiempo real
+      // Extraer datos procesados
       const { metadata, originalFile, tarifasFile, ...processedData } = liquidacionCompleta;
       
-      setEmpresa(metadata.empresa && typeof metadata.empresa === 'string' ? metadata.empresa : '');
+      // Establecer empresa (siguiendo lógica original)
+      const empresaFinal = processedData.empresaDetectada || metadata.empresa || 'GENERAL';
+      setEmpresa(empresaFinal);
+      
+      // Establecer empresa completa con logo
+      if (companies.length > 0) {
+        const empresaCompleta = companies.find(comp => comp.name === empresaFinal);
+        if (empresaCompleta) {
+          setEmpresaCompleta(empresaCompleta);
+          addLog(`🏢 Empresa completa establecida: ${empresaCompleta.name}`, 'info');
+        }
+      }
+
+      // Establecer archivo seleccionado
       setSelectedFile(originalFile);
       if (tarifasFile) {
         setArchivoTarifas(tarifasFile);
       }
+
+      // Aplicar datos originales primero
       setOriginalData(processedData.originalData || []);
-      setConsolidatedData(processedData.consolidatedData || []);
-      setReporteBySala(processedData.reporteBySala || []);
-      setMetricsData(processedData.metricsData || null);
-      setTarifasOficiales(processedData.tarifasOficiales || {});
-      setLiquidacionGuardadaId(liquidacionId);
+      
+      // Auto-confirmar validación (como si el usuario hubiera confirmado)
+      // Esto simula el flujo completo sin mostrar el modal
+      if (processedData.validationData) {
+        const validationData = processedData.validationData;
+        
+        // Crear métricas finales (siguiendo lógica de confirmarValidacion)
+        const metricasFinales = {
+          ...validationData.metrics,
+          totalProduccion: validationData.totalProduccion,
+          totalDerechos: validationData.totalDerechos,
+          totalGastos: validationData.totalGastos,
+          totalImpuestos: validationData.totalImpuestos
+        };
+        
+        // Aplicar datos validados (siguiendo lógica de confirmarValidacion)
+        setConsolidatedData(validationData.consolidated);
+        setReporteBySala(validationData.reporteSala);
+        setMetricsData(metricasFinales);
+        
+        // Establecer tarifas oficiales si existen
+        if (processedData.tarifasOficiales && Object.keys(processedData.tarifasOficiales).length > 0) {
+          setTarifasOficiales(processedData.tarifasOficiales);
+          addLog(`📋 ${Object.keys(processedData.tarifasOficiales).length} tarifas oficiales cargadas`, 'info');
+        }
+        
+        addLog(`📊 ${validationData.totalMaquinas} máquinas consolidadas`, 'success');
+        addLog(`🏢 ${validationData.totalEstablecimientos} establecimientos procesados`, 'success');
+        
+        // Establecer ID de liquidación guardada
+        setLiquidacionGuardadaId(liquidacionId);
+      }
 
       setActiveTab(0); // Ir a pestaña de resumen
       addLog('✅ Liquidación cargada y procesada exitosamente', 'success');
@@ -641,8 +865,8 @@ const LiquidacionesPage = () => {
       // Agrupar por establecimiento
       const reporteSala = agruparPorEstablecimiento(consolidated);
       
-      // Calcular métricas
-      const metrics = calcularMetrics(consolidated);
+      // Calcular métricas usando la función completa con validación
+      const metrics = calcularMetricas(consolidated, reporteSala);
 
       return {
         originalData: processedData,
