@@ -81,7 +81,181 @@ const LiquidacionesPorSalaPage = () => {
   const [dialogFacturacion, setDialogFacturacion] = useState({ open: false, liquidacion: null });
   const [dialogEdicion, setDialogEdicion] = useState({ open: false, liquidacion: null });
   // Opciones adicionales de edición (tarifa fija, normalización de negativos)
-  const [opcionesEdicion, setOpcionesEdicion] = useState({ tarifaFija: false, maquinasNegativasCero: false });
+  const [opcionesEdicion, setOpcionesEdicion] = useState({ maquinasNegativasCero: false }); // tarifa fija ahora es por máquina
+  // SMMLV actual (para tarifa fija)
+  const [smmlvActual, setSmmlvActual] = useState(null);
+
+  // Determinar días del mes de la liquidación (para lógica de tarifa fija 'mes completo')
+  const diasDelMesLiquidacion = useMemo(() => {
+    try {
+      if (!dialogEdicion.liquidacion) return 30; // fallback
+      const periodo = dialogEdicion.liquidacion?.fechas?.periodoLiquidacion || dialogEdicion.liquidacion?.periodo;
+      if (!periodo) return 30;
+      const partes = periodo.split('_');
+      if (partes.length < 2) return 30;
+      const mesStr = partes[0].toLowerCase();
+      const añoNum = parseInt(partes[1], 10) || new Date().getFullYear();
+      const mapaMeses = {
+        'enero':0,'febrero':1,'marzo':2,'abril':3,'mayo':4,'junio':5,
+        'julio':6,'agosto':7,'septiembre':8,'setiembre':8,'octubre':9,'noviembre':10,'diciembre':11
+      };
+      const mesIndex = mapaMeses[mesStr];
+      if (mesIndex == null) return 30;
+      const dias = new Date(añoNum, mesIndex + 1, 0).getDate();
+      return dias || 30;
+    } catch (e) {
+      console.warn('No se pudo calcular días del mes, usando 30.', e);
+      return 30;
+    }
+  }, [dialogEdicion.liquidacion]);
+
+  // Cargar SMMLV al abrir el diálogo de edición
+  useEffect(() => {
+    const cargarSMMLV = async () => {
+      if (!dialogEdicion.open) return;
+      try {
+        // Intentar por service si existe
+        let valor = null;
+        if (systemConfigService?.getGeneralConfig) {
+          const cfg = await systemConfigService.getGeneralConfig();
+          valor = cfg?.smmlvActual ?? null;
+        }
+        if (valor == null) {
+          // Fallback directo Firestore
+          const generalDoc = await getDoc(doc(db, 'system_config', 'general'));
+            if (generalDoc.exists()) {
+              valor = generalDoc.data()?.smmlvActual ?? null;
+            }
+        }
+        if (valor != null) setSmmlvActual(Number(valor));
+      } catch (e) {
+        console.error('Error cargando SMMLV actual:', e);
+      }
+    };
+    cargarSMMLV();
+  }, [dialogEdicion.open]);
+
+  // Helper para porcentajes tarifa fija según tipo de apuesta
+  const obtenerPorcentajeTarifaFija = (tipo) => {
+    if (tipo == null) return 0.30; // fallback
+    const t = String(tipo).toLowerCase().trim();
+    // Normalizar posibles formatos
+    if (/(^|\s)1($|\s)/.test(t) || t === '1') return 0.30;
+    if (/(^|\s)2($|\s)/.test(t) || t === '2') return 0.40;
+    if (/(^|\s)3($|\s)/.test(t) || t === '3') return 0.45;
+    return 0.30; // default
+  };
+
+  const calcularTarifaFijaMaquina = (maquina) => {
+    if (!smmlvActual) return { derechos: 0, gastos: 0 };
+    let dias = (maquina.diasTransmitidos ?? maquina.dias_tx ?? maquina.dias) || 0;
+    if (dias < 0) dias = 0;
+    const porcentaje = obtenerPorcentajeTarifaFija(maquina.tipoApuesta || maquina.tipo_apuesta || maquina.tipo);
+    // Nueva regla:
+    // - Si transmitió TODOS los días del mes (>= díasDelMesLiquidacion) => Derechos = SMMLV * %
+    // - Si transmitió menos => Derechos = (SMMLV / 30) * dias * %
+    let derechos;
+    if (dias >= diasDelMesLiquidacion && diasDelMesLiquidacion > 0) {
+      derechos = smmlvActual * porcentaje;
+    } else {
+      derechos = (smmlvActual / 30) * dias * porcentaje;
+    }
+    const gastos = derechos * 0.01; // 1% de derechos
+    return { derechos, gastos };
+  };
+
+  // Ajuste solicitado: con "Máquinas negativas a 0" sólo se muestra Total Impuestos = 0 (derechos+gastos) para máquinas con producción negativa y sin tarifa fija.
+  // No se modifican los campos internos de producción/derechos/gastos.
+  const esTotalImpuestosForzadoCero = (m) => {
+    if (!opcionesEdicion.maquinasNegativasCero) return false;
+    if (m.tarifaFijaActiva) return false;
+    return (m.produccion || 0) < 0; // condición de negatividad
+  };
+
+  const toggleTarifaFijaFila = (index) => {
+    setDatosMaquinasSala(prev => {
+      const nuevas = [...prev];
+      const m = { ...nuevas[index] };
+      const estabaActiva = !!m.tarifaFijaActiva;
+      if (!m.tarifaFijaActiva) {
+        // Guardar originales para posible reversión
+        if (m._originalValores == null) {
+          m._originalValores = {
+            produccion: m.produccion,
+            derechosExplotacion: m.derechosExplotacion,
+            gastosAdministracion: m.gastosAdministracion
+          };
+        }
+        const { derechos, gastos } = calcularTarifaFijaMaquina(m);
+        m.derechosExplotacion = derechos;
+        m.gastosAdministracion = gastos;
+        m.tarifaFijaActiva = true;
+        m.fueEditada = true; // activación cuenta como edición
+      } else {
+        // Revertir a originales
+        if (m._originalValores) {
+          m.produccion = m._originalValores.produccion;
+          m.derechosExplotacion = m._originalValores.derechosExplotacion;
+          m.gastosAdministracion = m._originalValores.gastosAdministracion;
+        }
+        m.tarifaFijaActiva = false;
+        // Eliminar marca de edición si la única diferencia era la tarifa fija
+        // Comparamos valores actuales con originales guardados para determinar si persiste una edición real.
+        if (m._originalValores) {
+          const difProduccion = m.produccion !== m._originalValores.produccion;
+          const difDerechos = m.derechosExplotacion !== m._originalValores.derechosExplotacion;
+          const difGastos = m.gastosAdministracion !== m._originalValores.gastosAdministracion;
+          if (!difProduccion && !difDerechos && !difGastos) {
+            m.fueEditada = false;
+          }
+        } else {
+          // Sin backup significa que no se alteró nada realmente
+          m.fueEditada = false;
+        }
+      }
+      // Si estaba activa y ahora se desactivó, ya se gestionó fueEditada arriba
+      if (!estabaActiva && m.tarifaFijaActiva) {
+        m.fueEditada = true;
+      }
+      nuevas[index] = m;
+      if (!edicionDirty) setEdicionDirty(true);
+      return nuevas;
+    });
+  };
+
+  // Reaplicar normalización cuando cambia el flag global de negativos
+  // Ya no alteramos los datos; sólo recalculamos totales memorizados al cambiar el flag
+  useEffect(() => {
+    if (!dialogEdicion.open) return;
+    setDatosMaquinasSala(prev => {
+      if (opcionesEdicion.maquinasNegativasCero) {
+        // Activando: marcar solo las negativas sin tarifa fija
+        let changed = false;
+        const nuevas = prev.map(m => {
+          if (!m.tarifaFijaActiva && (m.produccion || 0) < 0 && !m.fueEditada) {
+            changed = true;
+            return { ...m, fueEditada: true, _autoEditNegativo: true };
+          }
+          return m;
+        });
+        if (changed && !edicionDirty) setEdicionDirty(true);
+        return nuevas;
+      } else {
+        // Desactivando: revertir marca sólo si provino de auto marcado negativo y no hubo otros cambios manuales
+        const nuevas = prev.map(m => {
+          if (m._autoEditNegativo) {
+            const copia = { ...m };
+            delete copia._autoEditNegativo;
+            // Mantener fueEditada solo si hay otra razón (por ahora asumimos que no, así que se limpia)
+            copia.fueEditada = false;
+            return copia;
+          }
+          return m;
+        });
+        return nuevas;
+      }
+    });
+  }, [opcionesEdicion.maquinasNegativasCero, dialogEdicion.open]);
   const [dialogHistorial, setDialogHistorial] = useState({ open: false, liquidacion: null });
   const [datosEdicion, setDatosEdicion] = useState({});
   // Estado para controlar si hay cambios no guardados en la edición (deshabilita auto-guardado)
@@ -752,9 +926,14 @@ const LiquidacionesPorSalaPage = () => {
     }
 
     const totalProduccion = datosMaquinasSala.reduce((sum, maq) => sum + (parseFloat(maq.produccion) || 0), 0);
+    // Para totales de derechos y gastos no se hace ajuste; el ajuste solo afecta el totalGeneral mostrado por fila.
     const totalDerechos = datosMaquinasSala.reduce((sum, maq) => sum + (parseFloat(maq.derechosExplotacion) || 0), 0);
     const totalGastos = datosMaquinasSala.reduce((sum, maq) => sum + (parseFloat(maq.gastosAdministracion) || 0), 0);
-    const totalGeneral = totalDerechos + totalGastos; // Total = Derechos + Gastos (sin Producción)
+    // totalGeneral debe considerar filas forzadas a 0
+    const totalGeneral = datosMaquinasSala.reduce((sum, maq) => {
+      const base = (parseFloat(maq.derechosExplotacion) || 0) + (parseFloat(maq.gastosAdministracion) || 0);
+      return sum + (esTotalImpuestosForzadoCero(maq) ? 0 : base);
+    }, 0);
 
     return {
       totalProduccion,
@@ -1936,7 +2115,7 @@ const LiquidacionesPorSalaPage = () => {
                               <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Derechos de Explotación</TableCell>
                               <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Gastos de Administración</TableCell>
                               <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Total Impuestos</TableCell>
-                              <TableCell align="center" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap' }}>Variables</TableCell>
+                              <TableCell align="center" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap' }}>Tarifa Fija</TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>
@@ -1966,22 +2145,27 @@ const LiquidacionesPorSalaPage = () => {
                                     variant="standard"
                                     type="text"
                                     size="small"
+                                    disabled={!!maquina.tarifaFijaActiva}
                                     value={formatearMonto(maquina.produccion || 0)}
                                     onChange={(e) => {
                                       const nuevaProduccion = parsearMoneda(e.target.value);
-                                      const nuevasMaquinas = [...datosMaquinasSala];
-                                      const derechos = nuevaProduccion * 0.12;
-                                      const gastos = derechos * 0.01;
-                                      nuevasMaquinas[index].produccion = nuevaProduccion;
-                                      nuevasMaquinas[index].derechosExplotacion = derechos;
-                                      nuevasMaquinas[index].gastosAdministracion = gastos;
-                                      // 🎯 MARCAR MÁQUINA COMO EDITADA
-                                      nuevasMaquinas[index].fueEditada = true;
-                                      setDatosMaquinasSala(nuevasMaquinas);
+                                      setDatosMaquinasSala(prev => {
+                                        const nuevas = [...prev];
+                                        const derechos = nuevaProduccion * 0.12;
+                                        const gastos = derechos * 0.01;
+                                        const updated = { ...nuevas[index], produccion: nuevaProduccion, derechosExplotacion: derechos, gastosAdministracion: gastos, fueEditada: true };
+                                        // Si había backup de negativos y ahora ya no es negativo, eliminarlo
+                                        if (updated._negativosOriginal && nuevaProduccion >= 0) {
+                                          delete updated._negativosOriginal;
+                                        }
+                                        nuevas[index] = updated;
+                                        const normalizadas = aplicarNormalizacionNegativos(nuevas);
+                                        return normalizadas;
+                                      });
                                       if (!edicionDirty) setEdicionDirty(true);
                                     }}
                                     InputProps={{
-                                      style: { color: theme.palette.success.main, fontWeight: 500, fontSize: '0.8rem', textAlign: 'right' },
+                                      style: { color: maquina.tarifaFijaActiva ? theme.palette.text.disabled : theme.palette.success.main, fontWeight: 500, fontSize: '0.8rem', textAlign: 'right' },
                                       disableUnderline: false
                                     }}
                                     sx={{ '& input': { textAlign: 'right' } }}
@@ -1998,12 +2182,24 @@ const LiquidacionesPorSalaPage = () => {
                                   </Typography>
                                 </TableCell>
                                 <TableCell align="right" sx={{ borderColor: 'divider' }}>
-                                  <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500, fontSize: '0.8rem' }}>
-                                    {formatearMontoConDecimales((maquina.derechosExplotacion || 0) + (maquina.gastosAdministracion || 0))}
+                                  <Typography sx={{ color: esTotalImpuestosForzadoCero(maquina) ? theme.palette.text.disabled : theme.palette.text.primary, fontWeight: 600, fontSize: '0.8rem' }}>
+                                    {esTotalImpuestosForzadoCero(maquina)
+                                      ? formatearMontoConDecimales(0)
+                                      : formatearMontoConDecimales((maquina.derechosExplotacion || 0) + (maquina.gastosAdministracion || 0))}
                                   </Typography>
                                 </TableCell>
                                 <TableCell align="center" sx={{ borderColor: 'divider', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                                  <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>—</Typography>
+                                  {(((maquina.derechosExplotacion || 0) === 0 && (maquina.gastosAdministracion || 0) === 0) || maquina.tarifaFijaActiva) ? (
+                                    <Checkbox
+                                      size="small"
+                                      color="primary"
+                                      checked={!!maquina.tarifaFijaActiva}
+                                      onChange={() => toggleTarifaFijaFila(index)}
+                                      disabled={!smmlvActual}
+                                    />
+                                  ) : (
+                                    <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>—</Typography>
+                                  )}
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -2107,24 +2303,16 @@ const LiquidacionesPorSalaPage = () => {
                     <Typography variant="body2" color="text.secondary"><strong>Control de versión:</strong> Activado</Typography>
                     <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
                       <FormControlLabel
-                        control={<Checkbox size="small" checked={opcionesEdicion.tarifaFija} onChange={(e) => { setOpcionesEdicion(o => ({ ...o, tarifaFija: e.target.checked })); if (!edicionDirty) setEdicionDirty(true); }} />}
-                        label={
-                          <Tooltip title="Aplicará una tarifa fija (reglas a definir) en lugar del cálculo porcentual estándar. Aún sin impacto hasta definir lógica." placement="top" arrow>
-                            <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>Tarifa fija (próx.)</Typography>
-                          </Tooltip>
-                        }
-                      />
-                      <FormControlLabel
                         control={<Checkbox size="small" checked={opcionesEdicion.maquinasNegativasCero} onChange={(e) => { setOpcionesEdicion(o => ({ ...o, maquinasNegativasCero: e.target.checked })); if (!edicionDirty) setEdicionDirty(true); }} />}
                         label={
-                          <Tooltip title="Forzará valores negativos de producción/derechos/gastos a cero durante el recálculo (pendiente lógica)." placement="top" arrow>
+                          <Tooltip title="Forzará máquinas con producción negativa a cero (solo aplica a máquinas sin tarifa fija)." placement="top" arrow>
                             <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>Máquinas negativas a 0</Typography>
                           </Tooltip>
                         }
                       />
-                      { (opcionesEdicion.tarifaFija || opcionesEdicion.maquinasNegativasCero) && (
+                      { (opcionesEdicion.maquinasNegativasCero) && (
                         <Alert severity="info" sx={{ borderRadius: 1, py: 0.5 }} icon={<InfoIcon fontSize="small" />}>
-                          <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>Las reglas seleccionadas se guardarán y aplicarán cuando se implemente la lógica.</Typography>
+                          <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>Los negativos se normalizarán a 0 en máquinas sin tarifa fija.</Typography>
                         </Alert>
                       ) }
                     </Box>
