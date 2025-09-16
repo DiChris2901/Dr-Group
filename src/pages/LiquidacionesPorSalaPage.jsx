@@ -355,7 +355,7 @@ const LiquidacionesPorSalaPage = () => {
     const totalProduccion = datosMaquinasSala.reduce((sum, maq) => sum + (parseFloat(maq.produccion) || 0), 0);
     const totalDerechos = datosMaquinasSala.reduce((sum, maq) => sum + (parseFloat(maq.derechosExplotacion) || 0), 0);
     const totalGastos = datosMaquinasSala.reduce((sum, maq) => sum + (parseFloat(maq.gastosAdministracion) || 0), 0);
-    const totalGeneral = totalProduccion + totalDerechos + totalGastos;
+    const totalGeneral = totalDerechos + totalGastos; // Total = Derechos + Gastos (sin Producción)
 
     return {
       totalProduccion,
@@ -443,7 +443,7 @@ const LiquidacionesPorSalaPage = () => {
     }
   };
 
-  // Formatear montos
+  // Formatear montos (producción - sin decimales)
   const formatearMonto = (monto) => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
@@ -451,6 +451,27 @@ const LiquidacionesPorSalaPage = () => {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(monto || 0);
+  };
+
+  // Formatear montos con decimales (derechos y gastos - máximo 2 decimales)
+  const formatearMontoConDecimales = (monto) => {
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    }).format(monto || 0);
+  };
+
+  // Parsear moneda a número (para campos de edición)
+  const parsearMoneda = (valorFormateado) => {
+    if (!valorFormateado) return 0;
+    // Remover símbolos de moneda y espacios, mantener decimales
+    const valorString = valorFormateado.toString()
+      .replace(/[\$\s]/g, '') // Remover $ y espacios
+      .replace(/\./g, '') // Remover puntos de miles
+      .replace(/,/g, '.'); // Convertir coma decimal a punto
+    return parseFloat(valorString) || 0;
   };
 
   // Formatear período (de "agosto_2025" a "Agosto 2025")
@@ -567,7 +588,7 @@ const LiquidacionesPorSalaPage = () => {
               </Avatar>
               <Box>
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  {formatearMonto(estadisticas?.montos?.totalDerechos)}
+                  {formatearMontoConDecimales(estadisticas?.montos?.totalDerechos)}
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Total Derechos
@@ -1039,13 +1060,17 @@ const LiquidacionesPorSalaPage = () => {
               <Box>
                 {/* Resumen de métricas con diseño sobrio */}
                 <Grid container spacing={2} sx={{ mb: 3 }}>
-                  <Grid item xs={6} sm={3}>
+                  <Grid item xs={6} sm={2.4}>
                     <Box sx={{ 
                       p: 2, 
                       border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
                       borderRadius: 1,
                       backgroundColor: alpha(theme.palette.background.default, 0.5),
-                      textAlign: 'center'
+                      textAlign: 'center',
+                      minHeight: '80px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center'
                     }}>
                       <Typography variant="h6" sx={{ 
                         color: theme.palette.primary.main,
@@ -1053,18 +1078,25 @@ const LiquidacionesPorSalaPage = () => {
                       }}>
                         {dialogDetalles.liquidacion.metricas.totalMaquinas}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" sx={{
+                        lineHeight: 1.2,
+                        fontSize: '0.7rem'
+                      }}>
                         Máquinas
                       </Typography>
                     </Box>
                   </Grid>
-                  <Grid item xs={6} sm={3}>
+                  <Grid item xs={6} sm={2.4}>
                     <Box sx={{ 
                       p: 2, 
                       border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
                       borderRadius: 1,
                       backgroundColor: alpha(theme.palette.background.default, 0.5),
-                      textAlign: 'center'
+                      textAlign: 'center',
+                      minHeight: '80px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center'
                     }}>
                       <Typography variant="h6" sx={{ 
                         color: theme.palette.success.main,
@@ -1072,18 +1104,25 @@ const LiquidacionesPorSalaPage = () => {
                       }}>
                         {formatearMonto(dialogDetalles.liquidacion.metricas.totalProduccion)}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" sx={{
+                        lineHeight: 1.2,
+                        fontSize: '0.7rem'
+                      }}>
                         Producción
                       </Typography>
                     </Box>
                   </Grid>
-                  <Grid item xs={6} sm={3}>
+                  <Grid item xs={6} sm={2.4}>
                     <Box sx={{ 
                       p: 2, 
                       border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
                       borderRadius: 1,
                       backgroundColor: alpha(theme.palette.background.default, 0.5),
-                      textAlign: 'center'
+                      textAlign: 'center',
+                      minHeight: '80px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center'
                     }}>
                       <Typography variant="h6" sx={{ 
                         color: theme.palette.warning.main,
@@ -1091,18 +1130,25 @@ const LiquidacionesPorSalaPage = () => {
                       }}>
                         {formatearMonto(dialogDetalles.liquidacion.metricas.derechosExplotacion)}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Derechos
+                      <Typography variant="caption" color="text.secondary" sx={{
+                        lineHeight: 1.2,
+                        fontSize: '0.7rem'
+                      }}>
+                        Derechos de Explotación
                       </Typography>
                     </Box>
                   </Grid>
-                  <Grid item xs={6} sm={3}>
+                  <Grid item xs={6} sm={2.4}>
                     <Box sx={{ 
                       p: 2, 
                       border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
                       borderRadius: 1,
                       backgroundColor: alpha(theme.palette.background.default, 0.5),
-                      textAlign: 'center'
+                      textAlign: 'center',
+                      minHeight: '80px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center'
                     }}>
                       <Typography variant="h6" sx={{ 
                         color: theme.palette.error.main,
@@ -1110,8 +1156,37 @@ const LiquidacionesPorSalaPage = () => {
                       }}>
                         {formatearMonto(dialogDetalles.liquidacion.metricas.gastosAdministracion)}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Gastos
+                      <Typography variant="caption" color="text.secondary" sx={{
+                        lineHeight: 1.2,
+                        fontSize: '0.7rem'
+                      }}>
+                        Gastos de Administración
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6} sm={2.4}>
+                    <Box sx={{ 
+                      p: 2, 
+                      border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                      borderRadius: 1,
+                      backgroundColor: alpha(theme.palette.background.default, 0.5),
+                      textAlign: 'center',
+                      minHeight: '80px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'center'
+                    }}>
+                      <Typography variant="h6" sx={{ 
+                        color: theme.palette.text.primary,
+                        fontWeight: 600 
+                      }}>
+                        {formatearMonto(dialogDetalles.liquidacion.metricas.totalImpuestos)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{
+                        lineHeight: 1.2,
+                        fontSize: '0.7rem'
+                      }}>
+                        Total Impuestos
                       </Typography>
                     </Box>
                   </Grid>
@@ -1185,14 +1260,14 @@ const LiquidacionesPorSalaPage = () => {
                               fontWeight: 600,
                               fontSize: '0.875rem'
                             }}>
-                              Derechos
+                              Derechos de Explotación
                             </TableCell>
                             <TableCell align="right" sx={{ 
                               borderColor: 'divider',
                               fontWeight: 600,
                               fontSize: '0.875rem'
                             }}>
-                              Gastos
+                              Gastos de Administración
                             </TableCell>
                             <TableCell align="right" sx={{ 
                               borderColor: 'divider',
@@ -1235,7 +1310,7 @@ const LiquidacionesPorSalaPage = () => {
                                 color: theme.palette.warning.main,
                                 fontSize: '0.8rem'
                               }}>
-                                {formatearMonto(maquina.derechosExplotacion)}
+                                {formatearMontoConDecimales(maquina.derechosExplotacion)}
                               </Typography>
                             </TableCell>
                             <TableCell align="right" sx={{ borderColor: 'divider' }}>
@@ -1243,7 +1318,7 @@ const LiquidacionesPorSalaPage = () => {
                                 color: theme.palette.error.main,
                                 fontSize: '0.8rem'
                               }}>
-                                {formatearMonto(maquina.gastosAdministracion)}
+                                {formatearMontoConDecimales(maquina.gastosAdministracion)}
                               </Typography>
                             </TableCell>
                             <TableCell align="right" sx={{ borderColor: 'divider' }}>
@@ -1251,7 +1326,7 @@ const LiquidacionesPorSalaPage = () => {
                                 fontWeight: 600,
                                 fontSize: '0.8rem'
                               }}>
-                                {formatearMonto(maquina.totalImpuestos)}
+                                {formatearMontoConDecimales(maquina.totalImpuestos)}
                               </Typography>
                             </TableCell>
                           </TableRow>
@@ -1476,7 +1551,11 @@ const LiquidacionesPorSalaPage = () => {
                   border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
                   borderRadius: 1,
                   backgroundColor: alpha(theme.palette.background.default, 0.5),
-                  textAlign: 'center'
+                  textAlign: 'center',
+                  minHeight: '80px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center'
                 }}>
                   <Typography variant="h6" sx={{ 
                     color: theme.palette.success.main,
@@ -1484,7 +1563,10 @@ const LiquidacionesPorSalaPage = () => {
                   }}>
                     {formatearMonto(totalesCalculados.totalProduccion)}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" color="text.secondary" sx={{
+                    lineHeight: 1.2,
+                    fontSize: '0.7rem'
+                  }}>
                     Producción
                   </Typography>
                 </Box>
@@ -1495,16 +1577,23 @@ const LiquidacionesPorSalaPage = () => {
                   border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
                   borderRadius: 1,
                   backgroundColor: alpha(theme.palette.background.default, 0.5),
-                  textAlign: 'center'
+                  textAlign: 'center',
+                  minHeight: '80px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center'
                 }}>
                   <Typography variant="h6" sx={{ 
                     color: theme.palette.warning.main,
                     fontWeight: 600 
                   }}>
-                    {formatearMonto(totalesCalculados.totalDerechos)}
+                    {formatearMontoConDecimales(totalesCalculados.totalDerechos)}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Derechos
+                  <Typography variant="caption" color="text.secondary" sx={{
+                    lineHeight: 1.2,
+                    fontSize: '0.7rem'
+                  }}>
+                    Derechos de Explotación
                   </Typography>
                 </Box>
               </Grid>
@@ -1514,16 +1603,23 @@ const LiquidacionesPorSalaPage = () => {
                   border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
                   borderRadius: 1,
                   backgroundColor: alpha(theme.palette.background.default, 0.5),
-                  textAlign: 'center'
+                  textAlign: 'center',
+                  minHeight: '80px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center'
                 }}>
                   <Typography variant="h6" sx={{ 
                     color: theme.palette.error.main,
                     fontWeight: 600 
                   }}>
-                    {formatearMonto(totalesCalculados.totalGastos)}
+                    {formatearMontoConDecimales(totalesCalculados.totalGastos)}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Gastos
+                  <Typography variant="caption" color="text.secondary" sx={{
+                    lineHeight: 1.2,
+                    fontSize: '0.7rem'
+                  }}>
+                    Gastos de Administración
                   </Typography>
                 </Box>
               </Grid>
@@ -1533,15 +1629,22 @@ const LiquidacionesPorSalaPage = () => {
                   border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
                   borderRadius: 1,
                   backgroundColor: alpha(theme.palette.background.default, 0.5),
-                  textAlign: 'center'
+                  textAlign: 'center',
+                  minHeight: '80px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center'
                 }}>
                   <Typography variant="h6" sx={{ 
                     color: theme.palette.info.main,
                     fontWeight: 600 
                   }}>
-                    {formatearMonto(totalesCalculados.totalGeneral)}
+                    {formatearMontoConDecimales(totalesCalculados.totalGeneral)}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" color="text.secondary" sx={{
+                    lineHeight: 1.2,
+                    fontSize: '0.7rem'
+                  }}>
                     Total
                   </Typography>
                 </Box>
@@ -1600,28 +1703,36 @@ const LiquidacionesPorSalaPage = () => {
                           <TableCell align="right" sx={{ 
                             borderColor: 'divider',
                             fontWeight: 600,
-                            fontSize: '0.875rem'
+                            fontSize: '0.875rem',
+                            textAlign: 'right',
+                            paddingRight: '16px'
                           }}>
                             Producción
                           </TableCell>
                           <TableCell align="right" sx={{ 
                             borderColor: 'divider',
                             fontWeight: 600,
-                            fontSize: '0.875rem'
+                            fontSize: '0.875rem',
+                            textAlign: 'right',
+                            paddingRight: '16px'
                           }}>
-                            Derechos
+                            Derechos de Explotación
                           </TableCell>
                           <TableCell align="right" sx={{ 
                             borderColor: 'divider',
                             fontWeight: 600,
-                            fontSize: '0.875rem'
+                            fontSize: '0.875rem',
+                            textAlign: 'right',
+                            paddingRight: '16px'
                           }}>
-                            Gastos
+                            Gastos de Administración
                           </TableCell>
                           <TableCell align="right" sx={{ 
                             borderColor: 'divider',
                             fontWeight: 600,
-                            fontSize: '0.875rem'
+                            fontSize: '0.875rem',
+                            textAlign: 'right',
+                            paddingRight: '16px'
                           }}>
                             Total Impuestos
                           </TableCell>
@@ -1645,76 +1756,82 @@ const LiquidacionesPorSalaPage = () => {
                             <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>
                               {maquina.nuc || 'N/A'}
                             </TableCell>
-                            <TableCell align="right" sx={{ borderColor: 'divider' }}>
+                            <TableCell align="right" sx={{ 
+                              borderColor: 'divider',
+                              paddingRight: '16px'
+                            }}>
                               <TextField
                                 variant="standard"
-                                type="number"
+                                type="text"
                                 size="small"
-                                value={maquina.produccion || 0}
+                                value={formatearMonto(maquina.produccion || 0)}
                                 onChange={(e) => {
+                                  const nuevaProduccion = parsearMoneda(e.target.value);
                                   const nuevasMaquinas = [...datosMaquinasSala];
-                                  nuevasMaquinas[index].produccion = parseFloat(e.target.value) || 0;
+                                  
+                                  // Calcular automáticamente basándose en la producción
+                                  const derechos = nuevaProduccion * 0.12; // 12% de la producción
+                                  const gastos = derechos * 0.01; // 1% de los derechos
+                                  
+                                  nuevasMaquinas[index].produccion = nuevaProduccion;
+                                  nuevasMaquinas[index].derechosExplotacion = derechos;
+                                  nuevasMaquinas[index].gastosAdministracion = gastos;
+                                  
                                   setDatosMaquinasSala(nuevasMaquinas);
                                 }}
                                 InputProps={{
                                   style: { 
                                     color: theme.palette.success.main,
                                     fontWeight: 500,
-                                    fontSize: '0.8rem'
+                                    fontSize: '0.8rem',
+                                    textAlign: 'right'
                                   },
                                   disableUnderline: false
                                 }}
-                              />
-                            </TableCell>
-                            <TableCell align="right" sx={{ borderColor: 'divider' }}>
-                              <TextField
-                                variant="standard"
-                                type="number"
-                                size="small"
-                                value={maquina.derechosExplotacion || 0}
-                                onChange={(e) => {
-                                  const nuevasMaquinas = [...datosMaquinasSala];
-                                  nuevasMaquinas[index].derechosExplotacion = parseFloat(e.target.value) || 0;
-                                  setDatosMaquinasSala(nuevasMaquinas);
-                                }}
-                                InputProps={{
-                                  style: { 
-                                    color: theme.palette.warning.main,
-                                    fontWeight: 500,
-                                    fontSize: '0.8rem'
-                                  },
-                                  disableUnderline: false
+                                sx={{
+                                  '& input': {
+                                    textAlign: 'right'
+                                  }
                                 }}
                               />
                             </TableCell>
-                            <TableCell align="right" sx={{ borderColor: 'divider' }}>
-                              <TextField
-                                variant="standard"
-                                type="number"
-                                size="small"
-                                value={maquina.gastosAdministracion || 0}
-                                onChange={(e) => {
-                                  const nuevasMaquinas = [...datosMaquinasSala];
-                                  nuevasMaquinas[index].gastosAdministracion = parseFloat(e.target.value) || 0;
-                                  setDatosMaquinasSala(nuevasMaquinas);
-                                }}
-                                InputProps={{
-                                  style: { 
-                                    color: theme.palette.error.main,
-                                    fontWeight: 500,
-                                    fontSize: '0.8rem'
-                                  },
-                                  disableUnderline: false
-                                }}
-                              />
+                            <TableCell align="right" sx={{ 
+                              borderColor: 'divider',
+                              paddingRight: '16px'
+                            }}>
+                              <Typography sx={{ 
+                                color: theme.palette.warning.main,
+                                fontWeight: 500,
+                                fontSize: '0.8rem',
+                                textAlign: 'right'
+                              }}>
+                                {formatearMontoConDecimales(maquina.derechosExplotacion || 0)}
+                              </Typography>
                             </TableCell>
-                            <TableCell align="right" sx={{ borderColor: 'divider' }}>
+                            <TableCell align="right" sx={{ 
+                              borderColor: 'divider',
+                              paddingRight: '16px'
+                            }}>
+                              <Typography sx={{ 
+                                color: theme.palette.error.main,
+                                fontWeight: 500,
+                                fontSize: '0.8rem',
+                                textAlign: 'right'
+                              }}>
+                                {formatearMontoConDecimales(maquina.gastosAdministracion || 0)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right" sx={{ 
+                              borderColor: 'divider',
+                              paddingRight: '16px'
+                            }}>
                               <Typography sx={{ 
                                 color: theme.palette.text.primary,
                                 fontWeight: 500,
-                                fontSize: '0.8rem'
+                                fontSize: '0.8rem',
+                                textAlign: 'right'
                               }}>
-                                {formatearMonto((maquina.produccion || 0) + (maquina.derechosExplotacion || 0) + (maquina.gastosAdministracion || 0))}
+                                {formatearMontoConDecimales((maquina.derechosExplotacion || 0) + (maquina.gastosAdministracion || 0))}
                               </Typography>
                             </TableCell>
                           </TableRow>
