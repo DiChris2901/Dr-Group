@@ -57,6 +57,7 @@ import liquidacionPersistenceService from '../services/liquidacionPersistenceSer
 import { collection, query, where, onSnapshot, doc, getDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { getDocs, limit } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import systemConfigService from '../services/systemConfigService';
 // Formateador reutilizable para ingreso base manual
 const formatearCOPManual = (v) => new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(v || 0);
 
@@ -312,17 +313,110 @@ const LiquidacionesPorSalaPage = () => {
         console.log('🔧 Muestra de datos:', datosConsolidados.slice(0, 2));
         
         // Procesar los datos para la tabla
-        const maquinasData = datosConsolidados.map((maquina, index) => ({
+        let maquinasData = datosConsolidados.map((maquina, index) => {
+          if (index < 3) {
+            try {
+              console.log('[DEBUG diasTx] Raw maquina keys:', Object.keys(maquina));
+              console.log('[DEBUG diasTx] Valores candidatos:', {
+                diasTransmitidos: maquina.diasTransmitidos,
+                dias_transmitidos: maquina.dias_transmitidos,
+                diasTx: maquina.diasTx,
+                dias_mes: maquina.dias_mes,
+                diasMes: maquina.diasMes,
+                dias: maquina.dias,
+                metrics: maquina.metrics && {
+                  diasTransmitidos: maquina.metrics.diasTransmitidos,
+                  dias_tx: maquina.metrics.dias_tx,
+                  dias: maquina.metrics.dias
+                },
+                detalle: maquina.detalle && {
+                  diasTransmitidos: maquina.detalle.diasTransmitidos,
+                  dias: maquina.detalle.dias
+                }
+              });
+            } catch(e) { /* noop */ }
+          }
+          // Fallbacks extensivos para dias transmitidos (según distintos orígenes posibles)
+          const diasTx = (
+            maquina.diasTransmitidos ??
+            maquina.dias_transmitidos ??
+            maquina.diasTx ??
+            maquina.dias_mes ??
+            maquina.diasMes ??
+            maquina.dias ??
+            (maquina.metrics && (maquina.metrics.diasTransmitidos || maquina.metrics.dias_tx || maquina.metrics.dias)) ??
+            (maquina.detalle && (maquina.detalle.diasTransmitidos || maquina.detalle.dias))
+          );
+
+          let diasTransmitidosNormalizado = diasTx;
+          if (typeof diasTransmitidosNormalizado === 'string') {
+            const parsed = parseInt(diasTransmitidosNormalizado.replace(/[^0-9]/g,''),10);
+            if (!isNaN(parsed)) diasTransmitidosNormalizado = parsed; else diasTransmitidosNormalizado = null;
+          }
+          if (typeof diasTransmitidosNormalizado === 'number' && diasTransmitidosNormalizado < 0) {
+            diasTransmitidosNormalizado = null; // evitar valores negativos anómalos
+          }
+
+          return ({
           id: index,
           serial: maquina.serial || 'N/A',
           nuc: maquina.nuc?.toString() || 'N/A',
           tipoApuesta: maquina.tipoApuesta || maquina.tipo_apuesta || maquina.tipo || null,
+          diasTransmitidos: diasTransmitidosNormalizado ?? null,
           produccion: maquina.produccion || 0,
           derechosExplotacion: maquina.derechosExplotacion || 0,
           gastosAdministracion: maquina.gastosAdministracion || 0,
           totalImpuestos: maquina.totalImpuestos || 0,
           fueEditada: maquina.fueEditada === true // preservar bandera si existe
-        }));
+          });
+        });
+
+        // Si ninguna máquina trae diasTransmitidos pero el documento tiene un valor global potencial (por ejemplo en metricas), intentar inferir
+        if (maquinasData.every(m => m.diasTransmitidos == null)) {
+          const posibleGlobal = liquidacionData.diasTransmitidos || liquidacionData.diasMes || liquidacionData.dias || null;
+          if (typeof posibleGlobal === 'number' && posibleGlobal > 0 && posibleGlobal <= 31) {
+            console.log('[INFO diasTx] Usando valor global inferido para diasTransmitidos:', posibleGlobal);
+            maquinasData.forEach(m => { m.diasTransmitidos = posibleGlobal; });
+          }
+        }
+
+        // Si seguimos sin valores y este documento es una EDICION (tiene liquidacionOriginalId), intentar fusionar desde el documento original
+        if (maquinasData.every(m => m.diasTransmitidos == null) && liquidacionData.liquidacionOriginalId) {
+          try {
+            console.log('[MERGE diasTx] Intentando obtener diasTransmitidos desde original:', liquidacionData.liquidacionOriginalId);
+            const originalSnap = await getDoc(doc(db, 'liquidaciones_por_sala', liquidacionData.liquidacionOriginalId));
+            if (originalSnap.exists()) {
+              const originalData = originalSnap.data();
+              if (Array.isArray(originalData.datosConsolidados)) {
+                const mapaOriginal = new Map();
+                originalData.datosConsolidados.forEach(om => {
+                  const serialO = om.serial || om.Serial;
+                  if (!serialO) return;
+                  const diasO = om.diasTransmitidos ?? om.dias_transmitidos ?? om.dias ?? null;
+                  if (diasO != null) mapaOriginal.set(serialO, diasO);
+                });
+                if (mapaOriginal.size > 0) {
+                  maquinasData = maquinasData.map(m => {
+                    if (m.diasTransmitidos == null) {
+                      const diasO = mapaOriginal.get(m.serial);
+                      if (diasO != null) {
+                        return { ...m, diasTransmitidos: diasO };
+                      }
+                    }
+                    return m;
+                  });
+                  console.log(`[MERGE diasTx] Dias transmitidos aplicados desde original para ${Array.from(mapaOriginal.keys()).length} máquinas`);
+                } else {
+                  console.log('[MERGE diasTx] Original no contenía diasTransmitidos por máquina');
+                }
+              }
+            } else {
+              console.warn('[MERGE diasTx] No se encontró documento original');
+            }
+          } catch(mergeErr) {
+            console.warn('[MERGE diasTx] Error intentando fusionar diasTransmitidos desde original:', mergeErr);
+          }
+        }
         
         console.log('✅ Datos procesados para la tabla:', maquinasData);
         setDatosMaquinasSala(maquinasData);
@@ -395,7 +489,17 @@ const LiquidacionesPorSalaPage = () => {
         smmlv: baseParaEdicion.ingresoBaseManual.smmlv || ''
       });
     } else {
-      setIngresoBaseManual({ smmlv: '' });
+      // Prefill desde config del sistema si existe
+      try {
+        const cfg = await systemConfigService.getConfig();
+        if (cfg?.smmlvActual != null) {
+          setIngresoBaseManual({ smmlv: String(cfg.smmlvActual) });
+        } else {
+          setIngresoBaseManual({ smmlv: '' });
+        }
+      } catch {
+        setIngresoBaseManual({ smmlv: '' });
+      }
     }
     // Inicializar opciones de edición desde documento existente (si es edición) o valores por defecto
     if (baseParaEdicion?.esEdicion && baseParaEdicion?.opcionesEdicion) {
@@ -1463,6 +1567,7 @@ const LiquidacionesPorSalaPage = () => {
                                   <TableCell sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>
                                     Tipo Apuesta
                                   </TableCell>
+                                  {/* Columna Días Tx removida en modal Detalle por requerimiento */}
                                   <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
                                     Producción
                                   </TableCell>
@@ -1498,6 +1603,7 @@ const LiquidacionesPorSalaPage = () => {
                                       <TableCell align="center" sx={{ borderColor: 'divider', fontSize: '0.8rem', fontWeight: 500 }}>
                                         {maquina.tipoApuesta || maquina.tipo_apuesta || maquina.tipo || '—'}
                                       </TableCell>
+                                      {/* Celda Días Tx removida en modal Detalle */}
                                     <TableCell align="right" sx={{ borderColor: 'divider', whiteSpace: 'nowrap' }}>
                                       <Typography sx={{ color: theme.palette.success.main, fontWeight: 500, fontSize: '0.8rem' }}>
                                         {formatearMonto(maquina.produccion)}
@@ -1825,10 +1931,12 @@ const LiquidacionesPorSalaPage = () => {
                               <TableCell sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Serial</TableCell>
                               <TableCell sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>NUC</TableCell>
                               <TableCell sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Tipo Apuesta</TableCell>
+                              <TableCell sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Días Tx</TableCell>
                               <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Producción</TableCell>
                               <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Derechos de Explotación</TableCell>
                               <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Gastos de Administración</TableCell>
                               <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Total Impuestos</TableCell>
+                              <TableCell align="center" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap' }}>Variables</TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>
@@ -1850,6 +1958,9 @@ const LiquidacionesPorSalaPage = () => {
                                 </TableCell>
                                 <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>{maquina.nuc || 'N/A'}</TableCell>
                                 <TableCell align="center" sx={{ borderColor: 'divider', fontSize: '0.8rem', fontWeight: 500 }}>{maquina.tipoApuesta || maquina.tipo_apuesta || maquina.tipo || '—'}</TableCell>
+                                <TableCell align="center" sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>
+                                  {maquina.diasTransmitidos ?? '—'}
+                                </TableCell>
                                 <TableCell align="right" sx={{ borderColor: 'divider' }}>
                                   <TextField
                                     variant="standard"
@@ -1890,6 +2001,9 @@ const LiquidacionesPorSalaPage = () => {
                                   <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500, fontSize: '0.8rem' }}>
                                     {formatearMontoConDecimales((maquina.derechosExplotacion || 0) + (maquina.gastosAdministracion || 0))}
                                   </Typography>
+                                </TableCell>
+                                <TableCell align="center" sx={{ borderColor: 'divider', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                                  <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>—</Typography>
                                 </TableCell>
                               </TableRow>
                             ))}
@@ -1973,23 +2087,7 @@ const LiquidacionesPorSalaPage = () => {
                         <Typography variant="overline" sx={{ display: 'block', fontSize: '0.6rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>TOTAL</Typography>
                         <Typography variant="h6" sx={{ color: theme.palette.info.main, fontWeight: 600, m: 0 }}>{formatearMontoConDecimales(totalesCalculados.totalGeneral)}</Typography>
                       </Paper>
-                      <Paper elevation={0} sx={{ p: 1.2, borderRadius: 1.5, border: `1px dashed ${alpha(theme.palette.primary.main, 0.35)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.primary.dark, 0.10) : alpha(theme.palette.primary.light, 0.04), display:'flex', flexDirection:'column', gap: .75 }}>
-                        <Typography variant="overline" sx={{ display: 'block', fontSize: '0.55rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>INGRESO BASE (MANUAL)</Typography>
-                        <Box sx={{ display:'flex' }}>
-                          <TextField
-                            fullWidth
-                            size="small"
-                            label="SMMLV"
-                            type="number"
-                            value={ingresoBaseManual.smmlv}
-                            onChange={(e)=>{ setIngresoBaseManual(v=>({...v, smmlv:e.target.value})); if(!edicionDirty) setEdicionDirty(true);} }
-                            InputProps={{ inputProps:{ min:0 } }}
-                          />
-                        </Box>
-                        <Typography variant="caption" sx={{ mt:.25, color:theme.palette.text.secondary }}>
-                          Total: <strong>{formatearCOPManual(totalIngresoBaseManual)}</strong>
-                        </Typography>
-                      </Paper>
+                      {/* Panel de ingreso base manual removido (valor ahora interno e invisible) */}
                     </Box>
                   </Paper>
                   <Paper sx={{

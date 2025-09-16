@@ -33,6 +33,8 @@ import {
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { TextField, InputAdornment } from '@mui/material';
+import systemConfigService from '../services/systemConfigService';
 
 // Hooks y contextos
 import { useAuth } from '../context/AuthContext';
@@ -86,9 +88,67 @@ const ActivityLogsPage = () => {
   // Estados para Fase 2
   const [showCharts, setShowCharts] = useState(false);
   const [showAlerts, setShowAlerts] = useState(false);
+  // Configuración del sistema (SMMLV)
+  const [systemConfig, setSystemConfig] = useState(null);
+  const [smmlvInput, setSmmlvInput] = useState('');
+  const [savingSMMLV, setSavingSMMLV] = useState(false);
 
-  // Verificar permisos de administrador
+  // Verificar permisos de administrador (debe declararse antes de efectos que lo usan)
   const hasAdminAccess = userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN';
+
+  useEffect(() => {
+    if (!hasAdminAccess) return;
+    const unsub = systemConfigService.listenConfig(cfg => {
+      setSystemConfig(cfg);
+      if (cfg?.smmlvActual != null) {
+        setSmmlvInput(String(cfg.smmlvActual));
+      }
+    });
+    return () => unsub && unsub();
+  }, [hasAdminAccess]);
+
+  const handleSaveSMMLV = async () => {
+    try {
+      // Limpiar formato (quitar símbolos y separadores)
+      const raw = (smmlvInput || '').toString().replace(/[^0-9]/g,'');
+      const valorNum = parseFloat(raw);
+      if (isNaN(valorNum) || valorNum <= 0) {
+        addNotification({ type: 'error', message: 'Ingresa un valor numérico válido (>0)' });
+        return;
+      }
+      setSavingSMMLV(true);
+      await systemConfigService.updateSMMLV({ valor: valorNum, usuario: userProfile });
+      addNotification({ type: 'success', message: 'SMMLV actualizado' });
+    } catch (e) {
+      addNotification({ type: 'error', message: 'Error actualizando SMMLV: ' + e.message });
+    } finally {
+      setSavingSMMLV(false);
+    }
+  };
+
+  // Helper formato COP sin decimales
+  const formatCOP = (valor) => {
+    if (valor === '' || valor == null) return '';
+    const num = parseInt(String(valor).replace(/[^0-9]/g,''), 10);
+    if (isNaN(num)) return '';
+    return num.toLocaleString('es-CO');
+  };
+
+  const handleSMMLVChange = (e) => {
+    const raw = e.target.value;
+    // Permitir borrar
+    if (raw === '') {
+      setSmmlvInput('');
+      return;
+    }
+    // Extraer dígitos
+    const digits = raw.replace(/[^0-9]/g,'');
+    if (!digits) {
+      setSmmlvInput('');
+      return;
+    }
+    setSmmlvInput(formatCOP(digits));
+  };
 
   useEffect(() => {
     // Solo cargar si tiene permisos de admin
@@ -312,6 +372,47 @@ const ActivityLogsPage = () => {
       {(loading || refreshing) && (
         <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />
       )}
+
+      <Card sx={{ mb: 3, borderRadius: 1, border: `1px solid ${theme.palette.primary.main}40`, boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}>
+        <CardContent>
+          <Box sx={{ display:'flex', flexWrap:'wrap', gap:2, alignItems:'flex-end' }}>
+            <Box sx={{ flex: '1 1 180px', minWidth: 200 }}>
+              <Typography variant="overline" sx={{ fontWeight:600, letterSpacing:'.08em', fontSize:'0.65rem', color: theme.palette.text.secondary }}>SMMLV ACTUAL (CONFIGURACIÓN SISTEMA)</Typography>
+              <TextField
+                size="small"
+                label="SMMLV"
+                type="text"
+                value={smmlvInput}
+                onChange={handleSMMLVChange}
+                placeholder="0"
+                inputMode="numeric"
+                sx={{ mt: .5 }}
+                InputProps={{
+                  startAdornment: <InputAdornment position="start">$</InputAdornment>
+                }}
+              />
+            </Box>
+            <Box sx={{ display:'flex', gap:1, alignItems:'center' }}>
+              <Button
+                variant="contained"
+                disabled={savingSMMLV || !smmlvInput || parseInt(smmlvInput.replace(/[^0-9]/g,''),10) === systemConfig?.smmlvActual}
+                onClick={handleSaveSMMLV}
+                sx={{ borderRadius:1 }}
+              >{savingSMMLV ? 'Guardando…' : 'Guardar'}</Button>
+            </Box>
+            <Box sx={{ flex:1, minWidth:220 }}>
+              <Typography variant="caption" sx={{ display:'block', color: 'text.secondary' }}>
+                Último: {systemConfig?.smmlvActual ? systemConfig.smmlvActual.toLocaleString('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}) : '—'}
+              </Typography>
+              {systemConfig?.actualizadoPor && (
+                <Typography variant="caption" sx={{ display:'block', color: 'text.secondary' }}>
+                  Por: {systemConfig.actualizadoPor.email || systemConfig.actualizadoPor.nombre || '—'}
+                </Typography>
+              )}
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
 
       {/* Alerta de error */}
       {error && (

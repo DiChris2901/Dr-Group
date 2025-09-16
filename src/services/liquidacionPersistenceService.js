@@ -1681,6 +1681,15 @@ class LiquidacionPersistenceService {
         const datosConsolidados = nuevosDatosMaquinas.map(m => {
           const copia = { ...m };
           const fueEditada = m.fueEditada === true; // viene marcado desde la UI
+            // Preservar diasTransmitidos si viene en la nueva data o ya estaba en la previa
+            if (m.diasTransmitidos === undefined && m.dias_transmitidos !== undefined) {
+              copia.diasTransmitidos = m.dias_transmitidos;
+            }
+            // Normalizar a número si es string
+            if (copia.diasTransmitidos != null && typeof copia.diasTransmitidos === 'string') {
+              const parsedDias = parseInt(copia.diasTransmitidos.replace(/[^0-9]/g,''),10);
+              if (!isNaN(parsedDias)) copia.diasTransmitidos = parsedDias; else delete copia.diasTransmitidos;
+            }
           if (fueEditada) {
             copia.fueEditada = true;
             const serial = m.serial || m.Serial;
@@ -1776,8 +1785,13 @@ class LiquidacionPersistenceService {
             ...(anterior || {}),
             ...m,
             fueEditada: true,
+            diasTransmitidos: (m.diasTransmitidos !== undefined) ? m.diasTransmitidos : (anterior ? anterior.diasTransmitidos : undefined),
             totalImpuestos: (parseFloat(m.derechosExplotacion) || 0) + (parseFloat(m.gastosAdministracion) || 0)
           };
+          if (nuevoValor.diasTransmitidos != null && typeof nuevoValor.diasTransmitidos === 'string') {
+            const parsedDias = parseInt(nuevoValor.diasTransmitidos.replace(/[^0-9]/g,''),10);
+            if (!isNaN(parsedDias)) nuevoValor.diasTransmitidos = parsedDias; else delete nuevoValor.diasTransmitidos;
+          }
           previoMap.set(serial, nuevoValor);
           cambiosAplicados.push({
             serial,
