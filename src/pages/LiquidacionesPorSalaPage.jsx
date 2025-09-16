@@ -72,6 +72,8 @@ const LiquidacionesPorSalaPage = () => {
   const [dialogFacturacion, setDialogFacturacion] = useState({ open: false, liquidacion: null });
   const [dialogEdicion, setDialogEdicion] = useState({ open: false, liquidacion: null });
   const [datosEdicion, setDatosEdicion] = useState({});
+  // Estado para controlar si hay cambios no guardados en la edición (deshabilita auto-guardado)
+  const [edicionDirty, setEdicionDirty] = useState(false);
 
   // Contextos
   const { currentUser } = useAuth();
@@ -267,6 +269,8 @@ const LiquidacionesPorSalaPage = () => {
     // Limpiar datos anteriores y abrir modal
     setDatosMaquinasSala([]);
     setDialogEdicion({ open: true, liquidacion });
+    // Reiniciar estado de cambios pendientes al abrir el modal
+    setEdicionDirty(false);
     
     // Cargar datos detallados de las máquinas para edición
     console.log('🔍 Iniciando carga de datos de máquinas...');
@@ -336,6 +340,7 @@ const LiquidacionesPorSalaPage = () => {
       setDialogEdicion({ open: false, liquidacion: null });
       setDatosMaquinasSala([]);
       setDatosEdicion({});
+  setEdicionDirty(false);
       
     } catch (error) {
       console.error('Error al guardar edición:', error);
@@ -1015,8 +1020,9 @@ const LiquidacionesPorSalaPage = () => {
             setDialogDetalles({ open: false, liquidacion: null });
             setDatosMaquinasSala([]);
           }}
-          fullWidth
-          maxWidth="md"
+          /* Auto-size: dejamos que el contenido defina ancho, con límites de viewport */
+          fullWidth={false}
+          maxWidth={false}
           PaperProps={{
             sx: {
               borderRadius: 2,
@@ -1024,353 +1030,202 @@ const LiquidacionesPorSalaPage = () => {
               boxShadow: theme.palette.mode === 'dark'
                 ? '0 4px 20px rgba(0, 0, 0, 0.3)'
                 : '0 4px 20px rgba(0, 0, 0, 0.08)',
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+              width: 'auto',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column'
             }
           }}
         >
-          <DialogTitle sx={{ pb: 1, backgroundColor: alpha(theme.palette.primary.main, 0.05) }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar
-                sx={{
-                  backgroundColor: theme.palette.primary.main,
-                  color: 'white',
-                  width: 32,
-                  height: 32
-                }}
-              >
-                <InfoIcon fontSize="small" />
+          <DialogTitle sx={{
+            pb: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: theme.palette.mode === 'dark' ? theme.palette.grey[900] : theme.palette.grey[50],
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            color: 'text.primary'
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+                <ViewIcon fontSize="small" />
               </Avatar>
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Detalles de Liquidación
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
+                  Detalle de Liquidación
                 </Typography>
-                {dialogDetalles.liquidacion && (
-                  <Typography variant="body2" color="text.secondary">
-                    {dialogDetalles.liquidacion.empresa.nombre} - {formatearPeriodo(dialogDetalles.liquidacion.fechas.periodoLiquidacion)}
-                  </Typography>
-                )}
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {dialogDetalles.liquidacion ? `${dialogDetalles.liquidacion.empresa.nombre} • ${formatearPeriodo(dialogDetalles.liquidacion.fechas.periodoLiquidacion)}` : '—'}
+                </Typography>
               </Box>
-              <IconButton
-                onClick={() => {
-                  setDialogDetalles({ open: false, liquidacion: null });
-                  setDatosMaquinasSala([]);
-                }}
-                sx={{ ml: 'auto' }}
-              >
-                <CloseIcon />
-              </IconButton>
             </Box>
+            <IconButton onClick={() => { setDialogDetalles({ open: false, liquidacion: null }); setDatosMaquinasSala([]); }} sx={{ color: 'text.secondary' }}>
+              <CloseIcon />
+            </IconButton>
           </DialogTitle>
-          <DialogContent>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={8}>
+          <DialogContent sx={{ p: 3, pt: 6 }}>
+            {/* Layout flexible para que el ancho total se adapte al contenido real de la tabla */}
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 3,
+              // El panel izquierdo se dimensiona por su contenido (tabla), hasta un máximo relativo
+              '& > .detalle-maquinas-wrapper': {
+                flex: '0 1 auto'
+              },
+              '& > .sidebar-metricas': {
+                flex: '0 0 320px'
+              },
+              // Evitar que el contenedor provoque shrink que genere scroll horizontal
+              overflowX: 'visible'
+            }}>
+              <Box className="detalle-maquinas-wrapper">
                 {dialogDetalles.liquidacion && (
                   <Box>
-                {/* Resumen de métricas con diseño sobrio */}
-                <Grid container spacing={2} sx={{ mb: 3 }}>
-                  <Grid item xs={6} sm={2.4}>
-                    <Box sx={{ 
-                      p: 2, 
-                      border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                      borderRadius: 1,
-                      backgroundColor: alpha(theme.palette.background.default, 0.5),
-                      textAlign: 'center',
-                      minHeight: '80px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center'
+                    {/* Tabla detallada de máquinas en Paper auto-ajustable */}
+                    <Paper sx={{
+                      mt: 1.5,
+                      p: 3,
+                      borderRadius: 2,
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                      background: theme.palette.mode === 'dark'
+                        ? alpha(theme.palette.background.default, 0.4)
+                        : alpha(theme.palette.primary.light, 0.02),
+                      width: 'fit-content',
+                      maxWidth: '100%',
+                      overflow: 'hidden'
                     }}>
-                      <Typography variant="h6" sx={{ 
-                        color: theme.palette.primary.main,
-                        fontWeight: 600 
+                      <Typography variant="subtitle2" sx={{ 
+                        color: theme.palette.text.secondary,
+                        fontSize: '0.75rem',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.08em',
+                        fontWeight: 500,
+                        mb: 2
                       }}>
-                        {dialogDetalles.liquidacion.metricas.totalMaquinas}
+                        DETALLE POR MÁQUINA
                       </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{
-                        lineHeight: 1.2,
-                        fontSize: '0.7rem'
-                      }}>
-                        Máquinas
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={6} sm={2.4}>
-                    <Box sx={{ 
-                      p: 2, 
-                      border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                      borderRadius: 1,
-                      backgroundColor: alpha(theme.palette.background.default, 0.5),
-                      textAlign: 'center',
-                      minHeight: '80px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center'
-                    }}>
-                      <Typography variant="h6" sx={{ 
-                        color: theme.palette.success.main,
-                        fontWeight: 600 
-                      }}>
-                        {formatearMonto(dialogDetalles.liquidacion.metricas.totalProduccion)}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{
-                        lineHeight: 1.2,
-                        fontSize: '0.7rem'
-                      }}>
-                        Producción
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={6} sm={2.4}>
-                    <Box sx={{ 
-                      p: 2, 
-                      border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                      borderRadius: 1,
-                      backgroundColor: alpha(theme.palette.background.default, 0.5),
-                      textAlign: 'center',
-                      minHeight: '80px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center'
-                    }}>
-                      <Typography variant="h6" sx={{ 
-                        color: theme.palette.warning.main,
-                        fontWeight: 600 
-                      }}>
-                        {formatearMonto(dialogDetalles.liquidacion.metricas.derechosExplotacion)}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{
-                        lineHeight: 1.2,
-                        fontSize: '0.7rem'
-                      }}>
-                        Derechos de Explotación
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={6} sm={2.4}>
-                    <Box sx={{ 
-                      p: 2, 
-                      border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                      borderRadius: 1,
-                      backgroundColor: alpha(theme.palette.background.default, 0.5),
-                      textAlign: 'center',
-                      minHeight: '80px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center'
-                    }}>
-                      <Typography variant="h6" sx={{ 
-                        color: theme.palette.error.main,
-                        fontWeight: 600 
-                      }}>
-                        {formatearMonto(dialogDetalles.liquidacion.metricas.gastosAdministracion)}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{
-                        lineHeight: 1.2,
-                        fontSize: '0.7rem'
-                      }}>
-                        Gastos de Administración
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={6} sm={2.4}>
-                    <Box sx={{ 
-                      p: 2, 
-                      border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                      borderRadius: 1,
-                      backgroundColor: alpha(theme.palette.background.default, 0.5),
-                      textAlign: 'center',
-                      minHeight: '80px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'center'
-                    }}>
-                      <Typography variant="h6" sx={{ 
-                        color: theme.palette.text.primary,
-                        fontWeight: 600 
-                      }}>
-                        {formatearMonto(dialogDetalles.liquidacion.metricas.totalImpuestos)}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{
-                        lineHeight: 1.2,
-                        fontSize: '0.7rem'
-                      }}>
-                        Total Impuestos
-                      </Typography>
-                    </Box>
-                  </Grid>
-                </Grid>
-
-                {/* Tabla detallada de máquinas con diseño sobrio */}
-                <Typography variant="subtitle2" sx={{ 
-                  color: theme.palette.text.secondary,
-                  fontSize: '0.75rem',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                  fontWeight: 500,
-                  mt: 3,
-                  mb: 2
-                }}>
-                  DETALLE POR MÁQUINA
-                </Typography>
-                
-                {cargandoDetalles ? (
-                  <Box display="flex" justifyContent="center" py={4}>
-                    <CircularProgress />
-                    <Typography sx={{ ml: 2 }}>Cargando detalles...</Typography>
-                  </Box>
-                ) : datosMaquinasSala.length > 0 ? (
-                  <Box sx={{
-                    border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-                    borderRadius: 1,
-                    overflow: 'hidden'
-                  }}>
-                    <TableContainer>
-                      <Table size="small" sx={{
-                        width: 'auto',
-                        minWidth: '100%',
-                        '& .MuiTableCell-root': {
-                          borderColor: 'divider',
-                          padding: '8px 12px',
-                          whiteSpace: 'nowrap'
-                        },
-                        '& .MuiTableHead-root .MuiTableRow-root': {
-                          borderBottom: `1px solid ${theme.palette.divider}`
-                        }
-                      }}>
-                        <TableHead>
-                          <TableRow sx={{ 
-                            bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
-                            borderBottom: `1px solid ${theme.palette.divider}`
-                          }}>
-                            <TableCell sx={{ 
-                              borderColor: 'divider',
-                              fontWeight: 600,
-                              fontSize: '0.875rem'
-                            }}>
-                              Serial
-                            </TableCell>
-                            <TableCell sx={{ 
-                              borderColor: 'divider',
-                              fontWeight: 600,
-                              fontSize: '0.875rem'
-                            }}>
-                              NUC
-                            </TableCell>
-                            <TableCell align="right" sx={{ 
-                              borderColor: 'divider',
-                              fontWeight: 600,
-                              fontSize: '0.875rem'
-                            }}>
-                              Producción
-                            </TableCell>
-                            <TableCell align="right" sx={{ 
-                              borderColor: 'divider',
-                              fontWeight: 600,
-                              fontSize: '0.875rem'
-                            }}>
-                              Derechos de Explotación
-                            </TableCell>
-                            <TableCell align="right" sx={{ 
-                              borderColor: 'divider',
-                              fontWeight: 600,
-                              fontSize: '0.875rem'
-                            }}>
-                              Gastos de Administración
-                            </TableCell>
-                            <TableCell align="right" sx={{ 
-                              borderColor: 'divider',
-                              fontWeight: 600,
-                              fontSize: '0.875rem'
-                            }}>
-                              Total Impuestos
-                            </TableCell>
-                          </TableRow>
-                        </TableHead>
-                      <TableBody>
-                        {datosMaquinasSala.map((maquina, index) => (
-                          <TableRow 
-                            key={index} 
-                            sx={{
-                              borderColor: 'divider',
-                              transition: 'background-color 0.2s ease',
-                              '&:hover': {
-                                backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                      {cargandoDetalles ? (
+                        <Box display="flex" justifyContent="center" py={4}>
+                          <CircularProgress />
+                          <Typography sx={{ ml: 2 }}>Cargando detalles...</Typography>
+                        </Box>
+                      ) : datosMaquinasSala.length > 0 ? (
+                        <Box sx={{
+                          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                          borderRadius: 1,
+                          overflow: 'hidden',
+                          width: 'fit-content'
+                        }}>
+                          <TableContainer /* Altura automática: sin maxHeight interno; scroll recaerá en el Dialog si excede viewport */>
+                            <Table size="small" sx={{
+                              width: 'fit-content',
+                              tableLayout: 'auto',
+                              '& .MuiTableCell-root': {
+                                borderColor: 'divider',
+                                padding: '8px 12px'
+                              },
+                              '& .MuiTableHead-root .MuiTableRow-root': {
+                                borderBottom: `1px solid ${theme.palette.divider}`
                               }
-                            }}
-                          >
-                            <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>
-                              {maquina.serial || 'N/A'}
-                            </TableCell>
-                            <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>
-                              {maquina.nuc || 'N/A'}
-                            </TableCell>
-                            <TableCell align="right" sx={{ borderColor: 'divider' }}>
-                              <Typography sx={{ 
-                                color: theme.palette.success.main,
-                                fontWeight: 500,
-                                fontSize: '0.8rem'
-                              }}>
-                                {formatearMonto(maquina.produccion)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right" sx={{ borderColor: 'divider' }}>
-                              <Typography sx={{ 
-                                color: theme.palette.warning.main,
-                                fontSize: '0.8rem'
-                              }}>
-                                {formatearMontoConDecimales(maquina.derechosExplotacion)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right" sx={{ borderColor: 'divider' }}>
-                              <Typography sx={{ 
-                                color: theme.palette.error.main,
-                                fontSize: '0.8rem'
-                              }}>
-                                {formatearMontoConDecimales(maquina.gastosAdministracion)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right" sx={{ borderColor: 'divider' }}>
-                              <Typography sx={{ 
-                                fontWeight: 600,
-                                fontSize: '0.8rem'
-                              }}>
-                                {formatearMontoConDecimales(maquina.totalImpuestos)}
-                              </Typography>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
+                            }}>
+                              <TableHead>
+                                <TableRow sx={{ 
+                                  bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+                                  borderBottom: `1px solid ${theme.palette.divider}`
+                                }}>
+                                  <TableCell sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>
+                                    Serial
+                                  </TableCell>
+                                  <TableCell sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>
+                                    NUC
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
+                                    Producción
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
+                                    Derechos de Explotación
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
+                                    Gastos de Administración
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
+                                    Total Impuestos
+                                  </TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {datosMaquinasSala.map((maquina, index) => (
+                                  <TableRow 
+                                    key={index} 
+                                    sx={{
+                                      borderColor: 'divider',
+                                      transition: 'background-color 0.2s ease',
+                                      '&:hover': {
+                                        backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                                      }
+                                    }}
+                                  >
+                                    <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>
+                                      {maquina.serial || 'N/A'}
+                                    </TableCell>
+                                    <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>
+                                      {maquina.nuc || 'N/A'}
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ borderColor: 'divider', whiteSpace: 'nowrap' }}>
+                                      <Typography sx={{ color: theme.palette.success.main, fontWeight: 500, fontSize: '0.8rem' }}>
+                                        {formatearMonto(maquina.produccion)}
+                                      </Typography>
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ borderColor: 'divider', whiteSpace: 'nowrap' }}>
+                                      <Typography sx={{ color: theme.palette.warning.main, fontSize: '0.8rem' }}>
+                                        {formatearMontoConDecimales(maquina.derechosExplotacion)}
+                                      </Typography>
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ borderColor: 'divider', whiteSpace: 'nowrap' }}>
+                                      <Typography sx={{ color: theme.palette.error.main, fontSize: '0.8rem' }}>
+                                        {formatearMontoConDecimales(maquina.gastosAdministracion)}
+                                      </Typography>
+                                    </TableCell>
+                                    <TableCell align="right" sx={{ borderColor: 'divider', whiteSpace: 'nowrap' }}>
+                                      <Typography sx={{ fontWeight: 600, fontSize: '0.8rem' }}>
+                                        {formatearMontoConDecimales(maquina.totalImpuestos)}
+                                      </Typography>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        </Box>
+                      ) : (
+                        <Alert severity="info">
+                          No se pudieron cargar los detalles de las máquinas para esta sala.
+                        </Alert>
+                      )}
+                    </Paper>
                   </Box>
-                ) : (
-                  <Alert severity="info">
-                    No se pudieron cargar los detalles de las máquinas para esta sala.
-                  </Alert>
                 )}
-                  </Box>
-                )}
-              </Grid>
-              
-              <Grid item xs={12} md={4}>
+              </Box>
+
+              <Box className="sidebar-metricas">
                 {dialogDetalles.liquidacion && (
-                  <Box sx={{ pl: 2 }}>
-                    <Typography variant="subtitle2" sx={{ 
-                      color: theme.palette.text.secondary,
-                      fontSize: '0.75rem',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.08em',
-                      fontWeight: 500,
-                      mb: 2
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
+                    {/* Información adicional */}
+                    <Paper sx={{ 
+                      mt: 1.5,
+                      p: 2.5, 
+                      borderRadius: 2,
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                      background: theme.palette.mode === 'dark'
+                        ? alpha(theme.palette.background.default, 0.4)
+                        : alpha(theme.palette.primary.light, 0.02)
                     }}>
-                      Información Adicional
-                    </Typography>
-                    <Box sx={{ 
-                      p: 2, 
-                      border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-                      borderRadius: 1,
-                      backgroundColor: alpha(theme.palette.background.default, 0.3)
-                    }}>
+                      <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, mb: 1.5 }}>
+                        Información Adicional
+                      </Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                         <strong>Sala:</strong> {dialogDetalles.liquidacion.sala.nombre}
                       </Typography>
@@ -1380,34 +1235,56 @@ const LiquidacionesPorSalaPage = () => {
                       <Typography variant="body2" color="text.secondary">
                         <strong>Período:</strong> {formatearPeriodo(dialogDetalles.liquidacion.fechas.periodoLiquidacion)}
                       </Typography>
-                    </Box>
+                    </Paper>
+
+                    {/* Métricas (vertical full-width) */}
+                    <Paper sx={{
+                      p: 2.5,
+                      borderRadius: 2,
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                      background: theme.palette.mode === 'dark'
+                        ? alpha(theme.palette.background.default, 0.4)
+                        : alpha(theme.palette.primary.light, 0.02)
+                    }}>
+                      <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, mb: 2 }}>
+                        Métricas
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                        <Paper elevation={0} sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.primary.main, 0.25)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.primary.dark, 0.12) : alpha(theme.palette.primary.main, 0.03) }}>
+                          <Typography variant="overline" sx={{ display: 'block', lineHeight: 1.1, fontSize: '0.6rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>MÁQUINAS</Typography>
+                          <Typography variant="h6" sx={{ m: 0, fontWeight: 600, color: theme.palette.primary.main }}>{dialogDetalles.liquidacion.metricas.totalMaquinas}</Typography>
+                        </Paper>
+                        <Paper elevation= {0} sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.success.main, 0.25)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.success.dark, 0.12) : alpha(theme.palette.success.light, 0.06) }}>
+                          <Typography variant="overline" sx={{ display: 'block', fontSize: '0.6rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>PRODUCCIÓN</Typography>
+                          <Typography variant="h6" sx={{ m: 0, fontWeight: 600, color: theme.palette.success.main }}>{formatearMonto(dialogDetalles.liquidacion.metricas.totalProduccion)}</Typography>
+                        </Paper>
+                        <Paper elevation={0} sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.warning.main, 0.25)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.warning.dark, 0.12) : alpha(theme.palette.warning.light, 0.08) }}>
+                          <Typography variant="overline" sx={{ display: 'block', fontSize: '0.6rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>DERECHOS DE EXPLOTACIÓN</Typography>
+                          <Typography variant="h6" sx={{ m: 0, fontWeight: 600, color: theme.palette.warning.main }}>{formatearMonto(dialogDetalles.liquidacion.metricas.derechosExplotacion)}</Typography>
+                        </Paper>
+                        <Paper elevation={0} sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.error.main, 0.25)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.error.dark, 0.12) : alpha(theme.palette.error.light, 0.06) }}>
+                          <Typography variant="overline" sx={{ display: 'block', fontSize: '0.6rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>GASTOS DE ADMINISTRACIÓN</Typography>
+                          <Typography variant="h6" sx={{ m: 0, fontWeight: 600, color: theme.palette.error.main }}>{formatearMonto(dialogDetalles.liquidacion.metricas.gastosAdministracion)}</Typography>
+                        </Paper>
+                        <Paper elevation={0} sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.info.main, 0.25)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.info.dark, 0.12) : alpha(theme.palette.info.light, 0.06) }}>
+                          <Typography variant="overline" sx={{ display: 'block', fontSize: '0.6rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>TOTAL IMPUESTOS</Typography>
+                          <Typography variant="h6" sx={{ m: 0, fontWeight: 600, color: theme.palette.text.primary }}>{formatearMonto(dialogDetalles.liquidacion.metricas.totalImpuestos)}</Typography>
+                        </Paper>
+                      </Box>
+                    </Paper>
                   </Box>
                 )}
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
           </DialogContent>
-          <DialogActions sx={{ 
-            p: 2,
-            gap: 1,
-            borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-            backgroundColor: alpha(theme.palette.primary.main, 0.02)
-          }}>
-            <Button 
+          <DialogActions sx={{ p: 2, gap: 1, borderTop: `1px solid ${theme.palette.divider}` }}>
+            <Button
               onClick={() => {
                 setDialogDetalles({ open: false, liquidacion: null });
                 setDatosMaquinasSala([]);
               }}
               variant="outlined"
-              sx={{
-                borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 600,
-                borderColor: alpha(theme.palette.primary.main, 0.5),
-                '&:hover': {
-                  borderColor: theme.palette.primary.main,
-                  backgroundColor: alpha(theme.palette.primary.main, 0.04)
-                }
-              }}
+              sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 600 }}
             >
               Cerrar
             </Button>
@@ -1431,53 +1308,46 @@ const LiquidacionesPorSalaPage = () => {
             }
           }}
         >
-          <DialogTitle sx={{ pb: 1, backgroundColor: alpha(theme.palette.primary.main, 0.05) }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar
-                sx={{
-                  backgroundColor: theme.palette.primary.main,
-                  color: 'white',
-                  width: 32,
-                  height: 32
-                }}
-              >
+          <DialogTitle sx={{
+            pb: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: theme.palette.mode === 'dark' ? theme.palette.grey[900] : theme.palette.grey[50],
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            color: 'text.primary'
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
                 <ReceiptIcon fontSize="small" />
               </Avatar>
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 0 }}>
                   Gestión de Facturación
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   Control de Estados
                 </Typography>
               </Box>
-              <IconButton
-                onClick={() => setDialogFacturacion({ open: false, liquidacion: null })}
-                sx={{ ml: 'auto' }}
-              >
-                <CloseIcon />
-              </IconButton>
             </Box>
+            <IconButton onClick={() => setDialogFacturacion({ open: false, liquidacion: null })} sx={{ color: 'text.secondary' }}>
+              <CloseIcon />
+            </IconButton>
           </DialogTitle>
-          <DialogContent sx={{ px: 3, pt: 3 }}>
+          <DialogContent sx={{ p: 3, pt: 5 }}>
             {dialogFacturacion.liquidacion && (
               <Box>
-                <Box sx={{ 
-                  p: 2, 
-                  border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                  borderRadius: 1,
-                  backgroundColor: alpha(theme.palette.background.default, 0.5),
-                  mb: 2
+                <Paper sx={{
+                  p: 3,
+                  mb: 3,
+                  borderRadius: 2,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                  background: theme.palette.mode === 'dark'
+                    ? alpha(theme.palette.background.default, 0.5)
+                    : alpha(theme.palette.primary.light, 0.04)
                 }}>
-                  <Typography variant="subtitle2" sx={{ 
-                    color: theme.palette.text.secondary,
-                    fontSize: '0.75rem',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    fontWeight: 500,
-                    mb: 1
-                  }}>
-                    INFORMACIÓN DE LA SALA
+                  <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500, mb: 1 }}>
+                    Información de la Sala
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
                     {dialogFacturacion.liquidacion.sala.nombre}
@@ -1485,85 +1355,65 @@ const LiquidacionesPorSalaPage = () => {
                   <Typography variant="caption" color="text.secondary">
                     Estado: {dialogFacturacion.liquidacion.facturacion.estado.toUpperCase()}
                   </Typography>
-                </Box>
-                
-                <Box display="flex" flexDirection="column" gap={2}>
-                  <Button
-                    variant="outlined"
-                    startIcon={<PdfIcon />}
-                    disabled={['generada', 'enviada', 'pagada'].includes(dialogFacturacion.liquidacion.facturacion.estado)}
-                    onClick={() => {
-                      actualizarEstadoFacturacion(dialogFacturacion.liquidacion.id, 'generada');
-                      setDialogFacturacion({ open: false, liquidacion: null });
-                    }}
-                    sx={{
-                      borderRadius: 1,
-                      fontWeight: 600,
-                      textTransform: 'none',
-                      py: 1.5
-                    }}
-                  >
-                    Generar PDF/Factura
-                  </Button>
-                  
-                  <Button
-                    variant="outlined"
-                    startIcon={<SendIcon />}
-                    disabled={!['generada'].includes(dialogFacturacion.liquidacion.facturacion.estado)}
-                    onClick={() => {
-                      actualizarEstadoFacturacion(dialogFacturacion.liquidacion.id, 'enviada');
-                      setDialogFacturacion({ open: false, liquidacion: null });
-                    }}
-                    sx={{
-                      borderRadius: 1,
-                      fontWeight: 600,
-                      textTransform: 'none',
-                      py: 1.5
-                    }}
-                  >
-                    Marcar como Enviada
-                  </Button>
-                  
-                  <Button
-                    variant="outlined"
-                    startIcon={<PaymentIcon />}
-                    disabled={!['enviada'].includes(dialogFacturacion.liquidacion.facturacion.estado)}
-                    onClick={() => {
-                      actualizarEstadoFacturacion(dialogFacturacion.liquidacion.id, 'pagada');
-                      setDialogFacturacion({ open: false, liquidacion: null });
-                    }}
-                    sx={{
-                      borderRadius: 1,
-                      fontWeight: 600,
-                      textTransform: 'none',
-                      py: 1.5
-                    }}
-                  >
-                    Marcar como Pagada
-                  </Button>
-                </Box>
+                </Paper>
+                <Paper sx={{
+                  p: 3,
+                  borderRadius: 2,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                  background: theme.palette.mode === 'dark'
+                    ? alpha(theme.palette.background.default, 0.4)
+                    : alpha(theme.palette.primary.light, 0.02)
+                }}>
+                  <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500, mb: 2 }}>
+                    Acciones
+                  </Typography>
+                  <Box display="flex" flexDirection="column" gap={2}>
+                    <Button
+                      variant="outlined"
+                      startIcon={<PdfIcon />}
+                      disabled={['generada', 'enviada', 'pagada'].includes(dialogFacturacion.liquidacion.facturacion.estado)}
+                      onClick={() => {
+                        actualizarEstadoFacturacion(dialogFacturacion.liquidacion.id, 'generada');
+                        setDialogFacturacion({ open: false, liquidacion: null });
+                      }}
+                      sx={{ borderRadius: 1, fontWeight: 600, textTransform: 'none', py: 1.5 }}
+                    >
+                      Generar PDF/Factura
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<SendIcon />}
+                      disabled={!['generada'].includes(dialogFacturacion.liquidacion.facturacion.estado)}
+                      onClick={() => {
+                        actualizarEstadoFacturacion(dialogFacturacion.liquidacion.id, 'enviada');
+                        setDialogFacturacion({ open: false, liquidacion: null });
+                      }}
+                      sx={{ borderRadius: 1, fontWeight: 600, textTransform: 'none', py: 1.5 }}
+                    >
+                      Marcar como Enviada
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      startIcon={<PaymentIcon />}
+                      disabled={!['enviada'].includes(dialogFacturacion.liquidacion.facturacion.estado)}
+                      onClick={() => {
+                        actualizarEstadoFacturacion(dialogFacturacion.liquidacion.id, 'pagada');
+                        setDialogFacturacion({ open: false, liquidacion: null });
+                      }}
+                      sx={{ borderRadius: 1, fontWeight: 600, textTransform: 'none', py: 1.5 }}
+                    >
+                      Marcar como Pagada
+                    </Button>
+                  </Box>
+                </Paper>
               </Box>
             )}
           </DialogContent>
-          <DialogActions sx={{ 
-            p: 2,
-            gap: 1,
-            borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-            backgroundColor: alpha(theme.palette.primary.main, 0.02)
-          }}>
-            <Button 
+          <DialogActions sx={{ p: 2, gap: 1, borderTop: `1px solid ${theme.palette.divider}` }}>
+            <Button
               onClick={() => setDialogFacturacion({ open: false, liquidacion: null })}
               variant="outlined"
-              sx={{
-                borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 600,
-                borderColor: alpha(theme.palette.primary.main, 0.5),
-                '&:hover': {
-                  borderColor: theme.palette.primary.main,
-                  backgroundColor: alpha(theme.palette.primary.main, 0.04)
-                }
-              }}
+              sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 600 }}
             >
               Cancelar
             </Button>
@@ -1577,9 +1427,10 @@ const LiquidacionesPorSalaPage = () => {
             setDialogEdicion({ open: false, liquidacion: null });
             setDatosMaquinasSala([]);
             setDatosEdicion({});
+            setEdicionDirty(false);
           }}
-          fullWidth
-          maxWidth="lg"
+          fullWidth={false}
+          maxWidth={false}
           PaperProps={{
             sx: {
               borderRadius: 2,
@@ -1587,479 +1438,233 @@ const LiquidacionesPorSalaPage = () => {
               boxShadow: theme.palette.mode === 'dark'
                 ? '0 4px 20px rgba(0, 0, 0, 0.3)'
                 : '0 4px 20px rgba(0, 0, 0, 0.08)',
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+              width: 'auto',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column'
             }
           }}
         >
-          <DialogTitle sx={{ pb: 1, backgroundColor: alpha(theme.palette.primary.main, 0.05) }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Avatar
-                sx={{
-                  backgroundColor: theme.palette.primary.main,
-                  color: 'white',
-                  width: 32,
-                  height: 32
-                }}
-              >
+          <DialogTitle sx={{
+            pb: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: theme.palette.mode === 'dark' ? theme.palette.grey[900] : theme.palette.grey[50],
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            color: 'text.primary'
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
                 <EditIcon fontSize="small" />
               </Avatar>
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 0 }}>
                   Editar Liquidación
                 </Typography>
-                {dialogEdicion.liquidacion && (
-                  <Typography variant="body2" color="text.secondary">
-                    {dialogEdicion.liquidacion.sala?.nombre} - {formatearPeriodo(dialogEdicion.liquidacion.periodo)}
-                  </Typography>
-                )}
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {dialogEdicion.liquidacion ? `${dialogEdicion.liquidacion.sala?.nombre} • ${formatearPeriodo(dialogEdicion.liquidacion.periodo)}` : '—'}
+                </Typography>
               </Box>
-              <IconButton
-                onClick={() => {
-                  setDialogEdicion({ open: false, liquidacion: null });
-                  setDatosMaquinasSala([]);
-                  setDatosEdicion({});
-                }}
-                sx={{ ml: 'auto' }}
-              >
-                <CloseIcon />
-              </IconButton>
             </Box>
+            <IconButton onClick={() => { setDialogEdicion({ open: false, liquidacion: null }); setDatosMaquinasSala([]); setDatosEdicion({}); }} sx={{ color: 'text.secondary' }}>
+              <CloseIcon />
+            </IconButton>
           </DialogTitle>
           
-          <DialogContent>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={7}>
-                {/* Tarjetas de resumen editables */}
-            <Grid container spacing={2} sx={{ mb: 3 }}>
-              <Grid item xs={6} sm={3}>
-                <Box sx={{ 
-                  p: 2, 
-                  border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                  borderRadius: 1,
-                  backgroundColor: alpha(theme.palette.background.default, 0.5),
-                  textAlign: 'center',
-                  minHeight: '80px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center'
-                }}>
-                  <Typography variant="h6" sx={{ 
-                    color: theme.palette.success.main,
-                    fontWeight: 600 
-                  }}>
-                    {formatearMonto(totalesCalculados.totalProduccion)}
+          <DialogContent sx={{ p: 3, pt: 6 }}>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 3,
+              '& > .edit-left': { flex: '0 1 auto' },
+              '& > .edit-right': { flex: '0 0 340px' }
+            }}>
+              <Box className="edit-left">
+                <Paper sx={{ mt: 1.5, p: 3, mb: 3, borderRadius: 2, border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.background.default, 0.5) : alpha(theme.palette.primary.light, 0.02), width: 'fit-content', maxWidth: '100%' }}>
+                  <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, mb: 2 }}>
+                    DETALLE POR MÁQUINA
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{
-                    lineHeight: 1.2,
-                    fontSize: '0.7rem'
-                  }}>
-                    Producción
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={6} sm={3}>
-                <Box sx={{ 
-                  p: 2, 
-                  border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                  borderRadius: 1,
-                  backgroundColor: alpha(theme.palette.background.default, 0.5),
-                  textAlign: 'center',
-                  minHeight: '80px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center'
-                }}>
-                  <Typography variant="h6" sx={{ 
-                    color: theme.palette.warning.main,
-                    fontWeight: 600 
-                  }}>
-                    {formatearMontoConDecimales(totalesCalculados.totalDerechos)}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{
-                    lineHeight: 1.2,
-                    fontSize: '0.7rem'
-                  }}>
-                    Derechos de Explotación
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={6} sm={3}>
-                <Box sx={{ 
-                  p: 2, 
-                  border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                  borderRadius: 1,
-                  backgroundColor: alpha(theme.palette.background.default, 0.5),
-                  textAlign: 'center',
-                  minHeight: '80px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center'
-                }}>
-                  <Typography variant="h6" sx={{ 
-                    color: theme.palette.error.main,
-                    fontWeight: 600 
-                  }}>
-                    {formatearMontoConDecimales(totalesCalculados.totalGastos)}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{
-                    lineHeight: 1.2,
-                    fontSize: '0.7rem'
-                  }}>
-                    Gastos de Administración
-                  </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={6} sm={3}>
-                <Box sx={{ 
-                  p: 2, 
-                  border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                  borderRadius: 1,
-                  backgroundColor: alpha(theme.palette.background.default, 0.5),
-                  textAlign: 'center',
-                  minHeight: '80px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center'
-                }}>
-                  <Typography variant="h6" sx={{ 
-                    color: theme.palette.info.main,
-                    fontWeight: 600 
-                  }}>
-                    {formatearMontoConDecimales(totalesCalculados.totalGeneral)}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{
-                    lineHeight: 1.2,
-                    fontSize: '0.7rem'
-                  }}>
-                    Total
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
+                  {cargandoDetalles ? (
+                    <Box display="flex" justifyContent="center" py={4}>
+                      <CircularProgress />
+                      <Typography sx={{ ml: 2 }}>Cargando detalles...</Typography>
+                    </Box>
+                  ) : datosMaquinasSala.length > 0 ? (
+                    <Box sx={{ border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`, borderRadius: 1, overflow: 'hidden', width: 'fit-content' }}>
+                      <TableContainer>
+                        <Table size="small" sx={{ width: 'fit-content', tableLayout: 'auto', '& .MuiTableCell-root': { borderColor: 'divider', padding: '8px 12px' }, '& .MuiTableHead-root .MuiTableRow-root': { borderBottom: `1px solid ${theme.palette.divider}` } }}>
+                          <TableHead>
+                            <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50', borderBottom: `1px solid ${theme.palette.divider}` }}>
+                              <TableCell sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Serial</TableCell>
+                              <TableCell sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>NUC</TableCell>
+                              <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Producción</TableCell>
+                              <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Derechos de Explotación</TableCell>
+                              <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Gastos de Administración</TableCell>
+                              <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Total Impuestos</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {datosMaquinasSala.map((maquina, index) => (
+                              <TableRow key={index} sx={{ borderColor: 'divider', transition: 'background-color 0.2s ease', '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.04) } }}>
+                                <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>{maquina.serial || 'N/A'}</TableCell>
+                                <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>{maquina.nuc || 'N/A'}</TableCell>
+                                <TableCell align="right" sx={{ borderColor: 'divider' }}>
+                                  <TextField
+                                    variant="standard"
+                                    type="text"
+                                    size="small"
+                                    value={formatearMonto(maquina.produccion || 0)}
+                                    onChange={(e) => {
+                                      const nuevaProduccion = parsearMoneda(e.target.value);
+                                      const nuevasMaquinas = [...datosMaquinasSala];
+                                      const derechos = nuevaProduccion * 0.12;
+                                      const gastos = derechos * 0.01;
+                                      nuevasMaquinas[index].produccion = nuevaProduccion;
+                                      nuevasMaquinas[index].derechosExplotacion = derechos;
+                                      nuevasMaquinas[index].gastosAdministracion = gastos;
+                                      setDatosMaquinasSala(nuevasMaquinas);
+                                      if (!edicionDirty) setEdicionDirty(true);
+                                    }}
+                                    InputProps={{
+                                      style: { color: theme.palette.success.main, fontWeight: 500, fontSize: '0.8rem', textAlign: 'right' },
+                                      disableUnderline: false
+                                    }}
+                                    sx={{ '& input': { textAlign: 'right' } }}
+                                  />
+                                </TableCell>
+                                <TableCell align="right" sx={{ borderColor: 'divider' }}>
+                                  <Typography sx={{ color: theme.palette.warning.main, fontWeight: 500, fontSize: '0.8rem' }}>
+                                    {formatearMontoConDecimales(maquina.derechosExplotacion || 0)}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell align="right" sx={{ borderColor: 'divider' }}>
+                                  <Typography sx={{ color: theme.palette.error.main, fontWeight: 500, fontSize: '0.8rem' }}>
+                                    {formatearMontoConDecimales(maquina.gastosAdministracion || 0)}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell align="right" sx={{ borderColor: 'divider' }}>
+                                  <Typography sx={{ color: theme.palette.text.primary, fontWeight: 500, fontSize: '0.8rem' }}>
+                                    {formatearMontoConDecimales((maquina.derechosExplotacion || 0) + (maquina.gastosAdministracion || 0))}
+                                  </Typography>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    </Box>
+                  ) : (
+                    <Alert severity="warning" sx={{ borderRadius: 1 }} action={<Button color="warning" size="small" onClick={() => cargarDetallesSala(dialogEdicion.liquidacion)}>Reintentar</Button>}>
+                      <Typography variant="body2">No se pudieron cargar los detalles de las máquinas</Typography>
+                      <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.8 }}>
+                        ID de liquidación: {dialogEdicion.liquidacion?.id}<br/>
+                        Datos disponibles: {datosMaquinasSala.length} máquinas<br/>
+                        Estado de carga: {cargandoDetalles ? 'Cargando...' : 'Completado'}
+                      </Typography>
+                    </Alert>
+                  )}
+                </Paper>
 
-            {/* Tabla de máquinas editable */}
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                DETALLE POR MÁQUINA
-              </Typography>
-              
-              {cargandoDetalles ? (
-                <Box display="flex" justifyContent="center" py={4}>
-                  <CircularProgress />
-                  <Typography sx={{ ml: 2 }}>Cargando detalles...</Typography>
+                <Paper sx={{ p: 3, borderRadius: 2, border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.background.default, 0.5) : alpha(theme.palette.primary.light, 0.02), width: 'fit-content' }}>
+                  <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, mb: 2 }}>Motivo de la Edición</Typography>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={3}
+                    value={datosEdicion.motivoEdicion || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setDatosEdicion(prev => ({ ...prev, motivoEdicion: value }));
+                      // Marcar como sucio si cambia el motivo
+                      if (!edicionDirty) setEdicionDirty(true);
+                    }}
+                    placeholder="Describe el motivo de esta edición..."
+                    required
+                    helperText={!datosEdicion.motivoEdicion && edicionDirty ? 'Ingresa un motivo para habilitar el guardado' : ' '}
+                    sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                  />
+                  <Alert severity="info" sx={{ mt: 2, borderRadius: 1, backgroundColor: alpha(theme.palette.info.main, 0.1), border: `1px solid ${alpha(theme.palette.info.main, 0.2)}` }}>
+                    <Typography variant="body2">Se creará un nuevo registro manteniendo el original como historial. Esta acción quedará registrada para auditoría.</Typography>
+                  </Alert>
+                </Paper>
+              </Box>
+
+              <Box className="edit-right">
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
+                  <Paper sx={{ mt: 1.5, p: 2.5, borderRadius: 2, border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.background.default, 0.5) : alpha(theme.palette.primary.light, 0.02) }}>
+                    <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, mb: 1.5 }}>
+                      Información Base
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}><strong>Sala:</strong> {dialogEdicion.liquidacion?.sala?.nombre}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}><strong>Empresa:</strong> {dialogEdicion.liquidacion?.empresa?.nombre}</Typography>
+                    <Typography variant="body2" color="text.secondary"><strong>Período:</strong> {dialogEdicion.liquidacion ? formatearPeriodo(dialogEdicion.liquidacion.periodo) : '—'}</Typography>
+                  </Paper>
+                  <Paper sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.background.default, 0.5) : alpha(theme.palette.primary.light, 0.02) }}>
+                    <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, mb: 2 }}>
+                      Métricas Calculadas
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                      <Paper elevation={0} sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.success.main, 0.25)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.success.dark, 0.12) : alpha(theme.palette.success.light, 0.06) }}>
+                        <Typography variant="overline" sx={{ display: 'block', fontSize: '0.6rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>PRODUCCIÓN</Typography>
+                        <Typography variant="h6" sx={{ color: theme.palette.success.main, fontWeight: 600, m: 0 }}>{formatearMonto(totalesCalculados.totalProduccion)}</Typography>
+                      </Paper>
+                      <Paper elevation={0} sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.warning.main, 0.25)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.warning.dark, 0.12) : alpha(theme.palette.warning.light, 0.08) }}>
+                        <Typography variant="overline" sx={{ display: 'block', fontSize: '0.6rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>DERECHOS</Typography>
+                        <Typography variant="h6" sx={{ color: theme.palette.warning.main, fontWeight: 600, m: 0 }}>{formatearMontoConDecimales(totalesCalculados.totalDerechos)}</Typography>
+                      </Paper>
+                      <Paper elevation={0} sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.error.main, 0.25)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.error.dark, 0.12) : alpha(theme.palette.error.light, 0.06) }}>
+                        <Typography variant="overline" sx={{ display: 'block', fontSize: '0.6rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>GASTOS</Typography>
+                        <Typography variant="h6" sx={{ color: theme.palette.error.main, fontWeight: 600, m: 0 }}>{formatearMontoConDecimales(totalesCalculados.totalGastos)}</Typography>
+                      </Paper>
+                      <Paper elevation={0} sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.info.main, 0.25)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.info.dark, 0.12) : alpha(theme.palette.info.light, 0.06) }}>
+                        <Typography variant="overline" sx={{ display: 'block', fontSize: '0.6rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>TOTAL</Typography>
+                        <Typography variant="h6" sx={{ color: theme.palette.info.main, fontWeight: 600, m: 0 }}>{formatearMontoConDecimales(totalesCalculados.totalGeneral)}</Typography>
+                      </Paper>
+                    </Box>
+                  </Paper>
+                  <Paper sx={{
+                    p: 2.5,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                    background: theme.palette.mode === 'dark'
+                      ? alpha(theme.palette.background.default, 0.5)
+                      : alpha(theme.palette.primary.light, 0.02)
+                  }}>
+                    <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, mb: 2 }}>
+                      Herramientas de Edición
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}><strong>Estado:</strong> Modo edición activo</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}><strong>Auto-guardado:</strong> Deshabilitado</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}><strong>Cambios pendientes:</strong> {edicionDirty ? 'Sí' : 'No'}</Typography>
+                    <Typography variant="body2" color="text.secondary"><strong>Control de versión:</strong> Activado</Typography>
+                  </Paper>
                 </Box>
-              ) : datosMaquinasSala.length > 0 ? (
-                <Box sx={{
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-                  borderRadius: 1,
-                  overflow: 'hidden'
-                }}>
-                  <TableContainer>
-                    <Table size="small" sx={{
-                      width: 'auto',
-                      minWidth: '100%',
-                      '& .MuiTableCell-root': {
-                        borderColor: 'divider',
-                        padding: '8px 12px',
-                        whiteSpace: 'nowrap'
-                      },
-                      '& .MuiTableHead-root .MuiTableRow-root': {
-                        borderBottom: `1px solid ${theme.palette.divider}`
-                      }
-                    }}>
-                      <TableHead>
-                        <TableRow sx={{ 
-                          bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
-                          borderBottom: `1px solid ${theme.palette.divider}`
-                        }}>
-                          <TableCell sx={{ 
-                            borderColor: 'divider',
-                            fontWeight: 600,
-                            fontSize: '0.875rem'
-                          }}>
-                            Serial
-                          </TableCell>
-                          <TableCell sx={{ 
-                            borderColor: 'divider',
-                            fontWeight: 600,
-                            fontSize: '0.875rem'
-                          }}>
-                            NUC
-                          </TableCell>
-                          <TableCell align="right" sx={{ 
-                            borderColor: 'divider',
-                            fontWeight: 600,
-                            fontSize: '0.875rem',
-                            textAlign: 'right',
-                            paddingRight: '16px'
-                          }}>
-                            Producción
-                          </TableCell>
-                          <TableCell align="right" sx={{ 
-                            borderColor: 'divider',
-                            fontWeight: 600,
-                            fontSize: '0.875rem',
-                            textAlign: 'right',
-                            paddingRight: '16px'
-                          }}>
-                            Derechos de Explotación
-                          </TableCell>
-                          <TableCell align="right" sx={{ 
-                            borderColor: 'divider',
-                            fontWeight: 600,
-                            fontSize: '0.875rem',
-                            textAlign: 'right',
-                            paddingRight: '16px'
-                          }}>
-                            Gastos de Administración
-                          </TableCell>
-                          <TableCell align="right" sx={{ 
-                            borderColor: 'divider',
-                            fontWeight: 600,
-                            fontSize: '0.875rem',
-                            textAlign: 'right',
-                            paddingRight: '16px'
-                          }}>
-                            Total Impuestos
-                          </TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {datosMaquinasSala.map((maquina, index) => (
-                          <TableRow 
-                            key={index} 
-                            sx={{
-                              borderColor: 'divider',
-                              transition: 'background-color 0.2s ease',
-                              '&:hover': {
-                                backgroundColor: alpha(theme.palette.primary.main, 0.04)
-                              }
-                            }}
-                          >
-                            <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>
-                              {maquina.serial || 'N/A'}
-                            </TableCell>
-                            <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>
-                              {maquina.nuc || 'N/A'}
-                            </TableCell>
-                            <TableCell align="right" sx={{ 
-                              borderColor: 'divider',
-                              paddingRight: '16px'
-                            }}>
-                              <TextField
-                                variant="standard"
-                                type="text"
-                                size="small"
-                                value={formatearMonto(maquina.produccion || 0)}
-                                onChange={(e) => {
-                                  const nuevaProduccion = parsearMoneda(e.target.value);
-                                  const nuevasMaquinas = [...datosMaquinasSala];
-                                  
-                                  // Calcular automáticamente basándose en la producción
-                                  const derechos = nuevaProduccion * 0.12; // 12% de la producción
-                                  const gastos = derechos * 0.01; // 1% de los derechos
-                                  
-                                  nuevasMaquinas[index].produccion = nuevaProduccion;
-                                  nuevasMaquinas[index].derechosExplotacion = derechos;
-                                  nuevasMaquinas[index].gastosAdministracion = gastos;
-                                  
-                                  setDatosMaquinasSala(nuevasMaquinas);
-                                }}
-                                InputProps={{
-                                  style: { 
-                                    color: theme.palette.success.main,
-                                    fontWeight: 500,
-                                    fontSize: '0.8rem',
-                                    textAlign: 'right'
-                                  },
-                                  disableUnderline: false
-                                }}
-                                sx={{
-                                  '& input': {
-                                    textAlign: 'right'
-                                  }
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell align="right" sx={{ 
-                              borderColor: 'divider',
-                              paddingRight: '16px'
-                            }}>
-                              <Typography sx={{ 
-                                color: theme.palette.warning.main,
-                                fontWeight: 500,
-                                fontSize: '0.8rem',
-                                textAlign: 'right'
-                              }}>
-                                {formatearMontoConDecimales(maquina.derechosExplotacion || 0)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right" sx={{ 
-                              borderColor: 'divider',
-                              paddingRight: '16px'
-                            }}>
-                              <Typography sx={{ 
-                                color: theme.palette.error.main,
-                                fontWeight: 500,
-                                fontSize: '0.8rem',
-                                textAlign: 'right'
-                              }}>
-                                {formatearMontoConDecimales(maquina.gastosAdministracion || 0)}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right" sx={{ 
-                              borderColor: 'divider',
-                              paddingRight: '16px'
-                            }}>
-                              <Typography sx={{ 
-                                color: theme.palette.text.primary,
-                                fontWeight: 500,
-                                fontSize: '0.8rem',
-                                textAlign: 'right'
-                              }}>
-                                {formatearMontoConDecimales((maquina.derechosExplotacion || 0) + (maquina.gastosAdministracion || 0))}
-                              </Typography>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Box>
-              ) : (
-                <Alert 
-                  severity="warning" 
-                  sx={{ borderRadius: 1 }}
-                  action={
-                    <Button 
-                      color="warning" 
-                      size="small" 
-                      onClick={() => cargarDetallesSala(dialogEdicion.liquidacion)}
-                    >
-                      Reintentar
-                    </Button>
-                  }
-                >
-                  <Typography variant="body2">
-                    No se pudieron cargar los detalles de las máquinas
-                  </Typography>
-                  <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.8 }}>
-                    ID de liquidación: {dialogEdicion.liquidacion?.id}<br/>
-                    Datos disponibles: {datosMaquinasSala.length} máquinas<br/>
-                    Estado de carga: {cargandoDetalles ? 'Cargando...' : 'Completado'}
-                  </Typography>
-                </Alert>
-              )}
+              </Box>
             </Box>
-
-            {/* Motivo de edición */}
-            <Box sx={{ mt: 3 }}>
-              <TextField
-                fullWidth
-                label="Motivo de la Edición"
-                multiline
-                rows={3}
-                value={datosEdicion.motivoEdicion || ''}
-                onChange={(e) => setDatosEdicion(prev => ({ ...prev, motivoEdicion: e.target.value }))}
-                placeholder="Describe el motivo de esta edición..."
-                required
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
-                  }
-                }}
-              />
-            </Box>
-
-                {/* Alerta informativa */}
-                <Alert 
-                  severity="info" 
-                  sx={{ 
-                    mt: 2,
-                    borderRadius: 1,
-                    backgroundColor: alpha(theme.palette.info.main, 0.1),
-                    border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
-                  }}
-                >
-                  <Typography variant="body2">
-                    Se creará un nuevo registro manteniendo el original como historial. 
-                    Esta acción quedará registrada para auditoría.
-                  </Typography>
-                </Alert>
-              </Grid>
-              
-              <Grid item xs={12} md={5}>
-                <Box sx={{ pl: 2 }}>
-                  <Typography variant="subtitle2" sx={{ 
-                    color: theme.palette.text.secondary,
-                    fontSize: '0.75rem',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    fontWeight: 500,
-                    mb: 2
-                  }}>
-                    Herramientas de Edición
-                  </Typography>
-                  <Box sx={{ 
-                    p: 2, 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-                    borderRadius: 1,
-                    backgroundColor: alpha(theme.palette.background.default, 0.3)
-                  }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      <strong>Estado:</strong> Modo edición activo
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      <strong>Auto-guardado:</strong> Habilitado
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      <strong>Control de versión:</strong> Activado
-                    </Typography>
-                  </Box>
-                </Box>
-              </Grid>
-            </Grid>
           </DialogContent>
           
-          <DialogActions sx={{ 
-            p: 2,
-            gap: 1,
-            borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-            backgroundColor: alpha(theme.palette.primary.main, 0.02)
-          }}>
-            <Button 
+          <DialogActions sx={{ p: 2, gap: 1, borderTop: `1px solid ${theme.palette.divider}` }}>
+            <Button
               onClick={() => {
                 setDialogEdicion({ open: false, liquidacion: null });
                 setDatosMaquinasSala([]);
                 setDatosEdicion({});
+                setEdicionDirty(false);
               }}
               variant="outlined"
-              sx={{
-                borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 600,
-                borderColor: alpha(theme.palette.primary.main, 0.5),
-                '&:hover': {
-                  borderColor: theme.palette.primary.main,
-                  backgroundColor: alpha(theme.palette.primary.main, 0.04)
-                }
-              }}
+              sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 600 }}
             >
               Cancelar
             </Button>
-            <Button 
+            <Button
               variant="contained"
               onClick={guardarEdicionLiquidacion}
+              // Ahora solo depende del motivo: si hay cambios pero el usuario no cambió producción y solo quiere documentar un ajuste, igual puede guardar
               disabled={!datosEdicion.motivoEdicion}
-              sx={{
-                borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 600,
-                boxShadow: 'none',
-                '&:hover': {
-                  boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.24)}`
-                }
-              }}
+              sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 600, boxShadow: 'none', '&:hover': { boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.24)}` } }}
             >
               Guardar Edición
             </Button>
