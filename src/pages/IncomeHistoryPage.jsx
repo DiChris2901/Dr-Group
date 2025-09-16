@@ -914,7 +914,7 @@ const IncomeHistoryPage = () => {
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 1,
-                    backgroundColor: theme.palette.background.default,
+                    backgroundColor: theme.palette.background.paper,
                     transition: 'all 0.3s ease',
                     '&:hover': {
                       transform: 'translateY(-1px)',
@@ -956,7 +956,7 @@ const IncomeHistoryPage = () => {
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 1,
-                    backgroundColor: theme.palette.background.default,
+                    backgroundColor: theme.palette.background.paper,
                     transition: 'all 0.3s ease',
                     '&:hover': {
                       transform: 'translateY(-1px)',
@@ -994,7 +994,7 @@ const IncomeHistoryPage = () => {
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 1,
-                    backgroundColor: theme.palette.background.default,
+                    backgroundColor: theme.palette.background.paper,
                     transition: 'all 0.3s ease',
                     '&:hover': {
                       transform: 'translateY(-1px)',

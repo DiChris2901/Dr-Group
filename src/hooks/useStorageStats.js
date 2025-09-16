@@ -46,19 +46,24 @@ export const useStorageStats = () => {
             documentsCount = 0; // Usar 0 si no tenemos acceso
           }
           
-          // 🚫 TEMPORAL: Deshabilitar acceso a Storage para evitar errores 403
-          // Usar datos simulados hasta solucionar reglas de Storage
-          const storageStats = {
-            totalSize: 0, // Empezar conservadoramente
+          // � Obtener estadísticas reales de Firebase Storage
+          let storageStats = {
+            totalSize: 0,
             imageCount: 0,
             fileCount: 0
           };
 
-          console.log('📊 Usando estadísticas mínimas (permisos limitados)');
+          try {
+            storageStats = await getFirebaseStorageStats();
+            console.log('📊 Estadísticas reales de Storage obtenidas:', storageStats);
+          } catch (storageError) {
+            console.warn('⚠️ Error en Storage, usando datos mínimos:', storageError.message);
+            // Usar datos por defecto si hay error
+          }
 
           const usedGB = storageStats.totalSize / (1024 * 1024 * 1024);
 
-          setStorageData({
+          const finalStats = {
             used: parseFloat(usedGB.toFixed(2)),
             total: 5.0,
             documents: documentsCount,
@@ -66,7 +71,12 @@ export const useStorageStats = () => {
             files: storageStats.fileCount,
             loading: false,
             error: null
-          });
+          };
+
+          console.log('📊 Stats finales calculadas:', finalStats);
+          console.log('💾 Porcentaje de uso:', ((finalStats.used / finalStats.total) * 100).toFixed(1) + '%');
+
+          setStorageData(finalStats);
 
         } catch (error) {
           console.warn('⚠️ Error general en stats, usando valores por defecto:', error.message);

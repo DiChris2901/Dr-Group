@@ -12,7 +12,6 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Chip,
   Avatar,
   IconButton,
   Dialog,
@@ -29,26 +28,26 @@ import {
   Tooltip,
   CircularProgress,
   Alert,
-  Badge
+  Badge,
+  alpha,
+  useTheme
 } from '@mui/material';
 import {
   Business as BusinessIcon,
   Store as StoreIcon,
   Receipt as ReceiptIcon,
-  PictureAsPdf as PdfIcon,
   Send as SendIcon,
   Payment as PaymentIcon,
   FilterList as FilterIcon,
   Refresh as RefreshIcon,
-  Download as DownloadIcon,
   Visibility as ViewIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  PictureAsPdf as PdfIcon
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import liquidacionPersistenceService from '../services/liquidacionPersistenceService';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 
 const LiquidacionesPorSalaPage = () => {
@@ -62,18 +61,20 @@ const LiquidacionesPorSalaPage = () => {
   const [filtros, setFiltros] = useState({
     empresa: '',
     periodo: '',
-    sala: '',
-    estado: ''
+    sala: ''
   });
   const [filtrosAplicados, setFiltrosAplicados] = useState({});
 
   // Estados de UI
   const [dialogDetalles, setDialogDetalles] = useState({ open: false, liquidacion: null });
   const [dialogFacturacion, setDialogFacturacion] = useState({ open: false, liquidacion: null });
+  const [dialogEdicion, setDialogEdicion] = useState({ open: false, liquidacion: null });
+  const [datosEdicion, setDatosEdicion] = useState({});
 
   // Contextos
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
+  const theme = useTheme();
 
   // Listener en tiempo real para actualizaciones automáticas
   useEffect(() => {
@@ -122,11 +123,10 @@ const LiquidacionesPorSalaPage = () => {
               const pasaEmpresa = !filtrosAplicados.empresa || !filtrosAplicados.empresa.trim() || liquidacion.empresa.nombre === filtrosAplicados.empresa;
               const pasaPeriodo = !filtrosAplicados.periodo || !filtrosAplicados.periodo.trim() || liquidacion.fechas.periodoLiquidacion === filtrosAplicados.periodo;
               const pasaSala = !filtrosAplicados.sala || !filtrosAplicados.sala.trim() || liquidacion.sala.nombre === filtrosAplicados.sala;
-              const pasaEstado = !filtrosAplicados.estado || !filtrosAplicados.estado.trim() || filtrosAplicados.estado === 'todos' || liquidacion.facturacion.estado === filtrosAplicados.estado;
               
-              console.log(`🔍 Liquidación ${liquidacion.sala.nombre}: empresa=${pasaEmpresa}, periodo=${pasaPeriodo}, sala=${pasaSala}, estado=${pasaEstado}`);
+              console.log(`🔍 Liquidación ${liquidacion.sala.nombre}: empresa=${pasaEmpresa}, periodo=${pasaPeriodo}, sala=${pasaSala}`);
               
-              return pasaEmpresa && pasaPeriodo && pasaSala && pasaEstado;
+              return pasaEmpresa && pasaPeriodo && pasaSala;
             });
             console.log(`📊 Después de filtros: ${liquidacionesFiltradas.length} de ${liquidacionesRealTime.length}`);
           } else {
@@ -180,34 +180,55 @@ const LiquidacionesPorSalaPage = () => {
   const [datosMaquinasSala, setDatosMaquinasSala] = useState([]);
   const [cargandoDetalles, setCargandoDetalles] = useState(false);
 
-  // Cargar datos detallados de las máquinas de una sala específica
+  // Cargar datos detallados de las máquinas desde datosConsolidados
   const cargarDetallesSala = async (liquidacionSala) => {
     try {
       setCargandoDetalles(true);
       console.log('🔍 Cargando detalles para sala:', liquidacionSala.sala.nombre);
+      console.log('📋 Datos de liquidación recibidos:', liquidacionSala);
       
-      // Obtener la liquidación original completa
-      const liquidacionOriginal = await liquidacionPersistenceService.getLiquidacionById(
-        liquidacionSala.liquidacionOriginalId
-      );
+      // Obtener el documento completo desde Firebase
+      const liquidacionDoc = await getDoc(doc(db, 'liquidaciones_por_sala', liquidacionSala.id));
       
-      if (liquidacionOriginal && liquidacionOriginal.datos && liquidacionOriginal.datos.consolidatedData) {
-        // Filtrar solo las máquinas de esta sala
-        const maquinasDeLaSala = liquidacionOriginal.datos.consolidatedData.filter(
-          maquina => maquina.establecimiento === liquidacionSala.sala.nombre
-        );
+      if (!liquidacionDoc.exists()) {
+        console.warn('❌ No se encontró el documento de liquidación');
+        setDatosMaquinasSala([]);
+        addNotification('No se encontró el documento de liquidación', 'warning');
+        return;
+      }
+
+      const liquidacionData = liquidacionDoc.data();
+      console.log('📄 Documento completo cargado:', liquidacionData);
+      
+      // Verificar si tiene datosConsolidados
+      if (liquidacionData.datosConsolidados && Array.isArray(liquidacionData.datosConsolidados)) {
+        const datosConsolidados = liquidacionData.datosConsolidados;
+        console.log(`📊 Datos consolidados encontrados: ${datosConsolidados.length} máquinas`);
+        console.log('🔧 Muestra de datos:', datosConsolidados.slice(0, 2));
         
-        console.log(`📊 Encontradas ${maquinasDeLaSala.length} máquinas para la sala ${liquidacionSala.sala.nombre}`);
-        setDatosMaquinasSala(maquinasDeLaSala);
+        // Procesar los datos para la tabla
+        const maquinasData = datosConsolidados.map((maquina, index) => ({
+          id: index,
+          serial: maquina.serial || 'N/A',
+          nuc: maquina.nuc?.toString() || 'N/A',
+          produccion: maquina.produccion || 0,
+          derechosExplotacion: maquina.derechosExplotacion || 0,
+          gastosAdministracion: maquina.gastosAdministracion || 0,
+          totalImpuestos: maquina.totalImpuestos || 0
+        }));
+        
+        console.log('✅ Datos procesados para la tabla:', maquinasData);
+        setDatosMaquinasSala(maquinasData);
         
       } else {
-        console.warn('No se encontraron datos consolidados en la liquidación original');
+        console.warn('❌ No se encontraron datosConsolidados en el documento');
+        console.log('Estructura del documento:', Object.keys(liquidacionData));
         setDatosMaquinasSala([]);
-        addNotification('No se pudieron cargar los detalles de las máquinas', 'warning');
+        addNotification('No se encontraron datos consolidados de máquinas', 'warning');
       }
       
     } catch (error) {
-      console.error('Error cargando detalles de sala:', error);
+      console.error('❌ Error cargando detalles de sala:', error);
       setDatosMaquinasSala([]);
       addNotification('Error al cargar detalles de la sala', 'error');
     } finally {
@@ -221,20 +242,133 @@ const LiquidacionesPorSalaPage = () => {
   };
 
   const limpiarFiltros = () => {
-    setFiltros({ empresa: '', periodo: '', sala: '', estado: '' });
+    setFiltros({ empresa: '', periodo: '', sala: '' });
     setFiltrosAplicados({});
+  };
+
+  // Funciones para edición de liquidaciones
+  const abrirModalEdicion = async (liquidacion) => {
+    console.log('🔧 Abriendo modal de edición para:', liquidacion);
+    
+    setDatosEdicion({
+      sala: liquidacion.sala.nombre,
+      empresa: liquidacion.empresa,
+      periodo: liquidacion.periodo,
+      totalProduccion: liquidacion.metricas.totalProduccion,
+      derechosExplotacion: liquidacion.metricas.derechosExplotacion,
+      gastosAdministracion: liquidacion.metricas.gastosAdministracion,
+      totalImpuestos: liquidacion.metricas.totalImpuestos,
+      numeroMaquinas: liquidacion.metricas.numeroMaquinas,
+      motivoEdicion: ''
+    });
+    
+    // Limpiar datos anteriores y abrir modal
+    setDatosMaquinasSala([]);
+    setDialogEdicion({ open: true, liquidacion });
+    
+    // Cargar datos detallados de las máquinas para edición
+    console.log('🔍 Iniciando carga de datos de máquinas...');
+    try {
+      await cargarDetallesSala(liquidacion);
+      console.log('✅ Datos de máquinas cargados exitosamente');
+    } catch (error) {
+      console.error('❌ Error al cargar datos de máquinas:', error);
+    }
+  };
+
+  const guardarEdicionLiquidacion = async () => {
+    try {
+      const liquidacionOriginal = dialogEdicion.liquidacion;
+      
+      // Obtener totales calculados automáticamente
+      const totales = calcularTotalesDesdeTabla();
+      const totalProduccion = totales.totalProduccion;
+      const totalDerechos = totales.totalDerechos;
+      const totalGastos = totales.totalGastos;
+      const totalImpuestos = totales.totalGeneral;
+      
+      // Crear nueva liquidación con los datos editados
+      const nuevaLiquidacion = {
+        ...liquidacionOriginal,
+        metricas: {
+          ...liquidacionOriginal.metricas,
+          totalProduccion,
+          derechosExplotacion: totalDerechos,
+          gastosAdministracion: totalGastos,
+          totalImpuestos,
+          numeroMaquinas: datosMaquinasSala.length
+        },
+        // Actualizar datosConsolidados con los valores editados
+        datosConsolidados: datosMaquinasSala.map(maq => ({
+          ...maq,
+          totalImpuestos: (maq.produccion || 0) + (maq.derechosExplotacion || 0) + (maq.gastosAdministracion || 0)
+        })),
+        // Metadatos de edición
+        esEdicion: true,
+        liquidacionOriginalId: liquidacionOriginal.id,
+        fechaEdicion: new Date(),
+        usuarioEdicion: currentUser.uid,
+        motivoEdicion: datosEdicion.motivoEdicion,
+        historialEdiciones: [
+          ...(liquidacionOriginal.historialEdiciones || []),
+          {
+            fecha: new Date(),
+            usuario: currentUser.uid,
+            motivo: datosEdicion.motivoEdicion,
+            valoresAnteriores: {
+              totalProduccion: liquidacionOriginal.metricas.totalProduccion,
+              derechosExplotacion: liquidacionOriginal.metricas.derechosExplotacion,
+              gastosAdministracion: liquidacionOriginal.metricas.gastosAdministracion,
+              totalImpuestos: liquidacionOriginal.metricas.totalImpuestos,
+              numeroMaquinas: liquidacionOriginal.metricas.numeroMaquinas,
+              datosConsolidados: liquidacionOriginal.datosConsolidados
+            }
+          }
+        ]
+      };
+
+      // Guardar en Firestore como nuevo documento
+      await liquidacionPersistenceService.saveLiquidacionPorSala(nuevaLiquidacion);
+      
+      addNotification('Liquidación editada correctamente. Se creó un nuevo registro.', 'success');
+      setDialogEdicion({ open: false, liquidacion: null });
+      setDatosMaquinasSala([]);
+      setDatosEdicion({});
+      
+    } catch (error) {
+      console.error('Error al guardar edición:', error);
+      addNotification('Error al guardar la edición de la liquidación', 'error');
+    }
+  };
+
+  // Calcular totales automáticamente desde la tabla de máquinas
+  const calcularTotalesDesdeTabla = () => {
+    if (!datosMaquinasSala || datosMaquinasSala.length === 0) {
+      return {
+        totalProduccion: 0,
+        totalDerechos: 0,
+        totalGastos: 0,
+        totalGeneral: 0
+      };
+    }
+
+    const totalProduccion = datosMaquinasSala.reduce((sum, maq) => sum + (parseFloat(maq.produccion) || 0), 0);
+    const totalDerechos = datosMaquinasSala.reduce((sum, maq) => sum + (parseFloat(maq.derechosExplotacion) || 0), 0);
+    const totalGastos = datosMaquinasSala.reduce((sum, maq) => sum + (parseFloat(maq.gastosAdministracion) || 0), 0);
+    const totalGeneral = totalProduccion + totalDerechos + totalGastos;
+
+    return {
+      totalProduccion,
+      totalDerechos,
+      totalGastos,
+      totalGeneral
+    };
   };
 
   // Calcular estadísticas localmente
   const calcularEstadisticasLocalmente = (liquidacionesData) => {
     const estadisticas = {
       totalLiquidaciones: liquidacionesData.length,
-      porEstado: {
-        pendiente: 0,
-        generada: 0,
-        enviada: 0,
-        pagada: 0
-      },
       montos: {
         totalProduccion: 0,
         totalDerechos: 0,
@@ -247,10 +381,6 @@ const LiquidacionesPorSalaPage = () => {
     };
 
     liquidacionesData.forEach(liq => {
-      // Contar por estado
-      if (liq.facturacion?.estado) {
-        estadisticas.porEstado[liq.facturacion.estado]++;
-      }
       
       // Sumar montos
       if (liq.metricas) {
@@ -281,10 +411,14 @@ const LiquidacionesPorSalaPage = () => {
     return {
       empresas: [...new Set(liquidaciones.map(l => l.empresa.nombre))].sort(),
       periodos: [...new Set(liquidaciones.map(l => l.fechas.periodoLiquidacion))].sort().reverse(),
-      salas: [...new Set(liquidaciones.map(l => l.sala.nombre))].sort(),
-      estados: ['pendiente', 'generada', 'enviada', 'pagada']
+      salas: [...new Set(liquidaciones.map(l => l.sala.nombre))].sort()
     };
   }, [liquidaciones]);
+
+  // Calcular totales automáticamente cuando cambien los datos de las máquinas
+  const totalesCalculados = useMemo(() => {
+    return calcularTotalesDesdeTabla();
+  }, [datosMaquinasSala]);
 
   // Funciones de manejo de estados
   const actualizarEstadoFacturacion = async (salaId, nuevoEstado, datosAdicionales = {}) => {
@@ -309,38 +443,66 @@ const LiquidacionesPorSalaPage = () => {
     }
   };
 
-  // Obtener color del chip según estado
-  const getChipColor = (estado) => {
-    const colores = {
-      pendiente: 'warning',
-      generada: 'info',
-      enviada: 'primary',
-      pagada: 'success'
-    };
-    return colores[estado] || 'default';
-  };
-
   // Formatear montos
   const formatearMonto = (monto) => {
     return new Intl.NumberFormat('es-CO', {
       style: 'currency',
       currency: 'COP',
-      minimumFractionDigits: 0
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(monto || 0);
   };
 
-  // Componente de estadísticas
+  // Formatear período (de "agosto_2025" a "Agosto 2025")
+  const formatearPeriodo = (periodo) => {
+    if (!periodo) return '';
+    
+    const [mes, año] = periodo.split('_');
+    const mesesMap = {
+      enero: 'Enero',
+      febrero: 'Febrero',
+      marzo: 'Marzo',
+      abril: 'Abril',
+      mayo: 'Mayo',
+      junio: 'Junio',
+      julio: 'Julio',
+      agosto: 'Agosto',
+      septiembre: 'Septiembre',
+      octubre: 'Octubre',
+      noviembre: 'Noviembre',
+      diciembre: 'Diciembre'
+    };
+    
+    return `${mesesMap[mes] || mes} ${año}`;
+  };
+
+  // Componente de estadísticas con diseño sobrio
   const EstadisticasResumen = () => (
     <Grid container spacing={3} sx={{ mb: 3 }}>
       <Grid item xs={12} sm={6} md={3}>
-        <Card>
-          <CardContent>
+        <Card sx={{
+          borderRadius: 1,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          transition: 'box-shadow 0.2s ease',
+          '&:hover': {
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            borderColor: alpha(theme.palette.primary.main, 0.8)
+          }
+        }}>
+          <CardContent sx={{ p: 3 }}>
             <Box display="flex" alignItems="center">
-              <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
+              <Avatar sx={{ 
+                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                color: theme.palette.primary.main,
+                mr: 2 
+              }}>
                 <StoreIcon />
               </Avatar>
               <Box>
-                <Typography variant="h6">{estadisticas?.total || 0}</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  {estadisticas?.totalLiquidaciones || 0}
+                </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Total Liquidaciones
                 </Typography>
@@ -351,16 +513,31 @@ const LiquidacionesPorSalaPage = () => {
       </Grid>
 
       <Grid item xs={12} sm={6} md={3}>
-        <Card>
-          <CardContent>
+        <Card sx={{
+          borderRadius: 1,
+          border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          transition: 'box-shadow 0.2s ease',
+          '&:hover': {
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            borderColor: alpha(theme.palette.success.main, 0.8)
+          }
+        }}>
+          <CardContent sx={{ p: 3 }}>
             <Box display="flex" alignItems="center">
-              <Avatar sx={{ bgcolor: 'success.main', mr: 2 }}>
+              <Avatar sx={{ 
+                bgcolor: alpha(theme.palette.success.main, 0.1),
+                color: theme.palette.success.main,
+                mr: 2 
+              }}>
                 <PaymentIcon />
               </Avatar>
               <Box>
-                <Typography variant="h6">{estadisticas?.porEstado?.pagada || 0}</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  {formatearMonto(estadisticas?.montos?.totalProduccion)}
+                </Typography>
                 <Typography variant="body2" color="textSecondary">
-                  Pagadas
+                  Total Producción
                 </Typography>
               </Box>
             </Box>
@@ -369,16 +546,31 @@ const LiquidacionesPorSalaPage = () => {
       </Grid>
 
       <Grid item xs={12} sm={6} md={3}>
-        <Card>
-          <CardContent>
+        <Card sx={{
+          borderRadius: 1,
+          border: `1px solid ${alpha(theme.palette.warning.main, 0.6)}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          transition: 'box-shadow 0.2s ease',
+          '&:hover': {
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            borderColor: alpha(theme.palette.warning.main, 0.8)
+          }
+        }}>
+          <CardContent sx={{ p: 3 }}>
             <Box display="flex" alignItems="center">
-              <Avatar sx={{ bgcolor: 'warning.main', mr: 2 }}>
+              <Avatar sx={{ 
+                bgcolor: alpha(theme.palette.warning.main, 0.1),
+                color: theme.palette.warning.main,
+                mr: 2 
+              }}>
                 <ReceiptIcon />
               </Avatar>
               <Box>
-                <Typography variant="h6">{estadisticas?.porEstado?.pendiente || 0}</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  {formatearMonto(estadisticas?.montos?.totalDerechos)}
+                </Typography>
                 <Typography variant="body2" color="textSecondary">
-                  Pendientes
+                  Total Derechos
                 </Typography>
               </Box>
             </Box>
@@ -387,14 +579,29 @@ const LiquidacionesPorSalaPage = () => {
       </Grid>
 
       <Grid item xs={12} sm={6} md={3}>
-        <Card>
-          <CardContent>
+        <Card sx={{
+          borderRadius: 1,
+          border: `1px solid ${alpha(theme.palette.info.main, 0.6)}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          transition: 'box-shadow 0.2s ease',
+          '&:hover': {
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            borderColor: alpha(theme.palette.info.main, 0.8)
+          }
+        }}>
+          <CardContent sx={{ p: 3 }}>
             <Box display="flex" alignItems="center">
-              <Avatar sx={{ bgcolor: 'info.main', mr: 2 }}>
+              <Avatar sx={{ 
+                bgcolor: alpha(theme.palette.info.main, 0.1),
+                color: theme.palette.info.main,
+                mr: 2 
+              }}>
                 <BusinessIcon />
               </Avatar>
               <Box>
-                <Typography variant="h6">{formatearMonto(estadisticas?.montos?.totalImpuestos)}</Typography>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  {formatearMonto(estadisticas?.montos?.totalImpuestos)}
+                </Typography>
                 <Typography variant="body2" color="textSecondary">
                   Total Impuestos
                 </Typography>
@@ -406,23 +613,48 @@ const LiquidacionesPorSalaPage = () => {
     </Grid>
   );
 
-  // Componente de filtros
+  // Componente de filtros con diseño sobrio
   const PanelFiltros = () => (
-    <Card sx={{ mb: 3 }}>
-      <CardContent>
+    <Card sx={{ 
+      mb: 3,
+      borderRadius: 1,
+      border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+      transition: 'box-shadow 0.2s ease',
+      '&:hover': {
+        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+        borderColor: alpha(theme.palette.primary.main, 0.8)
+      }
+    }}>
+      <CardContent sx={{ p: 3 }}>
         <Box display="flex" alignItems="center" mb={2}>
-          <FilterIcon sx={{ mr: 1 }} />
-          <Typography variant="h6">Filtros</Typography>
+          <FilterIcon sx={{ mr: 1, color: theme.palette.primary.main }} />
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Filtros
+          </Typography>
         </Box>
         
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6} md={2}>
+          <Grid item xs={12} sm={6} md={3}>
             <FormControl fullWidth size="small">
               <InputLabel>Empresa</InputLabel>
               <Select
                 value={filtros.empresa}
                 label="Empresa"
                 onChange={(e) => setFiltros({ ...filtros, empresa: e.target.value })}
+                sx={{
+                  borderRadius: 1,
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.08)
+                    },
+                    '&.Mui-focused': {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.1)
+                    }
+                  }
+                }}
               >
                 <MenuItem value="">Todas</MenuItem>
                 {opcionesFiltros.empresas.map(empresa => (
@@ -432,29 +664,55 @@ const LiquidacionesPorSalaPage = () => {
             </FormControl>
           </Grid>
 
-          <Grid item xs={12} sm={6} md={2}>
+          <Grid item xs={12} sm={6} md={3}>
             <FormControl fullWidth size="small">
               <InputLabel>Período</InputLabel>
               <Select
                 value={filtros.periodo}
                 label="Período"
                 onChange={(e) => setFiltros({ ...filtros, periodo: e.target.value })}
+                sx={{
+                  borderRadius: 1,
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.08)
+                    },
+                    '&.Mui-focused': {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.1)
+                    }
+                  }
+                }}
               >
                 <MenuItem value="">Todos</MenuItem>
                 {opcionesFiltros.periodos.map(periodo => (
-                  <MenuItem key={periodo} value={periodo}>{periodo}</MenuItem>
+                  <MenuItem key={periodo} value={periodo}>{formatearPeriodo(periodo)}</MenuItem>
                 ))}
               </Select>
             </FormControl>
           </Grid>
 
-          <Grid item xs={12} sm={6} md={2}>
+          <Grid item xs={12} sm={6} md={3}>
             <FormControl fullWidth size="small">
               <InputLabel>Sala</InputLabel>
               <Select
                 value={filtros.sala}
                 label="Sala"
                 onChange={(e) => setFiltros({ ...filtros, sala: e.target.value })}
+                sx={{
+                  borderRadius: 1,
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.08)
+                    },
+                    '&.Mui-focused': {
+                      backgroundColor: alpha(theme.palette.primary.main, 0.1)
+                    }
+                  }
+                }}
               >
                 <MenuItem value="">Todas</MenuItem>
                 {opcionesFiltros.salas.map(sala => (
@@ -464,44 +722,35 @@ const LiquidacionesPorSalaPage = () => {
             </FormControl>
           </Grid>
 
-          <Grid item xs={12} sm={6} md={2}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Estado</InputLabel>
-              <Select
-                value={filtros.estado}
-                label="Estado"
-                onChange={(e) => setFiltros({ ...filtros, estado: e.target.value })}
+          <Grid item xs={12} sm={6} md={3}>
+            <Box display="flex" gap={1} height="100%">
+              <Button 
+                variant="contained" 
+                onClick={aplicarFiltros}
+                fullWidth
+                size="small"
+                sx={{
+                  borderRadius: 1,
+                  fontWeight: 600,
+                  textTransform: 'none'
+                }}
               >
-                <MenuItem value="">Todos</MenuItem>
-                {opcionesFiltros.estados.map(estado => (
-                  <MenuItem key={estado} value={estado}>
-                    {estado.charAt(0).toUpperCase() + estado.slice(1)}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={2}>
-            <Button 
-              variant="contained" 
-              onClick={aplicarFiltros}
-              fullWidth
-              size="small"
-            >
-              Aplicar
-            </Button>
-          </Grid>
-
-          <Grid item xs={12} sm={6} md={2}>
-            <Button 
-              variant="outlined" 
-              onClick={limpiarFiltros}
-              fullWidth
-              size="small"
-            >
-              Limpiar
-            </Button>
+                Aplicar
+              </Button>
+              <Button 
+                variant="outlined" 
+                onClick={limpiarFiltros}
+                fullWidth
+                size="small"
+                sx={{
+                  borderRadius: 1,
+                  fontWeight: 600,
+                  textTransform: 'none'
+                }}
+              >
+                Limpiar
+              </Button>
+            </Box>
           </Grid>
         </Grid>
       </CardContent>
@@ -531,25 +780,47 @@ const LiquidacionesPorSalaPage = () => {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-    >
-      <Box p={3}>
-        {/* Título y acciones */}
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h4" component="h1">
+    <Box sx={{ p: 3 }}>
+      {/* Header sobrio con gradiente controlado */}
+      <Paper sx={{
+        background: theme.palette.mode === 'dark' 
+          ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+          : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+        borderRadius: 1,
+        overflow: 'hidden',
+        boxShadow: theme.palette.mode === 'dark'
+          ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+          : '0 4px 20px rgba(0, 0, 0, 0.08)',
+        mb: 3
+      }}>
+        <Box sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+          <Typography variant="overline" sx={{
+            fontWeight: 600, 
+            fontSize: '0.7rem', 
+            color: 'rgba(255, 255, 255, 0.8)',
+            letterSpacing: 1.2
+          }}>
+            GESTIÓN FINANCIERA • CONTROL DE LIQUIDACIONES
+          </Typography>
+          <Typography variant="h4" sx={{
+            fontWeight: 700, 
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            mt: 0.5
+          }}>
+            <StoreIcon sx={{ fontSize: '2rem' }} />
             Liquidaciones por Sala
           </Typography>
-          <Box>
-            <Tooltip title="Actualizar datos">
-              <IconButton onClick={cargarDatos}>
-                <RefreshIcon />
-              </IconButton>
-            </Tooltip>
-          </Box>
+          <Typography variant="body1" sx={{ 
+            color: 'rgba(255, 255, 255, 0.9)',
+            mt: 0.5
+          }}>
+            Control y gestión de liquidaciones organizadas por sala
+          </Typography>
         </Box>
+      </Paper>
 
         {/* Estadísticas */}
         {estadisticas && <EstadisticasResumen />}
@@ -557,148 +828,87 @@ const LiquidacionesPorSalaPage = () => {
         {/* Filtros */}
         <PanelFiltros />
 
-        {/* Botones de acción */}
-        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-          <Button
-            variant="outlined"
-            color="secondary"
-            onClick={async () => {
-              try {
-                console.log('🔍 DEBUG - UserId actual:', currentUser.uid);
-                console.log('🔍 DEBUG - Botón Debug DB presionado');
-                
-                // Consultar sin filtros
-                const allLiquidaciones = await liquidacionPersistenceService.getLiquidacionesPorSala(currentUser.uid, {});
-                console.log('🔍 DEBUG - Total liquidaciones sin filtros:', allLiquidaciones.length);
-                
-                if (allLiquidaciones.length > 0) {
-                  console.log('🔍 DEBUG - Primera liquidación:', allLiquidaciones[0]);
-                  console.log('🔍 DEBUG - Todas las empresas:', [...new Set(allLiquidaciones.map(l => l.empresa?.nombre))]);
-                  console.log('🔍 DEBUG - Todos los periodos:', [...new Set(allLiquidaciones.map(l => l.fechas?.periodoLiquidacion))]);
-                  console.log('🔍 DEBUG - Todas las salas:', [...new Set(allLiquidaciones.map(l => l.sala?.nombre))]);
+        {/* Tabla de liquidaciones con diseño sobrio */}
+        <Card sx={{
+          borderRadius: 1,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          transition: 'box-shadow 0.2s ease',
+          '&:hover': {
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+          }
+        }}>
+          <CardContent sx={{ p: 0 }}>
+            <TableContainer>
+              <Table sx={{
+                '& .MuiTableCell-root': {
+                  borderColor: 'divider'
+                },
+                '& .MuiTableHead-root .MuiTableRow-root': {
+                  borderBottom: `1px solid ${theme.palette.divider}`
                 }
-                
-                // Consultar con filtros (usando valores vacíos ya que las variables no están en scope)
-                const filteredLiquidaciones = await liquidacionPersistenceService.getLiquidacionesPorSala(currentUser.uid, {});
-                console.log('🔍 DEBUG - Sin filtros aplicados:', filteredLiquidaciones.length);
-                
-                addNotification(`DEBUG: ${allLiquidaciones.length} liquidaciones encontradas`, 'info');
-              } catch (error) {
-                console.error('Error en debug:', error);
-                addNotification('Error en debug', 'error');
-              }
-            }}
-          >
-            Debug DB
-          </Button>
-          
-          <Button
-            variant="outlined"
-            color="warning"
-            onClick={async () => {
-              try {
-                // Consulta directa a Firebase
-                const { collection, query, where, getDocs } = await import('firebase/firestore');
-                const { db } = await import('../config/firebase');
-                
-                console.log('🔥 Consulta DIRECTA a Firebase...');
-                const q = query(
-                  collection(db, 'liquidaciones_por_sala'),
-                  where('userId', '==', currentUser.uid)
-                );
-                
-                const snapshot = await getDocs(q);
-                console.log('🔥 Documentos encontrados directamente:', snapshot.size);
-                
-                const docs = [];
-                snapshot.forEach(doc => {
-                  docs.push({ id: doc.id, ...doc.data() });
-                });
-                
-                console.log('🔥 Documentos:', docs);
-                if (docs.length > 0) {
-                  console.log('🔍 Primer documento estructura:', docs[0]);
-                  console.log('🔍 Empresas en docs:', [...new Set(docs.map(d => d.empresa?.nombre))]);
-                  console.log('🔍 Períodos en docs:', [...new Set(docs.map(d => d.fechas?.periodoLiquidacion))]);
-                  console.log('🔍 Salas en docs:', [...new Set(docs.map(d => d.sala?.nombre))]);
-                }
-                addNotification(`Consulta directa: ${snapshot.size} documentos`, snapshot.size > 0 ? 'success' : 'warning');
-              } catch (error) {
-                console.error('Error consulta directa:', error);
-                addNotification('Error en consulta directa', 'error');
-              }
-            }}
-          >
-            Firebase Directo
-          </Button>
-          
-          <Button
-            variant="outlined"
-            color="error"
-            onClick={async () => {
-              if (!confirm('¿Estás seguro de eliminar todas las liquidaciones con períodos malformados (que contengan números como enero_45900)?')) {
-                return;
-              }
-              
-              try {
-                console.log('🧹 Limpiando registros con períodos malformados...');
-                const result = await liquidacionPersistenceService.limpiarRegistrosMalformados(currentUser.uid);
-                console.log('✅ Limpieza completada:', result);
-                addNotification(`Limpieza completada: ${result.eliminados} registros eliminados`, 'success');
-                
-                // Recargar la página para ver los cambios
-                window.location.reload();
-              } catch (error) {
-                console.error('Error en limpieza:', error);
-                addNotification('Error en limpieza de registros', 'error');
-              }
-            }}
-          >
-            Limpiar Malformados
-          </Button>
-          
-          <Tooltip title="Actualizar datos manualmente">
-            <Button
-              variant="outlined"
-              startIcon={<RefreshIcon />}
-              onClick={() => window.location.reload()}
-              sx={{
-                borderColor: 'primary.main',
-                color: 'primary.main'
-              }}
-            >
-              Actualizar
-            </Button>
-          </Tooltip>
-        </Box>
-
-        {/* Tabla de liquidaciones */}
-        <Card>
-          <CardContent>
-            <TableContainer component={Paper}>
-              <Table>
+              }}>
                 <TableHead>
-                  <TableRow>
-                    <TableCell>Empresa / Sala</TableCell>
-                    <TableCell>Período</TableCell>
-                    <TableCell align="right">Máquinas</TableCell>
-                    <TableCell align="right">Producción</TableCell>
-                    <TableCell align="right">Impuestos</TableCell>
-                    <TableCell align="center">Estado</TableCell>
-                    <TableCell align="center">Acciones</TableCell>
+                  <TableRow sx={{ 
+                    bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+                    borderBottom: `1px solid ${theme.palette.divider}`
+                  }}>
+                    <TableCell sx={{ 
+                      borderColor: 'divider',
+                      fontWeight: 600,
+                      fontSize: '0.875rem'
+                    }}>
+                      Empresa / Sala
+                    </TableCell>
+                    <TableCell sx={{ 
+                      borderColor: 'divider',
+                      fontWeight: 600,
+                      fontSize: '0.875rem'
+                    }}>
+                      Período
+                    </TableCell>
+                    <TableCell align="right" sx={{ 
+                      borderColor: 'divider',
+                      fontWeight: 600,
+                      fontSize: '0.875rem'
+                    }}>
+                      Máquinas
+                    </TableCell>
+                    <TableCell align="right" sx={{ 
+                      borderColor: 'divider',
+                      fontWeight: 600,
+                      fontSize: '0.875rem'
+                    }}>
+                      Producción
+                    </TableCell>
+                    <TableCell align="right" sx={{ 
+                      borderColor: 'divider',
+                      fontWeight: 600,
+                      fontSize: '0.875rem'
+                    }}>
+                      Impuestos
+                    </TableCell>
+                    <TableCell align="center" sx={{ 
+                      borderColor: 'divider',
+                      fontWeight: 600,
+                      fontSize: '0.875rem'
+                    }}>
+                      Acciones
+                    </TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  <AnimatePresence>
-                    {liquidaciones.map((liquidacion) => (
-                      <motion.tr
-                        key={liquidacion.id}
-                        component={TableRow}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        whileHover={{ backgroundColor: 'rgba(0,0,0,0.04)' }}
-                      >
+                  {liquidaciones.map((liquidacion) => (
+                    <TableRow
+                      key={liquidacion.id}
+                      sx={{
+                        borderColor: 'divider',
+                        transition: 'background-color 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                        }
+                      }}
+                    >
                         <TableCell>
                           <Box>
                             <Typography variant="body2" fontWeight="medium">
@@ -712,7 +922,7 @@ const LiquidacionesPorSalaPage = () => {
                         
                         <TableCell>
                           <Typography variant="body2">
-                            {liquidacion.fechas.periodoLiquidacion}
+                            {formatearPeriodo(liquidacion.fechas.periodoLiquidacion)}
                           </Typography>
                         </TableCell>
                         
@@ -735,14 +945,6 @@ const LiquidacionesPorSalaPage = () => {
                         </TableCell>
                         
                         <TableCell align="center">
-                          <Chip 
-                            label={liquidacion.facturacion.estado.toUpperCase()}
-                            color={getChipColor(liquidacion.facturacion.estado)}
-                            size="small"
-                          />
-                        </TableCell>
-                        
-                        <TableCell align="center">
                           <Box display="flex" gap={1} justifyContent="center">
                             <Tooltip title="Ver detalles máquina por máquina">
                               <IconButton 
@@ -756,30 +958,19 @@ const LiquidacionesPorSalaPage = () => {
                               </IconButton>
                             </Tooltip>
                             
-                            <Tooltip title="Generar PDF/Factura">
-                              <IconButton 
-                                size="small"
-                                color="primary"
-                                disabled={liquidacion.facturacion.estado === 'pagada'}
-                              >
-                                <PdfIcon />
-                              </IconButton>
-                            </Tooltip>
-                            
-                            <Tooltip title="Gestionar facturación">
+                            <Tooltip title="Editar liquidación">
                               <IconButton 
                                 size="small"
                                 color="secondary"
-                                onClick={() => setDialogFacturacion({ open: true, liquidacion })}
+                                onClick={() => abrirModalEdicion(liquidacion)}
                               >
                                 <EditIcon />
                               </IconButton>
                             </Tooltip>
                           </Box>
                         </TableCell>
-                      </motion.tr>
-                    ))}
-                  </AnimatePresence>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -801,17 +992,44 @@ const LiquidacionesPorSalaPage = () => {
             setDialogDetalles({ open: false, liquidacion: null });
             setDatosMaquinasSala([]);
           }}
-          maxWidth="xl"
-          fullWidth
+          maxWidth={false}
+          sx={{
+            '& .MuiDialog-paper': {
+              maxWidth: 'fit-content',
+              width: 'auto'
+            }
+          }}
+          PaperProps={{
+            sx: {
+              borderRadius: 1,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+            }
+          }}
         >
-          <DialogTitle>
+          <DialogTitle sx={{ 
+            pb: 2, 
+            pt: 3,
+            px: 3,
+            background: 'transparent',
+            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+          }}>
             {dialogDetalles.liquidacion && (
               <Box>
-                <Typography variant="h6" component="div">
-                  Detalle de Liquidación - {dialogDetalles.liquidacion.sala.nombre}
+                <Typography variant="subtitle2" sx={{ 
+                  color: theme.palette.text.secondary,
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  fontWeight: 500,
+                  mb: 1
+                }}>
+                  DETALLE DE LIQUIDACIÓN
                 </Typography>
-                <Typography variant="subtitle2" color="text.secondary">
-                  {dialogDetalles.liquidacion.empresa.nombre} | {dialogDetalles.liquidacion.fechas.periodoLiquidacion}
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  {dialogDetalles.liquidacion.sala.nombre}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {dialogDetalles.liquidacion.empresa.nombre} • {formatearPeriodo(dialogDetalles.liquidacion.fechas.periodoLiquidacion)}
                 </Typography>
               </Box>
             )}
@@ -819,53 +1037,97 @@ const LiquidacionesPorSalaPage = () => {
           <DialogContent>
             {dialogDetalles.liquidacion && (
               <Box>
-                {/* Resumen de métricas */}
+                {/* Resumen de métricas con diseño sobrio */}
                 <Grid container spacing={2} sx={{ mb: 3 }}>
                   <Grid item xs={6} sm={3}>
-                    <Card variant="outlined">
-                      <CardContent sx={{ textAlign: 'center', py: 1 }}>
-                        <Typography variant="h6" color="primary">
-                          {dialogDetalles.liquidacion.metricas.totalMaquinas}
-                        </Typography>
-                        <Typography variant="caption">Máquinas</Typography>
-                      </CardContent>
-                    </Card>
+                    <Box sx={{ 
+                      p: 2, 
+                      border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                      borderRadius: 1,
+                      backgroundColor: alpha(theme.palette.background.default, 0.5),
+                      textAlign: 'center'
+                    }}>
+                      <Typography variant="h6" sx={{ 
+                        color: theme.palette.primary.main,
+                        fontWeight: 600 
+                      }}>
+                        {dialogDetalles.liquidacion.metricas.totalMaquinas}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Máquinas
+                      </Typography>
+                    </Box>
                   </Grid>
                   <Grid item xs={6} sm={3}>
-                    <Card variant="outlined">
-                      <CardContent sx={{ textAlign: 'center', py: 1 }}>
-                        <Typography variant="h6" color="success.main">
-                          {formatearMonto(dialogDetalles.liquidacion.metricas.totalProduccion)}
-                        </Typography>
-                        <Typography variant="caption">Producción</Typography>
-                      </CardContent>
-                    </Card>
+                    <Box sx={{ 
+                      p: 2, 
+                      border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                      borderRadius: 1,
+                      backgroundColor: alpha(theme.palette.background.default, 0.5),
+                      textAlign: 'center'
+                    }}>
+                      <Typography variant="h6" sx={{ 
+                        color: theme.palette.success.main,
+                        fontWeight: 600 
+                      }}>
+                        {formatearMonto(dialogDetalles.liquidacion.metricas.totalProduccion)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Producción
+                      </Typography>
+                    </Box>
                   </Grid>
                   <Grid item xs={6} sm={3}>
-                    <Card variant="outlined">
-                      <CardContent sx={{ textAlign: 'center', py: 1 }}>
-                        <Typography variant="h6" color="warning.main">
-                          {formatearMonto(dialogDetalles.liquidacion.metricas.derechosExplotacion)}
-                        </Typography>
-                        <Typography variant="caption">Derechos</Typography>
-                      </CardContent>
-                    </Card>
+                    <Box sx={{ 
+                      p: 2, 
+                      border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                      borderRadius: 1,
+                      backgroundColor: alpha(theme.palette.background.default, 0.5),
+                      textAlign: 'center'
+                    }}>
+                      <Typography variant="h6" sx={{ 
+                        color: theme.palette.warning.main,
+                        fontWeight: 600 
+                      }}>
+                        {formatearMonto(dialogDetalles.liquidacion.metricas.derechosExplotacion)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Derechos
+                      </Typography>
+                    </Box>
                   </Grid>
                   <Grid item xs={6} sm={3}>
-                    <Card variant="outlined">
-                      <CardContent sx={{ textAlign: 'center', py: 1 }}>
-                        <Typography variant="h6" color="error.main">
-                          {formatearMonto(dialogDetalles.liquidacion.metricas.gastosAdministracion)}
-                        </Typography>
-                        <Typography variant="caption">Gastos</Typography>
-                      </CardContent>
-                    </Card>
+                    <Box sx={{ 
+                      p: 2, 
+                      border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                      borderRadius: 1,
+                      backgroundColor: alpha(theme.palette.background.default, 0.5),
+                      textAlign: 'center'
+                    }}>
+                      <Typography variant="h6" sx={{ 
+                        color: theme.palette.error.main,
+                        fontWeight: 600 
+                      }}>
+                        {formatearMonto(dialogDetalles.liquidacion.metricas.gastosAdministracion)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Gastos
+                      </Typography>
+                    </Box>
                   </Grid>
                 </Grid>
 
-                {/* Tabla detallada de máquinas */}
-                <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
-                  Detalle por Máquina
+                {/* Tabla detallada de máquinas con diseño sobrio */}
+                <Typography variant="subtitle2" sx={{ 
+                  color: theme.palette.text.secondary,
+                  fontSize: '0.75rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  fontWeight: 500,
+                  mt: 3,
+                  mb: 2
+                }}>
+                  DETALLE POR MÁQUINA
                 </Typography>
                 
                 {cargandoDetalles ? (
@@ -874,48 +1136,121 @@ const LiquidacionesPorSalaPage = () => {
                     <Typography sx={{ ml: 2 }}>Cargando detalles...</Typography>
                   </Box>
                 ) : datosMaquinasSala.length > 0 ? (
-                  <TableContainer component={Paper} variant="outlined">
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell><strong>Serial</strong></TableCell>
-                          <TableCell><strong>NUC</strong></TableCell>
-                          <TableCell><strong>Tarifa</strong></TableCell>
-                          <TableCell align="right"><strong>Producción</strong></TableCell>
-                          <TableCell align="right"><strong>Derechos</strong></TableCell>
-                          <TableCell align="right"><strong>Gastos</strong></TableCell>
-                          <TableCell align="right"><strong>Total Impuestos</strong></TableCell>
-                        </TableRow>
-                      </TableHead>
+                  <Box sx={{
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                    borderRadius: 1,
+                    overflow: 'hidden'
+                  }}>
+                    <TableContainer>
+                      <Table size="small" sx={{
+                        width: 'auto',
+                        minWidth: '100%',
+                        '& .MuiTableCell-root': {
+                          borderColor: 'divider',
+                          padding: '8px 12px',
+                          whiteSpace: 'nowrap'
+                        },
+                        '& .MuiTableHead-root .MuiTableRow-root': {
+                          borderBottom: `1px solid ${theme.palette.divider}`
+                        }
+                      }}>
+                        <TableHead>
+                          <TableRow sx={{ 
+                            bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+                            borderBottom: `1px solid ${theme.palette.divider}`
+                          }}>
+                            <TableCell sx={{ 
+                              borderColor: 'divider',
+                              fontWeight: 600,
+                              fontSize: '0.875rem'
+                            }}>
+                              Serial
+                            </TableCell>
+                            <TableCell sx={{ 
+                              borderColor: 'divider',
+                              fontWeight: 600,
+                              fontSize: '0.875rem'
+                            }}>
+                              NUC
+                            </TableCell>
+                            <TableCell align="right" sx={{ 
+                              borderColor: 'divider',
+                              fontWeight: 600,
+                              fontSize: '0.875rem'
+                            }}>
+                              Producción
+                            </TableCell>
+                            <TableCell align="right" sx={{ 
+                              borderColor: 'divider',
+                              fontWeight: 600,
+                              fontSize: '0.875rem'
+                            }}>
+                              Derechos
+                            </TableCell>
+                            <TableCell align="right" sx={{ 
+                              borderColor: 'divider',
+                              fontWeight: 600,
+                              fontSize: '0.875rem'
+                            }}>
+                              Gastos
+                            </TableCell>
+                            <TableCell align="right" sx={{ 
+                              borderColor: 'divider',
+                              fontWeight: 600,
+                              fontSize: '0.875rem'
+                            }}>
+                              Total Impuestos
+                            </TableCell>
+                          </TableRow>
+                        </TableHead>
                       <TableBody>
                         {datosMaquinasSala.map((maquina, index) => (
-                          <TableRow key={index} hover>
-                            <TableCell>{maquina.serial || 'N/A'}</TableCell>
-                            <TableCell>{maquina.nuc || 'N/A'}</TableCell>
-                            <TableCell>
-                              <Chip 
-                                label={maquina.tarifa || 'Estándar'} 
-                                size="small"
-                                color={maquina.tarifa === 'Tarifa fija (valores sumados)' ? 'secondary' : 'default'}
-                              />
+                          <TableRow 
+                            key={index} 
+                            sx={{
+                              borderColor: 'divider',
+                              transition: 'background-color 0.2s ease',
+                              '&:hover': {
+                                backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                              }
+                            }}
+                          >
+                            <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>
+                              {maquina.serial || 'N/A'}
                             </TableCell>
-                            <TableCell align="right">
-                              <Typography color="success.main" fontWeight="medium">
+                            <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>
+                              {maquina.nuc || 'N/A'}
+                            </TableCell>
+                            <TableCell align="right" sx={{ borderColor: 'divider' }}>
+                              <Typography sx={{ 
+                                color: theme.palette.success.main,
+                                fontWeight: 500,
+                                fontSize: '0.8rem'
+                              }}>
                                 {formatearMonto(maquina.produccion)}
                               </Typography>
                             </TableCell>
-                            <TableCell align="right">
-                              <Typography color="warning.main">
+                            <TableCell align="right" sx={{ borderColor: 'divider' }}>
+                              <Typography sx={{ 
+                                color: theme.palette.warning.main,
+                                fontSize: '0.8rem'
+                              }}>
                                 {formatearMonto(maquina.derechosExplotacion)}
                               </Typography>
                             </TableCell>
-                            <TableCell align="right">
-                              <Typography color="error.main">
+                            <TableCell align="right" sx={{ borderColor: 'divider' }}>
+                              <Typography sx={{ 
+                                color: theme.palette.error.main,
+                                fontSize: '0.8rem'
+                              }}>
                                 {formatearMonto(maquina.gastosAdministracion)}
                               </Typography>
                             </TableCell>
-                            <TableCell align="right">
-                              <Typography fontWeight="bold">
+                            <TableCell align="right" sx={{ borderColor: 'divider' }}>
+                              <Typography sx={{ 
+                                fontWeight: 600,
+                                fontSize: '0.8rem'
+                              }}>
                                 {formatearMonto(maquina.totalImpuestos)}
                               </Typography>
                             </TableCell>
@@ -924,6 +1259,7 @@ const LiquidacionesPorSalaPage = () => {
                       </TableBody>
                     </Table>
                   </TableContainer>
+                  </Box>
                 ) : (
                   <Alert severity="info">
                     No se pudieron cargar los detalles de las máquinas para esta sala.
@@ -932,22 +1268,20 @@ const LiquidacionesPorSalaPage = () => {
               </Box>
             )}
           </DialogContent>
-          <DialogActions>
-            {datosMaquinasSala.length > 0 && (
-              <Button 
-                startIcon={<DownloadIcon />}
-                onClick={() => {
-                  // TODO: Implementar exportación a Excel de esta sala específica
-                  addNotification('Función de exportación en desarrollo', 'info');
-                }}
-              >
-                Exportar Excel
-              </Button>
-            )}
+          <DialogActions sx={{ 
+            px: 3, 
+            py: 2,
+            borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+          }}>
             <Button 
               onClick={() => {
                 setDialogDetalles({ open: false, liquidacion: null });
                 setDatosMaquinasSala([]);
+              }}
+              sx={{
+                borderRadius: 1,
+                fontWeight: 600,
+                textTransform: 'none'
               }}
             >
               Cerrar
@@ -955,27 +1289,69 @@ const LiquidacionesPorSalaPage = () => {
           </DialogActions>
         </Dialog>
 
-        {/* Dialog de gestión de facturación */}
+        {/* Dialog de gestión de facturación con diseño sobrio */}
         <Dialog 
           open={dialogFacturacion.open} 
           onClose={() => setDialogFacturacion({ open: false, liquidacion: null })}
           maxWidth="sm"
           fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 1,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+            }
+          }}
         >
-          <DialogTitle>Gestionar Facturación</DialogTitle>
-          <DialogContent>
+          <DialogTitle sx={{ 
+            pb: 2, 
+            pt: 3,
+            px: 3,
+            background: 'transparent',
+            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+          }}>
+            <Typography variant="subtitle2" sx={{ 
+              color: theme.palette.text.secondary,
+              fontSize: '0.75rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              fontWeight: 500,
+              mb: 1
+            }}>
+              GESTIÓN DE FACTURACIÓN
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Control de Estados
+            </Typography>
+          </DialogTitle>
+          <DialogContent sx={{ px: 3, pt: 3 }}>
             {dialogFacturacion.liquidacion && (
               <Box>
-                <Typography variant="body2" gutterBottom>
-                  <strong>Sala:</strong> {dialogFacturacion.liquidacion.sala.nombre}
-                </Typography>
-                <Typography variant="body2" gutterBottom>
-                  <strong>Estado actual:</strong> {dialogFacturacion.liquidacion.facturacion.estado}
-                </Typography>
+                <Box sx={{ 
+                  p: 2, 
+                  border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                  borderRadius: 1,
+                  backgroundColor: alpha(theme.palette.background.default, 0.5),
+                  mb: 2
+                }}>
+                  <Typography variant="subtitle2" sx={{ 
+                    color: theme.palette.text.secondary,
+                    fontSize: '0.75rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    fontWeight: 500,
+                    mb: 1
+                  }}>
+                    INFORMACIÓN DE LA SALA
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    {dialogFacturacion.liquidacion.sala.nombre}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Estado: {dialogFacturacion.liquidacion.facturacion.estado.toUpperCase()}
+                  </Typography>
+                </Box>
                 
-                <Divider sx={{ my: 2 }} />
-                
-                <Box display="flex" flexDirection="column" gap={1}>
+                <Box display="flex" flexDirection="column" gap={2}>
                   <Button
                     variant="outlined"
                     startIcon={<PdfIcon />}
@@ -983,6 +1359,12 @@ const LiquidacionesPorSalaPage = () => {
                     onClick={() => {
                       actualizarEstadoFacturacion(dialogFacturacion.liquidacion.id, 'generada');
                       setDialogFacturacion({ open: false, liquidacion: null });
+                    }}
+                    sx={{
+                      borderRadius: 1,
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      py: 1.5
                     }}
                   >
                     Generar PDF/Factura
@@ -996,6 +1378,12 @@ const LiquidacionesPorSalaPage = () => {
                       actualizarEstadoFacturacion(dialogFacturacion.liquidacion.id, 'enviada');
                       setDialogFacturacion({ open: false, liquidacion: null });
                     }}
+                    sx={{
+                      borderRadius: 1,
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      py: 1.5
+                    }}
                   >
                     Marcar como Enviada
                   </Button>
@@ -1008,6 +1396,12 @@ const LiquidacionesPorSalaPage = () => {
                       actualizarEstadoFacturacion(dialogFacturacion.liquidacion.id, 'pagada');
                       setDialogFacturacion({ open: false, liquidacion: null });
                     }}
+                    sx={{
+                      borderRadius: 1,
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      py: 1.5
+                    }}
                   >
                     Marcar como Pagada
                   </Button>
@@ -1015,14 +1409,417 @@ const LiquidacionesPorSalaPage = () => {
               </Box>
             )}
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setDialogFacturacion({ open: false, liquidacion: null })}>
+          <DialogActions sx={{ 
+            px: 3, 
+            py: 2,
+            borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+          }}>
+            <Button 
+              onClick={() => setDialogFacturacion({ open: false, liquidacion: null })}
+              sx={{
+                borderRadius: 1,
+                fontWeight: 600,
+                textTransform: 'none'
+              }}
+            >
               Cancelar
             </Button>
           </DialogActions>
         </Dialog>
-      </Box>
-    </motion.div>
+
+        {/* Dialog de edición de liquidación */}
+        <Dialog 
+          open={dialogEdicion.open} 
+          onClose={() => {
+            setDialogEdicion({ open: false, liquidacion: null });
+            setDatosMaquinasSala([]);
+            setDatosEdicion({});
+          }}
+          maxWidth={false}
+          sx={{
+            '& .MuiDialog-paper': {
+              maxWidth: 'fit-content',
+              width: 'auto'
+            }
+          }}
+          PaperProps={{
+            sx: {
+              borderRadius: 1,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+            }
+          }}
+        >
+          <DialogTitle sx={{ 
+            pb: 2, 
+            pt: 3,
+            px: 3,
+            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+          }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center">
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                  EDITAR LIQUIDACIÓN
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+                  {dialogEdicion.liquidacion?.sala?.nombre} - {formatearPeriodo(dialogEdicion.liquidacion?.periodo)}
+                </Typography>
+              </Box>
+            </Box>
+          </DialogTitle>
+          
+          <DialogContent sx={{ px: 3, py: 3 }}>
+            {/* Tarjetas de resumen editables */}
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ 
+                  p: 2, 
+                  border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                  borderRadius: 1,
+                  backgroundColor: alpha(theme.palette.background.default, 0.5),
+                  textAlign: 'center'
+                }}>
+                  <Typography variant="h6" sx={{ 
+                    color: theme.palette.success.main,
+                    fontWeight: 600 
+                  }}>
+                    {formatearMonto(totalesCalculados.totalProduccion)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Producción
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ 
+                  p: 2, 
+                  border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                  borderRadius: 1,
+                  backgroundColor: alpha(theme.palette.background.default, 0.5),
+                  textAlign: 'center'
+                }}>
+                  <Typography variant="h6" sx={{ 
+                    color: theme.palette.warning.main,
+                    fontWeight: 600 
+                  }}>
+                    {formatearMonto(totalesCalculados.totalDerechos)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Derechos
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ 
+                  p: 2, 
+                  border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                  borderRadius: 1,
+                  backgroundColor: alpha(theme.palette.background.default, 0.5),
+                  textAlign: 'center'
+                }}>
+                  <Typography variant="h6" sx={{ 
+                    color: theme.palette.error.main,
+                    fontWeight: 600 
+                  }}>
+                    {formatearMonto(totalesCalculados.totalGastos)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Gastos
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <Box sx={{ 
+                  p: 2, 
+                  border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                  borderRadius: 1,
+                  backgroundColor: alpha(theme.palette.background.default, 0.5),
+                  textAlign: 'center'
+                }}>
+                  <Typography variant="h6" sx={{ 
+                    color: theme.palette.info.main,
+                    fontWeight: 600 
+                  }}>
+                    {formatearMonto(totalesCalculados.totalGeneral)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Total
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+
+            {/* Tabla de máquinas editable */}
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                DETALLE POR MÁQUINA
+              </Typography>
+              
+              {cargandoDetalles ? (
+                <Box display="flex" justifyContent="center" py={4}>
+                  <CircularProgress />
+                  <Typography sx={{ ml: 2 }}>Cargando detalles...</Typography>
+                </Box>
+              ) : datosMaquinasSala.length > 0 ? (
+                <Box sx={{
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                  borderRadius: 1,
+                  overflow: 'hidden'
+                }}>
+                  <TableContainer>
+                    <Table size="small" sx={{
+                      width: 'auto',
+                      minWidth: '100%',
+                      '& .MuiTableCell-root': {
+                        borderColor: 'divider',
+                        padding: '8px 12px',
+                        whiteSpace: 'nowrap'
+                      },
+                      '& .MuiTableHead-root .MuiTableRow-root': {
+                        borderBottom: `1px solid ${theme.palette.divider}`
+                      }
+                    }}>
+                      <TableHead>
+                        <TableRow sx={{ 
+                          bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+                          borderBottom: `1px solid ${theme.palette.divider}`
+                        }}>
+                          <TableCell sx={{ 
+                            borderColor: 'divider',
+                            fontWeight: 600,
+                            fontSize: '0.875rem'
+                          }}>
+                            Serial
+                          </TableCell>
+                          <TableCell sx={{ 
+                            borderColor: 'divider',
+                            fontWeight: 600,
+                            fontSize: '0.875rem'
+                          }}>
+                            NUC
+                          </TableCell>
+                          <TableCell align="right" sx={{ 
+                            borderColor: 'divider',
+                            fontWeight: 600,
+                            fontSize: '0.875rem'
+                          }}>
+                            Producción
+                          </TableCell>
+                          <TableCell align="right" sx={{ 
+                            borderColor: 'divider',
+                            fontWeight: 600,
+                            fontSize: '0.875rem'
+                          }}>
+                            Derechos
+                          </TableCell>
+                          <TableCell align="right" sx={{ 
+                            borderColor: 'divider',
+                            fontWeight: 600,
+                            fontSize: '0.875rem'
+                          }}>
+                            Gastos
+                          </TableCell>
+                          <TableCell align="right" sx={{ 
+                            borderColor: 'divider',
+                            fontWeight: 600,
+                            fontSize: '0.875rem'
+                          }}>
+                            Total Impuestos
+                          </TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {datosMaquinasSala.map((maquina, index) => (
+                          <TableRow 
+                            key={index} 
+                            sx={{
+                              borderColor: 'divider',
+                              transition: 'background-color 0.2s ease',
+                              '&:hover': {
+                                backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                              }
+                            }}
+                          >
+                            <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>
+                              {maquina.serial || 'N/A'}
+                            </TableCell>
+                            <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>
+                              {maquina.nuc || 'N/A'}
+                            </TableCell>
+                            <TableCell align="right" sx={{ borderColor: 'divider' }}>
+                              <TextField
+                                variant="standard"
+                                type="number"
+                                size="small"
+                                value={maquina.produccion || 0}
+                                onChange={(e) => {
+                                  const nuevasMaquinas = [...datosMaquinasSala];
+                                  nuevasMaquinas[index].produccion = parseFloat(e.target.value) || 0;
+                                  setDatosMaquinasSala(nuevasMaquinas);
+                                }}
+                                InputProps={{
+                                  style: { 
+                                    color: theme.palette.success.main,
+                                    fontWeight: 500,
+                                    fontSize: '0.8rem'
+                                  },
+                                  disableUnderline: false
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell align="right" sx={{ borderColor: 'divider' }}>
+                              <TextField
+                                variant="standard"
+                                type="number"
+                                size="small"
+                                value={maquina.derechosExplotacion || 0}
+                                onChange={(e) => {
+                                  const nuevasMaquinas = [...datosMaquinasSala];
+                                  nuevasMaquinas[index].derechosExplotacion = parseFloat(e.target.value) || 0;
+                                  setDatosMaquinasSala(nuevasMaquinas);
+                                }}
+                                InputProps={{
+                                  style: { 
+                                    color: theme.palette.warning.main,
+                                    fontWeight: 500,
+                                    fontSize: '0.8rem'
+                                  },
+                                  disableUnderline: false
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell align="right" sx={{ borderColor: 'divider' }}>
+                              <TextField
+                                variant="standard"
+                                type="number"
+                                size="small"
+                                value={maquina.gastosAdministracion || 0}
+                                onChange={(e) => {
+                                  const nuevasMaquinas = [...datosMaquinasSala];
+                                  nuevasMaquinas[index].gastosAdministracion = parseFloat(e.target.value) || 0;
+                                  setDatosMaquinasSala(nuevasMaquinas);
+                                }}
+                                InputProps={{
+                                  style: { 
+                                    color: theme.palette.error.main,
+                                    fontWeight: 500,
+                                    fontSize: '0.8rem'
+                                  },
+                                  disableUnderline: false
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell align="right" sx={{ borderColor: 'divider' }}>
+                              <Typography sx={{ 
+                                color: theme.palette.text.primary,
+                                fontWeight: 500,
+                                fontSize: '0.8rem'
+                              }}>
+                                {formatearMonto((maquina.produccion || 0) + (maquina.derechosExplotacion || 0) + (maquina.gastosAdministracion || 0))}
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
+              ) : (
+                <Alert 
+                  severity="warning" 
+                  sx={{ borderRadius: 1 }}
+                  action={
+                    <Button 
+                      color="warning" 
+                      size="small" 
+                      onClick={() => cargarDetallesSala(dialogEdicion.liquidacion)}
+                    >
+                      Reintentar
+                    </Button>
+                  }
+                >
+                  <Typography variant="body2">
+                    No se pudieron cargar los detalles de las máquinas
+                  </Typography>
+                  <Typography variant="caption" sx={{ display: 'block', mt: 1, opacity: 0.8 }}>
+                    ID de liquidación: {dialogEdicion.liquidacion?.id}<br/>
+                    Datos disponibles: {datosMaquinasSala.length} máquinas<br/>
+                    Estado de carga: {cargandoDetalles ? 'Cargando...' : 'Completado'}
+                  </Typography>
+                </Alert>
+              )}
+            </Box>
+
+            {/* Motivo de edición */}
+            <Box sx={{ mt: 3 }}>
+              <TextField
+                fullWidth
+                label="Motivo de la Edición"
+                multiline
+                rows={3}
+                value={datosEdicion.motivoEdicion || ''}
+                onChange={(e) => setDatosEdicion(prev => ({ ...prev, motivoEdicion: e.target.value }))}
+                placeholder="Describe el motivo de esta edición..."
+                required
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
+                  }
+                }}
+              />
+            </Box>
+
+            {/* Alerta informativa */}
+            <Alert 
+              severity="info" 
+              sx={{ 
+                mt: 2,
+                borderRadius: 1,
+                backgroundColor: alpha(theme.palette.info.main, 0.1),
+                border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+              }}
+            >
+              <Typography variant="body2">
+                Se creará un nuevo registro manteniendo el original como historial. 
+                Esta acción quedará registrada para auditoría.
+              </Typography>
+            </Alert>
+          </DialogContent>
+          
+          <DialogActions sx={{ 
+            px: 3, 
+            py: 2,
+            borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+          }}>
+            <Button 
+              onClick={() => {
+                setDialogEdicion({ open: false, liquidacion: null });
+                setDatosMaquinasSala([]);
+                setDatosEdicion({});
+              }}
+              sx={{
+                borderRadius: 1,
+                fontWeight: 600,
+                textTransform: 'none'
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              variant="contained"
+              onClick={guardarEdicionLiquidacion}
+              disabled={!datosEdicion.motivoEdicion}
+              sx={{
+                borderRadius: 1,
+                fontWeight: 600,
+                textTransform: 'none',
+                ml: 1
+              }}
+            >
+              Guardar Edición
+            </Button>
+          </DialogActions>
+        </Dialog>
+    </Box>
   );
 };
 

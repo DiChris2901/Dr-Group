@@ -116,14 +116,7 @@ const ReportsCompanyPage = () => {
 
   // ✅ CALCULAR EMPRESAS ENRIQUECIDAS CON DATOS DE FIREBASE
   const enrichedCompanies = useMemo(() => {
-    console.log('🔄 Calculando enrichedCompanies:', {
-      commitments: commitments?.length || 0,
-      companiesData: companiesData?.length || 0,
-      loading: { commitmentsLoading, companiesLoading }
-    });
-
     if (!commitments || !companiesData) {
-      console.log('❌ Datos faltantes para enrichedCompanies');
       return [];
     }
     
@@ -156,16 +149,6 @@ const ReportsCompanyPage = () => {
         // Datos adicionales para filtros
         rawCommitments: companyCommitments
       };
-    });
-
-    console.log('✅ enrichedCompanies calculado:', {
-      empresasConDatos: result.filter(c => c.totalAmount > 0).length,
-      totalEmpresas: result.length,
-      muestrasConDatos: result.filter(c => c.totalAmount > 0).slice(0, 3).map(c => ({
-        name: c.name,
-        totalAmount: c.totalAmount,
-        commitments: c.commitments
-      }))
     });
 
     return result;
@@ -254,15 +237,15 @@ const ReportsCompanyPage = () => {
   // ✅ FUNCIONES PARA DATERANGEFILTER
   const handleDateRangeChange = (value) => {
     setDateRangeFilter(value);
-    // Sincronizar con timeRange para mantener compatibilidad
+    // (Compatibilidad legacy) Reducimos dependencia de timeRange: sólo mapear cuando sea necesario
     const reverseMapping = {
-      'lastMonth': 'lastmonth',
-      'last90days': 'last3months',
-      'last6months': 'last6months',
-      'thisYear': 'last12months',
-      'custom': 'custom'
+      lastMonth: 'lastmonth',
+      last90Days: 'last3months',
+      thisMonth: 'lastmonth',
+      thisYear: 'last12months',
+      custom: 'custom'
     };
-    setTimeRange(reverseMapping[value] || 'last6months');
+    if (reverseMapping[value]) setTimeRange(reverseMapping[value]);
   };
 
   const handleCustomRangeChange = (startDate, endDate) => {
@@ -270,41 +253,76 @@ const ReportsCompanyPage = () => {
     setCustomEndDate(endDate);
   };
 
-  // Calcular datos mensuales por empresa desde Firebase
+  // Helper para obtener rango activo (start/end)
+  const activeDateRange = useMemo(() => {
+    if (!dateRangeFilter || dateRangeFilter === 'all') return null;
+    const r = getDateRangeFromFilter(dateRangeFilter, customStartDate, customEndDate);
+    if (!r || !isValid(r.start) || !isValid(r.end)) return null;
+    return r;
+  }, [dateRangeFilter, customStartDate, customEndDate]);
+
+  // Calcular datos mensuales (o por rango) dependientes del filtro de fechas
   const monthlyCompanyData = useMemo(() => {
     if (!commitments || !companiesData) return [];
-    
-    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    const currentYear = new Date().getFullYear();
-    const last6MonthsIndexes = [];
-    
-    // Obtener los últimos 6 meses
-    for (let i = 5; i >= 0; i--) {
-      const monthIndex = (new Date().getMonth() - i + 12) % 12;
-      last6MonthsIndexes.push(monthIndex);
+
+    // Si no hay rango => mantener comportamiento anterior (últimos 6 meses)
+    const now = new Date();
+    const monthsLabels = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+    // Determinar buckets temporales
+    let buckets = [];
+    if (!activeDateRange) {
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        buckets.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: monthsLabels[d.getMonth()], month: d.getMonth(), year: d.getFullYear(), start: new Date(d.getFullYear(), d.getMonth(), 1), end: new Date(d.getFullYear(), d.getMonth()+1, 0) });
+      }
+    } else {
+      const start = activeDateRange.start;
+      const end = activeDateRange.end;
+      // Si el rango es <= 92 días mostrar por semana, si > 92 días y <= 15 meses mostrar por mes, si > 15 meses limitar a últimos 12 meses
+      const diffDays = Math.round((end - start)/(1000*60*60*24))+1;
+      if (diffDays <= 92) {
+        // Semana: agrupar cada lunes
+        let cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+        while (cursor <= end) {
+          const weekStart = new Date(cursor);
+          const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekEnd.getDate()+6);
+          if (weekEnd > end) weekEnd.setTime(end.getTime());
+          buckets.push({ key: `W${weekStart.getFullYear()}-${weekStart.getMonth()}-${weekStart.getDate()}`, label: `${weekStart.getDate()}/${weekStart.getMonth()+1}`, start: weekStart, end: weekEnd });
+          cursor.setDate(cursor.getDate()+7);
+        }
+      } else {
+        // Mensual
+        let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+        const limitMonths = 15;
+        let count = 0;
+        while (cursor <= end && count < limitMonths) {
+          const mStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+          const mEnd = new Date(cursor.getFullYear(), cursor.getMonth()+1, 0);
+          buckets.push({ key: `${mStart.getFullYear()}-${mStart.getMonth()}`, label: `${monthsLabels[mStart.getMonth()]}`, start: mStart, end: mEnd });
+          cursor = new Date(cursor.getFullYear(), cursor.getMonth()+1, 1);
+          count++;
+        }
+        // Si excede 15 meses recortar a últimos 12 para visual
+        if (buckets.length > 12) buckets = buckets.slice(-12);
+      }
     }
-    
-    return last6MonthsIndexes.map((monthIndex) => {
-      const monthData = { month: months[monthIndex] };
-      
-      companiesData.slice(0, 8).forEach(company => { // Limitar a 8 empresas para mejor visualización
-        const monthCommitments = commitments.filter(c => {
-          if (!c.dueDate) return false;
-          const commitmentDate = c.dueDate.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
-          return commitmentDate.getMonth() === monthIndex && 
-                 commitmentDate.getFullYear() === currentYear &&
-                 c.companyId === company.id;
+
+    // Construir dataset
+    return buckets.map(bucket => {
+      const row = { month: bucket.label };
+      companiesData.slice(0,8).forEach(company => {
+        const bucketCommitments = commitments.filter(c => {
+          if (!c.dueDate || c.companyId !== company.id) return false;
+            const d = c.dueDate.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
+            return d >= bucket.start && d <= bucket.end;
         });
-        
-        monthData[company.name] = monthCommitments.reduce((sum, c) => {
-          const amount = parseFloat(c.totalAmount) || parseFloat(c.amount) || 0;
-          return sum + amount;
-        }, 0);
+        row[company.name] = bucketCommitments.reduce((sum,c)=> sum + (parseFloat(c.totalAmount)||parseFloat(c.amount)||0),0);
       });
-      
-      return monthData;
+      return row;
     });
-  }, [commitments, companiesData]);
+  }, [commitments, companiesData, activeDateRange]);
 
   // Generar colores dinámicos para las empresas
   const getCompanyColor = (index) => {
@@ -2260,19 +2278,20 @@ const ReportsCompanyPage = () => {
         {[
           { 
             label: 'Total Empresas', 
-            value: filteredCompaniesWithRecalculatedStats.length, 
+            value: globalStats.totalCompanies, 
             color: theme.palette.primary.main,
             icon: Business
           },
           { 
             label: 'Monto Total', 
-            value: formatCurrency(filteredCompanies.reduce((sum, c) => sum + c.totalAmount, 0)), 
+            // Usar métricas recalculadas filtradas por período
+            value: formatCurrency(globalStats.totalAmount), 
             color: theme.palette.success.main,
             icon: AttachMoney
           },
           { 
             label: 'Compromisos Totales', 
-            value: filteredCompanies.reduce((sum, c) => sum + c.commitments, 0), 
+            value: globalStats.totalCommitments, 
             color: theme.palette.info.main,
             icon: Business
           }
@@ -2323,14 +2342,26 @@ const ReportsCompanyPage = () => {
       }}>
         <CardContent sx={{ p: 3 }}>
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 3, color: 'text.primary' }}>
-            Tendencia por Empresa ({
-              timeRange === 'lastmonth' ? 'Último mes' :
-              timeRange === 'last3months' ? 'Últimos 3 meses' :
-              timeRange === 'last12months' ? 'Último año' :
-              timeRange === 'custom' && customStartDate && customEndDate ? 
-                `${customStartDate.toLocaleDateString('es-ES')} - ${customEndDate.toLocaleDateString('es-ES')}` :
-                'Últimos 6 meses'
-            })
+            {(() => {
+              let label = 'Tendencia por Empresa';
+              if (!dateRangeFilter || dateRangeFilter === 'all') {
+                label += ' (Últimos 6 meses)';
+              } else {
+                const mapping = {
+                  thisMonth: 'Este mes',
+                  lastMonth: 'Mes anterior',
+                  last90Days: 'Últimos 90 días',
+                  thisYear: 'Año actual',
+                  lastYear: 'Año anterior'
+                };
+                if (dateRangeFilter === 'custom' && customStartDate && customEndDate) {
+                  label += ` (${customStartDate.toLocaleDateString('es-ES')} - ${customEndDate.toLocaleDateString('es-ES')})`;
+                } else if (mapping[dateRangeFilter]) {
+                  label += ` (${mapping[dateRangeFilter]})`;
+                }
+              }
+              return label;
+            })()}
           </Typography>
           {monthlyCompanyData && monthlyCompanyData.length > 0 ? (
             <ResponsiveContainer width="100%" height={400}>

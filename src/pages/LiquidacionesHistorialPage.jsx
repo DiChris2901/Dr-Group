@@ -61,7 +61,7 @@ import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import liquidacionPersistenceService from '../services/liquidacionPersistenceService';
-import DateRangeFilter, { getDateRangeFromFilter } from '../components/payments/DateRangeFilter';
+import MonthYearFilter from '../components/common/MonthYearFilter';
 import { isValid } from 'date-fns';
 import { motion } from 'framer-motion';
 import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
@@ -80,11 +80,9 @@ const LiquidacionesHistorialPage = () => {
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('todos');
   const [filterEmpresa, setFilterEmpresa] = useState('todas');
-  const [dateRangeFilter, setDateRangeFilter] = useState('all');
-  const [customStartDate, setCustomStartDate] = useState(null);
-  const [customEndDate, setCustomEndDate] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState('all');
+  const [selectedYear, setSelectedYear] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   
@@ -261,26 +259,34 @@ const LiquidacionesHistorialPage = () => {
                          liquidacion.archivo.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          liquidacion.procesadoPor.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = filterStatus === 'todos' || liquidacion.estado === filterStatus;
     const matchesEmpresa = filterEmpresa === 'todas' || liquidacion.empresa === filterEmpresa;
     
-    // Filtro de rango de fechas
-    let matchesDateRange = true;
-    if (dateRangeFilter !== 'all') {
-      const dateRange = getDateRangeFromFilter(
-        dateRangeFilter,
-        customStartDate,
-        customEndDate
-      );
+    // Filtro por mes y año
+    let matchesMonthYear = true;
+    
+    if (selectedMonth !== 'all' || selectedYear !== 'all') {
+      const liquidacionDate = new Date(liquidacion.fecha);
       
-      if (dateRange && dateRange.startDate && dateRange.endDate && 
-          isValid(dateRange.startDate) && isValid(dateRange.endDate)) {
-        const liquidacionDate = new Date(liquidacion.fecha);
-        matchesDateRange = liquidacionDate >= dateRange.startDate && liquidacionDate <= dateRange.endDate;
+      // Si ambos están seleccionados (mes y año específico)
+      if (selectedMonth !== 'all' && selectedYear !== 'all') {
+        const targetMonth = parseInt(selectedMonth);
+        const targetYear = parseInt(selectedYear);
+        matchesMonthYear = (liquidacionDate.getMonth() + 1) === targetMonth && 
+                          liquidacionDate.getFullYear() === targetYear;
+      }
+      // Si solo el mes está seleccionado (cualquier año)
+      else if (selectedMonth !== 'all') {
+        const targetMonth = parseInt(selectedMonth);
+        matchesMonthYear = (liquidacionDate.getMonth() + 1) === targetMonth;
+      }
+      // Si solo el año está seleccionado (cualquier mes)
+      else if (selectedYear !== 'all') {
+        const targetYear = parseInt(selectedYear);
+        matchesMonthYear = liquidacionDate.getFullYear() === targetYear;
       }
     }
     
-    return matchesSearch && matchesStatus && matchesEmpresa && matchesDateRange;
+    return matchesSearch && matchesEmpresa && matchesMonthYear;
   });
 
   // Paginación
@@ -509,18 +515,37 @@ const LiquidacionesHistorialPage = () => {
 
   // Detectar si hay filtros activos
   const hasActiveFilters = searchTerm || 
-    filterStatus !== 'todos' || 
     filterEmpresa !== 'todas' || 
-    dateRangeFilter !== 'all';
+    selectedMonth !== 'all' ||
+    selectedYear !== 'all';
+
+  // Funciones wrapper para resetear página al cambiar filtros
+  const handleSearchChange = (value) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  };
+
+  const handleEmpresaChange = (value) => {
+    setFilterEmpresa(value);
+    setCurrentPage(1);
+  };
+
+  const handleMonthChange = (value) => {
+    setSelectedMonth(value);
+    setCurrentPage(1);
+  };
+
+  const handleYearChange = (value) => {
+    setSelectedYear(value);
+    setCurrentPage(1);
+  };
 
   // Limpiar filtros
   const limpiarFiltros = () => {
     setSearchTerm('');
-    setFilterStatus('todos');
     setFilterEmpresa('todas');
-    setDateRangeFilter('all');
-    setCustomStartDate(null);
-    setCustomEndDate(null);
+    setSelectedMonth('all');
+    setSelectedYear('all');
     setCurrentPage(1);
   };
 
@@ -531,7 +556,7 @@ const LiquidacionesHistorialPage = () => {
         background: theme.palette.mode === 'dark' 
           ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
           : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-        borderRadius: 1,
+        borderRadius: 0.6,
         overflow: 'hidden',
         boxShadow: theme.palette.mode === 'dark'
           ? '0 4px 20px rgba(0, 0, 0, 0.3)'
@@ -604,46 +629,21 @@ const LiquidacionesHistorialPage = () => {
               </Box>
             </Box>
             
-            {hasActiveFilters && (
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<Close />}
-                  onClick={limpiarFiltros}
-                  sx={{
-                    borderRadius: 1,
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    '&:hover': {
-                      transform: 'translateY(-1px)',
-                      boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
-                    }
-                  }}
-                >
-                  Limpiar Filtros
-                </Button>
-              </motion.div>
-            )}
           </Box>
           
           <Grid container spacing={2} alignItems="center">
             {/* Búsqueda por texto */}
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={2.5}>
               <TextField
                 fullWidth
                 label="Buscar liquidaciones"
                 placeholder="Empresa, archivo, usuario..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1,
-                    backgroundColor: theme.palette.background.default,
+                    borderRadius: 0.6,
+                    backgroundColor: theme.palette.background.paper,
                     transition: 'all 0.3s ease',
                     '&:hover': {
                       transform: 'translateY(-1px)',
@@ -664,7 +664,7 @@ const LiquidacionesHistorialPage = () => {
                     <InputAdornment position="end">
                       <IconButton
                         size="small"
-                        onClick={() => setSearchTerm('')}
+                        onClick={() => handleSearchChange('')}
                         sx={{ 
                           color: 'text.secondary',
                           '&:hover': { color: 'error.main' }
@@ -678,52 +678,14 @@ const LiquidacionesHistorialPage = () => {
               />
             </Grid>
             
-            {/* Filtro por estado */}
-            <Grid item xs={12} md={2}>
-              <FormControl 
-                fullWidth
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1,
-                    backgroundColor: theme.palette.background.default,
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      transform: 'translateY(-1px)',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-                    },
-                    '&.Mui-focused': {
-                      boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
-                    }
-                  }
-                }}
-              >
-                <InputLabel>Estado</InputLabel>
-                <Select
-                  value={filterStatus}
-                  label="Estado"
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                >
-                  <MenuItem value="todos">
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Assessment sx={{ mr: 1, color: 'text.secondary' }} />
-                      Todos los estados
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="completado">Completado</MenuItem>
-                  <MenuItem value="procesando">Procesando</MenuItem>
-                  <MenuItem value="error">Error</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            
             {/* Filtro por empresa */}
-            <Grid item xs={12} md={2}>
+            <Grid item xs={12} md={2.5}>
               <FormControl 
                 fullWidth
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1,
-                    backgroundColor: theme.palette.background.default,
+                    borderRadius: 0.6,
+                    backgroundColor: theme.palette.background.paper,
                     transition: 'all 0.3s ease',
                     '&:hover': {
                       transform: 'translateY(-1px)',
@@ -739,7 +701,7 @@ const LiquidacionesHistorialPage = () => {
                 <Select
                   value={filterEmpresa}
                   label="Empresa"
-                  onChange={(e) => setFilterEmpresa(e.target.value)}
+                  onChange={(e) => handleEmpresaChange(e.target.value)}
                 >
                   <MenuItem value="todas">
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -754,33 +716,75 @@ const LiquidacionesHistorialPage = () => {
               </FormControl>
             </Grid>
             
-            {/* Filtro por período */}
-            <Grid item xs={12} md={3}>
-              <DateRangeFilter
-                value={dateRangeFilter}
-                customStartDate={customStartDate}
-                customEndDate={customEndDate}
-                onChange={setDateRangeFilter}
-                onCustomRangeChange={(startDate, endDate) => {
-                  setCustomStartDate(startDate);
-                  setCustomEndDate(endDate);
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1,
-                    backgroundColor: theme.palette.background.default,
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      transform: 'translateY(-1px)',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-                    },
-                    '&.Mui-focused': {
-                      boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
-                    }
-                  }
-                }}
+            {/* Filtro por mes y año */}
+            <Grid item xs={12} md={5}>
+              <MonthYearFilter
+                selectedMonth={selectedMonth}
+                selectedYear={selectedYear}
+                onMonthChange={handleMonthChange}
+                onYearChange={handleYearChange}
               />
             </Grid>
+
+            {/* Botón Limpiar Filtros */}
+            {hasActiveFilters && (
+              <Grid item xs={12} md={2}>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                >
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    startIcon={<Close />}
+                    onClick={limpiarFiltros}
+                    sx={{
+                      height: 56, // Altura similar a los otros campos
+                      borderRadius: 0.6,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      fontSize: '0.95rem',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      background: `linear-gradient(135deg, 
+                        ${theme.palette.primary.main} 0%, 
+                        ${theme.palette.secondary.main} 100%)`,
+                      boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.3)}`,
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: '-100%',
+                        width: '100%',
+                        height: '100%',
+                        background: `linear-gradient(90deg, 
+                          transparent, 
+                          ${alpha(theme.palette.common.white, 0.3)}, 
+                          transparent)`,
+                        transition: 'left 0.6s ease',
+                      },
+                      '&:hover': {
+                        background: `linear-gradient(135deg, 
+                          ${theme.palette.primary.dark} 0%, 
+                          ${theme.palette.secondary.dark} 100%)`,
+                        transform: 'translateY(-2px) scale(1.02)',
+                        boxShadow: `0 8px 30px ${alpha(theme.palette.primary.main, 0.4)}`,
+                        '&::before': {
+                          left: '100%',
+                        }
+                      },
+                      '&:active': {
+                        transform: 'translateY(0) scale(0.98)',
+                      }
+                    }}
+                  >
+                    Limpiar
+                  </Button>
+                </motion.div>
+              </Grid>
+            )}
           </Grid>
         </Box>
       </Paper>
@@ -793,7 +797,7 @@ const LiquidacionesHistorialPage = () => {
             textAlign: 'center',
             border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             backgroundColor: 'background.paper',
-            borderRadius: 2,
+            borderRadius: 0.6,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             transition: 'all 0.2s ease',
             '&:hover': {
@@ -828,21 +832,21 @@ const LiquidacionesHistorialPage = () => {
           <Paper sx={{ 
             p: 3, 
             textAlign: 'center',
-            border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             backgroundColor: 'background.paper',
-            borderRadius: 2,
+            borderRadius: 0.6,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             transition: 'all 0.2s ease',
             '&:hover': {
               transform: 'translateY(-2px)',
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-              borderColor: alpha(theme.palette.success.main, 0.8)
+              borderColor: alpha(theme.palette.primary.main, 0.8)
             }
           }}>
             <Assessment sx={{ 
               fontSize: 32, 
               mb: 1.5, 
-              color: theme.palette.success.main,
+              color: theme.palette.primary.main,
               opacity: 0.8
             }} />
             <Typography variant="h4" sx={{ 
@@ -865,21 +869,21 @@ const LiquidacionesHistorialPage = () => {
           <Paper sx={{ 
             p: 3, 
             textAlign: 'center',
-            border: `1px solid ${alpha(theme.palette.warning.main, 0.6)}`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             backgroundColor: 'background.paper',
-            borderRadius: 2,
+            borderRadius: 0.6,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             transition: 'all 0.2s ease',
             '&:hover': {
               transform: 'translateY(-2px)',
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-              borderColor: alpha(theme.palette.warning.main, 0.8)
+              borderColor: alpha(theme.palette.primary.main, 0.8)
             }
           }}>
             <Timeline sx={{ 
               fontSize: 32, 
               mb: 1.5, 
-              color: theme.palette.warning.main,
+              color: theme.palette.primary.main,
               opacity: 0.8
             }} />
             <Typography variant="h4" sx={{ 
@@ -902,21 +906,21 @@ const LiquidacionesHistorialPage = () => {
           <Paper sx={{ 
             p: 3, 
             textAlign: 'center',
-            border: `1px solid ${alpha(theme.palette.error.main, 0.6)}`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             backgroundColor: 'background.paper',
-            borderRadius: 2,
+            borderRadius: 0.6,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             transition: 'all 0.2s ease',
             '&:hover': {
               transform: 'translateY(-2px)',
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-              borderColor: alpha(theme.palette.error.main, 0.8)
+              borderColor: alpha(theme.palette.primary.main, 0.8)
             }
           }}>
             <Business sx={{ 
               fontSize: 32, 
               mb: 1.5, 
-              color: theme.palette.error.main,
+              color: theme.palette.primary.main,
               opacity: 0.8
             }} />
             <Typography variant="h4" sx={{ 
@@ -938,12 +942,12 @@ const LiquidacionesHistorialPage = () => {
 
       {/* Tabla de Liquidaciones Sobrio */}
       <Card sx={{ 
-        borderRadius: 1,
-        border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        borderRadius: 0.6,
+        border: `2px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+        boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.15)}`,
         '&:hover': {
-          borderColor: alpha(theme.palette.success.main, 0.8),
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+          borderColor: alpha(theme.palette.primary.main, 0.8),
+          boxShadow: `0 8px 30px ${alpha(theme.palette.primary.main, 0.25)}`
         },
         transition: 'all 0.2s ease'
       }}>
@@ -966,22 +970,11 @@ const LiquidacionesHistorialPage = () => {
             </Typography>
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
-                variant="outlined"
-                startIcon={<Download />}
-                sx={{ 
-                  borderRadius: 1,
-                  textTransform: 'none',
-                  fontWeight: 600
-                }}
-              >
-                Exportar Todo
-              </Button>
-              <Button
                 variant="contained"
                 startIcon={<Add />}
                 href="/liquidaciones"
                 sx={{ 
-                  borderRadius: 1,
+                  borderRadius: 0.6,
                   textTransform: 'none',
                   fontWeight: 600
                 }}
@@ -995,6 +988,19 @@ const LiquidacionesHistorialPage = () => {
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Typography>Cargando historial...</Typography>
             </Box>
+          ) : !hasActiveFilters ? (
+            <Box sx={{ textAlign: 'center', py: 8 }}>
+              <FilterList sx={{ fontSize: 80, color: theme.palette.grey[400], mb: 3 }} />
+              <Typography variant="h5" color="textSecondary" gutterBottom>
+                Aplica filtros para ver liquidaciones
+              </Typography>
+              <Typography variant="body1" color="textSecondary" sx={{ mb: 2 }}>
+                Utiliza los filtros de búsqueda, empresa, mes o año para encontrar liquidaciones específicas.
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                Los resultados se mostrarán paginados con un máximo de 10 registros por página.
+              </Typography>
+            </Box>
           ) : liquidacionesPaginadas.length === 0 ? (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Receipt sx={{ fontSize: 60, color: theme.palette.grey[400], mb: 2 }} />
@@ -1002,36 +1008,61 @@ const LiquidacionesHistorialPage = () => {
                 No se encontraron liquidaciones
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                {liquidacionesFiltradas.length === 0 && liquidaciones.length > 0 
-                  ? 'Intenta ajustar los filtros de búsqueda'
-                  : 'Comienza procesando tu primera liquidación'
-                }
+                Intenta ajustar los filtros de búsqueda para encontrar liquidaciones.
               </Typography>
             </Box>
           ) : (
             <Box sx={{ p: 3 }}>
+              {/* Información de resultados */}
+              <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="textSecondary">
+                  Mostrando {liquidacionesPaginadas.length} de {liquidacionesFiltradas.length} liquidaciones
+                  {liquidacionesFiltradas.length !== liquidaciones.length && 
+                    ` (filtrado de ${liquidaciones.length} total)`
+                  }
+                </Typography>
+                {totalPages > 1 && (
+                  <Typography variant="body2" color="textSecondary">
+                    Página {currentPage} de {totalPages}
+                  </Typography>
+                )}
+              </Box>
+
               <TableContainer component={Paper} sx={{ 
-                borderRadius: 1,
-                border: `1px solid ${theme.palette.divider}`,
-                boxShadow: 'none'
+                borderRadius: 0.6,
+                border: 'none',
+                boxShadow: 'none',
+                backgroundColor: 'transparent'
               }}>
                 <Table>
                   <TableHead>
-                    <TableRow sx={{ backgroundColor: alpha(theme.palette.primary.main, 0.05) }}>
-                      <TableCell sx={{ fontWeight: 600, borderBottom: `2px solid ${theme.palette.divider}` }}>Fecha</TableCell>
-                      <TableCell sx={{ fontWeight: 600, borderBottom: `2px solid ${theme.palette.divider}` }}>Período</TableCell>
-                      <TableCell sx={{ fontWeight: 600, borderBottom: `2px solid ${theme.palette.divider}` }}>Empresa</TableCell>
-                      <TableCell sx={{ fontWeight: 600, borderBottom: `2px solid ${theme.palette.divider}` }}>Archivo</TableCell>
-                      <TableCell sx={{ fontWeight: 600, borderBottom: `2px solid ${theme.palette.divider}` }}>Máquinas</TableCell>
-                      <TableCell sx={{ fontWeight: 600, borderBottom: `2px solid ${theme.palette.divider}` }}>Producción</TableCell>
-                      <TableCell sx={{ fontWeight: 600, borderBottom: `2px solid ${theme.palette.divider}` }}>Total Impuestos</TableCell>
-                      <TableCell><strong>Estado</strong></TableCell>
-                      <TableCell><strong>Acciones</strong></TableCell>
+                    <TableRow sx={{ 
+                      backgroundColor: alpha(theme.palette.grey[50], 0.5)
+                    }}>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', py: 2 }}>Fecha</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', py: 2 }}>Período</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', py: 2 }}>Empresa</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', py: 2 }}>Archivo</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', py: 2 }}>Máquinas</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', py: 2 }}>Producción</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', py: 2 }}>Total Impuestos</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', py: 2 }}>Estado</TableCell>
+                      <TableCell sx={{ fontWeight: 600, color: 'text.primary', py: 2 }}>Acciones</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {liquidacionesPaginadas.map((liquidacion) => (
-                      <TableRow key={liquidacion.id} hover>
+                      <TableRow 
+                        key={liquidacion.id}
+                        sx={{
+                          '&:hover': {
+                            backgroundColor: alpha(theme.palette.primary.main, 0.02)
+                          },
+                          '&:nth-of-type(even)': {
+                            backgroundColor: alpha(theme.palette.grey[50], 0.4),
+                          }
+                        }}
+                      >
                         <TableCell>
                           {liquidacion.fecha.toLocaleDateString('es-CO')}
                         </TableCell>
