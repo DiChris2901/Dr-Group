@@ -49,8 +49,10 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { es } from 'date-fns/locale';
 import { motion } from 'framer-motion';
+import DateRangeFilter, { getDateRangeFromFilter } from '../../components/payments/DateRangeFilter';
+import { isValid } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area } from 'recharts';
-import { useCommitments, useCompanies } from '../../hooks/useFirestore';
+import { useCommitments, useCompanies, usePayments } from '../../hooks/useFirestore';
 import { useSettings } from '../../context/SettingsContext';
 
 const ReportsCompanyPage = () => {
@@ -67,13 +69,16 @@ const ReportsCompanyPage = () => {
   // ✅ ESTADOS PARA FECHAS PERSONALIZADAS
   const [customStartDate, setCustomStartDate] = useState(null);
   const [customEndDate, setCustomEndDate] = useState(null);
-  const [showCustomDates, setShowCustomDates] = useState(false);
+  
+  // ✅ ESTADO PARA DATERANGEFILTER (por defecto sin filtrar)
+  const [dateRangeFilter, setDateRangeFilter] = useState('all');
   
   // ✅ NUEVOS ESTADOS PARA SISTEMA DE FILTROS SPECTACULAR
   const [appliedFilters, setAppliedFilters] = useState({
     searchTerm: '',
     selectedCompanies: [],
     timeRange: 'last6months',
+    dateRangeFilter: 'all',
     statusFilter: 'all',
     customStartDate: null,
     customEndDate: null
@@ -84,8 +89,9 @@ const ReportsCompanyPage = () => {
   // Conectar con Firebase para obtener datos reales
   const { commitments, loading: commitmentsLoading } = useCommitments();
   const { companies: companiesData, loading: companiesLoading } = useCompanies();
+  const { payments, loading: paymentsLoading } = usePayments();
   
-  const loading = commitmentsLoading || companiesLoading;
+  const loading = commitmentsLoading || companiesLoading || paymentsLoading;
 
   // ✅ ESTADO DERIVADO DE SELECCIÓN MULTI-EMPRESA
   const isAllCompaniesSelected = companiesData && companiesData.length > 0 && selectedCompanies.length === companiesData.length; // legacy (aún usado en chips)
@@ -171,6 +177,7 @@ const ReportsCompanyPage = () => {
       searchTerm,
       selectedCompanies,
       timeRange,
+      dateRangeFilter,
       statusFilter,
       customStartDate,
       customEndDate
@@ -182,14 +189,15 @@ const ReportsCompanyPage = () => {
     setSearchTerm('');
     setSelectedCompanies([]);
     setTimeRange('last6months');
+    setDateRangeFilter('all');
     setStatusFilter('all');
     setCustomStartDate(null);
     setCustomEndDate(null);
-    setShowCustomDates(false);
     setAppliedFilters({
       searchTerm: '',
       selectedCompanies: [],
       timeRange: 'last6months',
+      dateRangeFilter: 'all',
       statusFilter: 'all',
       customStartDate: null,
       customEndDate: null
@@ -202,6 +210,7 @@ const ReportsCompanyPage = () => {
       appliedFilters.searchTerm !== searchTerm ||
       JSON.stringify(appliedFilters.selectedCompanies) !== JSON.stringify(selectedCompanies) ||
       appliedFilters.timeRange !== timeRange ||
+      appliedFilters.dateRangeFilter !== dateRangeFilter ||
       appliedFilters.statusFilter !== statusFilter ||
       appliedFilters.customStartDate !== customStartDate ||
       appliedFilters.customEndDate !== customEndDate
@@ -219,8 +228,17 @@ const ReportsCompanyPage = () => {
   // ✅ FUNCIONES PARA FECHAS PERSONALIZADAS
   const handleTimeRangeChange = (value) => {
     setTimeRange(value);
+    // Sincronizar con DateRangeFilter
+    const mapping = {
+      'lastmonth': 'lastMonth',
+      'last3months': 'last90days',
+      'last6months': 'last6months',
+      'last12months': 'thisYear',
+      'custom': 'custom'
+    };
+    setDateRangeFilter(mapping[value] || value);
+    
     if (value === 'custom') {
-      setShowCustomDates(true);
       // Establecer fechas por defecto si no existen
       if (!customStartDate) {
         const today = new Date();
@@ -230,9 +248,26 @@ const ReportsCompanyPage = () => {
       if (!customEndDate) {
         setCustomEndDate(new Date());
       }
-    } else {
-      setShowCustomDates(false);
     }
+  };
+
+  // ✅ FUNCIONES PARA DATERANGEFILTER
+  const handleDateRangeChange = (value) => {
+    setDateRangeFilter(value);
+    // Sincronizar con timeRange para mantener compatibilidad
+    const reverseMapping = {
+      'lastMonth': 'lastmonth',
+      'last90days': 'last3months',
+      'last6months': 'last6months',
+      'thisYear': 'last12months',
+      'custom': 'custom'
+    };
+    setTimeRange(reverseMapping[value] || 'last6months');
+  };
+
+  const handleCustomRangeChange = (startDate, endDate) => {
+    setCustomStartDate(startDate);
+    setCustomEndDate(endDate);
   };
 
   // Calcular datos mensuales por empresa desde Firebase
@@ -479,16 +514,35 @@ const ReportsCompanyPage = () => {
   };
 
   const filteredCompanies = enrichedCompanies.filter(company => {
-    // Aplicar filtros solo cuando estén aplicados
-    const filters = filtersApplied ? appliedFilters : {
+    // ✅ USAR FILTROS ACTUALES DIRECTAMENTE (no requiere hacer clic en "Filtrar")
+    const filters = {
       searchTerm,
       selectedCompanies,
       timeRange,
-      statusFilter
+      dateRangeFilter,
+      statusFilter,
+      customStartDate,
+      customEndDate
     };
+    
+    // ✅ FILTRO POR FECHAS USANDO DATERANGEFILTER
+    let dateFiltered = true;
+    if (filters.dateRangeFilter && filters.dateRangeFilter !== 'all') {
+      const dateRange = getDateRangeFromFilter(filters.dateRangeFilter, filters.customStartDate, filters.customEndDate);
+      if (dateRange && isValid(dateRange.start) && isValid(dateRange.end)) {
+        // Filtrar por compromisos que tengan fechas en el rango seleccionado
+        const hasCommitmentsInRange = company.rawCommitments && company.rawCommitments.some(commitment => {
+          if (!commitment.dueDate) return false;
+          const commitmentDate = commitment.dueDate.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate);
+          return commitmentDate >= dateRange.start && commitmentDate <= dateRange.end;
+        });
+        dateFiltered = hasCommitmentsInRange;
+      }
+    }
     
     return company.name.toLowerCase().includes(filters.searchTerm.toLowerCase()) &&
            (filters.selectedCompanies.length === 0 || filters.selectedCompanies.includes(company.id)) &&
+           dateFiltered &&
            (filters.statusFilter === 'all' || 
             (filters.statusFilter === 'high-performance' && company.completed / company.commitments >= 0.8) ||
             (filters.statusFilter === 'medium-performance' && company.completed / company.commitments >= 0.5 && company.completed / company.commitments < 0.8) ||
@@ -503,23 +557,74 @@ const ReportsCompanyPage = () => {
     { value: 'low-performance', label: 'Bajo desempeño (<50%)', color: 'error', icon: '📉' }
   ];
 
-  const hasActiveFilters = searchTerm || selectedCompanies.length > 0 || timeRange !== 'last6months' || statusFilter !== 'all' || customStartDate || customEndDate;
+  const hasActiveFilters = searchTerm || selectedCompanies.length > 0 || dateRangeFilter !== 'all' || statusFilter !== 'all' || customStartDate || customEndDate;
 
-  // Estadísticas globales para el header
+  // ✅ RECALCULAR MÉTRICAS CON DATOS FILTRADOS POR FECHA
+  const filteredCompaniesWithRecalculatedStats = useMemo(() => {
+    if (!filteredCompanies.length) return [];
+    
+    return filteredCompanies.map(company => {
+      // Si no hay filtro de fecha, usar métricas originales
+      if (!dateRangeFilter || dateRangeFilter === 'all') {
+        return company;
+      }
+      
+      // Aplicar filtro de fecha a los compromisos para recalcular métricas
+      const dateRange = getDateRangeFromFilter(dateRangeFilter, customStartDate, customEndDate);
+      if (!dateRange || !isValid(dateRange.start) || !isValid(dateRange.end)) {
+        return company;
+      }
+      
+      // Filtrar compromisos por fecha
+      const filteredCommitments = company.rawCommitments.filter(commitment => {
+        if (!commitment.dueDate) return false;
+        const commitmentDate = commitment.dueDate.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate);
+        return commitmentDate >= dateRange.start && commitmentDate <= dateRange.end;
+      });
+      
+      // Recalcular métricas solo con compromisos del período
+      const totalAmount = filteredCommitments.reduce((sum, c) => {
+        const amount = parseFloat(c.totalAmount) || parseFloat(c.amount) || 0;
+        return sum + amount;
+      }, 0);
+      
+      const completed = filteredCommitments.filter(c => {
+        const isPaidByStatus = c.status === 'completed' || c.status === 'paid';
+        const isPaidByFlag = c.paid === true || c.isPaid === true;
+        return isPaidByStatus || isPaidByFlag;
+      }).length;
+      
+      const pending = filteredCommitments.filter(c => c.status === 'pending').length;
+      const overdue = filteredCommitments.filter(c => c.status === 'overdue').length;
+      
+      return {
+        ...company,
+        totalAmount,
+        commitments: filteredCommitments.length,
+        completed,
+        pending,
+        overdue,
+        avgTicket: filteredCommitments.length > 0 ? totalAmount / filteredCommitments.length : 0,
+        rawCommitments: filteredCommitments
+      };
+    });
+  }, [filteredCompanies, dateRangeFilter, customStartDate, customEndDate]);
+
+  // Estadísticas globales para el header (usando datos recalculados)
   const globalStats = useMemo(() => {
-    const totalAmount = enrichedCompanies.reduce((sum, company) => sum + company.totalAmount, 0);
-    const totalCommitments = enrichedCompanies.reduce((sum, company) => sum + company.commitments, 0);
-    const totalCompleted = enrichedCompanies.reduce((sum, company) => sum + company.completed, 0);
-    const totalPending = enrichedCompanies.reduce((sum, company) => sum + company.pending, 0);
+    const totalAmount = filteredCompaniesWithRecalculatedStats.reduce((sum, company) => sum + company.totalAmount, 0);
+    const totalCommitments = filteredCompaniesWithRecalculatedStats.reduce((sum, company) => sum + company.commitments, 0);
+    const totalCompleted = filteredCompaniesWithRecalculatedStats.reduce((sum, company) => sum + company.completed, 0);
+    const totalPending = filteredCompaniesWithRecalculatedStats.reduce((sum, company) => sum + company.pending, 0);
     
     return {
       totalAmount,
       totalCommitments,
       totalCompleted,
       totalPending,
-      totalCompanies: enrichedCompanies.length
+      totalCompanies: filteredCompaniesWithRecalculatedStats.length
     };
-  }, [enrichedCompanies]);
+  }, [filteredCompaniesWithRecalculatedStats]);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('es-CO', {
@@ -587,7 +692,7 @@ const ReportsCompanyPage = () => {
         selectedCompanies: selectedCompanyNames,
         timeRange: timeRange,
         searchTerm: searchTerm || 'Sin filtro',
-        totalCompanies: filteredCompanies.length,
+        totalCompanies: filteredCompaniesWithRecalculatedStats.length,
         totalAmount: globalStats.totalAmount,
         exportFormat: 'Excel'
       });
@@ -658,12 +763,12 @@ const ReportsCompanyPage = () => {
       });
       kpiHeaderRow.height = 20;
 
-      // Datos de KPIs
+      // Datos de KPIs (usando métricas recalculadas)
       const kpiData = [
-        ['Total Empresas', filteredCompanies.length, 'unidades', '', 'Empresas Activas', filteredCompanies.filter(c => c.commitments > 0).length, 'unidades'],
-        ['Monto Total', filteredCompanies.reduce((sum, c) => sum + c.totalAmount, 0), 'COP', '', 'Compromisos Totales', filteredCompanies.reduce((sum, c) => sum + c.commitments, 0), 'unidades'],
-        ['Promedio por Empresa', filteredCompanies.length > 0 ? Math.round(filteredCompanies.reduce((sum, c) => sum + c.totalAmount, 0) / filteredCompanies.length) : 0, 'COP', '', 'Completados', filteredCompanies.reduce((sum, c) => sum + c.completed, 0), 'unidades'],
-        ['Top Performer', filteredCompanies.length > 0 ? filteredCompanies.sort((a, b) => (b.completed/b.commitments) - (a.completed/a.commitments))[0]?.name || 'N/A' : 'N/A', 'texto', '', 'Pendientes', filteredCompanies.reduce((sum, c) => sum + c.pending, 0), 'unidades']
+        ['Total Empresas', filteredCompaniesWithRecalculatedStats.length, 'unidades', '', 'Empresas Activas', filteredCompaniesWithRecalculatedStats.filter(c => c.commitments > 0).length, 'unidades'],
+        ['Monto Total', filteredCompaniesWithRecalculatedStats.reduce((sum, c) => sum + c.totalAmount, 0), 'COP', '', 'Compromisos Totales', filteredCompaniesWithRecalculatedStats.reduce((sum, c) => sum + c.commitments, 0), 'unidades'],
+        ['Promedio por Empresa', filteredCompaniesWithRecalculatedStats.length > 0 ? Math.round(filteredCompaniesWithRecalculatedStats.reduce((sum, c) => sum + c.totalAmount, 0) / filteredCompaniesWithRecalculatedStats.length) : 0, 'COP', '', 'Completados', filteredCompaniesWithRecalculatedStats.reduce((sum, c) => sum + c.completed, 0), 'unidades'],
+        ['Top Performer', filteredCompaniesWithRecalculatedStats.length > 0 ? filteredCompaniesWithRecalculatedStats.sort((a, b) => (b.completed/b.commitments) - (a.completed/a.commitments))[0]?.name || 'N/A' : 'N/A', 'texto', '', 'Pendientes', filteredCompaniesWithRecalculatedStats.reduce((sum, c) => sum + c.pending, 0), 'unidades']
       ];
 
       kpiData.forEach((row, rowIndex) => {
@@ -713,7 +818,7 @@ const ReportsCompanyPage = () => {
       // Subtítulo
       detailSheet.mergeCells('A2:G2');
       const subtitleCell = detailSheet.getCell('A2');
-      subtitleCell.value = `Período: ${timeRange} | Total empresas analizadas: ${filteredCompanies.length}`;
+      subtitleCell.value = `Período: ${timeRange} | Total empresas analizadas: ${filteredCompaniesWithRecalculatedStats.length}`;
       subtitleCell.font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FF7B1FA2' } };
       subtitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E5F5' } };
       subtitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -735,8 +840,8 @@ const ReportsCompanyPage = () => {
       });
       headerRow.height = 25;
       
-      // Datos de empresas con formato profesional
-      filteredCompanies.forEach((company, index) => {
+      // Datos de empresas con formato profesional (usando métricas recalculadas)
+      filteredCompaniesWithRecalculatedStats.forEach((company, index) => {
         const row = detailSheet.getRow(5 + index);
         const percentage = Math.round((company.completed / company.commitments) * 100);
         
@@ -1758,21 +1863,24 @@ const ReportsCompanyPage = () => {
                     />
                   );
                 }).filter(Boolean)}
-                {timeRange !== 'last6months' && (
+                {dateRangeFilter !== 'all' && (
                   <Chip
-                    key="time-range-filter"
+                    key="date-range-filter"
                     label={`Período: ${
-                      timeRange === 'lastmonth' ? 'Último mes' :
-                      timeRange === 'last3months' ? 'Últimos 3 meses' : 
-                      timeRange === 'last12months' ? 'Último año' : 
-                      timeRange === 'custom' && customStartDate && customEndDate ? 
+                      dateRangeFilter === 'thisMonth' ? 'Este mes' :
+                      dateRangeFilter === 'lastMonth' ? 'Mes pasado' :
+                      dateRangeFilter === 'last90days' ? 'Últimos 90 días' :
+                      dateRangeFilter === 'thisYear' ? 'Este año' :
+                      dateRangeFilter === 'lastYear' ? 'Año pasado' :
+                      dateRangeFilter === 'last6months' ? 'Últimos 6 meses' :
+                      dateRangeFilter === 'custom' && customStartDate && customEndDate ? 
                         `${customStartDate.toLocaleDateString('es-ES')} - ${customEndDate.toLocaleDateString('es-ES')}` :
                         'Personalizado'
                     }`}
                     size="small"
                     onDelete={() => {
+                      setDateRangeFilter('all');
                       setTimeRange('last6months');
-                      setShowCustomDates(false);
                     }}
                     sx={{ 
                       bgcolor: alpha(theme.palette.secondary.main, 0.1),
@@ -1782,7 +1890,7 @@ const ReportsCompanyPage = () => {
                     }}
                   />
                 )}
-                {(customStartDate || customEndDate) && timeRange === 'custom' && (
+                {(customStartDate || customEndDate) && dateRangeFilter === 'custom' && (
                   <Chip
                     key="custom-dates-filter"
                     label={`📅 Fechas: ${customStartDate ? customStartDate.toLocaleDateString('es-ES') : 'Sin inicio'} - ${customEndDate ? customEndDate.toLocaleDateString('es-ES') : 'Sin fin'}`}
@@ -2012,59 +2120,15 @@ const ReportsCompanyPage = () => {
               )}
             </Grid>
 
-            {/* Selector de Período */}
+            {/* Selector de Período con DateRangeFilter */}
             <Grid item xs={12} md={2}>
-              <FormControl fullWidth>
-                <InputLabel>📅 Período</InputLabel>
-                <Select
-                  value={timeRange}
-                  onChange={(e) => handleTimeRangeChange(e.target.value)}
-                  label="📅 Período"
-                  sx={{
-                    borderRadius: 1,
-                    transition: 'all 0.3s ease',
-                    '&:hover': {
-                      transform: 'translateY(-1px)',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                    },
-                    '&.Mui-focused': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: `0 6px 20px ${alpha(theme.palette.secondary.main, 0.15)}`
-                    }
-                  }}
-                >
-                  <MenuItem value="lastmonth">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <CalendarToday fontSize="small" />
-                      Último mes
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="last3months">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <CalendarToday fontSize="small" />
-                      Últimos 3 meses
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="last6months">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <CalendarToday fontSize="small" />
-                      Últimos 6 meses
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="last12months">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <CalendarToday fontSize="small" />
-                      Último año
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="custom">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <DateRange fontSize="small" />
-                      Personalizado
-                    </Box>
-                  </MenuItem>
-                </Select>
-              </FormControl>
+              <DateRangeFilter
+                value={dateRangeFilter}
+                customStartDate={customStartDate}
+                customEndDate={customEndDate}
+                onChange={handleDateRangeChange}
+                onCustomRangeChange={handleCustomRangeChange}
+              />
             </Grid>
 
             {/* Selector de Desempeño */}
@@ -2161,7 +2225,7 @@ const ReportsCompanyPage = () => {
               variant="contained"
               startIcon={exportingExcel ? <CircularProgress size={16} color="inherit" /> : <GetApp />}
               onClick={exportReport}
-              disabled={exportingExcel || loading || filteredCompanies.length === 0}
+              disabled={exportingExcel || loading || filteredCompaniesWithRecalculatedStats.length === 0}
               sx={{
                 borderRadius: 1,
                 fontWeight: 600,
@@ -2191,139 +2255,12 @@ const ReportsCompanyPage = () => {
         </Paper>
       </motion.div>
 
-      {/* ✨ SELECTOR DE FECHAS PERSONALIZADAS - DISEÑO SOBRIO */}
-      <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
-        <Collapse in={showCustomDates} timeout="auto" unmountOnExit>
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Paper
-              elevation={0}
-              sx={{
-                backgroundColor: theme.palette.background.paper,
-                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-                borderRadius: 1,
-                p: 3,
-                mb: 4,
-                position: 'relative',
-                '&:hover': {
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                  transition: 'all 0.2s ease'
-                }
-              }}
-            >
-              {/* Header minimalista */}
-              <Typography variant="subtitle1" sx={{ 
-                fontWeight: 500,
-                color: 'text.secondary',
-                mb: 3,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
-              }}>
-                <DateRange fontSize="small" sx={{ color: 'text.secondary' }} />
-                Rango de fechas personalizado
-              </Typography>
-
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <DatePicker
-                    label="Fecha de inicio"
-                    value={customStartDate}
-                    onChange={(newValue) => setCustomStartDate(newValue)}
-                    maxDate={customEndDate || new Date()}
-                    slotProps={{
-                      textField: {
-                        fullWidth: true,
-                        size: 'medium',
-                        sx: {
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1,
-                            backgroundColor: theme.palette.background.paper,
-                            '&:hover .MuiOutlinedInput-notchedOutline': {
-                              borderColor: alpha(theme.palette.primary.main, 0.3)
-                            },
-                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                              borderColor: theme.palette.primary.main,
-                              borderWidth: 1
-                            }
-                          },
-                          '& .MuiInputLabel-root': {
-                            color: 'text.secondary',
-                            fontSize: '0.875rem'
-                          }
-                        }
-                      }
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <DatePicker
-                    label="Fecha de fin"
-                    value={customEndDate}
-                    onChange={(newValue) => setCustomEndDate(newValue)}
-                    minDate={customStartDate}
-                    maxDate={new Date()}
-                    slotProps={{
-                      textField: {
-                        fullWidth: true,
-                        size: 'medium',
-                        sx: {
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1,
-                            backgroundColor: theme.palette.background.paper,
-                            '&:hover .MuiOutlinedInput-notchedOutline': {
-                              borderColor: alpha(theme.palette.primary.main, 0.3)
-                            },
-                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                              borderColor: theme.palette.primary.main,
-                              borderWidth: 1
-                            }
-                          },
-                          '& .MuiInputLabel-root': {
-                            color: 'text.secondary',
-                            fontSize: '0.875rem'
-                          }
-                        }
-                      }
-                    }}
-                  />
-                </Grid>
-              </Grid>
-
-              {/* Información de rango - diseño sobrio */}
-              {customStartDate && customEndDate && (
-                <Box sx={{ 
-                  mt: 2.5, 
-                  pt: 2,
-                  borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`
-                }}>
-                  <Typography variant="body2" sx={{ 
-                    color: 'text.secondary',
-                    fontSize: '0.8rem',
-                    fontWeight: 400
-                  }}>
-                    Período seleccionado: <Box component="span" sx={{ fontWeight: 500, color: 'text.primary' }}>
-                      {customStartDate.toLocaleDateString('es-ES')} - {customEndDate.toLocaleDateString('es-ES')}
-                    </Box>
-                    {' '}({Math.ceil((customEndDate - customStartDate) / (1000 * 60 * 60 * 24))} días)
-                  </Typography>
-                </Box>
-              )}
-            </Paper>
-          </motion.div>
-        </Collapse>
-      </LocalizationProvider>
-
       {/* Tarjetas de resumen sobrias */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {[
           { 
             label: 'Total Empresas', 
-            value: filteredCompanies.length, 
+            value: filteredCompaniesWithRecalculatedStats.length, 
             color: theme.palette.primary.main,
             icon: Business
           },
@@ -2449,7 +2386,7 @@ const ReportsCompanyPage = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredCompanies.map((company, index) => (
+                {filteredCompaniesWithRecalculatedStats.map((company, index) => (
                   <TableRow
                     key={company.id}
                     sx={{ 

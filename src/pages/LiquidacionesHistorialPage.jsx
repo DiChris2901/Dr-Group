@@ -61,6 +61,9 @@ import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import liquidacionPersistenceService from '../services/liquidacionPersistenceService';
+import DateRangeFilter, { getDateRangeFromFilter } from '../components/payments/DateRangeFilter';
+import { isValid } from 'date-fns';
+import { motion } from 'framer-motion';
 import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
@@ -79,8 +82,9 @@ const LiquidacionesHistorialPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('todos');
   const [filterEmpresa, setFilterEmpresa] = useState('todas');
-  const [filterDateStart, setFilterDateStart] = useState(null);
-  const [filterDateEnd, setFilterDateEnd] = useState(null);
+  const [dateRangeFilter, setDateRangeFilter] = useState('all');
+  const [customStartDate, setCustomStartDate] = useState(null);
+  const [customEndDate, setCustomEndDate] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   
@@ -260,8 +264,21 @@ const LiquidacionesHistorialPage = () => {
     const matchesStatus = filterStatus === 'todos' || liquidacion.estado === filterStatus;
     const matchesEmpresa = filterEmpresa === 'todas' || liquidacion.empresa === filterEmpresa;
     
-    const matchesDateRange = (!filterDateStart || liquidacion.fecha >= filterDateStart) &&
-                            (!filterDateEnd || liquidacion.fecha <= filterDateEnd);
+    // Filtro de rango de fechas
+    let matchesDateRange = true;
+    if (dateRangeFilter !== 'all') {
+      const dateRange = getDateRangeFromFilter(
+        dateRangeFilter,
+        customStartDate,
+        customEndDate
+      );
+      
+      if (dateRange && dateRange.startDate && dateRange.endDate && 
+          isValid(dateRange.startDate) && isValid(dateRange.endDate)) {
+        const liquidacionDate = new Date(liquidacion.fecha);
+        matchesDateRange = liquidacionDate >= dateRange.startDate && liquidacionDate <= dateRange.endDate;
+      }
+    }
     
     return matchesSearch && matchesStatus && matchesEmpresa && matchesDateRange;
   });
@@ -490,13 +507,20 @@ const LiquidacionesHistorialPage = () => {
     }
   };
 
+  // Detectar si hay filtros activos
+  const hasActiveFilters = searchTerm || 
+    filterStatus !== 'todos' || 
+    filterEmpresa !== 'todas' || 
+    dateRangeFilter !== 'all';
+
   // Limpiar filtros
   const limpiarFiltros = () => {
     setSearchTerm('');
     setFilterStatus('todos');
     setFilterEmpresa('todas');
-    setFilterDateStart(null);
-    setFilterDateEnd(null);
+    setDateRangeFilter('all');
+    setCustomStartDate(null);
+    setCustomEndDate(null);
     setCurrentPage(1);
   };
 
@@ -540,58 +564,151 @@ const LiquidacionesHistorialPage = () => {
         </Box>
       </Paper>
 
-      {/* Panel de Filtros Sobrio */}
-      <Card sx={{ 
-        mb: 3,
-        borderRadius: 1,
-        border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        '&:hover': {
-          borderColor: alpha(theme.palette.primary.main, 0.8),
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-        },
-        transition: 'all 0.2s ease'
-      }}>
-        <CardContent sx={{ p: 3 }}>
-          <Typography variant="h6" sx={{ 
-            mb: 2, 
-            fontWeight: 600,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1
-          }}>
-            <Search sx={{ fontSize: 20, color: 'primary.main' }} />
-            Filtros de Búsqueda
-          </Typography>
+      {/* Panel de Filtros Premium */}
+      <Paper
+        elevation={0}
+        sx={{
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+          borderRadius: 1,
+          p: 3,
+          mb: 4,
+          position: 'relative',
+          '&:hover': {
+            borderColor: alpha(theme.palette.primary.main, 0.8)
+          }
+        }}
+      >
+        <Box>
+          {/* Header Premium */}
+          <Box display="flex" alignItems="center" justifyContent="between" mb={3}>
+            <Box display="flex" alignItems="center">
+              <FilterList 
+                sx={{ 
+                  mr: 2, 
+                  color: 'primary.main',
+                  fontSize: 28
+                }} 
+              />
+              <Box>
+                <Typography 
+                  variant="h5" 
+                  color="primary.main"
+                  sx={{ fontWeight: 700, mb: 0.5 }}
+                >
+                  Filtros de Liquidaciones
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Refina tu búsqueda de liquidaciones históricas
+                </Typography>
+              </Box>
+            </Box>
+            
+            {hasActiveFilters && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<Close />}
+                  onClick={limpiarFiltros}
+                  sx={{
+                    borderRadius: 1,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                    }
+                  }}
+                >
+                  Limpiar Filtros
+                </Button>
+              </motion.div>
+            )}
+          </Box>
           
           <Grid container spacing={2} alignItems="center">
             {/* Búsqueda por texto */}
             <Grid item xs={12} md={3}>
               <TextField
                 fullWidth
-                placeholder="Buscar empresa, archivo..."
+                label="Buscar liquidaciones"
+                placeholder="Empresa, archivo, usuario..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1,
+                    backgroundColor: theme.palette.background.default,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                    },
+                    '&.Mui-focused': {
+                      boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
+                    }
+                  }
+                }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <Search />
+                      <Search color="primary" />
                     </InputAdornment>
                   ),
+                  endAdornment: searchTerm && (
+                    <InputAdornment position="end">
+                      <IconButton
+                        size="small"
+                        onClick={() => setSearchTerm('')}
+                        sx={{ 
+                          color: 'text.secondary',
+                          '&:hover': { color: 'error.main' }
+                        }}
+                      >
+                        <Close fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  )
                 }}
               />
             </Grid>
             
             {/* Filtro por estado */}
             <Grid item xs={12} md={2}>
-              <FormControl fullWidth>
+              <FormControl 
+                fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1,
+                    backgroundColor: theme.palette.background.default,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                    },
+                    '&.Mui-focused': {
+                      boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
+                    }
+                  }
+                }}
+              >
                 <InputLabel>Estado</InputLabel>
                 <Select
                   value={filterStatus}
                   label="Estado"
                   onChange={(e) => setFilterStatus(e.target.value)}
                 >
-                  <MenuItem value="todos">Todos</MenuItem>
+                  <MenuItem value="todos">
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Assessment sx={{ mr: 1, color: 'text.secondary' }} />
+                      Todos los estados
+                    </Box>
+                  </MenuItem>
                   <MenuItem value="completado">Completado</MenuItem>
                   <MenuItem value="procesando">Procesando</MenuItem>
                   <MenuItem value="error">Error</MenuItem>
@@ -601,14 +718,35 @@ const LiquidacionesHistorialPage = () => {
             
             {/* Filtro por empresa */}
             <Grid item xs={12} md={2}>
-              <FormControl fullWidth>
+              <FormControl 
+                fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1,
+                    backgroundColor: theme.palette.background.default,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                    },
+                    '&.Mui-focused': {
+                      boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
+                    }
+                  }
+                }}
+              >
                 <InputLabel>Empresa</InputLabel>
                 <Select
                   value={filterEmpresa}
                   label="Empresa"
                   onChange={(e) => setFilterEmpresa(e.target.value)}
                 >
-                  <MenuItem value="todas">Todas</MenuItem>
+                  <MenuItem value="todas">
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Business sx={{ mr: 1, color: 'text.secondary' }} />
+                      Todas las empresas
+                    </Box>
+                  </MenuItem>
                   {empresasUnicas.map(empresa => (
                     <MenuItem key={empresa} value={empresa}>{empresa}</MenuItem>
                   ))}
@@ -616,44 +754,36 @@ const LiquidacionesHistorialPage = () => {
               </FormControl>
             </Grid>
             
-            {/* Filtro por fecha inicio */}
-            <Grid item xs={12} md={2}>
-              <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
-                <MuiDatePicker
-                  label="Fecha Inicio"
-                  value={filterDateStart}
-                  onChange={(newValue) => setFilterDateStart(newValue)}
-                  renderInput={(params) => <TextField {...params} fullWidth />}
-                />
-              </LocalizationProvider>
-            </Grid>
-            
-            {/* Filtro por fecha fin */}
-            <Grid item xs={12} md={2}>
-              <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
-                <MuiDatePicker
-                  label="Fecha Fin"
-                  value={filterDateEnd}
-                  onChange={(newValue) => setFilterDateEnd(newValue)}
-                  renderInput={(params) => <TextField {...params} fullWidth />}
-                />
-              </LocalizationProvider>
-            </Grid>
-            
-            {/* Botón limpiar filtros */}
-            <Grid item xs={12} md={1}>
-              <Button
-                fullWidth
-                variant="outlined"
-                onClick={limpiarFiltros}
-                sx={{ height: 56 }}
-              >
-                Limpiar
-              </Button>
+            {/* Filtro por período */}
+            <Grid item xs={12} md={3}>
+              <DateRangeFilter
+                value={dateRangeFilter}
+                customStartDate={customStartDate}
+                customEndDate={customEndDate}
+                onChange={setDateRangeFilter}
+                onCustomRangeChange={(startDate, endDate) => {
+                  setCustomStartDate(startDate);
+                  setCustomEndDate(endDate);
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1,
+                    backgroundColor: theme.palette.background.default,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                    },
+                    '&.Mui-focused': {
+                      boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
+                    }
+                  }
+                }}
+              />
             </Grid>
           </Grid>
-        </CardContent>
-      </Card>
+        </Box>
+      </Paper>
 
       {/* Estadísticas rápidas - Sistema de Diseño Sobrio */}
       <Grid container spacing={2} sx={{ mb: 3 }}>

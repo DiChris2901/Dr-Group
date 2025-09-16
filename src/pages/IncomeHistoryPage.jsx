@@ -75,6 +75,9 @@ import { useAuth } from '../context/AuthContext';
 import useActivityLogs from '../hooks/useActivityLogs';
 import { useToast } from '../context/ToastContext';
 import IncomeDetailModal from '../components/incomes/IncomeDetailModal';
+import DateRangeFilter, { getDateRangeFromFilter } from '../components/payments/DateRangeFilter';
+import { isValid } from 'date-fns';
+import { motion } from 'framer-motion';
 
 const IncomeHistoryPage = () => {
   const theme = useTheme();
@@ -94,8 +97,8 @@ const IncomeHistoryPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('all');
   const [dateRangeFilter, setDateRangeFilter] = useState('all');
-  const [customDateFrom, setCustomDateFrom] = useState('');
-  const [customDateTo, setCustomDateTo] = useState('');
+  const [customStartDate, setCustomStartDate] = useState(null);
+  const [customEndDate, setCustomEndDate] = useState(null);
   const [bankFilter, setBankFilter] = useState('all');
   
   // Estados para paginación optimizada
@@ -233,40 +236,13 @@ const IncomeHistoryPage = () => {
 
     // Filtro por rango de fechas
     if (dateRangeFilter !== 'all') {
-      const now = new Date();
-      let startDate, endDate;
+      const { startDate, endDate } = getDateRangeFromFilter(
+        dateRangeFilter,
+        customStartDate,
+        customEndDate
+      );
 
-      switch (dateRangeFilter) {
-        case 'today':
-          startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-          endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-          break;
-        case 'thisWeek':
-          const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
-          const endOfWeek = new Date(now.setDate(now.getDate() - now.getDay() + 6));
-          startDate = startOfWeek;
-          endDate = endOfWeek;
-          break;
-        case 'thisMonth':
-          startDate = startOfMonth(now);
-          endDate = endOfMonth(now);
-          break;
-        case 'lastMonth':
-          const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-          startDate = startOfMonth(lastMonth);
-          endDate = endOfMonth(lastMonth);
-          break;
-        case 'custom':
-          if (customDateFrom && customDateTo) {
-            startDate = parseISO(customDateFrom);
-            endDate = parseISO(customDateTo + 'T23:59:59');
-          }
-          break;
-        default:
-          break;
-      }
-
-      if (startDate && endDate) {
+      if (startDate && endDate && isValid(startDate) && isValid(endDate)) {
         filtered = filtered.filter(income =>
           isWithinInterval(income.date, { start: startDate, end: endDate })
         );
@@ -275,7 +251,7 @@ const IncomeHistoryPage = () => {
 
     setFilteredIncomes(filtered);
     setCurrentPage(1); // Reset página al filtrar
-  }, [incomes, searchTerm, paymentMethodFilter, bankFilter, dateRangeFilter, customDateFrom, customDateTo]);
+  }, [incomes, searchTerm, paymentMethodFilter, bankFilter, dateRangeFilter, customStartDate, customEndDate]);
 
   // Calcular estadísticas de los ingresos filtrados
   const stats = React.useMemo(() => {
@@ -304,13 +280,20 @@ const IncomeHistoryPage = () => {
   }, [filteredIncomes, startIndex, endIndex]);
 
   // Limpiar filtros
+  // Detectar si hay filtros activos
+  const hasActiveFilters = searchTerm || 
+    paymentMethodFilter !== 'all' || 
+    bankFilter !== 'all' || 
+    dateRangeFilter !== 'all';
+
+  // Limpiar filtros
   const clearFilters = () => {
     setSearchTerm('');
     setPaymentMethodFilter('all');
     setBankFilter('all');
     setDateRangeFilter('all');
-    setCustomDateFrom('');
-    setCustomDateTo('');
+    setCustomStartDate(null);
+    setCustomEndDate(null);
   };
 
   // Handlers modal detalle
@@ -853,18 +836,70 @@ const IncomeHistoryPage = () => {
       </Grid>
 
       {/* Panel de filtros sobrio */}
-      <Card sx={{ 
-        borderRadius: 2, 
-        mb: 4,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-        border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
-      }}>
-        <CardContent>
-          <Box display="flex" alignItems="center" gap={1} mb={3}>
-            <FilterIcon sx={{ color: 'primary.main' }} />
-            <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
-              Filtros Avanzados
-            </Typography>
+      <Paper
+        elevation={0}
+        sx={{
+          backgroundColor: theme.palette.background.paper,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+          borderRadius: 1,
+          p: 3,
+          mb: 4,
+          position: 'relative',
+          '&:hover': {
+            borderColor: alpha(theme.palette.primary.main, 0.8)
+          }
+        }}
+      >
+        <Box>
+          {/* Header Premium */}
+          <Box display="flex" alignItems="center" justifyContent="between" mb={3}>
+            <Box display="flex" alignItems="center">
+              <FilterIcon 
+                sx={{ 
+                  mr: 2, 
+                  color: 'primary.main',
+                  fontSize: 28
+                }} 
+              />
+              <Box>
+                <Typography 
+                  variant="h5" 
+                  color="primary.main"
+                  sx={{ fontWeight: 700, mb: 0.5 }}
+                >
+                  Filtros de Ingresos
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Refina tu búsqueda de ingresos con múltiples criterios
+                </Typography>
+              </Box>
+            </Box>
+            
+            {hasActiveFilters && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<ClearIcon />}
+                  onClick={clearFilters}
+                  sx={{
+                    borderRadius: 1,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                    }
+                  }}
+                >
+                  Limpiar Filtros
+                </Button>
+              </motion.div>
+            )}
           </Box>
 
           <Grid container spacing={3}>
@@ -872,44 +907,79 @@ const IncomeHistoryPage = () => {
             <Grid item xs={12} md={3}>
               <TextField
                 fullWidth
-                label="Buscar"
+                label="Buscar ingresos"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Cliente, descripción, cuenta, banco..."
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon sx={{ color: 'primary.main' }} />
-                    </InputAdornment>
-                  )
-                }}
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 1,
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'primary.main'
+                    backgroundColor: theme.palette.background.default,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                    },
+                    '&.Mui-focused': {
+                      boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
                     }
                   }
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon color="primary" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: searchTerm && (
+                    <InputAdornment position="end">
+                      <IconButton
+                        size="small"
+                        onClick={() => setSearchTerm('')}
+                        sx={{ 
+                          color: 'text.secondary',
+                          '&:hover': { color: 'error.main' }
+                        }}
+                      >
+                        <ClearIcon fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  )
                 }}
               />
             </Grid>
 
             {/* Filtro por método de pago */}
             <Grid item xs={12} md={2.25}>
-              <FormControl fullWidth>
+              <FormControl 
+                fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1,
+                    backgroundColor: theme.palette.background.default,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                    },
+                    '&.Mui-focused': {
+                      boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
+                    }
+                  }
+                }}
+              >
                 <InputLabel>Método de Pago</InputLabel>
                 <Select
                   value={paymentMethodFilter}
                   onChange={(e) => setPaymentMethodFilter(e.target.value)}
                   label="Método de Pago"
-                  sx={{
-                    borderRadius: 1,
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'success.main'
-                    }
-                  }}
                 >
-                  <MenuItem value="all">Todos</MenuItem>
+                  <MenuItem value="all">
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <AttachMoneyIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                      Todos los métodos
+                    </Box>
+                  </MenuItem>
                   <MenuItem value="transferencia">Transferencia</MenuItem>
                   <MenuItem value="consignacion">Consignación</MenuItem>
                   <MenuItem value="efectivo">Efectivo</MenuItem>
@@ -919,20 +989,35 @@ const IncomeHistoryPage = () => {
 
             {/* Filtro por banco */}
             <Grid item xs={12} md={2.25}>
-              <FormControl fullWidth>
+              <FormControl 
+                fullWidth
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1,
+                    backgroundColor: theme.palette.background.default,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                    },
+                    '&.Mui-focused': {
+                      boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
+                    }
+                  }
+                }}
+              >
                 <InputLabel>Banco</InputLabel>
                 <Select
                   value={bankFilter}
                   onChange={(e) => setBankFilter(e.target.value)}
                   label="Banco"
-                  sx={{
-                    borderRadius: 1,
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'info.main'
-                    }
-                  }}
                 >
-                  <MenuItem value="all">Todos</MenuItem>
+                  <MenuItem value="all">
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <BusinessIcon sx={{ mr: 1, color: 'text.secondary' }} />
+                      Todos los bancos
+                    </Box>
+                  </MenuItem>
                   {uniqueBanks.map((bank) => (
                     <MenuItem key={bank} value={bank}>{bank}</MenuItem>
                   ))}
@@ -942,90 +1027,30 @@ const IncomeHistoryPage = () => {
 
             {/* Filtro por período */}
             <Grid item xs={12} md={2.25}>
-              <FormControl fullWidth>
-                <InputLabel>Período</InputLabel>
-                <Select
-                  value={dateRangeFilter}
-                  onChange={(e) => setDateRangeFilter(e.target.value)}
-                  label="Período"
-                  sx={{
+              <DateRangeFilter
+                value={dateRangeFilter}
+                onFilterChange={setDateRangeFilter}
+                customStartDate={customStartDate}
+                customEndDate={customEndDate}
+                onCustomStartDateChange={setCustomStartDate}
+                onCustomEndDateChange={setCustomEndDate}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
                     borderRadius: 1,
                     '&:hover .MuiOutlinedInput-notchedOutline': {
                       borderColor: 'warning.main'
                     }
-                  }}
-                >
-                  <MenuItem value="all">Todos</MenuItem>
-                  <MenuItem value="today">Hoy</MenuItem>
-                  <MenuItem value="thisWeek">Esta Semana</MenuItem>
-                  <MenuItem value="thisMonth">Este Mes</MenuItem>
-                  <MenuItem value="lastMonth">Mes Anterior</MenuItem>
-                  <MenuItem value="custom">Personalizado</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            {/* Botón limpiar filtros */}
-            <Grid item xs={12} md={2.25}>
-              <Button
-                fullWidth
-                variant="outlined"
-                startIcon={<ClearIcon />}
-                onClick={clearFilters}
-                sx={{ 
-                  height: '56px',
-                  borderRadius: 1,
-                  fontWeight: 500
+                  }
                 }}
-              >
-                Limpiar
-              </Button>
+              />
             </Grid>
 
-            {/* Fechas personalizadas */}
-            {dateRangeFilter === 'custom' && (
-              <>
-                <Grid item xs={12} md={3}>
-                  <TextField
-                    fullWidth
-                    label="Desde"
-                    type="date"
-                    value={customDateFrom}
-                    onChange={(e) => setCustomDateFrom(e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1,
-                        '&:hover .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'info.main'
-                        }
-                      }
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} md={3}>
-                  <TextField
-                    fullWidth
-                    label="Hasta"
-                    type="date"
-                    value={customDateTo}
-                    onChange={(e) => setCustomDateTo(e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1,
-                        '&:hover .MuiOutlinedInput-notchedOutline': {
-                          borderColor: 'info.main'
-                        }
-                      }
-                    }}
-                  />
-                </Grid>
-              </>
-            )}
+
+
+
           </Grid>
-        </CardContent>
-      </Card>
+        </Box>
+      </Paper>
 
       {/* Tabla de resultados sobria */}
       <Card sx={{ 

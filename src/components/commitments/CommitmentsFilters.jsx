@@ -30,50 +30,31 @@ import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import DateRangeFilter from '../payments/DateRangeFilter';
 
 const CommitmentsFilters = ({ 
   onSearchChange, 
   onCompanyChange, 
   onStatusChange,
-  onYearChange,
-  onMonthChange,
+  onDateRangeChange,
+  onCustomDateRangeChange,
   onApplyFilters,
   onClearFilters,
   searchTerm = '',
   companyFilter = 'all',
   statusFilter = 'all',
-  yearFilter = 'all',
-  monthFilter = 'all',
+  dateRangeFilter = 'all',
+  customStartDate = null,
+  customEndDate = null,
   hasFiltersChanged = false,
   filtersApplied = false
 }) => {
   const { currentUser } = useAuth();
   const theme = useTheme();
   const [companies, setCompanies] = useState([]);
-  const [availableYears, setAvailableYears] = useState([]);
-  const [availableMonths, setAvailableMonths] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // Estados para el filtro de mes/año
-  const [selectedMonth, setSelectedMonth] = useState('all');
-  const [selectedYear, setSelectedYear] = useState('all');
 
-  // Generar datos para filtros de mes/año
-  const monthsData = [
-    { value: 'all', label: 'Todos los meses', initial: 'T' },
-    { value: '1', label: 'Enero', initial: 'E' },
-    { value: '2', label: 'Febrero', initial: 'F' },
-    { value: '3', label: 'Marzo', initial: 'M' },
-    { value: '4', label: 'Abril', initial: 'A' },
-    { value: '5', label: 'Mayo', initial: 'M' },
-    { value: '6', label: 'Junio', initial: 'J' },
-    { value: '7', label: 'Julio', initial: 'J' },
-    { value: '8', label: 'Agosto', initial: 'A' },
-    { value: '9', label: 'Septiembre', initial: 'S' },
-    { value: '10', label: 'Octubre', initial: 'O' },
-    { value: '11', label: 'Noviembre', initial: 'N' },
-    { value: '12', label: 'Diciembre', initial: 'D' }
-  ];
+
 
   useEffect(() => {
     const fetchCompanies = async () => {
@@ -94,94 +75,10 @@ const CommitmentsFilters = ({
       }
     };
 
-    const fetchAvailableYears = async () => {
-      try {
-        const commitmentsSnapshot = await getDocs(collection(db, 'commitments'));
-        const years = new Set();
-        const months = new Set();
-        
-        commitmentsSnapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data.dueDate) {
-            const date = data.dueDate.toDate ? data.dueDate.toDate() : new Date(data.dueDate);
-            years.add(date.getFullYear());
-            months.add(date.getMonth() + 1); // getMonth() returns 0-11
-          }
-        });
-        
-        // Convertir a array y ordenar de mayor a menor
-        const sortedYears = Array.from(years).sort((a, b) => b - a);
-        const sortedMonths = Array.from(months).sort((a, b) => a - b);
-        
-        // Agregar año actual y próximo año si no están
-        const currentYear = new Date().getFullYear();
-        if (!sortedYears.includes(currentYear)) {
-          sortedYears.unshift(currentYear);
-        }
-        if (!sortedYears.includes(currentYear + 1)) {
-          sortedYears.unshift(currentYear + 1);
-        }
-        
-        setAvailableYears(sortedYears.sort((a, b) => b - a));
-        setAvailableMonths(sortedMonths);
-      } catch (error) {
-        console.error('Error fetching available years:', error);
-      }
-    };
-
     if (currentUser) {
       fetchCompanies();
-      fetchAvailableYears();
     }
   }, [currentUser]);
-
-  // ✅ Sincronizar estados locales con props recibidos (yearFilter y monthFilter independientes)
-  useEffect(() => {
-    // Prioridad 1: si yearFilter viene combinado (YYYY-MM)
-    if (yearFilter && yearFilter !== 'all' && yearFilter.includes('-')) {
-      const [year, month] = yearFilter.split('-');
-      setSelectedYear(year);
-      setSelectedMonth(month === 'all' ? 'all' : month);
-      return;
-    }
-    // Prioridad 2: yearFilter solo año
-    if (yearFilter && yearFilter !== 'all') {
-      setSelectedYear(yearFilter);
-      // monthFilter podría traer mes separado
-      if (monthFilter && monthFilter !== 'all') {
-        if (typeof monthFilter === 'string' && monthFilter.includes('-')) {
-          const [y, m] = monthFilter.split('-');
-          setSelectedYear(y);
-          setSelectedMonth(m);
-        } else if (!isNaN(parseInt(monthFilter))) {
-          setSelectedMonth(monthFilter);
-        } else {
-          setSelectedMonth('all');
-        }
-      } else {
-        setSelectedMonth('all');
-      }
-      return;
-    }
-    // Prioridad 3: yearFilter = all, revisar monthFilter separado
-    if ((!yearFilter || yearFilter === 'all') && monthFilter && monthFilter !== 'all') {
-      if (typeof monthFilter === 'string' && monthFilter.includes('-')) {
-        const [y, m] = monthFilter.split('-');
-        setSelectedYear(y !== 'all' ? y : 'all');
-        setSelectedMonth(m !== 'all' ? m : 'all');
-      } else if (!isNaN(parseInt(monthFilter))) {
-        setSelectedYear(new Date().getFullYear().toString());
-        setSelectedMonth(monthFilter);
-      } else {
-        setSelectedYear('all');
-        setSelectedMonth('all');
-      }
-      return;
-    }
-    // Reset total
-    setSelectedYear('all');
-    setSelectedMonth('all');
-  }, [yearFilter, monthFilter]);
 
   const handleSearchChange = (event) => {
     onSearchChange(event.target.value);
@@ -201,32 +98,19 @@ const CommitmentsFilters = ({
   onStatusChange(event.target.value);
   };
 
-  const handleYearAutoChange = (event, option) => {
-    const newYear = option ? option.value : 'all';
-    setSelectedYear(newYear);
-    const combinedFilter = newYear === 'all' && selectedMonth === 'all'
-      ? 'all'
-      : `${newYear}-${selectedMonth}`;
-    onYearChange(combinedFilter);
-  };
 
-  const handleMonthAutoChange = (event, option) => {
-    const newMonth = option ? option.value : 'all';
-    setSelectedMonth(newMonth);
-    let yearToUse = selectedYear;
-    if (newMonth !== 'all' && yearToUse === 'all') {
-      yearToUse = new Date().getFullYear().toString();
-      setSelectedYear(yearToUse);
-    }
-    const combinedFilter = yearToUse === 'all' && newMonth === 'all'
-      ? 'all'
-      : `${yearToUse}-${newMonth}`;
-    if (onMonthChange) onMonthChange(combinedFilter); else onYearChange(combinedFilter);
-  };
 
   const handleStatusAutoChange = (event, option) => {
     const value = option ? option.value : 'all';
     onStatusChange(value);
+  };
+
+  const handleDateRangeChange = (value) => {
+    onDateRangeChange(value);
+  };
+
+  const handleCustomDateRangeChange = (startDate, endDate) => {
+    onCustomDateRangeChange(startDate, endDate);
   };
 
   const handleKeyDownApply = (e) => {
@@ -239,18 +123,14 @@ const CommitmentsFilters = ({
   const handleClearFilters = () => {
     console.log('🧹 [FILTERS] *** CLEARING ALL FILTERS ***');
     
-    // ✅ PRIMERO: Resetear estados locales
-    setSelectedMonth('all');
-    setSelectedYear('all');
-    
-    // ✅ SEGUNDO: Limpiar todos los filtros del padre
+    // ✅ Limpiar todos los filtros del padre
     onSearchChange('');
     onCompanyChange('all');
     onStatusChange('all');
-  if (onMonthChange) onMonthChange('all'); // primero mes
-  onYearChange('all'); // luego año
+    onDateRangeChange('all');
+    onCustomDateRangeChange(null, null);
     
-    // ✅ TERCERO: Llamar onClearFilters del componente padre
+    // ✅ Llamar onClearFilters del componente padre
     if (onClearFilters) {
       console.log('🧹 [FILTERS] *** CALLING PARENT onClearFilters ***');
       onClearFilters();
@@ -267,7 +147,7 @@ const CommitmentsFilters = ({
     { value: 'paid', label: 'Pagados', color: 'success', icon: '✅' }
   ];
 
-  const hasActiveFilters = searchTerm || companyFilter !== 'all' || statusFilter !== 'all' || yearFilter !== 'all' || monthFilter !== 'all' || selectedMonth !== 'all' || selectedYear !== 'all';
+  const hasActiveFilters = searchTerm || companyFilter !== 'all' || statusFilter !== 'all' || dateRangeFilter !== 'all';
 
   return (
     <motion.div
@@ -486,6 +366,20 @@ const CommitmentsFilters = ({
                       {...params}
                       label="Estado"
                       onKeyDown={handleKeyDownApply}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1,
+                          backgroundColor: theme.palette.background.default,
+                          transition: 'all 0.3s ease',
+                          '&:hover': {
+                            transform: 'translateY(-1px)',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                          },
+                          '&.Mui-focused': {
+                            boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
+                          }
+                        }
+                      }}
                       InputProps={{
                         ...params.InputProps,
                         startAdornment: (
@@ -500,67 +394,15 @@ const CommitmentsFilters = ({
               </motion.div>
             </Grid>
 
-            {/* Filtro por mes (Autocomplete) */}
+            {/* Filtro por fechas */}
             <Grid item xs={12} lg={2.4} md={6} sm={6}>
-              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }}>
-                <Autocomplete
-                  options={monthsData}
-                  value={monthsData.find(m => m.value === selectedMonth) || monthsData[0]}
-                  onChange={handleMonthAutoChange}
-                  getOptionLabel={(o) => o.label}
-                  renderOption={(props, month) => {
-                    const { key, ...otherProps } = props;
-                    return (
-                      <Box key={key} {...otherProps} sx={{ display:'flex', alignItems:'center', gap:1 }}>
-                        <Avatar sx={{ width:24, height:24, fontSize:'0.75rem', bgcolor: month.value==='all' ? 'grey.400':'primary.main', fontWeight:600 }}>{month.initial}</Avatar>
-                        <Typography variant="body2" sx={{ fontWeight: month.value==='all'?400:500 }}>{month.label}</Typography>
-                      </Box>
-                    );
-                  }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Mes"
-                      onKeyDown={handleKeyDownApply}
-                      InputProps={{
-                        ...params.InputProps,
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <CalendarToday color="primary" />
-                          </InputAdornment>
-                        )
-                      }}
-                    />
-                  )}
-                />
-              </motion.div>
-            </Grid>
-
-            {/* Filtro por año (Autocomplete) */}
-            <Grid item xs={12} lg={2.4} md={6} sm={6}>
-              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.7 }}>
-                <Autocomplete
-                  options={[{ value:'all', label:'Todos los años' }, ...availableYears.map(y => ({ value:y.toString(), label:y.toString() }))]}
-                  value={(() => { const opts=[{ value:'all', label:'Todos los años' }, ...availableYears.map(y => ({ value:y.toString(), label:y.toString() }))]; return opts.find(o=>o.value===selectedYear) || opts[0]; })()}
-                  onChange={handleYearAutoChange}
-                  getOptionLabel={(o) => o.label}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Año"
-                      onKeyDown={handleKeyDownApply}
-                      InputProps={{
-                        ...params.InputProps,
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <CalendarToday color="primary" />
-                          </InputAdornment>
-                        )
-                      }}
-                    />
-                  )}
-                />
-              </motion.div>
+              <DateRangeFilter
+                value={dateRangeFilter}
+                customStartDate={customStartDate}
+                customEndDate={customEndDate}
+                onChange={handleDateRangeChange}
+                onCustomRangeChange={handleCustomDateRangeChange}
+              />
             </Grid>
           </Grid>
 
@@ -606,34 +448,17 @@ const CommitmentsFilters = ({
                       sx={{ borderRadius: 2 }}
                     />
                   )}
-                  {selectedMonth !== 'all' && (
+                  {dateRangeFilter !== 'all' && (
                     <Chip
-                      label={`Mes: ${monthsData.find(m => m.value === selectedMonth)?.label || selectedMonth}`}
+                      label={`Período: ${dateRangeFilter === 'custom' && customStartDate && customEndDate 
+                        ? `${customStartDate.toLocaleDateString()} - ${customEndDate.toLocaleDateString()}`
+                        : dateRangeFilter}`}
                       size="small"
                       color="secondary"
                       variant="outlined"
                       onDelete={() => {
-                        setSelectedMonth('all');
-                        const combinedFilter = selectedYear === 'all' && 'all' === 'all' 
-                          ? 'all' 
-                          : `${selectedYear}-all`;
-                        onYearChange(combinedFilter);
-                      }}
-                      sx={{ borderRadius: 2 }}
-                    />
-                  )}
-                  {selectedYear !== 'all' && (
-                    <Chip
-                      label={`Año: ${selectedYear}`}
-                      size="small"
-                      color="info"
-                      variant="outlined"
-                      onDelete={() => {
-                        setSelectedYear('all');
-                        const combinedFilter = 'all' === 'all' && selectedMonth === 'all' 
-                          ? 'all' 
-                          : `all-${selectedMonth}`;
-                        onYearChange(combinedFilter);
+                        onDateRangeChange('all');
+                        onCustomDateRangeChange(null, null);
                       }}
                       sx={{ borderRadius: 2 }}
                     />

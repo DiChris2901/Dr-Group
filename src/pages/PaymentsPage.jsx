@@ -88,7 +88,9 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import PaymentsFilters from '../components/payments/PaymentsFilters';
+import { getDateRangeFromFilter } from '../components/payments/DateRangeFilter';
 import { useNavigate } from 'react-router-dom';
+import { isValid } from 'date-fns';
 import { PDFDocument } from 'pdf-lib';
 
 // Context para tema
@@ -125,6 +127,9 @@ const PaymentsPage = () => {
   const [companyFilter, setCompanyFilter] = useState('all'); // Filtro por empresa
   const [conceptFilter, setConceptFilter] = useState('all'); // Filtro por concepto
   const [beneficiaryFilter, setBeneficiaryFilter] = useState('all'); // Filtro por beneficiario/proveedor
+  const [dateRangeFilter, setDateRangeFilter] = useState('all'); // Filtro por rango de fechas
+  const [customStartDate, setCustomStartDate] = useState(null); // Fecha inicial personalizada
+  const [customEndDate, setCustomEndDate] = useState(null); // Fecha final personalizada
   
   // ✅ NUEVOS ESTADOS PARA SISTEMA DE FILTROS APLICADOS
   const [appliedFilters, setAppliedFilters] = useState({
@@ -133,7 +138,10 @@ const PaymentsPage = () => {
     statusFilter: 'all',
     conceptFilter: 'all',
     beneficiaryFilter: 'all',
-    receiptsFilter: 'all'
+    receiptsFilter: 'all',
+    dateRangeFilter: 'all',
+    customStartDate: null,
+    customEndDate: null
   });
   const [filtersApplied, setFiltersApplied] = useState(false);
   
@@ -438,7 +446,10 @@ const PaymentsPage = () => {
       statusFilter,
       conceptFilter,
       beneficiaryFilter,
-      receiptsFilter
+      receiptsFilter,
+      dateRangeFilter,
+      customStartDate,
+      customEndDate
     });
     setFiltersApplied(true);
   };
@@ -450,13 +461,19 @@ const PaymentsPage = () => {
     setConceptFilter('all');
     setBeneficiaryFilter('all');
     setReceiptsFilter('all');
+    setDateRangeFilter('all');
+    setCustomStartDate(null);
+    setCustomEndDate(null);
     setAppliedFilters({
       searchTerm: '',
       companyFilter: 'all',
       statusFilter: 'all',
       conceptFilter: 'all',
       beneficiaryFilter: 'all',
-      receiptsFilter: 'all'
+      receiptsFilter: 'all',
+      dateRangeFilter: 'all',
+      customStartDate: null,
+      customEndDate: null
     });
     setFiltersApplied(false);
   };
@@ -468,7 +485,10 @@ const PaymentsPage = () => {
       appliedFilters.statusFilter !== statusFilter ||
       appliedFilters.conceptFilter !== conceptFilter ||
       appliedFilters.beneficiaryFilter !== beneficiaryFilter ||
-      appliedFilters.receiptsFilter !== receiptsFilter
+      appliedFilters.receiptsFilter !== receiptsFilter ||
+      appliedFilters.dateRangeFilter !== dateRangeFilter ||
+      appliedFilters.customStartDate !== customStartDate ||
+      appliedFilters.customEndDate !== customEndDate
     );
   };
 
@@ -612,9 +632,40 @@ const PaymentsPage = () => {
       matchesReceipts = (appliedFilters.receiptsFilter === 'with' && hasReceipts) || 
                        (appliedFilters.receiptsFilter === 'without' && !hasReceipts);
     }
+
+    // Filtro por rango de fechas
+    let matchesDateRange = true;
+    if (appliedFilters.dateRangeFilter !== 'all') {
+      const dateRange = getDateRangeFromFilter(
+        appliedFilters.dateRangeFilter, 
+        appliedFilters.customStartDate, 
+        appliedFilters.customEndDate
+      );
+      
+      if (dateRange && payment.date) {
+        let paymentDate;
+        
+        // Manejar diferentes formatos de fecha
+        if (payment.date instanceof Date) {
+          paymentDate = payment.date;
+        } else if (payment.date.toDate && typeof payment.date.toDate === 'function') {
+          // Firestore Timestamp
+          paymentDate = payment.date.toDate();
+        } else if (typeof payment.date === 'string') {
+          paymentDate = new Date(payment.date);
+        } else {
+          // Si no se puede parsear la fecha, no coincide
+          matchesDateRange = false;
+        }
+        
+        if (matchesDateRange && paymentDate && isValid(paymentDate)) {
+          matchesDateRange = paymentDate >= dateRange.start && paymentDate <= dateRange.end;
+        }
+      }
+    }
     
     return matchesSearch && matchesCompany && matchesConcept && 
-           matchesBeneficiary && matchesStatus && matchesReceipts;
+           matchesBeneficiary && matchesStatus && matchesReceipts && matchesDateRange;
   });
 
   // Calcular estadísticas de pagos
@@ -2447,12 +2498,20 @@ useEffect(() => {
             conceptFilter={conceptFilter}
             beneficiaryFilter={beneficiaryFilter}
             receiptsFilter={receiptsFilter}
+            dateRangeFilter={dateRangeFilter}
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
             onSearchChange={setSearchTerm}
             onCompanyChange={setCompanyFilter}
             onStatusChange={setStatusFilter}
             onConceptChange={setConceptFilter}
             onBeneficiaryChange={setBeneficiaryFilter}
             onReceiptsChange={setReceiptsFilter}
+            onDateRangeChange={setDateRangeFilter}
+            onCustomDateRangeChange={(startDate, endDate) => {
+              setCustomStartDate(startDate);
+              setCustomEndDate(endDate);
+            }}
             onApplyFilters={handleApplyFilters}
             onClearFilters={handleClearFilters}
             hasFiltersChanged={hasFiltersChanged()}

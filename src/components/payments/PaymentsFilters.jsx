@@ -27,6 +27,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
+import DateRangeFilter from './DateRangeFilter';
 
 const PaymentsFilters = ({ 
   onSearchChange, 
@@ -35,6 +36,8 @@ const PaymentsFilters = ({
   onConceptChange,
   onBeneficiaryChange,
   onReceiptsChange,
+  onDateRangeChange,
+  onCustomDateRangeChange,
   onApplyFilters,
   onClearFilters,
   searchTerm = '',
@@ -43,6 +46,9 @@ const PaymentsFilters = ({
   conceptFilter = 'all',
   beneficiaryFilter = 'all',
   receiptsFilter = 'all',
+  dateRangeFilter = 'all',
+  customStartDate = null,
+  customEndDate = null,
   hasFiltersChanged = false,
   filtersApplied = false,
   uniqueCompanies = [],
@@ -88,6 +94,14 @@ const PaymentsFilters = ({
 
   const handleReceiptsChange = (event) => {
     onReceiptsChange(event.target.value);
+  };
+
+  const handleDateRangeChange = (value) => {
+    onDateRangeChange(value);
+  };
+
+  const handleCustomDateRangeChange = (startDate, endDate) => {
+    onCustomDateRangeChange(startDate, endDate);
   };
 
   // Función para obtener la empresa completa por nombre
@@ -227,12 +241,23 @@ const PaymentsFilters = ({
               </motion.div>
             </Grid>
 
+            {/* Filtro por fechas */}
+            <Grid item xs={12} md={3}>
+              <DateRangeFilter
+                value={dateRangeFilter}
+                customStartDate={customStartDate}
+                customEndDate={customEndDate}
+                onChange={handleDateRangeChange}
+                onCustomRangeChange={handleCustomDateRangeChange}
+              />
+            </Grid>
+
             {/* Filtro por empresa */}
             <Grid item xs={12} md={3}>
               <motion.div
                 initial={{ opacity: 0, x: 0 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4 }}
+                transition={{ delay: 0.5 }}
               >
                 <FormControl 
                   fullWidth
@@ -329,7 +354,7 @@ const PaymentsFilters = ({
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.5 }}
+                transition={{ delay: 0.6 }}
               >
                 <FormControl 
                   fullWidth
@@ -409,7 +434,7 @@ const PaymentsFilters = ({
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.6 }}
+                transition={{ delay: 0.7 }}
               >
                 <FormControl 
                   fullWidth
@@ -456,7 +481,7 @@ const PaymentsFilters = ({
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.7 }}
+                transition={{ delay: 0.8 }}
               >
                 <FormControl 
                   fullWidth
@@ -503,7 +528,7 @@ const PaymentsFilters = ({
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.8 }}
+                transition={{ delay: 0.9 }}
               >
                 <FormControl 
                   fullWidth
@@ -582,7 +607,7 @@ const PaymentsFilters = ({
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.9 }}
+              transition={{ delay: 1.0 }}
             >
               <Button
                 variant="contained"

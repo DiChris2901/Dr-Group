@@ -74,6 +74,8 @@ import {
   Info
 } from '@mui/icons-material';
 import CommitmentDetailDialog from './CommitmentDetailDialog';
+import { getDateRangeFromFilter } from '../payments/DateRangeFilter';
+import { isValid } from 'date-fns';
 
 // Función helper para validar y crear fechas seguras
 const createSafeDate = (year, month, day = 1, hours = 0, minutes = 0, seconds = 0) => {
@@ -272,14 +274,15 @@ const CommitmentsList = ({
   companyFilter,
   statusFilter,
   searchTerm,
-  yearFilter,
-  monthFilter,
+  dateRangeFilter,
+  customStartDate,
+  customEndDate,
   viewMode = 'cards',
   onCommitmentsChange,
   shouldLoadData = true,
   showEmptyState = false
 }) => {
-  console.log('🧾 [LIST INIT] Filtros recibidos:', { companyFilter, statusFilter, searchTerm, yearFilter, monthFilter, shouldLoadData });
+  console.log('🧾 [LIST INIT] Filtros recibidos:', { companyFilter, statusFilter, searchTerm, dateRangeFilter, customStartDate, customEndDate, shouldLoadData });
 
   // Si no debemos cargar datos (filtros no aplicados), limpiar visualmente
   useEffect(() => {
@@ -366,46 +369,9 @@ const CommitmentsList = ({
   const debouncedSearchTerm = searchTerm;
   const debouncedCompanyFilter = companyFilter;
   const debouncedStatusFilter = statusFilter;
-  const debouncedYearFilter = yearFilter;
-  
-  // ✅ Parsear monthFilter correctamente - puede venir como string "YYYY-MM", "MM" o "all"
-  const debouncedMonthFilter = useMemo(() => {
-    console.log('🔍 [MONTH FILTER PARSE] *** PARSEANDO MONTHFILTER ***:', monthFilter);
-    
-    if (!monthFilter || monthFilter === 'all') {
-      return { month: 'all', year: 'all' };
-    }
-    
-    // Si viene como "YYYY-MM", parsearlo
-    if (typeof monthFilter === 'string' && monthFilter.includes('-')) {
-      const [year, month] = monthFilter.split('-');
-      const parsed = { 
-        month: month === 'all' ? 'all' : parseInt(month) - 1, // Convertir de 1-12 a 0-11 para JavaScript Date
-        year: year === 'all' ? 'all' : parseInt(year)
-      };
-      console.log('🔍 [MONTH FILTER PARSE] *** RESULTADO DEL PARSEO ***:', parsed);
-      return parsed;
-    }
-    
-    // ✅ Si viene solo como número de mes (ej: "6"), usar año actual
-    if (typeof monthFilter === 'string' && !isNaN(parseInt(monthFilter))) {
-      const currentYear = new Date().getFullYear();
-      const parsed = { 
-        month: parseInt(monthFilter) - 1, // Convertir de 1-12 a 0-11 para JavaScript Date
-        year: currentYear
-      };
-      console.log('🔍 [MONTH FILTER PARSE] *** RESULTADO DEL PARSEO (solo mes) ***:', parsed);
-      return parsed;
-    }
-    
-    // Si ya es un objeto, usarlo tal como está
-    if (typeof monthFilter === 'object' && monthFilter.month && monthFilter.year) {
-      return monthFilter;
-    }
-    
-    // Default fallback
-    return { month: 'all', year: 'all' };
-  }, [monthFilter]);
+  const debouncedDateRangeFilter = dateRangeFilter;
+  const debouncedCustomStartDate = customStartDate;
+  const debouncedCustomEndDate = customEndDate;
 
   // (Duplicated helper block removed after refactor consolidation)
 
@@ -485,30 +451,15 @@ const CommitmentsList = ({
         q = query(q, where('companyId', '==', debouncedCompanyFilter));
       }
       
-      if (debouncedYearFilter && debouncedYearFilter !== 'all') {
-        let startDate, endDate;
+      // Aplicar filtro de rango de fechas
+      if (debouncedDateRangeFilter && debouncedDateRangeFilter !== 'all') {
+        const { startDate, endDate } = getDateRangeFromFilter(
+          debouncedDateRangeFilter,
+          debouncedCustomStartDate,
+          debouncedCustomEndDate
+        );
         
-        if (debouncedMonthFilter && debouncedMonthFilter.month !== 'all' && debouncedMonthFilter.year !== 'all') {
-          // Filtro por mes y año específicos
-          startDate = createSafeDate(debouncedMonthFilter.year, debouncedMonthFilter.month, 1);
-          endDate = createSafeDate(debouncedMonthFilter.year, parseInt(debouncedMonthFilter.month) + 1, 0, 23, 59, 59);
-        } else {
-          // Solo filtro por año
-          startDate = createSafeDate(debouncedYearFilter, 0, 1);
-          endDate = createSafeDate(debouncedYearFilter, 11, 31);
-        }
-        
-        // Solo aplicar filtros si las fechas son válidas
-        if (startDate && endDate) {
-          q = query(q, where('dueDate', '>=', startDate), where('dueDate', '<=', endDate));
-        }
-      } else if (debouncedMonthFilter && debouncedMonthFilter.month !== 'all' && debouncedMonthFilter.year !== 'all') {
-        // Solo filtro por mes/año sin filtro de año heredado
-        const startDate = createSafeDate(debouncedMonthFilter.year, debouncedMonthFilter.month, 1);
-        const endDate = createSafeDate(debouncedMonthFilter.year, parseInt(debouncedMonthFilter.month) + 1, 0, 23, 59, 59);
-        
-        // Solo aplicar filtros si las fechas son válidas
-        if (startDate && endDate) {
+        if (startDate && endDate && isValid(startDate) && isValid(endDate)) {
           q = query(q, where('dueDate', '>=', startDate), where('dueDate', '<=', endDate));
         }
       }
@@ -559,7 +510,7 @@ const CommitmentsList = ({
       setTotalCommitments(0);
       return 0;
     }
-  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, debouncedMonthFilter]);
+  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedDateRangeFilter, debouncedCustomStartDate, debouncedCustomEndDate]);
 
   // 🚀 OPTIMIZACIÓN FASE 2: Función para cargar página con query optimizer
   // Función simplificada para cargar página sin caché problemático
@@ -575,44 +526,15 @@ const CommitmentsList = ({
         q = query(collection(db, 'commitments'), where('companyId', '==', debouncedCompanyFilter), orderBy('dueDate', 'desc'));
       }
       
-      if (debouncedYearFilter && debouncedYearFilter !== 'all') {
-        let startDate, endDate;
+      // Aplicar filtro de rango de fechas
+      if (debouncedDateRangeFilter && debouncedDateRangeFilter !== 'all') {
+        const { startDate, endDate } = getDateRangeFromFilter(
+          debouncedDateRangeFilter,
+          debouncedCustomStartDate,
+          debouncedCustomEndDate
+        );
         
-        if (debouncedMonthFilter && debouncedMonthFilter.month !== 'all' && debouncedMonthFilter.year !== 'all') {
-          // Filtro por mes y año específicos
-          startDate = createSafeDate(debouncedMonthFilter.year, debouncedMonthFilter.month, 1);
-          endDate = createSafeDate(debouncedMonthFilter.year, parseInt(debouncedMonthFilter.month) + 1, 0, 23, 59, 59);
-        } else {
-          // Solo filtro por año
-          startDate = createSafeDate(debouncedYearFilter, 0, 1);
-          endDate = createSafeDate(debouncedYearFilter, 11, 31);
-        }
-        
-        // Solo proceder si las fechas son válidas
-        if (startDate && endDate) {
-          if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
-            q = query(collection(db, 'commitments'), 
-              where('companyId', '==', debouncedCompanyFilter),
-              where('dueDate', '>=', startDate),
-              where('dueDate', '<=', endDate),
-              orderBy('dueDate', 'desc')
-            );
-          } else {
-            q = query(collection(db, 'commitments'), 
-              where('dueDate', '>=', startDate),
-              where('dueDate', '<=', endDate),
-              orderBy('dueDate', 'desc')
-            );
-          }
-        }
-      } else if (debouncedMonthFilter && debouncedMonthFilter.month !== 'all' && debouncedMonthFilter.year !== 'all') {
-        // Solo filtro por mes/año sin filtro de año heredado
-        const startDate = createSafeDate(debouncedMonthFilter.year, debouncedMonthFilter.month, 1);
-        const endDate = createSafeDate(debouncedMonthFilter.year, parseInt(debouncedMonthFilter.month) + 1, 0, 23, 59, 59);
-        
-        
-        // Solo proceder si las fechas son válidas
-        if (startDate && endDate) {
+        if (startDate && endDate && isValid(startDate) && isValid(endDate)) {
           if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
             q = query(collection(db, 'commitments'), 
               where('companyId', '==', debouncedCompanyFilter),
@@ -722,7 +644,7 @@ const CommitmentsList = ({
       setError('Error al cargar los compromisos');
       setLoading(false);
     }
-  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, debouncedMonthFilter, paginationConfig]); // ✅ Use whole paginationConfig object que ya está memoized
+  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedDateRangeFilter, debouncedCustomStartDate, debouncedCustomEndDate, paginationConfig]); // ✅ Use whole paginationConfig object que ya está memoized
 
   // SISTEMA DE DATOS EN TIEMPO REAL - Solo para filtros, NO para paginación
   const [allCommitments, setAllCommitments] = useState([]); // Todos los compromisos después de filtros
@@ -879,7 +801,7 @@ const CommitmentsList = ({
       unsubscribe();
     };
     
-  }, [currentUser, debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, debouncedMonthFilter, shouldLoadData]); // ✅ Agregado shouldLoadData + debouncedMonthFilter para refrescar al limpiar/cambiar mes
+  }, [currentUser, debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedDateRangeFilter, debouncedCustomStartDate, debouncedCustomEndDate, shouldLoadData]); // ✅ Agregado shouldLoadData + debouncedMonthFilter para refrescar al limpiar/cambiar mes
 
   // EFECTO SEPARADO SOLO PARA PAGINACIÓN - No reinicia listeners
   useEffect(() => {
@@ -919,7 +841,7 @@ const CommitmentsList = ({
     }, 100); // Pequeño debounce para evitar resets múltiples
 
     return () => clearTimeout(resetTimer);
-  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedYearFilter, debouncedMonthFilter]); // NO incluir currentPage aquí
+  }, [debouncedDateRangeFilter, debouncedCustomStartDate, debouncedCustomEndDate, debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm]); // NO incluir currentPage aquí
 
   // 🔥 FUNCIÓN DE ESTADO MEJORADA QUE CONSIDERA PAGOS PARCIALES
   const getStatusInfo = (commitment) => {

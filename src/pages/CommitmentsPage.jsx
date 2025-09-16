@@ -36,8 +36,9 @@ const CommitmentsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [companyFilter, setCompanyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [yearFilter, setYearFilter] = useState('all');
-  const [monthFilter, setMonthFilter] = useState('all');
+  const [dateRangeFilter, setDateRangeFilter] = useState('all');
+  const [customStartDate, setCustomStartDate] = useState(null);
+  const [customEndDate, setCustomEndDate] = useState(null);
   const [commitmentsData, setCommitmentsData] = useState([]);
   const [extendModalOpen, setExtendModalOpen] = useState(false);
   const [commitmentsToExtend, setCommitmentsToExtend] = useState(null);
@@ -47,8 +48,9 @@ const CommitmentsPage = () => {
     searchTerm: '',
     companyFilter: 'all',
     statusFilter: 'all',
-    yearFilter: 'all',
-    monthFilter: 'all'
+    dateRangeFilter: 'all',
+    customStartDate: null,
+    customEndDate: null
   });
   const [filtersApplied, setFiltersApplied] = useState(false);
 
@@ -73,20 +75,15 @@ const CommitmentsPage = () => {
     setStatusFilter(value);
   };
 
-  const handleYearChange = (value) => {
-    console.log('🗓️ [PAGE] *** handleYearChange received ***:', value);
-    setYearFilter(value);
-    // Extraer mes del valor combinado si existe
-    if (value.includes('-')) {
-      const [year, month] = value.split('-');
-      console.log('🗓️ [PAGE] *** Extracting month from yearFilter ***:', { year, month });
-      setMonthFilter(month);
-    }
+  const handleDateRangeChange = (value) => {
+    console.log('🗓️ [PAGE] *** handleDateRangeChange received ***:', value);
+    setDateRangeFilter(value);
   };
 
-  const handleMonthChange = (value) => {
-    console.log('🗓️ [PAGE] *** handleMonthChange received ***:', value);
-    setMonthFilter(value);
+  const handleCustomDateRangeChange = (startDate, endDate) => {
+    console.log('🗓️ [PAGE] *** handleCustomDateRangeChange received ***:', { startDate, endDate });
+    setCustomStartDate(startDate);
+    setCustomEndDate(endDate);
   };
 
   const handleCommitmentsDataChange = (newCommitmentsData) => {
@@ -99,32 +96,35 @@ const CommitmentsPage = () => {
       searchTerm,
       companyFilter,
       statusFilter,
-      yearFilter,
-      monthFilter
+      dateRangeFilter,
+      customStartDate,
+      customEndDate
     });
     setFiltersApplied(true);
   };
 
   const handleClearFilters = () => {
-  console.log('🧹 [PAGE] *** CLEAR FILTERS ACTION ***');
+    console.log('🧹 [PAGE] *** CLEAR FILTERS ACTION ***');
     setSearchTerm('');
     setCompanyFilter('all');
     setStatusFilter('all');
-    setYearFilter('all');
-    setMonthFilter('all');
+    setDateRangeFilter('all');
+    setCustomStartDate(null);
+    setCustomEndDate(null);
     
     // ✅ Aplicar filtros limpos inmediatamente
     const clearedFilters = {
       searchTerm: '',
       companyFilter: 'all',
       statusFilter: 'all',
-      yearFilter: 'all',
-      monthFilter: 'all'
+      dateRangeFilter: 'all',
+      customStartDate: null,
+      customEndDate: null
     };
     
-  // Estado: filtros limpios pero NO aplicados => no se debe cargar nada hasta que el usuario presione "Aplicar Filtros"
-  setAppliedFilters(clearedFilters);
-  setFiltersApplied(false); // Mantener falso para que shouldLoadData sea false y la lista se vacíe
+    // Estado: filtros limpios pero NO aplicados => no se debe cargar nada hasta que el usuario presione "Aplicar Filtros"
+    setAppliedFilters(clearedFilters);
+    setFiltersApplied(false); // Mantener falso para que shouldLoadData sea false y la lista se vacíe
   };
 
   const hasFiltersChanged = () => {
@@ -132,8 +132,9 @@ const CommitmentsPage = () => {
       appliedFilters.searchTerm !== searchTerm ||
       appliedFilters.companyFilter !== companyFilter ||
       appliedFilters.statusFilter !== statusFilter ||
-      appliedFilters.yearFilter !== yearFilter ||
-      appliedFilters.monthFilter !== monthFilter
+      appliedFilters.dateRangeFilter !== dateRangeFilter ||
+      appliedFilters.customStartDate !== customStartDate ||
+      appliedFilters.customEndDate !== customEndDate
     );
   };
 
@@ -342,13 +343,14 @@ const CommitmentsPage = () => {
         searchTerm={searchTerm}
         companyFilter={companyFilter}
         statusFilter={statusFilter}
-        yearFilter={yearFilter}
-        monthFilter={monthFilter}
+        dateRangeFilter={dateRangeFilter}
+        customStartDate={customStartDate}
+        customEndDate={customEndDate}
         onSearchChange={handleSearchChange}
         onCompanyChange={handleCompanyChange}
         onStatusChange={handleStatusChange}
-        onYearChange={handleYearChange}
-        onMonthChange={handleMonthChange}
+        onDateRangeChange={handleDateRangeChange}
+        onCustomDateRangeChange={handleCustomDateRangeChange}
         onApplyFilters={handleApplyFilters}
         onClearFilters={handleClearFilters}
         hasFiltersChanged={hasFiltersChanged()}
@@ -357,12 +359,13 @@ const CommitmentsPage = () => {
 
       {/* Lista de compromisos con control condicional */}
       <CommitmentsList
-        key={filtersApplied ? `${appliedFilters.searchTerm}|${appliedFilters.companyFilter}|${appliedFilters.statusFilter}|${appliedFilters.yearFilter}|${appliedFilters.monthFilter}` : 'pending-filters'}
+        key={filtersApplied ? `${appliedFilters.searchTerm}|${appliedFilters.companyFilter}|${appliedFilters.statusFilter}|${appliedFilters.dateRangeFilter}|${appliedFilters.customStartDate?.getTime()}|${appliedFilters.customEndDate?.getTime()}` : 'pending-filters'}
         searchTerm={appliedFilters.searchTerm}
         companyFilter={appliedFilters.companyFilter}
         statusFilter={appliedFilters.statusFilter}
-        yearFilter={appliedFilters.yearFilter}
-        monthFilter={appliedFilters.monthFilter}
+        dateRangeFilter={appliedFilters.dateRangeFilter}
+        customStartDate={appliedFilters.customStartDate}
+        customEndDate={appliedFilters.customEndDate}
         viewMode={settings.dashboard?.layout?.viewMode || 'cards'}
         onCommitmentsChange={handleCommitmentsDataChange}
         shouldLoadData={filtersApplied}
