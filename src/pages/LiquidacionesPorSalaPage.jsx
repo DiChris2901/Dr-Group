@@ -42,7 +42,9 @@ import {
   Refresh as RefreshIcon,
   Visibility as ViewIcon,
   Edit as EditIcon,
-  PictureAsPdf as PdfIcon
+  PictureAsPdf as PdfIcon,
+  Close as CloseIcon,
+  Info as InfoIcon
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
@@ -1013,51 +1015,57 @@ const LiquidacionesPorSalaPage = () => {
             setDialogDetalles({ open: false, liquidacion: null });
             setDatosMaquinasSala([]);
           }}
-          maxWidth={false}
-          sx={{
-            '& .MuiDialog-paper': {
-              maxWidth: 'fit-content',
-              width: 'auto'
-            }
-          }}
+          fullWidth
+          maxWidth="md"
           PaperProps={{
             sx: {
-              borderRadius: 1,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+              borderRadius: 2,
+              background: theme.palette.background.paper,
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+                : '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
             }
           }}
         >
-          <DialogTitle sx={{ 
-            pb: 2, 
-            pt: 3,
-            px: 3,
-            background: 'transparent',
-            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
-          }}>
-            {dialogDetalles.liquidacion && (
+          <DialogTitle sx={{ pb: 1, backgroundColor: alpha(theme.palette.primary.main, 0.05) }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar
+                sx={{
+                  backgroundColor: theme.palette.primary.main,
+                  color: 'white',
+                  width: 32,
+                  height: 32
+                }}
+              >
+                <InfoIcon fontSize="small" />
+              </Avatar>
               <Box>
-                <Typography variant="subtitle2" sx={{ 
-                  color: theme.palette.text.secondary,
-                  fontSize: '0.75rem',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                  fontWeight: 500,
-                  mb: 1
-                }}>
-                  DETALLE DE LIQUIDACIÓN
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Detalles de Liquidación
                 </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
-                  {dialogDetalles.liquidacion.sala.nombre}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {dialogDetalles.liquidacion.empresa.nombre} • {formatearPeriodo(dialogDetalles.liquidacion.fechas.periodoLiquidacion)}
-                </Typography>
+                {dialogDetalles.liquidacion && (
+                  <Typography variant="body2" color="text.secondary">
+                    {dialogDetalles.liquidacion.empresa.nombre} - {formatearPeriodo(dialogDetalles.liquidacion.fechas.periodoLiquidacion)}
+                  </Typography>
+                )}
               </Box>
-            )}
+              <IconButton
+                onClick={() => {
+                  setDialogDetalles({ open: false, liquidacion: null });
+                  setDatosMaquinasSala([]);
+                }}
+                sx={{ ml: 'auto' }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </Box>
           </DialogTitle>
           <DialogContent>
-            {dialogDetalles.liquidacion && (
-              <Box>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={8}>
+                {dialogDetalles.liquidacion && (
+                  <Box>
                 {/* Resumen de métricas con diseño sobrio */}
                 <Grid container spacing={2} sx={{ mb: 3 }}>
                   <Grid item xs={6} sm={2.4}>
@@ -1340,23 +1348,65 @@ const LiquidacionesPorSalaPage = () => {
                     No se pudieron cargar los detalles de las máquinas para esta sala.
                   </Alert>
                 )}
-              </Box>
-            )}
+                  </Box>
+                )}
+              </Grid>
+              
+              <Grid item xs={12} md={4}>
+                {dialogDetalles.liquidacion && (
+                  <Box sx={{ pl: 2 }}>
+                    <Typography variant="subtitle2" sx={{ 
+                      color: theme.palette.text.secondary,
+                      fontSize: '0.75rem',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                      fontWeight: 500,
+                      mb: 2
+                    }}>
+                      Información Adicional
+                    </Typography>
+                    <Box sx={{ 
+                      p: 2, 
+                      border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                      borderRadius: 1,
+                      backgroundColor: alpha(theme.palette.background.default, 0.3)
+                    }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        <strong>Sala:</strong> {dialogDetalles.liquidacion.sala.nombre}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        <strong>Empresa:</strong> {dialogDetalles.liquidacion.empresa.nombre}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Período:</strong> {formatearPeriodo(dialogDetalles.liquidacion.fechas.periodoLiquidacion)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+              </Grid>
+            </Grid>
           </DialogContent>
           <DialogActions sx={{ 
-            px: 3, 
-            py: 2,
-            borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+            p: 2,
+            gap: 1,
+            borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+            backgroundColor: alpha(theme.palette.primary.main, 0.02)
           }}>
             <Button 
               onClick={() => {
                 setDialogDetalles({ open: false, liquidacion: null });
                 setDatosMaquinasSala([]);
               }}
+              variant="outlined"
               sx={{
-                borderRadius: 1,
+                borderRadius: 2,
+                textTransform: 'none',
                 fontWeight: 600,
-                textTransform: 'none'
+                borderColor: alpha(theme.palette.primary.main, 0.5),
+                '&:hover': {
+                  borderColor: theme.palette.primary.main,
+                  backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                }
               }}
             >
               Cerrar
@@ -1372,31 +1422,42 @@ const LiquidacionesPorSalaPage = () => {
           fullWidth
           PaperProps={{
             sx: {
-              borderRadius: 1,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+              borderRadius: 2,
+              background: theme.palette.background.paper,
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+                : '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
             }
           }}
         >
-          <DialogTitle sx={{ 
-            pb: 2, 
-            pt: 3,
-            px: 3,
-            background: 'transparent',
-            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
-          }}>
-            <Typography variant="subtitle2" sx={{ 
-              color: theme.palette.text.secondary,
-              fontSize: '0.75rem',
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              fontWeight: 500,
-              mb: 1
-            }}>
-              GESTIÓN DE FACTURACIÓN
-            </Typography>
-            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Control de Estados
-            </Typography>
+          <DialogTitle sx={{ pb: 1, backgroundColor: alpha(theme.palette.primary.main, 0.05) }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar
+                sx={{
+                  backgroundColor: theme.palette.primary.main,
+                  color: 'white',
+                  width: 32,
+                  height: 32
+                }}
+              >
+                <ReceiptIcon fontSize="small" />
+              </Avatar>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Gestión de Facturación
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Control de Estados
+                </Typography>
+              </Box>
+              <IconButton
+                onClick={() => setDialogFacturacion({ open: false, liquidacion: null })}
+                sx={{ ml: 'auto' }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </Box>
           </DialogTitle>
           <DialogContent sx={{ px: 3, pt: 3 }}>
             {dialogFacturacion.liquidacion && (
@@ -1485,16 +1546,23 @@ const LiquidacionesPorSalaPage = () => {
             )}
           </DialogContent>
           <DialogActions sx={{ 
-            px: 3, 
-            py: 2,
-            borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+            p: 2,
+            gap: 1,
+            borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+            backgroundColor: alpha(theme.palette.primary.main, 0.02)
           }}>
             <Button 
               onClick={() => setDialogFacturacion({ open: false, liquidacion: null })}
+              variant="outlined"
               sx={{
-                borderRadius: 1,
+                borderRadius: 2,
+                textTransform: 'none',
                 fontWeight: 600,
-                textTransform: 'none'
+                borderColor: alpha(theme.palette.primary.main, 0.5),
+                '&:hover': {
+                  borderColor: theme.palette.primary.main,
+                  backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                }
               }}
             >
               Cancelar
@@ -1510,40 +1578,58 @@ const LiquidacionesPorSalaPage = () => {
             setDatosMaquinasSala([]);
             setDatosEdicion({});
           }}
-          maxWidth={false}
-          sx={{
-            '& .MuiDialog-paper': {
-              maxWidth: 'fit-content',
-              width: 'auto'
-            }
-          }}
+          fullWidth
+          maxWidth="lg"
           PaperProps={{
             sx: {
-              borderRadius: 1,
-              boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+              borderRadius: 2,
+              background: theme.palette.background.paper,
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+                : '0 4px 20px rgba(0, 0, 0, 0.08)',
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
             }
           }}
         >
-          <DialogTitle sx={{ 
-            pb: 2, 
-            pt: 3,
-            px: 3,
-            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
-          }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center">
+          <DialogTitle sx={{ pb: 1, backgroundColor: alpha(theme.palette.primary.main, 0.05) }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Avatar
+                sx={{
+                  backgroundColor: theme.palette.primary.main,
+                  color: 'white',
+                  width: 32,
+                  height: 32
+                }}
+              >
+                <EditIcon fontSize="small" />
+              </Avatar>
               <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                  EDITAR LIQUIDACIÓN
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  Editar Liquidación
                 </Typography>
-                <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-                  {dialogEdicion.liquidacion?.sala?.nombre} - {formatearPeriodo(dialogEdicion.liquidacion?.periodo)}
-                </Typography>
+                {dialogEdicion.liquidacion && (
+                  <Typography variant="body2" color="text.secondary">
+                    {dialogEdicion.liquidacion.sala?.nombre} - {formatearPeriodo(dialogEdicion.liquidacion.periodo)}
+                  </Typography>
+                )}
               </Box>
+              <IconButton
+                onClick={() => {
+                  setDialogEdicion({ open: false, liquidacion: null });
+                  setDatosMaquinasSala([]);
+                  setDatosEdicion({});
+                }}
+                sx={{ ml: 'auto' }}
+              >
+                <CloseIcon />
+              </IconButton>
             </Box>
           </DialogTitle>
           
-          <DialogContent sx={{ px: 3, py: 3 }}>
-            {/* Tarjetas de resumen editables */}
+          <DialogContent>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={7}>
+                {/* Tarjetas de resumen editables */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
               <Grid item xs={6} sm={3}>
                 <Box sx={{ 
@@ -1885,27 +1971,61 @@ const LiquidacionesPorSalaPage = () => {
               />
             </Box>
 
-            {/* Alerta informativa */}
-            <Alert 
-              severity="info" 
-              sx={{ 
-                mt: 2,
-                borderRadius: 1,
-                backgroundColor: alpha(theme.palette.info.main, 0.1),
-                border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
-              }}
-            >
-              <Typography variant="body2">
-                Se creará un nuevo registro manteniendo el original como historial. 
-                Esta acción quedará registrada para auditoría.
-              </Typography>
-            </Alert>
+                {/* Alerta informativa */}
+                <Alert 
+                  severity="info" 
+                  sx={{ 
+                    mt: 2,
+                    borderRadius: 1,
+                    backgroundColor: alpha(theme.palette.info.main, 0.1),
+                    border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+                  }}
+                >
+                  <Typography variant="body2">
+                    Se creará un nuevo registro manteniendo el original como historial. 
+                    Esta acción quedará registrada para auditoría.
+                  </Typography>
+                </Alert>
+              </Grid>
+              
+              <Grid item xs={12} md={5}>
+                <Box sx={{ pl: 2 }}>
+                  <Typography variant="subtitle2" sx={{ 
+                    color: theme.palette.text.secondary,
+                    fontSize: '0.75rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    fontWeight: 500,
+                    mb: 2
+                  }}>
+                    Herramientas de Edición
+                  </Typography>
+                  <Box sx={{ 
+                    p: 2, 
+                    border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                    borderRadius: 1,
+                    backgroundColor: alpha(theme.palette.background.default, 0.3)
+                  }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      <strong>Estado:</strong> Modo edición activo
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      <strong>Auto-guardado:</strong> Habilitado
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Control de versión:</strong> Activado
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+            </Grid>
           </DialogContent>
           
           <DialogActions sx={{ 
-            px: 3, 
-            py: 2,
-            borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+            p: 2,
+            gap: 1,
+            borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+            backgroundColor: alpha(theme.palette.primary.main, 0.02)
           }}>
             <Button 
               onClick={() => {
@@ -1913,10 +2033,16 @@ const LiquidacionesPorSalaPage = () => {
                 setDatosMaquinasSala([]);
                 setDatosEdicion({});
               }}
+              variant="outlined"
               sx={{
-                borderRadius: 1,
+                borderRadius: 2,
+                textTransform: 'none',
                 fontWeight: 600,
-                textTransform: 'none'
+                borderColor: alpha(theme.palette.primary.main, 0.5),
+                '&:hover': {
+                  borderColor: theme.palette.primary.main,
+                  backgroundColor: alpha(theme.palette.primary.main, 0.04)
+                }
               }}
             >
               Cancelar
@@ -1926,10 +2052,13 @@ const LiquidacionesPorSalaPage = () => {
               onClick={guardarEdicionLiquidacion}
               disabled={!datosEdicion.motivoEdicion}
               sx={{
-                borderRadius: 1,
-                fontWeight: 600,
+                borderRadius: 2,
                 textTransform: 'none',
-                ml: 1
+                fontWeight: 600,
+                boxShadow: 'none',
+                '&:hover': {
+                  boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.24)}`
+                }
               }}
             >
               Guardar Edición
