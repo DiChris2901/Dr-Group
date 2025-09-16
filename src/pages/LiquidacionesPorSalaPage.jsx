@@ -28,11 +28,14 @@ import {
   Tooltip,
   CircularProgress,
   Alert,
+  Checkbox,
   Badge,
+  FormControlLabel,
   alpha,
   useTheme,
   GlobalStyles
 } from '@mui/material';
+import { Chip } from '@mui/material';
 import {
   Business as BusinessIcon,
   Store as StoreIcon,
@@ -52,7 +55,10 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import liquidacionPersistenceService from '../services/liquidacionPersistenceService';
 import { collection, query, where, onSnapshot, doc, getDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { getDocs, limit } from 'firebase/firestore';
 import { db } from '../config/firebase';
+// Formateador reutilizable para ingreso base manual
+const formatearCOPManual = (v) => new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(v || 0);
 
 const LiquidacionesPorSalaPage = () => {
   // Estados principales
@@ -73,10 +79,17 @@ const LiquidacionesPorSalaPage = () => {
   const [dialogDetalles, setDialogDetalles] = useState({ open: false, liquidacion: null });
   const [dialogFacturacion, setDialogFacturacion] = useState({ open: false, liquidacion: null });
   const [dialogEdicion, setDialogEdicion] = useState({ open: false, liquidacion: null });
+  // Opciones adicionales de edición (tarifa fija, normalización de negativos)
+  const [opcionesEdicion, setOpcionesEdicion] = useState({ tarifaFija: false, maquinasNegativasCero: false });
   const [dialogHistorial, setDialogHistorial] = useState({ open: false, liquidacion: null });
   const [datosEdicion, setDatosEdicion] = useState({});
   // Estado para controlar si hay cambios no guardados en la edición (deshabilita auto-guardado)
   const [edicionDirty, setEdicionDirty] = useState(false);
+  // Estado editable para ingreso base manual (SMMLV + Auxilio)
+  const [ingresoBaseManual, setIngresoBaseManual] = useState({ smmlv: '' });
+  const totalIngresoBaseManual = useMemo(() => {
+    return parseFloat(ingresoBaseManual.smmlv) || 0;
+  }, [ingresoBaseManual]);
 
   // Contextos
   const { currentUser, userProfile } = useAuth();
@@ -204,10 +217,31 @@ const LiquidacionesPorSalaPage = () => {
             console.log('✅ Sin filtros válidos aplicados, mostrando todas');
           }
 
-          setLiquidaciones(liquidacionesFiltradas);
+          // Consolidación ordenada: sustituir la fila del original por la edición acumulada manteniendo posición
+          const mapaEdiciones = new Map();
+          for (const liq of liquidacionesFiltradas) {
+            if (liq.esEdicion && liq.liquidacionOriginalId) {
+              mapaEdiciones.set(liq.liquidacionOriginalId, liq);
+            }
+          }
+          const liquidacionesConsolidadas = liquidacionesFiltradas.reduce((acc, liq) => {
+            if (liq.esEdicion) {
+              // Las ediciones se insertarán únicamente cuando se procese su original (para evitar que queden al final)
+              return acc; 
+            }
+            if (mapaEdiciones.has(liq.id)) {
+              const edicion = mapaEdiciones.get(liq.id);
+              acc.push({ ...edicion, _reemplaza: liq.id });
+            } else {
+              acc.push(liq);
+            }
+            return acc;
+          }, []);
+
+          setLiquidaciones(liquidacionesConsolidadas);
 
           // Calcular estadísticas en tiempo real
-          const estadisticasRealTime = calcularEstadisticasLocalmente(liquidacionesFiltradas);
+          const estadisticasRealTime = calcularEstadisticasLocalmente(liquidacionesConsolidadas);
           setEstadisticas(estadisticasRealTime);
 
           setLoading(false);
@@ -282,10 +316,12 @@ const LiquidacionesPorSalaPage = () => {
           id: index,
           serial: maquina.serial || 'N/A',
           nuc: maquina.nuc?.toString() || 'N/A',
+          tipoApuesta: maquina.tipoApuesta || maquina.tipo_apuesta || maquina.tipo || null,
           produccion: maquina.produccion || 0,
           derechosExplotacion: maquina.derechosExplotacion || 0,
           gastosAdministracion: maquina.gastosAdministracion || 0,
-          totalImpuestos: maquina.totalImpuestos || 0
+          totalImpuestos: maquina.totalImpuestos || 0,
+          fueEditada: maquina.fueEditada === true // preservar bandera si existe
         }));
         
         console.log('✅ Datos procesados para la tabla:', maquinasData);
@@ -320,115 +356,111 @@ const LiquidacionesPorSalaPage = () => {
   // Funciones para edición de liquidaciones
   const abrirModalEdicion = async (liquidacion) => {
     console.log('🔧 Abriendo modal de edición para:', liquidacion);
-    
+
+    let baseParaEdicion = liquidacion;
+
+    // Si el usuario hace clic sobre el ORIGINAL que ya tiene ediciones, cargar la edición acumulada
+    if (!liquidacion.esEdicion && (liquidacion.tieneEdiciones || liquidacion.edicionId)) {
+      try {
+        if (liquidacion.edicionId) {
+          const docEd = await getDoc(doc(db, 'liquidaciones_por_sala', liquidacion.edicionId));
+          if (docEd.exists()) {
+            baseParaEdicion = { id: docEd.id, ...docEd.data() };
+            console.log('🔄 Usando edición acumulada existente para nueva edición incremental');
+          }
+        }
+      } catch (e) {
+        console.warn('No se pudo cargar edición acumulada, se usará original:', e);
+      }
+    }
+
     setDatosEdicion({
-      sala: liquidacion.sala.nombre,
-      empresa: liquidacion.empresa,
-      periodo: liquidacion.periodo,
-      totalProduccion: liquidacion.metricas.totalProduccion,
-      derechosExplotacion: liquidacion.metricas.derechosExplotacion,
-      gastosAdministracion: liquidacion.metricas.gastosAdministracion,
-      totalImpuestos: liquidacion.metricas.totalImpuestos,
-      numeroMaquinas: liquidacion.metricas.numeroMaquinas,
+      sala: baseParaEdicion.sala.nombre,
+      empresa: baseParaEdicion.empresa,
+      periodo: baseParaEdicion.fechas?.periodoLiquidacion || baseParaEdicion.periodo,
+      totalProduccion: baseParaEdicion.metricas.totalProduccion,
+      derechosExplotacion: baseParaEdicion.metricas.derechosExplotacion,
+      gastosAdministracion: baseParaEdicion.metricas.gastosAdministracion,
+      totalImpuestos: baseParaEdicion.metricas.totalImpuestos,
+      numeroMaquinas: baseParaEdicion.metricas.totalMaquinas || baseParaEdicion.metricas.numeroMaquinas,
       motivoEdicion: ''
     });
-    
-    // Limpiar datos anteriores y abrir modal
-    setDatosMaquinasSala([]);
-    setDialogEdicion({ open: true, liquidacion });
-    // Reiniciar estado de cambios pendientes al abrir el modal
+
+    setDatosMaquinasSala([]); // limpiar
+    setDialogEdicion({ open: true, liquidacion: baseParaEdicion });
     setEdicionDirty(false);
-    
-    // Cargar datos detallados de las máquinas para edición
-    console.log('🔍 Iniciando carga de datos de máquinas...');
+    // Inicializar ingreso base manual si existe en edición previa
+    if (baseParaEdicion?.esEdicion && baseParaEdicion?.ingresoBaseManual) {
+      setIngresoBaseManual({
+        smmlv: baseParaEdicion.ingresoBaseManual.smmlv || ''
+      });
+    } else {
+      setIngresoBaseManual({ smmlv: '' });
+    }
+    // Inicializar opciones de edición desde documento existente (si es edición) o valores por defecto
+    if (baseParaEdicion?.esEdicion && baseParaEdicion?.opcionesEdicion) {
+      setOpcionesEdicion({
+        tarifaFija: !!baseParaEdicion.opcionesEdicion.tarifaFija,
+        maquinasNegativasCero: !!baseParaEdicion.opcionesEdicion.maquinasNegativasCero
+      });
+    } else {
+      setOpcionesEdicion({ tarifaFija: false, maquinasNegativasCero: false });
+    }
+
+    console.log('🔍 Cargando datos de máquinas para documento de edición con id:', baseParaEdicion.id);
     try {
-      await cargarDetallesSala(liquidacion);
-      console.log('✅ Datos de máquinas cargados exitosamente');
+      await cargarDetallesSala(baseParaEdicion);
+      console.log('✅ Datos de máquinas cargados exitosamente para edición');
     } catch (error) {
-      console.error('❌ Error al cargar datos de máquinas:', error);
+      console.error('❌ Error al cargar datos de máquinas (edición):', error);
     }
   };
 
   const guardarEdicionLiquidacion = async () => {
     try {
-      const liquidacionOriginal = dialogEdicion.liquidacion;
-      
-      // Obtener totales calculados automáticamente
-      const totales = calcularTotalesDesdeTabla();
-      const totalProduccion = totales.totalProduccion;
-      const totalDerechos = totales.totalDerechos;
-      const totalGastos = totales.totalGastos;
-      const totalImpuestos = totales.totalGeneral;
-      
-      // Crear nueva liquidación con los datos editados
-      const nuevaLiquidacion = {
-        ...liquidacionOriginal,
-        metricas: {
-          ...liquidacionOriginal.metricas,
-          totalProduccion,
-          derechosExplotacion: totalDerechos,
-          gastosAdministracion: totalGastos,
-          totalImpuestos,
-          numeroMaquinas: datosMaquinasSala.length
-        },
-        // Actualizar datosConsolidados con los valores editados
-        datosConsolidados: datosMaquinasSala.map(maq => ({
-          ...maq,
-          totalImpuestos: (maq.produccion || 0) + (maq.derechosExplotacion || 0) + (maq.gastosAdministracion || 0)
-        })),
-        // Array de seriales de máquinas que fueron editadas (para fácil consulta)
-        maquinasEditadas: datosMaquinasSala
-          .filter(maq => maq.fueEditada === true)
-          .map(maq => maq.serial || maq.Serial),
-        // Metadatos de edición
-        esEdicion: true,
-        liquidacionOriginalId: liquidacionOriginal.id,
-        fechaEdicion: serverTimestamp(),
-        usuarioEdicion: {
-          uid: currentUser.uid,
-          email: currentUser.email,
-          name: userProfile?.name || currentUser.displayName || currentUser.email?.split('@')[0] || currentUser.email || 'Usuario'
-        },
-        motivoEdicion: datosEdicion.motivoEdicion,
-        historialEdiciones: [
-          ...(liquidacionOriginal.historialEdiciones || []),
-          {
-            fecha: serverTimestamp(),
-            usuario: {
-              uid: currentUser.uid,
-              email: currentUser.email,
-              name: userProfile?.name || currentUser.displayName || currentUser.email?.split('@')[0] || currentUser.email || 'Usuario'
-            },
-            motivo: datosEdicion.motivoEdicion,
-            valoresAnteriores: {
-              totalProduccion: liquidacionOriginal.metricas.totalProduccion,
-              derechosExplotacion: liquidacionOriginal.metricas.derechosExplotacion,
-              gastosAdministracion: liquidacionOriginal.metricas.gastosAdministracion,
-              totalImpuestos: liquidacionOriginal.metricas.totalImpuestos,
-              numeroMaquinas: liquidacionOriginal.metricas.numeroMaquinas,
-              datosConsolidados: liquidacionOriginal.datosConsolidados
-            }
-          }
-        ]
+      const docEnEdicion = dialogEdicion.liquidacion;
+      if (!docEnEdicion) return;
+
+      // Si estamos sobre la edición acumulada, necesitamos reconstruir un "originalDoc" mínimo con el id del original
+      const originalDocForUpsert = docEnEdicion.esEdicion ? {
+        id: docEnEdicion.liquidacionOriginalId,
+        userId: docEnEdicion.userId,
+        empresa: docEnEdicion.empresa,
+        sala: docEnEdicion.sala,
+        fechas: docEnEdicion.fechas
+      } : docEnEdicion;
+
+      const usuario = {
+        uid: currentUser.uid,
+        email: currentUser.email,
+        name: userProfile?.name || currentUser.displayName || currentUser.email?.split('@')[0] || currentUser.email || 'Usuario'
       };
 
-      // Guardar en Firestore como nuevo documento
-      const nuevoId = await liquidacionPersistenceService.saveLiquidacionPorSala(nuevaLiquidacion);
-      
-      console.log('📄 Sistema de versiones:');
-      console.log('  ✅ Original preservado ID:', liquidacionOriginal.id);
-      console.log('  🆕 Nueva versión ID:', nuevoId);
-      console.log('  🔗 Referencia original → nueva:', liquidacionOriginal.id, '→', nuevoId);
-      
-      addNotification('Liquidación editada correctamente. Se creó un nuevo registro manteniendo el original.', 'success');
+      const idEdicion = await liquidacionPersistenceService.upsertLiquidacionEdicionPorSala({
+        originalDoc: originalDocForUpsert,
+        nuevosDatosMaquinas: datosMaquinasSala,
+        motivoEdicion: datosEdicion.motivoEdicion,
+        usuario,
+        opcionesEdicion,
+        ingresoBaseManual: {
+          smmlv: parseFloat(ingresoBaseManual.smmlv) || 0,
+          auxilio: 0,
+          total: parseFloat(ingresoBaseManual.smmlv) || 0
+        }
+      });
+
+      console.log('📄 Edición acumulativa aplicada. ID edición:', idEdicion);
+      addNotification('Cambios aplicados. Edición acumulada actualizada.', 'success');
+
       setDialogEdicion({ open: false, liquidacion: null });
       setDatosMaquinasSala([]);
       setDatosEdicion({});
-  setEdicionDirty(false);
-      
+      setEdicionDirty(false);
+  setOpcionesEdicion({ tarifaFija: false, maquinasNegativasCero: false });
+  setIngresoBaseManual({ smmlv: '' });
     } catch (error) {
-      console.error('Error al guardar edición:', error);
-      addNotification('Error al guardar la edición de la liquidación', 'error');
+      console.error('Error al guardar edición acumulativa:', error);
+      addNotification('Error aplicando la edición', 'error');
     }
   };
 
@@ -478,6 +510,57 @@ const LiquidacionesPorSalaPage = () => {
     return false;
   };
 
+  // Abrir historial asegurando que si se hace clic desde el ORIGINAL con ediciones
+  // se cargue el documento de edición acumulada real (esEdicion: true)
+  const abrirHistorial = async (liquidacion) => {
+    try {
+      setDialogHistorial(prev => ({ ...prev, open: true, liquidacion: null, loading: true }));
+      // Si ya es una edición, usarla directamente
+      if (liquidacion.esEdicion) {
+        setDialogHistorial({ open: true, liquidacion, loading: false });
+        return;
+      }
+      // Si es original pero tiene flag de ediciones, buscar una edición (la acumulada)
+      if (liquidacion.tieneEdiciones || liquidacion.edicionId) {
+        try {
+          if (liquidacion.edicionId) {
+            const editDoc = await getDoc(doc(db, 'liquidaciones_por_sala', liquidacion.edicionId));
+            if (editDoc.exists()) {
+              setDialogHistorial({ open: true, liquidacion: { id: editDoc.id, ...editDoc.data() }, loading: false });
+              return;
+            }
+          }
+          // Fallback: query por liquidacionOriginalId
+          const q = query(
+            collection(db, 'liquidaciones_por_sala'),
+            where('liquidacionOriginalId', '==', liquidacion.id),
+            where('esEdicion', '==', true),
+            limit(1)
+          );
+            const snap = await getDocs(q);
+          if (!snap.empty) {
+            const d = snap.docs[0];
+            setDialogHistorial({ open: true, liquidacion: { id: d.id, ...d.data() }, loading: false });
+          } else {
+            addNotification('No se encontró la edición acumulada todavía.', 'warning');
+            setDialogHistorial({ open: false, liquidacion: null, loading: false });
+          }
+        } catch (e) {
+          console.error('Error cargando edición acumulada:', e);
+          addNotification('Error cargando edición acumulada', 'error');
+          setDialogHistorial({ open: false, liquidacion: null, loading: false });
+        }
+      } else {
+        addNotification('Este registro aún no tiene ediciones.', 'info');
+        setDialogHistorial({ open: false, liquidacion: null, loading: false });
+      }
+    } catch (error) {
+      console.error('Error abriendo historial:', error);
+      addNotification('Error abriendo historial', 'error');
+      setDialogHistorial({ open: false, liquidacion: null, loading: false });
+    }
+  };
+
   // Eliminar liquidación editada
   const eliminarLiquidacionEditada = async (liquidacionEditada) => {
     if (!liquidacionEditada?.id) {
@@ -506,6 +589,14 @@ const LiquidacionesPorSalaPage = () => {
       
       // Eliminar el documento de Firestore
       await deleteDoc(doc(db, 'liquidaciones_por_sala', liquidacionEditada.id));
+      // Limpiar flags en el original
+      if (liquidacionEditada.liquidacionOriginalId) {
+        try {
+          await setDoc(doc(db, 'liquidaciones_por_sala', liquidacionEditada.liquidacionOriginalId), { tieneEdiciones: false, edicionId: null }, { merge: true });
+        } catch (e) {
+          console.warn('No se pudieron limpiar flags en original:', e);
+        }
+      }
       
       console.log('✅ Liquidación editada eliminada correctamente');
       
@@ -518,7 +609,9 @@ const LiquidacionesPorSalaPage = () => {
             return {
               ...liq,
               esEdicion: false,
-              historialEdiciones: []
+              historialEdiciones: [],
+              tieneEdiciones: false,
+              edicionId: null
             };
           }
           // Si es la liquidación editada que eliminamos, removerla
@@ -1188,15 +1281,23 @@ const LiquidacionesPorSalaPage = () => {
                               </IconButton>
                             </Tooltip>
                             
-                            {/* Botón condicional: Solo para liquidaciones editadas */}
-                            {(liquidacion.esEdicion || liquidacion.liquidacionId || liquidacion.liquidacionOriginalId) && (
-                              <Tooltip title="Ver detalles de la edición">
-                                <IconButton 
+                            {/* Botón condicional: solo mostrar si es edición acumulada o el original tiene ediciones */}
+                            {(() => {
+                              // Si es la edición acumulada (fila reemplazo) siempre mostrar
+                              if (liquidacion.esEdicion) return true;
+                              // Si la fila fue sustituida (original ocultado) no debería llegar aquí, pero por seguridad
+                              if (liquidacion._reemplaza) return true;
+                              // Caso original: mostrar si conserva referencia válida a edición presente
+                              if (liquidacion.tieneEdiciones && liquidacion.edicionId) {
+                                return liquidaciones.some(l => l.id === liquidacion.edicionId && l.esEdicion);
+                              }
+                              return false;
+                            })() && (
+                              <Tooltip title={liquidacion.esEdicion ? 'Ver liquidación editada' : 'Ver ediciones'}>
+                                <IconButton
                                   size="small"
                                   color="info"
-                                  onClick={() => {
-                                    setDialogHistorial({ open: true, liquidacion });
-                                  }}
+                                  onClick={() => abrirHistorial(liquidacion)}
                                 >
                                   <InfoIcon />
                                 </IconButton>
@@ -1359,6 +1460,9 @@ const LiquidacionesPorSalaPage = () => {
                                   <TableCell sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>
                                     NUC
                                   </TableCell>
+                                  <TableCell sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>
+                                    Tipo Apuesta
+                                  </TableCell>
                                   <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
                                     Producción
                                   </TableCell>
@@ -1391,6 +1495,9 @@ const LiquidacionesPorSalaPage = () => {
                                     <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>
                                       {maquina.nuc || 'N/A'}
                                     </TableCell>
+                                      <TableCell align="center" sx={{ borderColor: 'divider', fontSize: '0.8rem', fontWeight: 500 }}>
+                                        {maquina.tipoApuesta || maquina.tipo_apuesta || maquina.tipo || '—'}
+                                      </TableCell>
                                     <TableCell align="right" sx={{ borderColor: 'divider', whiteSpace: 'nowrap' }}>
                                       <Typography sx={{ color: theme.palette.success.main, fontWeight: 500, fontSize: '0.8rem' }}>
                                         {formatearMonto(maquina.produccion)}
@@ -1477,15 +1584,15 @@ const LiquidacionesPorSalaPage = () => {
                         </Paper>
                         <Paper elevation={0} sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.warning.main, 0.25)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.warning.dark, 0.12) : alpha(theme.palette.warning.light, 0.08) }}>
                           <Typography variant="overline" sx={{ display: 'block', fontSize: '0.6rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>DERECHOS DE EXPLOTACIÓN</Typography>
-                          <Typography variant="h6" sx={{ m: 0, fontWeight: 600, color: theme.palette.warning.main }}>{formatearMonto(dialogDetalles.liquidacion.metricas.derechosExplotacion)}</Typography>
+                          <Typography variant="h6" sx={{ m: 0, fontWeight: 600, color: theme.palette.warning.main }}>{formatearMontoConDecimales(dialogDetalles.liquidacion.metricas.derechosExplotacion)}</Typography>
                         </Paper>
                         <Paper elevation={0} sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.error.main, 0.25)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.error.dark, 0.12) : alpha(theme.palette.error.light, 0.06) }}>
                           <Typography variant="overline" sx={{ display: 'block', fontSize: '0.6rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>GASTOS DE ADMINISTRACIÓN</Typography>
-                          <Typography variant="h6" sx={{ m: 0, fontWeight: 600, color: theme.palette.error.main }}>{formatearMonto(dialogDetalles.liquidacion.metricas.gastosAdministracion)}</Typography>
+                          <Typography variant="h6" sx={{ m: 0, fontWeight: 600, color: theme.palette.error.main }}>{formatearMontoConDecimales(dialogDetalles.liquidacion.metricas.gastosAdministracion)}</Typography>
                         </Paper>
                         <Paper elevation={0} sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.info.main, 0.25)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.info.dark, 0.12) : alpha(theme.palette.info.light, 0.06) }}>
                           <Typography variant="overline" sx={{ display: 'block', fontSize: '0.6rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>TOTAL IMPUESTOS</Typography>
-                          <Typography variant="h6" sx={{ m: 0, fontWeight: 600, color: theme.palette.text.primary }}>{formatearMonto(dialogDetalles.liquidacion.metricas.totalImpuestos)}</Typography>
+                          <Typography variant="h6" sx={{ m: 0, fontWeight: 600, color: theme.palette.text.primary }}>{formatearMontoConDecimales(dialogDetalles.liquidacion.metricas.totalImpuestos)}</Typography>
                         </Paper>
                       </Box>
                     </Paper>
@@ -1717,6 +1824,7 @@ const LiquidacionesPorSalaPage = () => {
                             <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50', borderBottom: `1px solid ${theme.palette.divider}` }}>
                               <TableCell sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Serial</TableCell>
                               <TableCell sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>NUC</TableCell>
+                              <TableCell sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Tipo Apuesta</TableCell>
                               <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Producción</TableCell>
                               <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Derechos de Explotación</TableCell>
                               <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>Gastos de Administración</TableCell>
@@ -1725,9 +1833,23 @@ const LiquidacionesPorSalaPage = () => {
                           </TableHead>
                           <TableBody>
                             {datosMaquinasSala.map((maquina, index) => (
-                              <TableRow key={index} sx={{ borderColor: 'divider', transition: 'background-color 0.2s ease', '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.04) } }}>
-                                <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>{maquina.serial || 'N/A'}</TableCell>
+                              <TableRow key={index} sx={{ 
+                                borderColor: 'divider', 
+                                transition: 'background-color 0.2s ease', 
+                                backgroundColor: maquina.fueEditada ? alpha(theme.palette.warning.main, 0.12) : 'transparent',
+                                borderLeft: maquina.fueEditada ? `4px solid ${theme.palette.warning.main}` : '4px solid transparent',
+                                '&:hover': { backgroundColor: maquina.fueEditada ? alpha(theme.palette.warning.main, 0.18) : alpha(theme.palette.primary.main, 0.04) } 
+                              }}>
+                                <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>
+                                  <Box display="flex" alignItems="center" gap={1}>
+                                    <span>{maquina.serial || 'N/A'}</span>
+                                    {maquina.fueEditada && (
+                                      <Chip label="EDITADA" size="small" color="warning" sx={{ height: 18, fontSize: '0.6rem', fontWeight: 600 }} />
+                                    )}
+                                  </Box>
+                                </TableCell>
                                 <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>{maquina.nuc || 'N/A'}</TableCell>
+                                <TableCell align="center" sx={{ borderColor: 'divider', fontSize: '0.8rem', fontWeight: 500 }}>{maquina.tipoApuesta || maquina.tipo_apuesta || maquina.tipo || '—'}</TableCell>
                                 <TableCell align="right" sx={{ borderColor: 'divider' }}>
                                   <TextField
                                     variant="standard"
@@ -1820,7 +1942,15 @@ const LiquidacionesPorSalaPage = () => {
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}><strong>Sala:</strong> {dialogEdicion.liquidacion?.sala?.nombre}</Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}><strong>Empresa:</strong> {dialogEdicion.liquidacion?.empresa?.nombre}</Typography>
-                    <Typography variant="body2" color="text.secondary"><strong>Período:</strong> {dialogEdicion.liquidacion ? formatearPeriodo(dialogEdicion.liquidacion.periodo) : '—'}</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      <strong>Período:</strong> {dialogEdicion.liquidacion 
+                        ? formatearPeriodo(
+                            dialogEdicion.liquidacion?.fechas?.periodoLiquidacion 
+                              || dialogEdicion.liquidacion?.periodo 
+                              || datosEdicion.periodo
+                          ) 
+                        : '—'}
+                    </Typography>
                   </Paper>
                   <Paper sx={{ p: 2.5, borderRadius: 2, border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.background.default, 0.5) : alpha(theme.palette.primary.light, 0.02) }}>
                     <Typography variant="subtitle2" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, mb: 2 }}>
@@ -1843,6 +1973,23 @@ const LiquidacionesPorSalaPage = () => {
                         <Typography variant="overline" sx={{ display: 'block', fontSize: '0.6rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>TOTAL</Typography>
                         <Typography variant="h6" sx={{ color: theme.palette.info.main, fontWeight: 600, m: 0 }}>{formatearMontoConDecimales(totalesCalculados.totalGeneral)}</Typography>
                       </Paper>
+                      <Paper elevation={0} sx={{ p: 1.2, borderRadius: 1.5, border: `1px dashed ${alpha(theme.palette.primary.main, 0.35)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.primary.dark, 0.10) : alpha(theme.palette.primary.light, 0.04), display:'flex', flexDirection:'column', gap: .75 }}>
+                        <Typography variant="overline" sx={{ display: 'block', fontSize: '0.55rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>INGRESO BASE (MANUAL)</Typography>
+                        <Box sx={{ display:'flex' }}>
+                          <TextField
+                            fullWidth
+                            size="small"
+                            label="SMMLV"
+                            type="number"
+                            value={ingresoBaseManual.smmlv}
+                            onChange={(e)=>{ setIngresoBaseManual(v=>({...v, smmlv:e.target.value})); if(!edicionDirty) setEdicionDirty(true);} }
+                            InputProps={{ inputProps:{ min:0 } }}
+                          />
+                        </Box>
+                        <Typography variant="caption" sx={{ mt:.25, color:theme.palette.text.secondary }}>
+                          Total: <strong>{formatearCOPManual(totalIngresoBaseManual)}</strong>
+                        </Typography>
+                      </Paper>
                     </Box>
                   </Paper>
                   <Paper sx={{
@@ -1860,6 +2007,29 @@ const LiquidacionesPorSalaPage = () => {
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}><strong>Auto-guardado:</strong> Deshabilitado</Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}><strong>Cambios pendientes:</strong> {edicionDirty ? 'Sí' : 'No'}</Typography>
                     <Typography variant="body2" color="text.secondary"><strong>Control de versión:</strong> Activado</Typography>
+                    <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <FormControlLabel
+                        control={<Checkbox size="small" checked={opcionesEdicion.tarifaFija} onChange={(e) => { setOpcionesEdicion(o => ({ ...o, tarifaFija: e.target.checked })); if (!edicionDirty) setEdicionDirty(true); }} />}
+                        label={
+                          <Tooltip title="Aplicará una tarifa fija (reglas a definir) en lugar del cálculo porcentual estándar. Aún sin impacto hasta definir lógica." placement="top" arrow>
+                            <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>Tarifa fija (próx.)</Typography>
+                          </Tooltip>
+                        }
+                      />
+                      <FormControlLabel
+                        control={<Checkbox size="small" checked={opcionesEdicion.maquinasNegativasCero} onChange={(e) => { setOpcionesEdicion(o => ({ ...o, maquinasNegativasCero: e.target.checked })); if (!edicionDirty) setEdicionDirty(true); }} />}
+                        label={
+                          <Tooltip title="Forzará valores negativos de producción/derechos/gastos a cero durante el recálculo (pendiente lógica)." placement="top" arrow>
+                            <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>Máquinas negativas a 0</Typography>
+                          </Tooltip>
+                        }
+                      />
+                      { (opcionesEdicion.tarifaFija || opcionesEdicion.maquinasNegativasCero) && (
+                        <Alert severity="info" sx={{ borderRadius: 1, py: 0.5 }} icon={<InfoIcon fontSize="small" />}>
+                          <Typography variant="caption" sx={{ fontSize: '0.65rem' }}>Las reglas seleccionadas se guardarán y aplicarán cuando se implemente la lógica.</Typography>
+                        </Alert>
+                      ) }
+                    </Box>
                   </Paper>
                 </Box>
               </Box>
@@ -1926,7 +2096,13 @@ const LiquidacionesPorSalaPage = () => {
             color: 'text.primary'
           }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Avatar sx={{ bgcolor: 'secondary.main', color: 'secondary.contrastText' }}>
+              <Avatar sx={{ 
+                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                color: '#fff',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+                fontSize: '0.85rem',
+                fontWeight: 600
+              }}>
                 <InfoIcon fontSize="small" />
               </Avatar>
               <Box>
@@ -2051,6 +2227,9 @@ const LiquidacionesPorSalaPage = () => {
                                   <TableCell sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>
                                     NUC
                                   </TableCell>
+                                  <TableCell sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem' }}>
+                                    Tipo Apuesta
+                                  </TableCell>
                                   <TableCell align="right" sx={{ borderColor: 'divider', fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap' }}>
                                     Producción
                                   </TableCell>
@@ -2103,6 +2282,9 @@ const LiquidacionesPorSalaPage = () => {
                                     </TableCell>
                                     <TableCell sx={{ borderColor: 'divider', fontSize: '0.8rem' }}>
                                       {maquina.nuc || 'N/A'}
+                                    </TableCell>
+                                    <TableCell align="center" sx={{ borderColor: 'divider', fontSize: '0.8rem', fontWeight: 500 }}>
+                                      {maquina.tipoApuesta || maquina.tipo_apuesta || maquina.tipo || '—'}
                                     </TableCell>
                                     <TableCell align="right" sx={{ borderColor: 'divider', whiteSpace: 'nowrap' }}>
                                       <Typography sx={{ color: theme.palette.success.main, fontWeight: 500, fontSize: '0.8rem' }}>
@@ -2280,15 +2462,15 @@ const LiquidacionesPorSalaPage = () => {
                         </Paper>
                         <Paper elevation={0} sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.warning.main, 0.25)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.warning.dark, 0.12) : alpha(theme.palette.warning.light, 0.08) }}>
                           <Typography variant="overline" sx={{ display: 'block', fontSize: '0.6rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>DERECHOS DE EXPLOTACIÓN</Typography>
-                          <Typography variant="h6" sx={{ m: 0, fontWeight: 600, color: theme.palette.warning.main }}>{formatearMonto(dialogHistorial.liquidacion.metricas?.derechosExplotacion)}</Typography>
+                          <Typography variant="h6" sx={{ m: 0, fontWeight: 600, color: theme.palette.warning.main }}>{formatearMontoConDecimales(dialogHistorial.liquidacion.metricas?.derechosExplotacion)}</Typography>
                         </Paper>
                         <Paper elevation={0} sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.error.main, 0.25)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.error.dark, 0.12) : alpha(theme.palette.error.light, 0.06) }}>
                           <Typography variant="overline" sx={{ display: 'block', fontSize: '0.6rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>GASTOS DE ADMINISTRACIÓN</Typography>
-                          <Typography variant="h6" sx={{ m: 0, fontWeight: 600, color: theme.palette.error.main }}>{formatearMonto(dialogHistorial.liquidacion.metricas?.gastosAdministracion)}</Typography>
+                          <Typography variant="h6" sx={{ m: 0, fontWeight: 600, color: theme.palette.error.main }}>{formatearMontoConDecimales(dialogHistorial.liquidacion.metricas?.gastosAdministracion)}</Typography>
                         </Paper>
                         <Paper elevation={0} sx={{ p: 1.5, borderRadius: 1.5, border: `1px solid ${alpha(theme.palette.info.main, 0.25)}`, background: theme.palette.mode === 'dark' ? alpha(theme.palette.info.dark, 0.12) : alpha(theme.palette.info.light, 0.06) }}>
                           <Typography variant="overline" sx={{ display: 'block', fontSize: '0.6rem', letterSpacing: '.08em', fontWeight: 600, color: theme.palette.text.secondary }}>TOTAL IMPUESTOS</Typography>
-                          <Typography variant="h6" sx={{ m: 0, fontWeight: 600, color: theme.palette.text.primary }}>{formatearMonto(dialogHistorial.liquidacion.metricas?.totalImpuestos)}</Typography>
+                          <Typography variant="h6" sx={{ m: 0, fontWeight: 600, color: theme.palette.text.primary }}>{formatearMontoConDecimales(dialogHistorial.liquidacion.metricas?.totalImpuestos)}</Typography>
                         </Paper>
                       </Box>
                     </Paper>
@@ -2297,27 +2479,53 @@ const LiquidacionesPorSalaPage = () => {
               </Box>
             )}
           </DialogContent>
-          <DialogActions sx={{ p: 2, gap: 1, borderTop: `1px solid ${theme.palette.divider}`, justifyContent: 'space-between' }}>
-            <Button
-              onClick={() => eliminarLiquidacionEditada(dialogHistorial.liquidacion)}
-              variant="contained"
-              color="error"
-              startIcon={<DeleteIcon />}
-              sx={{ 
-                borderRadius: 1.5, 
-                textTransform: 'none', 
-                fontWeight: 600,
-                '&:hover': {
-                  backgroundColor: theme.palette.error.dark,
-                  transform: 'scale(1.02)'
-                }
-              }}
-            >
-              Eliminar Edición
-            </Button>
+          <DialogActions sx={{ p: 2, gap: 1.5, borderTop: `1px solid ${theme.palette.divider}`, justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                onClick={() => eliminarLiquidacionEditada(dialogHistorial.liquidacion)}
+                variant="contained"
+                startIcon={<DeleteIcon />}
+                sx={{ 
+                  borderRadius: 1.5, 
+                  textTransform: 'none', 
+                  fontWeight: 600,
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.25)',
+                  '&:hover': {
+                    background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`,
+                    transform: 'translateY(-2px)'
+                  }
+                }}
+              >
+                Eliminar Edición
+              </Button>
+              {dialogHistorial.liquidacion?.esEdicion && (
+                <Button
+                  onClick={() => {
+                    cerrarModalHistorial();
+                    abrirModalEdicion(dialogHistorial.liquidacion);
+                  }}
+                  variant="outlined"
+                  sx={{ 
+                    borderRadius: 1.5, 
+                    textTransform: 'none', 
+                    fontWeight: 600,
+                    borderWidth: 2,
+                    background: theme.palette.mode === 'dark' ? alpha(theme.palette.primary.main, 0.06) : 'transparent',
+                    '&:hover': {
+                      borderWidth: 2,
+                      background: alpha(theme.palette.primary.main, 0.08)
+                    }
+                  }}
+                  startIcon={<EditIcon />}
+                >
+                  Editar
+                </Button>
+              )}
+            </Box>
             <Button
               onClick={cerrarModalHistorial}
-              variant="outlined"
+              variant="text"
               sx={{ borderRadius: 1.5, textTransform: 'none', fontWeight: 600 }}
             >
               Cerrar

@@ -166,8 +166,16 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       permission: 'liquidaciones',
       submenu: [
         { title: 'Liquidaciones', icon: Receipt, path: '/liquidaciones' },
-        { title: 'Histórico de Liquidaciones', icon: Assessment, path: '/liquidaciones/historico' },
-        { title: 'Liquidaciones por Sala', icon: Business, path: '/liquidaciones/por-sala' }
+        { title: 'Histórico de Liquidaciones', icon: Assessment, path: '/liquidaciones/historico' }
+      ]
+    },
+    {
+      title: 'Facturación',
+      icon: AttachMoney,
+      color: '#2196f3',
+      permission: 'facturacion',
+      submenu: [
+        { title: 'Liquidaciones por Sala', icon: Business, path: '/facturacion/liquidaciones-por-sala' }
       ]
     },
     {

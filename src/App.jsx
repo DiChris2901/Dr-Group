@@ -189,10 +189,12 @@ const DashboardLayout = () => {
           </MainLayout>
         }
       />
+      
+      {/* Rutas de Facturación */}
       <Route 
-        path="/liquidaciones/por-sala" 
+        path="/facturacion/liquidaciones-por-sala" 
         element={
-          <MainLayout title="Liquidaciones por Sala" breadcrumbs={['Liquidaciones', 'Por Sala']}>
+          <MainLayout title="Liquidaciones por Sala" breadcrumbs={['Facturación', 'Liquidaciones por Sala']}>
             <LiquidacionesPorSalaPage />
           </MainLayout>
         }

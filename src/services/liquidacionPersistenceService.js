@@ -1629,6 +1629,236 @@ class LiquidacionPersistenceService {
       throw new Error(`Error al guardar edición: ${error.message}`);
     }
   }
+
+  /**
+   * Crea o actualiza (acumulativamente) una liquidación editada por sala.
+   * Escenario: primera edición -> crea doc nuevo; ediciones posteriores -> actualiza el mismo doc.
+   * @param {Object} originalDoc - Documento original (liquidación base por sala)
+   * @param {Array} nuevosDatosMaquinas - Array de máquinas (todas las visibles en la tabla de edición)
+   * @param {String} motivoEdicion - Motivo textual de la edición actual
+   * @param {Object} usuario - { uid, email, name }
+   * @returns {Promise<string>} id del documento de edición (creado o actualizado)
+   */
+  async upsertLiquidacionEdicionPorSala({ originalDoc, nuevosDatosMaquinas, motivoEdicion, usuario, opcionesEdicion = {}, ingresoBaseManual }) {
+    if (!originalDoc?.id) throw new Error('Falta id de liquidación original');
+    if (!Array.isArray(nuevosDatosMaquinas)) throw new Error('Formato inválido de máquinas');
+
+    try {
+      console.log('🛠️ upsertLiquidacionEdicionPorSala start', { originalId: originalDoc.id, maquinas: nuevosDatosMaquinas.length });
+
+      // 1. Buscar si ya existe una edición acumulada
+      const q = query(
+        collection(db, 'liquidaciones_por_sala'),
+        where('liquidacionOriginalId', '==', originalDoc.id),
+        where('esEdicion', '==', true),
+        limit(1)
+      );
+      const snap = await getDocs(q);
+
+      let editDocRef = null;
+      let editDocData = null;
+  const ahoraServer = serverTimestamp();
+  const ahoraISO = new Date().toISOString();
+
+      // Utilidad: indexar máquinas por serial en array dado
+      const indexBySerial = (arr) => {
+        const map = new Map();
+        arr.forEach(m => {
+          const serial = m.serial || m.Serial;
+          if (serial) map.set(serial, m);
+        });
+        return map;
+      };
+
+      const nuevosMap = indexBySerial(nuevosDatosMaquinas);
+
+      // 2. Si NO existe edición previa -> crear documento nuevo
+      if (snap.empty) {
+        console.log('📄 No existe edición previa, creando nueva');
+
+        // Detectar máquinas editadas (marcadas o con fueEditada true)
+        const maquinasEditadasSeriales = [];
+        const datosConsolidados = nuevosDatosMaquinas.map(m => {
+          const copia = { ...m };
+          const fueEditada = m.fueEditada === true; // viene marcado desde la UI
+          if (fueEditada) {
+            copia.fueEditada = true;
+            const serial = m.serial || m.Serial;
+            if (serial) maquinasEditadasSeriales.push(serial);
+          }
+          // Reasegurar totalImpuestos coherente
+            copia.totalImpuestos = (parseFloat(copia.derechosExplotacion) || 0) + (parseFloat(copia.gastosAdministracion) || 0);
+          return copia;
+        });
+
+        // Recalcular métricas
+        const metricas = {
+          totalMaquinas: datosConsolidados.length,
+          totalProduccion: datosConsolidados.reduce((s, m) => s + (parseFloat(m.produccion) || 0), 0),
+          derechosExplotacion: datosConsolidados.reduce((s, m) => s + (parseFloat(m.derechosExplotacion) || 0), 0),
+          gastosAdministracion: datosConsolidados.reduce((s, m) => s + (parseFloat(m.gastosAdministracion) || 0), 0)
+        };
+        metricas.totalImpuestos = metricas.derechosExplotacion + metricas.gastosAdministracion;
+
+        const docRef = doc(collection(db, 'liquidaciones_por_sala'));
+        const editPayload = {
+          esEdicion: true,
+            liquidacionOriginalId: originalDoc.id,
+          userId: originalDoc.userId,
+          empresa: originalDoc.empresa,
+          sala: originalDoc.sala,
+          fechas: { ...originalDoc.fechas, fechaEdicion: ahoraServer },
+          metricas,
+          datosConsolidados,
+          maquinasEditadas: maquinasEditadasSeriales,
+          usuarioEdicion: usuario,
+          motivoEdicion,
+          opcionesEdicion: {
+            tarifaFija: !!opcionesEdicion.tarifaFija,
+            maquinasNegativasCero: !!opcionesEdicion.maquinasNegativasCero
+          },
+          ingresoBaseManual: ingresoBaseManual ? {
+            smmlv: parseFloat(ingresoBaseManual.smmlv) || 0,
+            auxilio: parseFloat(ingresoBaseManual.auxilio) || 0,
+            total: parseFloat(ingresoBaseManual.total) || ((parseFloat(ingresoBaseManual.smmlv)||0)+(parseFloat(ingresoBaseManual.auxilio)||0))
+          } : null,
+          historialEdiciones: [
+            {
+              fecha: ahoraISO, // No usar serverTimestamp dentro del array
+              usuario,
+              motivo: motivoEdicion,
+              tipo: 'creacion_edicion',
+              opcionesEdicionSnapshot: {
+                tarifaFija: !!opcionesEdicion.tarifaFija,
+                maquinasNegativasCero: !!opcionesEdicion.maquinasNegativasCero
+              },
+              ingresoBaseManualSnapshot: ingresoBaseManual ? {
+                smmlv: parseFloat(ingresoBaseManual.smmlv) || 0,
+                auxilio: parseFloat(ingresoBaseManual.auxilio) || 0,
+                total: parseFloat(ingresoBaseManual.total) || ((parseFloat(ingresoBaseManual.smmlv)||0)+(parseFloat(ingresoBaseManual.auxilio)||0))
+              } : null,
+              cambios: datosConsolidados
+                .filter(m => m.fueEditada)
+                .map(m => ({ serial: m.serial || m.Serial, nuevo: { produccion: m.produccion, derechosExplotacion: m.derechosExplotacion, gastosAdministracion: m.gastosAdministracion } }))
+            }
+          ]
+        };
+
+        await setDoc(docRef, editPayload);
+        editDocRef = docRef;
+        editDocData = editPayload;
+
+        // Marcar original con flag de que tiene ediciones
+        await setDoc(doc(db, 'liquidaciones_por_sala', originalDoc.id), { tieneEdiciones: true, edicionId: docRef.id }, { merge: true });
+
+        console.log('✅ Edición creada', docRef.id);
+        return docRef.id;
+      }
+
+      // 3. Existe edición previa -> actualizar
+      const existingDoc = snap.docs[0];
+      editDocRef = existingDoc.ref;
+      editDocData = existingDoc.data();
+      console.log('✏️ Actualizando edición existente', existingDoc.id);
+
+      const previoDatos = Array.isArray(editDocData.datosConsolidados) ? [...editDocData.datosConsolidados] : [];
+      const previoMap = indexBySerial(previoDatos);
+
+      const cambiosAplicados = [];
+
+      // Merge: actualizar solo máquinas marcadas como editadas (fueEditada)
+      nuevosDatosMaquinas.forEach(m => {
+        const serial = m.serial || m.Serial;
+        if (!serial) return;
+        if (m.fueEditada === true) {
+          const anterior = previoMap.get(serial);
+          const nuevoValor = {
+            ...(anterior || {}),
+            ...m,
+            fueEditada: true,
+            totalImpuestos: (parseFloat(m.derechosExplotacion) || 0) + (parseFloat(m.gastosAdministracion) || 0)
+          };
+          previoMap.set(serial, nuevoValor);
+          cambiosAplicados.push({
+            serial,
+            antes: anterior ? {
+              produccion: anterior.produccion,
+              derechosExplotacion: anterior.derechosExplotacion,
+              gastosAdministracion: anterior.gastosAdministracion
+            } : null,
+            despues: {
+              produccion: nuevoValor.produccion,
+              derechosExplotacion: nuevoValor.derechosExplotacion,
+              gastosAdministracion: nuevoValor.gastosAdministracion
+            }
+          });
+        }
+      });
+
+      // Reconstruir array consolidado
+      const mergedDatos = Array.from(previoMap.values());
+
+      // Recalcular métricas
+      const metricasActualizadas = {
+        totalMaquinas: mergedDatos.length,
+        totalProduccion: mergedDatos.reduce((s, m) => s + (parseFloat(m.produccion) || 0), 0),
+        derechosExplotacion: mergedDatos.reduce((s, m) => s + (parseFloat(m.derechosExplotacion) || 0), 0),
+        gastosAdministracion: mergedDatos.reduce((s, m) => s + (parseFloat(m.gastosAdministracion) || 0), 0)
+      };
+      metricasActualizadas.totalImpuestos = metricasActualizadas.derechosExplotacion + metricasActualizadas.gastosAdministracion;
+
+      // Actualizar historial
+      const historial = Array.isArray(editDocData.historialEdiciones) ? [...editDocData.historialEdiciones] : [];
+      historial.push({
+        fecha: ahoraISO,
+        usuario,
+        motivo: motivoEdicion,
+        tipo: 'actualizacion_edicion',
+        opcionesEdicionSnapshot: {
+          tarifaFija: !!opcionesEdicion.tarifaFija,
+          maquinasNegativasCero: !!opcionesEdicion.maquinasNegativasCero
+        },
+        ingresoBaseManualSnapshot: ingresoBaseManual ? {
+          smmlv: parseFloat(ingresoBaseManual.smmlv) || 0,
+          auxilio: parseFloat(ingresoBaseManual.auxilio) || 0,
+          total: parseFloat(ingresoBaseManual.total) || ((parseFloat(ingresoBaseManual.smmlv)||0)+(parseFloat(ingresoBaseManual.auxilio)||0))
+        } : (editDocData.ingresoBaseManual || null),
+        cambios: cambiosAplicados
+      });
+
+      const maquinasEditadasSeriales = mergedDatos.filter(m => m.fueEditada).map(m => m.serial || m.Serial).filter(Boolean);
+
+      await setDoc(editDocRef, {
+        metricas: metricasActualizadas,
+        datosConsolidados: mergedDatos,
+        maquinasEditadas: maquinasEditadasSeriales,
+        historialEdiciones: historial,
+        motivoEdicion, // último motivo registrado (opcional)
+        fechaUltimaEdicion: ahoraServer,
+        usuarioEdicion: usuario,
+        esEdicion: true,
+        liquidacionOriginalId: originalDoc.id,
+        opcionesEdicion: {
+          tarifaFija: !!opcionesEdicion.tarifaFija,
+          maquinasNegativasCero: !!opcionesEdicion.maquinasNegativasCero
+        },
+        ingresoBaseManual: ingresoBaseManual ? {
+          smmlv: parseFloat(ingresoBaseManual.smmlv) || 0,
+          auxilio: parseFloat(ingresoBaseManual.auxilio) || 0,
+          total: parseFloat(ingresoBaseManual.total) || ((parseFloat(ingresoBaseManual.smmlv)||0)+(parseFloat(ingresoBaseManual.auxilio)||0))
+        } : (editDocData.ingresoBaseManual || null)
+      }, { merge: true });
+
+      // Marcar original (por si no estaba)
+      await setDoc(doc(db, 'liquidaciones_por_sala', originalDoc.id), { tieneEdiciones: true, edicionId: existingDoc.id }, { merge: true });
+
+      console.log('✅ Edición actualizada', existingDoc.id, 'cambios:', cambiosAplicados.length);
+      return existingDoc.id;
+    } catch (error) {
+      console.error('Error en upsertLiquidacionEdicionPorSala:', error);
+      throw error;
+    }
+  }
 }
 
 export default new LiquidacionPersistenceService();

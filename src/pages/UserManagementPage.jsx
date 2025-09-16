@@ -55,7 +55,8 @@ import {
   AccountBalance,
   Receipt,
   TrendingUp,
-  Assessment
+  Assessment,
+  AttachMoney
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -181,7 +182,7 @@ const UserManagementPage = () => {
         setEditingUser(user);
         
         // Filtrar solo permisos del nuevo sistema
-        const newSystemPermissions = ['dashboard', 'compromisos', 'pagos', 'ingresos', 'empresas', 'liquidaciones', 'reportes', 'usuarios', 'auditoria', 'storage'];
+        const newSystemPermissions = ['dashboard', 'compromisos', 'pagos', 'ingresos', 'empresas', 'liquidaciones', 'facturacion', 'reportes', 'usuarios', 'auditoria', 'storage'];
         const filteredPermissions = (user.permissions || []).filter(permission => 
           newSystemPermissions.includes(permission)
         );
@@ -381,7 +382,7 @@ const UserManagementPage = () => {
       setError(null);
       
       // Filtrar permisos para asegurar que solo se guarden los del nuevo sistema
-      const newSystemPermissions = ['dashboard', 'compromisos', 'pagos', 'ingresos', 'empresas', 'liquidaciones', 'reportes', 'usuarios', 'auditoria', 'storage'];
+      const newSystemPermissions = ['dashboard', 'compromisos', 'pagos', 'ingresos', 'empresas', 'liquidaciones', 'facturacion', 'reportes', 'usuarios', 'auditoria', 'storage'];
       const filteredPermissions = formData.permissions.filter(permission => 
         newSystemPermissions.includes(permission)
       );
@@ -1296,6 +1297,7 @@ const UserManagementPage = () => {
                       { key: 'ingresos', label: 'Ingresos', icon: <TrendingUp />, color: '#4caf50' },
                       { key: 'empresas', label: 'Empresas', icon: <BusinessIcon />, color: theme.palette.secondary.main },
                       { key: 'liquidaciones', label: 'Liquidaciones', icon: <Receipt />, color: '#ff9800' },
+                      { key: 'facturacion', label: 'Facturación', icon: <AttachMoney />, color: '#2196f3' },
                       { key: 'reportes', label: 'Reportes', icon: <Assessment />, color: theme.palette.primary.main },
                       { key: 'usuarios', label: 'Usuarios', icon: <PersonAddIcon />, color: '#ff9800' },
                       { key: 'auditoria', label: 'Auditoría del Sistema', icon: <SecurityIcon />, color: '#9c27b0' },
