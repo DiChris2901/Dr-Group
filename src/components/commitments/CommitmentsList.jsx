@@ -277,6 +277,8 @@ const CommitmentsList = ({
   dateRangeFilter,
   customStartDate,
   customEndDate,
+  yearFilter = 'all',
+  monthFilter = { month: 'all', year: 'all' },
   viewMode = 'cards',
   onCommitmentsChange,
   shouldLoadData = true,
@@ -372,6 +374,8 @@ const CommitmentsList = ({
   const debouncedDateRangeFilter = dateRangeFilter;
   const debouncedCustomStartDate = customStartDate;
   const debouncedCustomEndDate = customEndDate;
+  const debouncedYearFilter = yearFilter;
+  const debouncedMonthFilter = monthFilter;
 
   // (Duplicated helper block removed after refactor consolidation)
 
@@ -510,7 +514,7 @@ const CommitmentsList = ({
       setTotalCommitments(0);
       return 0;
     }
-  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedDateRangeFilter, debouncedCustomStartDate, debouncedCustomEndDate]);
+  }, [debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedDateRangeFilter, debouncedCustomStartDate, debouncedCustomEndDate, debouncedYearFilter, debouncedMonthFilter]);
 
   // 🚀 OPTIMIZACIÓN FASE 2: Función para cargar página con query optimizer
   // Función simplificada para cargar página sin caché problemático
@@ -801,7 +805,7 @@ const CommitmentsList = ({
       unsubscribe();
     };
     
-  }, [currentUser, debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedDateRangeFilter, debouncedCustomStartDate, debouncedCustomEndDate, shouldLoadData]); // ✅ Agregado shouldLoadData + debouncedMonthFilter para refrescar al limpiar/cambiar mes
+  }, [currentUser, debouncedCompanyFilter, debouncedStatusFilter, debouncedSearchTerm, debouncedDateRangeFilter, debouncedCustomStartDate, debouncedCustomEndDate, debouncedYearFilter, debouncedMonthFilter, shouldLoadData]); // ✅ Agregado shouldLoadData + debouncedYearFilter + debouncedMonthFilter para refrescar al limpiar/cambiar filtros
 
   // EFECTO SEPARADO SOLO PARA PAGINACIÓN - No reinicia listeners
   useEffect(() => {

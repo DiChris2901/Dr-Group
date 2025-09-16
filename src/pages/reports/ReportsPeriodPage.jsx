@@ -71,6 +71,7 @@ const ReportsPeriodPage = () => {
   const [startDate, setStartDate] = useState(new Date(2025, 0, 1)); // 1 enero 2025
   const [endDate, setEndDate] = useState(new Date(2025, 6, 31)); // 31 julio 2025
   const [periodType, setPeriodType] = useState('monthly');
+  const [comparisonMode, setComparisonMode] = useState('absolute'); // 'absolute' o 'previous'
   
   // Estados para paginación
   const [page, setPage] = useState(0);

@@ -290,8 +290,8 @@ class LiquidacionPersistenceService {
             id: salaId,
             userId,
             
-            // Referencia a la liquidación original
-            liquidacionOriginalId,
+            // Referencia a la liquidación original (CORREGIDO: era liquidacionOriginalId)
+            liquidacionId: liquidacionOriginalId,
             
             // Información de empresa y sala
             empresa: liquidacionCompleta.empresa,
@@ -557,11 +557,23 @@ class LiquidacionPersistenceService {
 
       // 🆕 NUEVO: Guardar automáticamente liquidaciones separadas por sala
       console.log('🔄 Iniciando guardado de liquidaciones por sala...');
+      console.log('📊 Datos disponibles para salas:');
+      console.log('  - reporteBySala:', liquidacionData.reporteBySala?.length || 'No disponible');
+      console.log('  - consolidatedData:', liquidacionData.consolidatedData?.length || 'No disponible');
+      console.log('  - empresa:', liquidacionData.empresa || 'No disponible');
+      
       try {
         const salaIds = await this.saveLiquidacionesPorSala(liquidacionData, userId, liquidacionId, liquidacionDoc);
-        console.log('✅ Liquidaciones por sala guardadas:', salaIds);
+        console.log('✅ Liquidaciones por sala guardadas exitosamente:', salaIds);
+        console.log('📊 Cantidad de salas guardadas:', salaIds.length);
       } catch (error) {
-        console.error('❌ ERROR guardando liquidaciones por sala:', error);
+        console.error('❌ ERROR CRÍTICO guardando liquidaciones por sala:');
+        console.error('Error completo:', error);
+        console.error('Stack trace:', error.stack);
+        console.error('Datos que causaron el error:');
+        console.error('  - liquidacionData keys:', Object.keys(liquidacionData));
+        console.error('  - userId:', userId);
+        console.error('  - liquidacionId:', liquidacionId);
         // No lanzar error para no interrumpir el flujo principal
       }
 
@@ -1164,9 +1176,10 @@ class LiquidacionPersistenceService {
       // Eliminar registros de liquidaciones por sala relacionados
       console.log('🏢 [Service] Eliminando registros de liquidaciones por sala...');
       try {
+        // CORREGIDO: usar la colección correcta y el campo correcto
         const liquidacionesPorSalaQuery = query(
-          collection(db, 'liquidacionesPorSala'),
-          where('liquidacionOriginalId', '==', liquidacionId),
+          collection(db, 'liquidaciones_por_sala'),
+          where('liquidacionId', '==', liquidacionId),
           where('userId', '==', userId)
         );
         
@@ -1174,12 +1187,12 @@ class LiquidacionPersistenceService {
         console.log(`🔍 [Service] Encontrados ${liquidacionesPorSalaSnapshot.docs.length} registros por sala para eliminar`);
         
         const deleteSalaPromises = liquidacionesPorSalaSnapshot.docs.map(async (salaDoc) => {
-          console.log(`🗑️ [Service] Eliminando sala: ${salaDoc.id}`);
-          return deleteDoc(doc(db, 'liquidacionesPorSala', salaDoc.id));
+          console.log(`🗑️ [Service] Eliminando sala: ${salaDoc.id} - ${salaDoc.data().sala?.nombre || 'Sin nombre'}`);
+          return deleteDoc(doc(db, 'liquidaciones_por_sala', salaDoc.id));
         });
         
         await Promise.all(deleteSalaPromises);
-        console.log('✅ [Service] Registros por sala eliminados');
+        console.log('✅ [Service] Registros por sala eliminados exitosamente');
       } catch (salaError) {
         console.warn('⚠️ [Service] Error eliminando registros por sala:', salaError);
         // No lanzar error aquí para no interrumpir la eliminación principal
@@ -1562,6 +1575,58 @@ class LiquidacionPersistenceService {
     } catch (error) {
       console.error('Error en limpieza de registros:', error);
       throw new Error(`Error en limpieza: ${error.message}`);
+    }
+  }
+
+  /**
+   * 🆕 Guarda una liquidación por sala editada (nueva versión)
+   * @param {Object} liquidacionEditada - Datos de la liquidación editada
+   * @returns {Promise<string>} - ID del nuevo documento creado
+   */
+  async saveLiquidacionPorSala(liquidacionEditada) {
+    try {
+      console.log('💾 Guardando nueva versión de liquidación editada...');
+      
+      // Función para limpiar valores undefined recursivamente
+      const limpiarUndefined = (obj) => {
+        if (obj === null || typeof obj !== 'object') {
+          return obj === undefined ? null : obj;
+        }
+        
+        if (Array.isArray(obj)) {
+          return obj.map(item => limpiarUndefined(item));
+        }
+        
+        const objetoLimpio = {};
+        for (const [key, value] of Object.entries(obj)) {
+          if (value !== undefined) {
+            objetoLimpio[key] = limpiarUndefined(value);
+          }
+        }
+        return objetoLimpio;
+      };
+
+      // Limpiar datos antes de guardar
+      const datosLimpios = limpiarUndefined({
+        ...liquidacionEditada,
+        fechas: {
+          ...liquidacionEditada.fechas,
+          timestampEdicion: serverTimestamp()
+        }
+      });
+      
+      console.log('🔍 Datos limpios a guardar:', JSON.stringify(datosLimpios, null, 2));
+      
+      // Usar setDoc en lugar de addDoc para mantener control del ID
+      const docRef = doc(collection(db, 'liquidaciones_por_sala'));
+      await setDoc(docRef, datosLimpios);
+
+      console.log('✅ Nueva versión guardada con ID:', docRef.id);
+      return docRef.id;
+      
+    } catch (error) {
+      console.error('Error guardando liquidación editada:', error);
+      throw new Error(`Error al guardar edición: ${error.message}`);
     }
   }
 }
