@@ -1,14 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import useActivityLogs from '../../hooks/useActivityLogs';
 import { fCurrency, fShortenNumber } from '../../utils/formatNumber';
-import * as XLSX from 'xlsx';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-import { Chart, registerables } from 'chart.js';
-import { exportToProfessionalExcel } from '../../utils/excelExportProfessional';
-
-// Registrar componentes de Chart.js
-Chart.register(...registerables);
+import DateRangeFilter, { getDateRangeFromFilter } from '../../components/payments/DateRangeFilter';
+import { isWithinInterval, isValid } from 'date-fns';
 import {
   Box,
   Card,
@@ -26,7 +20,11 @@ import {
   alpha,
   IconButton,
   Chip,
-  Button
+  Button,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import {
   TrendingUp,
@@ -39,10 +37,9 @@ import {
   Warning,
   Schedule,
   Refresh,
-  Download,
   FilterList,
-  TableChart,
-  PictureAsPdf
+  Search,
+  Clear
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, AreaChart, Area, ScatterChart, Scatter } from 'recharts';
@@ -57,6 +54,23 @@ const ReportsSummaryPage = () => {
   // Estados locales
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
+
+  // Filtros (UI)
+  const [companyFilter, setCompanyFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [dateRangeFilter, setDateRangeFilter] = useState('thisMonth');
+  const [customStartDate, setCustomStartDate] = useState(null);
+  const [customEndDate, setCustomEndDate] = useState(null);
+
+  // Filtros aplicados
+  const [appliedFilters, setAppliedFilters] = useState({
+    companyFilter: 'all',
+    statusFilter: 'all',
+    dateRangeFilter: 'thisMonth',
+    customStartDate: null,
+    customEndDate: null
+  });
+  const [filtersApplied, setFiltersApplied] = useState(true);
   
   // Conectar con Firebase para obtener datos reales
   const { commitments, loading: commitmentsLoading } = useCommitments();
@@ -64,67 +78,141 @@ const ReportsSummaryPage = () => {
   
   const loading = commitmentsLoading || companiesLoading;
 
-  // Calcular estadísticas reales desde Firebase
+  const applyFilters = () => {
+    setAppliedFilters({ 
+      companyFilter, 
+      statusFilter, 
+      dateRangeFilter,
+      customStartDate,
+      customEndDate
+    });
+    setFiltersApplied(true);
+  };
+
+  const clearFilters = () => {
+    setCompanyFilter('all');
+    setStatusFilter('all');
+    setDateRangeFilter('thisMonth');
+    setCustomStartDate(null);
+    setCustomEndDate(null);
+    setAppliedFilters({ 
+      companyFilter: 'all', 
+      statusFilter: 'all', 
+      dateRangeFilter: 'thisMonth',
+      customStartDate: null,
+      customEndDate: null
+    });
+    setFiltersApplied(true);
+  };
+
+  const hasFiltersChanged = () => {
+    if (
+      appliedFilters.companyFilter !== companyFilter ||
+      appliedFilters.statusFilter !== statusFilter ||
+      appliedFilters.dateRangeFilter !== dateRangeFilter
+    ) return true;
+
+    // Si el filtro es personalizado, detectar cambios en fechas
+    if (dateRangeFilter === 'custom') {
+      const aStart = appliedFilters.customStartDate ? new Date(appliedFilters.customStartDate).getTime() : null;
+      const aEnd = appliedFilters.customEndDate ? new Date(appliedFilters.customEndDate).getTime() : null;
+      const cStart = customStartDate ? new Date(customStartDate).getTime() : null;
+      const cEnd = customEndDate ? new Date(customEndDate).getTime() : null;
+      return aStart !== cStart || aEnd !== cEnd;
+    }
+    return false;
+  };
+
+  // Filtrar compromisos según filtros aplicados
+  const filteredCommitments = useMemo(() => {
+    if (!commitments || !filtersApplied) return [];
+
+    let filtered = [...commitments];
+
+    // Empresa
+    if (appliedFilters.companyFilter !== 'all') {
+      filtered = filtered.filter(c => c.companyId === appliedFilters.companyFilter || c.company === appliedFilters.companyFilter);
+    }
+
+    // Estado
+    if (appliedFilters.statusFilter !== 'all') {
+      if (appliedFilters.statusFilter === 'paid') filtered = filtered.filter(c => c.paid === true);
+      else if (appliedFilters.statusFilter === 'pending') filtered = filtered.filter(c => c.paid !== true);
+    }
+
+    // Rango de fechas (usar dueDate preferentemente, fallback a createdAt)
+    if (appliedFilters.dateRangeFilter !== 'all') {
+      const range = getDateRangeFromFilter(
+        appliedFilters.dateRangeFilter,
+        appliedFilters.customStartDate,
+        appliedFilters.customEndDate
+      );
+      const start = range?.start;
+      const end = range?.end;
+      if (start && end && isValid(start) && isValid(end)) {
+        filtered = filtered.filter(commitment => {
+          let commitmentDate;
+          if (commitment.dueDate?.toDate) commitmentDate = commitment.dueDate.toDate();
+          else if (commitment.dueDate) commitmentDate = new Date(commitment.dueDate);
+          else if (commitment.createdAt?.toDate) commitmentDate = commitment.createdAt.toDate();
+          else if (commitment.createdAt) commitmentDate = new Date(commitment.createdAt);
+          else return false;
+          return isWithinInterval(commitmentDate, { start, end });
+        });
+      }
+    }
+
+    return filtered;
+  }, [commitments, appliedFilters, filtersApplied]);
+
+  // Calcular estadísticas reales desde Firebase usando compromisos filtrados
   const summaryData = useMemo(() => {
-    if (!commitments || commitments.length === 0) return {
+    const base = {
       totalCommitments: 0,
       totalAmount: 0,
       completedCommitments: 0,
       pendingCommitments: 0,
+      pendingOnTime: 0,
       overdueCommitments: 0,
       averageAmount: 0,
       monthlyGrowth: 0,
-      companies: companies?.length || 0
+      companies: 0
     };
 
+    if (!filteredCommitments || filteredCommitments.length === 0) {
+      return { ...base, companies: 0 };
+    }
+
     const now = new Date();
-    
-    // Calcular estadísticas basadas en la estructura real de Firebase - CAMPO 'paid'
-    const completed = commitments.filter(c => c.paid === true);
-    
-    const pending = commitments.filter(c => c.paid !== true);
-    
-    const overdue = commitments.filter(c => {
-      // Verificar que no esté pagado
+    const completed = filteredCommitments.filter(c => c.paid === true);
+    const pending = filteredCommitments.filter(c => c.paid !== true);
+    const overdue = filteredCommitments.filter(c => {
       if (c.paid === true) return false;
-      
-      // Verificar fecha de vencimiento
       let dueDate;
-      if (c.dueDate?.toDate) {
-        dueDate = c.dueDate.toDate();
-      } else if (c.dueDate) {
-        dueDate = new Date(c.dueDate);
-      } else {
-        return false; // Sin fecha de vencimiento
-      }
-      
+      if (c.dueDate?.toDate) dueDate = c.dueDate.toDate();
+      else if (c.dueDate) dueDate = new Date(c.dueDate);
+      else return false;
       return dueDate < now;
     });
+    const totalAmount = filteredCommitments.reduce((sum, c) => sum + (c.amount || 0), 0);
 
-    const totalAmount = commitments.reduce((sum, c) => sum + (c.amount || 0), 0);
-    
-    // Debug: Log esencial para verificar datos reales
-    if (commitments.length > 0) {
-      console.log('📊 ReportsSummary:', {
-        total: commitments.length,
-        completed: completed.length,
-        pending: pending.length,
-        overdue: overdue.length
-      });
-    }
-    
+    // Empresas activas en el rango
+    const activeCompanySet = new Set(
+      filteredCommitments.map(c => c.companyId || c.company || c.companyName).filter(Boolean)
+    );
+
     return {
-      totalCommitments: commitments.length,
+      totalCommitments: filteredCommitments.length,
       totalAmount,
       completedCommitments: completed.length,
       pendingCommitments: pending.length, // Total pendientes (incluye vencidos)
-      pendingOnTime: pending.length - overdue.length, // Pendientes al día (sin vencidos)
+      pendingOnTime: Math.max(pending.length - overdue.length, 0), // Pendientes al día (sin vencidos)
       overdueCommitments: overdue.length,
-      averageAmount: commitments.length > 0 ? totalAmount / commitments.length : 0,
-      monthlyGrowth: 0, // Calcular con datos históricos
-      companies: companies?.length || 0
+      averageAmount: filteredCommitments.length > 0 ? totalAmount / filteredCommitments.length : 0,
+      monthlyGrowth: 0, // Placeholder
+      companies: activeCompanySet.size
     };
-  }, [commitments, companies]);
+  }, [filteredCommitments]);
 
   const statusData = useMemo(() => [
     { name: 'Completados', value: summaryData.completedCommitments, color: '#4caf50' },
@@ -134,7 +222,7 @@ const ReportsSummaryPage = () => {
 
   // Generar datos mensuales reales desde Firebase
   const monthlyData = useMemo(() => {
-    if (!commitments) return [];
+    if (!filteredCommitments) return [];
     
     const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const currentMonth = new Date().getMonth();
@@ -150,8 +238,8 @@ const ReportsSummaryPage = () => {
     }
     
     // Procesar compromisos
-    commitments.forEach(commitment => {
-      const createdDate = commitment.createdAt?.toDate() || new Date(commitment.createdAt);
+    filteredCommitments.forEach(commitment => {
+      const createdDate = commitment.createdAt?.toDate?.() || new Date(commitment.createdAt);
       const month = monthNames[createdDate.getMonth()];
       
       if (monthlyStats[month]) {
@@ -161,23 +249,23 @@ const ReportsSummaryPage = () => {
     });
     
     return Object.values(monthlyStats);
-  }, [commitments]);
+  }, [filteredCommitments]);
 
-  // Calcular top companies desde datos reales ÚNICAMENTE
+  // Calcular top companies desde datos filtrados
   const topCompanies = useMemo(() => {
-    if (!commitments || commitments.length === 0 || !companies || companies.length === 0) {
+    if (!filteredCommitments || filteredCommitments.length === 0 || !companies || companies.length === 0) {
       console.log('⚠️ topCompanies: No hay datos suficientes para calcular estadísticas');
       return [];
     }
     
     console.log('🏢 Calculando topCompanies:', {
-      commitments: commitments.length,
+      commitments: filteredCommitments.length,
       companies: companies.length
     });
     
     const companyStats = companies.map(company => {
       // Intentar diferentes campos de empresa en los compromisos
-      const companyCommitments = commitments.filter(c => {
+      const companyCommitments = filteredCommitments.filter(c => {
         return c.company === company.name || 
                c.companyName === company.name ||
                c.company === company.id ||
@@ -198,7 +286,7 @@ const ReportsSummaryPage = () => {
     .slice(0, 5);
     
     return companyStats;
-  }, [commitments, companies]);
+  }, [filteredCommitments, companies]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -1776,49 +1864,95 @@ const ReportsSummaryPage = () => {
                   }
                 }} />
               </IconButton>
-              
-              {/* Botón Excel Premium */}
-              <IconButton
-                onClick={() => handleExport('excel')}
-                sx={{
-                  backgroundColor: 'rgba(76, 175, 80, 0.15)',
-                  color: 'white',
-                  border: '1px solid rgba(76, 175, 80, 0.5)',
-                  '&:hover': {
-                    backgroundColor: 'rgba(76, 175, 80, 0.25)',
-                    transform: 'scale(1.05)'
-                  },
-                  transition: 'all 0.3s ease'
-                }}
-                title="Exportar Excel Premium"
-              >
-                <TableChart sx={{ fontSize: 20 }} />
-              </IconButton>
 
-              {/* Botón PDF Profesional */}
-              <IconButton
-                onClick={() => handleExport('pdf')}
-                sx={{
-                  backgroundColor: 'rgba(244, 67, 54, 0.15)',
-                  color: 'white',
-                  border: '1px solid rgba(244, 67, 54, 0.5)',
-                  '&:hover': {
-                    backgroundColor: 'rgba(244, 67, 54, 0.25)',
-                    transform: 'scale(1.05)'
-                  },
-                  transition: 'all 0.3s ease',
-                  ml: 1
-                }}
-                title="Exportar PDF Ejecutivo"
-              >
-                <PictureAsPdf sx={{ fontSize: 20 }} />
-              </IconButton>
             </Box>
           </Box>
         </Box>
       </Paper>
 
+      {/* Panel de Filtros */}
+      <Paper sx={{ p: 3, mb: 3, borderRadius: 3, border: `1px solid ${alpha(theme.palette.divider, 0.12)}` }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+          <FilterList sx={{ mr: 1, color: theme.palette.primary.main }} />
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>Filtros de Reportes</Typography>
+        </Box>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={4}>
+            <FormControl fullWidth>
+              <InputLabel>Empresa</InputLabel>
+              <Select label="Empresa" value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)}>
+                <MenuItem value="all">
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Business sx={{ mr: 1, color: 'text.secondary' }} />
+                    Todas las empresas
+                  </Box>
+                </MenuItem>
+                {companies?.map((c) => (
+                  <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <FormControl fullWidth>
+              <InputLabel>Estado</InputLabel>
+              <Select label="Estado" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <MenuItem value="all">
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Assignment sx={{ mr: 1, color: 'text.secondary' }} />
+                    Todos los estados
+                  </Box>
+                </MenuItem>
+                <MenuItem value="paid">
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <CheckCircle sx={{ mr: 1, color: 'success.main' }} /> Pagados
+                  </Box>
+                </MenuItem>
+                <MenuItem value="pending">
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <Schedule sx={{ mr: 1, color: 'warning.main' }} /> Pendientes
+                  </Box>
+                </MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <DateRangeFilter 
+              value={dateRangeFilter}
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+              onChange={setDateRangeFilter}
+              onCustomRangeChange={(start, end) => {
+                setCustomStartDate(start);
+                setCustomEndDate(end);
+              }}
+            />
+          </Grid>
+        </Grid>
+
+        <Box display="flex" gap={2} mt={4} pt={3} borderTop={`1px solid ${alpha(theme.palette.divider, 0.2)}`}>
+          <Button
+            variant="contained"
+            onClick={applyFilters}
+            disabled={!hasFiltersChanged() && filtersApplied}
+            startIcon={<Search />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            {filtersApplied && !hasFiltersChanged() ? 'Filtros Aplicados' : 'Aplicar Filtros'}
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={clearFilters}
+            startIcon={<Clear />}
+            sx={{ textTransform: 'none', fontWeight: 600 }}
+          >
+            Limpiar Filtros
+          </Button>
+        </Box>
+      </Paper>
+
       {/* KPI Cards sobrias */}
+      {filtersApplied && (
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {[
           { 
@@ -1930,8 +2064,10 @@ const ReportsSummaryPage = () => {
           </Grid>
         ))}
       </Grid>
+      )}
 
       {/* Sección de gráficos sobria */}
+      {filtersApplied && (
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {/* Status Distribution */}
         <Grid item xs={12} md={6}>
@@ -1979,8 +2115,10 @@ const ReportsSummaryPage = () => {
           </Card>
         </Grid>
       </Grid>
+      )}
 
       {/* Empresas principales sobrias */}
+      {filtersApplied && (
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>
           <Card sx={{
@@ -2111,6 +2249,7 @@ const ReportsSummaryPage = () => {
           </Card>
         </Grid>
       </Grid>
+      )}
         </>
       )}
     </Box>

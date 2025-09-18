@@ -70,15 +70,15 @@ const ReportsCompanyPage = () => {
   const [customStartDate, setCustomStartDate] = useState(null);
   const [customEndDate, setCustomEndDate] = useState(null);
   
-  // ✅ ESTADO PARA DATERANGEFILTER (por defecto sin filtrar)
-  const [dateRangeFilter, setDateRangeFilter] = useState('all');
+  // ✅ ESTADO PARA DATERANGEFILTER (por defecto: Este mes)
+  const [dateRangeFilter, setDateRangeFilter] = useState('thisMonth');
   
   // ✅ NUEVOS ESTADOS PARA SISTEMA DE FILTROS SPECTACULAR
   const [appliedFilters, setAppliedFilters] = useState({
     searchTerm: '',
     selectedCompanies: [],
     timeRange: 'last6months',
-    dateRangeFilter: 'all',
+    dateRangeFilter: 'thisMonth',
     statusFilter: 'all',
     customStartDate: null,
     customEndDate: null

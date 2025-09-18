@@ -164,8 +164,10 @@ const LiquidacionesPorSalaPage = () => {
     return { derechos, gastos };
   };
 
-  // Ajuste solicitado: con "Máquinas negativas a 0" sólo se muestra Total Impuestos = 0 (derechos+gastos) para máquinas con producción negativa y sin tarifa fija.
-  // No se modifican los campos internos de producción/derechos/gastos.
+  // Ajuste solicitado: con "Máquinas negativas a 0" se debe poner en 0 también
+  // Derechos de Explotación y Gastos de Administración para máquinas con
+  // producción negativa y sin tarifa fija. Al desactivar, se restauran
+  // los valores originales.
   const esTotalImpuestosForzadoCero = (m) => {
     if (!opcionesEdicion.maquinasNegativasCero) return false;
     if (m.tarifaFijaActiva) return false;
@@ -224,30 +226,54 @@ const LiquidacionesPorSalaPage = () => {
   };
 
   // Reaplicar normalización cuando cambia el flag global de negativos
-  // Ya no alteramos los datos; sólo recalculamos totales memorizados al cambiar el flag
+  // Ahora SÍ alteramos temporalmente los campos de derechos/gastos de la máquina,
+  // guardando respaldo para poder revertir al desactivar.
   useEffect(() => {
     if (!dialogEdicion.open) return;
     setDatosMaquinasSala(prev => {
       if (opcionesEdicion.maquinasNegativasCero) {
-        // Activando: marcar solo las negativas sin tarifa fija
+        // Activando: para máquinas negativas sin tarifa fija, poner derechos/gastos en 0
+        // y crear respaldo para poder revertir.
         let changed = false;
         const nuevas = prev.map(m => {
-          if (!m.tarifaFijaActiva && (m.produccion || 0) < 0 && !m.fueEditada) {
+          const esNegativaSinTarifa = !m.tarifaFijaActiva && (m.produccion || 0) < 0;
+          if (esNegativaSinTarifa) {
+            const yaTieneBackup = m._negativoBackup != null;
+            const actualizado = { ...m };
+            if (!yaTieneBackup) {
+              actualizado._negativoBackup = {
+                derechosExplotacion: m.derechosExplotacion,
+                gastosAdministracion: m.gastosAdministracion
+              };
+            }
+            actualizado.derechosExplotacion = 0;
+            actualizado.gastosAdministracion = 0;
+            // marcar como edición automática por negativos
+            if (!actualizado.fueEditada) actualizado.fueEditada = true;
+            actualizado._autoEditNegativo = true;
             changed = true;
-            return { ...m, fueEditada: true, _autoEditNegativo: true };
+            return actualizado;
           }
           return m;
         });
         if (changed && !edicionDirty) setEdicionDirty(true);
         return nuevas;
       } else {
-        // Desactivando: revertir marca sólo si provino de auto marcado negativo y no hubo otros cambios manuales
+        // Desactivando: restaurar derechos/gastos desde backup si provino del auto marcado negativo
         const nuevas = prev.map(m => {
           if (m._autoEditNegativo) {
             const copia = { ...m };
+            // Restaurar valores originales si hay backup
+            if (copia._negativoBackup) {
+              copia.derechosExplotacion = copia._negativoBackup.derechosExplotacion;
+              copia.gastosAdministracion = copia._negativoBackup.gastosAdministracion;
+            }
+            delete copia._negativoBackup;
             delete copia._autoEditNegativo;
-            // Mantener fueEditada solo si hay otra razón (por ahora asumimos que no, así que se limpia)
-            copia.fueEditada = false;
+            // Limpiar marca de edición solo si no hay otros cambios (tarifa fija u otros)
+            if (!copia.tarifaFijaActiva) {
+              copia.fueEditada = false;
+            }
             return copia;
           }
           return m;

@@ -96,10 +96,21 @@ const IncomeHistoryPage = () => {
   // Estados para filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('all');
-  const [dateRangeFilter, setDateRangeFilter] = useState('all');
+  const [dateRangeFilter, setDateRangeFilter] = useState('thisMonth');
   const [customStartDate, setCustomStartDate] = useState(null);
   const [customEndDate, setCustomEndDate] = useState(null);
   const [bankFilter, setBankFilter] = useState('all');
+  
+  // Estados para sistema de filtros aplicados
+  const [appliedFilters, setAppliedFilters] = useState({
+    searchTerm: '',
+    paymentMethodFilter: 'all',
+    bankFilter: 'all',
+    dateRangeFilter: 'thisMonth',
+    customStartDate: null,
+    customEndDate: null
+  });
+  const [filtersApplied, setFiltersApplied] = useState(false);
   
   // Estados para paginación optimizada
   const [currentPage, setCurrentPage] = useState(1);
@@ -209,13 +220,18 @@ const IncomeHistoryPage = () => {
     };
   }, [currentUser]);
 
-  // Aplicar filtros optimizado
+  // Aplicar filtros usando filtros aplicados
   useEffect(() => {
+    if (!filtersApplied) {
+      setFilteredIncomes([]);
+      return;
+    }
+
     let filtered = [...incomes];
 
     // Filtro por búsqueda
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
+    if (appliedFilters.searchTerm) {
+      const searchLower = appliedFilters.searchTerm.toLowerCase();
       filtered = filtered.filter(income =>
         income.client.toLowerCase().includes(searchLower) ||
         (income.description && income.description.toLowerCase().includes(searchLower)) ||
@@ -225,21 +241,21 @@ const IncomeHistoryPage = () => {
     }
 
     // Filtro por método de pago
-    if (paymentMethodFilter !== 'all') {
-      filtered = filtered.filter(income => income.paymentMethod === paymentMethodFilter);
+    if (appliedFilters.paymentMethodFilter !== 'all') {
+      filtered = filtered.filter(income => income.paymentMethod === appliedFilters.paymentMethodFilter);
     }
 
     // Filtro por banco
-    if (bankFilter !== 'all') {
-      filtered = filtered.filter(income => income.bank === bankFilter);
+    if (appliedFilters.bankFilter !== 'all') {
+      filtered = filtered.filter(income => income.bank === appliedFilters.bankFilter);
     }
 
     // Filtro por rango de fechas
-    if (dateRangeFilter !== 'all') {
+    if (appliedFilters.dateRangeFilter !== 'all') {
       const { startDate, endDate } = getDateRangeFromFilter(
-        dateRangeFilter,
-        customStartDate,
-        customEndDate
+        appliedFilters.dateRangeFilter,
+        appliedFilters.customStartDate,
+        appliedFilters.customEndDate
       );
 
       if (startDate && endDate && isValid(startDate) && isValid(endDate)) {
@@ -251,7 +267,7 @@ const IncomeHistoryPage = () => {
 
     setFilteredIncomes(filtered);
     setCurrentPage(1); // Reset página al filtrar
-  }, [incomes, searchTerm, paymentMethodFilter, bankFilter, dateRangeFilter, customStartDate, customEndDate]);
+  }, [incomes, appliedFilters, filtersApplied]);
 
   // Calcular estadísticas de los ingresos filtrados
   const stats = React.useMemo(() => {
@@ -279,22 +295,54 @@ const IncomeHistoryPage = () => {
     return filteredIncomes.slice(startIndex, endIndex);
   }, [filteredIncomes, startIndex, endIndex]);
 
-  // Limpiar filtros
-  // Detectar si hay filtros activos
-  const hasActiveFilters = searchTerm || 
-    paymentMethodFilter !== 'all' || 
-    bankFilter !== 'all' || 
-    dateRangeFilter !== 'all';
+  // Funciones para sistema de filtros aplicados
+  const applyFilters = () => {
+    setAppliedFilters({
+      searchTerm,
+      paymentMethodFilter,
+      bankFilter,
+      dateRangeFilter,
+      customStartDate,
+      customEndDate
+    });
+    setFiltersApplied(true);
+    setCurrentPage(1); // Reset pagination
+  };
 
-  // Limpiar filtros
   const clearFilters = () => {
     setSearchTerm('');
     setPaymentMethodFilter('all');
     setBankFilter('all');
-    setDateRangeFilter('all');
+    setDateRangeFilter('thisMonth');
     setCustomStartDate(null);
     setCustomEndDate(null);
+    setAppliedFilters({
+      searchTerm: '',
+      paymentMethodFilter: 'all',
+      bankFilter: 'all',
+      dateRangeFilter: 'thisMonth',
+      customStartDate: null,
+      customEndDate: null
+    });
+    setFiltersApplied(false);
+    setCurrentPage(1);
   };
+
+  // Detectar si hay cambios en los filtros
+  const hasFiltersChanged = () => {
+    return appliedFilters.searchTerm !== searchTerm ||
+      appliedFilters.paymentMethodFilter !== paymentMethodFilter ||
+      appliedFilters.bankFilter !== bankFilter ||
+      appliedFilters.dateRangeFilter !== dateRangeFilter ||
+      appliedFilters.customStartDate?.getTime() !== customStartDate?.getTime() ||
+      appliedFilters.customEndDate?.getTime() !== customEndDate?.getTime();
+  };
+
+  // Detectar si hay filtros activos (solo cuando están aplicados)
+  const hasActiveFilters = filtersApplied && (appliedFilters.searchTerm || 
+    appliedFilters.paymentMethodFilter !== 'all' || 
+    appliedFilters.bankFilter !== 'all' || 
+    appliedFilters.dateRangeFilter !== 'thisMonth');
 
   // Handlers modal detalle
   const handleOpenDetail = (income) => {
@@ -875,36 +923,12 @@ const IncomeHistoryPage = () => {
               </Box>
             </Box>
             
-            {hasActiveFilters && (
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<ClearIcon />}
-                  onClick={clearFilters}
-                  sx={{
-                    borderRadius: 1,
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    '&:hover': {
-                      transform: 'translateY(-1px)',
-                      boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
-                    }
-                  }}
-                >
-                  Limpiar Filtros
-                </Button>
-              </motion.div>
-            )}
+
           </Box>
 
           <Grid container spacing={3}>
             {/* Búsqueda */}
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={4}>
               <TextField
                 fullWidth
                 label="Buscar ingresos"
@@ -950,7 +974,7 @@ const IncomeHistoryPage = () => {
             </Grid>
 
             {/* Filtro por método de pago */}
-            <Grid item xs={12} md={2.25}>
+            <Grid item xs={12} md={2.5}>
               <FormControl 
                 fullWidth
                 sx={{
@@ -988,7 +1012,7 @@ const IncomeHistoryPage = () => {
             </Grid>
 
             {/* Filtro por banco */}
-            <Grid item xs={12} md={2.25}>
+            <Grid item xs={12} md={2.75}>
               <FormControl 
                 fullWidth
                 sx={{
@@ -1026,14 +1050,16 @@ const IncomeHistoryPage = () => {
             </Grid>
 
             {/* Filtro por período */}
-            <Grid item xs={12} md={2.25}>
+            <Grid item xs={12} md={2.75}>
               <DateRangeFilter
                 value={dateRangeFilter}
-                onFilterChange={setDateRangeFilter}
+                onChange={setDateRangeFilter}
                 customStartDate={customStartDate}
                 customEndDate={customEndDate}
-                onCustomStartDateChange={setCustomStartDate}
-                onCustomEndDateChange={setCustomEndDate}
+                onCustomRangeChange={(startDate, endDate) => {
+                  setCustomStartDate(startDate);
+                  setCustomEndDate(endDate);
+                }}
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 1,
@@ -1049,10 +1075,109 @@ const IncomeHistoryPage = () => {
 
 
           </Grid>
+          
+          {/* Botones de acción */}
+          <Box
+            display="flex"
+            gap={2}
+            mt={4}
+            pt={3}
+            borderTop={`1px solid ${alpha(theme.palette.divider, 0.2)}`}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.0 }}
+            >
+              <Button
+                variant="contained"
+                onClick={applyFilters}
+                disabled={!hasFiltersChanged() && filtersApplied}
+                startIcon={<SearchIcon />}
+                sx={{
+                  px: 3,
+                  py: 1,
+                  borderRadius: 1,
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  minWidth: 140,
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15)'
+                  }
+                }}
+              >
+                {filtersApplied && !hasFiltersChanged() ? 'Filtros Aplicados' : 'Aplicar Filtros'}
+              </Button>
+            </motion.div>
+            
+            {hasActiveFilters && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.1 }}
+              >
+                <Button
+                  variant="outlined"
+                  onClick={clearFilters}
+                  startIcon={<ClearIcon />}
+                  sx={{
+                    px: 3,
+                    py: 1,
+                    borderRadius: 1,
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    minWidth: 140,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    }
+                  }}
+                >
+                  Limpiar Filtros
+                </Button>
+              </motion.div>
+            )}
+          </Box>
         </Box>
       </Paper>
 
+      {/* Estado vacío cuando no hay filtros aplicados */}
+      {!filtersApplied && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card sx={{ 
+            borderRadius: 2,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+            textAlign: 'center',
+            py: 8,
+            px: 4
+          }}>
+            <Box display="flex" flexDirection="column" alignItems="center" gap={3}>
+              <Avatar sx={{ width: 80, height: 80, bgcolor: alpha(theme.palette.primary.main, 0.1) }}>
+                <SearchIcon sx={{ fontSize: 40, color: theme.palette.primary.main }} />
+              </Avatar>
+              <Box>
+                <Typography variant="h6" color="text.primary" gutterBottom>
+                  Configura tus filtros de búsqueda
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 400, mx: 'auto' }}>
+                  Selecciona los criterios de búsqueda que necesites y presiona "Aplicar Filtros" para ver los resultados de ingresos.
+                </Typography>
+              </Box>
+            </Box>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Tabla de resultados sobria */}
+      {filtersApplied && (
       <Card sx={{ 
         borderRadius: 2,
         boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
@@ -1258,16 +1383,19 @@ const IncomeHistoryPage = () => {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Información adicional */}
-      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="body2" color="text.secondary">
-          Última actualización: {new Date().toLocaleString('es-CO')}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Total procesado: {formatCurrency(stats.totalAmount)}
-        </Typography>
-      </Box>
+      {filtersApplied && (
+        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="body2" color="text.secondary">
+            Última actualización: {new Date().toLocaleString('es-CO')}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Total procesado: {formatCurrency(stats.totalAmount)}
+          </Typography>
+        </Box>
+      )}
 
       {/* Modal Detalle Ingreso */}
       <IncomeDetailModal

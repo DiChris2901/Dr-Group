@@ -127,7 +127,7 @@ const PaymentsPage = () => {
   const [companyFilter, setCompanyFilter] = useState('all'); // Filtro por empresa
   const [conceptFilter, setConceptFilter] = useState('all'); // Filtro por concepto
   const [beneficiaryFilter, setBeneficiaryFilter] = useState('all'); // Filtro por beneficiario/proveedor
-  const [dateRangeFilter, setDateRangeFilter] = useState('all'); // Filtro por rango de fechas
+  const [dateRangeFilter, setDateRangeFilter] = useState('thisMonth'); // Filtro por rango de fechas
   const [customStartDate, setCustomStartDate] = useState(null); // Fecha inicial personalizada
   const [customEndDate, setCustomEndDate] = useState(null); // Fecha final personalizada
   
@@ -139,7 +139,7 @@ const PaymentsPage = () => {
     conceptFilter: 'all',
     beneficiaryFilter: 'all',
     receiptsFilter: 'all',
-    dateRangeFilter: 'all',
+    dateRangeFilter: 'thisMonth',
     customStartDate: null,
     customEndDate: null
   });
@@ -461,7 +461,7 @@ const PaymentsPage = () => {
     setConceptFilter('all');
     setBeneficiaryFilter('all');
     setReceiptsFilter('all');
-    setDateRangeFilter('all');
+    setDateRangeFilter('thisMonth');
     setCustomStartDate(null);
     setCustomEndDate(null);
     setAppliedFilters({
@@ -471,7 +471,7 @@ const PaymentsPage = () => {
       conceptFilter: 'all',
       beneficiaryFilter: 'all',
       receiptsFilter: 'all',
-      dateRangeFilter: 'all',
+      dateRangeFilter: 'thisMonth',
       customStartDate: null,
       customEndDate: null
     });

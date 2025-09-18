@@ -407,7 +407,7 @@ const CommitmentsFilters = ({
           </Grid>
 
           {/* Chips de filtros activos */}
-          {hasActiveFilters && (
+          {hasActiveFilters && filtersApplied && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -510,7 +510,7 @@ const CommitmentsFilters = ({
               >
                 {filtersApplied && !hasFiltersChanged ? 'Filtros Aplicados' : 'Aplicar Filtros'}
               </Button>
-              {hasActiveFilters && (
+              {hasActiveFilters && filtersApplied && (
                 <Button
                   variant="outlined"
                   startIcon={<Clear />}

@@ -55,6 +55,8 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { useCommitments, useCompanies } from '../../hooks/useFirestore';
 import { useSettings } from '../../context/SettingsContext';
 import { motion } from 'framer-motion';
+import DateRangeFilter, { getDateRangeFromFilter } from '../../components/payments/DateRangeFilter';
+import { isWithinInterval, isValid } from 'date-fns';
 
 const ReportsConceptPage = () => {
   const theme = useTheme();
@@ -62,14 +64,23 @@ const ReportsConceptPage = () => {
   const { settings } = useSettings();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  // Período por defecto ahora: último mes (ventana móvil de 1 mes hacia atrás desde hoy)
-  const [timeRange, setTimeRange] = useState('lastmonth');
+  // Período por defecto: Este mes (usando DateRangeFilter estándar)
+  const [dateRangeFilter, setDateRangeFilter] = useState('thisMonth');
   const [tabValue, setTabValue] = useState(0);
   
   // Estados para fechas personalizadas
   const [customStartDate, setCustomStartDate] = useState(null);
   const [customEndDate, setCustomEndDate] = useState(null);
-  const [showCustomDates, setShowCustomDates] = useState(false);
+  
+  // Estados para filtros aplicados
+  const [appliedFilters, setAppliedFilters] = useState({
+    searchTerm: '',
+    selectedCategory: 'all',
+    dateRangeFilter: 'thisMonth',
+    customStartDate: null,
+    customEndDate: null
+  });
+  const [filtersApplied, setFiltersApplied] = useState(true);
 
   // Sistema de esquemas de colores dinámicos
   const getColorScheme = (scheme = 'corporate') => {
@@ -109,58 +120,80 @@ const ReportsConceptPage = () => {
   
   const loading = commitmentsLoading || companiesLoading;
 
-  // Función para filtrar compromisos por rango de tiempo
-  const filterCommitmentsByTimeRange = useMemo(() => {
+  // Función para filtrar compromisos por rango de fechas usando DateRangeFilter estándar
+  const filterCommitmentsByDateRange = useMemo(() => {
     return (commitmentsArray) => {
       if (!commitmentsArray || commitmentsArray.length === 0) return [];
       
-      const now = new Date();
-      let startDate, endDate;
+      if (appliedFilters.dateRangeFilter === 'all') return commitmentsArray;
       
-      switch (timeRange) {
-        case 'lastmonth':
-          startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-          endDate = now;
-          break;
-        case 'last3months':
-          startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1);
-          endDate = now;
-          break;
-        case 'last6months':
-          startDate = new Date(now.getFullYear(), now.getMonth() - 6, 1);
-          endDate = now;
-          break;
-        case 'last12months':
-          startDate = new Date(now.getFullYear() - 1, now.getMonth(), 1);
-          endDate = now;
-          break;
-        case 'custom':
-          if (!customStartDate || !customEndDate) return commitmentsArray;
-          startDate = new Date(customStartDate);
-          endDate = new Date(customEndDate);
-          // Ajustar hora de fin del día
-          endDate.setHours(23, 59, 59, 999);
-          break;
-        default:
-          return commitmentsArray;
+      const range = getDateRangeFromFilter(
+        appliedFilters.dateRangeFilter,
+        appliedFilters.customStartDate,
+        appliedFilters.customEndDate
+      );
+      
+      if (!range || !isValid(range.start) || !isValid(range.end)) {
+        return commitmentsArray;
       }
       
       return commitmentsArray.filter(commitment => {
-        const dueDate = commitment.dueDate?.toDate?.() || new Date(commitment.dueDate);
-        return dueDate >= startDate && dueDate <= endDate;
+        let commitmentDate;
+        if (commitment.dueDate?.toDate) commitmentDate = commitment.dueDate.toDate();
+        else if (commitment.dueDate) commitmentDate = new Date(commitment.dueDate);
+        else if (commitment.createdAt?.toDate) commitmentDate = commitment.createdAt.toDate();
+        else if (commitment.createdAt) commitmentDate = new Date(commitment.createdAt);
+        else return false;
+        
+        return isWithinInterval(commitmentDate, { start: range.start, end: range.end });
       });
     };
-  }, [timeRange, customStartDate, customEndDate]);
+  }, [appliedFilters.dateRangeFilter, appliedFilters.customStartDate, appliedFilters.customEndDate]);
 
-  // Manejar cambio de rango de tiempo
-  const handleTimeRangeChange = (newTimeRange) => {
-    setTimeRange(newTimeRange);
-    setShowCustomDates(newTimeRange === 'custom');
-    
-    if (newTimeRange !== 'custom') {
-      setCustomStartDate(null);
-      setCustomEndDate(null);
+  // Funciones para manejo de filtros
+  const applyFilters = () => {
+    setAppliedFilters({
+      searchTerm,
+      selectedCategory,
+      dateRangeFilter,
+      customStartDate,
+      customEndDate
+    });
+    setFiltersApplied(true);
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedCategory('all');
+    setDateRangeFilter('thisMonth');
+    setCustomStartDate(null);
+    setCustomEndDate(null);
+    setAppliedFilters({
+      searchTerm: '',
+      selectedCategory: 'all',
+      dateRangeFilter: 'thisMonth',
+      customStartDate: null,
+      customEndDate: null
+    });
+    setFiltersApplied(true);
+  };
+
+  const hasFiltersChanged = () => {
+    if (
+      appliedFilters.searchTerm !== searchTerm ||
+      appliedFilters.selectedCategory !== selectedCategory ||
+      appliedFilters.dateRangeFilter !== dateRangeFilter
+    ) return true;
+
+    // Si el filtro es personalizado, detectar cambios en fechas
+    if (dateRangeFilter === 'custom') {
+      const aStart = appliedFilters.customStartDate ? new Date(appliedFilters.customStartDate).getTime() : null;
+      const aEnd = appliedFilters.customEndDate ? new Date(appliedFilters.customEndDate).getTime() : null;
+      const cStart = customStartDate ? new Date(customStartDate).getTime() : null;
+      const cEnd = customEndDate ? new Date(customEndDate).getTime() : null;
+      return aStart !== cStart || aEnd !== cEnd;
     }
+    return false;
   };
 
   // Análisis real por conceptos de Firebase con estados corregidos
@@ -174,7 +207,7 @@ const ReportsConceptPage = () => {
       }
 
       // ✅ APLICAR FILTRO DE FECHAS PRIMERO
-      const filteredCommitments = filterCommitmentsByTimeRange(commitments);
+      const filteredCommitments = filterCommitmentsByDateRange(commitments);
       
       if (filteredCommitments.length === 0) {
         setConceptsData([]);
@@ -252,7 +285,7 @@ const ReportsConceptPage = () => {
     };
 
     calculateConceptsWithCorrectStatus();
-  }, [commitments, timeRange, customStartDate, customEndDate, filterCommitmentsByTimeRange]);
+  }, [commitments, appliedFilters, filterCommitmentsByDateRange]);
 
   // Generar categorías dinámicamente basándose en los conceptos reales
   const categories = useMemo(() => {
@@ -364,7 +397,7 @@ const ReportsConceptPage = () => {
       await logActivity('export_report', 'report', 'concept_report', {
         reportType: 'Análisis por Concepto',
         category: selectedCategory,
-        timeRange: timeRange,
+        dateRangeFilter: dateRangeFilter,
         searchTerm: searchTerm || 'Sin filtro',
         totalConcepts: filteredConcepts.length,
         totalAmount: stats.totalAmount,
@@ -420,7 +453,7 @@ const ReportsConceptPage = () => {
       // Información del reporte (Header secundario)
       summarySheet.mergeCells('A2:H2');
       const infoCell = summarySheet.getCell('A2');
-      infoCell.value = `📅 Generado: ${new Date().toLocaleDateString('es-ES')} | 🏷️ Categoría: ${selectedCategory} | ⏰ Período: ${timeRange}`;
+      infoCell.value = `📅 Generado: ${new Date().toLocaleDateString('es-ES')} | 🏷️ Categoría: ${selectedCategory} | ⏰ Período: ${dateRangeFilter}`;
       infoCell.font = { name: 'Arial', size: 12, bold: true, color: { argb: `FF${BRAND_COLORS.primary}` } };
       infoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.subHeaderBg}` } };
       infoCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -985,11 +1018,7 @@ const ReportsConceptPage = () => {
                 transition={{ delay: 0.4 }}
               >
                 <IconButton
-                  onClick={() => {
-                    setSearchTerm('');
-                    setSelectedCategory('all');
-                    setTimeRange('lastmonth');
-                  }}
+                  onClick={clearFilters}
                   sx={{
                     backgroundColor: alpha(theme.palette.error.main, 0.1),
                     '&:hover': {
@@ -1061,32 +1090,42 @@ const ReportsConceptPage = () => {
               </Grid>
 
               <Grid item xs={12} md={4}>
-                <FormControl fullWidth>
-                  <InputLabel>Período</InputLabel>
-                  <Select
-                    value={timeRange}
-                    onChange={(e) => handleTimeRangeChange(e.target.value)}
-                    label="Período"
-                    sx={{
-                      borderRadius: 1,
-                      transition: 'all 0.2s ease',
-                      '&:hover .MuiOutlinedInput-notchedOutline': {
-                        borderColor: alpha(theme.palette.primary.main, 0.5)
-                      }
-                    }}
-                  >
-        <MenuItem value="lastmonth">Último mes</MenuItem>
-        <MenuItem value="last3months">Últimos 3 meses</MenuItem>
-        <MenuItem value="last6months">Últimos 6 meses</MenuItem>
-        <MenuItem value="last12months">Último año</MenuItem>
-                    <MenuItem value="custom">Personalizado</MenuItem>
-                  </Select>
-                </FormControl>
+                <DateRangeFilter
+                  value={dateRangeFilter}
+                  customStartDate={customStartDate}
+                  customEndDate={customEndDate}
+                  onChange={setDateRangeFilter}
+                  onCustomRangeChange={(start, end) => {
+                    setCustomStartDate(start);
+                    setCustomEndDate(end);
+                  }}
+                />
               </Grid>
             </Grid>
 
+            {/* Botones de Apply/Clear */}
+            <Box display="flex" gap={2} mt={4} pt={3} borderTop={`1px solid ${alpha(theme.palette.divider, 0.2)}`}>
+              <Button
+                variant="contained"
+                onClick={applyFilters}
+                disabled={!hasFiltersChanged() && filtersApplied}
+                startIcon={<Search />}
+                sx={{ textTransform: 'none', fontWeight: 600 }}
+              >
+                {filtersApplied && !hasFiltersChanged() ? 'Filtros Aplicados' : 'Aplicar Filtros'}
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={clearFilters}
+                startIcon={<Clear />}
+                sx={{ textTransform: 'none', fontWeight: 600 }}
+              >
+                Limpiar Filtros
+              </Button>
+            </Box>
+
             {/* Chips de filtros aplicados */}
-      {(searchTerm || selectedCategory !== 'all' || timeRange !== 'lastmonth') && (
+      {(searchTerm || selectedCategory !== 'all' || dateRangeFilter !== 'thisMonth') && (
               <Box sx={{ mt: 3, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 {searchTerm && (
                   <Chip
@@ -1106,19 +1145,20 @@ const ReportsConceptPage = () => {
                     variant="outlined"
                   />
                 )}
-                {timeRange !== 'lastmonth' && (
+                {dateRangeFilter !== 'thisMonth' && (
                   <Chip
                     label={`Período: ${
-                      timeRange === 'lastmonth' ? 'Último mes' :
-                      timeRange === 'last3months' ? 'Últimos 3 meses' :
-                      timeRange === 'last6months' ? 'Últimos 6 meses' :
-                      timeRange === 'last12months' ? 'Último año' :
-                      timeRange === 'custom' && customStartDate && customEndDate ? 
+                      dateRangeFilter === 'thisMonth' ? 'Este mes' :
+                      dateRangeFilter === 'lastMonth' ? 'Mes pasado' :
+                      dateRangeFilter === 'last90Days' ? 'Últimos 90 días' :
+                      dateRangeFilter === 'thisYear' ? 'Este año' :
+                      dateRangeFilter === 'lastYear' ? 'Año pasado' :
+                      dateRangeFilter === 'custom' && customStartDate && customEndDate ? 
                         `${customStartDate.toLocaleDateString('es-ES')} - ${customEndDate.toLocaleDateString('es-ES')}` :
-                        timeRange
+                        'Personalizado'
                     }`}
                     size="small"
-                    onDelete={() => handleTimeRangeChange('lastmonth')}
+                    onDelete={() => setDateRangeFilter('thisMonth')}
                     color="info"
                     variant="outlined"
                   />
@@ -1129,132 +1169,7 @@ const ReportsConceptPage = () => {
         </Paper>
       </motion.div>
 
-      {/* ✨ SELECTOR DE FECHAS PERSONALIZADAS - DISEÑO SOBRIO */}
-      <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
-        <Collapse in={showCustomDates}>
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <Paper
-              elevation={0}
-              sx={{
-                p: 3,
-                mb: 4,
-                borderRadius: 2,
-                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-                backgroundColor: theme.palette.background.paper,
-                position: 'relative',
-                '&:hover': {
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                  transition: 'all 0.2s ease'
-                }
-              }}
-            >
-              {/* Header minimalista */}
-              <Typography variant="subtitle1" sx={{ 
-                fontWeight: 500,
-                color: 'text.secondary',
-                mb: 3,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
-              }}>
-                <DateRange fontSize="small" sx={{ color: 'text.secondary' }} />
-                Rango de fechas personalizado
-              </Typography>
-
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <DatePicker
-                    label="Fecha de inicio"
-                    value={customStartDate}
-                    onChange={(newValue) => setCustomStartDate(newValue)}
-                    maxDate={customEndDate || new Date()}
-                    slotProps={{
-                      textField: {
-                        fullWidth: true,
-                        size: 'medium',
-                        sx: {
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1,
-                            backgroundColor: theme.palette.background.paper,
-                            '&:hover .MuiOutlinedInput-notchedOutline': {
-                              borderColor: alpha(theme.palette.primary.main, 0.3)
-                            },
-                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                              borderColor: theme.palette.primary.main,
-                              borderWidth: 1
-                            }
-                          },
-                          '& .MuiInputLabel-root': {
-                            color: 'text.secondary',
-                            fontSize: '0.875rem'
-                          }
-                        }
-                      }
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <DatePicker
-                    label="Fecha de fin"
-                    value={customEndDate}
-                    onChange={(newValue) => setCustomEndDate(newValue)}
-                    minDate={customStartDate}
-                    maxDate={new Date()}
-                    slotProps={{
-                      textField: {
-                        fullWidth: true,
-                        size: 'medium',
-                        sx: {
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 1,
-                            backgroundColor: theme.palette.background.paper,
-                            '&:hover .MuiOutlinedInput-notchedOutline': {
-                              borderColor: alpha(theme.palette.primary.main, 0.3)
-                            },
-                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                              borderColor: theme.palette.primary.main,
-                              borderWidth: 1
-                            }
-                          },
-                          '& .MuiInputLabel-root': {
-                            color: 'text.secondary',
-                            fontSize: '0.875rem'
-                          }
-                        }
-                      }
-                    }}
-                  />
-                </Grid>
-              </Grid>
-
-              {/* Información de rango - diseño sobrio */}
-              {customStartDate && customEndDate && (
-                <Box sx={{ 
-                  mt: 2.5, 
-                  pt: 2,
-                  borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`
-                }}>
-                  <Typography variant="body2" sx={{ 
-                    color: 'text.secondary',
-                    fontSize: '0.8rem',
-                    fontWeight: 400
-                  }}>
-                    Período seleccionado: <Box component="span" sx={{ fontWeight: 500, color: 'text.primary' }}>
-                      {customStartDate.toLocaleDateString('es-ES')} - {customEndDate.toLocaleDateString('es-ES')}
-                    </Box>
-                    {' '}({Math.ceil((customEndDate - customStartDate) / (1000 * 60 * 60 * 24))} días)
-                  </Typography>
-                </Box>
-              )}
-            </Paper>
-          </motion.div>
-        </Collapse>
-      </LocalizationProvider>
+      {/* DateRangeFilter handles custom dates internally */}
 
       {/* Botón de exportar Premium */}
       <Box sx={{ mb: 4, display: 'flex', justifyContent: 'flex-end' }}>

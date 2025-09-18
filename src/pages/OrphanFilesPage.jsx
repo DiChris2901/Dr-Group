@@ -538,77 +538,225 @@ const OrphanFilesPage = () => {
               Archivos Huérfanos Detectados ({orphanFiles.length})
             </Typography>
             
-            <List>
-              {orphanFiles.map((file, index) => (
-                <motion.div
-                  key={file.path}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                >
-                  <ListItem
-                    sx={{
-                      border: `1px solid ${selectedFiles.has(file.path) ? alpha(theme.palette.error.main, 0.8) : alpha(theme.palette.divider, 0.6)}`,
-                      borderRadius: 1,
-                      mb: 1,
-                      backgroundColor: selectedFiles.has(file.path) ? alpha(theme.palette.error.main, 0.05) : 'transparent',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                      '&:hover': {
-                        borderColor: selectedFiles.has(file.path) ? alpha(theme.palette.error.main, 1) : alpha(theme.palette.primary.main, 0.6),
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                        transition: 'all 0.2s ease'
-                      }
-                    }}
-                  >
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="subtitle2">{file.name}</Typography>
-                          <Chip 
-                            label={file.folder} 
-                            size="small" 
-                            variant="outlined"
-                            color="info"
-                          />
-                        </Box>
-                      }
-                      secondary={
-                        <React.Fragment>
-                          <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block', mt: 0.5 }}>
-                            📁 {file.path}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block' }}>
-                            📊 {formatFileSize(file.size)} • 📅 {new Date(file.created).toLocaleDateString()}
-                          </Typography>
-                        </React.Fragment>
-                      }
-                    />
-                    <ListItemSecondaryAction>
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Tooltip title="Ver archivo">
-                          <IconButton 
-                            size="small"
-                            onClick={() => window.open(file.downloadURL, '_blank')}
+            {/* Separar archivos por tipo para mayor claridad */}
+            {(() => {
+              // Categorizar archivos huérfanos
+              const obviousOrphans = orphanFiles.filter(file => 
+                !file.name.includes('.') || // Sin extensión
+                file.name.length > 100 || // Nombre excesivamente largo
+                /^[a-f0-9]{20,}$/i.test(file.name) // Solo hash sin extensión
+              );
+              
+              const suspiciousFiles = orphanFiles.filter(file => !obviousOrphans.includes(file));
+              
+              return (
+                <>
+                  {/* Archivos Obviamente Eliminables (VERDE) */}
+                  {obviousOrphans.length > 0 && (
+                    <Box sx={{ mb: 3 }}>
+                      <Typography variant="subtitle1" sx={{ 
+                        mb: 1, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1,
+                        color: 'success.main',
+                        fontWeight: 600
+                      }}>
+                        🟢 Seguros para Eliminar ({obviousOrphans.length})
+                        <Chip 
+                          label="Sin referencias" 
+                          size="small" 
+                          color="success" 
+                          variant="outlined"
+                        />
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                        Archivos corruptos, incompletos o temporales sin referencias en la base de datos.
+                      </Typography>
+                      
+                      <List>
+                        {obviousOrphans.map((file, index) => (
+                          <motion.div
+                            key={file.path}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3, delay: index * 0.05 }}
                           >
-                            <ViewIcon />
-                          </IconButton>
-                        </Tooltip>
-                        
-                        <Tooltip title={selectedFiles.has(file.path) ? "Deseleccionar" : "Seleccionar para eliminar"}>
-                          <IconButton
-                            size="small"
-                            color={selectedFiles.has(file.path) ? "error" : "default"}
-                            onClick={() => toggleFileSelection(file.path)}
+                            <ListItem
+                              sx={{
+                                border: `2px solid ${selectedFiles.has(file.path) ? alpha(theme.palette.success.main, 0.8) : alpha(theme.palette.success.main, 0.3)}`,
+                                borderRadius: 1,
+                                mb: 1,
+                                backgroundColor: alpha(theme.palette.success.main, 0.08),
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                                '&:hover': {
+                                  borderColor: alpha(theme.palette.success.main, 1),
+                                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                  transition: 'all 0.2s ease'
+                                }
+                              }}
+                            >
+                              <ListItemText
+                                primary={
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography variant="subtitle2" color="success.main">
+                                      🗑️ {file.name || 'Archivo sin nombre'}
+                                    </Typography>
+                                    <Chip 
+                                      label="ELIMINABLE" 
+                                      size="small" 
+                                      color="success"
+                                      variant="filled"
+                                    />
+                                  </Box>
+                                }
+                                secondary={
+                                  <React.Fragment>
+                                    <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block', mt: 0.5 }}>
+                                      📁 {file.path}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block' }}>
+                                      📊 {formatFileSize(file.size)} • 📅 {new Date(file.created).toLocaleDateString()}
+                                    </Typography>
+                                  </React.Fragment>
+                                }
+                              />
+                              <ListItemSecondaryAction>
+                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                  <Tooltip title="Ver archivo">
+                                    <IconButton 
+                                      size="small"
+                                      onClick={() => window.open(file.downloadURL, '_blank')}
+                                    >
+                                      <ViewIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                  
+                                  <Tooltip title={selectedFiles.has(file.path) ? "Deseleccionar" : "Seleccionar para eliminar"}>
+                                    <IconButton
+                                      size="small"
+                                      color="success"
+                                      onClick={() => toggleFileSelection(file.path)}
+                                      sx={{
+                                        backgroundColor: selectedFiles.has(file.path) ? alpha(theme.palette.success.main, 0.2) : 'transparent'
+                                      }}
+                                    >
+                                      <DeleteIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                </Box>
+                              </ListItemSecondaryAction>
+                            </ListItem>
+                          </motion.div>
+                        ))}
+                      </List>
+                    </Box>
+                  )}
+
+                  {/* Archivos Sospechosos que requieren revisión (AMARILLO) */}
+                  {suspiciousFiles.length > 0 && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle1" sx={{ 
+                        mb: 1, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1,
+                        color: 'warning.main',
+                        fontWeight: 600
+                      }}>
+                        🟡 Requieren Revisión ({suspiciousFiles.length})
+                        <Chip 
+                          label="Verificar manualmente" 
+                          size="small" 
+                          color="warning" 
+                          variant="outlined"
+                        />
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                        Archivos que parecen válidos pero no tienen referencias. Revisa antes de eliminar.
+                      </Typography>
+                      
+                      <List>
+                        {suspiciousFiles.map((file, index) => (
+                          <motion.div
+                            key={file.path}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3, delay: index * 0.05 }}
                           >
-                            <DeleteIcon />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                </motion.div>
-              ))}
-            </List>
+                            <ListItem
+                              sx={{
+                                border: `2px solid ${selectedFiles.has(file.path) ? alpha(theme.palette.warning.main, 0.8) : alpha(theme.palette.warning.main, 0.3)}`,
+                                borderRadius: 1,
+                                mb: 1,
+                                backgroundColor: alpha(theme.palette.warning.main, 0.08),
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                                '&:hover': {
+                                  borderColor: alpha(theme.palette.warning.main, 1),
+                                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                  transition: 'all 0.2s ease'
+                                }
+                              }}
+                            >
+                              <ListItemText
+                                primary={
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Typography variant="subtitle2" color="warning.main">
+                                      ⚠️ {file.name}
+                                    </Typography>
+                                    <Chip 
+                                      label="REVISAR" 
+                                      size="small" 
+                                      color="warning"
+                                      variant="filled"
+                                    />
+                                  </Box>
+                                }
+                                secondary={
+                                  <React.Fragment>
+                                    <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block', mt: 0.5 }}>
+                                      📁 {file.path}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" component="span" sx={{ display: 'block' }}>
+                                      📊 {formatFileSize(file.size)} • 📅 {new Date(file.created).toLocaleDateString()}
+                                    </Typography>
+                                  </React.Fragment>
+                                }
+                              />
+                              <ListItemSecondaryAction>
+                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                  <Tooltip title="Ver archivo">
+                                    <IconButton 
+                                      size="small"
+                                      onClick={() => window.open(file.downloadURL, '_blank')}
+                                    >
+                                      <ViewIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                  
+                                  <Tooltip title={selectedFiles.has(file.path) ? "Deseleccionar" : "Seleccionar para eliminar"}>
+                                    <IconButton
+                                      size="small"
+                                      color="warning"
+                                      onClick={() => toggleFileSelection(file.path)}
+                                      sx={{
+                                        backgroundColor: selectedFiles.has(file.path) ? alpha(theme.palette.warning.main, 0.2) : 'transparent'
+                                      }}
+                                    >
+                                      <DeleteIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                </Box>
+                              </ListItemSecondaryAction>
+                            </ListItem>
+                          </motion.div>
+                        ))}
+                      </List>
+                    </Box>
+                  )}
+                </>
+              );
+            })()}
           </Paper>
         </motion.div>
       )}

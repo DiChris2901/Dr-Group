@@ -51,12 +51,22 @@ import {
   AccountBalance as AccountBalanceIcon,
   Description as DescriptionIcon,
   Receipt as ReceiptIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  // Modal PDF Viewer icons
+  Close as CloseIcon,
+  Fullscreen as FullscreenIcon,
+  FullscreenExit as FullscreenExitIcon,
+  Info as InfoIcon,
+  PictureAsPdf as PdfIcon,
+  Schedule as ScheduleIcon,
+  GetApp as DownloadIcon,
+  InsertDriveFile as FileIcon,
+  FolderOpen as FolderOpenIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject, getMetadata } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import useActivityLogs from '../hooks/useActivityLogs';
@@ -123,11 +133,185 @@ const CompaniesPage = () => {
   const [uploadingBankCertification, setUploadingBankCertification] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
+  // Estados para Modal PDF Viewer
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [pdfViewerUrl, setPdfViewerUrl] = useState('');
+  const [pdfViewerTitle, setPdfViewerTitle] = useState('');
+  const [documentInfo, setDocumentInfo] = useState(null);
+  const [documentInfoOpen, setDocumentInfoOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [documentDimensions, setDocumentDimensions] = useState({
+    width: 'lg',
+    height: '80vh'
+  });
+
   // Función para obtener colores dinámicos basados en el tema
   const getThemeColor = (colorName) => {
     return theme.palette.mode === 'dark' 
       ? theme.palette[colorName]?.dark || theme.palette[colorName]?.main 
       : theme.palette[colorName]?.main;
+  };
+
+  // === FUNCIONES MODAL PDF VIEWER ===
+
+  // Formatear tipo de documento de MIME a nombre amigable
+  const formatDocumentType = (type) => {
+    if (!type) return 'Documento';
+    
+    const mimeToFriendly = {
+      'application/pdf': 'PDF',
+      'image/jpeg': 'JPEG',
+      'image/jpg': 'JPG', 
+      'image/png': 'PNG',
+      'image/gif': 'GIF',
+      'image/webp': 'WEBP',
+      'application/msword': 'Word',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word',
+      'application/vnd.ms-excel': 'Excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'Excel',
+      'text/plain': 'Texto',
+      'text/csv': 'CSV'
+    };
+    
+    if (mimeToFriendly[type]) {
+      return mimeToFriendly[type];
+    }
+    
+    if (type.length <= 10 && !type.includes('/')) {
+      return type;
+    }
+    
+    if (type.includes('/')) {
+      const parts = type.split('/');
+      const subtype = parts[1];
+      return subtype.toUpperCase();
+    }
+    
+    return type;
+  };
+
+  // Formatear tamaño de archivo
+  const formatFileSize = (bytes, isEstimated = false) => {
+    if (!bytes) return 'Tamaño desconocido';
+    
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let size = bytes;
+    let unitIndex = 0;
+    
+    while (size >= 1024 && unitIndex < units.length - 1) {
+      size /= 1024;
+      unitIndex++;
+    }
+    
+    const formattedSize = size < 10 ? size.toFixed(1) : Math.round(size);
+    return `${formattedSize} ${units[unitIndex]}${isEstimated ? ' (aprox.)' : ''}`;
+  };
+
+  // Obtener información del documento desde Firebase Storage
+  const getDocumentInfo = async (url) => {
+    try {
+      // Extraer path del archivo desde la URL
+      const urlObj = new URL(url);
+      const pathMatch = urlObj.pathname.match(/\/o\/(.+)\?/);
+      if (!pathMatch) throw new Error('No se pudo extraer el path del archivo');
+      
+      const filePath = decodeURIComponent(pathMatch[1]);
+      const fileRef = ref(storage, filePath);
+      
+      // Obtener metadatos de Firebase
+      const metadata = await getMetadata(fileRef);
+      
+      return {
+        name: metadata.name || 'Documento',
+        type: metadata.contentType || 'application/octet-stream',
+        size: metadata.size || 0,
+        timeCreated: metadata.timeCreated ? new Date(metadata.timeCreated) : null,
+        updated: metadata.updated ? new Date(metadata.updated) : null,
+        path: filePath,
+        fullPath: metadata.fullPath || filePath,
+        bucket: metadata.bucket,
+        url: url
+      };
+    } catch (error) {
+      console.log('Error obteniendo metadatos:', error);
+      // Fallback con información básica extraída de la URL
+      return {
+        name: 'Certificación Bancaria',
+        type: 'application/pdf',
+        size: 0,
+        isEstimated: true,
+        path: 'Firebase Storage',
+        url: url
+      };
+    }
+  };
+
+  // Abrir modal PDF viewer
+  const handleOpenPdfViewer = async (url, title = 'Documento') => {
+    setPdfViewerUrl(url);
+    setPdfViewerTitle(title);
+    setPdfViewerOpen(true);
+    setDocumentInfo(null);
+    setDocumentInfoOpen(false);
+    setIsFullscreen(false);
+    
+    // Cargar información del documento en background
+    try {
+      const docInfo = await getDocumentInfo(url);
+      setDocumentInfo(docInfo);
+    } catch (error) {
+      console.log('Error cargando información del documento:', error);
+    }
+  };
+
+  // Cerrar modal PDF viewer
+  const handleClosePdfViewer = () => {
+    setPdfViewerOpen(false);
+    setPdfViewerUrl('');
+    setPdfViewerTitle('');
+    setDocumentInfo(null);
+    setDocumentInfoOpen(false);
+    setIsFullscreen(false);
+    setDocumentDimensions({
+      width: 'lg',
+      height: '80vh'
+    });
+  };
+
+  // Toggle panel de información
+  const handleToggleDocumentInfo = () => {
+    const willOpen = !documentInfoOpen;
+    setDocumentInfoOpen(willOpen);
+    
+    if (willOpen) {
+      setDocumentDimensions(prev => ({
+        ...prev,
+        height: 'calc(90vh - 40px)'
+      }));
+    } else {
+      setDocumentDimensions(prev => ({
+        ...prev,
+        height: '80vh'
+      }));
+    }
+  };
+
+  // Toggle fullscreen
+  const handleToggleFullscreen = () => {
+    const willBeFullscreen = !isFullscreen;
+    setIsFullscreen(willBeFullscreen);
+    
+    if (willBeFullscreen) {
+      setDocumentDimensions({
+        width: false,
+        height: '100vh'
+      });
+    } else {
+      setDocumentDimensions({
+        width: 'lg',
+        height: documentInfoOpen ? 'calc(90vh - 40px)' : '80vh'
+      });
+    }
   };
 
   // Función de refresh manual
@@ -2235,8 +2419,8 @@ const CompaniesPage = () => {
                             <Button
                               variant="outlined"
                               size="small"
-                              startIcon={<OpenInNewIcon />}
-                              onClick={() => window.open(selectedCompany.bankCertificationURL, '_blank')}
+                              startIcon={<PdfIcon />}
+                              onClick={() => handleOpenPdfViewer(selectedCompany.bankCertificationURL, 'Certificación Bancaria')}
                               sx={{
                                 borderColor: 'secondary.main',
                                 color: 'secondary.main',
@@ -2512,6 +2696,378 @@ const CompaniesPage = () => {
             </DialogActions>
           </>
         )}
+      </Dialog>
+
+      {/* Modal PDF Viewer */}
+      <Dialog
+        open={pdfViewerOpen}
+        onClose={handleClosePdfViewer}
+        maxWidth={documentDimensions.width}
+        fullWidth={documentDimensions.width !== false}
+        fullScreen={isFullscreen}
+        scroll="paper"
+        PaperProps={{
+          sx: { 
+            height: documentDimensions.height,
+            maxHeight: documentDimensions.height,
+            overflow: 'hidden',
+            backgroundColor: theme.palette.background.default,
+            margin: isFullscreen ? 0 : '16px',
+            maxWidth: isFullscreen ? '100%' : documentDimensions.width === 'lg' ? '900px' : undefined
+          }
+        }}
+      >
+        {/* Header con información del documento */}
+        <DialogTitle sx={{ 
+          p: 3,
+          pb: 2,
+          background: theme.palette.mode === 'dark'
+            ? `linear-gradient(135deg, ${alpha(theme.palette.grey[800], 0.95)} 0%, ${alpha(theme.palette.grey[900], 0.98)} 100%)`
+            : `linear-gradient(135deg, ${alpha(theme.palette.grey[50], 0.95)} 0%, ${alpha(theme.palette.grey[100], 0.98)} 100%)`,
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`
+        }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            {/* Sección izquierda - Avatar + Información */}
+            <Box display="flex" alignItems="center" gap={2.5}>
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Avatar sx={{
+                  background: `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.secondary.dark} 100%)`,
+                  width: 40,
+                  height: 40
+                }}>
+                  <PdfIcon sx={{ fontSize: 20 }} />
+                </Avatar>
+              </motion.div>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                  {documentInfo?.name || pdfViewerTitle}
+                </Typography>
+                <Box display="flex" alignItems="center" gap={2}>
+                  <Typography variant="body2" color="text.secondary">
+                    {documentInfo ? formatDocumentType(documentInfo.type) : 'PDF'} • {documentInfo ? formatFileSize(documentInfo.size, documentInfo.isEstimated) : 'Cargando...'}
+                  </Typography>
+                  {documentInfo && documentInfo.timeCreated && (
+                    <Typography variant="body2" color="text.secondary">
+                      {documentInfo.timeCreated.toLocaleDateString('es-CO')}
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+            </Box>
+            
+            {/* Sección derecha - Controles */}
+            <Box display="flex" gap={1}>
+              {/* Botón info */}
+              {documentInfo && (
+                <IconButton
+                  onClick={handleToggleDocumentInfo}
+                  sx={{ 
+                    color: theme.palette.text.primary,
+                    background: documentInfoOpen 
+                      ? alpha(theme.palette.info.main, 0.15) 
+                      : alpha(theme.palette.info.main, 0.08),
+                    '&:hover': { 
+                      background: alpha(theme.palette.info.main, 0.2),
+                      transform: 'scale(1.05)'
+                    },
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                >
+                  <InfoIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              )}
+              
+              {/* Botón fullscreen */}
+              <IconButton
+                onClick={handleToggleFullscreen}
+                sx={{ 
+                  color: theme.palette.text.primary,
+                  background: alpha(theme.palette.primary.main, 0.08),
+                  '&:hover': { 
+                    background: alpha(theme.palette.primary.main, 0.12),
+                    transform: 'scale(1.05)'
+                  },
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >
+                {isFullscreen ? <FullscreenExitIcon sx={{ fontSize: 20 }} /> : <FullscreenIcon sx={{ fontSize: 20 }} />}
+              </IconButton>
+              
+              {/* Botón nueva pestaña */}
+              <IconButton
+                onClick={() => window.open(pdfViewerUrl, '_blank')}
+                sx={{ 
+                  color: theme.palette.text.primary,
+                  background: alpha(theme.palette.secondary.main, 0.08),
+                  '&:hover': { 
+                    background: alpha(theme.palette.secondary.main, 0.12),
+                    transform: 'scale(1.05)'
+                  },
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >
+                <OpenInNewIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+              
+              {/* Botón cerrar */}
+              <IconButton
+                onClick={handleClosePdfViewer}
+                sx={{ 
+                  color: theme.palette.text.primary,
+                  background: alpha(theme.palette.error.main, 0.08),
+                  '&:hover': { 
+                    background: alpha(theme.palette.error.main, 0.12),
+                    transform: 'scale(1.05)'
+                  },
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >
+                <CloseIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Box>
+          </Box>
+        </DialogTitle>
+
+        {/* Panel de información expandible */}
+        {documentInfo && documentInfoOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            style={{ overflow: 'hidden' }}
+          >
+            <Box sx={{
+              px: 3,
+              py: 2,
+              background: alpha(theme.palette.info.main, 0.04),
+              borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+              maxHeight: '50vh',
+              overflowY: 'auto'
+            }}>
+              {/* Grid responsivo principal */}
+              <Box sx={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                gap: 2, 
+                mb: 2
+              }}>
+                {/* Ubicación */}
+                <Box display="flex" alignItems="start" gap={1}>
+                  <FolderOpenIcon sx={{ fontSize: 16, color: theme.palette.text.secondary, mt: 0.5 }} />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="caption" sx={{ 
+                      color: theme.palette.text.secondary,
+                      fontWeight: 500,
+                      display: 'block'
+                    }}>
+                      Ubicación
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: theme.palette.text.primary,
+                      fontSize: '0.8rem',
+                      wordBreak: 'break-word'
+                    }}>
+                      {documentInfo.path || 'Firebase Storage'}
+                    </Typography>
+                  </Box>
+                </Box>
+                
+                {/* Tipo */}
+                <Box display="flex" alignItems="start" gap={1}>
+                  <FileIcon sx={{ fontSize: 16, color: theme.palette.text.secondary, mt: 0.5 }} />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="caption" sx={{ 
+                      color: theme.palette.text.secondary,
+                      fontWeight: 500,
+                      display: 'block'
+                    }}>
+                      Tipo
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: theme.palette.text.primary,
+                      fontSize: '0.8rem'
+                    }}>
+                      {formatDocumentType(documentInfo.type)}
+                    </Typography>
+                  </Box>
+                </Box>
+                
+                {/* Fecha */}
+                {documentInfo.timeCreated && (
+                  <Box display="flex" alignItems="start" gap={1}>
+                    <ScheduleIcon sx={{ fontSize: 16, color: theme.palette.text.secondary, mt: 0.5 }} />
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography variant="caption" sx={{ 
+                        color: theme.palette.text.secondary,
+                        fontWeight: 500,
+                        display: 'block'
+                      }}>
+                        Fecha de subida
+                      </Typography>
+                      <Typography variant="body2" sx={{ 
+                        color: theme.palette.text.primary,
+                        fontSize: '0.8rem'
+                      }}>
+                        {documentInfo.timeCreated.toLocaleDateString('es-CO', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+                
+                {/* Tamaño */}
+                <Box display="flex" alignItems="start" gap={1}>
+                  <DownloadIcon sx={{ fontSize: 16, color: theme.palette.text.secondary, mt: 0.5 }} />
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Typography variant="caption" sx={{ 
+                      color: theme.palette.text.secondary,
+                      fontWeight: 500,
+                      display: 'block'
+                    }}>
+                      Tamaño
+                    </Typography>
+                    <Typography variant="body2" sx={{ 
+                      color: theme.palette.text.primary,
+                      fontSize: '0.8rem'
+                    }}>
+                      {formatFileSize(documentInfo.size, documentInfo.isEstimated)}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Box>
+              
+              {/* Información técnica detallada */}
+              {documentInfo.fullPath && (
+                <Box sx={{ pt: 2, borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}` }}>
+                  <Typography variant="caption" sx={{ 
+                    color: theme.palette.text.secondary,
+                    fontWeight: 500,
+                    display: 'block',
+                    mb: 1
+                  }}>
+                    Ruta completa del documento
+                  </Typography>
+                  <Typography variant="body2" sx={{ 
+                    fontSize: '0.75rem',
+                    fontFamily: 'monospace',
+                    background: alpha(theme.palette.grey[500], 0.1),
+                    p: 1.5,
+                    borderRadius: 1,
+                    wordBreak: 'break-all',
+                    color: theme.palette.text.secondary
+                  }}>
+                    {documentInfo.fullPath}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          </motion.div>
+        )}
+
+        {/* Content del visor */}
+        <DialogContent sx={{ 
+          p: 1.5, 
+          pt: 1.5,
+          height: documentInfoOpen ? 'calc(100% - 180px)' : 'calc(100% - 120px)',
+          display: 'flex', 
+          flexDirection: 'column',
+          background: theme.palette.background.default,
+          overflow: 'hidden'
+        }}>
+          <Paper sx={{
+            flex: 1,
+            borderRadius: 2,
+            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+            background: theme.palette.background.paper,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            overflow: 'hidden',
+            minHeight: '400px',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {pdfViewerUrl ? (
+              <>
+                {pdfViewerUrl.toLowerCase().includes('.pdf') || documentInfo?.type === 'application/pdf' ? (
+                  // Visor PDF
+                  <iframe
+                    src={`${pdfViewerUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      border: 'none',
+                      borderRadius: '8px',
+                      flex: 1
+                    }}
+                    title={pdfViewerTitle}
+                  />
+                ) : (
+                  // Visor de imagen
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    alignItems: 'center',
+                    height: '100%',
+                    overflow: 'auto',
+                    p: 2
+                  }}>
+                    <Box
+                      component="img"
+                      src={pdfViewerUrl}
+                      alt={pdfViewerTitle}
+                      sx={{
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        objectFit: 'contain',
+                        borderRadius: 1,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                      }}
+                    />
+                  </Box>
+                )}
+              </>
+            ) : (
+              // Estado vacío
+              <Box sx={{ 
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                textAlign: 'center',
+                py: 8,
+                px: 4
+              }}>
+                <Avatar sx={{ 
+                  width: 64, 
+                  height: 64, 
+                  background: alpha(theme.palette.grey[400], 0.1),
+                  mb: 2
+                }}>
+                  <VisibilityIcon sx={{ 
+                    fontSize: 32, 
+                    color: alpha(theme.palette.text.secondary, 0.7)
+                  }} />
+                </Avatar>
+                <Typography variant="h6" color="text.secondary" gutterBottom>
+                  No hay documento disponible
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  No se pudo cargar la certificación bancaria
+                </Typography>
+              </Box>
+            )}
+          </Paper>
+        </DialogContent>
       </Dialog>
     </Box>
   );

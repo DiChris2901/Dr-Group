@@ -33,6 +33,7 @@ export const useOrphanFileDetector = () => {
       'bank-certifications',
       'incomes',
       'invoices',
+      'liquidaciones',
       'logos',
       'profile-photos'
     ];
@@ -201,6 +202,18 @@ export const useOrphanFileDetector = () => {
             console.log(`📎 Path directo encontrado en ${path}.path: ${data.path}`);
           }
           
+          // ✅ CAMPOS ESPECÍFICOS PARA LIQUIDACIONES - CRÍTICO
+          if (data.nombreStorage && typeof data.nombreStorage === 'string') {
+            // Este campo contiene la ruta completa del archivo en Storage
+            urls.push(data.nombreStorage);
+            console.log(`📁 Archivo de liquidación encontrado en ${path}.nombreStorage: ${data.nombreStorage}`);
+          }
+          if (data.fileName && typeof data.fileName === 'string' && data.fileName.includes('/')) {
+            // Otro campo posible para rutas de archivo
+            urls.push(data.fileName);
+            console.log(`📁 Archivo encontrado en ${path}.fileName: ${data.fileName}`);
+          }
+          
           // ✅ CASOS ESPECÍFICOS PARA FACTURAS
           if (path.includes('invoice') || path.includes('Invoice')) {
             console.log(`🧾 Procesando campo de factura: ${path}`, data);
@@ -209,7 +222,7 @@ export const useOrphanFileDetector = () => {
           // Procesar todos los campos del objeto recursivamente
           Object.keys(data).forEach(key => {
             // No reprocesar campos ya manejados arriba
-            if (!['url', 'downloadURL', 'path'].includes(key)) {
+            if (!['url', 'downloadURL', 'path', 'nombreStorage', 'fileName'].includes(key)) {
               urls.push(...extractUrlsFromData(data[key], path ? `${path}.${key}` : key));
             }
           });
@@ -292,20 +305,62 @@ export const useOrphanFileDetector = () => {
         
         // Verificar si existe una referencia exacta
         if (references.has(normalizedFilePath)) {
-          // console.log(`✅ Archivo referenciado: ${normalizedFilePath}`);
+          console.log(`✅ Archivo referenciado (exacto): ${normalizedFilePath}`);
           return false; // No es huérfano
         }
         
         // Verificar si existe una referencia similar (por si hay variaciones)
         const hasReference = Array.from(references).some(ref => {
           const normalizedRef = ref.replace(/\\/g, '/');
-          return normalizedRef === normalizedFilePath || 
-                 normalizedRef.endsWith(file.name) && normalizedRef.includes(file.name);
+          
+          // Comparación exacta de path
+          if (normalizedRef === normalizedFilePath) {
+            return true;
+          }
+          
+          // Solo para archivos con extensión válida - evitar archivos corruptos/incompletos
+          if (file.name.includes('.') && normalizedRef.endsWith(file.name)) {
+            return true;
+          }
+          
+          return false;
         });
         
         if (hasReference) {
-          // console.log(`✅ Archivo con referencia similar: ${normalizedFilePath}`);
+          console.log(`✅ Archivo con referencia similar: ${normalizedFilePath}`);
           return false; // No es huérfano
+        }
+        
+        // MEJORA: Filtrar archivos obviamente huérfanos (sin extensión, mal formateados)
+        const isObviousOrphan = !file.name.includes('.') || // Sin extensión
+                                file.name.length > 100 || // Nombre excesivamente largo
+                                /^[a-f0-9]{20,}$/i.test(file.name); // Solo hash sin extensión
+        
+        // ESPECIAL: Los archivos de liquidaciones con patrón oficial nunca son huérfanos
+        const isLiquidacionFile = normalizedFilePath.includes('liquidaciones/') && 
+                                  (normalizedFilePath.includes('original_') || 
+                                   file.name.includes('.xlsx') || 
+                                   file.name.includes('.xls'));
+        
+        if (isLiquidacionFile && !isObviousOrphan) {
+          console.log(`⚠️ Archivo de liquidación detectado como posible huérfano, pero podría estar referenciado: ${normalizedFilePath}`);
+          console.log(`🔍 Referencias disponibles para verificación:`, Array.from(references).filter(ref => 
+            ref.includes(file.name) || ref.endsWith(normalizedFilePath.split('/').pop())
+          ));
+          
+          // Solo marcar como huérfano si es obviamente temporal/corrupto
+          if (isObviousOrphan) {
+            console.log(`❌ Archivo de liquidación huérfano obvio: ${normalizedFilePath}`);
+            return true;
+          } else {
+            console.log(`⚠️ Archivo de liquidación sospechoso pero protegido: ${normalizedFilePath}`);
+            return false; // Proteger archivos de liquidación válidos
+          }
+        }
+        
+        if (isObviousOrphan) {
+          console.log(`❌ Archivo huérfano obvio detectado: ${normalizedFilePath}`);
+          return true;
         }
         
         console.log(`❌ Archivo huérfano detectado: ${normalizedFilePath}`);

@@ -36,7 +36,7 @@ const CommitmentsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [companyFilter, setCompanyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [dateRangeFilter, setDateRangeFilter] = useState('all');
+  const [dateRangeFilter, setDateRangeFilter] = useState('thisMonth');
   const [customStartDate, setCustomStartDate] = useState(null);
   const [customEndDate, setCustomEndDate] = useState(null);
   const [commitmentsData, setCommitmentsData] = useState([]);
@@ -48,7 +48,7 @@ const CommitmentsPage = () => {
     searchTerm: '',
     companyFilter: 'all',
     statusFilter: 'all',
-    dateRangeFilter: 'all',
+    dateRangeFilter: 'thisMonth',
     customStartDate: null,
     customEndDate: null
   });
@@ -108,7 +108,7 @@ const CommitmentsPage = () => {
     setSearchTerm('');
     setCompanyFilter('all');
     setStatusFilter('all');
-    setDateRangeFilter('all');
+    setDateRangeFilter('thisMonth');
     setCustomStartDate(null);
     setCustomEndDate(null);
     
@@ -117,7 +117,7 @@ const CommitmentsPage = () => {
       searchTerm: '',
       companyFilter: 'all',
       statusFilter: 'all',
-      dateRangeFilter: 'all',
+      dateRangeFilter: 'thisMonth',
       customStartDate: null,
       customEndDate: null
     };

@@ -160,31 +160,7 @@ const PaymentsFilters = ({
               </Box>
             </Box>
             
-            {(filtersApplied || hasFiltersChanged) && (
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-              >
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<Clear />}
-                  onClick={onClearFilters}
-                  sx={{
-                    borderRadius: 1,
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    '&:hover': {
-                      transform: 'translateY(-1px)',
-                      boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
-                    }
-                  }}
-                >
-                  Limpiar Filtros
-                </Button>
-              </motion.div>
-            )}
+
           </Box>
 
           <Grid container spacing={3}>
@@ -631,6 +607,35 @@ const PaymentsFilters = ({
                 {filtersApplied && !hasFiltersChanged ? 'Filtros Aplicados' : 'Aplicar Filtros'}
               </Button>
             </motion.div>
+            
+            {(filtersApplied || hasFiltersChanged) && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.1 }}
+              >
+                <Button
+                  variant="outlined"
+                  onClick={onClearFilters}
+                  startIcon={<Clear />}
+                  sx={{
+                    px: 3,
+                    py: 1,
+                    borderRadius: 1,
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    minWidth: 140,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-1px)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    }
+                  }}
+                >
+                  Limpiar Filtros
+                </Button>
+              </motion.div>
+            )}
           </Box>
         </Box>
       </Paper>

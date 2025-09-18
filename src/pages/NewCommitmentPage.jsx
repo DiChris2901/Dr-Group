@@ -73,6 +73,19 @@ const NewCommitmentPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Helper para crear fecha local sin problemas de zona horaria
+  const createLocalDate = (dateString) => {
+    if (!dateString) return new Date();
+    
+    // Si es una fecha en formato YYYY-MM-DD del input
+    if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      const [year, month, day] = dateString.split('-').map(Number);
+      return new Date(year, month - 1, day); // month - 1 porque Date usa base 0 para meses
+    }
+    
+    return new Date(dateString);
+  };
   
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -173,7 +186,7 @@ const NewCommitmentPage = () => {
     month: new Date().getMonth() + 1, // Mes actual (1-12)
     year: new Date().getFullYear(), // Año actual
     dueDate: null, // Fecha de vencimiento específica
-    periodicity: 'monthly', // unique, monthly, bimonthly, quarterly, fourmonthly, biannual, annual
+    periodicity: 'unique', // unique, monthly, bimonthly, quarterly, fourmonthly, biannual, annual
     beneficiary: '',
     beneficiaryNit: '', // 🆔 NIT o identificación del beneficiario
     concept: '',
@@ -214,7 +227,7 @@ const NewCommitmentPage = () => {
       // Pre-llenar formulario con datos del calendario
       setFormData(prev => ({
         ...prev,
-        ...(dateParam && { dueDate: new Date(dateParam) }),
+        ...(dateParam && { dueDate: createLocalDate(dateParam) }),
         ...(conceptParam && { concept: decodeURIComponent(conceptParam) }),
         ...(amountParam && { baseAmount: amountParam }),
         ...(companyParam && { beneficiary: decodeURIComponent(companyParam) })
@@ -650,7 +663,7 @@ const NewCommitmentPage = () => {
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
       dueDate: null,
-      periodicity: 'monthly',
+      periodicity: 'unique',
       beneficiary: '',
       beneficiaryNit: '',
       concept: '',
@@ -1466,7 +1479,7 @@ const NewCommitmentPage = () => {
       month: new Date().getMonth() + 1, // Mes actual (1-12)
       year: new Date().getFullYear(), // Año actual
       dueDate: null, // Fecha de vencimiento específica
-      periodicity: 'monthly', // unique, monthly, bimonthly, quarterly, fourmonthly, biannual, annual
+      periodicity: 'unique', // unique, monthly, bimonthly, quarterly, fourmonthly, biannual, annual
       beneficiary: '',
       beneficiaryNit: '', // 🆔 NIT o identificación del beneficiario
       concept: '',
@@ -2556,7 +2569,7 @@ const NewCommitmentPage = () => {
                           type="date"
                           label="Fecha de vencimiento"
                           value={formData.dueDate ? formData.dueDate.toISOString().split('T')[0] : ''}
-                          onChange={(e) => handleFormChange('dueDate', e.target.value ? new Date(e.target.value) : null)}
+                          onChange={(e) => handleFormChange('dueDate', e.target.value ? createLocalDate(e.target.value) : null)}
                           disabled={saving}
                           InputLabelProps={{
                             shrink: true,
