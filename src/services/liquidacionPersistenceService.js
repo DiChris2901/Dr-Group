@@ -1660,12 +1660,14 @@ class LiquidacionPersistenceService {
   const ahoraServer = serverTimestamp();
   const ahoraISO = new Date().toISOString();
 
-      // Utilidad: indexar máquinas por serial en array dado
+      // Utilidad: indexar máquinas por serial en array dado (normalizando clave a string)
       const indexBySerial = (arr) => {
         const map = new Map();
         arr.forEach(m => {
-          const serial = m.serial || m.Serial;
-          if (serial) map.set(serial, m);
+          const raw = m.serial ?? m.Serial;
+          if (raw == null) return;
+          const key = String(raw).trim();
+          map.set(key, m);
         });
         return map;
       };
@@ -1699,6 +1701,64 @@ class LiquidacionPersistenceService {
             copia.totalImpuestos = (parseFloat(copia.derechosExplotacion) || 0) + (parseFloat(copia.gastosAdministracion) || 0);
           return copia;
         });
+
+        // Preparar mapa de valores originales (para "antes") desde documento original si existe
+        let originalMapBySerial = null;
+        try {
+          const originalSnap = await getDoc(doc(db, 'liquidaciones_por_sala', originalDoc.id));
+          if (originalSnap.exists()) {
+            const originalData = originalSnap.data();
+            if (Array.isArray(originalData.datosConsolidados)) {
+              originalMapBySerial = new Map();
+              originalData.datosConsolidados.forEach(om => {
+                const raw = om.serial ?? om.Serial;
+                if (raw == null) return;
+                const key = String(raw).trim();
+                originalMapBySerial.set(key, om);
+              });
+            }
+          }
+        } catch (e) {
+          console.warn('⚠️ No se pudo cargar documento original para historial de cambios:', e);
+        }
+
+        // Construir lista de cambios con antes/después cuando sea posible
+        const cambiosIniciales = datosConsolidados
+          .filter(m => m.fueEditada)
+          .map(m => {
+            const rawSerial = m.serial ?? m.Serial;
+            const key = rawSerial != null ? String(rawSerial).trim() : null;
+            const anterior = key ? originalMapBySerial?.get(key) : null;
+            const sourceNuevo = key ? (nuevosMap.get(key) || m) : m;
+            const despues = {
+              produccion: m.produccion,
+              derechosExplotacion: m.derechosExplotacion,
+              gastosAdministracion: m.gastosAdministracion
+            };
+            // Intentar tomar "antes" desde doc original; si no, desde _originalValores enviado por la UI
+            const antesFromOriginal = anterior ? {
+              produccion: anterior.produccion,
+              derechosExplotacion: anterior.derechosExplotacion,
+              gastosAdministracion: anterior.gastosAdministracion
+            } : null;
+            const ov = sourceNuevo && sourceNuevo._originalValores;
+            const antesFromClient = ov ? {
+              produccion: ov.produccion,
+              derechosExplotacion: ov.derechosExplotacion,
+              gastosAdministracion: ov.gastosAdministracion
+            } : null;
+            // Fallback adicional: cuando el ajuste fue por "máquinas negativas a 0" usamos el backup interno
+            const nb = sourceNuevo && sourceNuevo._negativoBackup;
+            const antesFromNegativoBackup = nb ? {
+              // La producción no cambia en este ajuste, usamos la actual como "antes"
+              produccion: m.produccion,
+              derechosExplotacion: nb.derechosExplotacion,
+              gastosAdministracion: nb.gastosAdministracion
+            } : null;
+            const antes = antesFromOriginal || antesFromClient || antesFromNegativoBackup;
+            const serialOut = rawSerial != null ? String(rawSerial).trim() : '';
+            return antes ? { serial: serialOut, antes, despues } : { serial: serialOut, nuevo: despues };
+          });
 
         // Recalcular métricas
         const metricas = {
@@ -1746,9 +1806,7 @@ class LiquidacionPersistenceService {
                 auxilio: parseFloat(ingresoBaseManual.auxilio) || 0,
                 total: parseFloat(ingresoBaseManual.total) || ((parseFloat(ingresoBaseManual.smmlv)||0)+(parseFloat(ingresoBaseManual.auxilio)||0))
               } : null,
-              cambios: datosConsolidados
-                .filter(m => m.fueEditada)
-                .map(m => ({ serial: m.serial || m.Serial, nuevo: { produccion: m.produccion, derechosExplotacion: m.derechosExplotacion, gastosAdministracion: m.gastosAdministracion } }))
+              cambios: cambiosIniciales
             }
           ]
         };
@@ -1770,17 +1828,18 @@ class LiquidacionPersistenceService {
       editDocData = existingDoc.data();
       console.log('✏️ Actualizando edición existente', existingDoc.id);
 
-      const previoDatos = Array.isArray(editDocData.datosConsolidados) ? [...editDocData.datosConsolidados] : [];
-      const previoMap = indexBySerial(previoDatos);
+  const previoDatos = Array.isArray(editDocData.datosConsolidados) ? [...editDocData.datosConsolidados] : [];
+  const previoMap = indexBySerial(previoDatos);
 
       const cambiosAplicados = [];
 
       // Merge: actualizar solo máquinas marcadas como editadas (fueEditada)
       nuevosDatosMaquinas.forEach(m => {
-        const serial = m.serial || m.Serial;
-        if (!serial) return;
+        const raw = m.serial ?? m.Serial;
+        if (raw == null) return;
+        const key = String(raw).trim();
         if (m.fueEditada === true) {
-          const anterior = previoMap.get(serial);
+          const anterior = previoMap.get(key);
           const nuevoValor = {
             ...(anterior || {}),
             ...m,
@@ -1792,9 +1851,9 @@ class LiquidacionPersistenceService {
             const parsedDias = parseInt(nuevoValor.diasTransmitidos.replace(/[^0-9]/g,''),10);
             if (!isNaN(parsedDias)) nuevoValor.diasTransmitidos = parsedDias; else delete nuevoValor.diasTransmitidos;
           }
-          previoMap.set(serial, nuevoValor);
+          previoMap.set(key, nuevoValor);
           cambiosAplicados.push({
-            serial,
+            serial: key,
             antes: anterior ? {
               produccion: anterior.produccion,
               derechosExplotacion: anterior.derechosExplotacion,

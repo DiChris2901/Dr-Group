@@ -11,6 +11,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TablePagination,
   Paper,
   Avatar,
   IconButton,
@@ -64,6 +65,7 @@ const formatearCOPManual = (v) => new Intl.NumberFormat('es-CO',{style:'currency
 const LiquidacionesPorSalaPage = () => {
   // Estados principales
   const [liquidaciones, setLiquidaciones] = useState([]);
+  const [todasLasLiquidaciones, setTodasLasLiquidaciones] = useState([]); // Para opciones de filtros
   const [loading, setLoading] = useState(true);
   const [estadisticas, setEstadisticas] = useState(null);
   const [error, setError] = useState(null);
@@ -80,6 +82,10 @@ const LiquidacionesPorSalaPage = () => {
   const [dialogDetalles, setDialogDetalles] = useState({ open: false, liquidacion: null });
   const [dialogFacturacion, setDialogFacturacion] = useState({ open: false, liquidacion: null });
   const [dialogEdicion, setDialogEdicion] = useState({ open: false, liquidacion: null });
+  
+  // Estados de paginación
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   // Opciones adicionales de edición (tarifa fija, normalización de negativos)
   const [opcionesEdicion, setOpcionesEdicion] = useState({ maquinasNegativasCero: false }); // tarifa fija ahora es por máquina
   // SMMLV actual (para tarifa fija)
@@ -396,6 +402,9 @@ const LiquidacionesPorSalaPage = () => {
             }
           }
 
+          // Guardar todas las liquidaciones para opciones de filtros
+          setTodasLasLiquidaciones(liquidacionesValidadas);
+          
           // Aplicar filtros localmente si existen
           let liquidacionesFiltradas = liquidacionesValidadas;
           
@@ -415,7 +424,9 @@ const LiquidacionesPorSalaPage = () => {
             });
             console.log(`📊 Después de filtros: ${liquidacionesFiltradas.length} de ${liquidacionesRealTime.length}`);
           } else {
-            console.log('✅ Sin filtros válidos aplicados, mostrando todas');
+            console.log('🔍 Sin filtros aplicados, mostrando tabla vacía');
+            // Sin filtros = tabla vacía (requiere aplicar filtros para ver datos)
+            liquidacionesFiltradas = [];
           }
 
           // Consolidación ordenada: sustituir la fila del original por la edición acumulada manteniendo posición
@@ -637,6 +648,48 @@ const LiquidacionesPorSalaPage = () => {
     }
   };
 
+  // Abrir modal de detalles siempre mostrando el documento ORIGINAL (sin modificaciones)
+  const verDetallesOriginal = async (liquidacion) => {
+    try {
+      // Determinar el ID del documento original
+      let originalId = null;
+      if (liquidacion?.esEdicion && liquidacion?.liquidacionOriginalId) {
+        originalId = liquidacion.liquidacionOriginalId;
+      } else if (liquidacion?._reemplaza) {
+        // La fila edición trae referencia del original reemplazado
+        originalId = liquidacion._reemplaza;
+      } else if (liquidacion?.id) {
+        // Si es el original (o no hay ediciones), el propio id
+        originalId = liquidacion.id;
+      }
+
+      if (!originalId) {
+        // Fallback seguro
+        setDialogDetalles({ open: true, liquidacion });
+        await cargarDetallesSala(liquidacion);
+        return;
+      }
+
+      const originalSnap = await getDoc(doc(db, 'liquidaciones_por_sala', originalId));
+      if (originalSnap.exists()) {
+        const originalData = originalSnap.data();
+        const originalDoc = { id: originalId, ...originalData };
+        setDialogDetalles({ open: true, liquidacion: originalDoc });
+        await cargarDetallesSala(originalDoc);
+      } else {
+        // Si no existe el original, mostrar el actual con advertencia
+        setDialogDetalles({ open: true, liquidacion });
+        await cargarDetallesSala(liquidacion);
+        addNotification('No se encontró la liquidación original; mostrando el documento actual.', 'warning');
+      }
+    } catch (e) {
+      // En caso de error, mostrar el actual para no bloquear la UI
+      setDialogDetalles({ open: true, liquidacion });
+      await cargarDetallesSala(liquidacion);
+      console.warn('Error abriendo detalles del original, se muestra el documento actual:', e);
+    }
+  };
+
   // Aplicar filtros
   const aplicarFiltros = () => {
     setFiltrosAplicados({ ...filtros });
@@ -779,11 +832,33 @@ const LiquidacionesPorSalaPage = () => {
     setDatosOriginales(null);
   };
 
-  // Función simplificada - ya no necesita cargar datos originales
+  // Cargar datos originales (para mostrar "Antes" si no viene en historial)
   const cargarDatosOriginales = async (liquidacionOriginalId) => {
-    // SIMPLIFICADO: No cargamos datos originales porque no contienen información de máquinas individuales
-    console.log('ℹ️ Modal de información - Mostrando datos de liquidación editada');
-    return null;
+    try {
+      if (!liquidacionOriginalId) return null;
+      const snap = await getDoc(doc(db, 'liquidaciones_por_sala', liquidacionOriginalId));
+      if (!snap.exists()) return null;
+      const data = snap.data();
+      if (!Array.isArray(data.datosConsolidados)) return null;
+      const map = new Map();
+      data.datosConsolidados.forEach(om => {
+        const raw = om.serial ?? om.Serial;
+        if (raw == null) return;
+        const key = String(raw).trim();
+        const derechos = om.derechosExplotacion || 0;
+        const gastos = om.gastosAdministracion || 0;
+        map.set(key, {
+          produccion: om.produccion,
+          derechosExplotacion: derechos,
+          gastosAdministracion: gastos,
+          totalImpuestos: (om.totalImpuestos != null ? om.totalImpuestos : (derechos + gastos))
+        });
+      });
+      return map;
+    } catch (e) {
+      console.warn('⚠️ No se pudieron cargar datos originales para historial:', e);
+      return null;
+    }
   };
 
   // Verificar si una máquina fue editada
@@ -821,6 +896,8 @@ const LiquidacionesPorSalaPage = () => {
       setDialogHistorial(prev => ({ ...prev, open: true, liquidacion: null, loading: true }));
       // Si ya es una edición, usarla directamente
       if (liquidacion.esEdicion) {
+        const originalesMap = await cargarDatosOriginales(liquidacion.liquidacionOriginalId);
+        setDatosOriginales(originalesMap);
         setDialogHistorial({ open: true, liquidacion, loading: false });
         return;
       }
@@ -830,7 +907,10 @@ const LiquidacionesPorSalaPage = () => {
           if (liquidacion.edicionId) {
             const editDoc = await getDoc(doc(db, 'liquidaciones_por_sala', liquidacion.edicionId));
             if (editDoc.exists()) {
-              setDialogHistorial({ open: true, liquidacion: { id: editDoc.id, ...editDoc.data() }, loading: false });
+              const data = editDoc.data();
+              const originalesMap = await cargarDatosOriginales(data.liquidacionOriginalId);
+              setDatosOriginales(originalesMap);
+              setDialogHistorial({ open: true, liquidacion: { id: editDoc.id, ...data }, loading: false });
               return;
             }
           }
@@ -844,7 +924,10 @@ const LiquidacionesPorSalaPage = () => {
             const snap = await getDocs(q);
           if (!snap.empty) {
             const d = snap.docs[0];
-            setDialogHistorial({ open: true, liquidacion: { id: d.id, ...d.data() }, loading: false });
+            const data = d.data();
+            const originalesMap = await cargarDatosOriginales(data.liquidacionOriginalId);
+            setDatosOriginales(originalesMap);
+            setDialogHistorial({ open: true, liquidacion: { id: d.id, ...data }, loading: false });
           } else {
             addNotification('No se encontró la edición acumulada todavía.', 'warning');
             setDialogHistorial({ open: false, liquidacion: null, loading: false });
@@ -1010,14 +1093,14 @@ const LiquidacionesPorSalaPage = () => {
 
 
 
-  // Obtener opciones únicas para filtros
+  // Obtener opciones únicas para filtros (usando todas las liquidaciones disponibles)
   const opcionesFiltros = useMemo(() => {
     return {
-      empresas: [...new Set(liquidaciones.map(l => l.empresa.nombre))].sort(),
-      periodos: [...new Set(liquidaciones.map(l => l.fechas.periodoLiquidacion))].sort().reverse(),
-      salas: [...new Set(liquidaciones.map(l => l.sala.nombre))].sort()
+      empresas: [...new Set(todasLasLiquidaciones.map(l => l.empresa.nombre))].sort(),
+      periodos: [...new Set(todasLasLiquidaciones.map(l => l.fechas.periodoLiquidacion))].sort().reverse(),
+      salas: [...new Set(todasLasLiquidaciones.map(l => l.sala.nombre))].sort()
     };
-  }, [liquidaciones]);
+  }, [todasLasLiquidaciones]);
 
   // Calcular totales automáticamente cuando cambien los datos de las máquinas
   const totalesCalculados = useMemo(() => {
@@ -1530,7 +1613,7 @@ const LiquidacionesPorSalaPage = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {liquidaciones.map((liquidacion, index) => (
+                  {liquidaciones.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((liquidacion, index) => (
                     <TableRow
                       key={`${liquidacion.id}_${index}`}
                       sx={{
@@ -1581,10 +1664,7 @@ const LiquidacionesPorSalaPage = () => {
                             <Tooltip title="Ver detalles máquina por máquina">
                               <IconButton 
                                 size="small"
-                                onClick={() => {
-                                  setDialogDetalles({ open: true, liquidacion });
-                                  cargarDetallesSala(liquidacion);
-                                }}
+                                onClick={() => { verDetallesOriginal(liquidacion); }}
                               >
                                 <ViewIcon />
                               </IconButton>
@@ -1629,11 +1709,38 @@ const LiquidacionesPorSalaPage = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+            
+            {liquidaciones.length > 0 && (
+              <TablePagination
+                component="div"
+                count={liquidaciones.length}
+                page={page}
+                onPageChange={(event, newPage) => setPage(newPage)}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={(event) => {
+                  setRowsPerPage(parseInt(event.target.value, 10));
+                  setPage(0);
+                }}
+                rowsPerPageOptions={[5, 10, 25, 50]}
+                labelRowsPerPage="Filas por página:"
+                labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+                sx={{
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                  '& .MuiTablePagination-toolbar': {
+                    paddingLeft: theme.spacing(2),
+                    paddingRight: theme.spacing(2)
+                  }
+                }}
+              />
+            )}
 
             {liquidaciones.length === 0 && (
               <Box textAlign="center" py={4}>
                 <Typography color="textSecondary">
-                  No se encontraron liquidaciones por sala
+                  {Object.keys(filtrosAplicados).length === 0 || !Object.values(filtrosAplicados).some(f => f && f.trim && f.trim()) 
+                    ? 'Aplica filtros para ver las liquidaciones por sala'
+                    : 'No se encontraron liquidaciones que coincidan con los filtros aplicados'
+                  }
                 </Typography>
               </Box>
             )}
@@ -2445,20 +2552,9 @@ const LiquidacionesPorSalaPage = () => {
           </DialogTitle>
           <DialogContent sx={{ p: 3, overflow: 'auto' }}>
             {dialogHistorial.liquidacion && (
-              <Box sx={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 3,
-                '& > .detalle-maquinas-wrapper': {
-                  flex: '0 1 auto'
-                },
-                '& > .sidebar-metricas': {
-                  flex: '0 0 320px'
-                },
-                overflowX: 'visible'
-              }}>
-                <Box className="detalle-maquinas-wrapper">
-                  <Box>
+              <Grid container spacing={3} alignItems="flex-start">
+                {/* Columna izquierda: Detalle por máquina */}
+                <Grid item xs={12} md={9} lg={9}>
                     {/* Tabla detallada de máquinas editadas */}
                     <Paper sx={{
                       mt: 1.5,
@@ -2468,9 +2564,11 @@ const LiquidacionesPorSalaPage = () => {
                       background: theme.palette.mode === 'dark'
                         ? alpha(theme.palette.background.default, 0.4)
                         : alpha(theme.palette.secondary.light, 0.02),
-                      width: 'fit-content',
-                      maxWidth: '100%',
-                      overflow: 'hidden'
+                      width: '100%',
+                      overflow: 'hidden',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center'
                     }}>
                       <Typography variant="subtitle2" sx={{ 
                         color: theme.palette.text.secondary,
@@ -2478,7 +2576,8 @@ const LiquidacionesPorSalaPage = () => {
                         textTransform: 'uppercase',
                         letterSpacing: '0.08em',
                         fontWeight: 500,
-                        mb: 1
+                        mb: 1,
+                        alignSelf: 'flex-start'
                       }}>
                         DETALLE POR MÁQUINA (VALORES EDITADOS)
                       </Typography>
@@ -2492,7 +2591,9 @@ const LiquidacionesPorSalaPage = () => {
                         p: 1.5,
                         borderRadius: 1,
                         backgroundColor: alpha(theme.palette.warning.main, 0.05),
-                        border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`
+                        border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                        alignSelf: 'flex-start',
+                        width: '100%'
                       }}>
                         <Box sx={{
                           width: 4,
@@ -2514,7 +2615,8 @@ const LiquidacionesPorSalaPage = () => {
                           border: `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`,
                           borderRadius: 1,
                           overflow: 'hidden',
-                          width: 'fit-content'
+                          width: 'fit-content',
+                          maxWidth: '100%'
                         }}>
                           <TableContainer>
                             <Table size="small" sx={{
@@ -2631,78 +2733,10 @@ const LiquidacionesPorSalaPage = () => {
                         </Alert>
                       )}
                     </Paper>
+                </Grid>
 
-                    {/* Historial de cambios compacto */}
-                    <Paper sx={{
-                      mt: 3,
-                      p: 3,
-                      borderRadius: 2,
-                      border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
-                      background: theme.palette.mode === 'dark'
-                        ? alpha(theme.palette.warning.dark, 0.05)
-                        : alpha(theme.palette.warning.light, 0.03),
-                      width: 'fit-content',
-                      maxWidth: '100%'
-                    }}>
-                      <Typography variant="subtitle2" sx={{ 
-                        color: theme.palette.text.secondary,
-                        fontSize: '0.75rem',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.08em',
-                        fontWeight: 500,
-                        mb: 2
-                      }}>
-                        HISTORIAL DE EDICIONES
-                      </Typography>
-                      
-                      {dialogHistorial.liquidacion.historialEdiciones?.length > 0 ? (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                          {dialogHistorial.liquidacion.historialEdiciones.map((edicion, index) => (
-                            <Box key={index} sx={{
-                              p: 2,
-                              borderRadius: 1,
-                              border: `1px solid ${alpha(theme.palette.warning.main, 0.15)}`,
-                              background: theme.palette.mode === 'dark'
-                                ? alpha(theme.palette.warning.dark, 0.03)
-                                : alpha(theme.palette.warning.light, 0.02)
-                            }}>
-                              <Typography variant="body2" sx={{ mb: 0.5, color: 'text.secondary' }}>
-                                <strong>Editado por:</strong> {
-                                  (() => {
-                                    const usuario = edicion.usuario;
-                                    
-                                    // Si es un objeto con información completa
-                                    if (usuario && typeof usuario === 'object') {
-                                      return usuario.name || usuario.displayName || usuario.email?.split('@')[0] || usuario.email || 'Usuario';
-                                    }
-                                    
-                                    // Si es un UID string y coincide con el usuario actual, usar su información
-                                    if (typeof usuario === 'string' && usuario === currentUser?.uid) {
-                                      return userProfile?.name || currentUser.displayName || currentUser.email?.split('@')[0] || currentUser.email || 'Tú';
-                                    }
-                                    
-                                    // Para otros UIDs o casos no identificados
-                                    return typeof usuario === 'string' ? 'Usuario no identificado' : 'Usuario no registrado';
-                                  })()
-                                }
-                              </Typography>
-                              <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
-                                <strong>Motivo:</strong> {edicion.motivo || 'Sin motivo especificado'}
-                              </Typography>
-                            </Box>
-                          ))}
-                        </Box>
-                      ) : (
-                        <Alert severity="info" sx={{ borderRadius: 1 }}>
-                          No hay historial de ediciones disponible
-                        </Alert>
-                      )}
-                    </Paper>
-                  </Box>
-                </Box>
-
-                {/* Panel lateral con métricas editadas */}
-                <Box className="sidebar-metricas">
+                {/* Columna derecha: Información + Métricas */}
+                <Grid item xs={12} md={3} lg={3}>
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, width: '100%' }}>
                     {/* Información adicional */}
                     <Paper sx={{ 
@@ -2787,8 +2821,113 @@ const LiquidacionesPorSalaPage = () => {
                       </Box>
                     </Paper>
                   </Box>
-                </Box>
-              </Box>
+                </Grid>
+
+                {/* Fila inferior: Historial de cambios */}
+                <Grid item xs={12}>
+                  <Paper sx={{
+                    p: 3,
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                    background: theme.palette.mode === 'dark'
+                      ? alpha(theme.palette.warning.dark, 0.05)
+                      : alpha(theme.palette.warning.light, 0.03),
+                    width: '100%'
+                  }}>
+                    <Typography variant="subtitle2" sx={{ 
+                      color: theme.palette.text.secondary,
+                      fontSize: '0.75rem',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                      fontWeight: 500,
+                      mb: 2
+                    }}>
+                      HISTORIAL DE EDICIONES
+                    </Typography>
+
+                    {dialogHistorial.liquidacion.historialEdiciones?.length > 0 ? (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {dialogHistorial.liquidacion.historialEdiciones.map((edicion, index) => (
+                          <Box key={index} sx={{
+                            p: 2,
+                            borderRadius: 1,
+                            border: `1px solid ${alpha(theme.palette.warning.main, 0.15)}`,
+                            background: theme.palette.mode === 'dark'
+                              ? alpha(theme.palette.warning.dark, 0.03)
+                              : alpha(theme.palette.warning.light, 0.02)
+                          }}>
+                            <Typography variant="body2" sx={{ mb: 0.5, color: 'text.secondary' }}>
+                              <strong>Editado por:</strong> {
+                                (() => {
+                                  const usuario = edicion.usuario;
+                                  if (usuario && typeof usuario === 'object') {
+                                    return usuario.name || usuario.displayName || usuario.email?.split('@')[0] || usuario.email || 'Usuario';
+                                  }
+                                  if (typeof usuario === 'string' && usuario === currentUser?.uid) {
+                                    return userProfile?.name || currentUser.displayName || currentUser.email?.split('@')[0] || currentUser.email || 'Tú';
+                                  }
+                                  return typeof usuario === 'string' ? 'Usuario no identificado' : 'Usuario no registrado';
+                                })()
+                              }
+                            </Typography>
+                            <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+                              <strong>Motivo:</strong> {edicion.motivo || 'Sin motivo especificado'}
+                            </Typography>
+
+                            {Array.isArray(edicion.cambios) && edicion.cambios.length > 0 && (
+                              <Box sx={{ mt: 1, border: `1px solid ${alpha(theme.palette.warning.main, 0.15)}`, borderRadius: 1, overflow: 'hidden', width: 'fit-content' }}>
+                                <Table size="small" sx={{ minWidth: 980, tableLayout: 'auto' }}>
+                                  <TableHead>
+                                    <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50' }}>
+                                      <TableCell rowSpan={2} sx={{ fontSize: '0.75rem', fontWeight: 700, verticalAlign: 'middle' }}>Serial</TableCell>
+                                      <TableCell align="center" colSpan={4} sx={{ fontSize: '0.75rem', color: 'text.secondary', fontWeight: 700 }}>ANTES (Original)</TableCell>
+                                      <TableCell align="center" colSpan={4} sx={{ fontSize: '0.75rem', color: 'text.secondary', fontWeight: 700 }}>DESPUÉS (Modificada)</TableCell>
+                                    </TableRow>
+                                    <TableRow sx={{ bgcolor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50' }}>
+                                      <TableCell align="right" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>Producción</TableCell>
+                                      <TableCell align="right" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>Derechos</TableCell>
+                                      <TableCell align="right" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>Gastos</TableCell>
+                                      <TableCell align="right" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>Total Impuestos</TableCell>
+                                      <TableCell align="right" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>Producción</TableCell>
+                                      <TableCell align="right" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>Derechos</TableCell>
+                                      <TableCell align="right" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>Gastos</TableCell>
+                                      <TableCell align="right" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>Total Impuestos</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {edicion.cambios.map((chg, idx) => {
+                                      const serialKey = (chg.serial != null) ? String(chg.serial).trim() : '';
+                                      const a = chg.antes || (datosOriginales?.get(serialKey) ?? null);
+                                      const d = chg.despues || chg.nuevo || null;
+                                      return (
+                                        <TableRow key={`c-${idx}`}>
+                                          <TableCell sx={{ fontSize: '0.8125rem' }}>{chg.serial || '—'}</TableCell>
+                                          <TableCell align="right" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>{a ? formatearMonto(a.produccion) : '—'}</TableCell>
+                                          <TableCell align="right" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>{a ? formatearMontoConDecimales(a.derechosExplotacion) : '—'}</TableCell>
+                                          <TableCell align="right" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>{a ? formatearMontoConDecimales(a.gastosAdministracion) : '—'}</TableCell>
+                                          <TableCell align="right" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>{a ? formatearMontoConDecimales(a.totalImpuestos ?? ((a.derechosExplotacion || 0) + (a.gastosAdministracion || 0))) : '—'}</TableCell>
+                                          <TableCell align="right" sx={{ color: theme.palette.success.main, fontWeight: 600, whiteSpace: 'nowrap' }}>{d ? formatearMonto(d.produccion) : '—'}</TableCell>
+                                          <TableCell align="right" sx={{ color: theme.palette.warning.main, fontWeight: 600, whiteSpace: 'nowrap' }}>{d ? formatearMontoConDecimales(d.derechosExplotacion) : '—'}</TableCell>
+                                          <TableCell align="right" sx={{ color: theme.palette.error.main, fontWeight: 600, whiteSpace: 'nowrap' }}>{d ? formatearMontoConDecimales(d.gastosAdministracion) : '—'}</TableCell>
+                                          <TableCell align="right" sx={{ fontWeight: 700, whiteSpace: 'nowrap', color: theme.palette.text.primary }}>{d ? formatearMontoConDecimales(d.totalImpuestos ?? ((d.derechosExplotacion || 0) + (d.gastosAdministracion || 0))) : '—'}</TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
+                                  </TableBody>
+                                </Table>
+                              </Box>
+                            )}
+                          </Box>
+                        ))}
+                      </Box>
+                    ) : (
+                      <Alert severity="info" sx={{ borderRadius: 1 }}>
+                        No hay historial de ediciones disponible
+                      </Alert>
+                    )}
+                  </Paper>
+                </Grid>
+              </Grid>
             )}
           </DialogContent>
           <DialogActions sx={{ p: 2, gap: 1.5, borderTop: `1px solid ${theme.palette.divider}`, justifyContent: 'space-between' }}>
