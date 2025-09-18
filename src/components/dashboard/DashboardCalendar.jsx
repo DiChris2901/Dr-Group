@@ -15,7 +15,8 @@ import {
   Grid,
   Tooltip,
   Badge,
-  useTheme
+  useTheme,
+  alpha
 } from '@mui/material';
 import {
   ChevronLeft,
@@ -389,7 +390,7 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
     <Card sx={{ 
       backgroundColor: 'background.paper',
       boxShadow: '0 2px 8px rgba(0,0,0,0.06)', // Sombra sobria
-      border: `1px solid ${theme.palette.divider}`,
+      border: `0.6px solid ${alpha(theme.palette.primary.main, 0.15)}`,
       borderRadius: 1 // 8px - bordes menos redondeados
     }}>
       <CardContent>

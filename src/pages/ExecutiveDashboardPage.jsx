@@ -33,6 +33,7 @@ import { useUserStats } from '../hooks/useUserStats';
 import { useStorageStats } from '../hooks/useStorageStats';
 import { fCurrency } from '../utils/formatNumber';
 
+
 // Componente de KPI Card Premium
 const ExecutiveKPICard = ({ title, value, subtitle, icon: Icon, color, trend, loading = false, delay = 0 }) => {
   const theme = useTheme();

@@ -38,6 +38,7 @@ import { useCommitments } from '../../hooks/useFirestore';
 import { fCurrency } from '../../utils/formatNumber';
 import { useNavigate } from 'react-router-dom';
 import DashboardCalendar from './DashboardCalendar';
+import QuickAccessLinks from './QuickAccessLinks';
 
 const WelcomeDashboardSimple = () => {
   const theme = useTheme();
@@ -293,6 +294,11 @@ const WelcomeDashboardSimple = () => {
             </Grid>
           ))}
         </Grid>
+
+        {/* Páginas de Interés - Accesos Directos */}
+        <Box sx={{ mb: 4 }}>
+          <QuickAccessLinks />
+        </Box>
 
         {/* Calendario de Compromisos y Festivos */}
         <Box sx={{ mb: 4 }}>
