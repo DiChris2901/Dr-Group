@@ -124,28 +124,18 @@ const SalasPage = () => {
     name: '',
     companyId: '',
     companyName: '',
-    description: '',
-    capacity: 20,
-    hourlyRate: 150000,
-    amenities: [],
+    proveedorOnline: '',
+    ciudad: '',
     status: 'active',
-    location: '',
-    contactPerson: '',
+    propietario: '',
     contactPhone: '',
     contactEmail: '',
-    images: []
+    contactoAutorizado: '',
+    administracion: 0,
+    conexion: 0
   });
 
-  // Amenidades disponibles
-  const availableAmenities = [
-    { id: 'wifi', label: 'WiFi', icon: WifiIcon },
-    { id: 'proyector', label: 'Proyector', icon: TvIcon },
-    { id: 'ac', label: 'Aire Acondicionado', icon: AcIcon },
-    { id: 'catering', label: 'Servicio de Catering', icon: CafeIcon },
-    { id: 'sonido', label: 'Sistema de Sonido', icon: TvIcon },
-    { id: 'parking', label: 'Parqueadero', icon: LocationIcon },
-    { id: 'seguridad', label: 'Seguridad 24/7', icon: SecurityIcon }
-  ];
+
 
   // Cargar empresas al montar el componente
   useEffect(() => {
@@ -234,15 +224,7 @@ const SalasPage = () => {
     }
   };
 
-  // Manejar amenidades
-  const handleAmenityToggle = (amenityId) => {
-    setFormData(prev => ({
-      ...prev,
-      amenities: prev.amenities.includes(amenityId)
-        ? prev.amenities.filter(id => id !== amenityId)
-        : [...prev.amenities, amenityId]
-    }));
-  };
+
 
   // Limpiar formulario
   const clearForm = () => {
@@ -250,16 +232,15 @@ const SalasPage = () => {
       name: '',
       companyId: '',
       companyName: '',
-      description: '',
-      capacity: 20,
-      hourlyRate: 150000,
-      amenities: [],
+      proveedorOnline: '',
+      ciudad: '',
       status: 'active',
-      location: '',
-      contactPerson: '',
+      propietario: '',
       contactPhone: '',
       contactEmail: '',
-      images: []
+      contactoAutorizado: '',
+      administracion: 0,
+      conexion: 0
     });
   };
 
@@ -296,9 +277,8 @@ const SalasPage = () => {
       await logActivity('create_room', 'room', docRef.id, {
         roomName: formData.name,
         companyName: formData.companyName,
-        capacity: formData.capacity,
-        hourlyRate: formData.hourlyRate,
-        amenities: formData.amenities
+        proveedorOnline: formData.proveedorOnline,
+        ciudad: formData.ciudad
       }, currentUser.uid, userProfile?.displayName, userProfile?.email);
 
       addNotification('Sala creada exitosamente', 'success');
@@ -382,16 +362,15 @@ const SalasPage = () => {
       name: sala.name || '',
       companyId: sala.companyId || '',
       companyName: sala.companyName || '',
-      description: sala.description || '',
-      capacity: sala.capacity || 20,
-      hourlyRate: sala.hourlyRate || 150000,
-      amenities: sala.amenities || [],
+      proveedorOnline: sala.proveedorOnline || '',
+      ciudad: sala.ciudad || '',
       status: sala.status || 'active',
-      location: sala.location || '',
-      contactPerson: sala.contactPerson || '',
+      propietario: sala.propietario || '',
       contactPhone: sala.contactPhone || '',
       contactEmail: sala.contactEmail || '',
-      images: sala.images || []
+      contactoAutorizado: sala.contactoAutorizado || '',
+      administracion: sala.administracion || 0,
+      conexion: sala.conexion || 0
     });
     setEditDialogOpen(true);
   };
@@ -419,10 +398,9 @@ const SalasPage = () => {
   // Obtener color de estado
   const getStatusColor = (status) => {
     switch (status) {
-      case 'active': return 'success';
-      case 'inactive': return 'error';
-      case 'maintenance': return 'warning';
-      default: return 'default';
+      case 'active': return 'success';  // Verde
+      case 'retired': return 'error';   // Rojo
+      default: return 'success';
     }
   };
 
@@ -430,10 +408,35 @@ const SalasPage = () => {
   const getStatusText = (status) => {
     switch (status) {
       case 'active': return 'Activa';
-      case 'inactive': return 'Inactiva';
-      case 'maintenance': return 'Mantenimiento';
-      default: return 'Desconocido';
+      case 'retired': return 'Retirada';
+      default: return 'Activa';
     }
+  };
+
+  // Formatear moneda para inputs dinámicos
+  const formatCurrencyInput = (value) => {
+    if (value === null || value === undefined || value === '') return '';
+    
+    // Si ya es un número, convertir a string
+    const stringValue = typeof value === 'number' ? value.toString() : value;
+    
+    // Si es 0, mostrar vacío para mejor UX
+    if (stringValue === '0') return '';
+    
+    const numbers = stringValue.replace(/\D/g, '');
+    if (!numbers) return '';
+    
+    const formatted = new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0
+    }).format(parseInt(numbers));
+    return formatted;
+  };
+
+  const parseCurrencyValue = (formattedValue) => {
+    if (!formattedValue) return 0;
+    return parseInt(formattedValue.replace(/\D/g, '')) || 0;
   };
 
   // Formatear precio
@@ -533,7 +536,10 @@ const SalasPage = () => {
           borderRadius: 2,
           border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
           background: theme.palette.background.paper,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
+          '&:hover': { borderColor: alpha(theme.palette.primary.main, 0.2) },
+          '&:focus-within': { borderColor: alpha(theme.palette.primary.main, 0.6), boxShadow: '0 4px 12px rgba(0,0,0,0.10)' }
         }}>
           <Typography variant="overline" sx={{ 
             fontWeight: 600, 
@@ -604,8 +610,7 @@ const SalasPage = () => {
                 >
                   <MenuItem value="all">Todos los estados</MenuItem>
                   <MenuItem value="active">Activa</MenuItem>
-                  <MenuItem value="inactive">Inactiva</MenuItem>
-                  <MenuItem value="maintenance">Mantenimiento</MenuItem>
+                  <MenuItem value="retired">Retirada</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -641,6 +646,16 @@ const SalasPage = () => {
                 { value: 50, label: '50' },
                 { value: 100, label: '100+' }
               ]}
+              sx={{
+                height: 4,
+                '& .MuiSlider-rail': { opacity: 0.4 },
+                '& .MuiSlider-thumb': {
+                  width: 16, height: 16,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
+                  boxShadow: 'none'
+                },
+                '& .MuiSlider-markLabel': { color: alpha(theme.palette.text.secondary, 0.6) }
+              }}
             />
           </Box>
         </Paper>
@@ -655,34 +670,32 @@ const SalasPage = () => {
         <Grid container spacing={3} sx={{ mb: 3 }}>
           <Grid item xs={12} sm={6} md={3}>
             <Card sx={{ 
-              textAlign: 'center', 
+              textAlign: 'left', 
               borderRadius: 2,
               border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
               '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
                 borderColor: alpha(theme.palette.primary.main, 0.3)
               }
             }}>
               <CardContent sx={{ p: 3 }}>
                 <Box sx={{ 
-                  width: 48, 
-                  height: 48, 
+                  width: 36, 
+                  height: 36, 
                   borderRadius: '50%',
                   background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                  mx: 'auto',
-                  mb: 2
+                  mb: 1.5
                 }}>
-                  <RoomIcon sx={{ fontSize: 24, color: 'primary.main' }} />
+                  <RoomIcon sx={{ fontSize: 18, color: 'primary.main' }} />
                 </Box>
-                <Typography variant="h4" fontWeight="600" color="primary.main">
+                <Typography variant="h4" fontWeight={600} color="primary.main">
                   {filteredSalas.length}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -694,34 +707,32 @@ const SalasPage = () => {
           
           <Grid item xs={12} sm={6} md={3}>
             <Card sx={{ 
-              textAlign: 'center', 
+              textAlign: 'left', 
               borderRadius: 2,
               border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
               '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
                 borderColor: alpha(theme.palette.success.main, 0.3)
               }
             }}>
               <CardContent sx={{ p: 3 }}>
                 <Box sx={{ 
-                  width: 48, 
-                  height: 48, 
+                  width: 36, 
+                  height: 36, 
                   borderRadius: '50%',
                   background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.main, 0.05)} 100%)`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-                  mx: 'auto',
-                  mb: 2
+                  mb: 1.5
                 }}>
-                  <StarIcon sx={{ fontSize: 24, color: 'success.main' }} />
+                  <StarIcon sx={{ fontSize: 18, color: 'success.main' }} />
                 </Box>
-                <Typography variant="h4" fontWeight="600" color="success.main">
+                <Typography variant="h4" fontWeight={600} color="success.main">
                   {filteredSalas.filter(s => s.status === 'active').length}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -733,34 +744,32 @@ const SalasPage = () => {
           
           <Grid item xs={12} sm={6} md={3}>
             <Card sx={{ 
-              textAlign: 'center', 
+              textAlign: 'left', 
               borderRadius: 2,
               border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
               '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
                 borderColor: alpha(theme.palette.info.main, 0.3)
               }
             }}>
               <CardContent sx={{ p: 3 }}>
                 <Box sx={{ 
-                  width: 48, 
-                  height: 48, 
+                  width: 36, 
+                  height: 36, 
                   borderRadius: '50%',
                   background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.info.main, 0.05)} 100%)`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
-                  mx: 'auto',
-                  mb: 2
+                  mb: 1.5
                 }}>
-                  <PeopleIcon sx={{ fontSize: 24, color: 'info.main' }} />
+                  <PeopleIcon sx={{ fontSize: 18, color: 'info.main' }} />
                 </Box>
-                <Typography variant="h4" fontWeight="600" color="info.main">
+                <Typography variant="h4" fontWeight={600} color="info.main">
                   {Math.round(filteredSalas.reduce((acc, sala) => acc + sala.capacity, 0) / Math.max(filteredSalas.length, 1))}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -772,34 +781,32 @@ const SalasPage = () => {
           
           <Grid item xs={12} sm={6} md={3}>
             <Card sx={{ 
-              textAlign: 'center', 
+              textAlign: 'left', 
               borderRadius: 2,
               border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
               '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
                 borderColor: alpha(theme.palette.warning.main, 0.3)
               }
             }}>
               <CardContent sx={{ p: 3 }}>
                 <Box sx={{ 
-                  width: 48, 
-                  height: 48, 
+                  width: 36, 
+                  height: 36, 
                   borderRadius: '50%',
                   background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)} 0%, ${alpha(theme.palette.warning.main, 0.05)} 100%)`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
-                  mx: 'auto',
-                  mb: 2
+                  mb: 1.5
                 }}>
-                  <MoneyIcon sx={{ fontSize: 24, color: 'warning.main' }} />
+                  <MoneyIcon sx={{ fontSize: 18, color: 'warning.main' }} />
                 </Box>
-                <Typography variant="h4" fontWeight="600" color="warning.main">
+                <Typography variant="h4" fontWeight={600} color="warning.main">
                   {formatPrice(filteredSalas.reduce((acc, sala) => acc + sala.hourlyRate, 0) / Math.max(filteredSalas.length, 1))}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -811,7 +818,11 @@ const SalasPage = () => {
         </Grid>
       </motion.div>
 
+      {/* Separador entre métricas y lista */}
+      <Divider sx={{ my: 3, borderColor: alpha(theme.palette.divider, 0.2) }} />
+
       {/* Lista de Salas */}
+      <Box sx={{ mt: 2 }}>
       <AnimatePresence>
         <Grid container spacing={3}>
           {filteredSalas.map((sala, index) => (
@@ -925,35 +936,7 @@ const SalasPage = () => {
                         </Grid>
                       )}
                     </Grid>
-                    
-                    {/* Amenidades */}
-                    {sala.amenities && sala.amenities.length > 0 && (
-                      <Box sx={{ mt: 2 }}>
-                        <Typography variant="caption" color="text.secondary" gutterBottom>
-                          Amenidades:
-                        </Typography>
-                        <Box display="flex" flexWrap="wrap" gap={0.5} sx={{ mt: 0.5 }}>
-                          {sala.amenities.slice(0, 3).map(amenityId => {
-                            const amenity = availableAmenities.find(a => a.id === amenityId);
-                            return amenity ? (
-                              <Chip
-                                key={amenityId}
-                                label={amenity.label}
-                                size="small"
-                                variant="outlined"
-                              />
-                            ) : null;
-                          })}
-                          {sala.amenities.length > 3 && (
-                            <Chip
-                              label={`+${sala.amenities.length - 3} más`}
-                              size="small"
-                              variant="outlined"
-                            />
-                          )}
-                        </Box>
-                      </Box>
-                    )}
+
                   </CardContent>
                 </Card>
               </motion.div>
@@ -961,6 +944,7 @@ const SalasPage = () => {
           ))}
         </Grid>
       </AnimatePresence>
+      </Box>
 
       {/* Mensaje cuando no hay salas */}
       {filteredSalas.length === 0 && (
@@ -1054,9 +1038,11 @@ const SalasPage = () => {
         PaperProps={{
           sx: {
             borderRadius: 2,
-            background: theme.palette.mode === 'dark' 
-              ? alpha(theme.palette.background.paper, 0.9) 
-              : '#ffffff'
+            background: theme.palette.background.paper,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
           }
         }}
       >
@@ -1067,7 +1053,7 @@ const SalasPage = () => {
           borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
           background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.03)} 0%, ${alpha(theme.palette.background.paper, 0.8)} 100%)`
         }}>
-          <Box display="flex" alignItems="center" gap={2}>
+          <Box display="flex" alignItems="center" gap={3} sx={{ mb: 1 }}>
             <Box sx={{ 
               width: 48, 
               height: 48, 
@@ -1084,19 +1070,28 @@ const SalasPage = () => {
               <Typography variant="h6" fontWeight="600">
                 Agregar Nueva Sala
               </Typography>
-              <Typography variant="body2" sx={{ 
-                color: alpha(theme.palette.text.secondary, 0.8),
-                mt: 0.5 
-              }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                 Complete la información de la nueva sala
               </Typography>
             </Box>
           </Box>
         </DialogTitle>
         
-        <DialogContent sx={{ pt: 2 }}>
-          <Grid container spacing={3}>
+        <DialogContent sx={{ p: 3, pt: 5 }}>
+          <Grid container spacing={3.5}>
             {/* Información básica */}
+            <Grid item xs={12}>
+              <Typography variant="overline" sx={{ 
+                color: alpha(theme.palette.text.secondary, 0.7),
+                fontWeight: 600,
+                letterSpacing: 1.2,
+                mb: 2,
+                display: 'block'
+              }}>
+                Información Básica
+              </Typography>
+            </Grid>
+            
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
@@ -1105,11 +1100,20 @@ const SalasPage = () => {
                 onChange={(e) => handleFormChange('name', e.target.value)}
                 required
                 helperText="Nombre identificativo de la sala"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5
+                  }
+                }}
               />
             </Grid>
             
             <Grid item xs={12} md={6}>
-              <FormControl fullWidth required>
+              <FormControl fullWidth required sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1.5
+                }
+              }}>
                 <InputLabel>Empresa</InputLabel>
                 <Select
                   value={formData.companyId}
@@ -1125,60 +1129,42 @@ const SalasPage = () => {
               </FormControl>
             </Grid>
             
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Descripción"
-                value={formData.description}
-                onChange={(e) => handleFormChange('description', e.target.value)}
-                multiline
-                rows={3}
-                helperText="Descripción detallada de la sala y sus características"
-              />
-            </Grid>
-            
-            {/* Capacidad y tarifa */}
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Capacidad"
-                type="number"
-                value={formData.capacity}
-                onChange={(e) => handleFormChange('capacity', parseInt(e.target.value))}
-                InputProps={{
-                  endAdornment: <InputAdornment position="end">personas</InputAdornment>,
+                label="Proveedor Online"
+                value={formData.proveedorOnline ?? ''}
+                onChange={(e) => handleFormChange('proveedorOnline', e.target.value)}
+                helperText="Proveedor de servicios online"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5
+                  }
                 }}
-                helperText="Número máximo de personas"
               />
             </Grid>
             
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Tarifa por Hora"
-                type="number"
-                value={formData.hourlyRate}
-                onChange={(e) => handleFormChange('hourlyRate', parseInt(e.target.value))}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                label="Ciudad"
+                value={formData.ciudad ?? ''}
+                onChange={(e) => handleFormChange('ciudad', e.target.value)}
+                helperText="Ciudad donde se encuentra la sala"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5
+                  }
                 }}
-                helperText="Precio por hora de uso"
-              />
-            </Grid>
-            
-            {/* Ubicación y estado */}
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Ubicación"
-                value={formData.location}
-                onChange={(e) => handleFormChange('location', e.target.value)}
-                helperText="Ubicación física de la sala"
               />
             </Grid>
             
             <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
+              <FormControl fullWidth sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1.5
+                }
+              }}>
                 <InputLabel>Estado</InputLabel>
                 <Select
                   value={formData.status}
@@ -1186,73 +1172,134 @@ const SalasPage = () => {
                   label="Estado"
                 >
                   <MenuItem value="active">Activa</MenuItem>
-                  <MenuItem value="inactive">Inactiva</MenuItem>
-                  <MenuItem value="maintenance">En Mantenimiento</MenuItem>
+                  <MenuItem value="retired">Retirada</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
             
-            {/* Información de contacto */}
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Persona de Contacto"
-                value={formData.contactPerson}
-                onChange={(e) => handleFormChange('contactPerson', e.target.value)}
-                helperText="Responsable de la sala"
+                label="Propietario"
+                value={formData.propietario ?? ''}
+                onChange={(e) => handleFormChange('propietario', e.target.value)}
+                helperText="Propietario de la sala"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5
+                  }
+                }}
               />
             </Grid>
             
-            <Grid item xs={12} md={4}>
+            {/* Información de Contacto */}
+            <Grid item xs={12}>
+              <Typography variant="overline" sx={{ 
+                color: alpha(theme.palette.text.secondary, 0.7),
+                fontWeight: 600,
+                letterSpacing: 1.2,
+                mb: 2,
+                mt: 2,
+                display: 'block'
+              }}>
+                Información de Contacto
+              </Typography>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Teléfono de Contacto"
+                label="Contacto autorizado"
+                value={formData.contactoAutorizado ?? ''}
+                onChange={(e) => handleFormChange('contactoAutorizado', e.target.value)}
+                helperText="Persona autorizada para contacto"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5
+                  }
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Teléfono"
                 value={formData.contactPhone}
                 onChange={(e) => handleFormChange('contactPhone', e.target.value)}
                 helperText="Número de contacto"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5
+                  }
+                }}
               />
             </Grid>
             
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Email de Contacto"
+                label="E-mail de contacto"
                 type="email"
                 value={formData.contactEmail}
                 onChange={(e) => handleFormChange('contactEmail', e.target.value)}
-                helperText="Correo de contacto"
+                helperText="Correo electrónico de contacto"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5
+                  }
+                }}
               />
             </Grid>
             
-            {/* Amenidades */}
+            {/* Costos Adicionales */}
             <Grid item xs={12}>
-              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
-                Amenidades Disponibles
+              <Typography variant="overline" sx={{ 
+                color: alpha(theme.palette.text.secondary, 0.7),
+                fontWeight: 600,
+                letterSpacing: 1.2,
+                mb: 2,
+                mt: 2,
+                display: 'block'
+              }}>
+                Costos Adicionales
               </Typography>
-              <Grid container spacing={2}>
-                {availableAmenities.map(amenity => {
-                  const IconComponent = amenity.icon;
-                  return (
-                    <Grid item xs={12} sm={6} md={4} key={amenity.id}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={formData.amenities.includes(amenity.id)}
-                            onChange={() => handleAmenityToggle(amenity.id)}
-                            color="primary"
-                          />
-                        }
-                        label={
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <IconComponent fontSize="small" />
-                            {amenity.label}
-                          </Box>
-                        }
-                      />
-                    </Grid>
-                  );
-                })}
-              </Grid>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Administración"
+                value={formatCurrencyInput(formData.administracion || 0)}
+                onChange={(e) => {
+                  const numericValue = parseCurrencyValue(e.target.value);
+                  handleFormChange('administracion', numericValue);
+                }}
+                helperText="Costo de administración"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5
+                  }
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Conexión"
+                value={formatCurrencyInput(formData.conexion || 0)}
+                onChange={(e) => {
+                  const numericValue = parseCurrencyValue(e.target.value);
+                  handleFormChange('conexion', numericValue);
+                }}
+                helperText="Costo de conexión"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1.5
+                  }
+                }}
+              />
             </Grid>
           </Grid>
         </DialogContent>
@@ -1304,7 +1351,7 @@ const SalasPage = () => {
           borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
           background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.03)} 0%, ${alpha(theme.palette.background.paper, 0.8)} 100%)`
         }}>
-          <Box display="flex" alignItems="center" gap={2}>
+          <Box display="flex" alignItems="center" gap={3} sx={{ mb: 1 }}>
             <Box sx={{ 
               width: 48, 
               height: 48, 
@@ -1331,9 +1378,22 @@ const SalasPage = () => {
           </Box>
         </DialogTitle>
         
-        <DialogContent sx={{ pt: 2 }}>
-          <Grid container spacing={3}>
-            {/* Mismos campos que en agregar */}
+        <DialogContent sx={{ pt: 3, px: 3 }}>
+          <Grid container spacing={3.5}>
+            {/* Información básica */}
+            <Grid item xs={12}>
+              <Typography variant="overline" sx={{ 
+                color: alpha(theme.palette.text.secondary, 0.7),
+                fontWeight: 600,
+                letterSpacing: 1.2,
+                mb: 2,
+                display: 'block'
+              }}>
+                Información Básica
+              </Typography>
+            </Grid>
+            
+            {/* Mismos campos que en agregar, pero con valores del formData */}
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
@@ -1416,8 +1476,7 @@ const SalasPage = () => {
                   label="Estado"
                 >
                   <MenuItem value="active">Activa</MenuItem>
-                  <MenuItem value="inactive">Inactiva</MenuItem>
-                  <MenuItem value="maintenance">En Mantenimiento</MenuItem>
+                  <MenuItem value="retired">Retirada</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -1449,37 +1508,7 @@ const SalasPage = () => {
                 onChange={(e) => handleFormChange('contactEmail', e.target.value)}
               />
             </Grid>
-            
-            {/* Amenidades */}
-            <Grid item xs={12}>
-              <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 'bold' }}>
-                Amenidades Disponibles
-              </Typography>
-              <Grid container spacing={2}>
-                {availableAmenities.map(amenity => {
-                  const IconComponent = amenity.icon;
-                  return (
-                    <Grid item xs={12} sm={6} md={4} key={amenity.id}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={formData.amenities.includes(amenity.id)}
-                            onChange={() => handleAmenityToggle(amenity.id)}
-                            color="primary"
-                          />
-                        }
-                        label={
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <IconComponent fontSize="small" />
-                            {amenity.label}
-                          </Box>
-                        }
-                      />
-                    </Grid>
-                  );
-                })}
-              </Grid>
-            </Grid>
+
           </Grid>
         </DialogContent>
         
@@ -1668,32 +1697,6 @@ const SalasPage = () => {
                   )}
                 </List>
               </Grid>
-              
-              {/* Amenidades */}
-              {selectedSala.amenities && selectedSala.amenities.length > 0 && (
-                <Grid item xs={12}>
-                  <Typography variant="h6" gutterBottom>
-                    Amenidades
-                  </Typography>
-                  <Grid container spacing={2}>
-                    {selectedSala.amenities.map(amenityId => {
-                      const amenity = availableAmenities.find(a => a.id === amenityId);
-                      if (!amenity) return null;
-                      const IconComponent = amenity.icon;
-                      return (
-                        <Grid item xs={12} sm={6} md={4} key={amenityId}>
-                          <Paper sx={{ p: 2, textAlign: 'center', borderRadius: 2 }}>
-                            <IconComponent sx={{ fontSize: 32, color: 'primary.main', mb: 1 }} />
-                            <Typography variant="body2" fontWeight="bold">
-                              {amenity.label}
-                            </Typography>
-                          </Paper>
-                        </Grid>
-                      );
-                    })}
-                  </Grid>
-                </Grid>
-              )}
               
               {/* Metadatos */}
               <Grid item xs={12}>
