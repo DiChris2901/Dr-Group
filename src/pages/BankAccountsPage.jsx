@@ -755,7 +755,9 @@ const BankAccountsPage = () => {
                       {/* Información de cuenta */}
                       <Box sx={{ 
                         p: 2, 
-                        backgroundColor: 'grey.50',
+                        backgroundColor: theme.palette.mode === 'dark' 
+                          ? alpha(theme.palette.background.paper, 0.8)
+                          : 'grey.50',
                         borderRadius: 1,
                         mb: 2
                       }}>
@@ -916,7 +918,9 @@ const BankAccountsPage = () => {
                     {/* Información de cuenta */}
                     <Box sx={{ 
                       p: 2, 
-                      backgroundColor: 'grey.50',
+                      backgroundColor: theme.palette.mode === 'dark' 
+                        ? alpha(theme.palette.background.paper, 0.8)
+                        : 'grey.50',
                       borderRadius: 1,
                       mb: 2
                     }}>

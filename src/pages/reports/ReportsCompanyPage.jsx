@@ -426,16 +426,28 @@ const ReportsCompanyPage = () => {
     };
 
     const commonTooltipStyle = {
-      backgroundColor: theme.palette.background.paper,
-      border: `1px solid ${theme.palette.primary.main}`,
+      backgroundColor: theme.palette.mode === 'dark' 
+        ? alpha(theme.palette.background.paper, 0.95)
+        : theme.palette.background.paper,
+      border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
       borderRadius: 8,
-      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-      fontSize: '12px'
+      boxShadow: theme.palette.mode === 'dark'
+        ? '0 4px 12px rgba(0,0,0,0.4)'
+        : '0 4px 12px rgba(0,0,0,0.15)',
+      fontSize: '12px',
+      color: theme.palette.text.primary
     };
 
     const tooltipProps = {
       formatter: (value, name) => [formatCurrency(value), name],
-      contentStyle: commonTooltipStyle
+      contentStyle: commonTooltipStyle,
+      labelStyle: {
+        color: theme.palette.text.primary,
+        fontWeight: 600
+      },
+      itemStyle: {
+        color: theme.palette.text.primary
+      }
     };
 
     switch (chartType) {

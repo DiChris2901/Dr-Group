@@ -1357,7 +1357,11 @@ const ReportsConceptPage = () => {
           }}>
             <Table>
               <TableHead>
-                <TableRow sx={{ backgroundColor: 'grey.50' }}>
+                <TableRow sx={{ 
+                  backgroundColor: theme.palette.mode === 'dark'
+                    ? alpha(theme.palette.background.paper, 0.8)
+                    : 'grey.50'
+                }}>
                   <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Concepto</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Monto Total</TableCell>
                   <TableCell sx={{ fontWeight: 600, color: 'text.primary' }}>Compromisos</TableCell>

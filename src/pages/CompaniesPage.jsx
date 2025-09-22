@@ -1427,7 +1427,7 @@ const CompaniesPage = () => {
                     avatar={
                       <Avatar
                         sx={{
-                          backgroundColor: theme.palette.grey[100],
+                          backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.primary.main, 0.1) : theme.palette.grey[100],
                           color: theme.palette.primary.main,
                           width: 36,
                           height: 36,
@@ -1445,7 +1445,7 @@ const CompaniesPage = () => {
                     sx={{ 
                       pb: 0.5, 
                       pt: 1.5,
-                      backgroundColor: theme.palette.grey[50]
+                      backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.8) : theme.palette.grey[50]
                     }}
                   />
                   <CardContent sx={{ pt: 0, pb: 1.5 }}>

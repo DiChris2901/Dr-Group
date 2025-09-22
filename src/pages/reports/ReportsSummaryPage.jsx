@@ -354,7 +354,7 @@ const ReportsSummaryPage = () => {
       const canvas = document.createElement('canvas');
       canvas.width = 800;
       canvas.height = 400;
-      canvas.style.backgroundColor = 'white';
+      canvas.style.backgroundColor = theme.palette.mode === 'dark' ? theme.palette.background.paper : 'white';
       
       const ctx = canvas.getContext('2d');
       

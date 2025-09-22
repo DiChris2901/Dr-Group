@@ -3183,7 +3183,7 @@ useEffect(() => {
         PaperProps={{
           sx: {
             borderRadius: 2,
-            background: '#ffffff',
+            background: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.9) : '#ffffff',
             minHeight: '70vh',
             boxShadow: theme.shadows[8],
             border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
@@ -3194,7 +3194,7 @@ useEffect(() => {
           pb: 3,
           pt: 3,
           px: 3,
-          backgroundColor: '#ffffff',
+          backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.8) : '#ffffff',
           borderBottom: 'none'
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
@@ -4733,7 +4733,7 @@ useEffect(() => {
         PaperProps={{
           sx: {
             borderRadius: 3,
-            background: '#ffffff',
+            background: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.9) : '#ffffff',
             overflow: 'hidden',
             border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
           }
@@ -4745,7 +4745,7 @@ useEffect(() => {
           pb: 3,
           pt: 3,
           px: 3,
-          backgroundColor: '#ffffff',
+          backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.8) : '#ffffff',
           borderBottom: 'none'
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>

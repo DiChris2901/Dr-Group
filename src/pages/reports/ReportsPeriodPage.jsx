@@ -467,11 +467,23 @@ const ReportsPeriodPage = () => {
     const tooltipProps = {
       formatter: (value) => [formatCurrency(value), 'Monto'],
       contentStyle: {
-        backgroundColor: theme.palette.background.paper,
-        border: `1px solid ${colors[0]}`,
+        backgroundColor: theme.palette.mode === 'dark' 
+          ? alpha(theme.palette.background.paper, 0.95)
+          : theme.palette.background.paper,
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
         borderRadius: 8,
         fontSize: '14px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+        boxShadow: theme.palette.mode === 'dark'
+          ? '0 4px 12px rgba(0,0,0,0.4)'
+          : '0 4px 12px rgba(0,0,0,0.1)',
+        color: theme.palette.text.primary
+      },
+      labelStyle: {
+        color: theme.palette.text.primary,
+        fontWeight: 600
+      },
+      itemStyle: {
+        color: theme.palette.text.primary
       }
     };
 
@@ -565,11 +577,23 @@ const ReportsPeriodPage = () => {
     const tooltipProps = {
       formatter: (value) => [value, 'Compromisos'],
       contentStyle: {
-        backgroundColor: theme.palette.background.paper,
-        border: `1px solid ${colors[1]}`,
+        backgroundColor: theme.palette.mode === 'dark' 
+          ? alpha(theme.palette.background.paper, 0.95)
+          : theme.palette.background.paper,
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
         borderRadius: 8,
         fontSize: '14px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+        boxShadow: theme.palette.mode === 'dark'
+          ? '0 4px 12px rgba(0,0,0,0.4)'
+          : '0 4px 12px rgba(0,0,0,0.1)',
+        color: theme.palette.text.primary
+      },
+      labelStyle: {
+        color: theme.palette.text.primary,
+        fontWeight: 600
+      },
+      itemStyle: {
+        color: theme.palette.text.primary
       }
     };
 
@@ -1539,7 +1563,9 @@ const ReportsPeriodPage = () => {
               <Table>
                 <TableHead>
                   <TableRow sx={{ 
-                    backgroundColor: theme.palette.grey[50],
+                    backgroundColor: theme.palette.mode === 'dark'
+                      ? alpha(theme.palette.background.paper, 0.8)
+                      : theme.palette.grey[50],
                     '& th': { 
                       fontWeight: 600,
                       color: 'text.primary'

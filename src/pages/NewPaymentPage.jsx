@@ -2147,9 +2147,13 @@ const NewPaymentPage = () => {
                         <Grid item xs={12} sm={8}>
                           <Box sx={{ 
                             p: 1.5,
-                            bgcolor: 'grey.50',
+                            bgcolor: theme.palette.mode === 'dark' 
+                              ? alpha(theme.palette.background.paper, 0.8)
+                              : 'grey.50',
                             border: '1px solid',
-                            borderColor: 'grey.300',
+                            borderColor: theme.palette.mode === 'dark'
+                              ? alpha(theme.palette.divider, 0.3)
+                              : 'grey.300',
                             borderRadius: 1,
                             display: 'flex',
                             alignItems: 'center',
@@ -2417,7 +2421,13 @@ const NewPaymentPage = () => {
                             {/* Información del compromiso */}
                             <Grid container spacing={2} sx={{ ml: 4, mb: 2 }}>
                               <Grid item xs={12} sm={4}>
-                                <Box sx={{ p: 1.5, bgcolor: 'grey.50', borderRadius: 1 }}>
+                                <Box sx={{ 
+                                  p: 1.5, 
+                                  bgcolor: theme.palette.mode === 'dark' 
+                                    ? alpha(theme.palette.background.paper, 0.8)
+                                    : 'grey.50', 
+                                  borderRadius: 1 
+                                }}>
                                   <Typography variant="caption" color="text.secondary">
                                     Monto Original
                                   </Typography>
@@ -2429,7 +2439,13 @@ const NewPaymentPage = () => {
                               
                               {selectedCommitment.hasPartialPayments && (
                                 <Grid item xs={12} sm={4}>
-                                  <Box sx={{ p: 1.5, bgcolor: 'success.50', borderRadius: 1 }}>
+                                  <Box sx={{ 
+                                    p: 1.5, 
+                                    bgcolor: theme.palette.mode === 'dark' 
+                                      ? alpha(theme.palette.success.main, 0.1)
+                                      : 'success.50', 
+                                    borderRadius: 1 
+                                  }}>
                                     <Typography variant="caption" color="text.secondary">
                                       Total Pagado
                                     </Typography>
@@ -2441,7 +2457,13 @@ const NewPaymentPage = () => {
                               )}
                               
                               <Grid item xs={12} sm={4}>
-                                <Box sx={{ p: 1.5, bgcolor: 'warning.50', borderRadius: 1 }}>
+                                <Box sx={{ 
+                                  p: 1.5, 
+                                  bgcolor: theme.palette.mode === 'dark' 
+                                    ? alpha(theme.palette.warning.main, 0.1)
+                                    : 'warning.50', 
+                                  borderRadius: 1 
+                                }}>
                                   <Typography variant="caption" color="text.secondary">
                                     Saldo Pendiente
                                   </Typography>
@@ -3061,10 +3083,14 @@ const NewPaymentPage = () => {
                     <Box sx={{ 
                       mb: 2, 
                       p: 1.5, 
-                      bgcolor: 'grey.50', 
+                      bgcolor: theme.palette.mode === 'dark' 
+                        ? alpha(theme.palette.background.paper, 0.8)
+                        : 'grey.50', 
                       borderRadius: 1,
                       border: '1px solid',
-                      borderColor: 'grey.200'
+                      borderColor: theme.palette.mode === 'dark'
+                        ? alpha(theme.palette.divider, 0.3)
+                        : 'grey.200'
                     }}>
                       <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
                         {selectedCommitment.companyName}
@@ -3320,7 +3346,9 @@ const NewPaymentPage = () => {
 
         <DialogContent sx={{ 
           p: 0, 
-          backgroundColor: '#f5f5f5',
+          backgroundColor: theme.palette.mode === 'dark'
+            ? alpha(theme.palette.background.default, 0.5)
+            : '#f5f5f5',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden'
@@ -3342,7 +3370,9 @@ const NewPaymentPage = () => {
                     width: '100%',
                     height: '100%',
                     border: 'none',
-                    backgroundColor: 'white'
+                    backgroundColor: theme.palette.mode === 'dark' 
+                      ? alpha(theme.palette.background.paper, 0.8)
+                      : 'white'
                   }}
                   title="Factura del Compromiso"
                 />

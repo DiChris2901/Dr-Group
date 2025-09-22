@@ -385,7 +385,7 @@ const PaymentReceiptViewer = ({
             transition: { duration: 0.3, ease: [0.4, 0, 0.2, 1] },
             sx: {
               borderRadius: 1,
-              background: 'white',
+              background: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.9) : 'white',
               backdropFilter: 'blur(24px)',
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
               border: `1px solid ${tokens.getBorder('soft')}`,
@@ -420,7 +420,7 @@ const PaymentReceiptViewer = ({
                     sx={{
                       p: 3,
                       borderRadius: 2,
-                      backgroundColor: 'white',
+                      backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.8) : 'white',
                       border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                       boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                       display: 'flex',
@@ -473,7 +473,7 @@ const PaymentReceiptViewer = ({
                     sx={{
                       p: 3,
                       borderRadius: 2,
-                      backgroundColor: 'white',
+                      backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.8) : 'white',
                       border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                       boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                       display: 'flex',
@@ -526,7 +526,7 @@ const PaymentReceiptViewer = ({
                     sx={{
                       p: 3,
                       borderRadius: 2,
-                      backgroundColor: 'white',
+                      backgroundColor: theme.palette.mode === 'dark' ? alpha(theme.palette.background.paper, 0.8) : 'white',
                       border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                       boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                       display: 'flex',

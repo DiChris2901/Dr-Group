@@ -1103,7 +1103,9 @@ const DueCommitmentsPage = () => {
                 sx={{
                   p: 2.5,
                   height: 130,
-                  background: '#ffffff',
+                  background: theme.palette.mode === 'dark' 
+                    ? alpha(theme.palette.background.paper, 0.8)
+                    : '#ffffff',
                   borderRadius: 0.75,
                   border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                   boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
@@ -1197,7 +1199,9 @@ const DueCommitmentsPage = () => {
               mb: 3,
               borderRadius: 0.75,
               border: `1px solid ${alpha(theme.palette.error.main, 0.6)}`,
-              background: '#ffffff',
+              background: theme.palette.mode === 'dark' 
+                ? alpha(theme.palette.background.paper, 0.8)
+                : '#ffffff',
               boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
             }}
           >
@@ -1229,7 +1233,9 @@ const DueCommitmentsPage = () => {
             mb: 3,
             borderRadius: 0.75,
             border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-            background: '#ffffff',
+            background: theme.palette.mode === 'dark' 
+              ? alpha(theme.palette.background.paper, 0.8)
+              : '#ffffff',
             boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
           }}
         >
