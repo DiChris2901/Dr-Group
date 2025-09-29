@@ -14,6 +14,7 @@ import LoginForm from './components/auth/LoginForm';
 import AdminOnlyRoute from './components/auth/AdminOnlyRoute';
 import BackgroundProvider from './components/layout/BackgroundProvider';
 import MainLayout from './components/layout/MainLayout';
+import PWAInstallPrompt from './components/common/PWAInstallPrompt';
 
 // Pages
 import WelcomeDashboardSimple from './components/dashboard/WelcomeDashboardSimple';
@@ -360,6 +361,9 @@ const AppContent = () => {
           {/* Rutas principales */}
           <Route path="/*" element={currentUser ? <DashboardLayout /> : <LoginForm />} />
         </Routes>
+        
+        {/* Componente PWA Install Prompt */}
+        <PWAInstallPrompt />
       </BackgroundProvider>
     </Router>
   );
