@@ -13,279 +13,181 @@ import {
   Box,
   Alert,
   IconButton,
-  Divider
+  Divider,
+  Chip,
+  Grid,
+  Card,
+  CardContent
 } from '@mui/material';
 import {
   Close,
-  WhatsApp,
+  Email,
+  Telegram,
   Notifications,
-  Settings
+  Settings,
+  CheckCircle,
+  Send
 } from '@mui/icons-material';
 import { doc, updateDoc, getFirestore, getDoc } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
+import { useEmailNotifications } from '../../hooks/useEmailNotifications';
 
 const NotificationSettingsModal = ({ open, onClose, user }) => {
   const { user: currentUser } = useAuth();
   const { addNotification } = useNotifications();
+  const { sendTestNotification, isLoading: emailLoading } = useEmailNotifications();
+  
   const [settings, setSettings] = useState({
-    phoneNumber: '',
-    // Compromisos próximos a vencer
+    emailEnabled: true,
+    telegramEnabled: false,
+    telegramChatId: '',
+    userCreated: false,
+    userUpdated: false,
+    roleChanged: false,
     commitments15Days: false,
     commitments7Days: false,
     commitments2Days: false,
     commitmentsDueToday: false,
-    // Nuevos compromisos
     newCommitments: false,
-    // Eventos automáticos
     automaticEvents: false
   });
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [templateSending, setTemplateSending] = useState(false);
-  const [templateSuccess, setTemplateSuccess] = useState(false);
-  const [templateError, setTemplateError] = useState('');
-  const [templateTest, setTemplateTest] = useState({
-    contentSid: '',
-    variables: JSON.stringify({ company: 'DR Group', user: user?.displayName || user?.email || 'Usuario' })
-  });
 
-  // Cargar configuración actual del usuario
   useEffect(() => {
     const loadUserSettings = async () => {
       if (!user?.id) return;
       
       try {
-        // Limpiar settings previos
-        setSettings({
-          phoneNumber: '',
-          commitments15Days: false,
-          commitments7Days: false,
-          commitments2Days: false,
-          commitmentsDueToday: false,
-          newCommitments: false,
-          automaticEvents: false
-        });
-        
         const db = getFirestore();
-        const userDoc = await doc(db, 'users', user.id);
+        const userDoc = doc(db, 'users', user.id);
         const userData = await getDoc(userDoc);
         
         if (userData.exists() && userData.data().notificationSettings) {
-          console.log('📱 Cargando configuración de notificaciones para:', user.email);
-          console.log('🔧 Configuración encontrada:', userData.data().notificationSettings);
-          
           setSettings(prev => ({
             ...prev,
             ...userData.data().notificationSettings
           }));
-        } else {
-          console.log('📱 No hay configuración de notificaciones para:', user.email);
         }
       } catch (error) {
-        console.error('❌ Error cargando configuración:', error);
+        console.error('Error cargando configuración:', error);
       }
     };
     
     if (open && user) {
       loadUserSettings();
+      setError('');
+      setSuccess(false);
     }
   }, [user, open]);
 
-  // Validar número telefónico colombiano
-  const validatePhoneNumber = (phone) => {
-    // Formato: +57XXXXXXXXXX (10 dígitos después del +57)
-    const colombianPhoneRegex = /^\+57[3][0-9]{9}$/;
-    return colombianPhoneRegex.test(phone);
-  };
-
-  const handlePhoneChange = (e) => {
-    let value = e.target.value;
-    
-    // Auto-formatear número
-    if (value && !value.startsWith('+57')) {
-      if (value.startsWith('57')) {
-        value = '+' + value;
-      } else if (value.startsWith('3')) {
-        value = '+57' + value;
-      } else {
-        value = '+57' + value;
-      }
-    }
-    
-    setSettings(prev => ({ ...prev, phoneNumber: value }));
-    setError('');
-  };
-
-  const handleCheckboxChange = (field) => (e) => {
+  const handleCheckboxChange = (field) => (event) => {
     setSettings(prev => ({
       ...prev,
-      [field]: e.target.checked
+      [field]: event.target.checked
     }));
   };
 
   const handleSave = async () => {
+    if (!user?.id) return;
+    
+    if (settings.telegramEnabled && !settings.telegramChatId) {
+      setError('Por favor ingresa tu Chat ID de Telegram');
+      return;
+    }
+
+    if (!settings.emailEnabled && !settings.telegramEnabled) {
+      setError('Debes activar al menos un canal de notificación');
+      return;
+    }
+
     setLoading(true);
     setError('');
-
+    
     try {
-      // Validar número si está presente
-      if (settings.phoneNumber && !validatePhoneNumber(settings.phoneNumber)) {
-        throw new Error('Número de teléfono inválido. Formato: +57XXXXXXXXXX');
-      }
-
-      // Si hay notificaciones habilitadas, el número es obligatorio
-      const hasNotificationsEnabled = Object.values(settings).some((value, index) => 
-        index > 0 && value === true // Excluir phoneNumber del check
-      );
-
-      if (hasNotificationsEnabled && !settings.phoneNumber) {
-        throw new Error('Número de teléfono es obligatorio para recibir notificaciones');
-      }
-
       const db = getFirestore();
-      const userRef = doc(db, 'users', user.id);
-
-      await updateDoc(userRef, {
-        notificationSettings: settings
+      const userDocRef = doc(db, 'users', user.id);
+      
+      await updateDoc(userDocRef, {
+        notificationSettings: settings,
+        updatedAt: new Date()
       });
-
+      
       setSuccess(true);
-      setTimeout(() => {
-        setSuccess(false);
-        onClose();
-      }, 2000);
-
+      addNotification({
+        type: 'success',
+        title: 'Configuración Guardada',
+        message: `Notificaciones configuradas para ${user.displayName || user.email}`,
+        icon: 'notifications'
+      });
+      
+      setTimeout(() => onClose(), 2000);
+      
     } catch (error) {
       console.error('Error guardando configuración:', error);
-      setError(error.message);
+      setError('Error al guardar la configuración');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleTestNotification = async () => {
-    if (!settings.phoneNumber || !validatePhoneNumber(settings.phoneNumber)) {
-      setError('Ingresa un número válido para probar');
-      return;
-    }
+  const handleTestNotification = async (channel) => {
+    if (channel === 'email') {
+      try {
+        addNotification({
+          type: 'info',
+          title: 'Enviando Prueba',
+          message: 'Enviando correo de prueba...',
+          icon: 'email'
+        });
 
-    try {
-      setLoading(true);
-      setError('');
-      
-      console.log('🚀 Iniciando prueba de WhatsApp...');
-      console.log('📱 Número:', settings.phoneNumber);
-      console.log('👤 Usuario:', user?.email);
-      
-      // Inicializar Firebase Functions
-      const functions = getFunctions();
-      console.log('⚡ Functions inicializadas:', !!functions);
-      
-      const testFunction = httpsCallable(functions, 'testWhatsAppNotification');
-      console.log('🔧 Función obtenida:', !!testFunction);
-      
-      const messageData = {
-        phoneNumber: settings.phoneNumber, 
-        message: '🔔 ¡Prueba exitosa! Tu notificación de DR Group Dashboard funciona correctamente ✅\n\n📱 Este número está configurado para recibir alertas de compromisos financieros.\n\n🏢 Enviado desde WhatsApp Business API',
-        useBusinessAPI: true // Usar Business API por defecto
-      };
-      
-      console.log('📨 Enviando datos:', messageData);
-      
-      // Enviar mensaje de prueba
-      const result = await testFunction(messageData);
-      
-      console.log('📬 Respuesta recibida:', result);
-      console.log('✅ Data:', result.data);
-      
-      if (result.data && result.data.success) {
-        console.log('🎉 Mensaje enviado exitosamente!');
-        console.log('📡 Método:', result.data.method);
-        setSuccess(true);
-        // Mostrar notificación de éxito usando el contexto
+        await sendTestNotification({
+          userEmail: user?.email || currentUser?.email || 'test@drgroup.com',
+          userName: user?.displayName || user?.name || 'Usuario de Prueba',
+          testType: 'email_config'
+        });
+
+        // Verificar si fue modo demo o real
+        const isDemoMode = !import.meta.env.VITE_EMAILJS_SERVICE_ID || 
+                          import.meta.env.VITE_EMAILJS_SERVICE_ID === 'tu-service-id-aqui';
+        
         addNotification({
           type: 'success',
-          title: '🎉 Mensaje Enviado',
-          message: `Revisa tu WhatsApp ${settings.phoneNumber}`,
-          icon: 'check_circle'
+          title: isDemoMode ? '🎭 Demo - Email Simulado' : '✅ Email Enviado',
+          message: isDemoMode 
+            ? 'Email simulado enviado (configura EmailJS para envío real)'
+            : 'El correo de prueba fue enviado correctamente',
+          icon: 'email'
         });
-      } else {
-        console.error('❌ Error en la respuesta:', result.data);
-        throw new Error(result.data?.error || 'Error desconocido en el envío');
+      } catch (error) {
+        console.error('Error enviando email de prueba:', error);
+        addNotification({
+          type: 'error',
+          title: '❌ Error en Email',
+          message: error.message || 'Error al enviar el correo de prueba',
+          icon: 'email'
+        });
       }
-      
-    } catch (error) {
-      console.error('❌ Error enviando prueba:', error);
-      setError(`Error enviando mensaje: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTemplateChange = (field) => (e) => {
-    setTemplateTest(prev => ({ ...prev, [field]: e.target.value }));
-    setTemplateError('');
-  };
-
-  const handleSendTemplate = async () => {
-    if (!settings.phoneNumber || !validatePhoneNumber(settings.phoneNumber)) {
-      setTemplateError('Ingresa un número válido para probar');
-      return;
-    }
-    if (!templateTest.contentSid) {
-      setTemplateError('Ingresa el Content SID de la plantilla aprobada');
-      return;
-    }
-    let variablesObj = {};
-    try {
-      if (templateTest.variables) {
-        variablesObj = JSON.parse(templateTest.variables);
-      }
-    } catch (e) {
-      setTemplateError('JSON de variables inválido');
-      return;
-    }
-    try {
-      setTemplateSending(true);
-      setTemplateError('');
-      setTemplateSuccess(false);
-      const functions = getFunctions();
-      const sendTemplateFn = httpsCallable(functions, 'sendWhatsAppTemplate');
-      const result = await sendTemplateFn({
-        phoneNumber: settings.phoneNumber,
-        contentSid: templateTest.contentSid.trim(),
-        variables: variablesObj
+    } else if (channel === 'telegram') {
+      addNotification({
+        type: 'info',
+        title: 'Telegram en Desarrollo',
+        message: 'La integración con Telegram está en desarrollo...',
+        icon: 'telegram'
       });
-      if (result.data?.success) {
-        setTemplateSuccess(true);
-        addNotification({
-          type: 'success',
-          title: 'Plantilla Enviada',
-          message: `Template enviado a ${settings.phoneNumber}`,
-          icon: 'sms'
-        });
-      } else {
-        setTemplateError(result.data?.error || 'Fallo al enviar plantilla');
-      }
-    } catch (err) {
-      console.error('Error enviando plantilla:', err);
-      setTemplateError(err.message);
-    } finally {
-      setTemplateSending(false);
     }
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <WhatsApp color="success" />
+          <Notifications color="primary" />
           <Typography variant="h6">
-            Configuración de Notificaciones
+            Configuración de Notificaciones - Email + Telegram
           </Typography>
         </Box>
         <IconButton onClick={onClose} size="small">
@@ -306,181 +208,210 @@ const NotificationSettingsModal = ({ open, onClose, user }) => {
           </Alert>
         )}
 
-        {/* Configuración de Teléfono */}
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Settings fontSize="small" />
-            Número de WhatsApp
+        <Box sx={{ mb: 3, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
+          <Typography variant="subtitle2" color="text.secondary">
+            Configurando para:
           </Typography>
-          <TextField
-            fullWidth
-            label="Número de teléfono"
-            value={settings.phoneNumber}
-            onChange={handlePhoneChange}
-            placeholder="+573001234567"
-            helperText="Formato: +57 seguido de 10 dígitos (números celulares colombianos)"
-            variant="outlined"
-            size="small"
-          />
-          
-          {settings.phoneNumber && validatePhoneNumber(settings.phoneNumber) && (
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={handleTestNotification}
-              disabled={loading}
-              sx={{ mt: 1 }}
-            >
-              Enviar Prueba
-            </Button>
-          )}
+          <Typography variant="h6">
+            {user?.displayName || user?.email || 'Usuario'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {user?.email}
+          </Typography>
         </Box>
 
+        <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+          <Settings fontSize="small" />
+          Canales de Notificación
+        </Typography>
+
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid item xs={12} md={6}>
+            <Card sx={{ 
+              border: settings.emailEnabled ? '2px solid #1976d2' : '1px solid #e0e0e0',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              '&:hover': { transform: 'translateY(-2px)', boxShadow: 2 }
+            }}
+            onClick={() => setSettings(prev => ({ ...prev, emailEnabled: !prev.emailEnabled }))}
+            >
+              <CardContent sx={{ textAlign: 'center', py: 2 }}>
+                <Email sx={{ fontSize: 40, color: settings.emailEnabled ? '#1976d2' : '#9e9e9e', mb: 1 }} />
+                <Typography variant="h6" gutterBottom>Email</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  📧 Formal • Registro permanente
+                </Typography>
+                <Chip 
+                  label={settings.emailEnabled ? "✅ Activado" : "⭕ Desactivado"}
+                  color={settings.emailEnabled ? "primary" : "default"}
+                  size="small"
+                />
+                {settings.emailEnabled && (
+                  <Box sx={{ mt: 1 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<Send />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTestNotification('email');
+                      }}
+                      disabled={emailLoading}
+                    >
+                      {emailLoading ? 'Enviando...' : 'Prueba'}
+                    </Button>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Card sx={{ 
+              border: settings.telegramEnabled ? '2px solid #0088cc' : '1px solid #e0e0e0',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              '&:hover': { transform: 'translateY(-2px)', boxShadow: 2 }
+            }}
+            onClick={() => setSettings(prev => ({ ...prev, telegramEnabled: !prev.telegramEnabled }))}
+            >
+              <CardContent sx={{ textAlign: 'center', py: 2 }}>
+                <Telegram sx={{ fontSize: 40, color: settings.telegramEnabled ? '#0088cc' : '#9e9e9e', mb: 1 }} />
+                <Typography variant="h6" gutterBottom>Telegram</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  🚀 Instantáneo • Siempre visible
+                </Typography>
+                <Chip 
+                  label={settings.telegramEnabled ? "✅ Activado" : "⭕ Desactivado"}
+                  color={settings.telegramEnabled ? "info" : "default"}
+                  size="small"
+                />
+                {settings.telegramEnabled && settings.telegramChatId && (
+                  <Box sx={{ mt: 1 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<Send />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTestNotification('telegram');
+                      }}
+                    >
+                      Prueba
+                    </Button>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        {settings.telegramEnabled && (
+          <Box sx={{ mb: 3, p: 2, bgcolor: '#f0f8ff', borderRadius: 1, border: '1px solid #0088cc' }}>
+            <Typography variant="subtitle2" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Telegram fontSize="small" color="info" />
+              Configuración de Telegram
+            </Typography>
+            <TextField
+              fullWidth
+              label="Chat ID o @username"
+              value={settings.telegramChatId}
+              onChange={(e) => setSettings(prev => ({ ...prev, telegramChatId: e.target.value }))}
+              placeholder="@usuario o 123456789"
+              helperText="Tu Chat ID de Telegram. Busca @drgroup_bot y envía /start para obtenerlo."
+              variant="outlined"
+              size="small"
+              sx={{ mb: 1 }}
+            />
+            
+            <Alert severity="info" sx={{ mt: 1 }}>
+              💡 <strong>¿Cómo obtener tu Chat ID?</strong><br/>
+              1. Busca @drgroup_bot en Telegram<br/>
+              2. Envía /start<br/>
+              3. Copia el Chat ID que te envíe
+            </Alert>
+          </Box>
+        )}
+
         <Divider sx={{ my: 2 }} />
 
-        {/* Prueba de Plantilla WhatsApp Business */}
-        <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <WhatsApp fontSize="small" color="success" />
-          Prueba de Plantilla (Business API)
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Usa una plantilla aprobada para iniciar una conversación fuera de la ventana de 24h. Ingresa el Content SID y variables opcionales (JSON).
-        </Typography>
-        {templateError && (
-          <Alert severity="error" sx={{ mb: 1 }}>{templateError}</Alert>
-        )}
-        {templateSuccess && (
-          <Alert severity="success" sx={{ mb: 1 }}>✅ Plantilla enviada (revisa estado en WhatsApp)</Alert>
-        )}
-        <TextField
-          fullWidth
-          label="Content SID de la Plantilla"
-          placeholder="HXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-          value={templateTest.contentSid}
-          onChange={handleTemplateChange('contentSid')}
-          size="small"
-          sx={{ mb: 1 }}
-        />
-        <TextField
-          fullWidth
-          multiline
-          minRows={2}
-          label="Variables (JSON)"
-          value={templateTest.variables}
-          onChange={handleTemplateChange('variables')}
-          size="small"
-          sx={{ mb: 1, fontFamily: 'monospace' }}
-        />
-        <Button
-          variant="contained"
-          color="success"
-          onClick={handleSendTemplate}
-          disabled={templateSending || loading}
-          startIcon={<WhatsApp />}
-          sx={{ mb: 2 }}
-        >
-          {templateSending ? 'Enviando...' : 'Enviar Plantilla'}
-        </Button>
-
-        <Divider sx={{ my: 2 }} />
-
-        {/* Configuración de Notificaciones */}
         <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Notifications fontSize="small" />
           Tipos de Notificaciones
         </Typography>
 
         <FormGroup>
-          {/* Compromisos Próximos a Vencer */}
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 1 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 1, fontWeight: 600 }}>
+            👥 Gestión de Usuarios:
+          </Typography>
+          <FormControlLabel
+            control={<Checkbox checked={settings.userCreated} onChange={handleCheckboxChange('userCreated')} color="success" />}
+            label="Cuando se crea un nuevo usuario"
+          />
+          <FormControlLabel
+            control={<Checkbox checked={settings.userUpdated} onChange={handleCheckboxChange('userUpdated')} color="primary" />}
+            label="Cuando se actualiza información del usuario"
+          />
+          <FormControlLabel
+            control={<Checkbox checked={settings.roleChanged} onChange={handleCheckboxChange('roleChanged')} color="warning" />}
+            label="Cuando cambian roles o permisos"
+          />
+
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 1, fontWeight: 600 }}>
             📅 Compromisos Próximos a Vencer:
           </Typography>
           <FormControlLabel
-            control={
-              <Checkbox
-                checked={settings.commitments15Days}
-                onChange={handleCheckboxChange('commitments15Days')}
-                color="primary"
-              />
-            }
+            control={<Checkbox checked={settings.commitments15Days} onChange={handleCheckboxChange('commitments15Days')} color="primary" />}
             label="15 días antes del vencimiento"
           />
           <FormControlLabel
-            control={
-              <Checkbox
-                checked={settings.commitments7Days}
-                onChange={handleCheckboxChange('commitments7Days')}
-                color="primary"
-              />
-            }
+            control={<Checkbox checked={settings.commitments7Days} onChange={handleCheckboxChange('commitments7Days')} color="primary" />}
             label="1 semana antes del vencimiento"
           />
           <FormControlLabel
-            control={
-              <Checkbox
-                checked={settings.commitments2Days}
-                onChange={handleCheckboxChange('commitments2Days')}
-                color="warning"
-              />
-            }
+            control={<Checkbox checked={settings.commitments2Days} onChange={handleCheckboxChange('commitments2Days')} color="warning" />}
             label="2 días antes del vencimiento"
           />
           <FormControlLabel
-            control={
-              <Checkbox
-                checked={settings.commitmentsDueToday}
-                onChange={handleCheckboxChange('commitmentsDueToday')}
-                color="error"
-              />
-            }
+            control={<Checkbox checked={settings.commitmentsDueToday} onChange={handleCheckboxChange('commitmentsDueToday')} color="error" />}
             label="El día del vencimiento"
           />
 
-          {/* Nuevos Compromisos */}
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 1 }}>
-            📝 Nuevos Compromisos:
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 1, fontWeight: 600 }}>
+            📝 Otros:
           </Typography>
           <FormControlLabel
-            control={
-              <Checkbox
-                checked={settings.newCommitments}
-                onChange={handleCheckboxChange('newCommitments')}
-                color="success"
-              />
-            }
-            label="Notificar cuando se agreguen compromisos"
+            control={<Checkbox checked={settings.newCommitments} onChange={handleCheckboxChange('newCommitments')} color="success" />}
+            label="Nuevos compromisos agregados"
           />
-
-          {/* Eventos Automáticos */}
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2, mb: 1 }}>
-            🤖 Eventos Automáticos:
-          </Typography>
           <FormControlLabel
-            control={
-              <Checkbox
-                checked={settings.automaticEvents}
-                onChange={handleCheckboxChange('automaticEvents')}
-                color="info"
-              />
-            }
-            label="Coljuegos, Parafiscales y UIAF"
+            control={<Checkbox checked={settings.automaticEvents} onChange={handleCheckboxChange('automaticEvents')} color="info" />}
+            label="Eventos automáticos (Coljuegos, Parafiscales, UIAF)"
           />
         </FormGroup>
 
         <Alert severity="info" sx={{ mt: 2 }}>
-          📱 Las notificaciones se envían a las 9:00 AM (hora de Colombia) solo en días hábiles.
+          📱 Las notificaciones se envían a las 9:00 AM (Colombia) solo en días hábiles.
         </Alert>
+
+        <Box sx={{ mt: 2, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
+          <Typography variant="subtitle2" gutterBottom>📊 Resumen:</Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {settings.emailEnabled && <Chip label="📧 Email" color="primary" size="small" />}
+            {settings.telegramEnabled && <Chip label="🤖 Telegram" color="info" size="small" />}
+          </Box>
+        </Box>
       </DialogContent>
 
-      <DialogActions>
+      <DialogActions sx={{ p: 3 }}>
         <Button onClick={onClose} disabled={loading}>
           Cancelar
         </Button>
-        <Button 
-          onClick={handleSave} 
-          variant="contained" 
-          disabled={loading}
-          startIcon={loading ? undefined : <WhatsApp />}
+        <Button
+          variant="contained"
+          onClick={handleSave}
+          disabled={loading || (!settings.emailEnabled && !settings.telegramEnabled)}
+          startIcon={loading ? <CheckCircle /> : <Settings />}
         >
           {loading ? 'Guardando...' : 'Guardar Configuración'}
         </Button>

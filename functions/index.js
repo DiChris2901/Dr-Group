@@ -7,19 +7,8 @@ const { getStorage } = require('firebase-admin/storage');
 // Inicializar Firebase Admin
 initializeApp();
 
-// Importar funciones de WhatsApp
-const {
-  notifyNewCommitment,
-  dailyNotificationCheck,
-  testWhatsAppNotification,
-  sendWhatsAppTemplate
-} = require('./whatsapp-notifications');
-
-// Exportar funciones de WhatsApp
-exports.notifyNewCommitment = notifyNewCommitment;
-exports.dailyNotificationCheck = dailyNotificationCheck;
-exports.testWhatsAppNotification = testWhatsAppNotification;
-exports.sendWhatsAppTemplate = sendWhatsAppTemplate;
+// Importar funciones de notificaciones (Email + Telegram)
+// TODO: Implementar nuevas funciones de notificaciones
 
 /**
  * Cloud Function para eliminar usuario completo (Auth + Firestore)
