@@ -15,6 +15,8 @@ export const useDashboardStats = () => {
     totalAmount: 0,
     paidAmount: 0,
     pendingAmount: 0,
+    currentMonthPayments: 0,
+    currentMonthPaymentAmount: 0,
     loading: true,
     error: null
   });
@@ -41,10 +43,15 @@ export const useDashboardStats = () => {
 
         // Calcular estadísticas
         const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        
         let pendingCommitments = 0;
         let overDueCommitments = 0;
         let completedCommitments = 0;
         let activeCommitments = 0; // Compromisos activos (no pagados)
+        let currentMonthPayments = 0;
+        let currentMonthPaymentAmount = 0;
         
         // Objeto para manejar montos
         const amounts = {
@@ -108,6 +115,24 @@ export const useDashboardStats = () => {
             completedCommitments++;
             amounts.paid += amount;
             console.log('✅ Compromiso marcado como PAGADO');
+            
+            // Verificar si el pago fue en el mes actual
+            // Usar la fecha de modificación o creación como referencia de pago
+            const paymentDate = commitment.updatedAt?.toDate ? commitment.updatedAt.toDate() : 
+                               commitment.createdAt?.toDate ? commitment.createdAt.toDate() : 
+                               commitment.dueDate; // fallback a dueDate
+            
+            if (paymentDate && 
+                paymentDate.getMonth() === currentMonth && 
+                paymentDate.getFullYear() === currentYear) {
+              currentMonthPayments++;
+              currentMonthPaymentAmount += amount;
+              console.log('💳 Pago del mes actual detectado:', {
+                amount,
+                paymentDate,
+                description: commitment.description
+              });
+            }
           } else {
             // Si no está pagado, es activo y pendiente
             activeCommitments++;
@@ -163,6 +188,8 @@ export const useDashboardStats = () => {
           totalAmount: amounts.total,
           paidAmount: amounts.paid,
           pendingAmount: amounts.pending,
+          currentMonthPayments,
+          currentMonthPaymentAmount,
           loading: false,
           error: null
         });
@@ -189,6 +216,8 @@ export const useDashboardStats = () => {
     totalAmount: stats.totalAmount,
     paidAmount: stats.paidAmount,
     pendingAmount: stats.pendingAmount,
+    currentMonthPayments: stats.currentMonthPayments,
+    currentMonthPaymentAmount: stats.currentMonthPaymentAmount,
     loading: stats.loading,
     error: stats.error
   };

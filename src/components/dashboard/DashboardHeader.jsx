@@ -9,7 +9,9 @@ import {
     Person as PersonIcon,
     Settings as SettingsIcon,
     Storage as StorageIcon,
-    Search as SearchIcon
+    Search as SearchIcon,
+    StickyNote2 as NotesIcon,
+    Task as TaskIcon
 } from '@mui/icons-material';
 import {
     Badge,
@@ -36,11 +38,14 @@ import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
 import { useSettings } from '../../context/SettingsContext';
+import { useTasks } from '../../hooks/useTasks';
 import CommitmentStatusMenu from '../commitments/CommitmentStatusMenu';
 import ProfileAvatar from '../common/ProfileAvatar';
 import NotificationsMenu from '../notifications/NotificationsMenu';
 import StorageMenu from '../storage/StorageMenu';
 import CalendarMenu from './CalendarMenu';
+import NotesMenu from '../notes/NotesMenu';
+import TasksMenu from '../tasks/TasksMenu';
 
 // Estilos CSS para animaciones spectacular del menú de avatar
 const avatarMenuStyles = `
@@ -70,12 +75,15 @@ const DashboardHeader = ({ onOpenSettings }) => {
   const { settings, updateSettings } = useSettings();
   const { unreadCount, alertsCount } = useNotifications();
   const { currentUser, userProfile: firestoreProfile, logout } = useAuth();
+  const { pendingTasksCount, highPriorityPendingCount } = useTasks();
   
   const [profileMenuAnchor, setProfileMenuAnchor] = useState(null);
   const [notificationsAnchor, setNotificationsAnchor] = useState(null);
   const [calendarAnchor, setCalendarAnchor] = useState(null);
   const [commitmentStatusAnchor, setCommitmentStatusAnchor] = useState(null);
   const [storageAnchor, setStorageAnchor] = useState(null);
+  const [notesAnchor, setNotesAnchor] = useState(null);
+  const [tasksAnchor, setTasksAnchor] = useState(null);
   const [searchValue, setSearchValue] = useState('');
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -376,6 +384,22 @@ const DashboardHeader = ({ onOpenSettings }) => {
 
   const handleStorageClose = () => {
     setStorageAnchor(null);
+  };
+
+  const handleNotesOpen = (event) => {
+    setNotesAnchor(event.currentTarget);
+  };
+
+  const handleNotesClose = () => {
+    setNotesAnchor(null);
+  };
+
+  const handleTasksOpen = (event) => {
+    setTasksAnchor(event.currentTarget);
+  };
+
+  const handleTasksClose = () => {
+    setTasksAnchor(null);
   };
 
   const handleThemeChange = () => {
@@ -681,6 +705,44 @@ const DashboardHeader = ({ onOpenSettings }) => {
           </IconButton>
         </Tooltip>
 
+        {/* Botón de notas */}
+        <Tooltip title="Mis Notas" arrow>
+          <IconButton
+            onClick={handleNotesOpen}
+            sx={topbarButtonStyle}
+          >
+            <NotesIcon sx={{ fontSize: 22 }} />
+          </IconButton>
+        </Tooltip>
+
+        {/* Botón de tareas */}
+        <Tooltip title="Mis Tareas" arrow>
+          <IconButton
+            onClick={handleTasksOpen}
+            sx={topbarButtonStyle}
+          >
+            <Badge 
+              badgeContent={pendingTasksCount} 
+              color={highPriorityPendingCount > 0 ? "error" : "primary"}
+              max={99}
+              overlap="circular"
+              sx={{
+                '& .MuiBadge-badge': {
+                  fontSize: '0.7rem',
+                  minWidth: 18,
+                  height: 18,
+                  backgroundColor: highPriorityPendingCount > 0 ? theme.palette.error.main : theme.palette.primary.main,
+                  color: 'white',
+                  boxShadow: `0 2px 4px ${alpha(highPriorityPendingCount > 0 ? theme.palette.error.main : theme.palette.primary.main, 0.3)}`,
+                  border: `1px solid ${theme.palette.background.paper}`,
+                },
+              }}
+            >
+              <TaskIcon sx={{ fontSize: 22 }} />
+            </Badge>
+          </IconButton>
+        </Tooltip>
+
         {/* Botón de cambio de tema */}
         <Tooltip title={getThemeTooltip()} arrow>
           <IconButton
@@ -963,6 +1025,20 @@ const DashboardHeader = ({ onOpenSettings }) => {
         anchorEl={storageAnchor}
         open={Boolean(storageAnchor)}
         onClose={handleStorageClose}
+      />
+
+      {/* Menú de notas */}
+      <NotesMenu
+        anchorEl={notesAnchor}
+        open={Boolean(notesAnchor)}
+        onClose={handleNotesClose}
+      />
+
+      {/* Menú de tareas */}
+      <TasksMenu
+        anchorEl={tasksAnchor}
+        open={Boolean(tasksAnchor)}
+        onClose={handleTasksClose}
       />
     </Box>
   );

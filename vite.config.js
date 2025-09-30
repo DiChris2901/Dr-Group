@@ -9,67 +9,8 @@ export default defineConfig({
       // Optimizaciones para React
       fastRefresh: true,
       include: "**/*.{jsx,tsx}",
-    }),
-    VitePWA({
-      registerType: 'autoUpdate',
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-fonts-cache',
-              expiration: {
-                maxEntries: 10,
-                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 año
-              },
-              cacheKeyWillBeUsed: async ({ request }) => `${request.url}`
-            }
-          },
-          {
-            urlPattern: /^https:\/\/firebaseapp\.com\/.*/i,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'firebase-cache',
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 * 7 // 1 semana
-              }
-            }
-          }
-        ]
-      },
-      includeAssets: ['dr-favicon.svg', 'dr-group-logo.svg', 'robots.txt'],
-      manifest: {
-        name: 'DR Group Dashboard - Control de Compromisos Financieros',
-        short_name: 'DR Group',
-        description: 'Sistema empresarial para control de compromisos financieros y gestión de usuarios',
-        theme_color: '#1976d2',
-        background_color: '#1976d2',
-        display: 'standalone',
-        orientation: 'portrait-primary',
-        scope: '/',
-        start_url: '/',
-        icons: [
-          {
-            src: 'icons/icon-192x192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any maskable'
-          },
-          {
-            src: 'icons/icon-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any maskable'
-          }
-        ]
-      },
-      devOptions: {
-        enabled: true // Habilita PWA en desarrollo
-      }
     })
+    // PWA temporalmente deshabilitado para debugging
   ],
   server: {
     port: 5173,
@@ -91,17 +32,32 @@ export default defineConfig({
     sourcemap: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          router: ['react-router-dom'],
-          mui: ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled'],
-          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
-          framer: ['framer-motion'],
-          utils: ['date-fns']
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'vendor';
+            }
+            if (id.includes('react-router')) {
+              return 'router';
+            }
+            if (id.includes('@mui') || id.includes('@emotion')) {
+              return 'mui';
+            }
+            if (id.includes('firebase')) {
+              return 'firebase';
+            }
+            if (id.includes('framer-motion')) {
+              return 'framer';
+            }
+            if (id.includes('date-fns')) {
+              return 'utils';
+            }
+            return 'vendor-libs';
+          }
         }
       }
     },
-    chunkSizeWarningLimit: 1000
+    chunkSizeWarningLimit: 2000
   },
   resolve: {
     alias: {

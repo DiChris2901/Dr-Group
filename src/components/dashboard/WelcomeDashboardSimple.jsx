@@ -28,7 +28,8 @@ import {
   Business as BusinessIcon,
   AccountBalance,
   Person,
-  Refresh
+  Refresh,
+  Payment as PaymentIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
@@ -137,6 +138,13 @@ const WelcomeDashboardSimple = () => {
       trend: stats?.overDueCommitments > 0 ? '¡Revisar!' : 'Sin alertas',
       onClick: () => setAlertsModalOpen(true),
       isAlert: true
+    },
+    {
+      title: `Pagos de ${new Date().toLocaleDateString('es-ES', { month: 'long' }).charAt(0).toUpperCase() + new Date().toLocaleDateString('es-ES', { month: 'long' }).slice(1)}`,
+      value: stats?.loading ? '...' : fCurrency(stats?.currentMonthPaymentAmount || 0),
+      icon: PaymentIcon,
+      color: '#9c27b0',
+      trend: stats?.currentMonthPayments > 0 ? `${stats.currentMonthPayments} pagos realizados` : 'Sin pagos este mes'
     }
   ];
 
@@ -233,7 +241,7 @@ const WelcomeDashboardSimple = () => {
         {/* Estadísticas rápidas */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
           {quickStats.map((stat, index) => (
-            <Grid item xs={12} sm={6} md={3} key={index}>
+            <Grid item xs={12} sm={6} md={quickStats.length === 5 ? 2.4 : 3} key={index}>
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
