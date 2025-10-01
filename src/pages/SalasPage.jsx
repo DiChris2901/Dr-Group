@@ -1542,15 +1542,31 @@ const SalasPage = () => {
           <Grid container spacing={3}>
             {/* Información básica */}
             <Grid item xs={12}>
-              <Typography variant="overline" sx={{ 
-                color: alpha(theme.palette.text.secondary, 0.7),
-                fontWeight: 600,
-                letterSpacing: 1.2,
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1.5,
                 mb: 2,
-                display: 'block'
+                pb: 1.5,
+                borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.15)}`
               }}>
-                Información Básica
-              </Typography>
+                <Avatar sx={{ 
+                  width: 32, 
+                  height: 32, 
+                  bgcolor: alpha(theme.palette.primary.main, 0.1),
+                  color: 'primary.main'
+                }}>
+                  <BusinessIcon sx={{ fontSize: 18 }} />
+                </Avatar>
+                <Typography variant="overline" sx={{ 
+                  color: theme.palette.primary.main,
+                  fontWeight: 700,
+                  letterSpacing: 1.5,
+                  fontSize: '0.85rem'
+                }}>
+                  Información Básica
+                </Typography>
+              </Box>
             </Grid>
             
             <Grid item xs={12} md={6}>
@@ -1711,17 +1727,32 @@ const SalasPage = () => {
             
             {/* Información de Contacto */}
             <Grid item xs={12}>
-              <Typography variant="overline" sx={{ 
-                color: 'text.secondary',
-                fontWeight: 600,
-                letterSpacing: 0.8,
-                opacity: 0.7,
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1.5,
                 mb: 2,
                 mt: 2,
-                display: 'block'
+                pb: 1.5,
+                borderBottom: `2px solid ${alpha(theme.palette.warning.main, 0.15)}`
               }}>
-                Información de Contacto
-              </Typography>
+                <Avatar sx={{ 
+                  width: 32, 
+                  height: 32, 
+                  bgcolor: alpha(theme.palette.warning.main, 0.1),
+                  color: 'warning.main'
+                }}>
+                  <PersonIcon sx={{ fontSize: 18 }} />
+                </Avatar>
+                <Typography variant="overline" sx={{ 
+                  color: theme.palette.warning.main,
+                  fontWeight: 700,
+                  letterSpacing: 1.5,
+                  fontSize: '0.85rem'
+                }}>
+                  Información de Contacto
+                </Typography>
+              </Box>
             </Grid>
             
             <Grid item xs={12} md={6}>
@@ -1808,17 +1839,32 @@ const SalasPage = () => {
             
             {/* Contacto Autorizado 2 */}
             <Grid item xs={12}>
-              <Typography variant="overline" sx={{ 
-                color: 'text.secondary',
-                fontWeight: 600,
-                letterSpacing: 0.8,
-                opacity: 0.7,
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1.5,
                 mb: 2,
                 mt: 2,
-                display: 'block'
+                pb: 1.5,
+                borderBottom: `2px solid ${alpha(theme.palette.info.main, 0.15)}`
               }}>
-                Contacto Autorizado 2 (Opcional)
-              </Typography>
+                <Avatar sx={{ 
+                  width: 32, 
+                  height: 32, 
+                  bgcolor: alpha(theme.palette.info.main, 0.1),
+                  color: 'info.main'
+                }}>
+                  <PeopleIcon sx={{ fontSize: 18 }} />
+                </Avatar>
+                <Typography variant="overline" sx={{ 
+                  color: theme.palette.info.main,
+                  fontWeight: 700,
+                  letterSpacing: 1.5,
+                  fontSize: '0.85rem'
+                }}>
+                  Contacto Autorizado 2 (Opcional)
+                </Typography>
+              </Box>
             </Grid>
             
             <Grid item xs={12} md={6}>
@@ -1905,17 +1951,32 @@ const SalasPage = () => {
             
             {/* Costos Adicionales */}
             <Grid item xs={12}>
-              <Typography variant="overline" sx={{ 
-                color: 'text.secondary',
-                fontWeight: 600,
-                letterSpacing: 0.8,
-                opacity: 0.7,
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1.5,
                 mb: 2,
                 mt: 2,
-                display: 'block'
+                pb: 1.5,
+                borderBottom: `2px solid ${alpha(theme.palette.success.main, 0.15)}`
               }}>
-                Costos Adicionales
-              </Typography>
+                <Avatar sx={{ 
+                  width: 32, 
+                  height: 32, 
+                  bgcolor: alpha(theme.palette.success.main, 0.1),
+                  color: 'success.main'
+                }}>
+                  <MoneyIcon sx={{ fontSize: 18 }} />
+                </Avatar>
+                <Typography variant="overline" sx={{ 
+                  color: theme.palette.success.main,
+                  fontWeight: 700,
+                  letterSpacing: 1.5,
+                  fontSize: '0.85rem'
+                }}>
+                  Costos Adicionales
+                </Typography>
+              </Box>
             </Grid>
             
             <Grid item xs={12} md={6}>
@@ -2040,16 +2101,31 @@ const SalasPage = () => {
           <Grid container spacing={3}>
             {/* Información básica */}
             <Grid item xs={12}>
-              <Typography variant="overline" sx={{ 
-                color: 'text.secondary',
-                fontWeight: 600,
-                letterSpacing: 0.8,
-                opacity: 0.7,
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1.5,
                 mb: 2,
-                display: 'block'
+                pb: 1.5,
+                borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.15)}`
               }}>
-                Información Básica
-              </Typography>
+                <Avatar sx={{ 
+                  width: 32, 
+                  height: 32, 
+                  bgcolor: alpha(theme.palette.primary.main, 0.1),
+                  color: 'primary.main'
+                }}>
+                  <BusinessIcon sx={{ fontSize: 18 }} />
+                </Avatar>
+                <Typography variant="overline" sx={{ 
+                  color: theme.palette.primary.main,
+                  fontWeight: 700,
+                  letterSpacing: 1.5,
+                  fontSize: '0.85rem'
+                }}>
+                  Información Básica
+                </Typography>
+              </Box>
             </Grid>
             
             <Grid item xs={12} md={6}>
@@ -2192,17 +2268,32 @@ const SalasPage = () => {
             
             {/* Información de Contacto */}
             <Grid item xs={12}>
-              <Typography variant="overline" sx={{ 
-                color: 'text.secondary',
-                fontWeight: 600,
-                letterSpacing: 0.8,
-                opacity: 0.7,
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1.5,
                 mb: 2,
                 mt: 2,
-                display: 'block'
+                pb: 1.5,
+                borderBottom: `2px solid ${alpha(theme.palette.warning.main, 0.15)}`
               }}>
-                Información de Contacto
-              </Typography>
+                <Avatar sx={{ 
+                  width: 32, 
+                  height: 32, 
+                  bgcolor: alpha(theme.palette.warning.main, 0.1),
+                  color: 'warning.main'
+                }}>
+                  <PersonIcon sx={{ fontSize: 18 }} />
+                </Avatar>
+                <Typography variant="overline" sx={{ 
+                  color: theme.palette.warning.main,
+                  fontWeight: 700,
+                  letterSpacing: 1.5,
+                  fontSize: '0.85rem'
+                }}>
+                  Información de Contacto
+                </Typography>
+              </Box>
             </Grid>
             
             <Grid item xs={12} md={6}>
@@ -2253,17 +2344,32 @@ const SalasPage = () => {
             
             {/* Contacto Autorizado 2 */}
             <Grid item xs={12}>
-              <Typography variant="overline" sx={{ 
-                color: 'text.secondary',
-                fontWeight: 600,
-                letterSpacing: 0.8,
-                opacity: 0.7,
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1.5,
                 mb: 2,
                 mt: 2,
-                display: 'block'
+                pb: 1.5,
+                borderBottom: `2px solid ${alpha(theme.palette.info.main, 0.15)}`
               }}>
-                Contacto Autorizado 2 (Opcional)
-              </Typography>
+                <Avatar sx={{ 
+                  width: 32, 
+                  height: 32, 
+                  bgcolor: alpha(theme.palette.info.main, 0.1),
+                  color: 'info.main'
+                }}>
+                  <PeopleIcon sx={{ fontSize: 18 }} />
+                </Avatar>
+                <Typography variant="overline" sx={{ 
+                  color: theme.palette.info.main,
+                  fontWeight: 700,
+                  letterSpacing: 1.5,
+                  fontSize: '0.85rem'
+                }}>
+                  Contacto Autorizado 2 (Opcional)
+                </Typography>
+              </Box>
             </Grid>
             
             <Grid item xs={12} md={6}>
@@ -2314,17 +2420,32 @@ const SalasPage = () => {
             
             {/* Costos Adicionales */}
             <Grid item xs={12}>
-              <Typography variant="overline" sx={{ 
-                color: 'text.secondary',
-                fontWeight: 600,
-                letterSpacing: 0.8,
-                opacity: 0.7,
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1.5,
                 mb: 2,
                 mt: 2,
-                display: 'block'
+                pb: 1.5,
+                borderBottom: `2px solid ${alpha(theme.palette.success.main, 0.15)}`
               }}>
-                Costos Adicionales
-              </Typography>
+                <Avatar sx={{ 
+                  width: 32, 
+                  height: 32, 
+                  bgcolor: alpha(theme.palette.success.main, 0.1),
+                  color: 'success.main'
+                }}>
+                  <MoneyIcon sx={{ fontSize: 18 }} />
+                </Avatar>
+                <Typography variant="overline" sx={{ 
+                  color: theme.palette.success.main,
+                  fontWeight: 700,
+                  letterSpacing: 1.5,
+                  fontSize: '0.85rem'
+                }}>
+                  Costos Adicionales
+                </Typography>
+              </Box>
             </Grid>
             
             <Grid item xs={12} md={6}>
