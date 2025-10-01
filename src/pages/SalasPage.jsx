@@ -618,7 +618,7 @@ const SalasPage = () => {
         <Paper sx={{ 
           p: 3, 
           mb: 3, 
-          borderRadius: 1,
+          borderRadius: 2,
           overflow: 'hidden',
           background: theme.palette.mode === 'dark'
             ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
@@ -677,7 +677,7 @@ const SalasPage = () => {
           <Grid item xs={12} sm={6} md={4}>
             <Card sx={{ 
               textAlign: 'left', 
-              borderRadius: 1,
+              borderRadius: 2,
               border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
@@ -714,7 +714,7 @@ const SalasPage = () => {
           <Grid item xs={12} sm={6} md={4}>
             <Card sx={{ 
               textAlign: 'left', 
-              borderRadius: 1,
+              borderRadius: 2,
               border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
@@ -751,7 +751,7 @@ const SalasPage = () => {
           <Grid item xs={12} sm={6} md={4}>
             <Card sx={{ 
               textAlign: 'left', 
-              borderRadius: 1,
+              borderRadius: 2,
               border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
@@ -796,7 +796,7 @@ const SalasPage = () => {
         <Paper sx={{ 
           p: 3, 
           mb: 3, 
-          borderRadius: 1,
+          borderRadius: 2,
           border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
           background: theme.palette.background.paper,
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
@@ -900,7 +900,7 @@ const SalasPage = () => {
           >
             <Paper sx={{
               mb: 3,
-              borderRadius: 1,
+              borderRadius: 2,
               border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
@@ -1030,7 +1030,7 @@ const SalasPage = () => {
           >
             <Paper sx={{
               p: 2,
-              borderRadius: 1,
+              borderRadius: 2,
               border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
@@ -1061,7 +1061,7 @@ const SalasPage = () => {
                       onClick={() => setSelectedCompanyId(company.id)}
                       sx={{
                         cursor: 'pointer',
-                        borderRadius: 1,
+                        borderRadius: 2,
                         border: selectedCompanyId === company.id
                           ? `2px solid ${theme.palette.primary.main}`
                           : `1px solid ${alpha(theme.palette.divider, 0.12)}`,
@@ -1125,7 +1125,7 @@ const SalasPage = () => {
           >
             <Paper sx={{
               p: 3,
-              borderRadius: 1,
+              borderRadius: 2,
               border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
@@ -1227,7 +1227,7 @@ const SalasPage = () => {
                     maxHeight: 280,
                     display: 'flex',
                     flexDirection: 'column',
-                    borderRadius: 1,
+                    borderRadius: 2,
                     border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
                     background: theme.palette.background.paper,
                     boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
@@ -1478,7 +1478,7 @@ const SalasPage = () => {
               onClick={() => setAddDialogOpen(true)}
               sx={{ 
                 mt: 1,
-                borderRadius: 1,
+                borderRadius: 2,
                 px: 3,
                 py: 1
               }}
@@ -1509,64 +1509,80 @@ const SalasPage = () => {
           }
         }}
       >
-        <DialogTitle sx={{ 
-          pb: 2,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: theme.palette.mode === 'dark' 
-            ? theme.palette.grey[900]
-            : theme.palette.grey[50],
-          borderBottom: `1px solid ${theme.palette.divider}`,
-          color: 'text.primary'
-        }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
-              <AddIcon />
+        <DialogTitle 
+          sx={{ 
+            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+            color: 'white',
+            textAlign: 'center',
+            py: 2.5,
+            borderBottom: `3px solid ${theme.palette.primary.main}`,
+          }}
+        >
+          <Box display="flex" alignItems="center" justifyContent="center">
+            <Avatar
+              sx={{
+                width: 42,
+                height: 42,
+                mr: 2,
+                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                boxShadow: `0 2px 8px ${theme.palette.primary.main}25`,
+              }}
+            >
+              <AddIcon sx={{ fontSize: 22, color: 'white' }} />
             </Avatar>
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
+            <Box textAlign="left">
+              <Typography variant="h5" component="div" fontWeight="600" color="white">
                 Agregar Nueva Sala
               </Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-                Complete la información de la nueva sala
+              <Typography variant="body2" sx={{ opacity: 0.9, fontSize: '0.85rem', color: 'white' }}>
+                Complete los datos para registrar una nueva sala
               </Typography>
             </Box>
           </Box>
-          <IconButton onClick={() => { setAddDialogOpen(false); clearForm(); }} size="small">
-            <CloseIcon />
-          </IconButton>
         </DialogTitle>
         
         <DialogContent sx={{ p: 3 }}>
           <Grid container spacing={3}>
             {/* Información básica */}
             <Grid item xs={12}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1.5,
-                mb: 2,
-                pb: 1.5,
-                borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.15)}`
-              }}>
-                <Avatar sx={{ 
-                  width: 32, 
-                  height: 32, 
-                  bgcolor: alpha(theme.palette.primary.main, 0.1),
-                  color: 'primary.main'
-                }}>
-                  <BusinessIcon sx={{ fontSize: 18 }} />
-                </Avatar>
-                <Typography variant="overline" sx={{ 
-                  color: theme.palette.primary.main,
-                  fontWeight: 700,
-                  letterSpacing: 1.5,
-                  fontSize: '0.85rem'
-                }}>
-                  Información Básica
-                </Typography>
-              </Box>
+              <Paper 
+                elevation={1} 
+                sx={{ 
+                  p: 2, 
+                  mb: 2,
+                  borderLeft: `4px solid ${theme.palette.primary.main}`,
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? `${theme.palette.primary.main}20` 
+                    : `${theme.palette.primary.main}08`
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box 
+                    sx={{ 
+                      backgroundColor: 'primary.main', 
+                      borderRadius: '50%', 
+                      p: 0.8,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <BusinessIcon sx={{ color: 'white', fontSize: 18 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ 
+                      fontWeight: 'bold',
+                      color: 'primary.main',
+                      lineHeight: 1.2
+                    }}>
+                      Información Básica
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Datos generales de la sala
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
             </Grid>
             
             <Grid item xs={12} md={6}>
@@ -1579,7 +1595,7 @@ const SalasPage = () => {
                 helperText="Nombre identificativo de la sala"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
+                    borderRadius: 2
                   }
                 }}
               />
@@ -1603,7 +1619,7 @@ const SalasPage = () => {
                     helperText="Seleccione o busque la empresa"
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1
+                        borderRadius: 2
                       }
                     }}
                   />
@@ -1629,7 +1645,7 @@ const SalasPage = () => {
                     helperText="Proveedor de servicios online (puede escribir nuevo o seleccionar existente)"
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1
+                        borderRadius: 2
                       }
                     }}
                   />
@@ -1655,7 +1671,7 @@ const SalasPage = () => {
                     helperText="Ciudad donde se encuentra la sala (puede escribir nueva o seleccionar existente)"
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1
+                        borderRadius: 2
                       }
                     }}
                   />
@@ -1666,7 +1682,7 @@ const SalasPage = () => {
             <Grid item xs={12} md={6}>
               <FormControl fullWidth sx={{
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: 1
+                  borderRadius: 2
                 }
               }}>
                 <InputLabel>Estado</InputLabel>
@@ -1717,7 +1733,7 @@ const SalasPage = () => {
                     helperText="Seleccione o escriba (autocompleta costos típicos)"
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1
+                        borderRadius: 2
                       }
                     }}
                   />
@@ -1727,32 +1743,45 @@ const SalasPage = () => {
             
             {/* Información de Contacto */}
             <Grid item xs={12}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1.5,
-                mb: 2,
-                mt: 2,
-                pb: 1.5,
-                borderBottom: `2px solid ${alpha(theme.palette.warning.main, 0.15)}`
-              }}>
-                <Avatar sx={{ 
-                  width: 32, 
-                  height: 32, 
-                  bgcolor: alpha(theme.palette.warning.main, 0.1),
-                  color: 'warning.main'
-                }}>
-                  <PersonIcon sx={{ fontSize: 18 }} />
-                </Avatar>
-                <Typography variant="overline" sx={{ 
-                  color: theme.palette.warning.main,
-                  fontWeight: 700,
-                  letterSpacing: 1.5,
-                  fontSize: '0.85rem'
-                }}>
-                  Información de Contacto
-                </Typography>
-              </Box>
+              <Paper 
+                elevation={1} 
+                sx={{ 
+                  p: 2, 
+                  mb: 2,
+                  mt: 1,
+                  borderLeft: `4px solid ${theme.palette.warning.main}`,
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? `${theme.palette.warning.main}20` 
+                    : `${theme.palette.warning.main}08`
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box 
+                    sx={{ 
+                      backgroundColor: 'warning.main', 
+                      borderRadius: '50%', 
+                      p: 0.8,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <PersonIcon sx={{ color: 'white', fontSize: 18 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ 
+                      fontWeight: 'bold',
+                      color: 'warning.main',
+                      lineHeight: 1.2
+                    }}>
+                      Información de Contacto
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Datos de contacto principal de la sala
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
             </Grid>
             
             <Grid item xs={12} md={6}>
@@ -1798,7 +1827,7 @@ const SalasPage = () => {
                     helperText="Seleccione o escriba nuevo (autocompleta tel. y email)"
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1
+                        borderRadius: 2
                       }
                     }}
                   />
@@ -1815,7 +1844,7 @@ const SalasPage = () => {
                 helperText="Número de contacto"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
+                    borderRadius: 2
                   }
                 }}
               />
@@ -1831,7 +1860,7 @@ const SalasPage = () => {
                 helperText="Correo electrónico de contacto"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
+                    borderRadius: 2
                   }
                 }}
               />
@@ -1839,32 +1868,45 @@ const SalasPage = () => {
             
             {/* Contacto Autorizado 2 */}
             <Grid item xs={12}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1.5,
-                mb: 2,
-                mt: 2,
-                pb: 1.5,
-                borderBottom: `2px solid ${alpha(theme.palette.info.main, 0.15)}`
-              }}>
-                <Avatar sx={{ 
-                  width: 32, 
-                  height: 32, 
-                  bgcolor: alpha(theme.palette.info.main, 0.1),
-                  color: 'info.main'
-                }}>
-                  <PeopleIcon sx={{ fontSize: 18 }} />
-                </Avatar>
-                <Typography variant="overline" sx={{ 
-                  color: theme.palette.info.main,
-                  fontWeight: 700,
-                  letterSpacing: 1.5,
-                  fontSize: '0.85rem'
-                }}>
-                  Contacto Autorizado 2 (Opcional)
-                </Typography>
-              </Box>
+              <Paper 
+                elevation={1} 
+                sx={{ 
+                  p: 2, 
+                  mb: 2,
+                  mt: 1,
+                  borderLeft: `4px solid ${theme.palette.info.main}`,
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? `${theme.palette.info.main}20` 
+                    : `${theme.palette.info.main}08`
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box 
+                    sx={{ 
+                      backgroundColor: 'info.main', 
+                      borderRadius: '50%', 
+                      p: 0.8,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <PeopleIcon sx={{ color: 'white', fontSize: 18 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ 
+                      fontWeight: 'bold',
+                      color: 'info.main',
+                      lineHeight: 1.2
+                    }}>
+                      Contacto Autorizado 2 (Opcional)
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Datos de contacto secundario o alternativo
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
             </Grid>
             
             <Grid item xs={12} md={6}>
@@ -1910,7 +1952,7 @@ const SalasPage = () => {
                     helperText="Seleccione o escriba nuevo (autocompleta tel. y email)"
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1
+                        borderRadius: 2
                       }
                     }}
                   />
@@ -1927,7 +1969,7 @@ const SalasPage = () => {
                 helperText="Número de contacto alternativo"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
+                    borderRadius: 2
                   }
                 }}
               />
@@ -1943,7 +1985,7 @@ const SalasPage = () => {
                 helperText="Correo electrónico alternativo"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
+                    borderRadius: 2
                   }
                 }}
               />
@@ -1951,32 +1993,45 @@ const SalasPage = () => {
             
             {/* Costos Adicionales */}
             <Grid item xs={12}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1.5,
-                mb: 2,
-                mt: 2,
-                pb: 1.5,
-                borderBottom: `2px solid ${alpha(theme.palette.success.main, 0.15)}`
-              }}>
-                <Avatar sx={{ 
-                  width: 32, 
-                  height: 32, 
-                  bgcolor: alpha(theme.palette.success.main, 0.1),
-                  color: 'success.main'
-                }}>
-                  <MoneyIcon sx={{ fontSize: 18 }} />
-                </Avatar>
-                <Typography variant="overline" sx={{ 
-                  color: theme.palette.success.main,
-                  fontWeight: 700,
-                  letterSpacing: 1.5,
-                  fontSize: '0.85rem'
-                }}>
-                  Costos Adicionales
-                </Typography>
-              </Box>
+              <Paper 
+                elevation={1} 
+                sx={{ 
+                  p: 2, 
+                  mb: 2,
+                  mt: 1,
+                  borderLeft: `4px solid ${theme.palette.success.main}`,
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? `${theme.palette.success.main}20` 
+                    : `${theme.palette.success.main}08`
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box 
+                    sx={{ 
+                      backgroundColor: 'success.main', 
+                      borderRadius: '50%', 
+                      p: 0.8,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <MoneyIcon sx={{ color: 'white', fontSize: 18 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ 
+                      fontWeight: 'bold',
+                      color: 'success.main',
+                      lineHeight: 1.2
+                    }}>
+                      Costos Adicionales
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Costos mensuales adicionales de la sala
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
             </Grid>
             
             <Grid item xs={12} md={6}>
@@ -1991,7 +2046,7 @@ const SalasPage = () => {
                 helperText="Costo de administración"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
+                    borderRadius: 2
                   }
                 }}
               />
@@ -2009,7 +2064,7 @@ const SalasPage = () => {
                 helperText="Costo de conexión"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
+                    borderRadius: 2
                   }
                 }}
               />
@@ -2024,7 +2079,7 @@ const SalasPage = () => {
               clearForm();
             }}
             disabled={saving}
-            sx={{ borderRadius: 1 }}
+            sx={{ borderRadius: 2 }}
           >
             Cancelar
           </Button>
@@ -2033,7 +2088,7 @@ const SalasPage = () => {
             variant="contained"
             disabled={saving}
             startIcon={<SaveIcon />}
-            sx={{ borderRadius: 1 }}
+            sx={{ borderRadius: 2 }}
           >
             {saving ? (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -2068,64 +2123,81 @@ const SalasPage = () => {
           }
         }}
       >
-        <DialogTitle sx={{ 
-          pb: 2,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: theme.palette.mode === 'dark' 
-            ? theme.palette.grey[900]
-            : theme.palette.grey[50],
-          borderBottom: `1px solid ${theme.palette.divider}`,
-          color: 'text.primary'
-        }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar sx={{ bgcolor: 'warning.main', color: 'warning.contrastText' }}>
-              <EditIcon />
+        <DialogTitle 
+          sx={{ 
+            background: `linear-gradient(135deg, ${theme.palette.warning.main} 0%, ${theme.palette.error.main} 100%)`,
+            color: 'white',
+            textAlign: 'center',
+            py: 2.5,
+            borderBottom: `3px solid ${theme.palette.warning.main}`,
+          }}
+        >
+          <Box display="flex" alignItems="center" justifyContent="center">
+            <Avatar
+              sx={{
+                width: 42,
+                height: 42,
+                mr: 2,
+                background: `linear-gradient(135deg, ${theme.palette.warning.main} 0%, ${theme.palette.error.main} 100%)`,
+                boxShadow: `0 2px 8px ${theme.palette.warning.main}25`,
+              }}
+            >
+              <EditIcon sx={{ fontSize: 22, color: 'white' }} />
             </Avatar>
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
+            <Box textAlign="left">
+              <Typography variant="h5" component="div" fontWeight="600" color="white">
                 Editar Sala
               </Typography>
-              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
-                Modifique la información de la sala
+              <Typography variant="body2" sx={{ opacity: 0.9, fontSize: '0.85rem', color: 'white' }}>
+                Modifica la información de la sala
               </Typography>
             </Box>
           </Box>
-          <IconButton onClick={() => { setEditDialogOpen(false); setSelectedSala(null); clearForm(); }} size="small">
-            <CloseIcon />
-          </IconButton>
         </DialogTitle>
         
         <DialogContent sx={{ p: 3 }}>
           <Grid container spacing={3}>
             {/* Información básica */}
             <Grid item xs={12}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1.5,
-                mb: 2,
-                pb: 1.5,
-                borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.15)}`
-              }}>
-                <Avatar sx={{ 
-                  width: 32, 
-                  height: 32, 
-                  bgcolor: alpha(theme.palette.primary.main, 0.1),
-                  color: 'primary.main'
-                }}>
-                  <BusinessIcon sx={{ fontSize: 18 }} />
-                </Avatar>
-                <Typography variant="overline" sx={{ 
-                  color: theme.palette.primary.main,
-                  fontWeight: 700,
-                  letterSpacing: 1.5,
-                  fontSize: '0.85rem'
-                }}>
-                  Información Básica
-                </Typography>
-              </Box>
+              <Paper 
+                elevation={1} 
+                sx={{ 
+                  p: 2, 
+                  mb: 2,
+                  mt: 1,
+                  borderLeft: `4px solid ${theme.palette.primary.main}`,
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? `${theme.palette.primary.main}20` 
+                    : `${theme.palette.primary.main}08`
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box 
+                    sx={{ 
+                      backgroundColor: 'primary.main', 
+                      borderRadius: '50%', 
+                      p: 0.8,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <BusinessIcon sx={{ color: 'white', fontSize: 18 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ 
+                      fontWeight: 'bold',
+                      color: 'primary.main',
+                      lineHeight: 1.2
+                    }}>
+                      Información Básica
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Datos generales de la sala
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
             </Grid>
             
             <Grid item xs={12} md={6}>
@@ -2138,7 +2210,7 @@ const SalasPage = () => {
                 helperText="Nombre identificativo de la sala"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
+                    borderRadius: 2
                   }
                 }}
               />
@@ -2161,7 +2233,7 @@ const SalasPage = () => {
                     helperText="Empresa asociada a la sala (escriba para buscar)"
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1
+                        borderRadius: 2
                       }
                     }}
                   />
@@ -2188,7 +2260,7 @@ const SalasPage = () => {
                     helperText="Proveedor de servicios online (puede escribir nuevo o seleccionar existente)"
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1
+                        borderRadius: 2
                       }
                     }}
                   />
@@ -2214,7 +2286,7 @@ const SalasPage = () => {
                     helperText="Ciudad donde se encuentra la sala (puede escribir nueva o seleccionar existente)"
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1
+                        borderRadius: 2
                       }
                     }}
                   />
@@ -2225,7 +2297,7 @@ const SalasPage = () => {
             <Grid item xs={12} md={6}>
               <FormControl fullWidth sx={{
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: 1
+                  borderRadius: 2
                 }
               }}>
                 <InputLabel>Estado</InputLabel>
@@ -2258,7 +2330,7 @@ const SalasPage = () => {
                     helperText="Propietario de la sala (puede escribir nuevo o seleccionar existente)"
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        borderRadius: 1
+                        borderRadius: 2
                       }
                     }}
                   />
@@ -2268,32 +2340,45 @@ const SalasPage = () => {
             
             {/* Información de Contacto */}
             <Grid item xs={12}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1.5,
-                mb: 2,
-                mt: 2,
-                pb: 1.5,
-                borderBottom: `2px solid ${alpha(theme.palette.warning.main, 0.15)}`
-              }}>
-                <Avatar sx={{ 
-                  width: 32, 
-                  height: 32, 
-                  bgcolor: alpha(theme.palette.warning.main, 0.1),
-                  color: 'warning.main'
-                }}>
-                  <PersonIcon sx={{ fontSize: 18 }} />
-                </Avatar>
-                <Typography variant="overline" sx={{ 
-                  color: theme.palette.warning.main,
-                  fontWeight: 700,
-                  letterSpacing: 1.5,
-                  fontSize: '0.85rem'
-                }}>
-                  Información de Contacto
-                </Typography>
-              </Box>
+              <Paper 
+                elevation={1} 
+                sx={{ 
+                  p: 2, 
+                  mb: 2,
+                  mt: 1,
+                  borderLeft: `4px solid ${theme.palette.warning.main}`,
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? `${theme.palette.warning.main}20` 
+                    : `${theme.palette.warning.main}08`
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box 
+                    sx={{ 
+                      backgroundColor: 'warning.main', 
+                      borderRadius: '50%', 
+                      p: 0.8,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <PersonIcon sx={{ color: 'white', fontSize: 18 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ 
+                      fontWeight: 'bold',
+                      color: 'warning.main',
+                      lineHeight: 1.2
+                    }}>
+                      Información de Contacto
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Datos de contacto principal de la sala
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
             </Grid>
             
             <Grid item xs={12} md={6}>
@@ -2305,7 +2390,7 @@ const SalasPage = () => {
                 helperText="Persona autorizada para contacto"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
+                    borderRadius: 2
                   }
                 }}
               />
@@ -2320,7 +2405,7 @@ const SalasPage = () => {
                 helperText="Número de contacto"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
+                    borderRadius: 2
                   }
                 }}
               />
@@ -2336,7 +2421,7 @@ const SalasPage = () => {
                 helperText="Correo electrónico de contacto"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
+                    borderRadius: 2
                   }
                 }}
               />
@@ -2344,32 +2429,45 @@ const SalasPage = () => {
             
             {/* Contacto Autorizado 2 */}
             <Grid item xs={12}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1.5,
-                mb: 2,
-                mt: 2,
-                pb: 1.5,
-                borderBottom: `2px solid ${alpha(theme.palette.info.main, 0.15)}`
-              }}>
-                <Avatar sx={{ 
-                  width: 32, 
-                  height: 32, 
-                  bgcolor: alpha(theme.palette.info.main, 0.1),
-                  color: 'info.main'
-                }}>
-                  <PeopleIcon sx={{ fontSize: 18 }} />
-                </Avatar>
-                <Typography variant="overline" sx={{ 
-                  color: theme.palette.info.main,
-                  fontWeight: 700,
-                  letterSpacing: 1.5,
-                  fontSize: '0.85rem'
-                }}>
-                  Contacto Autorizado 2 (Opcional)
-                </Typography>
-              </Box>
+              <Paper 
+                elevation={1} 
+                sx={{ 
+                  p: 2, 
+                  mb: 2,
+                  mt: 1,
+                  borderLeft: `4px solid ${theme.palette.info.main}`,
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? `${theme.palette.info.main}20` 
+                    : `${theme.palette.info.main}08`
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box 
+                    sx={{ 
+                      backgroundColor: 'info.main', 
+                      borderRadius: '50%', 
+                      p: 0.8,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <PeopleIcon sx={{ color: 'white', fontSize: 18 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ 
+                      fontWeight: 'bold',
+                      color: 'info.main',
+                      lineHeight: 1.2
+                    }}>
+                      Contacto Autorizado 2 (Opcional)
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Datos de contacto secundario o alternativo
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
             </Grid>
             
             <Grid item xs={12} md={6}>
@@ -2381,7 +2479,7 @@ const SalasPage = () => {
                 helperText="Segunda persona autorizada para contacto"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
+                    borderRadius: 2
                   }
                 }}
               />
@@ -2396,7 +2494,7 @@ const SalasPage = () => {
                 helperText="Número de contacto alternativo"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
+                    borderRadius: 2
                   }
                 }}
               />
@@ -2412,7 +2510,7 @@ const SalasPage = () => {
                 helperText="Correo electrónico alternativo"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
+                    borderRadius: 2
                   }
                 }}
               />
@@ -2420,32 +2518,45 @@ const SalasPage = () => {
             
             {/* Costos Adicionales */}
             <Grid item xs={12}>
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 1.5,
-                mb: 2,
-                mt: 2,
-                pb: 1.5,
-                borderBottom: `2px solid ${alpha(theme.palette.success.main, 0.15)}`
-              }}>
-                <Avatar sx={{ 
-                  width: 32, 
-                  height: 32, 
-                  bgcolor: alpha(theme.palette.success.main, 0.1),
-                  color: 'success.main'
-                }}>
-                  <MoneyIcon sx={{ fontSize: 18 }} />
-                </Avatar>
-                <Typography variant="overline" sx={{ 
-                  color: theme.palette.success.main,
-                  fontWeight: 700,
-                  letterSpacing: 1.5,
-                  fontSize: '0.85rem'
-                }}>
-                  Costos Adicionales
-                </Typography>
-              </Box>
+              <Paper 
+                elevation={1} 
+                sx={{ 
+                  p: 2, 
+                  mb: 2,
+                  mt: 1,
+                  borderLeft: `4px solid ${theme.palette.success.main}`,
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? `${theme.palette.success.main}20` 
+                    : `${theme.palette.success.main}08`
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box 
+                    sx={{ 
+                      backgroundColor: 'success.main', 
+                      borderRadius: '50%', 
+                      p: 0.8,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <MoneyIcon sx={{ color: 'white', fontSize: 18 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ 
+                      fontWeight: 'bold',
+                      color: 'success.main',
+                      lineHeight: 1.2
+                    }}>
+                      Costos Adicionales
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Costos mensuales adicionales de la sala
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
             </Grid>
             
             <Grid item xs={12} md={6}>
@@ -2460,7 +2571,7 @@ const SalasPage = () => {
                 helperText="Costo de administración"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
+                    borderRadius: 2
                   }
                 }}
               />
@@ -2478,7 +2589,7 @@ const SalasPage = () => {
                 helperText="Costo de conexión"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1
+                    borderRadius: 2
                   }
                 }}
               />
@@ -2494,7 +2605,7 @@ const SalasPage = () => {
               clearForm();
             }}
             disabled={saving}
-            sx={{ borderRadius: 1 }}
+            sx={{ borderRadius: 2 }}
           >
             Cancelar
           </Button>
@@ -2503,7 +2614,7 @@ const SalasPage = () => {
             variant="contained"
             disabled={saving}
             startIcon={<SaveIcon />}
-            sx={{ borderRadius: 1 }}
+            sx={{ borderRadius: 2 }}
           >
             {saving ? (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -2830,7 +2941,7 @@ const SalasPage = () => {
               setViewDialogOpen(false);
               setSelectedSala(null);
             }}
-            sx={{ borderRadius: 1 }}
+            sx={{ borderRadius: 2 }}
           >
             Cerrar
           </Button>
@@ -2841,7 +2952,7 @@ const SalasPage = () => {
             }}
             variant="contained"
             startIcon={<EditIcon />}
-            sx={{ borderRadius: 1 }}
+            sx={{ borderRadius: 2 }}
           >
             Editar Sala
           </Button>
@@ -2858,7 +2969,7 @@ const SalasPage = () => {
         maxWidth="sm"
         PaperProps={{
           sx: {
-            borderRadius: 1,
+            borderRadius: 2,
             background: theme.palette.mode === 'dark' 
               ? alpha(theme.palette.background.paper, 0.9) 
               : '#ffffff'
@@ -2952,3 +3063,4 @@ const SalasPage = () => {
 };
 
 export default SalasPage;
+
