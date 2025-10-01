@@ -31,7 +31,13 @@ import {
   alpha,
   InputAdornment,
   FormControlLabel,
-  Switch
+  Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -59,7 +65,8 @@ import {
   LocalCafe as CafeIcon,
   FilterList as FilterIcon,
   Search as SearchIcon,
-  Clear as ClearIcon
+  Clear as ClearIcon,
+  Block as BlockIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -116,6 +123,8 @@ const SalasPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [companyFilter, setCompanyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [propietarioFilter, setPropietarioFilter] = useState('all');
+  const [proveedorFilter, setProveedorFilter] = useState('all');
   
   // ✅ NUEVO: Estado para empresa seleccionada en el grid
   const [selectedCompanyId, setSelectedCompanyId] = useState(null);
@@ -197,15 +206,16 @@ const SalasPage = () => {
 
   // Filtrar salas
   const filteredSalas = salas.filter(sala => {
-    const matchesSearch = sala.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         sala.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         sala.location?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesCompany = companyFilter === 'all' || sala.companyId === companyFilter;
     const matchesStatus = statusFilter === 'all' || sala.status === statusFilter;
+    const matchesPropietario = propietarioFilter === 'all' || sala.propietario === propietarioFilter;
+    const matchesProveedor = proveedorFilter === 'all' || sala.proveedorOnline === proveedorFilter;
     
-    return matchesSearch && matchesCompany && matchesStatus;
+    return matchesStatus && matchesPropietario && matchesProveedor;
   });
+
+  // Obtener listas únicas para los filtros
+  const propietariosUnicos = ['all', ...new Set(salas.map(sala => sala.propietario).filter(Boolean))];
+  const proveedoresUnicos = ['all', ...new Set(salas.map(sala => sala.proveedorOnline).filter(Boolean))];
 
   // ✅ NUEVO: Agrupar salas por empresa
   const companiesWithSalas = companies.map(company => ({
@@ -401,9 +411,9 @@ const SalasPage = () => {
 
   // Limpiar filtros
   const handleClearFilters = () => {
-    setSearchTerm('');
-    setCompanyFilter('all');
     setStatusFilter('all');
+    setPropietarioFilter('all');
+    setProveedorFilter('all');
   };
 
   // Obtener color de estado
@@ -535,6 +545,126 @@ const SalasPage = () => {
         </Paper>
       </motion.div>
 
+      {/* Estadísticas */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          <Grid item xs={12} sm={6} md={4}>
+            <Card sx={{ 
+              textAlign: 'left', 
+              borderRadius: 1,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+              background: theme.palette.background.paper,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
+              '&:hover': {
+                boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
+                borderColor: alpha(theme.palette.primary.main, 0.3)
+              }
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ 
+                  width: 36, 
+                  height: 36, 
+                  borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                  mb: 1.5
+                }}>
+                  <RoomIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                </Box>
+                <Typography variant="h4" fontWeight={600} color="primary.main">
+                  {salas.length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  Salas Totales
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={4}>
+            <Card sx={{ 
+              textAlign: 'left', 
+              borderRadius: 1,
+              border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+              background: theme.palette.background.paper,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
+              '&:hover': {
+                boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
+                borderColor: alpha(theme.palette.success.main, 0.3)
+              }
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ 
+                  width: 36, 
+                  height: 36, 
+                  borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.main, 0.05)} 100%)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+                  mb: 1.5
+                }}>
+                  <StarIcon sx={{ fontSize: 18, color: 'success.main' }} />
+                </Box>
+                <Typography variant="h4" fontWeight={600} color="success.main">
+                  {salas.filter(s => s.status === 'active').length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  Salas Activas
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12} sm={6} md={4}>
+            <Card sx={{ 
+              textAlign: 'left', 
+              borderRadius: 1,
+              border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+              background: theme.palette.background.paper,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
+              '&:hover': {
+                boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
+                borderColor: alpha(theme.palette.error.main, 0.3)
+              }
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ 
+                  width: 36, 
+                  height: 36, 
+                  borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.1)} 0%, ${alpha(theme.palette.error.main, 0.05)} 100%)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+                  mb: 1.5
+                }}>
+                  <BlockIcon sx={{ fontSize: 18, color: 'error.main' }} />
+                </Box>
+                <Typography variant="h4" fontWeight={600} color="error.main">
+                  {salas.filter(s => s.status === 'retired').length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  Salas Retiradas
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+      </motion.div>
+
       {/* Filtros */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -567,49 +697,6 @@ const SalasPage = () => {
           </Typography>
           
           <Grid container spacing={3}>
-            {/* Búsqueda */}
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                label="Buscar salas"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                  endAdornment: searchTerm && (
-                    <InputAdornment position="end">
-                      <IconButton onClick={() => setSearchTerm('')} size="small">
-                        <ClearIcon />
-                      </IconButton>
-                    </InputAdornment>
-                  )
-                }}
-              />
-            </Grid>
-
-            {/* Filtro por empresa */}
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth>
-                <InputLabel>Empresa</InputLabel>
-                <Select
-                  value={companyFilter}
-                  onChange={(e) => setCompanyFilter(e.target.value)}
-                  label="Empresa"
-                >
-                  <MenuItem value="all">Todas las empresas</MenuItem>
-                  {companies.map(company => (
-                    <MenuItem key={company.id} value={company.id}>
-                      {company.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
             {/* Filtro por estado */}
             <Grid item xs={12} md={3}>
               <FormControl fullWidth>
@@ -626,8 +713,46 @@ const SalasPage = () => {
               </FormControl>
             </Grid>
 
+            {/* Filtro por propietario */}
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth>
+                <InputLabel>Propietario</InputLabel>
+                <Select
+                  value={propietarioFilter}
+                  onChange={(e) => setPropietarioFilter(e.target.value)}
+                  label="Propietario"
+                >
+                  <MenuItem value="all">Todos los propietarios</MenuItem>
+                  {propietariosUnicos.filter(p => p !== 'all').map(propietario => (
+                    <MenuItem key={propietario} value={propietario}>
+                      {propietario}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            {/* Filtro por proveedor online */}
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth>
+                <InputLabel>Proveedor Online</InputLabel>
+                <Select
+                  value={proveedorFilter}
+                  onChange={(e) => setProveedorFilter(e.target.value)}
+                  label="Proveedor Online"
+                >
+                  <MenuItem value="all">Todos los proveedores online</MenuItem>
+                  {proveedoresUnicos.filter(p => p !== 'all').map(proveedor => (
+                    <MenuItem key={proveedor} value={proveedor}>
+                      {proveedor}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
             {/* Limpiar filtros */}
-            <Grid item xs={12} md={2}>
+            <Grid item xs={12} md={3}>
               <Button
                 fullWidth
                 variant="outlined"
@@ -642,162 +767,132 @@ const SalasPage = () => {
         </Paper>
       </motion.div>
 
-      {/* Estadísticas */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        <Grid container spacing={3} sx={{ mb: 3 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ 
-              textAlign: 'left', 
+      {/* Tabla contextual (solo se muestra cuando hay filtros activos) */}
+      <AnimatePresence>
+        {(statusFilter !== 'all' || propietarioFilter !== 'all' || proveedorFilter !== 'all') && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Paper sx={{
+              mb: 3,
               borderRadius: 1,
               border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
-              '&:hover': {
-                boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
-                borderColor: alpha(theme.palette.primary.main, 0.3)
-              }
+              overflow: 'hidden'
             }}>
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ 
-                  width: 36, 
-                  height: 36, 
-                  borderRadius: '50%',
-                  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+              <Box sx={{ 
+                p: 2, 
+                background: alpha(theme.palette.primary.main, 0.04),
+                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`
+              }}>
+                <Typography variant="overline" sx={{ 
+                  fontWeight: 600, 
+                  color: 'primary.main',
+                  letterSpacing: 0.8,
+                  fontSize: '0.75rem',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                  mb: 1.5
+                  gap: 1
                 }}>
-                  <RoomIcon sx={{ fontSize: 18, color: 'primary.main' }} />
-                </Box>
-                <Typography variant="h4" fontWeight={600} color="primary.main">
-                  {filteredSalas.length}
+                  <FilterIcon sx={{ fontSize: 16 }} />
+                  RESULTADOS DEL FILTRO ({filteredSalas.length} {filteredSalas.length === 1 ? 'sala' : 'salas'})
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  Salas Totales
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ 
-              textAlign: 'left', 
-              borderRadius: 1,
-              border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-              background: theme.palette.background.paper,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
-              '&:hover': {
-                boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
-                borderColor: alpha(theme.palette.success.main, 0.3)
-              }
-            }}>
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ 
-                  width: 36, 
-                  height: 36, 
-                  borderRadius: '50%',
-                  background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.1)} 0%, ${alpha(theme.palette.success.main, 0.05)} 100%)`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-                  mb: 1.5
-                }}>
-                  <StarIcon sx={{ fontSize: 18, color: 'success.main' }} />
-                </Box>
-                <Typography variant="h4" fontWeight={600} color="success.main">
-                  {filteredSalas.filter(s => s.status === 'active').length}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  Salas Activas
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ 
-              textAlign: 'left', 
-              borderRadius: 1,
-              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
-              background: theme.palette.background.paper,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
-              '&:hover': {
-                boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
-                borderColor: alpha(theme.palette.info.main, 0.3)
-              }
-            }}>
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ 
-                  width: 36, 
-                  height: 36, 
-                  borderRadius: '50%',
-                  background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.info.main, 0.05)} 100%)`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
-                  mb: 1.5
-                }}>
-                  <PeopleIcon sx={{ fontSize: 18, color: 'info.main' }} />
-                </Box>
-                <Typography variant="h4" fontWeight={600} color="info.main">
-                  {Math.round(filteredSalas.reduce((acc, sala) => acc + sala.capacity, 0) / Math.max(filteredSalas.length, 1))}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  Capacidad Promedio
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} sm={6} md={3}>
-            <Card sx={{ 
-              textAlign: 'left', 
-              borderRadius: 1,
-              border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
-              background: theme.palette.background.paper,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              transition: 'box-shadow 0.2s ease, border-color 0.2s ease',
-              '&:hover': {
-                boxShadow: '0 4px 12px rgba(0,0,0,0.10)',
-                borderColor: alpha(theme.palette.warning.main, 0.3)
-              }
-            }}>
-              <CardContent sx={{ p: 3 }}>
-                <Box sx={{ 
-                  width: 36, 
-                  height: 36, 
-                  borderRadius: '50%',
-                  background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)} 0%, ${alpha(theme.palette.warning.main, 0.05)} 100%)`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
-                  mb: 1.5
-                }}>
-                  <MoneyIcon sx={{ fontSize: 18, color: 'warning.main' }} />
-                </Box>
-                <Typography variant="h4" fontWeight={600} color="warning.main">
-                  {formatPrice(filteredSalas.reduce((acc, sala) => acc + sala.hourlyRate, 0) / Math.max(filteredSalas.length, 1))}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                  Tarifa Promedio/Hora
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-      </motion.div>
+              </Box>
+              
+              <TableContainer sx={{ maxHeight: 400 }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 600, background: theme.palette.background.paper }}>Empresa</TableCell>
+                      <TableCell sx={{ fontWeight: 600, background: theme.palette.background.paper }}>Sala</TableCell>
+                      <TableCell sx={{ fontWeight: 600, background: theme.palette.background.paper }}>Ciudad</TableCell>
+                      <TableCell sx={{ fontWeight: 600, background: theme.palette.background.paper }}>Propietario</TableCell>
+                      <TableCell sx={{ fontWeight: 600, background: theme.palette.background.paper }}>Proveedor Online</TableCell>
+                      <TableCell sx={{ fontWeight: 600, background: theme.palette.background.paper }}>Estado</TableCell>
+                      <TableCell sx={{ fontWeight: 600, background: theme.palette.background.paper }} align="center">Máquinas</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredSalas.map((sala, index) => (
+                      <TableRow 
+                        key={sala.id}
+                        sx={{ 
+                          '&:hover': { background: alpha(theme.palette.primary.main, 0.04) },
+                          transition: 'background 0.2s ease'
+                        }}
+                      >
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Avatar 
+                              src={companies.find(c => c.id === sala.companyId)?.logoURL}
+                              sx={{ width: 24, height: 24, borderRadius: '4px' }}
+                            >
+                              <BusinessIcon sx={{ fontSize: 14 }} />
+                            </Avatar>
+                            <Typography variant="body2" fontWeight={500}>
+                              {sala.companyName}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" fontWeight={500}>
+                            {sala.name}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {sala.ciudad || 'N/A'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {sala.propietario || 'N/A'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" color="text.secondary">
+                            {sala.proveedorOnline || 'N/A'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={sala.status === 'active' ? 'Activa' : 'Retirada'}
+                            color={sala.status === 'active' ? 'success' : 'error'}
+                            size="small"
+                            sx={{ 
+                              fontWeight: 600,
+                              fontSize: '0.7rem',
+                              height: 20
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          <Chip
+                            label={sala.maquinas || 0}
+                            color="primary"
+                            size="small"
+                            variant="outlined"
+                            sx={{ 
+                              fontWeight: 600,
+                              fontSize: '0.7rem',
+                              minWidth: 40,
+                              height: 20
+                            }}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Separador entre métricas y lista */}
       <Divider sx={{ my: 3, borderColor: alpha(theme.palette.divider, 0.2) }} />
@@ -945,10 +1040,20 @@ const SalasPage = () => {
                 </Box>
               ) : (
                 <Box>
-                  <Typography variant="h6" fontWeight={600} sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <RoomIcon color="primary" />
-                    Salas de {companies.find(c => c.id === selectedCompanyId)?.name}
-                  </Typography>
+                  {/* Header con título */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                    <Typography variant="h6" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <RoomIcon color="primary" />
+                      Salas de {companies.find(c => c.id === selectedCompanyId)?.name}
+                    </Typography>
+                    
+                    <Chip 
+                      label={`${salasDeEmpresaSeleccionada.length} ${salasDeEmpresaSeleccionada.length === 1 ? 'sala' : 'salas'}`}
+                      color="primary"
+                      size="small"
+                      sx={{ fontWeight: 600 }}
+                    />
+                  </Box>
                   
                   {salasDeEmpresaSeleccionada.length === 0 ? (
                     <Box sx={{ 
