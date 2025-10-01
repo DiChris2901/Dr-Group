@@ -26,38 +26,29 @@ export default defineConfig({
     }
   },
   build: {
-    // Optimizaciones de build
-    target: 'esnext',
-    minify: 'esbuild',
-    sourcemap: true,
+    // ✅ ESTRATEGIA SIMPLE: Dejar que Vite maneje todo automáticamente
+    target: 'es2015',
+    minify: 'terser', // Cambiar a terser para mejor manejo de dependencias
+    sourcemap: false, // Desactivar sourcemaps para reducir complejidad
+    terserOptions: {
+      compress: {
+        drop_console: false,
+        drop_debugger: true
+      }
+    },
     rollupOptions: {
       output: {
-        manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) {
-              return 'vendor';
-            }
-            if (id.includes('react-router')) {
-              return 'router';
-            }
-            if (id.includes('@mui') || id.includes('@emotion')) {
-              return 'mui';
-            }
-            if (id.includes('firebase')) {
-              return 'firebase';
-            }
-            if (id.includes('framer-motion')) {
-              return 'framer';
-            }
-            if (id.includes('date-fns')) {
-              return 'utils';
-            }
-            return 'vendor-libs';
-          }
+        // ✅ CHUNKING AUTOMÁTICO SIMPLE - Solo separar vendors grandes
+        manualChunks: {
+          'react-core': ['react', 'react-dom', 'react-router-dom'],
+          'ui-framework': ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled'],
+          'charts': ['recharts'],
+          'firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
+          'animations': ['framer-motion']
         }
       }
     },
-    chunkSizeWarningLimit: 2000
+    chunkSizeWarningLimit: 3000
   },
   resolve: {
     alias: {
@@ -69,7 +60,8 @@ export default defineConfig({
       '@config': '/src/config',
       '@context': '/src/context',
       '@theme': '/src/theme'
-    }
+    },
+    dedupe: ['react', 'react-dom'] // ✅ Deduplicate React
   },
   define: {
     // ✅ Fix para Firebase en Vite - Configuración mejorada
@@ -79,25 +71,17 @@ export default defineConfig({
     __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false
   },
   optimizeDeps: {
-    // Pre-bundling dependencies para mejor rendimiento
+    // ✅ ESTRATEGIA SIMPLE: Solo pre-bundle lo esencial
     include: [
       'react',
       'react-dom',
-      'react-router-dom',
       '@mui/material',
       '@mui/icons-material',
-      '@emotion/react',
-      '@emotion/styled',
-      'firebase/app',
-      'firebase/auth',
-      'firebase/firestore',
-      'firebase/storage',
-      'firebase/functions',
-      'framer-motion',
-      'date-fns'
+      'framer-motion'
     ],
-    exclude: ['@firebase/app-types', '@firebase/util', '@firebase/component'],
-    force: true // Forzar re-optimización
+    esbuildOptions: {
+      target: 'es2015'
+    }
   },
   esbuild: {
     // Optimizaciones de esbuild

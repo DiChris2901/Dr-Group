@@ -31,8 +31,7 @@ import {
   alpha,
   InputAdornment,
   FormControlLabel,
-  Switch,
-  Slider
+  Switch
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -117,7 +116,6 @@ const SalasPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [companyFilter, setCompanyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [capacityFilter, setCapacityFilter] = useState([1, 100]);
   
   // Formulario para nueva/editar sala
   const [formData, setFormData] = useState({
@@ -202,9 +200,8 @@ const SalasPage = () => {
     
     const matchesCompany = companyFilter === 'all' || sala.companyId === companyFilter;
     const matchesStatus = statusFilter === 'all' || sala.status === statusFilter;
-    const matchesCapacity = sala.capacity >= capacityFilter[0] && sala.capacity <= capacityFilter[1];
     
-    return matchesSearch && matchesCompany && matchesStatus && matchesCapacity;
+    return matchesSearch && matchesCompany && matchesStatus;
   });
 
   // Manejar cambios del formulario
@@ -392,7 +389,6 @@ const SalasPage = () => {
     setSearchTerm('');
     setCompanyFilter('all');
     setStatusFilter('all');
-    setCapacityFilter([1, 100]);
   };
 
   // Obtener color de estado
@@ -628,36 +624,6 @@ const SalasPage = () => {
               </Button>
             </Grid>
           </Grid>
-
-          {/* Filtro de capacidad */}
-          <Box sx={{ mt: 3, maxWidth: 400 }}>
-            <Typography gutterBottom>
-              Capacidad: {capacityFilter[0]} - {capacityFilter[1]} personas
-            </Typography>
-            <Slider
-              value={capacityFilter}
-              onChange={(e, newValue) => setCapacityFilter(newValue)}
-              valueLabelDisplay="auto"
-              min={1}
-              max={100}
-              marks={[
-                { value: 1, label: '1' },
-                { value: 25, label: '25' },
-                { value: 50, label: '50' },
-                { value: 100, label: '100+' }
-              ]}
-              sx={{
-                height: 4,
-                '& .MuiSlider-rail': { opacity: 0.4 },
-                '& .MuiSlider-thumb': {
-                  width: 16, height: 16,
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
-                  boxShadow: 'none'
-                },
-                '& .MuiSlider-markLabel': { color: alpha(theme.palette.text.secondary, 0.6) }
-              }}
-            />
-          </Box>
         </Paper>
       </motion.div>
 

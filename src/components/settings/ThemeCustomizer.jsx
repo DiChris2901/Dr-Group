@@ -25,6 +25,50 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
+import { useOptimizedColorPicker } from '../../hooks/useOptimizedColorPicker';
+
+// Componente optimizado para selectores de color
+const OptimizedColorSelector = ({ label, color, onColorChange }) => {
+  const optimizedPicker = useOptimizedColorPicker(color, onColorChange, {
+    debounceDelay: 200,
+    throttleDelay: 50,
+    enableThrottle: true,
+    enableDebounce: true
+  });
+
+  return (
+    <Box mb={2}>
+      <Typography variant="subtitle2" gutterBottom>
+        {label}
+      </Typography>
+      <Box display="flex" alignItems="center" gap={2}>
+        <input
+          type="color"
+          {...optimizedPicker.inputProps}
+          style={{
+            width: 50,
+            height: 40,
+            border: 'none',
+            borderRadius: 8,
+            cursor: 'pointer',
+            transition: 'box-shadow 0.2s ease',
+            boxShadow: optimizedPicker.isDragging ? '0 4px 12px rgba(0,0,0,0.15)' : 'none'
+          }}
+        />
+        <Box>
+          <Typography variant="body2" color="text.secondary">
+            {optimizedPicker.color}
+          </Typography>
+          {optimizedPicker.isDragging && (
+            <Typography variant="caption" color="primary.main">
+              Arrastrando...
+            </Typography>
+          )}
+        </Box>
+      </Box>
+    </Box>
+  );
+};
 
 const ThemeCustomizer = ({ settings, updateSettings, onPreviewChange }) => {
   // Presets de colores creativos y corporativos
@@ -143,51 +187,17 @@ const ThemeCustomizer = ({ settings, updateSettings, onPreviewChange }) => {
               </Typography>
             </Box>
 
-            <Box mb={2}>
-              <Typography variant="subtitle2" gutterBottom>
-                Color Primario
-              </Typography>
-              <Box display="flex" alignItems="center" gap={2}>
-                <input
-                  type="color"
-                  value={settings.theme.primaryColor}
-                  onChange={(e) => updateSettings('theme', { primaryColor: e.target.value })}
-                  style={{
-                    width: 50,
-                    height: 40,
-                    border: 'none',
-                    borderRadius: 8,
-                    cursor: 'pointer'
-                  }}
-                />
-                <Typography variant="body2" color="text.secondary">
-                  {settings.theme.primaryColor}
-                </Typography>
-              </Box>
-            </Box>
+            <OptimizedColorSelector
+              label="Color Primario"
+              color={settings.theme.primaryColor}
+              onColorChange={(color) => updateSettings('theme', { primaryColor: color })}
+            />
 
-            <Box mb={3}>
-              <Typography variant="subtitle2" gutterBottom>
-                Color Secundario
-              </Typography>
-              <Box display="flex" alignItems="center" gap={2}>
-                <input
-                  type="color"
-                  value={settings.theme.secondaryColor}
-                  onChange={(e) => updateSettings('theme', { secondaryColor: e.target.value })}
-                  style={{
-                    width: 50,
-                    height: 40,
-                    border: 'none',
-                    borderRadius: 8,
-                    cursor: 'pointer'
-                  }}
-                />
-                <Typography variant="body2" color="text.secondary">
-                  {settings.theme.secondaryColor}
-                </Typography>
-              </Box>
-            </Box>
+            <OptimizedColorSelector
+              label="Color Secundario"
+              color={settings.theme.secondaryColor}
+              onColorChange={(color) => updateSettings('theme', { secondaryColor: color })}
+            />
           </CardContent>
         </Card>
       </Grid>

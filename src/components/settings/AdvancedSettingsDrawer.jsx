@@ -156,6 +156,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
 import { useAuth } from '../../context/AuthContext';
+import { useOptimizedColorPicker } from '../../hooks/useOptimizedColorPicker';
 import { primaryColorPresets } from '../../theme/colorPresets';
 import { auth, db } from '../../config/firebase';
 import { signOut, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
@@ -241,6 +242,100 @@ function TabPanel({ children, value, index, ...other }) {
     </div>
   );
 }
+
+// Componente optimizado para selectores de color en AdvancedSettingsDrawer
+const AdvancedOptimizedColorSelector = ({ 
+  label, 
+  color, 
+  onColorChange, 
+  description, 
+  icon,
+  settings,
+  theme 
+}) => {
+  const optimizedPicker = useOptimizedColorPicker(color, onColorChange, {
+    debounceDelay: 150,
+    throttleDelay: 30,
+    enableThrottle: true,
+    enableDebounce: true
+  });
+
+  return (
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column',
+      gap: 2
+    }}>
+      <Typography variant="subtitle2" sx={{ 
+        fontWeight: 600,
+        color: theme.palette.text.primary,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1
+      }}>
+        {icon} {label}
+      </Typography>
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: 2 
+      }}>
+        <TextField
+          type="color"
+          {...optimizedPicker.inputProps}
+          sx={{
+            width: 80,
+            height: 50,
+            '& .MuiInputBase-root': {
+              height: 50,
+              borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
+              border: `2px solid ${alpha(theme.palette.divider, 0.12)}`,
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              transform: optimizedPicker.isDragging ? 'scale(1.02)' : 'scale(1)',
+              boxShadow: optimizedPicker.isDragging 
+                ? `0 8px 25px ${alpha(optimizedPicker.color, 0.3)}` 
+                : 'none',
+              '&:hover': {
+                borderColor: optimizedPicker.color,
+                transform: 'scale(1.01)'
+              }
+            },
+            '& input[type="color"]': {
+              border: 'none',
+              borderRadius: `${((settings?.theme?.borderRadius || 8) - 4)}px`,
+              cursor: 'pointer',
+              '&::-webkit-color-swatch-wrapper': {
+                padding: 0,
+                borderRadius: `${((settings?.theme?.borderRadius || 8) - 4)}px`
+              },
+              '&::-webkit-color-swatch': {
+                border: 'none',
+                borderRadius: `${((settings?.theme?.borderRadius || 8) - 4)}px`
+              }
+            }
+          }}
+        />
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="body2" sx={{ 
+            fontWeight: 500,
+            color: theme.palette.text.primary,
+            transition: 'all 0.2s ease'
+          }}>
+            {optimizedPicker.color}
+          </Typography>
+          <Typography variant="caption" sx={{ 
+            color: optimizedPicker.isDragging 
+              ? theme.palette.primary.main 
+              : theme.palette.text.secondary,
+            transition: 'color 0.2s ease'
+          }}>
+            {optimizedPicker.isDragging ? '🎨 Seleccionando color...' : description}
+          </Typography>
+        </Box>
+      </Box>
+    </Box>
+  );
+};
 
 export function AdvancedSettingsDrawer({ open, onClose }) {
   const theme = useTheme();
@@ -1099,144 +1194,34 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       <Grid container spacing={3}>
                         {/* Color Primario */}
                         <Grid item xs={12} sm={6}>
-                          <Box sx={{ 
-                            display: 'flex', 
-                            flexDirection: 'column',
-                            gap: 2
-                          }}>
-                            <Typography variant="subtitle2" sx={{ 
-                              fontWeight: 600,
-                              color: theme.palette.text.primary,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 1
-                            }}>
-                              🎨 Color Primario
-                            </Typography>
-                            <Box sx={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: 2 
-                            }}>
-                              <TextField
-                                type="color"
-                                value={settings?.theme?.primaryColor || '#1976d2'}
-                                onChange={(e) => updateSettings('theme', {
-                                  ...settings.theme,
-                                  primaryColor: e.target.value
-                                })}
-                                sx={{
-                                  width: 80,
-                                  height: 50,
-                                  '& .MuiInputBase-root': {
-                                    height: 50,
-                                    borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
-                                    border: `2px solid ${alpha(theme.palette.divider, 0.12)}`,
-                                    '&:hover': {
-                                      borderColor: settings?.theme?.primaryColor || '#1976d2'
-                                    }
-                                  },
-                                  '& input[type="color"]': {
-                                    border: 'none',
-                                    borderRadius: `${((settings?.theme?.borderRadius || 8) - 4)}px`,
-                                    cursor: 'pointer',
-                                    '&::-webkit-color-swatch-wrapper': {
-                                      padding: 0,
-                                      borderRadius: `${((settings?.theme?.borderRadius || 8) - 4)}px`
-                                    },
-                                    '&::-webkit-color-swatch': {
-                                      border: 'none',
-                                      borderRadius: `${((settings?.theme?.borderRadius || 8) - 4)}px`
-                                    }
-                                  }
-                                }}
-                              />
-                              <Box sx={{ flex: 1 }}>
-                                <Typography variant="body2" sx={{ 
-                                  fontWeight: 500,
-                                  color: theme.palette.text.primary
-                                }}>
-                                  {settings?.theme?.primaryColor || '#1976d2'}
-                                </Typography>
-                                <Typography variant="caption" sx={{ 
-                                  color: theme.palette.text.secondary 
-                                }}>
-                                  Color principal de la interfaz
-                                </Typography>
-                              </Box>
-                            </Box>
-                          </Box>
+                          <AdvancedOptimizedColorSelector
+                            label="Color Primario"
+                            color={settings?.theme?.primaryColor || '#1976d2'}
+                            onColorChange={(color) => updateSettings('theme', {
+                              ...settings.theme,
+                              primaryColor: color
+                            })}
+                            description="Color principal de la interfaz"
+                            icon="🎨"
+                            settings={settings}
+                            theme={theme}
+                          />
                         </Grid>
 
                         {/* Color Secundario */}
                         <Grid item xs={12} sm={6}>
-                          <Box sx={{ 
-                            display: 'flex', 
-                            flexDirection: 'column',
-                            gap: 2
-                          }}>
-                            <Typography variant="subtitle2" sx={{ 
-                              fontWeight: 600,
-                              color: theme.palette.text.primary,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 1
-                            }}>
-                              ✨ Color Secundario
-                            </Typography>
-                            <Box sx={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: 2 
-                            }}>
-                              <TextField
-                                type="color"
-                                value={settings?.theme?.secondaryColor || '#42a5f5'}
-                                onChange={(e) => updateSettings('theme', {
-                                  ...settings.theme,
-                                  secondaryColor: e.target.value
-                                })}
-                                sx={{
-                                  width: 80,
-                                  height: 50,
-                                  '& .MuiInputBase-root': {
-                                    height: 50,
-                                    borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
-                                    border: `2px solid ${alpha(theme.palette.divider, 0.12)}`,
-                                    '&:hover': {
-                                      borderColor: settings?.theme?.secondaryColor || '#42a5f5'
-                                    }
-                                  },
-                                  '& input[type="color"]': {
-                                    border: 'none',
-                                    borderRadius: `${((settings?.theme?.borderRadius || 8) - 4)}px`,
-                                    cursor: 'pointer',
-                                    '&::-webkit-color-swatch-wrapper': {
-                                      padding: 0,
-                                      borderRadius: `${((settings?.theme?.borderRadius || 8) - 4)}px`
-                                    },
-                                    '&::-webkit-color-swatch': {
-                                      border: 'none',
-                                      borderRadius: `${((settings?.theme?.borderRadius || 8) - 4)}px`
-                                    }
-                                  }
-                                }}
-                              />
-                              <Box sx={{ flex: 1 }}>
-                                <Typography variant="body2" sx={{ 
-                                  fontWeight: 500,
-                                  color: theme.palette.text.primary
-                                }}>
-                                  {settings?.theme?.secondaryColor || '#42a5f5'}
-                                </Typography>
-                                <Typography variant="caption" sx={{ 
-                                  color: theme.palette.text.secondary 
-                                }}>
-                                  Color de acentos y detalles
-                                </Typography>
-                              </Box>
-                            </Box>
-                          </Box>
+                          <AdvancedOptimizedColorSelector
+                            label="Color Secundario"
+                            color={settings?.theme?.secondaryColor || '#42a5f5'}
+                            onColorChange={(color) => updateSettings('theme', {
+                              ...settings.theme,
+                              secondaryColor: color
+                            })}
+                            description="Color de acentos y detalles"
+                            icon="✨"
+                            settings={settings}
+                            theme={theme}
+                          />
                         </Grid>
                       </Grid>
 
