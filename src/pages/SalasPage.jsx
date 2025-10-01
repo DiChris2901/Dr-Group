@@ -117,6 +117,9 @@ const SalasPage = () => {
   const [companyFilter, setCompanyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   
+  // ✅ NUEVO: Estado para empresa seleccionada en el grid
+  const [selectedCompanyId, setSelectedCompanyId] = useState(null);
+  
   // Formulario para nueva/editar sala
   const [formData, setFormData] = useState({
     name: '',
@@ -203,6 +206,18 @@ const SalasPage = () => {
     
     return matchesSearch && matchesCompany && matchesStatus;
   });
+
+  // ✅ NUEVO: Agrupar salas por empresa
+  const companiesWithSalas = companies.map(company => ({
+    ...company,
+    salasCount: salas.filter(sala => sala.companyId === company.id).length,
+    salas: salas.filter(sala => sala.companyId === company.id)
+  }));
+
+  // ✅ NUEVO: Salas de la empresa seleccionada
+  const salasDeEmpresaSeleccionada = selectedCompanyId
+    ? filteredSalas.filter(sala => sala.companyId === selectedCompanyId)
+    : [];
 
   // Manejar cambios del formulario
   const handleFormChange = (field, value) => {
@@ -471,7 +486,7 @@ const SalasPage = () => {
         <Paper sx={{ 
           p: 3, 
           mb: 3, 
-          borderRadius: 2,
+          borderRadius: 1,
           overflow: 'hidden',
           background: theme.palette.mode === 'dark'
             ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
@@ -529,7 +544,7 @@ const SalasPage = () => {
         <Paper sx={{ 
           p: 3, 
           mb: 3, 
-          borderRadius: 2,
+          borderRadius: 1,
           border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
           background: theme.palette.background.paper,
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
@@ -637,7 +652,7 @@ const SalasPage = () => {
           <Grid item xs={12} sm={6} md={3}>
             <Card sx={{ 
               textAlign: 'left', 
-              borderRadius: 2,
+              borderRadius: 1,
               border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
@@ -674,7 +689,7 @@ const SalasPage = () => {
           <Grid item xs={12} sm={6} md={3}>
             <Card sx={{ 
               textAlign: 'left', 
-              borderRadius: 2,
+              borderRadius: 1,
               border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
@@ -711,7 +726,7 @@ const SalasPage = () => {
           <Grid item xs={12} sm={6} md={3}>
             <Card sx={{ 
               textAlign: 'left', 
-              borderRadius: 2,
+              borderRadius: 1,
               border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
@@ -748,7 +763,7 @@ const SalasPage = () => {
           <Grid item xs={12} sm={6} md={3}>
             <Card sx={{ 
               textAlign: 'left', 
-              borderRadius: 2,
+              borderRadius: 1,
               border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
@@ -787,11 +802,191 @@ const SalasPage = () => {
       {/* Separador entre métricas y lista */}
       <Divider sx={{ my: 3, borderColor: alpha(theme.palette.divider, 0.2) }} />
 
-      {/* Lista de Salas */}
-      <Box sx={{ mt: 2 }}>
-      <AnimatePresence>
-        <Grid container spacing={3}>
-          {filteredSalas.map((sala, index) => (
+      {/* ✅ NUEVO DISEÑO: Dos Columnas - Empresas (izq) y Salas (der) */}
+      <Grid container spacing={3}>
+        {/* GRID 1: Lista de Empresas (Lado Izquierdo) */}
+        <Grid item xs={12} md={4}>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Paper sx={{
+              p: 2,
+              borderRadius: 1,
+              border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+              background: theme.palette.background.paper,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              height: '720px',
+              overflowY: 'auto',
+              '&::-webkit-scrollbar': { width: '8px' },
+              '&::-webkit-scrollbar-track': { background: alpha(theme.palette.divider, 0.05) },
+              '&::-webkit-scrollbar-thumb': { 
+                background: alpha(theme.palette.primary.main, 0.3),
+                borderRadius: '4px',
+                '&:hover': { background: alpha(theme.palette.primary.main, 0.5) }
+              }
+            }}>
+              <Typography variant="h6" fontWeight={600} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <BusinessIcon color="primary" />
+                Empresas
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {companiesWithSalas.map((company, index) => (
+                  <motion.div
+                    key={company.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                  >
+                    <Card
+                      onClick={() => setSelectedCompanyId(company.id)}
+                      sx={{
+                        cursor: 'pointer',
+                        borderRadius: 1,
+                        border: selectedCompanyId === company.id
+                          ? `2px solid ${theme.palette.primary.main}`
+                          : `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                        background: selectedCompanyId === company.id
+                          ? alpha(theme.palette.primary.main, 0.08)
+                          : theme.palette.background.paper,
+                        boxShadow: selectedCompanyId === company.id
+                          ? `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`
+                          : '0 2px 8px rgba(0,0,0,0.06)',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.15)}`,
+                          borderColor: theme.palette.primary.main
+                        }
+                      }}
+                    >
+                      <CardContent sx={{ p: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Avatar
+                            src={company.logoURL}
+                            alt={company.name}
+                            sx={{
+                              width: 48,
+                              height: 48,
+                              borderRadius: '8px',
+                              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.15)} 0%, ${alpha(theme.palette.secondary.main, 0.1)} 100%)`,
+                              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                              '& img': {
+                                objectFit: 'contain',
+                                padding: '4px'
+                              }
+                            }}
+                          >
+                            <BusinessIcon sx={{ fontSize: 24, color: 'primary.main' }} />
+                          </Avatar>
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="subtitle1" fontWeight={600}>
+                              {company.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {company.salasCount} {company.salasCount === 1 ? 'sala' : 'salas'}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </Box>
+            </Paper>
+          </motion.div>
+        </Grid>
+
+        {/* GRID 2: Salas de la Empresa Seleccionada (Lado Derecho) */}
+        <Grid item xs={12} md={8}>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <Paper sx={{
+              p: 3,
+              borderRadius: 1,
+              border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+              background: theme.palette.background.paper,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              minHeight: '720px'
+            }}>
+              {!selectedCompanyId ? (
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  alignItems: 'center', 
+                  justifyContent: 'center',
+                  height: '100%',
+                  minHeight: '620px',
+                  textAlign: 'center'
+                }}>
+                  <Box sx={{
+                    width: 120,
+                    height: 120,
+                    borderRadius: '50%',
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    mb: 3
+                  }}>
+                    <RoomIcon sx={{ fontSize: 60, color: alpha(theme.palette.primary.main, 0.4) }} />
+                  </Box>
+                  <Typography variant="h6" color="text.secondary" gutterBottom>
+                    Selecciona una empresa
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Haz clic en una empresa de la lista para ver sus salas
+                  </Typography>
+                </Box>
+              ) : (
+                <Box>
+                  <Typography variant="h6" fontWeight={600} sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <RoomIcon color="primary" />
+                    Salas de {companies.find(c => c.id === selectedCompanyId)?.name}
+                  </Typography>
+                  
+                  {salasDeEmpresaSeleccionada.length === 0 ? (
+                    <Box sx={{ 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      py: 8,
+                      textAlign: 'center'
+                    }}>
+                      <Typography variant="body1" color="text.secondary">
+                        No hay salas para esta empresa
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        startIcon={<AddIcon />}
+                        onClick={() => setAddDialogOpen(true)}
+                        sx={{ mt: 2 }}
+                      >
+                        Agregar Sala
+                      </Button>
+                    </Box>
+                  ) : (
+                    <Box sx={{ 
+                      maxHeight: '640px',
+                      overflowY: 'auto',
+                      pr: 1,
+                      '&::-webkit-scrollbar': { width: '8px' },
+                      '&::-webkit-scrollbar-track': { background: alpha(theme.palette.divider, 0.05) },
+                      '&::-webkit-scrollbar-thumb': { 
+                        background: alpha(theme.palette.primary.main, 0.3),
+                        borderRadius: '4px',
+                        '&:hover': { background: alpha(theme.palette.primary.main, 0.5) }
+                      }
+                    }}>
+                      <AnimatePresence>
+                        <Grid container spacing={2}>
+                          {salasDeEmpresaSeleccionada.map((sala, index) => (
             <Grid item xs={12} md={6} lg={4} key={sala.id}>
               <motion.div
                 initial={{ opacity: 0, y: 50 }}
@@ -804,7 +999,7 @@ const SalasPage = () => {
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    borderRadius: 2,
+                    borderRadius: 1,
                     border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
                     background: theme.palette.background.paper,
                     boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
@@ -910,10 +1105,17 @@ const SalasPage = () => {
           ))}
         </Grid>
       </AnimatePresence>
-      </Box>
+                    </Box>
+                  )}
+                </Box>
+              )}
+            </Paper>
+          </motion.div>
+        </Grid>
+      </Grid>
 
-      {/* Mensaje cuando no hay salas */}
-      {filteredSalas.length === 0 && (
+      {/* ELIMINADO: Mensaje cuando no hay salas (ya está integrado arriba) */}
+      {false && filteredSalas.length === 0 && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -981,7 +1183,7 @@ const SalasPage = () => {
               onClick={() => setAddDialogOpen(true)}
               sx={{ 
                 mt: 1,
-                borderRadius: 2,
+                borderRadius: 1,
                 px: 3,
                 py: 1
               }}
@@ -1003,7 +1205,7 @@ const SalasPage = () => {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: 2,
+            borderRadius: 1,
             background: theme.palette.background.paper,
             boxShadow: theme.palette.mode === 'dark'
               ? '0 4px 20px rgba(0, 0, 0, 0.3)'
@@ -1303,7 +1505,7 @@ const SalasPage = () => {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: 2,
+            borderRadius: 1,
             background: theme.palette.mode === 'dark' 
               ? alpha(theme.palette.background.paper, 0.9) 
               : '#ffffff'
@@ -1511,7 +1713,7 @@ const SalasPage = () => {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: 2,
+            borderRadius: 1,
             background: theme.palette.mode === 'dark' 
               ? alpha(theme.palette.background.paper, 0.9) 
               : '#ffffff'
@@ -1557,7 +1759,7 @@ const SalasPage = () => {
             <Grid container spacing={3}>
               {/* Información principal */}
               <Grid item xs={12}>
-                <Paper sx={{ p: 3, borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
+                <Paper sx={{ p: 3, borderRadius: 1, bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
                   <Typography variant="h5" fontWeight="bold" gutterBottom>
                     {selectedSala.name}
                   </Typography>
@@ -1710,7 +1912,7 @@ const SalasPage = () => {
         maxWidth="sm"
         PaperProps={{
           sx: {
-            borderRadius: 2,
+            borderRadius: 1,
             background: theme.palette.mode === 'dark' 
               ? alpha(theme.palette.background.paper, 0.9) 
               : '#ffffff'
