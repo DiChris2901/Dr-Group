@@ -37,7 +37,9 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow
+  TableRow,
+  Autocomplete,
+  Tooltip
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -66,7 +68,8 @@ import {
   FilterList as FilterIcon,
   Search as SearchIcon,
   Clear as ClearIcon,
-  Block as BlockIcon
+  Block as BlockIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -141,6 +144,9 @@ const SalasPage = () => {
     contactPhone: '',
     contactEmail: '',
     contactoAutorizado: '',
+    contactPhone2: '',
+    contactEmail2: '',
+    contactoAutorizado2: '',
     administracion: 0,
     conexion: 0
   });
@@ -217,6 +223,62 @@ const SalasPage = () => {
   const propietariosUnicos = ['all', ...new Set(salas.map(sala => sala.propietario).filter(Boolean))];
   const proveedoresUnicos = ['all', ...new Set(salas.map(sala => sala.proveedorOnline).filter(Boolean))];
 
+  // ✅ Obtener contactos únicos con sus datos completos
+  const contactosUnicos = React.useMemo(() => {
+    const contactosMap = new Map();
+    
+    salas.forEach(sala => {
+      // Contacto 1
+      if (sala.contactoAutorizado && sala.contactoAutorizado.trim()) {
+        const key = sala.contactoAutorizado.toLowerCase();
+        if (!contactosMap.has(key)) {
+          contactosMap.set(key, {
+            nombre: sala.contactoAutorizado,
+            telefono: sala.contactPhone || '',
+            email: sala.contactEmail || ''
+          });
+        }
+      }
+      
+      // Contacto 2
+      if (sala.contactoAutorizado2 && sala.contactoAutorizado2.trim()) {
+        const key = sala.contactoAutorizado2.toLowerCase();
+        if (!contactosMap.has(key)) {
+          contactosMap.set(key, {
+            nombre: sala.contactoAutorizado2,
+            telefono: sala.contactPhone2 || '',
+            email: sala.contactEmail2 || ''
+          });
+        }
+      }
+    });
+    
+    return Array.from(contactosMap.values());
+  }, [salas]);
+
+  // ✅ Obtener propietarios únicos con sus datos completos (costos típicos)
+  const propietariosConDatos = React.useMemo(() => {
+    const propietariosMap = new Map();
+    
+    salas.forEach(sala => {
+      if (sala.propietario && sala.propietario.trim()) {
+        const key = sala.propietario.toLowerCase();
+        
+        // Si ya existe, actualizar con el valor más reciente (última sala agregada)
+        if (!propietariosMap.has(key) || sala.createdAt > propietariosMap.get(key).createdAt) {
+          propietariosMap.set(key, {
+            nombre: sala.propietario,
+            administracion: sala.administracion || 0,
+            conexion: sala.conexion || 0,
+            createdAt: sala.createdAt
+          });
+        }
+      }
+    });
+    
+    return Array.from(propietariosMap.values());
+  }, [salas]);
+
   // ✅ NUEVO: Agrupar salas por empresa
   const companiesWithSalas = companies.map(company => ({
     ...company,
@@ -246,6 +308,57 @@ const SalasPage = () => {
     }
   };
 
+  // ✅ Handler para autocompletar datos del contacto 1
+  const handleContactoChange = (contactoObj) => {
+    if (contactoObj && typeof contactoObj === 'object') {
+      setFormData(prev => ({
+        ...prev,
+        contactoAutorizado: contactoObj.nombre,
+        contactPhone: contactoObj.telefono,
+        contactEmail: contactoObj.email
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        contactoAutorizado: contactoObj || ''
+      }));
+    }
+  };
+
+  // ✅ Handler para autocompletar datos del contacto 2
+  const handleContacto2Change = (contactoObj) => {
+    if (contactoObj && typeof contactoObj === 'object') {
+      setFormData(prev => ({
+        ...prev,
+        contactoAutorizado2: contactoObj.nombre,
+        contactPhone2: contactoObj.telefono,
+        contactEmail2: contactoObj.email
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        contactoAutorizado2: contactoObj || ''
+      }));
+    }
+  };
+
+  // ✅ Handler para autocompletar datos del propietario (costos)
+  const handlePropietarioChange = (propietarioObj) => {
+    if (propietarioObj && typeof propietarioObj === 'object') {
+      setFormData(prev => ({
+        ...prev,
+        propietario: propietarioObj.nombre,
+        administracion: propietarioObj.administracion,
+        conexion: propietarioObj.conexion
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        propietario: propietarioObj || ''
+      }));
+    }
+  };
+
 
 
   // Limpiar formulario
@@ -261,6 +374,9 @@ const SalasPage = () => {
       contactPhone: '',
       contactEmail: '',
       contactoAutorizado: '',
+      contactPhone2: '',
+      contactEmail2: '',
+      contactoAutorizado2: '',
       administracion: 0,
       conexion: 0
     });
@@ -333,9 +449,12 @@ const SalasPage = () => {
         roomName: formData.name,
         companyName: formData.companyName,
         changes: {
-          capacity: formData.capacity,
-          hourlyRate: formData.hourlyRate,
-          status: formData.status
+          propietario: formData.propietario,
+          administracion: formData.administracion,
+          conexion: formData.conexion,
+          status: formData.status,
+          ciudad: formData.ciudad,
+          proveedorOnline: formData.proveedorOnline
         }
       }, currentUser.uid, userProfile?.displayName, userProfile?.email);
 
@@ -391,6 +510,9 @@ const SalasPage = () => {
       contactPhone: sala.contactPhone || '',
       contactEmail: sala.contactEmail || '',
       contactoAutorizado: sala.contactoAutorizado || '',
+      contactPhone2: sala.contactPhone2 || '',
+      contactEmail2: sala.contactEmail2 || '',
+      contactoAutorizado2: sala.contactoAutorizado2 || '',
       administracion: sala.administracion || 0,
       conexion: sala.conexion || 0
     });
@@ -1101,7 +1223,8 @@ const SalasPage = () => {
               >
                 <Card 
                   sx={{ 
-                    height: '100%',
+                    minHeight: 280,
+                    maxHeight: 280,
                     display: 'flex',
                     flexDirection: 'column',
                     borderRadius: 1,
@@ -1117,6 +1240,15 @@ const SalasPage = () => {
                   }}
                 >
                   <CardHeader
+                    sx={{
+                      minHeight: 85,
+                      maxHeight: 85,
+                      py: 1.5,
+                      px: 2,
+                      '& .MuiCardHeader-content': {
+                        overflow: 'hidden'
+                      }
+                    }}
                     avatar={
                       <Box sx={{ 
                         width: 40, 
@@ -1132,22 +1264,20 @@ const SalasPage = () => {
                       </Box>
                     }
                     title={
-                      <Typography variant="h6" fontWeight="bold">
+                      <Typography 
+                        variant="h6" 
+                        fontWeight="bold"
+                        sx={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          lineHeight: 1.3
+                        }}
+                      >
                         {sala.name}
                       </Typography>
-                    }
-                    subheader={
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
-                          {sala.companyName}
-                        </Typography>
-                        <Chip 
-                          label={getStatusText(sala.status)}
-                          color={getStatusColor(sala.status)}
-                          size="small"
-                          sx={{ mt: 0.5 }}
-                        />
-                      </Box>
                     }
                     action={
                       <Box>
@@ -1167,40 +1297,100 @@ const SalasPage = () => {
                     }
                   />
                   
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Box sx={{ mb: 2 }}>
-                      <Typography variant="body2" color="text.secondary" gutterBottom>
-                        {sala.description || 'Sin descripción'}
+                  <CardContent sx={{ 
+                    flexGrow: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    overflow: 'hidden',
+                    pt: 1,
+                    pb: 1.5,
+                    px: 2,
+                    '&:last-child': {
+                      pb: 1.5
+                    }
+                  }}>
+                    <Box sx={{ mb: 1 }}>
+                      <Chip 
+                        label={getStatusText(sala.status)}
+                        color={getStatusColor(sala.status)}
+                        size="small"
+                        sx={{ height: 22 }}
+                      />
+                    </Box>
+                    <Box sx={{ mb: 1.5, minHeight: 42 }}>
+                      <Typography 
+                        variant="body2" 
+                        color="text.secondary" 
+                        gutterBottom
+                        sx={{ 
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 1,
+                          WebkitBoxOrient: 'vertical'
+                        }}
+                      >
+                        {sala.ciudad || 'Sin ciudad'} {sala.proveedorOnline && `• ${sala.proveedorOnline}`}
+                      </Typography>
+                      <Typography 
+                        variant="caption" 
+                        color="text.secondary" 
+                        display="block"
+                        sx={{ 
+                          minHeight: 20,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {sala.propietario ? `Propietario: ${sala.propietario}` : '\u00A0'}
                       </Typography>
                     </Box>
                     
-                    <Grid container spacing={2}>
+                    <Grid container spacing={1.5}>
                       <Grid item xs={6}>
                         <Box display="flex" alignItems="center" gap={0.5}>
-                          <PeopleIcon fontSize="small" color="action" />
-                          <Typography variant="body2">
-                            {sala.capacity} personas
-                          </Typography>
+                          <BusinessIcon fontSize="small" color="action" />
+                          <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Typography variant="caption" color="text.secondary" display="block" sx={{ lineHeight: 1.2 }}>
+                              Administración
+                            </Typography>
+                            <Typography 
+                              variant="body2" 
+                              fontWeight={600}
+                              sx={{ 
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              {formatPrice(sala.administracion || 0)}
+                            </Typography>
+                          </Box>
                         </Box>
                       </Grid>
                       <Grid item xs={6}>
                         <Box display="flex" alignItems="center" gap={0.5}>
                           <MoneyIcon fontSize="small" color="action" />
-                          <Typography variant="body2">
-                            {formatPrice(sala.hourlyRate)}/h
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      {sala.location && (
-                        <Grid item xs={12}>
-                          <Box display="flex" alignItems="center" gap={0.5}>
-                            <LocationIcon fontSize="small" color="action" />
-                            <Typography variant="body2">
-                              {sala.location}
+                          <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Typography variant="caption" color="text.secondary" display="block" sx={{ lineHeight: 1.2 }}>
+                              Conexión
+                            </Typography>
+                            <Typography 
+                              variant="body2" 
+                              fontWeight={600}
+                              sx={{ 
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              {formatPrice(sala.conexion || 0)}
                             </Typography>
                           </Box>
-                        </Grid>
-                      )}
+                        </Box>
+                      </Grid>
                     </Grid>
 
                   </CardContent>
@@ -1310,7 +1500,7 @@ const SalasPage = () => {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: 1,
+            borderRadius: 2,
             background: theme.palette.background.paper,
             boxShadow: theme.palette.mode === 'dark'
               ? '0 4px 20px rgba(0, 0, 0, 0.3)'
@@ -1320,38 +1510,36 @@ const SalasPage = () => {
         }}
       >
         <DialogTitle sx={{ 
-          pb: 3,
-          pt: 3,
-          px: 3,
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.03)} 0%, ${alpha(theme.palette.background.paper, 0.8)} 100%)`
+          pb: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: theme.palette.mode === 'dark' 
+            ? theme.palette.grey[900]
+            : theme.palette.grey[50],
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          color: 'text.primary'
         }}>
-          <Box display="flex" alignItems="center" gap={3} sx={{ mb: 1 }}>
-            <Box sx={{ 
-              width: 48, 
-              height: 48, 
-              borderRadius: '50%',
-              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
-            }}>
-              <AddIcon sx={{ fontSize: 24, color: 'primary.main' }} />
-            </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+              <AddIcon />
+            </Avatar>
             <Box>
-              <Typography variant="h6" fontWeight="600">
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
                 Agregar Nueva Sala
               </Typography>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
                 Complete la información de la nueva sala
               </Typography>
             </Box>
           </Box>
+          <IconButton onClick={() => { setAddDialogOpen(false); clearForm(); }} size="small">
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
         
-        <DialogContent sx={{ p: 3, pt: 5 }}>
-          <Grid container spacing={3.5}>
+        <DialogContent sx={{ p: 3 }}>
+          <Grid container spacing={3}>
             {/* Información básica */}
             <Grid item xs={12}>
               <Typography variant="overline" sx={{ 
@@ -1375,67 +1563,94 @@ const SalasPage = () => {
                 helperText="Nombre identificativo de la sala"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1.5
+                    borderRadius: 1
                   }
                 }}
               />
             </Grid>
             
             <Grid item xs={12} md={6}>
-              <FormControl fullWidth required sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.5
-                }
-              }}>
-                <InputLabel>Empresa</InputLabel>
-                <Select
-                  value={formData.companyId}
-                  onChange={(e) => handleFormChange('companyId', e.target.value)}
-                  label="Empresa"
-                >
-                  {companies.map(company => (
-                    <MenuItem key={company.id} value={company.id}>
-                      {company.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <Autocomplete
+                options={companies}
+                getOptionLabel={(option) => option.name || ''}
+                value={companies.find(c => c.id === formData.companyId) || null}
+                onChange={(event, newValue) => {
+                  handleFormChange('companyId', newValue?.id || '');
+                  handleFormChange('companyName', newValue?.name || '');
+                }}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Empresa"
+                    required
+                    helperText="Seleccione o busque la empresa"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1
+                      }
+                    }}
+                  />
+                )}
+              />
             </Grid>
             
             <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Proveedor Online"
+              <Autocomplete
+                freeSolo
+                options={proveedoresUnicos.filter(p => p !== 'all')}
                 value={formData.proveedorOnline ?? ''}
-                onChange={(e) => handleFormChange('proveedorOnline', e.target.value)}
-                helperText="Proveedor de servicios online"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1.5
-                  }
+                onChange={(event, newValue) => {
+                  handleFormChange('proveedorOnline', newValue || '');
                 }}
+                onInputChange={(event, newInputValue) => {
+                  handleFormChange('proveedorOnline', newInputValue);
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Proveedor Online"
+                    helperText="Proveedor de servicios online (puede escribir nuevo o seleccionar existente)"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1
+                      }
+                    }}
+                  />
+                )}
               />
             </Grid>
             
             <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Ciudad"
+              <Autocomplete
+                freeSolo
+                options={[...new Set(salas.map(sala => sala.ciudad).filter(Boolean))]}
                 value={formData.ciudad ?? ''}
-                onChange={(e) => handleFormChange('ciudad', e.target.value)}
-                helperText="Ciudad donde se encuentra la sala"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1.5
-                  }
+                onChange={(event, newValue) => {
+                  handleFormChange('ciudad', newValue || '');
                 }}
+                onInputChange={(event, newInputValue) => {
+                  handleFormChange('ciudad', newInputValue);
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Ciudad"
+                    helperText="Ciudad donde se encuentra la sala (puede escribir nueva o seleccionar existente)"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1
+                      }
+                    }}
+                  />
+                )}
               />
             </Grid>
             
             <Grid item xs={12} md={6}>
               <FormControl fullWidth sx={{
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: 1.5
+                  borderRadius: 1
                 }
               }}>
                 <InputLabel>Estado</InputLabel>
@@ -1451,26 +1666,56 @@ const SalasPage = () => {
             </Grid>
             
             <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Propietario"
+              <Autocomplete
+                freeSolo
+                options={propietariosConDatos}
+                getOptionLabel={(option) => 
+                  typeof option === 'string' ? option : option.nombre
+                }
                 value={formData.propietario ?? ''}
-                onChange={(e) => handleFormChange('propietario', e.target.value)}
-                helperText="Propietario de la sala"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1.5
+                onChange={(event, newValue) => handlePropietarioChange(newValue)}
+                onInputChange={(event, newInputValue, reason) => {
+                  if (reason === 'input') {
+                    handleFormChange('propietario', newInputValue);
                   }
                 }}
+                renderOption={(props, option) => {
+                  const { key, ...otherProps } = props;
+                  return (
+                    <Box component="li" key={key} {...otherProps}>
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>
+                          {option.nombre}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          💼 Admin: ${option.administracion.toLocaleString()} • 🔌 Conexión: ${option.conexion.toLocaleString()}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  );
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Propietario"
+                    helperText="Seleccione o escriba (autocompleta costos típicos)"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1
+                      }
+                    }}
+                  />
+                )}
               />
             </Grid>
             
             {/* Información de Contacto */}
             <Grid item xs={12}>
               <Typography variant="overline" sx={{ 
-                color: alpha(theme.palette.text.secondary, 0.7),
+                color: 'text.secondary',
                 fontWeight: 600,
-                letterSpacing: 1.2,
+                letterSpacing: 0.8,
+                opacity: 0.7,
                 mb: 2,
                 mt: 2,
                 display: 'block'
@@ -1480,17 +1725,53 @@ const SalasPage = () => {
             </Grid>
             
             <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Contacto autorizado"
+              <Autocomplete
+                freeSolo
+                options={contactosUnicos}
+                getOptionLabel={(option) => 
+                  typeof option === 'string' ? option : option.nombre
+                }
                 value={formData.contactoAutorizado ?? ''}
-                onChange={(e) => handleFormChange('contactoAutorizado', e.target.value)}
-                helperText="Persona autorizada para contacto"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 1.5
+                onChange={(event, newValue) => handleContactoChange(newValue)}
+                onInputChange={(event, newInputValue, reason) => {
+                  if (reason === 'input') {
+                    handleFormChange('contactoAutorizado', newInputValue);
                   }
                 }}
+                renderOption={(props, option) => {
+                  const { key, ...otherProps } = props;
+                  return (
+                    <Box component="li" key={key} {...otherProps}>
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>
+                          {option.nombre}
+                        </Typography>
+                        {option.telefono && (
+                          <Typography variant="caption" color="text.secondary">
+                            📞 {option.telefono}
+                          </Typography>
+                        )}
+                        {option.email && (
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            ✉️ {option.email}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  );
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Contacto autorizado"
+                    helperText="Seleccione o escriba nuevo (autocompleta tel. y email)"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1
+                      }
+                    }}
+                  />
+                )}
               />
             </Grid>
             
@@ -1503,7 +1784,7 @@ const SalasPage = () => {
                 helperText="Número de contacto"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1.5
+                    borderRadius: 1
                   }
                 }}
               />
@@ -1519,7 +1800,104 @@ const SalasPage = () => {
                 helperText="Correo electrónico de contacto"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1.5
+                    borderRadius: 1
+                  }
+                }}
+              />
+            </Grid>
+            
+            {/* Contacto Autorizado 2 */}
+            <Grid item xs={12}>
+              <Typography variant="overline" sx={{ 
+                color: 'text.secondary',
+                fontWeight: 600,
+                letterSpacing: 0.8,
+                opacity: 0.7,
+                mb: 2,
+                mt: 2,
+                display: 'block'
+              }}>
+                Contacto Autorizado 2 (Opcional)
+              </Typography>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Autocomplete
+                freeSolo
+                options={contactosUnicos}
+                getOptionLabel={(option) => 
+                  typeof option === 'string' ? option : option.nombre
+                }
+                value={formData.contactoAutorizado2 ?? ''}
+                onChange={(event, newValue) => handleContacto2Change(newValue)}
+                onInputChange={(event, newInputValue, reason) => {
+                  if (reason === 'input') {
+                    handleFormChange('contactoAutorizado2', newInputValue);
+                  }
+                }}
+                renderOption={(props, option) => {
+                  const { key, ...otherProps } = props;
+                  return (
+                    <Box component="li" key={key} {...otherProps}>
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>
+                          {option.nombre}
+                        </Typography>
+                        {option.telefono && (
+                          <Typography variant="caption" color="text.secondary">
+                            📞 {option.telefono}
+                          </Typography>
+                        )}
+                        {option.email && (
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            ✉️ {option.email}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  );
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Contacto autorizado 2"
+                    helperText="Seleccione o escriba nuevo (autocompleta tel. y email)"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1
+                      }
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Teléfono 2"
+                value={formData.contactPhone2 ?? ''}
+                onChange={(e) => handleFormChange('contactPhone2', e.target.value)}
+                helperText="Número de contacto alternativo"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
+                  }
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="E-mail de contacto 2"
+                type="email"
+                value={formData.contactEmail2 ?? ''}
+                onChange={(e) => handleFormChange('contactEmail2', e.target.value)}
+                helperText="Correo electrónico alternativo"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
                   }
                 }}
               />
@@ -1528,9 +1906,10 @@ const SalasPage = () => {
             {/* Costos Adicionales */}
             <Grid item xs={12}>
               <Typography variant="overline" sx={{ 
-                color: alpha(theme.palette.text.secondary, 0.7),
+                color: 'text.secondary',
                 fontWeight: 600,
-                letterSpacing: 1.2,
+                letterSpacing: 0.8,
+                opacity: 0.7,
                 mb: 2,
                 mt: 2,
                 display: 'block'
@@ -1551,7 +1930,7 @@ const SalasPage = () => {
                 helperText="Costo de administración"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1.5
+                    borderRadius: 1
                   }
                 }}
               />
@@ -1569,7 +1948,7 @@ const SalasPage = () => {
                 helperText="Costo de conexión"
                 sx={{
                   '& .MuiOutlinedInput-root': {
-                    borderRadius: 1.5
+                    borderRadius: 1
                   }
                 }}
               />
@@ -1577,13 +1956,14 @@ const SalasPage = () => {
           </Grid>
         </DialogContent>
         
-        <DialogActions sx={{ p: 3, pt: 1 }}>
+        <DialogActions sx={{ p: 3, pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
           <Button
             onClick={() => {
               setAddDialogOpen(false);
               clearForm();
             }}
             disabled={saving}
+            sx={{ borderRadius: 1 }}
           >
             Cancelar
           </Button>
@@ -1591,9 +1971,17 @@ const SalasPage = () => {
             onClick={handleCreateSala}
             variant="contained"
             disabled={saving}
-            startIcon={saving ? <CircularProgress size={20} /> : <SaveIcon />}
+            startIcon={<SaveIcon />}
+            sx={{ borderRadius: 1 }}
           >
-            {saving ? 'Guardando...' : 'Crear Sala'}
+            {saving ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CircularProgress size={16} color="inherit" />
+                Guardando...
+              </Box>
+            ) : (
+              'Crear Sala'
+            )}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1610,55 +1998,53 @@ const SalasPage = () => {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: 1,
-            background: theme.palette.mode === 'dark' 
-              ? alpha(theme.palette.background.paper, 0.9) 
-              : '#ffffff'
+            borderRadius: 2,
+            background: theme.palette.background.paper,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: `1px solid ${alpha(theme.palette.warning.main, 0.6)}`
           }
         }}
       >
         <DialogTitle sx={{ 
-          pb: 3,
-          pt: 3,
-          px: 3,
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-          background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.03)} 0%, ${alpha(theme.palette.background.paper, 0.8)} 100%)`
+          pb: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: theme.palette.mode === 'dark' 
+            ? theme.palette.grey[900]
+            : theme.palette.grey[50],
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          color: 'text.primary'
         }}>
-          <Box display="flex" alignItems="center" gap={3} sx={{ mb: 1 }}>
-            <Box sx={{ 
-              width: 48, 
-              height: 48, 
-              borderRadius: '50%',
-              background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.1)} 0%, ${alpha(theme.palette.warning.main, 0.05)} 100%)`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`
-            }}>
-              <EditIcon sx={{ fontSize: 24, color: 'warning.main' }} />
-            </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar sx={{ bgcolor: 'warning.main', color: 'warning.contrastText' }}>
+              <EditIcon />
+            </Avatar>
             <Box>
-              <Typography variant="h6" fontWeight="600">
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
                 Editar Sala
               </Typography>
-              <Typography variant="body2" sx={{ 
-                color: alpha(theme.palette.text.secondary, 0.8),
-                mt: 0.5 
-              }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
                 Modifique la información de la sala
               </Typography>
             </Box>
           </Box>
+          <IconButton onClick={() => { setEditDialogOpen(false); setSelectedSala(null); clearForm(); }} size="small">
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
         
-        <DialogContent sx={{ pt: 3, px: 3 }}>
-          <Grid container spacing={3.5}>
+        <DialogContent sx={{ p: 3 }}>
+          <Grid container spacing={3}>
             {/* Información básica */}
             <Grid item xs={12}>
               <Typography variant="overline" sx={{ 
-                color: alpha(theme.palette.text.secondary, 0.7),
+                color: 'text.secondary',
                 fontWeight: 600,
-                letterSpacing: 1.2,
+                letterSpacing: 0.8,
+                opacity: 0.7,
                 mb: 2,
                 display: 'block'
               }}>
@@ -1666,7 +2052,6 @@ const SalasPage = () => {
               </Typography>
             </Grid>
             
-            {/* Mismos campos que en agregar, pero con valores del formData */}
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
@@ -1674,74 +2059,99 @@ const SalasPage = () => {
                 value={formData.name}
                 onChange={(e) => handleFormChange('name', e.target.value)}
                 required
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth required>
-                <InputLabel>Empresa</InputLabel>
-                <Select
-                  value={formData.companyId}
-                  onChange={(e) => handleFormChange('companyId', e.target.value)}
-                  label="Empresa"
-                >
-                  {companies.map(company => (
-                    <MenuItem key={company.id} value={company.id}>
-                      {company.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Descripción"
-                value={formData.description}
-                onChange={(e) => handleFormChange('description', e.target.value)}
-                multiline
-                rows={3}
-              />
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Capacidad"
-                type="number"
-                value={formData.capacity}
-                onChange={(e) => handleFormChange('capacity', parseInt(e.target.value))}
-                InputProps={{
-                  endAdornment: <InputAdornment position="end">personas</InputAdornment>,
+                helperText="Nombre identificativo de la sala"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
+                  }
                 }}
               />
             </Grid>
             
             <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Tarifa por Hora"
-                type="number"
-                value={formData.hourlyRate}
-                onChange={(e) => handleFormChange('hourlyRate', parseInt(e.target.value))}
-                InputProps={{
-                  startAdornment: <InputAdornment position="start">$</InputAdornment>,
+              <Autocomplete
+                options={companies}
+                getOptionLabel={(option) => option.name || ''}
+                value={companies.find(c => c.id === formData.companyId) || null}
+                onChange={(event, newValue) => {
+                  handleFormChange('companyId', newValue?.id || '');
+                  handleFormChange('companyName', newValue?.name || '');
                 }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Empresa"
+                    required
+                    helperText="Empresa asociada a la sala (escriba para buscar)"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1
+                      }
+                    }}
+                  />
+                )}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
               />
             </Grid>
             
             <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Ubicación"
-                value={formData.location}
-                onChange={(e) => handleFormChange('location', e.target.value)}
+              <Autocomplete
+                freeSolo
+                options={proveedoresUnicos.filter(p => p !== 'all')}
+                value={formData.proveedorOnline ?? ''}
+                onChange={(event, newValue) => {
+                  handleFormChange('proveedorOnline', newValue || '');
+                }}
+                onInputChange={(event, newInputValue) => {
+                  handleFormChange('proveedorOnline', newInputValue);
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Proveedor Online"
+                    helperText="Proveedor de servicios online (puede escribir nuevo o seleccionar existente)"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1
+                      }
+                    }}
+                  />
+                )}
               />
             </Grid>
             
             <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
+              <Autocomplete
+                freeSolo
+                options={[...new Set(salas.map(sala => sala.ciudad).filter(Boolean))]}
+                value={formData.ciudad ?? ''}
+                onChange={(event, newValue) => {
+                  handleFormChange('ciudad', newValue || '');
+                }}
+                onInputChange={(event, newInputValue) => {
+                  handleFormChange('ciudad', newInputValue);
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Ciudad"
+                    helperText="Ciudad donde se encuentra la sala (puede escribir nueva o seleccionar existente)"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1
+                      }
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1
+                }
+              }}>
                 <InputLabel>Estado</InputLabel>
                 <Select
                   value={formData.status}
@@ -1754,38 +2164,208 @@ const SalasPage = () => {
               </FormControl>
             </Grid>
             
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                label="Persona de Contacto"
-                value={formData.contactPerson}
-                onChange={(e) => handleFormChange('contactPerson', e.target.value)}
+            <Grid item xs={12} md={6}>
+              <Autocomplete
+                freeSolo
+                options={propietariosUnicos.filter(p => p !== 'all')}
+                value={formData.propietario ?? ''}
+                onChange={(event, newValue) => {
+                  handleFormChange('propietario', newValue || '');
+                }}
+                onInputChange={(event, newInputValue) => {
+                  handleFormChange('propietario', newInputValue);
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Propietario"
+                    helperText="Propietario de la sala (puede escribir nuevo o seleccionar existente)"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1
+                      }
+                    }}
+                  />
+                )}
               />
             </Grid>
             
-            <Grid item xs={12} md={4}>
+            {/* Información de Contacto */}
+            <Grid item xs={12}>
+              <Typography variant="overline" sx={{ 
+                color: 'text.secondary',
+                fontWeight: 600,
+                letterSpacing: 0.8,
+                opacity: 0.7,
+                mb: 2,
+                mt: 2,
+                display: 'block'
+              }}>
+                Información de Contacto
+              </Typography>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Teléfono de Contacto"
-                value={formData.contactPhone}
+                label="Contacto autorizado"
+                value={formData.contactoAutorizado ?? ''}
+                onChange={(e) => handleFormChange('contactoAutorizado', e.target.value)}
+                helperText="Persona autorizada para contacto"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
+                  }
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Teléfono"
+                value={formData.contactPhone ?? ''}
                 onChange={(e) => handleFormChange('contactPhone', e.target.value)}
+                helperText="Número de contacto"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
+                  }
+                }}
               />
             </Grid>
             
-            <Grid item xs={12} md={4}>
+            <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Email de Contacto"
+                label="E-mail de contacto"
                 type="email"
-                value={formData.contactEmail}
+                value={formData.contactEmail ?? ''}
                 onChange={(e) => handleFormChange('contactEmail', e.target.value)}
+                helperText="Correo electrónico de contacto"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
+                  }
+                }}
               />
             </Grid>
-
+            
+            {/* Contacto Autorizado 2 */}
+            <Grid item xs={12}>
+              <Typography variant="overline" sx={{ 
+                color: 'text.secondary',
+                fontWeight: 600,
+                letterSpacing: 0.8,
+                opacity: 0.7,
+                mb: 2,
+                mt: 2,
+                display: 'block'
+              }}>
+                Contacto Autorizado 2 (Opcional)
+              </Typography>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Contacto autorizado 2"
+                value={formData.contactoAutorizado2 ?? ''}
+                onChange={(e) => handleFormChange('contactoAutorizado2', e.target.value)}
+                helperText="Segunda persona autorizada para contacto"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
+                  }
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Teléfono 2"
+                value={formData.contactPhone2 ?? ''}
+                onChange={(e) => handleFormChange('contactPhone2', e.target.value)}
+                helperText="Número de contacto alternativo"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
+                  }
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="E-mail de contacto 2"
+                type="email"
+                value={formData.contactEmail2 ?? ''}
+                onChange={(e) => handleFormChange('contactEmail2', e.target.value)}
+                helperText="Correo electrónico alternativo"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
+                  }
+                }}
+              />
+            </Grid>
+            
+            {/* Costos Adicionales */}
+            <Grid item xs={12}>
+              <Typography variant="overline" sx={{ 
+                color: 'text.secondary',
+                fontWeight: 600,
+                letterSpacing: 0.8,
+                opacity: 0.7,
+                mb: 2,
+                mt: 2,
+                display: 'block'
+              }}>
+                Costos Adicionales
+              </Typography>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Administración"
+                value={formatCurrencyInput(formData.administracion || 0)}
+                onChange={(e) => {
+                  const numericValue = parseCurrencyValue(e.target.value);
+                  handleFormChange('administracion', numericValue);
+                }}
+                helperText="Costo de administración"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
+                  }
+                }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Conexión"
+                value={formatCurrencyInput(formData.conexion || 0)}
+                onChange={(e) => {
+                  const numericValue = parseCurrencyValue(e.target.value);
+                  handleFormChange('conexion', numericValue);
+                }}
+                helperText="Costo de conexión"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
+                  }
+                }}
+              />
+            </Grid>
           </Grid>
         </DialogContent>
         
-        <DialogActions sx={{ p: 3, pt: 1 }}>
+        <DialogActions sx={{ p: 3, pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
           <Button
             onClick={() => {
               setEditDialogOpen(false);
@@ -1793,6 +2373,7 @@ const SalasPage = () => {
               clearForm();
             }}
             disabled={saving}
+            sx={{ borderRadius: 1 }}
           >
             Cancelar
           </Button>
@@ -1800,9 +2381,17 @@ const SalasPage = () => {
             onClick={handleEditSala}
             variant="contained"
             disabled={saving}
-            startIcon={saving ? <CircularProgress size={20} /> : <SaveIcon />}
+            startIcon={<SaveIcon />}
+            sx={{ borderRadius: 1 }}
           >
-            {saving ? 'Guardando...' : 'Actualizar Sala'}
+            {saving ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CircularProgress size={16} color="inherit" />
+                Guardando...
+              </Box>
+            ) : (
+              'Actualizar Sala'
+            )}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1818,179 +2407,309 @@ const SalasPage = () => {
         fullWidth
         PaperProps={{
           sx: {
-            borderRadius: 1,
-            background: theme.palette.mode === 'dark' 
-              ? alpha(theme.palette.background.paper, 0.9) 
-              : '#ffffff'
+            borderRadius: 2,
+            background: theme.palette.background.paper,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: `1px solid ${alpha(theme.palette.info.main, 0.6)}`
           }
         }}
       >
         <DialogTitle sx={{ 
-          pb: 3,
-          pt: 3,
-          px: 3,
-          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
-          background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.03)} 0%, ${alpha(theme.palette.background.paper, 0.8)} 100%)`
+          pb: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: theme.palette.mode === 'dark' 
+            ? theme.palette.grey[900]
+            : theme.palette.grey[50],
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          color: 'text.primary'
         }}>
-          <Box display="flex" alignItems="center" gap={2}>
-            <Box sx={{ 
-              width: 48, 
-              height: 48, 
-              borderRadius: '50%',
-              background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.1)} 0%, ${alpha(theme.palette.info.main, 0.05)} 100%)`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
-            }}>
-              <VisibilityIcon sx={{ fontSize: 24, color: 'info.main' }} />
-            </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Avatar sx={{ bgcolor: 'info.main', color: 'info.contrastText' }}>
+              <VisibilityIcon />
+            </Avatar>
             <Box>
-              <Typography variant="h6" fontWeight="600">
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 0, color: 'text.primary' }}>
                 Detalles de la Sala
               </Typography>
-              <Typography variant="body2" sx={{ 
-                color: alpha(theme.palette.text.secondary, 0.8),
-                mt: 0.5 
-              }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
                 Información completa de la sala
               </Typography>
             </Box>
           </Box>
+          <IconButton onClick={() => { setViewDialogOpen(false); setSelectedSala(null); }} size="small">
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
         
-        <DialogContent sx={{ pt: 2 }}>
+        <DialogContent sx={{ p: 0, background: alpha(theme.palette.background.default, 0.4) }}>
           {selectedSala && (
-            <Grid container spacing={3}>
-              {/* Información principal */}
-              <Grid item xs={12}>
-                <Paper sx={{ p: 3, borderRadius: 1, bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
-                  <Typography variant="h5" fontWeight="bold" gutterBottom>
+            <Box sx={{ p: 3 }}>
+              {/* Header Card - Nombre y Estado */}
+              <Paper elevation={0} sx={{ 
+                p: 3, 
+                mb: 2.5,
+                borderRadius: 2,
+                background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.08)} 0%, ${alpha(theme.palette.info.main, 0.02)} 100%)`,
+                border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="h5" fontWeight={700} color="text.primary">
                     {selectedSala.name}
-                  </Typography>
-                  <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                    {selectedSala.companyName}
                   </Typography>
                   <Chip 
                     label={getStatusText(selectedSala.status)}
                     color={getStatusColor(selectedSala.status)}
-                    sx={{ mt: 1 }}
+                    size="medium"
+                    sx={{ fontWeight: 600 }}
                   />
-                </Paper>
-              </Grid>
-              
-              {/* Descripción */}
-              {selectedSala.description && (
-                <Grid item xs={12}>
-                  <Typography variant="h6" gutterBottom>
-                    Descripción
-                  </Typography>
-                  <Typography variant="body1" color="text.secondary">
-                    {selectedSala.description}
-                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <BusinessIcon fontSize="small" color="action" />
+                    <Typography variant="body2" color="text.secondary">
+                      {selectedSala.companyName}
+                    </Typography>
+                  </Box>
+                  {selectedSala.ciudad && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <LocationIcon fontSize="small" color="action" />
+                      <Typography variant="body2" color="text.secondary">
+                        {selectedSala.ciudad}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Paper>
+
+              <Grid container spacing={2.5}>
+                {/* Card: Información del Propietario */}
+                <Grid item xs={12} md={6}>
+                  <Paper elevation={0} sx={{ 
+                    p: 2.5, 
+                    height: '100%',
+                    borderRadius: 2,
+                    border: `1px solid ${theme.palette.divider}`,
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.08)}`,
+                      borderColor: alpha(theme.palette.primary.main, 0.3)
+                    }
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                      <Avatar sx={{ 
+                        bgcolor: alpha(theme.palette.primary.main, 0.1), 
+                        color: 'primary.main',
+                        width: 36,
+                        height: 36
+                      }}>
+                        <PersonIcon fontSize="small" />
+                      </Avatar>
+                      <Typography variant="subtitle1" fontWeight={600}>
+                        Propietario
+                      </Typography>
+                    </Box>
+                    <Typography variant="body1" color="text.primary" sx={{ mb: 0.5 }}>
+                      {selectedSala.propietario || 'No especificado'}
+                    </Typography>
+                    {selectedSala.proveedorOnline && (
+                      <Typography variant="caption" color="text.secondary">
+                        Proveedor: {selectedSala.proveedorOnline}
+                      </Typography>
+                    )}
+                  </Paper>
                 </Grid>
-              )}
-              
-              {/* Detalles técnicos */}
-              <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>
-                  Información Técnica
-                </Typography>
-                <List>
-                  <ListItem>
-                    <ListItemIcon>
-                      <PeopleIcon />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary="Capacidad"
-                      secondary={`${selectedSala.capacity} personas`}
-                    />
-                  </ListItem>
-                  <ListItem>
-                    <ListItemIcon>
-                      <MoneyIcon />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary="Tarifa por Hora"
-                      secondary={formatPrice(selectedSala.hourlyRate)}
-                    />
-                  </ListItem>
-                  {selectedSala.location && (
-                    <ListItem>
-                      <ListItemIcon>
-                        <LocationIcon />
-                      </ListItemIcon>
-                      <ListItemText 
-                        primary="Ubicación"
-                        secondary={selectedSala.location}
-                      />
-                    </ListItem>
-                  )}
-                </List>
+
+                {/* Card: Costos */}
+                <Grid item xs={12} md={6}>
+                  <Paper elevation={0} sx={{ 
+                    p: 2.5, 
+                    height: '100%',
+                    borderRadius: 2,
+                    border: `1px solid ${theme.palette.divider}`,
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      boxShadow: `0 4px 12px ${alpha(theme.palette.success.main, 0.08)}`,
+                      borderColor: alpha(theme.palette.success.main, 0.3)
+                    }
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                      <Avatar sx={{ 
+                        bgcolor: alpha(theme.palette.success.main, 0.1), 
+                        color: 'success.main',
+                        width: 36,
+                        height: 36
+                      }}>
+                        <MoneyIcon fontSize="small" />
+                      </Avatar>
+                      <Typography variant="subtitle1" fontWeight={600}>
+                        Costos Mensuales
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Administración
+                      </Typography>
+                      <Typography variant="body1" fontWeight={600} color="text.primary">
+                        ${(selectedSala.administracion || 0).toLocaleString()}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Conexión
+                      </Typography>
+                      <Typography variant="body1" fontWeight={600} color="text.primary">
+                        ${(selectedSala.conexion || 0).toLocaleString()}
+                      </Typography>
+                    </Box>
+                  </Paper>
+                </Grid>
+
+                {/* Card: Contacto Principal */}
+                {selectedSala.contactoAutorizado && (
+                  <Grid item xs={12} md={6}>
+                    <Paper elevation={0} sx={{ 
+                      p: 2.5, 
+                      height: '100%',
+                      borderRadius: 2,
+                      border: `1px solid ${theme.palette.divider}`,
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        boxShadow: `0 4px 12px ${alpha(theme.palette.warning.main, 0.08)}`,
+                        borderColor: alpha(theme.palette.warning.main, 0.3)
+                      }
+                    }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                        <Avatar sx={{ 
+                          bgcolor: alpha(theme.palette.warning.main, 0.1), 
+                          color: 'warning.main',
+                          width: 36,
+                          height: 36
+                        }}>
+                          <PersonIcon fontSize="small" />
+                        </Avatar>
+                        <Typography variant="subtitle1" fontWeight={600}>
+                          Contacto Principal
+                        </Typography>
+                      </Box>
+                      <Typography variant="body1" color="text.primary" sx={{ mb: 1.5, fontWeight: 500 }}>
+                        {selectedSala.contactoAutorizado}
+                      </Typography>
+                      {selectedSala.contactPhone && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                          <PhoneIcon fontSize="small" color="action" />
+                          <Typography variant="body2" color="text.secondary">
+                            {selectedSala.contactPhone}
+                          </Typography>
+                        </Box>
+                      )}
+                      {selectedSala.contactEmail && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <EmailIcon fontSize="small" color="action" />
+                          <Typography variant="body2" color="text.secondary" sx={{ 
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {selectedSala.contactEmail}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Paper>
+                  </Grid>
+                )}
+
+                {/* Card: Contacto Secundario */}
+                {selectedSala.contactoAutorizado2 && (
+                  <Grid item xs={12} md={6}>
+                    <Paper elevation={0} sx={{ 
+                      p: 2.5, 
+                      height: '100%',
+                      borderRadius: 2,
+                      border: `1px solid ${theme.palette.divider}`,
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        boxShadow: `0 4px 12px ${alpha(theme.palette.info.main, 0.08)}`,
+                        borderColor: alpha(theme.palette.info.main, 0.3)
+                      }
+                    }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                        <Avatar sx={{ 
+                          bgcolor: alpha(theme.palette.info.main, 0.1), 
+                          color: 'info.main',
+                          width: 36,
+                          height: 36
+                        }}>
+                          <PeopleIcon fontSize="small" />
+                        </Avatar>
+                        <Typography variant="subtitle1" fontWeight={600}>
+                          Contacto Secundario
+                        </Typography>
+                      </Box>
+                      <Typography variant="body1" color="text.primary" sx={{ mb: 1.5, fontWeight: 500 }}>
+                        {selectedSala.contactoAutorizado2}
+                      </Typography>
+                      {selectedSala.contactPhone2 && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                          <PhoneIcon fontSize="small" color="action" />
+                          <Typography variant="body2" color="text.secondary">
+                            {selectedSala.contactPhone2}
+                          </Typography>
+                        </Box>
+                      )}
+                      {selectedSala.contactEmail2 && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <EmailIcon fontSize="small" color="action" />
+                          <Typography variant="body2" color="text.secondary" sx={{ 
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {selectedSala.contactEmail2}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Paper>
+                  </Grid>
+                )}
               </Grid>
-              
-              {/* Información de contacto */}
-              <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>
-                  Contacto
-                </Typography>
-                <List>
-                  {selectedSala.contactPerson && (
-                    <ListItem>
-                      <ListItemIcon>
-                        <PersonIcon />
-                      </ListItemIcon>
-                      <ListItemText 
-                        primary="Responsable"
-                        secondary={selectedSala.contactPerson}
-                      />
-                    </ListItem>
-                  )}
-                  {selectedSala.contactPhone && (
-                    <ListItem>
-                      <ListItemIcon>
-                        <PhoneIcon />
-                      </ListItemIcon>
-                      <ListItemText 
-                        primary="Teléfono"
-                        secondary={selectedSala.contactPhone}
-                      />
-                    </ListItem>
-                  )}
-                  {selectedSala.contactEmail && (
-                    <ListItem>
-                      <ListItemIcon>
-                        <EmailIcon />
-                      </ListItemIcon>
-                      <ListItemText 
-                        primary="Email"
-                        secondary={selectedSala.contactEmail}
-                      />
-                    </ListItem>
-                  )}
-                </List>
-              </Grid>
-              
-              {/* Metadatos */}
-              <Grid item xs={12}>
-                <Divider sx={{ my: 2 }} />
-                <Typography variant="caption" color="text.secondary">
-                  Creada el {selectedSala.createdAt ? format(selectedSala.createdAt.toDate(), 'dd/MM/yyyy HH:mm', { locale: es }) : 'Fecha no disponible'}
+
+              {/* Footer: Metadatos */}
+              <Box sx={{ 
+                mt: 3, 
+                pt: 2.5, 
+                borderTop: `1px solid ${theme.palette.divider}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 1
+              }}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    📅 Creada el {selectedSala.createdAt ? format(selectedSala.createdAt.toDate(), 'dd/MM/yyyy HH:mm', { locale: es }) : 'Fecha no disponible'}
+                  </Typography>
                   {selectedSala.updatedAt && selectedSala.updatedAt !== selectedSala.createdAt && (
-                    <> • Última actualización: {format(selectedSala.updatedAt.toDate(), 'dd/MM/yyyy HH:mm', { locale: es })}</>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      🔄 Última actualización: {format(selectedSala.updatedAt.toDate(), 'dd/MM/yyyy HH:mm', { locale: es })}
+                    </Typography>
                   )}
-                </Typography>
-              </Grid>
-            </Grid>
+                </Box>
+              </Box>
+            </Box>
           )}
         </DialogContent>
         
-        <DialogActions sx={{ p: 3, pt: 1 }}>
+        <DialogActions sx={{ p: 3, pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
           <Button
             onClick={() => {
               setViewDialogOpen(false);
               setSelectedSala(null);
             }}
+            sx={{ borderRadius: 1 }}
           >
             Cerrar
           </Button>
@@ -2001,6 +2720,7 @@ const SalasPage = () => {
             }}
             variant="contained"
             startIcon={<EditIcon />}
+            sx={{ borderRadius: 1 }}
           >
             Editar Sala
           </Button>
