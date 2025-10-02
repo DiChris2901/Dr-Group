@@ -214,7 +214,7 @@ const LiquidacionesPage = () => {
   };
 
   // Función para guardar liquidación en Firebase (con confirmación)
-  const confirmarGuardadoLiquidacion = async () => {
+  const confirmarGuardadoLiquidacion = async (periodoEditado) => {
     if (!currentUser?.uid) {
       addNotification('Debes estar autenticado para guardar liquidaciones', 'warning');
       return;
@@ -224,8 +224,8 @@ const LiquidacionesPage = () => {
       setGuardandoLiquidacion(true);
       addLog('💾 Guardando solo archivos originales en Firebase...', 'info');
       
-      // Detectar período antes de guardar
-      const periodoDetectado = detectarPeriodoLiquidacion();
+      // Usar el período editado del modal o detectado automáticamente
+      const periodoDetectado = periodoEditado || detectarPeriodoLiquidacion();
       
       // Mostrar qué archivos se van a guardar
       addLog(`📁 Archivo principal: ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(2)} MB)`, 'info');
@@ -247,14 +247,13 @@ const LiquidacionesPage = () => {
         periodoDetectado: periodoDetectado // Incluir período detectado
       };
 
-      // Usar el período correcto del modal en lugar de extraer de originalData
-      const periodoDetectadoModal = detectarPeriodoLiquidacion();
-      addLog(`📅 Período del modal: ${periodoDetectadoModal}`, 'info');
+      // Usar el período editado/confirmado del modal
+      addLog(`📅 Período confirmado: ${periodoDetectado}`, 'info');
       
-      // Parsear el período del modal para extraer mes y año correctamente
+      // Parsear el período para extraer mes y año correctamente
       let periodoInfo;
       try {
-        const match = periodoDetectadoModal.match(/(\w+)\s+(\d{4})/);
+        const match = periodoDetectado.match(/(\w+)\s+(\d{4})/);
         if (match) {
           const mesTexto = match[1].toLowerCase();
           const año = parseInt(match[2]);
@@ -268,15 +267,15 @@ const LiquidacionesPage = () => {
           
           addLog(`📅 Período parseado correctamente: ${mesTexto} ${año}`, 'success');
         } else {
-          throw new Error('No se pudo parsear el período del modal');
+          throw new Error('No se pudo parsear el período');
         }
         
         // Agregar información del período a los datos
         liquidacionData.periodoInfo = periodoInfo;
-        liquidacionData.periodoDetectado = periodoDetectadoModal; // También pasar el período del modal
+        liquidacionData.periodoDetectado = periodoDetectado;
       } catch (error) {
-        addLog(`⚠️ Error parseando período del modal, usando fallback: ${error.message}`, 'warning');
-        // Fallback a extractPeriodoInfo solo si falla el parseo del modal
+        addLog(`⚠️ Error parseando período, usando fallback: ${error.message}`, 'warning');
+        // Fallback a extractPeriodoInfo solo si falla el parseo
         periodoInfo = liquidacionPersistenceService.extractPeriodoInfo(originalData);
         liquidacionData.periodoInfo = periodoInfo;
       }
@@ -798,22 +797,51 @@ const LiquidacionesPage = () => {
       return null;
     }
 
-    console.log(`🔍 Buscando empresa con contrato: ${numeroContrato}`);
-    console.log('📋 Empresas disponibles:', companies.map(c => ({ nombre: c.name, contrato: c.contractNumber })));
+    console.log(`🔍 Buscando empresa con contrato: "${numeroContrato}"`);
+    console.log('📋 TODAS las empresas y contratos en BD:', companies.map(c => ({ 
+      nombre: c.name, 
+      contrato: c.contractNumber || 'SIN CONTRATO',
+      id: c.id
+    })));
 
-    // Buscar por número de contrato exacto
-    const empresaEncontrada = companies.find(company => 
-      company.contractNumber === numeroContrato || 
-      company.contractNumber === numeroContrato.toString()
-    );
+    // Normalizar el número de contrato del archivo (quitar "Contrato" si está presente)
+    let numeroContratoNormalizado = numeroContrato.toString().trim().toUpperCase();
+    
+    // Si empieza con "Contrato", quitarlo
+    if (numeroContratoNormalizado.startsWith('CONTRATO')) {
+      numeroContratoNormalizado = numeroContratoNormalizado.replace(/^CONTRATO\s*/i, '').trim();
+      console.log(`🔧 Contrato normalizado (sin prefijo "Contrato"): "${numeroContratoNormalizado}"`);
+    }
+
+    console.log(`🎯 Buscando coincidencia EXACTA para: "${numeroContratoNormalizado}"`);
+
+    // Buscar por número de contrato EXACTO (case-insensitive)
+    const empresaEncontrada = companies.find(company => {
+      if (!company.contractNumber) {
+        return false;
+      }
+      
+      const contratoEmpresa = company.contractNumber.toString().trim().toUpperCase();
+      const contratoArchivo = numeroContratoNormalizado;
+      
+      const coincide = contratoEmpresa === contratoArchivo;
+      
+      console.log(`  ${coincide ? '✅' : '❌'} Comparando: "${contratoEmpresa}" === "${contratoArchivo}" (${company.name})`);
+      
+      return coincide;
+    });
 
     if (empresaEncontrada) {
-      console.log(`✅ Empresa encontrada: ${empresaEncontrada.name} (Contrato: ${empresaEncontrada.contractNumber})`);
+      console.log(`✅ ✅ ✅ EMPRESA ENCONTRADA: ${empresaEncontrada.name} (Contrato: ${empresaEncontrada.contractNumber})`);
       setEmpresaCompleta(empresaEncontrada); // Guardar empresa completa
       return empresaEncontrada.name;
     } else {
-      console.log(`❌ No se encontró empresa con contrato: ${numeroContrato}`);
-      console.log('📝 Contratos disponibles:', companies.map(c => c.contractNumber));
+      console.log(`❌ ❌ ❌ NO SE ENCONTRÓ empresa con contrato: "${numeroContratoNormalizado}"`);
+      console.log('📝 Contratos en BD (solo los que tienen):');
+      companies.filter(c => c.contractNumber).forEach(c => {
+        console.log(`   - ${c.contractNumber} → ${c.name}`);
+      });
+      console.log('⚠️ Empresas SIN contractNumber:', companies.filter(c => !c.contractNumber).map(c => c.name));
       setEmpresaCompleta(null); // Limpiar empresa completa
       return null;
     }
@@ -821,6 +849,32 @@ const LiquidacionesPage = () => {
 
   // Manejo de archivos
   const handleFileSelect = (event) => {
+    // 🔒 VALIDACIÓN CRÍTICA: Prevenir carga si empresas no están disponibles
+    if (companiesLoading) {
+      addNotification({
+        type: 'warning',
+        title: 'Cargando empresas',
+        message: 'Por favor espera a que se carguen las empresas antes de subir archivos...',
+        icon: 'warning',
+        color: 'warning'
+      });
+      // Limpiar el input file para que pueda volver a intentar
+      event.target.value = null;
+      return;
+    }
+
+    if (!companies || companies.length === 0) {
+      addNotification({
+        type: 'error',
+        title: 'Sin empresas disponibles',
+        message: 'No se encontraron empresas en la base de datos. Verifica tu conexión.',
+        icon: 'error',
+        color: 'error'
+      });
+      event.target.value = null;
+      return;
+    }
+    
     // Prevenir carga si ya hay archivos procesados o viene del histórico
     if (selectedFile || liquidacionGuardadaId) {
       addNotification('Ya hay archivos procesados. Reinicia la aplicación para cargar otros.', 'warning');
@@ -833,7 +887,7 @@ const LiquidacionesPage = () => {
     }
   };
 
-  const processSelectedFile = (file) => {
+  const processSelectedFile = async (file) => {
     // Validar tipo de archivo
     const validTypes = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -855,10 +909,97 @@ const LiquidacionesPage = () => {
     
     addLog(`📁 Archivo seleccionado: ${file.name}`, 'success');
     
-    // La empresa se obtendrá automáticamente del archivo al procesarlo
-    addLog('🏢 La empresa se detectará automáticamente del archivo...', 'info');
+    // 🔍 EXTRAER Y VALIDAR EMPRESA INMEDIATAMENTE
+    try {
+      addLog('🏢 Detectando empresa del archivo...', 'info');
+      console.log('🔍 [DETECCIÓN EMPRESA] Iniciando detección anticipada...');
+      console.log('🔍 [DETECCIÓN EMPRESA] Companies disponibles:', companies?.length || 0);
+      console.log('🔍 [DETECCIÓN EMPRESA] Companies loading:', companiesLoading);
+      
+      // Leer archivo para extraer número de contrato
+      const data = await readFile(file);
+      console.log('🔍 [DETECCIÓN EMPRESA] Archivo leído, filas totales:', data.length);
+      console.log('🔍 [DETECCIÓN EMPRESA] Primeras 10 filas:', data.slice(0, 10));
+      
+      // Buscar número de contrato en las primeras 15 filas (IGNORAR HEADERS)
+      let numeroContrato = null;
+      const valoresIgnorados = ['contrato', 'contract', 'numero', 'number', 'código', 'codigo'];
+      
+      for (let i = 1; i < Math.min(15, data.length); i++) {
+        const fila = data[i];
+        console.log(`🔍 [DETECCIÓN EMPRESA] Revisando fila ${i}:`, fila);
+        
+        if (fila && fila[0]) {
+          const posibleContrato = fila[0].toString().trim();
+          const posibleContratoLower = posibleContrato.toLowerCase();
+          
+          console.log(`🔍 [DETECCIÓN EMPRESA] Posible contrato en fila ${i}:`, posibleContrato);
+          
+          // Ignorar si es un header (palabras como "Contrato", "Contract", etc.)
+          const esHeader = valoresIgnorados.some(palabra => 
+            posibleContratoLower === palabra || 
+            posibleContratoLower.startsWith(palabra + ' ')
+          );
+          
+          if (esHeader) {
+            console.log(`⚠️ [DETECCIÓN EMPRESA] Fila ${i} ignorada (es header): "${posibleContrato}"`);
+            continue; // Saltar esta fila y continuar buscando
+          }
+          
+          // Si llegamos aquí, es un valor real (no un header)
+          if (posibleContrato && posibleContrato !== '') {
+            numeroContrato = posibleContrato;
+            addLog(`📋 Número de contrato encontrado en fila ${i}: ${numeroContrato}`, 'info');
+            console.log('✅ [DETECCIÓN EMPRESA] Contrato extraído:', numeroContrato);
+            break;
+          }
+        }
+      }
+      
+      console.log('🔍 [DETECCIÓN EMPRESA] Número de contrato final:', numeroContrato);
+      
+      // Buscar empresa por contrato ANTES de mostrar el popup
+      if (numeroContrato) {
+        console.log('🔍 [DETECCIÓN EMPRESA] Llamando buscarEmpresaPorContrato con:', numeroContrato);
+        const empresaDetectada = buscarEmpresaPorContrato(numeroContrato);
+        console.log('🔍 [DETECCIÓN EMPRESA] Resultado de búsqueda:', empresaDetectada);
+        
+        if (empresaDetectada) {
+          setEmpresa(empresaDetectada);
+          addLog(`✅ Empresa detectada: ${empresaDetectada}`, 'success');
+          console.log('✅ [DETECCIÓN EMPRESA] Empresa setEmpresa llamado con:', empresaDetectada);
+          addNotification({
+            type: 'success',
+            title: 'Empresa detectada',
+            message: `Se detectó la empresa: ${empresaDetectada}`,
+            icon: 'success',
+            color: 'success'
+          });
+        } else {
+          const empresaNoEncontrada = `Contrato ${numeroContrato} (No encontrado)`;
+          setEmpresa(empresaNoEncontrada);
+          console.log('⚠️ [DETECCIÓN EMPRESA] No encontrado, setEmpresa con:', empresaNoEncontrada);
+          addLog(`⚠️ No se encontró empresa para el contrato: ${numeroContrato}`, 'warning');
+          addNotification({
+            type: 'warning',
+            title: 'Empresa no encontrada',
+            message: `No se encontró empresa para el contrato: ${numeroContrato}`,
+            icon: 'warning',
+            color: 'warning'
+          });
+        }
+      } else {
+        setEmpresa('Empresa no detectada');
+        console.log('⚠️ [DETECCIÓN EMPRESA] No se pudo extraer contrato del archivo');
+        addLog('⚠️ No se pudo detectar número de contrato en el archivo', 'warning');
+      }
+    } catch (error) {
+      console.error('❌ [DETECCIÓN EMPRESA] Error:', error);
+      setEmpresa('Error al detectar empresa');
+      addLog(`❌ Error al detectar empresa: ${error.message}`, 'error');
+    }
     
-    // Procesar automáticamente después de un breve delay
+    // Procesar automáticamente después de detectar empresa
     setTimeout(() => {
       procesarLiquidacion(file);
     }, 500);
@@ -886,6 +1027,29 @@ const LiquidacionesPage = () => {
     e.stopPropagation();
     setDragActive(false);
 
+    // 🔒 VALIDACIÓN CRÍTICA: Prevenir drop si empresas no están disponibles
+    if (companiesLoading) {
+      addNotification({
+        type: 'warning',
+        title: 'Cargando empresas',
+        message: 'Por favor espera a que se carguen las empresas antes de subir archivos...',
+        icon: 'warning',
+        color: 'warning'
+      });
+      return;
+    }
+
+    if (!companies || companies.length === 0) {
+      addNotification({
+        type: 'error',
+        title: 'Sin empresas disponibles',
+        message: 'No se encontraron empresas en la base de datos. Verifica tu conexión.',
+        icon: 'error',
+        color: 'error'
+      });
+      return;
+    }
+
     // Prevenir drop si ya hay archivos procesados o viene del histórico
     if (selectedFile || liquidacionGuardadaId) {
       addNotification('Ya hay archivos procesados. Reinicia la aplicación para cargar otros.', 'warning');
@@ -895,7 +1059,7 @@ const LiquidacionesPage = () => {
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       processSelectedFile(e.dataTransfer.files[0]);
     }
-  }, [selectedFile, liquidacionGuardadaId, addNotification]);
+  }, [selectedFile, liquidacionGuardadaId, companiesLoading, companies, addNotification]);
 
   // Consolidar datos por NUC (función que faltaba)
   const consolidarPorNuc = (data) => {
@@ -968,14 +1132,28 @@ const LiquidacionesPage = () => {
   // Función de procesamiento completo reutilizable
   const procesarDatosCompletos = async (data, empresaParam = null) => {
     try {
-      // Detectar empresa si no se proporciona
+      // Detectar empresa si no se proporciona (IGNORAR HEADERS)
       let empresaDetectada = empresaParam;
       if (!empresaDetectada) {
         let numeroContrato = null;
-        for (let i = 1; i < Math.min(10, data.length); i++) {
+        const valoresIgnorados = ['contrato', 'contract', 'numero', 'number', 'código', 'codigo'];
+        
+        for (let i = 1; i < Math.min(15, data.length); i++) {
           const fila = data[i];
           if (fila && fila[0]) {
             const posibleContrato = fila[0].toString().trim();
+            const posibleContratoLower = posibleContrato.toLowerCase();
+            
+            // Ignorar si es un header
+            const esHeader = valoresIgnorados.some(palabra => 
+              posibleContratoLower === palabra || 
+              posibleContratoLower.startsWith(palabra + ' ')
+            );
+            
+            if (esHeader) {
+              continue; // Saltar esta fila
+            }
+            
             if (posibleContrato && posibleContrato !== '') {
               numeroContrato = posibleContrato;
               break;
@@ -1046,20 +1224,37 @@ const LiquidacionesPage = () => {
       const data = await readFile(archivo);
       addLog('✅ Archivo leído correctamente', 'success');
       
-      // Extraer número de contrato del archivo (primera columna de datos)
+      // Extraer número de contrato del archivo (IGNORAR HEADERS)
       let numeroContrato = null;
       let empresaDetectada = null;
       
       addLog('🔍 Buscando número de contrato en el archivo...', 'info');
       
-      // Buscar en las primeras filas para encontrar el contrato
-      for (let i = 1; i < Math.min(10, data.length); i++) {
+      // Buscar en las primeras 15 filas para encontrar el contrato (IGNORAR HEADERS)
+      const valoresIgnorados = ['contrato', 'contract', 'numero', 'number', 'código', 'codigo'];
+      
+      for (let i = 1; i < Math.min(15, data.length); i++) {
         const fila = data[i];
         if (fila && fila[0]) {
           const posibleContrato = fila[0].toString().trim();
+          const posibleContratoLower = posibleContrato.toLowerCase();
+          
+          // Ignorar si es un header (palabras como "Contrato", "Contract", etc.)
+          const esHeader = valoresIgnorados.some(palabra => 
+            posibleContratoLower === palabra || 
+            posibleContratoLower.startsWith(palabra + ' ')
+          );
+          
+          if (esHeader) {
+            console.log(`⚠️ [PROCESAMIENTO] Fila ${i} ignorada (es header): "${posibleContrato}"`);
+            continue; // Saltar esta fila y continuar buscando
+          }
+          
+          // Si llegamos aquí, es un valor real (no un header)
           if (posibleContrato && posibleContrato !== '') {
             numeroContrato = posibleContrato;
-            addLog(`📋 Número de contrato encontrado: ${numeroContrato}`, 'info');
+            addLog(`📋 Número de contrato encontrado en fila ${i}: ${numeroContrato}`, 'info');
+            console.log('✅ [PROCESAMIENTO] Contrato extraído:', numeroContrato);
             break;
           }
         }
@@ -2542,19 +2737,19 @@ const LiquidacionesPage = () => {
               {/* Botón seleccionar archivo - Deshabilitar si ya hay archivos procesados o viene del histórico */}
               <Button
                 variant="contained"
-                startIcon={<CloudUpload />}
+                startIcon={companiesLoading ? <CircularProgress size={20} color="inherit" /> : <CloudUpload />}
                 onClick={() => fileInputRef.current?.click()}
-                disabled={!!(selectedFile || liquidacionGuardadaId)} // Deshabilitar si ya hay archivo seleccionado o viene del histórico
+                disabled={!!(selectedFile || liquidacionGuardadaId || companiesLoading)} // Deshabilitar si está cargando empresas
                 sx={{ 
                   mb: 2, 
                   mr: 1,
                   borderRadius: 1,
                   fontWeight: 600,
                   textTransform: 'none',
-                  background: (selectedFile || liquidacionGuardadaId)
+                  background: (selectedFile || liquidacionGuardadaId || companiesLoading)
                     ? alpha(theme.palette.action.disabled, 0.12)
                     : undefined,
-                  color: (selectedFile || liquidacionGuardadaId)
+                  color: (selectedFile || liquidacionGuardadaId || companiesLoading)
                     ? theme.palette.action.disabled
                     : undefined,
                   '&:disabled': {
@@ -2563,11 +2758,13 @@ const LiquidacionesPage = () => {
                   }
                 }}
               >
-                {selectedFile 
-                  ? 'Archivo Ya Seleccionado'
-                  : liquidacionGuardadaId 
-                    ? 'Liquidación del Histórico'
-                    : 'Seleccionar Archivo'
+                {companiesLoading
+                  ? 'Cargando empresas...'
+                  : selectedFile 
+                    ? 'Archivo Ya Seleccionado'
+                    : liquidacionGuardadaId 
+                      ? 'Liquidación del Histórico'
+                      : 'Seleccionar Archivo'
                 }
               </Button>
               
@@ -2580,53 +2777,64 @@ const LiquidacionesPage = () => {
                 style={{ display: 'none' }}
               />
               
-              {/* Zona drag & drop - Diseño Sobrio - Deshabilitar si ya hay archivos */}
+              {/* Zona drag & drop - Diseño Sobrio - Deshabilitar si ya hay archivos o cargando */}
               <Paper
                 ref={dropZoneRef}
-                onDragEnter={selectedFile || liquidacionGuardadaId ? undefined : handleDrag}
-                onDragLeave={selectedFile || liquidacionGuardadaId ? undefined : handleDrag}
-                onDragOver={selectedFile || liquidacionGuardadaId ? undefined : handleDrag}
-                onDrop={selectedFile || liquidacionGuardadaId ? undefined : handleDrop}
+                onDragEnter={selectedFile || liquidacionGuardadaId || companiesLoading ? undefined : handleDrag}
+                onDragLeave={selectedFile || liquidacionGuardadaId || companiesLoading ? undefined : handleDrag}
+                onDragOver={selectedFile || liquidacionGuardadaId || companiesLoading ? undefined : handleDrag}
+                onDrop={selectedFile || liquidacionGuardadaId || companiesLoading ? undefined : handleDrop}
                 sx={{
                   p: 3,
                   border: `2px dashed ${
-                    selectedFile || liquidacionGuardadaId
+                    selectedFile || liquidacionGuardadaId || companiesLoading
                       ? alpha(theme.palette.action.disabled, 0.3)
                       : dragActive 
                         ? alpha(theme.palette.primary.main, 0.6) 
                         : alpha(theme.palette.divider, 0.15)
                   }`,
-                  backgroundColor: selectedFile || liquidacionGuardadaId
+                  backgroundColor: selectedFile || liquidacionGuardadaId || companiesLoading
                     ? alpha(theme.palette.action.disabled, 0.05)
                     : dragActive 
                       ? alpha(theme.palette.primary.main, 0.08) 
                       : alpha(theme.palette.primary.main, 0.04),
                   textAlign: 'center',
-                  cursor: selectedFile || liquidacionGuardadaId ? 'not-allowed' : 'pointer',
+                  cursor: selectedFile || liquidacionGuardadaId || companiesLoading ? 'not-allowed' : 'pointer',
                   mb: 2,
                   borderRadius: 1,
                   transition: 'all 0.2s ease',
-                  opacity: selectedFile || liquidacionGuardadaId ? 0.6 : 1
+                  opacity: selectedFile || liquidacionGuardadaId || companiesLoading ? 0.6 : 1
                 }}
               >
-                <CloudUpload sx={{ 
-                  fontSize: 40, 
-                  color: selectedFile || liquidacionGuardadaId
-                    ? alpha(theme.palette.action.disabled, 0.5)
-                    : alpha(theme.palette.text.secondary, 0.7), 
-                  mb: 1 
-                }} />
-                <Typography 
-                  variant="body2" 
-                  color={selectedFile || liquidacionGuardadaId ? "textDisabled" : "textSecondary"}
-                >
-                  {selectedFile
-                    ? 'Archivo ya seleccionado - Reinicia para cargar otro'
-                    : liquidacionGuardadaId
-                      ? 'Liquidación del histórico - No requiere archivos'
-                      : 'También puedes arrastrar archivos Excel/CSV aquí'
-                  }
-                </Typography>
+                {companiesLoading ? (
+                  <>
+                    <CircularProgress size={40} sx={{ mb: 1 }} />
+                    <Typography variant="body2" color="textSecondary">
+                      Cargando empresas desde Firestore...
+                    </Typography>
+                  </>
+                ) : (
+                  <>
+                    <CloudUpload sx={{ 
+                      fontSize: 40, 
+                      color: selectedFile || liquidacionGuardadaId
+                        ? alpha(theme.palette.action.disabled, 0.5)
+                        : alpha(theme.palette.text.secondary, 0.7), 
+                      mb: 1 
+                    }} />
+                    <Typography 
+                      variant="body2" 
+                      color={selectedFile || liquidacionGuardadaId ? "textDisabled" : "textSecondary"}
+                    >
+                      {selectedFile
+                        ? 'Archivo ya seleccionado - Reinicia para cargar otro'
+                        : liquidacionGuardadaId
+                          ? 'Liquidación del histórico - No requiere archivos'
+                          : 'También puedes arrastrar archivos Excel/CSV aquí'
+                      }
+                    </Typography>
+                  </>
+                )}
               </Paper>
               
               {selectedFile && (
@@ -2992,6 +3200,7 @@ const LiquidacionesPage = () => {
         {/* Panel de Resultados - Diseño Sobrio */}
         <Grid item xs={12} md={8}>
           <Card sx={{
+            height: 'fit-content',
             borderRadius: 1,
             border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
@@ -3038,7 +3247,7 @@ const LiquidacionesPage = () => {
               </Tabs>
             </Box>
             
-            <CardContent sx={{ p: 3 }}>
+            <CardContent sx={{ p: 3, flex: 1, display: 'flex', flexDirection: 'column' }}>
               <AnimatePresence mode="wait">
                 {/* Pestaña Resumen - Diseño Sobrio */}
                 {activeTab === 0 && (
