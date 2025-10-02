@@ -160,7 +160,8 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       permission: 'gestion_empresarial',
       submenu: [
         { title: 'Empresas', icon: Business, path: '/companies', permission: 'gestion_empresarial.empresas' },
-        { title: 'Salas', icon: MeetingRoom, path: '/facturacion/salas', permission: 'gestion_empresarial.salas' }
+        { title: 'Salas', icon: MeetingRoom, path: '/facturacion/salas', permission: 'gestion_empresarial.salas' },
+        { title: 'Clientes', icon: People, path: '/clientes', permission: 'gestion_empresarial.clientes' }
       ]
     },
     {

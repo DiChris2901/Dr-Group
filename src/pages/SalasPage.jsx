@@ -139,6 +139,8 @@ const SalasPage = () => {
     companyName: '',
     proveedorOnline: '',
     ciudad: '',
+    departamento: '',
+    direccion: '',
     status: 'active',
     propietario: '',
     contactPhone: '',
@@ -216,7 +218,17 @@ const SalasPage = () => {
     const matchesPropietario = propietarioFilter === 'all' || sala.propietario === propietarioFilter;
     const matchesProveedor = proveedorFilter === 'all' || sala.proveedorOnline === proveedorFilter;
     
-    return matchesStatus && matchesPropietario && matchesProveedor;
+    // ✅ NUEVO: Filtro de búsqueda por texto
+    const matchesSearch = searchTerm === '' || 
+      sala.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sala.ciudad?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sala.departamento?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sala.direccion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sala.propietario?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sala.proveedorOnline?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sala.contactoAutorizado?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    return matchesStatus && matchesPropietario && matchesProveedor && matchesSearch;
   });
 
   // Obtener listas únicas para los filtros
@@ -359,6 +371,23 @@ const SalasPage = () => {
     }
   };
 
+  // ✅ Handler para autocompletar departamento según ciudad seleccionada
+  const handleCiudadChange = (ciudad) => {
+    handleFormChange('ciudad', ciudad || '');
+    
+    // Si se seleccionó una ciudad, buscar el departamento asociado en registros previos
+    if (ciudad) {
+      const salaConDepartamento = salas.find(
+        sala => sala.ciudad?.toLowerCase().trim() === ciudad.toLowerCase().trim() && sala.departamento
+      );
+      
+      if (salaConDepartamento && salaConDepartamento.departamento) {
+        // Autocompletar departamento si se encuentra
+        handleFormChange('departamento', salaConDepartamento.departamento);
+      }
+    }
+  };
+
 
 
   // Limpiar formulario
@@ -369,6 +398,8 @@ const SalasPage = () => {
       companyName: '',
       proveedorOnline: '',
       ciudad: '',
+      departamento: '',
+      direccion: '',
       status: 'active',
       propietario: '',
       contactPhone: '',
@@ -505,6 +536,8 @@ const SalasPage = () => {
       companyName: sala.companyName || '',
       proveedorOnline: sala.proveedorOnline || '',
       ciudad: sala.ciudad || '',
+      departamento: sala.departamento || '',
+      direccion: sala.direccion || '',
       status: sala.status || 'active',
       propietario: sala.propietario || '',
       contactPhone: sala.contactPhone || '',
@@ -1029,27 +1062,40 @@ const SalasPage = () => {
             transition={{ duration: 0.5 }}
           >
             <Paper sx={{
-              p: 2,
               borderRadius: 2,
               border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
               height: '720px',
-              overflowY: 'auto',
-              '&::-webkit-scrollbar': { width: '8px' },
-              '&::-webkit-scrollbar-track': { background: alpha(theme.palette.divider, 0.05) },
-              '&::-webkit-scrollbar-thumb': { 
-                background: alpha(theme.palette.primary.main, 0.3),
-                borderRadius: '4px',
-                '&:hover': { background: alpha(theme.palette.primary.main, 0.5) }
-              }
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
             }}>
-              <Typography variant="h6" fontWeight={600} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                <BusinessIcon color="primary" />
-                Empresas
-              </Typography>
+              <Box sx={{ p: 2, pb: 1 }}>
+                <Typography variant="h6" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <BusinessIcon color="primary" />
+                  Empresas
+                </Typography>
+              </Box>
               
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ 
+                flex: 1,
+                overflowY: 'auto',
+                px: 2,
+                pb: 2,
+                '&::-webkit-scrollbar': { width: '6px' },
+                '&::-webkit-scrollbar-track': { 
+                  background: 'transparent',
+                  marginTop: '4px',
+                  marginBottom: '4px'
+                },
+                '&::-webkit-scrollbar-thumb': { 
+                  background: alpha(theme.palette.primary.main, 0.3),
+                  borderRadius: '3px',
+                  '&:hover': { background: alpha(theme.palette.primary.main, 0.5) }
+                }
+              }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {companiesWithSalas.map((company, index) => (
                   <motion.div
                     key={company.id}
@@ -1111,6 +1157,7 @@ const SalasPage = () => {
                     </Card>
                   </motion.div>
                 ))}
+                </Box>
               </Box>
             </Paper>
           </motion.div>
@@ -1163,7 +1210,7 @@ const SalasPage = () => {
               ) : (
                 <Box>
                   {/* Header con título */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                     <Typography variant="h6" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <RoomIcon color="primary" />
                       Salas de {companies.find(c => c.id === selectedCompanyId)?.name}
@@ -1174,6 +1221,52 @@ const SalasPage = () => {
                       color="primary"
                       size="small"
                       sx={{ fontWeight: 600 }}
+                    />
+                  </Box>
+
+                  {/* ✅ BARRA DE BÚSQUEDA */}
+                  <Box sx={{ mb: 3 }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      placeholder="Buscar salas por nombre, ciudad, propietario o proveedor..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon color="action" />
+                          </InputAdornment>
+                        ),
+                        endAdornment: searchTerm && (
+                          <InputAdornment position="end">
+                            <IconButton 
+                              size="small" 
+                              onClick={() => setSearchTerm('')}
+                              sx={{ 
+                                transition: 'all 0.2s',
+                                '&:hover': { 
+                                  transform: 'rotate(90deg)',
+                                  color: 'error.main' 
+                                }
+                              }}
+                            >
+                              <ClearIcon fontSize="small" />
+                            </IconButton>
+                          </InputAdornment>
+                        )
+                      }}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 2,
+                          '&:hover fieldset': {
+                            borderColor: alpha(theme.palette.primary.main, 0.4)
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: theme.palette.primary.main
+                          }
+                        }
+                      }}
                     />
                   </Box>
                   
@@ -1202,12 +1295,17 @@ const SalasPage = () => {
                     <Box sx={{ 
                       maxHeight: '640px',
                       overflowY: 'auto',
-                      pr: 1,
-                      '&::-webkit-scrollbar': { width: '8px' },
-                      '&::-webkit-scrollbar-track': { background: alpha(theme.palette.divider, 0.05) },
+                      pr: 0.5,
+                      mr: -0.5,
+                      '&::-webkit-scrollbar': { width: '6px' },
+                      '&::-webkit-scrollbar-track': { 
+                        background: 'transparent',
+                        marginTop: '4px',
+                        marginBottom: '4px'
+                      },
                       '&::-webkit-scrollbar-thumb': { 
                         background: alpha(theme.palette.primary.main, 0.3),
-                        borderRadius: '4px',
+                        borderRadius: '3px',
                         '&:hover': { background: alpha(theme.palette.primary.main, 0.5) }
                       }
                     }}>
@@ -1223,8 +1321,8 @@ const SalasPage = () => {
               >
                 <Card 
                   sx={{ 
-                    minHeight: 280,
-                    maxHeight: 280,
+                    minHeight: 310,
+                    maxHeight: 310,
                     display: 'flex',
                     flexDirection: 'column',
                     borderRadius: 2,
@@ -1318,30 +1416,46 @@ const SalasPage = () => {
                         sx={{ height: 22 }}
                       />
                     </Box>
-                    <Box sx={{ mb: 1.5, minHeight: 42 }}>
+                    <Box sx={{ mb: 1.5, minHeight: 70 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                        <LocationIcon fontSize="small" sx={{ color: 'text.secondary', fontSize: 16 }} />
+                        <Typography 
+                          variant="body2" 
+                          color="text.secondary" 
+                          sx={{ 
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontWeight: 500
+                          }}
+                        >
+                          {sala.ciudad || 'Sin ciudad'}{sala.departamento && `, ${sala.departamento}`}
+                        </Typography>
+                      </Box>
                       <Typography 
-                        variant="body2" 
+                        variant="caption" 
                         color="text.secondary" 
-                        gutterBottom
+                        display="block"
                         sx={{ 
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 1,
-                          WebkitBoxOrient: 'vertical'
+                          whiteSpace: 'nowrap',
+                          pl: 2.5
                         }}
                       >
-                        {sala.ciudad || 'Sin ciudad'} {sala.proveedorOnline && `• ${sala.proveedorOnline}`}
+                        {sala.direccion || 'Sin dirección'}
                       </Typography>
                       <Typography 
                         variant="caption" 
                         color="text.secondary" 
                         display="block"
                         sx={{ 
-                          minHeight: 20,
+                          minHeight: 18,
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
+                          whiteSpace: 'nowrap',
+                          mt: 1,
+                          pl: 2.5
                         }}
                       >
                         {sala.propietario ? `Propietario: ${sala.propietario}` : '\u00A0'}
@@ -1660,16 +1774,18 @@ const SalasPage = () => {
                 options={[...new Set(salas.map(sala => sala.ciudad).filter(Boolean))]}
                 value={formData.ciudad ?? ''}
                 onChange={(event, newValue) => {
-                  handleFormChange('ciudad', newValue || '');
+                  handleCiudadChange(newValue);
                 }}
-                onInputChange={(event, newInputValue) => {
-                  handleFormChange('ciudad', newInputValue);
+                onInputChange={(event, newInputValue, reason) => {
+                  if (reason === 'input') {
+                    handleFormChange('ciudad', newInputValue);
+                  }
                 }}
                 renderInput={(params) => (
                   <TextField
                     {...params}
                     label="Ciudad"
-                    helperText="Ciudad donde se encuentra la sala (puede escribir nueva o seleccionar existente)"
+                    helperText="Ciudad donde se encuentra la sala (el departamento se auto-completa)"
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         borderRadius: 2
@@ -1677,6 +1793,47 @@ const SalasPage = () => {
                     }}
                   />
                 )}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Autocomplete
+                freeSolo
+                options={[...new Set(salas.map(sala => sala.departamento).filter(Boolean))]}
+                value={formData.departamento ?? ''}
+                onChange={(event, newValue) => {
+                  handleFormChange('departamento', newValue || '');
+                }}
+                onInputChange={(event, newInputValue) => {
+                  handleFormChange('departamento', newInputValue);
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Departamento"
+                    helperText="Departamento donde se encuentra la sala"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 2
+                      }
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Dirección"
+                value={formData.direccion}
+                onChange={(e) => handleFormChange('direccion', e.target.value)}
+                helperText="Dirección completa de la sala"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2
+                  }
+                }}
               />
             </Grid>
             
@@ -2275,16 +2432,18 @@ const SalasPage = () => {
                 options={[...new Set(salas.map(sala => sala.ciudad).filter(Boolean))]}
                 value={formData.ciudad ?? ''}
                 onChange={(event, newValue) => {
-                  handleFormChange('ciudad', newValue || '');
+                  handleCiudadChange(newValue);
                 }}
-                onInputChange={(event, newInputValue) => {
-                  handleFormChange('ciudad', newInputValue);
+                onInputChange={(event, newInputValue, reason) => {
+                  if (reason === 'input') {
+                    handleFormChange('ciudad', newInputValue);
+                  }
                 }}
                 renderInput={(params) => (
                   <TextField
                     {...params}
                     label="Ciudad"
-                    helperText="Ciudad donde se encuentra la sala (puede escribir nueva o seleccionar existente)"
+                    helperText="Ciudad donde se encuentra la sala (el departamento se auto-completa)"
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         borderRadius: 2
@@ -2292,6 +2451,47 @@ const SalasPage = () => {
                     }}
                   />
                 )}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Autocomplete
+                freeSolo
+                options={[...new Set(salas.map(sala => sala.departamento).filter(Boolean))]}
+                value={formData.departamento ?? ''}
+                onChange={(event, newValue) => {
+                  handleFormChange('departamento', newValue || '');
+                }}
+                onInputChange={(event, newInputValue) => {
+                  handleFormChange('departamento', newInputValue);
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Departamento"
+                    helperText="Departamento donde se encuentra la sala"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 2
+                      }
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Dirección"
+                value={formData.direccion}
+                onChange={(e) => handleFormChange('direccion', e.target.value)}
+                helperText="Dirección completa de la sala"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2
+                  }
+                }}
               />
             </Grid>
             
@@ -2700,7 +2900,7 @@ const SalasPage = () => {
                     sx={{ fontWeight: 600 }}
                   />
                 </Box>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <BusinessIcon fontSize="small" color="action" />
                     <Typography variant="body2" color="text.secondary">
@@ -2711,7 +2911,15 @@ const SalasPage = () => {
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <LocationIcon fontSize="small" color="action" />
                       <Typography variant="body2" color="text.secondary">
-                        {selectedSala.ciudad}
+                        {selectedSala.ciudad}{selectedSala.departamento ? `, ${selectedSala.departamento}` : ''}
+                      </Typography>
+                    </Box>
+                  )}
+                  {selectedSala.direccion && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <LocationIcon fontSize="small" color="action" />
+                      <Typography variant="body2" color="text.secondary">
+                        {selectedSala.direccion}
                       </Typography>
                     </Box>
                   )}

@@ -22,6 +22,7 @@ import AdminSetupPage from './pages/AdminSetupPage';
 import CleanupPage from './pages/CleanupPage';
 import CommitmentsPage from './pages/CommitmentsPage';
 import CompaniesPage from './pages/CompaniesPage';
+import ClientesPage from './pages/ClientesPage';
 import DataPage from './pages/DataPage';
 import DueCommitmentsPage from './pages/DueCommitmentsPage';
 import GlobalSearchPage from './pages/GlobalSearchPage';
@@ -130,6 +131,14 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Gestión de Empresas" breadcrumbs={['Empresas']}>
             <CompaniesPage />
+          </MainLayout>
+        }
+      />
+      <Route 
+        path="/clientes" 
+        element={
+          <MainLayout title="Gestión de Clientes" breadcrumbs={['Gestión Empresarial', 'Clientes']}>
+            <ClientesPage />
           </MainLayout>
         }
       />
