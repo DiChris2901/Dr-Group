@@ -97,6 +97,7 @@ const CompaniesPage = () => {
     legalRepresentative: '',
     legalRepresentativeId: '',
     contractNumber: '',
+    contractExpirationDate: '',
     logoURL: '',
     bankAccount: '',
     bankName: '',
@@ -405,6 +406,7 @@ const CompaniesPage = () => {
       legalRepresentative: '',
       legalRepresentativeId: '',
       contractNumber: '',
+      contractExpirationDate: '',
       logoURL: '',
       bankAccount: '',
       bankName: '',
@@ -621,6 +623,7 @@ const CompaniesPage = () => {
       legalRepresentative: company.legalRepresentative || '',
       legalRepresentativeId: company.legalRepresentativeId || '',
       contractNumber: company.contractNumber || '',
+      contractExpirationDate: company.contractExpirationDate || '',
       logoURL: company.logoURL || '',
       bankAccount: company.bankAccount || '',
       bankName: company.bankName || '',
@@ -1650,7 +1653,25 @@ const CompaniesPage = () => {
                         />
                       </Grid>
                       
-                      {/* Nuevos campos bancarios */}
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Vencimiento de Contrato"
+                          type="date"
+                          value={formData.contractExpirationDate}
+                          onChange={(e) => handleFormChange('contractExpirationDate', e.target.value)}
+                          variant="outlined"
+                          InputLabelProps={{
+                            shrink: true,
+                          }}
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              borderRadius: 2
+                            }
+                          }}
+                        />
+                      </Grid>
+                      
                       <Grid item xs={12} sm={6}>
                         <TextField
                           fullWidth
@@ -2364,6 +2385,24 @@ const CompaniesPage = () => {
                           </Typography>
                           <Typography variant="body1">
                             {selectedCompany.contractNumber}
+                          </Typography>
+                        </Card>
+                      </Grid>
+                    )}
+
+                    {selectedCompany.contractExpirationDate && (
+                      <Grid item xs={12} md={4}>
+                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" color="primary" gutterBottom>
+                            <ScheduleIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                            Vencimiento de Contrato
+                          </Typography>
+                          <Typography variant="body1">
+                            {new Date(selectedCompany.contractExpirationDate).toLocaleDateString('es-CO', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
+                            })}
                           </Typography>
                         </Card>
                       </Grid>

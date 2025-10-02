@@ -36,13 +36,30 @@ export const NotificationsProvider = ({ children }) => {
     }
   }, [resolvedAlerts]);
 
-  // Función para agregar notificación
-  const addNotification = (notification) => {
+  // Función para agregar notificación (soporta ambos formatos)
+  const addNotification = (messageOrNotification, type = 'info') => {
+    let notificationData;
+    
+    // Si es un string, convertir al formato de objeto
+    if (typeof messageOrNotification === 'string') {
+      notificationData = {
+        title: type === 'success' ? 'Éxito' : 
+               type === 'error' ? 'Error' : 
+               type === 'warning' ? 'Advertencia' : 
+               'Información',
+        message: messageOrNotification,
+        type: type
+      };
+    } else {
+      // Si ya es un objeto, usarlo directamente
+      notificationData = messageOrNotification;
+    }
+    
     const newNotification = {
       id: Date.now() + Math.random(),
       timestamp: new Date(),
       read: false,
-      ...notification
+      ...notificationData
     };
     setNotifications(prev => [newNotification, ...prev]);
   };

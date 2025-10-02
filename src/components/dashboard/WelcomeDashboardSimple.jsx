@@ -36,6 +36,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useDashboardStats } from '../../hooks/useDashboardStats';
 import { useFirestore } from '../../hooks/useFirestore';
 import { useCommitments } from '../../hooks/useFirestore';
+import { useContractExpirationAlerts } from '../../hooks/useContractExpirationAlerts';
 import { fCurrency } from '../../utils/formatNumber';
 import { useNavigate } from 'react-router-dom';
 import DashboardCalendar from './DashboardCalendar';
@@ -47,6 +48,7 @@ const WelcomeDashboardSimple = () => {
   const { currentUser, userProfile } = useAuth();
   const stats = useDashboardStats();
   const { commitments } = useCommitments();
+  useContractExpirationAlerts(); // ✅ Activar sistema de alertas de contratos
   const [currentTime] = useState(new Date().getHours());
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [alertsModalOpen, setAlertsModalOpen] = useState(false);
