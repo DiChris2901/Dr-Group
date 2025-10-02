@@ -1307,7 +1307,7 @@ const UserManagementPage = () => {
                     Selecciona las secciones del sistema a las que el usuario tendrá acceso
                   </Typography>
 
-                  <Grid container spacing={2}>
+                  <Grid container spacing={2} sx={{ alignItems: 'flex-start' }}>
                     {[
                       { key: 'dashboard', label: 'Dashboard', icon: <Dashboard />, color: theme.palette.primary.main },
                       { 
@@ -1387,7 +1387,7 @@ const UserManagementPage = () => {
                       { key: 'auditoria', label: 'Auditoría del Sistema', icon: <SecurityIcon />, color: '#9c27b0' },
                       { key: 'storage', label: 'Limpieza de Storage', icon: <DeleteIcon />, color: '#f44336' }
                     ].map((permission) => (
-                      <Grid item xs={12} sm={6} md={permission.subPermissions ? 6 : 4} key={permission.key}>
+                      <Grid item xs={12} sm={6} md={4} key={permission.key}>
                         <Card sx={{
                           border: formData.permissions.includes(permission.key) 
                             ? `2px solid ${permission.color}` 
@@ -1396,7 +1396,8 @@ const UserManagementPage = () => {
                             ? alpha(permission.color, 0.08)
                             : theme.palette.background.paper,
                           cursor: permission.subPermissions ? 'default' : 'pointer',
-                          transition: 'all 0.2s ease',
+                          transition: 'all 0.3s ease',
+                          width: '100%',
                           '&:hover': {
                             transform: 'translateY(-2px)',
                             boxShadow: `0 4px 12px ${alpha(permission.color, 0.2)}`
@@ -1409,7 +1410,10 @@ const UserManagementPage = () => {
                           updateFormData({ permissions: newPermissions });
                         } : undefined}
                         >
-                          <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                          <CardContent sx={{ 
+                            p: 2, 
+                            '&:last-child': { pb: 2 }
+                          }}>
                             {/* Permiso Principal */}
                             <Box sx={{ 
                               display: 'flex', 
@@ -1433,23 +1437,55 @@ const UserManagementPage = () => {
                               updateFormData({ permissions: newPermissions });
                             } : undefined}
                             >
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: '40px' }}>
                                 <Box sx={{ 
                                   color: formData.permissions.includes(permission.key) 
                                     ? permission.color 
                                     : 'text.secondary',
-                                  transition: 'color 0.2s ease'
+                                  transition: 'color 0.2s ease',
+                                  flexShrink: 0
                                 }}>
                                   {permission.icon}
                                 </Box>
-                                <Typography variant="body2" sx={{ 
-                                  fontWeight: formData.permissions.includes(permission.key) ? 600 : 400,
-                                  color: formData.permissions.includes(permission.key) 
-                                    ? 'text.primary' 
-                                    : 'text.secondary'
-                                }}>
-                                  {permission.label}
-                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1, minWidth: 0 }}>
+                                  <Typography variant="body2" sx={{ 
+                                    fontWeight: formData.permissions.includes(permission.key) ? 600 : 400,
+                                    color: formData.permissions.includes(permission.key) 
+                                      ? 'text.primary' 
+                                      : 'text.secondary',
+                                    whiteSpace: 'nowrap'
+                                  }}>
+                                    {permission.label}
+                                  </Typography>
+                                  {permission.subPermissions && (() => {
+                                    const activeCount = permission.subPermissions.filter(sp => 
+                                      formData.permissions.includes(sp.key)
+                                    ).length;
+                                    const totalCount = permission.subPermissions.length;
+                                    const allActive = formData.permissions.includes(permission.key);
+                                    
+                                    return (
+                                      <Chip 
+                                        label={allActive ? `${totalCount} de ${totalCount}` : `${activeCount} de ${totalCount}`}
+                                        size="small"
+                                        sx={{ 
+                                          height: 18,
+                                          fontSize: '0.65rem',
+                                          fontWeight: 600,
+                                          bgcolor: allActive || activeCount === totalCount 
+                                            ? alpha(permission.color, 0.25) 
+                                            : activeCount > 0 
+                                              ? alpha(permission.color, 0.15) 
+                                              : alpha(theme.palette.divider, 0.3),
+                                          color: allActive || activeCount > 0 ? permission.color : 'text.secondary',
+                                          '& .MuiChip-label': {
+                                            px: 0.75
+                                          }
+                                        }}
+                                      />
+                                    );
+                                  })()}
+                                </Box>
                               </Box>
                               
                               <Switch
@@ -1543,15 +1579,73 @@ const UserManagementPage = () => {
                     </Typography>
                     <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                       {formData.permissions.length > 0 ? (
-                        formData.permissions.map((perm) => (
-                          <Chip
-                            key={perm}
-                            label={perm.charAt(0).toUpperCase() + perm.slice(1)}
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                          />
-                        ))
+                        (() => {
+                          // Definir todos los permisos con sus sub-opciones
+                          const permissionGroups = {
+                            'compromisos': ['Ver Todos', 'Agregar Nuevo', 'Próximos A Vencer'],
+                            'pagos': ['Historial', 'Nuevo Pago'],
+                            'ingresos': ['Registrar', 'Historial', 'Cuentas'],
+                            'gestion_empresarial': ['Empresas', 'Salas'],
+                            'liquidaciones': ['Liquidaciones', 'Historico'],
+                            'facturacion': ['Liquidaciones Por Sala'],
+                            'reportes': ['Resumen', 'Por Empresa', 'Por Periodo', 'Por Concepto']
+                          };
+                          
+                          const grouped = {};
+                          const standalone = [];
+                          
+                          formData.permissions.forEach(perm => {
+                            if (perm.includes('.')) {
+                              // Es un sub-permiso
+                              const [parent, child] = perm.split('.');
+                              if (!grouped[parent]) grouped[parent] = [];
+                              const label = child.replace(/_/g, ' ');
+                              grouped[parent].push(label.charAt(0).toUpperCase() + label.slice(1));
+                            } else if (permissionGroups[perm]) {
+                              // Es un permiso padre con sub-opciones definidas (acceso completo)
+                              grouped[perm] = permissionGroups[perm];
+                            } else {
+                              // Es un permiso standalone (dashboard, usuarios, etc.)
+                              standalone.push(perm);
+                            }
+                          });
+                          
+                          return (
+                            <>
+                              {/* Permisos agrupados con sus hijos */}
+                              {Object.entries(grouped).map(([parent, children]) => {
+                                const parentLabel = parent.replace(/_/g, ' ');
+                                const childrenText = children.join(', ');
+                                
+                                return (
+                                  <Chip
+                                    key={parent}
+                                    label={`${parentLabel.charAt(0).toUpperCase() + parentLabel.slice(1)} (${childrenText})`}
+                                    size="small"
+                                    color="primary"
+                                    variant="outlined"
+                                    sx={{ fontSize: '0.75rem' }}
+                                  />
+                                );
+                              })}
+                              
+                              {/* Permisos standalone sin hijos */}
+                              {standalone.map(perm => {
+                                const label = perm.replace(/_/g, ' ');
+                                return (
+                                  <Chip
+                                    key={perm}
+                                    label={label.charAt(0).toUpperCase() + label.slice(1)}
+                                    size="small"
+                                    color="primary"
+                                    variant="outlined"
+                                    sx={{ fontSize: '0.75rem' }}
+                                  />
+                                );
+                              })}
+                            </>
+                          );
+                        })()
                       ) : (
                         <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
                           No se han seleccionado permisos
