@@ -169,8 +169,8 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       color: '#ff9800',
       permission: 'liquidaciones',
       submenu: [
-        { title: 'Liquidaciones', icon: Receipt, path: '/liquidaciones' },
-        { title: 'Histórico de Liquidaciones', icon: Assessment, path: '/liquidaciones/historico' }
+        { title: 'Liquidaciones', icon: Receipt, path: '/liquidaciones', permission: 'liquidaciones.liquidaciones' },
+        { title: 'Histórico de Liquidaciones', icon: Assessment, path: '/liquidaciones/historico', permission: 'liquidaciones.historico' }
       ]
     },
     {
@@ -179,7 +179,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       color: '#2196f3',
       permission: 'facturacion',
       submenu: [
-        { title: 'Liquidaciones por Sala', icon: Business, path: '/facturacion/liquidaciones-por-sala' }
+        { title: 'Liquidaciones por Sala', icon: Business, path: '/facturacion/liquidaciones-por-sala', permission: 'facturacion.liquidaciones_por_sala' }
       ]
     },
     {
@@ -188,10 +188,10 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       color: primaryColor,
       permission: 'reportes',
       submenu: [
-        { title: 'Resumen General', icon: Assessment, path: '/reports/summary' },
-        { title: 'Por Empresa', icon: Business, path: '/reports/company' },
-        { title: 'Por Período', icon: Assignment, path: '/reports/period' },
-        { title: 'Por Concepto', icon: Receipt, path: '/reports/concept' }
+        { title: 'Resumen General', icon: Assessment, path: '/reports/summary', permission: 'reportes.resumen' },
+        { title: 'Por Empresa', icon: Business, path: '/reports/company', permission: 'reportes.por_empresa' },
+        { title: 'Por Período', icon: Assignment, path: '/reports/period', permission: 'reportes.por_periodo' },
+        { title: 'Por Concepto', icon: Receipt, path: '/reports/concept', permission: 'reportes.por_concepto' }
       ]
     }
   ];

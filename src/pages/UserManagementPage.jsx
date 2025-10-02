@@ -182,7 +182,7 @@ const UserManagementPage = () => {
         setEditingUser(user);
         
         // Filtrar solo permisos del nuevo sistema
-        const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'liquidaciones', 'facturacion', 'reportes', 'usuarios', 'auditoria', 'storage'];
+        const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'facturacion', 'facturacion.liquidaciones_por_sala', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'usuarios', 'auditoria', 'storage'];
         const filteredPermissions = (user.permissions || []).filter(permission => 
           newSystemPermissions.includes(permission)
         );
@@ -315,8 +315,15 @@ const UserManagementPage = () => {
         'gestion_empresarial.empresas',
         'gestion_empresarial.salas',
         'liquidaciones',
+        'liquidaciones.liquidaciones',
+        'liquidaciones.historico',
         'facturacion',
+        'facturacion.liquidaciones_por_sala',
         'reportes',
+        'reportes.resumen',
+        'reportes.por_empresa',
+        'reportes.por_periodo',
+        'reportes.por_concepto',
         'usuarios',
         'auditoria',
         'storage'
@@ -393,7 +400,7 @@ const UserManagementPage = () => {
       setError(null);
       
       // Filtrar permisos para asegurar que solo se guarden los del nuevo sistema
-      const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'liquidaciones', 'facturacion', 'reportes', 'usuarios', 'auditoria', 'storage'];
+      const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'facturacion', 'facturacion.liquidaciones_por_sala', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'usuarios', 'auditoria', 'storage'];
       const filteredPermissions = formData.permissions.filter(permission => 
         newSystemPermissions.includes(permission)
       );
@@ -1345,9 +1352,37 @@ const UserManagementPage = () => {
                           { key: 'gestion_empresarial.salas', label: 'Salas' }
                         ]
                       },
-                      { key: 'liquidaciones', label: 'Liquidaciones', icon: <Receipt />, color: '#ff9800' },
-                      { key: 'facturacion', label: 'Facturación', icon: <AttachMoney />, color: '#2196f3' },
-                      { key: 'reportes', label: 'Reportes', icon: <Assessment />, color: theme.palette.primary.main },
+                      { 
+                        key: 'liquidaciones', 
+                        label: 'Liquidaciones', 
+                        icon: <Receipt />, 
+                        color: '#ff9800',
+                        subPermissions: [
+                          { key: 'liquidaciones.liquidaciones', label: 'Liquidaciones' },
+                          { key: 'liquidaciones.historico', label: 'Histórico de Liquidaciones' }
+                        ]
+                      },
+                      { 
+                        key: 'facturacion', 
+                        label: 'Facturación', 
+                        icon: <AttachMoney />, 
+                        color: '#2196f3',
+                        subPermissions: [
+                          { key: 'facturacion.liquidaciones_por_sala', label: 'Liquidaciones por Sala' }
+                        ]
+                      },
+                      { 
+                        key: 'reportes', 
+                        label: 'Reportes', 
+                        icon: <Assessment />, 
+                        color: theme.palette.primary.main,
+                        subPermissions: [
+                          { key: 'reportes.resumen', label: 'Resumen General' },
+                          { key: 'reportes.por_empresa', label: 'Por Empresa' },
+                          { key: 'reportes.por_periodo', label: 'Por Período' },
+                          { key: 'reportes.por_concepto', label: 'Por Concepto' }
+                        ]
+                      },
                       { key: 'usuarios', label: 'Usuarios', icon: <PersonAddIcon />, color: '#ff9800' },
                       { key: 'auditoria', label: 'Auditoría del Sistema', icon: <SecurityIcon />, color: '#9c27b0' },
                       { key: 'storage', label: 'Limpieza de Storage', icon: <DeleteIcon />, color: '#f44336' }
