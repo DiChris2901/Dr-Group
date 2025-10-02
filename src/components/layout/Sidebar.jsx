@@ -127,9 +127,9 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       color: secondaryColor,
       permission: 'compromisos',
       submenu: [
-        { title: 'Ver Todos', icon: Assignment, path: '/commitments' },
-        { title: 'Agregar Nuevo', icon: AttachMoney, path: '/commitments/new' },
-        { title: 'Próximos a Vencer', icon: Notifications, path: '/commitments/due' }
+        { title: 'Ver Todos', icon: Assignment, path: '/commitments', permission: 'compromisos.ver_todos' },
+        { title: 'Agregar Nuevo', icon: AttachMoney, path: '/commitments/new', permission: 'compromisos.agregar_nuevo' },
+        { title: 'Próximos a Vencer', icon: Notifications, path: '/commitments/due', permission: 'compromisos.proximos_vencer' }
       ]
     },
     {
@@ -138,8 +138,8 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       color: primaryColor,
       permission: 'pagos',
       submenu: [
-        { title: 'Historial', icon: Assessment, path: '/payments' },
-        { title: 'Nuevo Pago', icon: AttachMoney, path: '/payments/new' }
+        { title: 'Historial', icon: Assessment, path: '/payments', permission: 'pagos.historial' },
+        { title: 'Nuevo Pago', icon: AttachMoney, path: '/payments/new', permission: 'pagos.nuevo_pago' }
       ]
     },
     {
@@ -148,9 +148,9 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       color: '#4caf50',
       permission: 'ingresos',
       submenu: [
-        { title: 'Registrar Ingreso', icon: AddBox, path: '/income' },
-        { title: 'Historial', icon: Timeline, path: '/income/history' },
-        { title: 'Cuentas Bancarias', icon: AccountBalance, path: '/income/accounts' }
+        { title: 'Registrar Ingreso', icon: AddBox, path: '/income', permission: 'ingresos.registrar' },
+        { title: 'Historial', icon: Timeline, path: '/income/history', permission: 'ingresos.historial' },
+        { title: 'Cuentas Bancarias', icon: AccountBalance, path: '/income/accounts', permission: 'ingresos.cuentas' }
       ]
     },
     {
@@ -159,8 +159,8 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       color: secondaryColor,
       permission: 'gestion_empresarial',
       submenu: [
-        { title: 'Empresas', icon: Business, path: '/companies' },
-        { title: 'Salas', icon: MeetingRoom, path: '/facturacion/salas' }
+        { title: 'Empresas', icon: Business, path: '/companies', permission: 'gestion_empresarial.empresas' },
+        { title: 'Salas', icon: MeetingRoom, path: '/facturacion/salas', permission: 'gestion_empresarial.salas' }
       ]
     },
     {
@@ -243,9 +243,43 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
     return hasPermissionResult;
   };
 
+  // Función para verificar permisos de submenú (granulares)
+  const hasSubmenuPermission = (parentPermission, submenuPermission) => {
+    if (!firestoreProfile) return false;
+    if (!firestoreProfile.permissions || !Array.isArray(firestoreProfile.permissions)) return false;
+    if (firestoreProfile.permissions.includes('ALL')) return true;
+    
+    // Si tiene el permiso padre completo, tiene acceso a todo
+    if (firestoreProfile.permissions.includes(parentPermission)) return true;
+    
+    // Si tiene el permiso específico del submenú
+    if (submenuPermission && firestoreProfile.permissions.includes(submenuPermission)) return true;
+    
+    return false;
+  };
+
+  // Función para verificar si el grupo debe mostrarse (si tiene al menos un submenú visible)
+  const hasAnySubmenuPermission = (parentPermission, submenu) => {
+    if (!submenu || submenu.length === 0) return false;
+    
+    // Si tiene el permiso padre completo, mostrar grupo
+    if (hasPermission(parentPermission)) return true;
+    
+    // Si tiene al menos un permiso de submenú, mostrar grupo
+    return submenu.some(subItem => 
+      subItem.permission && hasPermission(subItem.permission)
+    );
+  };
+
   // Filtrar elementos del menú según permisos
   const filteredMenuItems = menuItems.filter(item => {
     if (!item.permission) return true; // Si no tiene permiso definido, mostrar
+    
+    // Si el item tiene submenú, verificar si tiene al menos un submenú visible
+    if (item.submenu) {
+      return hasAnySubmenuPermission(item.permission, item.submenu);
+    }
+    
     return hasPermission(item.permission);
   });
 
@@ -439,7 +473,9 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                 {item.submenu && (!isCompactMode || isHoverExpanded) && (
                   <Collapse in={openSubmenu[item.title]} timeout="auto" unmountOnExit>
                     <List component="div" disablePadding>
-                      {item.submenu.map((subItem) => (
+                      {item.submenu
+                        .filter(subItem => hasSubmenuPermission(item.permission, subItem.permission))
+                        .map((subItem) => (
                         <ListItem key={subItem.title} disablePadding>
                           <ListItemButton
                             onClick={() => handleNavigation(subItem.path)}

@@ -182,7 +182,7 @@ const UserManagementPage = () => {
         setEditingUser(user);
         
         // Filtrar solo permisos del nuevo sistema
-        const newSystemPermissions = ['dashboard', 'compromisos', 'pagos', 'ingresos', 'gestion_empresarial', 'liquidaciones', 'facturacion', 'reportes', 'usuarios', 'auditoria', 'storage'];
+        const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'liquidaciones', 'facturacion', 'reportes', 'usuarios', 'auditoria', 'storage'];
         const filteredPermissions = (user.permissions || []).filter(permission => 
           newSystemPermissions.includes(permission)
         );
@@ -301,9 +301,19 @@ const UserManagementPage = () => {
       newPermissions = [
         'dashboard',
         'compromisos',
+        'compromisos.ver_todos',
+        'compromisos.agregar_nuevo',
+        'compromisos.proximos_vencer',
         'pagos',
+        'pagos.historial',
+        'pagos.nuevo_pago',
         'ingresos',
+        'ingresos.registrar',
+        'ingresos.historial',
+        'ingresos.cuentas',
         'gestion_empresarial',
+        'gestion_empresarial.empresas',
+        'gestion_empresarial.salas',
         'liquidaciones',
         'facturacion',
         'reportes',
@@ -383,7 +393,7 @@ const UserManagementPage = () => {
       setError(null);
       
       // Filtrar permisos para asegurar que solo se guarden los del nuevo sistema
-      const newSystemPermissions = ['dashboard', 'compromisos', 'pagos', 'ingresos', 'gestion_empresarial', 'liquidaciones', 'facturacion', 'reportes', 'usuarios', 'auditoria', 'storage'];
+      const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'liquidaciones', 'facturacion', 'reportes', 'usuarios', 'auditoria', 'storage'];
       const filteredPermissions = formData.permissions.filter(permission => 
         newSystemPermissions.includes(permission)
       );
@@ -1293,10 +1303,48 @@ const UserManagementPage = () => {
                   <Grid container spacing={2}>
                     {[
                       { key: 'dashboard', label: 'Dashboard', icon: <Dashboard />, color: theme.palette.primary.main },
-                      { key: 'compromisos', label: 'Compromisos', icon: <AccountBalance />, color: theme.palette.secondary.main },
-                      { key: 'pagos', label: 'Pagos', icon: <Receipt />, color: theme.palette.primary.main },
-                      { key: 'ingresos', label: 'Ingresos', icon: <TrendingUp />, color: '#4caf50' },
-                      { key: 'gestion_empresarial', label: 'Gestión Empresarial', icon: <BusinessIcon />, color: theme.palette.secondary.main },
+                      { 
+                        key: 'compromisos', 
+                        label: 'Compromisos', 
+                        icon: <AccountBalance />, 
+                        color: theme.palette.secondary.main,
+                        subPermissions: [
+                          { key: 'compromisos.ver_todos', label: 'Ver Todos' },
+                          { key: 'compromisos.agregar_nuevo', label: 'Agregar Nuevo' },
+                          { key: 'compromisos.proximos_vencer', label: 'Próximos a Vencer' }
+                        ]
+                      },
+                      { 
+                        key: 'pagos', 
+                        label: 'Pagos', 
+                        icon: <Receipt />, 
+                        color: theme.palette.primary.main,
+                        subPermissions: [
+                          { key: 'pagos.historial', label: 'Historial' },
+                          { key: 'pagos.nuevo_pago', label: 'Nuevo Pago' }
+                        ]
+                      },
+                      { 
+                        key: 'ingresos', 
+                        label: 'Ingresos', 
+                        icon: <TrendingUp />, 
+                        color: '#4caf50',
+                        subPermissions: [
+                          { key: 'ingresos.registrar', label: 'Registrar Ingreso' },
+                          { key: 'ingresos.historial', label: 'Historial' },
+                          { key: 'ingresos.cuentas', label: 'Cuentas Bancarias' }
+                        ]
+                      },
+                      { 
+                        key: 'gestion_empresarial', 
+                        label: 'Gestión Empresarial', 
+                        icon: <BusinessIcon />, 
+                        color: theme.palette.secondary.main,
+                        subPermissions: [
+                          { key: 'gestion_empresarial.empresas', label: 'Empresas' },
+                          { key: 'gestion_empresarial.salas', label: 'Salas' }
+                        ]
+                      },
                       { key: 'liquidaciones', label: 'Liquidaciones', icon: <Receipt />, color: '#ff9800' },
                       { key: 'facturacion', label: 'Facturación', icon: <AttachMoney />, color: '#2196f3' },
                       { key: 'reportes', label: 'Reportes', icon: <Assessment />, color: theme.palette.primary.main },
@@ -1304,7 +1352,7 @@ const UserManagementPage = () => {
                       { key: 'auditoria', label: 'Auditoría del Sistema', icon: <SecurityIcon />, color: '#9c27b0' },
                       { key: 'storage', label: 'Limpieza de Storage', icon: <DeleteIcon />, color: '#f44336' }
                     ].map((permission) => (
-                      <Grid item xs={12} sm={6} md={4} key={permission.key}>
+                      <Grid item xs={12} sm={6} md={permission.subPermissions ? 6 : 4} key={permission.key}>
                         <Card sx={{
                           border: formData.permissions.includes(permission.key) 
                             ? `2px solid ${permission.color}` 
@@ -1312,26 +1360,44 @@ const UserManagementPage = () => {
                           background: formData.permissions.includes(permission.key)
                             ? alpha(permission.color, 0.08)
                             : theme.palette.background.paper,
-                          cursor: 'pointer',
+                          cursor: permission.subPermissions ? 'default' : 'pointer',
                           transition: 'all 0.2s ease',
                           '&:hover': {
                             transform: 'translateY(-2px)',
                             boxShadow: `0 4px 12px ${alpha(permission.color, 0.2)}`
                           }
                         }}
-                        onClick={() => {
+                        onClick={!permission.subPermissions ? () => {
                           const newPermissions = formData.permissions.includes(permission.key)
                             ? formData.permissions.filter(p => p !== permission.key)
                             : [...formData.permissions, permission.key];
                           updateFormData({ permissions: newPermissions });
-                        }}
+                        } : undefined}
                         >
                           <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                            {/* Permiso Principal */}
                             <Box sx={{ 
                               display: 'flex', 
                               alignItems: 'center', 
-                              justifyContent: 'space-between' 
-                            }}>
+                              justifyContent: 'space-between',
+                              cursor: permission.subPermissions ? 'pointer' : 'default'
+                            }}
+                            onClick={permission.subPermissions ? (e) => {
+                              e.stopPropagation();
+                              const hasParent = formData.permissions.includes(permission.key);
+                              let newPermissions;
+                              if (hasParent) {
+                                // Remover permiso padre y todos los hijos
+                                newPermissions = formData.permissions.filter(p => 
+                                  p !== permission.key && !p.startsWith(`${permission.key}.`)
+                                );
+                              } else {
+                                // Agregar permiso padre (da acceso a todo)
+                                newPermissions = [...formData.permissions.filter(p => !p.startsWith(`${permission.key}.`)), permission.key];
+                              }
+                              updateFormData({ permissions: newPermissions });
+                            } : undefined}
+                            >
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                 <Box sx={{ 
                                   color: formData.permissions.includes(permission.key) 
@@ -1354,6 +1420,7 @@ const UserManagementPage = () => {
                               <Switch
                                 checked={formData.permissions.includes(permission.key)}
                                 size="small"
+                                onClick={(e) => permission.subPermissions && e.stopPropagation()}
                                 sx={{
                                   '& .MuiSwitch-switchBase.Mui-checked': {
                                     color: permission.color,
@@ -1364,6 +1431,70 @@ const UserManagementPage = () => {
                                 }}
                               />
                             </Box>
+
+                            {/* Sub-permisos */}
+                            {permission.subPermissions && !formData.permissions.includes(permission.key) && (
+                              <Box sx={{ mt: 2, pl: 2, borderLeft: `2px solid ${alpha(permission.color, 0.3)}` }}>
+                                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
+                                  Permisos específicos:
+                                </Typography>
+                                {permission.subPermissions.map((subPerm) => (
+                                  <Box 
+                                    key={subPerm.key}
+                                    sx={{ 
+                                      display: 'flex', 
+                                      alignItems: 'center', 
+                                      justifyContent: 'space-between',
+                                      py: 0.5,
+                                      cursor: 'pointer'
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      let newPermissions;
+                                      if (formData.permissions.includes(subPerm.key)) {
+                                        // Desactivar sub-permiso
+                                        newPermissions = formData.permissions.filter(p => p !== subPerm.key);
+                                      } else {
+                                        // Activar sub-permiso
+                                        newPermissions = [...formData.permissions, subPerm.key];
+                                        
+                                        // Verificar si todos los sub-permisos están activos
+                                        const allSubPermsActive = permission.subPermissions.every(sp => 
+                                          sp.key === subPerm.key || newPermissions.includes(sp.key)
+                                        );
+                                        
+                                        // Si todos están activos, cambiar a permiso padre
+                                        if (allSubPermsActive) {
+                                          newPermissions = newPermissions.filter(p => !p.startsWith(`${permission.key}.`));
+                                          newPermissions.push(permission.key);
+                                        }
+                                      }
+                                      updateFormData({ permissions: newPermissions });
+                                    }}
+                                  >
+                                    <Typography variant="caption" sx={{ 
+                                      color: formData.permissions.includes(subPerm.key) ? 'text.primary' : 'text.secondary',
+                                      fontWeight: formData.permissions.includes(subPerm.key) ? 600 : 400
+                                    }}>
+                                      {subPerm.label}
+                                    </Typography>
+                                    <Switch
+                                      checked={formData.permissions.includes(subPerm.key)}
+                                      size="small"
+                                      onClick={(e) => e.stopPropagation()}
+                                      sx={{
+                                        '& .MuiSwitch-switchBase.Mui-checked': {
+                                          color: permission.color,
+                                        },
+                                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                          backgroundColor: permission.color,
+                                        },
+                                      }}
+                                    />
+                                  </Box>
+                                ))}
+                              </Box>
+                            )}
                           </CardContent>
                         </Card>
                       </Grid>
