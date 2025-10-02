@@ -427,6 +427,14 @@ const SalasPage = () => {
         addNotification('Debe seleccionar una empresa', 'error');
         return;
       }
+      if (!formData.administracion || formData.administracion <= 0) {
+        addNotification('El campo Administración es obligatorio', 'error');
+        return;
+      }
+      if (!formData.conexion || formData.conexion <= 0) {
+        addNotification('El campo Conexión es obligatorio', 'error');
+        return;
+      }
 
       const salaData = {
         ...formData,
@@ -1176,7 +1184,10 @@ const SalasPage = () => {
               border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              minHeight: '720px'
+              height: '720px',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
             }}>
               {!selectedCompanyId ? (
                 <Box sx={{ 
@@ -1185,7 +1196,6 @@ const SalasPage = () => {
                   alignItems: 'center', 
                   justifyContent: 'center',
                   height: '100%',
-                  minHeight: '620px',
                   textAlign: 'center'
                 }}>
                   <Box sx={{
@@ -1208,7 +1218,11 @@ const SalasPage = () => {
                   </Typography>
                 </Box>
               ) : (
-                <Box>
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  height: '100%'
+                }}>
                   {/* Header con título */}
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                     <Typography variant="h6" fontWeight={600} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1293,7 +1307,7 @@ const SalasPage = () => {
                     </Box>
                   ) : (
                     <Box sx={{ 
-                      maxHeight: '640px',
+                      flex: 1,
                       overflowY: 'auto',
                       pr: 0.5,
                       mr: -0.5,
@@ -2195,13 +2209,15 @@ const SalasPage = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
+                required
                 label="Administración"
                 value={formatCurrencyInput(formData.administracion || 0)}
                 onChange={(e) => {
                   const numericValue = parseCurrencyValue(e.target.value);
                   handleFormChange('administracion', numericValue);
                 }}
-                helperText="Costo de administración"
+                error={!formData.administracion || formData.administracion <= 0}
+                helperText={!formData.administracion || formData.administracion <= 0 ? "Campo obligatorio" : "Costo de administración"}
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 2
@@ -2213,13 +2229,15 @@ const SalasPage = () => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
+                required
                 label="Conexión"
                 value={formatCurrencyInput(formData.conexion || 0)}
                 onChange={(e) => {
                   const numericValue = parseCurrencyValue(e.target.value);
                   handleFormChange('conexion', numericValue);
                 }}
-                helperText="Costo de conexión"
+                error={!formData.conexion || formData.conexion <= 0}
+                helperText={!formData.conexion || formData.conexion <= 0 ? "Campo obligatorio" : "Costo de conexión"}
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 2

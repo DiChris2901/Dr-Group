@@ -26,6 +26,7 @@ import {
   TableHead,
   TableRow,
   TablePagination,
+  Collapse,
   alpha
 } from '@mui/material';
 import {
@@ -37,7 +38,9 @@ import {
   Search as SearchIcon,
   Refresh as RefreshIcon,
   Visibility as VisibilityIcon,
-  WhatsApp as WhatsAppIcon
+  WhatsApp as WhatsAppIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
+  KeyboardArrowUp as KeyboardArrowUpIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -59,22 +62,24 @@ const ClientesPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [expandedRows, setExpandedRows] = useState(new Set());
 
-  // Cargar clientes desde las salas en Firestore
-  // Solo procesamos contactoAutorizado (propietarios), NO contactoAutorizado2 (empleados/admins)
+  // Cargar clientes y administradores desde las salas en Firestore
   useEffect(() => {
     const q = query(collection(db, 'salas'));
     
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        // Agrupar salas por cliente (solo propietarios - contactoAutorizado)
+        // Agrupar salas por cliente (propietarios - contactoAutorizado)
         const clientesMap = new Map();
+        // Mapa de administradores únicos
+        const administradoresMap = new Map();
         
         snapshot.docs.forEach(doc => {
           const sala = { id: doc.id, ...doc.data() };
           
-          // Procesar SOLO contacto autorizado 1 (propietario de la sala = cliente real)
+          // Procesar contacto autorizado 1 (propietario de la sala = cliente real)
           if (sala.contactoAutorizado && sala.contactoAutorizado.trim()) {
             const clienteKey = sala.contactoAutorizado.toLowerCase().trim();
             
@@ -83,7 +88,8 @@ const ClientesPage = () => {
                 nombre: sala.contactoAutorizado,
                 email: sala.contactEmail || '',
                 telefono: sala.contactPhone || '',
-                salas: []
+                salas: [],
+                administradores: []
               });
             }
             
@@ -95,6 +101,52 @@ const ClientesPage = () => {
               status: sala.status
             });
           }
+          
+          // Procesar contacto autorizado 2 (administradores/encargados)
+          if (sala.contactoAutorizado2 && sala.contactoAutorizado2.trim()) {
+            const adminKey = sala.contactoAutorizado2.toLowerCase().trim();
+            
+            if (!administradoresMap.has(adminKey)) {
+              administradoresMap.set(adminKey, {
+                nombre: sala.contactoAutorizado2,
+                email: sala.contactEmail2 || '',
+                telefono: sala.contactPhone2 || '',
+                salas: []
+              });
+            }
+            
+            administradoresMap.get(adminKey).salas.push({
+              id: sala.id,
+              nombre: sala.name,
+              empresa: sala.companyName
+            });
+          }
+        });
+        
+        // Agregar administradores a cada cliente basado en salas compartidas
+        clientesMap.forEach((cliente) => {
+          const adminSet = new Set();
+          
+          // Para cada sala del cliente, buscar administradores que trabajan en esa sala
+          cliente.salas.forEach(salaCliente => {
+            administradoresMap.forEach((admin) => {
+              // Si el administrador trabaja en alguna sala del cliente
+              if (admin.salas.some(salaAdmin => salaAdmin.id === salaCliente.id)) {
+                const adminKey = admin.nombre.toLowerCase().trim();
+                if (!adminSet.has(adminKey)) {
+                  adminSet.add(adminKey);
+                  cliente.administradores.push({
+                    nombre: admin.nombre,
+                    email: admin.email,
+                    telefono: admin.telefono,
+                    salasAsociadas: admin.salas.filter(s => 
+                      cliente.salas.some(cs => cs.id === s.id)
+                    ).map(s => s.nombre)
+                  });
+                }
+              }
+            });
+          });
         });
         
         // Convertir Map a Array y ordenar por nombre
@@ -106,7 +158,7 @@ const ClientesPage = () => {
       },
       (err) => {
         console.error('Error loading clientes:', err);
-        setError('Error al cargar clientes (propietarios) desde salas');
+        setError('Error al cargar clientes y administradores desde salas');
         setLoading(false);
       }
     );
@@ -446,6 +498,7 @@ const ClientesPage = () => {
           <Table>
             <TableHead>
               <TableRow sx={{ bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
+                <TableCell sx={{ width: 50 }} />
                 <TableCell sx={{ fontWeight: 600 }}>Cliente</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Contacto</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Salas Anexas</TableCell>
@@ -455,26 +508,51 @@ const ClientesPage = () => {
             <TableBody>
               {paginatedClientes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} align="center">
+                  <TableCell colSpan={6} align="center">
                     <Typography variant="body2" color="text.secondary" sx={{ py: 4 }}>
                       {searchTerm ? 'No se encontraron clientes' : 'No hay clientes registrados'}
                     </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedClientes.map((cliente, index) => (
-                  <TableRow 
-                    key={`${cliente.nombre}-${index}`} 
-                    sx={{
-                      '&:hover': {
-                        bgcolor: alpha(theme.palette.primary.main, 0.04)
-                      },
-                      '&:not(:last-child)': {
-                        borderBottom: `1px solid ${theme.palette.divider}`
-                      }
-                    }}
-                  >
-                    <TableCell>
+                paginatedClientes.map((cliente, index) => {
+                  const rowKey = `${cliente.nombre}-${index}`;
+                  const isExpanded = expandedRows.has(rowKey);
+                  const hasAdministradores = cliente.administradores && cliente.administradores.length > 0;
+                  
+                  return (
+                    <React.Fragment key={rowKey}>
+                      <TableRow 
+                        sx={{
+                          '&:hover': {
+                            bgcolor: alpha(theme.palette.primary.main, 0.04)
+                          },
+                          borderBottom: isExpanded ? 'none' : undefined
+                        }}
+                      >
+                        <TableCell sx={{ borderBottom: isExpanded ? 'none' : undefined }}>
+                          {hasAdministradores && (
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                const newExpanded = new Set(expandedRows);
+                                if (isExpanded) {
+                                  newExpanded.delete(rowKey);
+                                } else {
+                                  newExpanded.add(rowKey);
+                                }
+                                setExpandedRows(newExpanded);
+                              }}
+                              sx={{
+                                transition: 'transform 0.2s',
+                                transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)'
+                              }}
+                            >
+                              <KeyboardArrowDownIcon />
+                            </IconButton>
+                          )}
+                        </TableCell>
+                        <TableCell sx={{ borderBottom: isExpanded ? 'none' : undefined }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                         <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
                           {cliente.nombre?.charAt(0)?.toUpperCase()}
@@ -489,7 +567,7 @@ const ClientesPage = () => {
                         </Box>
                       </Box>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ borderBottom: isExpanded ? 'none' : undefined }}>
                       <Box>
                         {cliente.email && (
                           <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
@@ -510,7 +588,7 @@ const ClientesPage = () => {
                         )}
                       </Box>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ borderBottom: isExpanded ? 'none' : undefined }}>
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: 400 }}>
                         {cliente.salas && cliente.salas.length > 0 ? (
                           cliente.salas.map((sala, idx) => (
@@ -553,7 +631,7 @@ const ClientesPage = () => {
                         )}
                       </Box>
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell align="right" sx={{ borderBottom: isExpanded ? 'none' : undefined }}>
                       <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
                         <IconButton 
                           onClick={() => {
@@ -623,7 +701,177 @@ const ClientesPage = () => {
                       </Box>
                     </TableCell>
                   </TableRow>
-                ))
+
+                  {/* Filas expandibles con administradores (una fila por cada administrador) */}
+                  {hasAdministradores && isExpanded && (
+                    <React.Fragment>
+                      <TableRow sx={{ bgcolor: alpha(theme.palette.warning.main, 0.05) }}>
+                        <TableCell colSpan={6} sx={{ py: 1.5, px: 3, borderBottom: `1px solid ${theme.palette.divider}` }}>
+                          <Typography variant="caption" sx={{ fontWeight: 600, color: 'warning.main', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <PersonIcon sx={{ fontSize: 14 }} />
+                            Administradores/Encargados ({cliente.administradores.length})
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+
+                      {cliente.administradores.map((admin, adminIdx) => (
+                        <TableRow
+                          key={adminIdx} 
+                            sx={{
+                              bgcolor: alpha(theme.palette.secondary.main, 0.02),
+                              '&:hover': {
+                                bgcolor: alpha(theme.palette.secondary.main, 0.06)
+                              }
+                            }}
+                          >
+                            {/* Celda vacía para alineación */}
+                            <TableCell sx={{ width: 50, pl: 6 }}>
+                              <Box sx={{ width: 4, height: 30, bgcolor: alpha(theme.palette.secondary.main, 0.4), borderRadius: 1 }} />
+                            </TableCell>
+
+                            {/* Nombre del administrador */}
+                            <TableCell>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Avatar sx={{ 
+                                  bgcolor: alpha(theme.palette.secondary.main, 0.15),
+                                  color: theme.palette.secondary.main,
+                                  width: 36,
+                                  height: 36
+                                }}>
+                                  {admin.nombre?.charAt(0)?.toUpperCase()}
+                                </Avatar>
+                                <Box>
+                                  <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                                    {admin.nombre}
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ color: 'secondary.main', fontWeight: 500 }}>
+                                    Administrador/Encargado
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            </TableCell>
+
+                            {/* Contacto */}
+                            <TableCell>
+                              <Box>
+                                {admin.email && (
+                                  <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5, fontSize: '0.85rem' }}>
+                                    <EmailIcon sx={{ fontSize: 15, color: 'primary.main' }} />
+                                    {admin.email}
+                                  </Typography>
+                                )}
+                                {admin.telefono && (
+                                  <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, fontSize: '0.85rem' }}>
+                                    <PhoneIcon sx={{ fontSize: 15, color: 'success.main' }} />
+                                    {admin.telefono}
+                                  </Typography>
+                                )}
+                                {!admin.email && !admin.telefono && (
+                                  <Typography variant="caption" color="text.disabled">
+                                    Sin contacto registrado
+                                  </Typography>
+                                )}
+                              </Box>
+                            </TableCell>
+
+                            {/* Salas asociadas */}
+                            <TableCell>
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: 400 }}>
+                                {admin.salasAsociadas && admin.salasAsociadas.length > 0 ? (
+                                  admin.salasAsociadas.map((salaNombre, salaIdx) => (
+                                    <Chip 
+                                      key={salaIdx}
+                                      label={salaNombre}
+                                      size="small"
+                                      icon={<BusinessIcon sx={{ fontSize: 13 }} />}
+                                      sx={{ 
+                                        fontSize: '0.7rem',
+                                        fontWeight: 500,
+                                        height: 22,
+                                        bgcolor: alpha(theme.palette.secondary.main, 0.1),
+                                        color: theme.palette.secondary.main,
+                                        border: `1px solid ${alpha(theme.palette.secondary.main, 0.3)}`,
+                                        '&:hover': {
+                                          bgcolor: alpha(theme.palette.secondary.main, 0.2)
+                                        }
+                                      }}
+                                    />
+                                  ))
+                                ) : (
+                                  <Chip 
+                                    label="Sin salas" 
+                                    size="small"
+                                    sx={{ 
+                                      bgcolor: alpha(theme.palette.grey[500], 0.1),
+                                      color: theme.palette.text.disabled,
+                                      fontSize: '0.7rem',
+                                      height: 22
+                                    }}
+                                  />
+                                )}
+                              </Box>
+                            </TableCell>
+
+                            {/* Acciones */}
+                            <TableCell align="right">
+                              <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                                {admin.telefono && (
+                                  <IconButton 
+                                    onClick={() => {
+                                      const cleanPhone = admin.telefono.replace(/[^0-9]/g, '');
+                                      window.open(`https://wa.me/57${cleanPhone}`, '_blank');
+                                    }}
+                                    sx={{
+                                      bgcolor: alpha('#25D366', 0.1),
+                                      color: '#25D366',
+                                      '&:hover': {
+                                        bgcolor: alpha('#25D366', 0.2)
+                                      }
+                                    }}
+                                    size="small"
+                                  >
+                                    <WhatsAppIcon fontSize="small" />
+                                  </IconButton>
+                                )}
+                                {admin.email && (
+                                  <IconButton 
+                                    onClick={() => window.open(`mailto:${admin.email}`)}
+                                    sx={{
+                                      bgcolor: alpha(theme.palette.success.main, 0.1),
+                                      color: theme.palette.success.main,
+                                      '&:hover': {
+                                        bgcolor: alpha(theme.palette.success.main, 0.2)
+                                      }
+                                    }}
+                                    size="small"
+                                  >
+                                    <EmailIcon fontSize="small" />
+                                  </IconButton>
+                                )}
+                                {admin.telefono && (
+                                  <IconButton 
+                                    onClick={() => window.open(`tel:${admin.telefono}`)}
+                                    sx={{
+                                      bgcolor: alpha(theme.palette.info.main, 0.1),
+                                      color: theme.palette.info.main,
+                                      '&:hover': {
+                                        bgcolor: alpha(theme.palette.info.main, 0.2)
+                                      }
+                                    }}
+                                    size="small"
+                                  >
+                                    <PhoneIcon fontSize="small" />
+                                  </IconButton>
+                                )}
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                      ))}
+                    </React.Fragment>
+                  )}
+                </React.Fragment>
+                  );
+                })
               )}
             </TableBody>
           </Table>
