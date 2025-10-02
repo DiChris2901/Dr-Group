@@ -182,7 +182,7 @@ const UserManagementPage = () => {
         setEditingUser(user);
         
         // Filtrar solo permisos del nuevo sistema
-        const newSystemPermissions = ['dashboard', 'compromisos', 'pagos', 'ingresos', 'empresas', 'liquidaciones', 'facturacion', 'reportes', 'usuarios', 'auditoria', 'storage'];
+        const newSystemPermissions = ['dashboard', 'compromisos', 'pagos', 'ingresos', 'gestion_empresarial', 'liquidaciones', 'facturacion', 'reportes', 'usuarios', 'auditoria', 'storage'];
         const filteredPermissions = (user.permissions || []).filter(permission => 
           newSystemPermissions.includes(permission)
         );
@@ -303,8 +303,9 @@ const UserManagementPage = () => {
         'compromisos',
         'pagos',
         'ingresos',
-        'empresas',
+        'gestion_empresarial',
         'liquidaciones',
+        'facturacion',
         'reportes',
         'usuarios',
         'auditoria',
@@ -382,7 +383,7 @@ const UserManagementPage = () => {
       setError(null);
       
       // Filtrar permisos para asegurar que solo se guarden los del nuevo sistema
-      const newSystemPermissions = ['dashboard', 'compromisos', 'pagos', 'ingresos', 'empresas', 'liquidaciones', 'facturacion', 'reportes', 'usuarios', 'auditoria', 'storage'];
+      const newSystemPermissions = ['dashboard', 'compromisos', 'pagos', 'ingresos', 'gestion_empresarial', 'liquidaciones', 'facturacion', 'reportes', 'usuarios', 'auditoria', 'storage'];
       const filteredPermissions = formData.permissions.filter(permission => 
         newSystemPermissions.includes(permission)
       );
@@ -1295,7 +1296,7 @@ const UserManagementPage = () => {
                       { key: 'compromisos', label: 'Compromisos', icon: <AccountBalance />, color: theme.palette.secondary.main },
                       { key: 'pagos', label: 'Pagos', icon: <Receipt />, color: theme.palette.primary.main },
                       { key: 'ingresos', label: 'Ingresos', icon: <TrendingUp />, color: '#4caf50' },
-                      { key: 'empresas', label: 'Empresas', icon: <BusinessIcon />, color: theme.palette.secondary.main },
+                      { key: 'gestion_empresarial', label: 'Gestión Empresarial', icon: <BusinessIcon />, color: theme.palette.secondary.main },
                       { key: 'liquidaciones', label: 'Liquidaciones', icon: <Receipt />, color: '#ff9800' },
                       { key: 'facturacion', label: 'Facturación', icon: <AttachMoney />, color: '#2196f3' },
                       { key: 'reportes', label: 'Reportes', icon: <Assessment />, color: theme.palette.primary.main },

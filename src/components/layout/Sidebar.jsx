@@ -154,11 +154,14 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       ]
     },
     {
-      title: 'Empresas',
+      title: 'Gestión Empresarial',
       icon: Business,
-      path: '/companies',
       color: secondaryColor,
-      permission: 'empresas'
+      permission: 'gestion_empresarial',
+      submenu: [
+        { title: 'Empresas', icon: Business, path: '/companies' },
+        { title: 'Salas', icon: MeetingRoom, path: '/facturacion/salas' }
+      ]
     },
     {
       title: 'Liquidaciones',
@@ -176,8 +179,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       color: '#2196f3',
       permission: 'facturacion',
       submenu: [
-        { title: 'Liquidaciones por Sala', icon: Business, path: '/facturacion/liquidaciones-por-sala' },
-        { title: 'Gestión de Salas', icon: MeetingRoom, path: '/facturacion/salas' }
+        { title: 'Liquidaciones por Sala', icon: Business, path: '/facturacion/liquidaciones-por-sala' }
       ]
     },
     {

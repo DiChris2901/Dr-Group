@@ -1550,6 +1550,7 @@ const SalasPage = () => {
                 sx={{ 
                   p: 2, 
                   mb: 2,
+                  mt: 2,
                   borderLeft: `4px solid ${theme.palette.primary.main}`,
                   backgroundColor: theme.palette.mode === 'dark' 
                     ? `${theme.palette.primary.main}20` 
@@ -2164,7 +2165,7 @@ const SalasPage = () => {
                 sx={{ 
                   p: 2, 
                   mb: 2,
-                  mt: 1,
+                  mt: 2,
                   borderLeft: `4px solid ${theme.palette.primary.main}`,
                   backgroundColor: theme.palette.mode === 'dark' 
                     ? `${theme.palette.primary.main}20` 
