@@ -110,6 +110,7 @@ Tu objetivo es ser el programador más confiable y sistemático, donde cada lín
 - **MODALES**: OBLIGATORIO consultar `docs/MODAL_DESIGN_SYSTEM.md` primero
 - **VISORES PDF**: USAR como referencia `docs/MODAL_PDF_VIEWER_DESIGN.md`
 - **DISEÑO SOBRIO**: Para páginas admin, aplicar `docs/DISENO_SOBRIO_NOTAS.md`
+- **EXPORTACIÓN EXCEL**: OBLIGATORIO seguir `docs/EXCEL_EXPORT_DESIGN_SYSTEM.md` - Formato Python profesional únicamente
 - **SPECTACULAR**: Solo dashboard y páginas principales
 - **PROHIBIDO**: glassmorphism, backdrop-filter, colores hardcodeados
 
@@ -171,7 +172,7 @@ Este es un dashboard para control de compromisos financieros empresariales desar
 - **`docs/DISENO_SOBRIO_NOTAS.md`** - Sistema minimalista empresarial
 - **`docs/MODAL_DESIGN_SYSTEM.md`** - Patrones completos para modales
 - **`docs/MODAL_PDF_VIEWER_DESIGN.md`** - Implementación avanzada de visores PDF
-- **`docs/EXCEL_EXPORT_DESIGN_SYSTEM.md`** - Estándares de exportación de datos
+- **`docs/EXCEL_EXPORT_DESIGN_SYSTEM.md`** - Formato Python profesional para exportación Excel (ExcelJS, BRAND_COLORS, estructura 7 filas, freeze panes)
 
 ### 🎨 SISTEMA DE DISEÑO ORIGINAL SPECTACULAR
 

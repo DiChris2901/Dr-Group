@@ -828,13 +828,13 @@ const AddSalaModal = ({
               fullWidth
               required
               label="Administración"
-              value={formatCurrencyInput(formData.administracion || 0)}
+              value={formatCurrencyInput(formData.administracion !== undefined ? formData.administracion : '')}
               onChange={(e) => {
                 const numericValue = parseCurrencyValue(e.target.value);
                 handleFormChange('administracion', numericValue);
               }}
-              error={!formData.administracion || formData.administracion <= 0}
-              helperText={!formData.administracion || formData.administracion <= 0 ? "Campo obligatorio" : "Costo de administración"}
+              error={formData.administracion === undefined || formData.administracion === null || formData.administracion === ''}
+              helperText={(formData.administracion === undefined || formData.administracion === null || formData.administracion === '') ? "Campo obligatorio" : "Costo de administración (puede ser $0)"}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 2
@@ -848,13 +848,13 @@ const AddSalaModal = ({
               fullWidth
               required
               label="Conexión"
-              value={formatCurrencyInput(formData.conexion || 0)}
+              value={formatCurrencyInput(formData.conexion !== undefined ? formData.conexion : '')}
               onChange={(e) => {
                 const numericValue = parseCurrencyValue(e.target.value);
                 handleFormChange('conexion', numericValue);
               }}
-              error={!formData.conexion || formData.conexion <= 0}
-              helperText={!formData.conexion || formData.conexion <= 0 ? "Campo obligatorio" : "Costo de conexión"}
+              error={formData.conexion === undefined || formData.conexion === null || formData.conexion === ''}
+              helperText={(formData.conexion === undefined || formData.conexion === null || formData.conexion === '') ? "Campo obligatorio" : "Costo de conexión (puede ser $0)"}
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 2

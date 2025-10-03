@@ -60,6 +60,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
+import useActivityLogs from '../hooks/useActivityLogs';
 import liquidacionPersistenceService from '../services/liquidacionPersistenceService';
 import MonthYearFilter from '../components/common/MonthYearFilter';
 import { isValid } from 'date-fns';
@@ -71,8 +72,9 @@ import { db, storage } from '../config/firebase';
 const LiquidacionesHistorialPage = () => {
   const theme = useTheme();
   const navigate = useNavigate();
-  const { currentUser, firestoreProfile } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const { addNotification } = useNotifications();
+  const { logActivity } = useActivityLogs();
 
   // Estados principales
   const [liquidaciones, setLiquidaciones] = useState([]);
@@ -172,6 +174,28 @@ const LiquidacionesHistorialPage = () => {
   };
 
   useEffect(() => {
+    // 📊 LOG DE ACTIVIDAD: Página de histórico visitada (SOLO AL MONTAR)
+    const logPageView = async () => {
+      if (!currentUser?.uid) return;
+      
+      try {
+        await logActivity(
+          'historial_liquidaciones_visto',
+          'liquidacion',
+          'history_page',
+          {
+            timestamp: new Date().toISOString()
+          },
+          currentUser.uid,
+          userProfile?.name || currentUser.displayName || 'Usuario desconocido',
+          currentUser.email
+        );
+      } catch (logError) {
+        console.error('Error logging history page view:', logError);
+      }
+    };
+    
+    logPageView();
     cargarHistorial();
   }, []);
 
@@ -338,12 +362,32 @@ const LiquidacionesHistorialPage = () => {
   };
 
   // Cargar liquidación en el procesador
-  const cargarLiquidacionEnProcesador = () => {
+  const cargarLiquidacionEnProcesador = async () => {
     if (!selectedLiquidacion) return;
     
     // Navegar a la página de liquidaciones con el ID de la liquidación a cargar
     const liquidacionId = selectedLiquidacion.id;
     addNotification(`Cargando liquidación ${selectedLiquidacion.periodo}...`, 'info');
+    
+    // 📂 LOG DE ACTIVIDAD: Liquidación cargada desde histórico
+    try {
+      await logActivity(
+        'liquidacion_cargada_desde_historial',
+        'liquidacion',
+        liquidacionId,
+        {
+          empresa: selectedLiquidacion.empresa || 'Sin empresa',
+          periodo: selectedLiquidacion.periodoLiquidacion || 'Sin período',
+          archivo: selectedLiquidacion.archivo || null,
+          fechaProcesamiento: selectedLiquidacion.fechaProcesamiento || null
+        },
+        currentUser.uid,
+        userProfile?.name || currentUser.displayName || 'Usuario desconocido',
+        currentUser.email
+      );
+    } catch (logError) {
+      console.error('Error logging liquidacion load:', logError);
+    }
     
     // Redirigir a la página de liquidaciones con parámetro para cargar
     navigate(`/liquidaciones?cargar=${liquidacionId}`);
@@ -427,6 +471,26 @@ const LiquidacionesHistorialPage = () => {
       
       addNotification(`Archivo ${tipoArchivo} descargado correctamente`, 'success');
       
+      // 📥 LOG DE ACTIVIDAD: Archivo descargado del histórico
+      try {
+        await logActivity(
+          'archivo_liquidacion_descargado',
+          'liquidacion',
+          selectedLiquidacion?.id || 'unknown',
+          {
+            empresa: selectedLiquidacion?.empresa || 'Sin empresa',
+            periodo: selectedLiquidacion?.periodoLiquidacion || 'Sin período',
+            tipoArchivo: tipoArchivo || 'desconocido',
+            nombreArchivo: nombreArchivo || 'sin-nombre'
+          },
+          currentUser.uid,
+          userProfile?.name || currentUser.displayName || 'Usuario desconocido',
+          currentUser.email
+        );
+      } catch (logError) {
+        console.error('Error logging file download:', logError);
+      }
+      
     } catch (error) {
       console.error(`Error descargando archivo ${tipoArchivo}:`, error);
       addNotification(`Error al descargar archivo ${tipoArchivo}: ` + error.message, 'error');
@@ -497,6 +561,26 @@ const LiquidacionesHistorialPage = () => {
       );
       
       console.log('✅ Liquidación eliminada exitosamente');
+      
+      // 🗑️ LOG DE ACTIVIDAD: Liquidación eliminada
+      try {
+        await logActivity(
+          'liquidacion_eliminada',
+          'liquidacion',
+          liquidacionToDelete.id,
+          {
+            empresa: liquidacionToDelete.empresa || 'Sin empresa',
+            periodo: liquidacionToDelete.periodoLiquidacion || 'Sin período',
+            archivo: liquidacionToDelete.archivo || null,
+            fechaProcesamiento: liquidacionToDelete.fechaProcesamiento || null
+          },
+          currentUser.uid,
+          userProfile?.name || currentUser.displayName || 'Usuario desconocido',
+          currentUser.email
+        );
+      } catch (logError) {
+        console.error('Error logging liquidacion deletion:', logError);
+      }
       
       // Actualizar la lista local
       setLiquidaciones(prev => prev.filter(l => l.id !== liquidacionToDelete.id));

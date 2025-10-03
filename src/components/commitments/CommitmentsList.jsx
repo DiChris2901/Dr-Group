@@ -491,7 +491,8 @@ const CommitmentsList = ({
             (commitment.description && commitment.description.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
             (commitment.companyName && commitment.companyName.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
             (commitment.company && commitment.company.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
+            (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.invoiceNumber && commitment.invoiceNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
           );
         }
 
@@ -610,7 +611,8 @@ const CommitmentsList = ({
             (commitment.description && commitment.description.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
             (commitment.companyName && commitment.companyName.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
             (commitment.company && commitment.company.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
+            (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.invoiceNumber && commitment.invoiceNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
         );
       }
 
@@ -765,7 +767,8 @@ const CommitmentsList = ({
             (commitment.description && commitment.description.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
             (commitment.companyName && commitment.companyName.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
             (commitment.company && commitment.company.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
-            (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
+            (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+            (commitment.invoiceNumber && commitment.invoiceNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
         );
       }
 

@@ -847,12 +847,12 @@ const EditSalaModal = ({
             <TextField
               fullWidth
               label="Administración"
-              value={formatCurrencyInput(formData.administracion || 0)}
+              value={formatCurrencyInput(formData.administracion !== undefined ? formData.administracion : 0)}
               onChange={(e) => {
                 const numericValue = parseCurrencyValue(e.target.value);
                 onFormChange('administracion', numericValue);
               }}
-              helperText="Costo de administración"
+              helperText="Costo de administración (puede ser $0)"
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 2
@@ -865,12 +865,12 @@ const EditSalaModal = ({
             <TextField
               fullWidth
               label="Conexión"
-              value={formatCurrencyInput(formData.conexion || 0)}
+              value={formatCurrencyInput(formData.conexion !== undefined ? formData.conexion : 0)}
               onChange={(e) => {
                 const numericValue = parseCurrencyValue(e.target.value);
                 onFormChange('conexion', numericValue);
               }}
-              helperText="Costo de conexión"
+              helperText="Costo de conexión (puede ser $0)"
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 2

@@ -50,6 +50,7 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
+import { exportarClientesSpectacular } from '../utils/clientesExcelExportSpectacular';
 
 const ClientesPage = () => {
   const theme = useTheme();
@@ -182,6 +183,27 @@ const ClientesPage = () => {
     page * rowsPerPage,
     page * rowsPerPage + rowsPerPage
   );
+
+  // Función para exportar clientes
+  const handleExportClientes = async () => {
+    try {
+      if (!clientes || clientes.length === 0) {
+        alert('No hay clientes para exportar');
+        return;
+      }
+
+      console.log('📦 Exportando clientes spectacular...');
+      const result = await exportarClientesSpectacular(clientes);
+
+      if (result.success) {
+        console.log('✅ Exportación exitosa:', result);
+        alert(`✅ Exportación exitosa\n\n📊 ${result.recordCount} clientes exportados\n📁 Archivo: ${result.filename}`);
+      }
+    } catch (error) {
+      console.error('❌ Error al exportar clientes:', error);
+      alert('❌ Error al exportar clientes. Por favor intente nuevamente.');
+    }
+  };
 
   if (loading) {
     return (
@@ -451,12 +473,17 @@ const ClientesPage = () => {
               <Button
                 variant="contained"
                 startIcon={<EmailIcon />}
+                onClick={handleExportClientes}
+                disabled={clientes.length === 0}
                 sx={{
                   borderRadius: 1,
                   textTransform: 'none',
                   fontWeight: 600,
                   px: 3,
-                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  '&:disabled': {
+                    background: theme.palette.action.disabledBackground
+                  }
                 }}
               >
                 Exportar

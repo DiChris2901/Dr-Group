@@ -541,6 +541,35 @@ const CommitmentDetailDialog = ({
                         </Box>
                       </Grid>
 
+                      {/* Número de Factura */}
+                      {selectedCommitment.invoiceNumber && (
+                        <Grid item xs={12} sm={6}>
+                          <Box sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1.5,
+                            p: 1.5,
+                            borderRadius: 1,
+                            background: alpha(theme.palette.info.main, 0.04),
+                            border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+                          }}>
+                            <ReceiptIcon sx={{ color: 'info.main', fontSize: 18 }} />
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                NÚMERO DE FACTURA
+                              </Typography>
+                              <Typography variant="body2" sx={{
+                                fontWeight: 600,
+                                color: 'text.primary',
+                                fontFamily: 'monospace'
+                              }}>
+                                {selectedCommitment.invoiceNumber}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </Grid>
+                      )}
+
                       {/* Observaciones */}
                       <Grid item xs={12}>
                         <Box sx={{

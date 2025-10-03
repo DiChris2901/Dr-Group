@@ -71,6 +71,7 @@ import { useTheme } from '@mui/material/styles';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
+import useActivityLogs from '../hooks/useActivityLogs';
 import { exportarLiquidacionSpectacular, exportarLiquidacionSimple } from '../utils/liquidacionExcelExportSpectacularFixed';
 import { exportarLiquidacionPythonFormat } from '../utils/liquidacionExcelExportPythonFormat';
 import { exportarReporteDiarioSala } from '../utils/liquidacionExcelExportDiarioSala';
@@ -84,8 +85,9 @@ import * as XLSX from 'xlsx';
 const LiquidacionesPage = () => {
   const theme = useTheme();
   const [searchParams] = useSearchParams();
-  const { currentUser, firestoreProfile } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const { addNotification } = useNotifications();
+  const { logActivity } = useActivityLogs();
   const { companies, loading: companiesLoading } = useCompanies();
 
   // Estados principales
@@ -290,6 +292,28 @@ const LiquidacionesPage = () => {
       addLog(`📦 Archivos guardados: ${archivoTarifas ? '2 archivos' : '1 archivo'} (solo originales)`, 'info');
       addLog(`💡 Ventaja: Al cargar del historial se procesarán con la lógica más actualizada`, 'info');
       addNotification('Liquidación guardada exitosamente en Firebase', 'success');
+
+      // 💾 LOG DE ACTIVIDAD: Liquidación guardada en Firebase
+      try {
+        await logActivity(
+          'liquidacion_guardada',
+          'liquidacion',
+          liquidacionId,
+          {
+            empresa: empresa || 'Sin Empresa',
+            periodo: periodoDetectado || 'Sin período',
+            registros: consolidatedData?.length || 0,
+            archivoOriginal: selectedFile?.name || null,
+            tieneArchivoTarifas: !!archivoTarifas,
+            archivoTarifas: archivoTarifas?.name || null
+          },
+          currentUser.uid,
+          userProfile?.name || currentUser.displayName || 'Usuario desconocido',
+          currentUser.email
+        );
+      } catch (logError) {
+        console.error('Error logging liquidacion save:', logError);
+      }
 
       // Actualizar historial
       await cargarHistorialLiquidaciones();
@@ -1344,6 +1368,49 @@ const LiquidacionesPage = () => {
       setValidationData(validacion);
       setShowValidationModal(true);
       
+      // 📊 LOG DE ACTIVIDAD: Archivo procesado exitosamente
+      try {
+        // Detectar período para el log
+        let periodoLog = 'No detectado';
+        try {
+          periodoLog = detectarPeriodoLiquidacion();
+        } catch (periodoError) {
+          console.warn('No se pudo detectar período:', periodoError);
+        }
+        
+        // Usar empresaDetectada que está disponible en este scope
+        const empresaParaLog = empresaDetectada || numeroContrato || 'general';
+        
+        // Crear ID Entidad más descriptivo con empresa y período
+        const entityIdCompleto = periodoLog !== 'No detectado' 
+          ? `${empresaParaLog} - ${periodoLog}`
+          : empresaParaLog;
+        
+        await logActivity(
+          'archivo_liquidacion_procesado',
+          'liquidacion',
+          entityIdCompleto,
+          {
+            fileName: archivo.name || 'sin-nombre',
+            fileSize: archivo.size || 0,
+            empresa: empresaDetectada || 'Empresa no detectada',
+            numeroContrato: numeroContrato || 'No detectado',
+            periodo: periodoLog,
+            totalMaquinas: consolidatedConEmpresa.length || 0,
+            totalEstablecimientos: reporteSala.length || 0,
+            totalProduccion: totalProduccion || 0,
+            totalDerechos: totalDerechos || 0,
+            totalGastos: totalGastos || 0,
+            totalImpuestos: (totalDerechos + totalGastos) || 0
+          },
+          currentUser.uid,
+          userProfile?.name || currentUser.displayName || 'Usuario desconocido',
+          currentUser.email
+        );
+      } catch (logError) {
+        console.error('Error logging liquidacion processing:', logError);
+      }
+      
     } catch (error) {
       console.error('Error procesando liquidación:', error);
       addLog(`❌ Error: ${error.message}`, 'error');
@@ -1904,6 +1971,27 @@ const LiquidacionesPage = () => {
       setShowTarifasOptions(false);
       setLiquidacionCoincide(true);
       
+      // 📄 LOG DE ACTIVIDAD: Archivo de tarifas procesado
+      try {
+        await logActivity(
+          'archivo_tarifas_procesado',
+          'liquidacion',
+          empresa || 'general',
+          {
+            fileName: archivo.name || 'sin-nombre',
+            fileSize: archivo.size || 0,
+            empresa: empresa || 'Empresa no detectada',
+            tarifasEncontradas: tarífasEncontradas || 0,
+            tarifasAplicadas: Object.keys(nuevasTarifas).length || 0
+          },
+          currentUser.uid,
+          userProfile?.name || currentUser.displayName || 'Usuario desconocido',
+          currentUser.email
+        );
+      } catch (logError) {
+        console.error('Error logging tariffs processing:', logError);
+      }
+      
     } catch (error) {
       addLog(`❌ Error procesando archivo de tarifas: ${error.message}`, 'error');
       addNotification('Error al procesar archivo de tarifas', 'error');
@@ -2090,6 +2178,27 @@ const LiquidacionesPage = () => {
       if (result.success) {
         addLog(`✅ ${result.message}`, 'success');
         addNotification('Liquidación exportada (formato Python exacto)', 'success');
+        
+        // 📤 LOG DE ACTIVIDAD: Exportación consolidada
+        try {
+          await logActivity(
+            'liquidacion_consolidada_exportada',
+            'liquidacion',
+            empresa || 'GENERAL',
+            {
+              exportFormat: 'python',
+              empresa: empresa || 'GENERAL',
+              registrosExportados: consolidatedData?.length || 0,
+              fileName: result?.fileName || 'Liquidacion.xlsx'
+            },
+            currentUser.uid,
+            userProfile?.name || currentUser.displayName || 'Usuario desconocido',
+            currentUser.email
+          );
+        } catch (logError) {
+          console.error('Error logging export:', logError);
+        }
+        
         return;
       }
     } catch (e) {
@@ -2217,6 +2326,27 @@ const LiquidacionesPage = () => {
       await exportarReporteDiarioSala(originalData, establecimientoTarget, empresa || 'General');
       addLog('✅ Reporte diario exportado (multi-hoja por día)', 'success');
       addNotification('Reporte diario exportado', 'success');
+      
+      // 📅 LOG DE ACTIVIDAD: Exportación reporte diario
+      try {
+        await logActivity(
+          'reporte_diario_exportado',
+          'liquidacion',
+          establecimientoTarget || 'sin-establecimiento',
+          {
+            empresa: empresa || 'General',
+            establecimiento: establecimientoTarget || 'sin-establecimiento',
+            registrosDiarios: originalData?.length || 0,
+            exportFormat: 'python'
+          },
+          currentUser.uid,
+          userProfile?.name || currentUser.displayName || 'Usuario desconocido',
+          currentUser.email
+        );
+      } catch (logError) {
+        console.error('Error logging daily report export:', logError);
+      }
+      
       setShowDailyModal(false);
     } catch (error) {
       console.error('Error exportando reporte diario:', error);

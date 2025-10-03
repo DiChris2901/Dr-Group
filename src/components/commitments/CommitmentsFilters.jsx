@@ -216,7 +216,7 @@ const CommitmentsFilters = ({
                   label="Buscar compromisos"
                   value={searchTerm}
                   onChange={handleSearchChange}
-                  placeholder="Descripción, empresa, tipo..."
+                  placeholder="Descripción, empresa, beneficiario, # factura..."
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       borderRadius: 1,
