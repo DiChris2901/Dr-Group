@@ -85,11 +85,23 @@ import { db, auth } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import NotificationSettingsModal from '../components/notifications/NotificationSettingsModal';
+import { useEmailNotifications } from '../hooks/useEmailNotifications';
+import useActivityLogs from '../hooks/useActivityLogs';
 
 const UserManagementPage = () => {
   const theme = useTheme();
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
   const { addNotification } = useNotifications();
+  const { logActivity } = useActivityLogs();
+  
+  // 📧 Hook de notificaciones por email
+  const { 
+    sendUserCreatedNotification, 
+    sendUserUpdatedNotification, 
+    sendRoleChangedNotification,
+    sendCriticalPermissionChangeNotification,
+    sending: sendingEmail 
+  } = useEmailNotifications();
   
   // Estados principales
   const [users, setUsers] = useState([]);
@@ -528,14 +540,91 @@ const UserManagementPage = () => {
       
       // 📢 Agregar notificación de éxito
       if (editingUser) {
+        // ✅ USUARIO ACTUALIZADO
         addNotification({
           type: 'success',
           title: 'Usuario Actualizado',
           message: `Usuario "${formData.displayName || formData.email}" actualizado correctamente`,
           icon: 'edit'
         });
+        
+        // 📧 ENVIAR EMAIL DE ACTUALIZACIÓN
+        try {
+          console.log('📧 Enviando email de actualización a:', formData.email);
+          
+          // Determinar qué campos cambiaron
+          const updatedFields = [];
+          if (editingUser.displayName !== formData.displayName) updatedFields.push('Nombre');
+          if (editingUser.phone !== formData.phone) updatedFields.push('Teléfono');
+          if (editingUser.department !== formData.department) updatedFields.push('Departamento');
+          if (JSON.stringify(editingUser.companies) !== JSON.stringify(formData.companies)) updatedFields.push('Empresas asignadas');
+          if (JSON.stringify(editingUser.permissions) !== JSON.stringify(formData.permissions)) updatedFields.push('Permisos');
+          
+          // Si cambió el rol, enviar notificación específica de cambio de rol
+          if (editingUser.role !== formData.role) {
+            console.log('🔐 Cambio de rol detectado, enviando notificación específica...');
+            
+            await sendRoleChangedNotification(formData.email, {
+              displayName: formData.displayName,
+              email: formData.email,
+              oldRole: editingUser.role,
+              newRole: formData.role,
+              changedBy: userProfile?.name || userProfile?.displayName || currentUser.email
+            });
+            
+            // Si el nuevo rol es Admin o Super Admin, enviar alerta de seguridad crítica
+            if (formData.role === 'ADMIN' || formData.role === 'admin' || formData.role === 'SUPER_ADMIN' || formData.role === 'super_admin') {
+              console.log('🛡️ Cambio crítico de permisos detectado, notificando a administradores...');
+              
+              await sendCriticalPermissionChangeNotification(formData.email, {
+                targetUserName: formData.displayName,
+                targetUserId: editingUser.id,
+                oldRole: editingUser.role,
+                newRole: formData.role,
+                changedById: currentUser.uid,
+                changedByName: userProfile?.name || userProfile?.displayName || currentUser.email,
+                timestamp: new Date().toLocaleString('es-CO')
+              });
+            }
+            
+            console.log('✅ Notificación de cambio de rol enviada');
+          } else {
+            // Solo actualización de información sin cambio de rol
+            await sendUserUpdatedNotification(formData.email, {
+              displayName: formData.displayName,
+              email: formData.email,
+              updatedFields: updatedFields.join(', ') || 'Información general',
+              updatedBy: userProfile?.name || userProfile?.displayName || currentUser.email
+            });
+            
+            console.log('✅ Email de actualización enviado');
+          }
+          
+          // Registrar en Activity Logs
+          await logActivity(
+            'update_user',
+            'user',
+            editingUser.id,
+            {
+              userName: formData.displayName,
+              userEmail: formData.email,
+              updatedFields: updatedFields.join(', ') || 'Información general',
+              roleChanged: editingUser.role !== formData.role,
+              oldRole: editingUser.role,
+              newRole: formData.role
+            },
+            currentUser.uid,
+            userProfile?.name || userProfile?.displayName || currentUser.email,
+            currentUser.email
+          );
+          
+        } catch (emailError) {
+          console.error('⚠️ Error enviando email de actualización:', emailError);
+          // No forzar el error, el usuario ya fue actualizado
+        }
+        
       } else {
-        // Para usuarios nuevos - notificación de creación automática
+        // ✅ USUARIO NUEVO CREADO
         addNotification({
           type: 'success',
           title: '🎉 Usuario Creado Automáticamente',
@@ -543,6 +632,47 @@ const UserManagementPage = () => {
           icon: 'person_add'
         });
         console.log('✅ Proceso de creación automática completado exitosamente');
+        
+        // 📧 ENVIAR EMAIL DE BIENVENIDA
+        try {
+          console.log('📧 Enviando email de bienvenida a:', formData.email);
+          
+          await sendUserCreatedNotification(formData.email, {
+            displayName: formData.displayName,
+            email: formData.email,
+            role: formData.role,
+            createdBy: userProfile?.name || userProfile?.displayName || currentUser.email
+          });
+          
+          console.log('✅ Email de bienvenida enviado');
+          
+          // Registrar en Activity Logs
+          await logActivity(
+            'create_user',
+            'user',
+            formData.email, // Usamos email como ID temporal
+            {
+              userName: formData.displayName,
+              userEmail: formData.email,
+              role: formData.role,
+              companies: formData.companies?.length || 0,
+              permissions: formData.permissions?.length || 0,
+              emailSent: true
+            },
+            currentUser.uid,
+            userProfile?.name || userProfile?.displayName || currentUser.email,
+            currentUser.email
+          );
+          
+        } catch (emailError) {
+          console.error('⚠️ Error enviando email de bienvenida:', emailError);
+          addNotification({
+            type: 'warning',
+            title: 'Usuario Creado (Email no enviado)',
+            message: 'El usuario fue creado pero no se pudo enviar el email de bienvenida.',
+            icon: 'warning'
+          });
+        }
       }
       
     } catch (err) {

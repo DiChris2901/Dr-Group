@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useNotifications } from '../context/NotificationsContext';
+import { useEmailNotifications } from './useEmailNotifications';
+import { useAuth } from '../context/AuthContext';
 import { differenceInDays, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -16,8 +18,16 @@ import { es } from 'date-fns/locale';
  */
 export const useContractExpirationAlerts = () => {
   const { addAlert } = useNotifications();
+  const { user } = useAuth();
+  const { 
+    sendContractExpirationNotification,
+    sendContractDueTodayNotification,
+    sendContractExpiredNotification 
+  } = useEmailNotifications();
+  
   const [companies, setCompanies] = useState([]);
   const [processedAlerts, setProcessedAlerts] = useState(new Set());
+  const [emailsSentToday, setEmailsSentToday] = useState(new Set());
 
   // Cargar empresas desde Firestore
   useEffect(() => {
@@ -39,8 +49,9 @@ export const useContractExpirationAlerts = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    companies.forEach(company => {
-      if (!company.contractExpirationDate) return;
+    const processAlerts = async () => {
+      for (const company of companies) {
+        if (!company.contractExpirationDate) continue;
 
       const expirationDate = new Date(company.contractExpirationDate);
       expirationDate.setHours(0, 0, 0, 0);
@@ -56,11 +67,12 @@ export const useContractExpirationAlerts = () => {
         { days: 0, label: 'hoy', severity: 'error' }
       ];
 
-      alertPeriods.forEach(period => {
+      alertPeriods.forEach(async (period) => {
         if (daysUntilExpiration === period.days) {
           const alertId = `contract-${company.id}-${period.days}`;
+          const emailKey = `${company.id}-${period.days}-${today.toDateString()}`;
           
-          // Evitar duplicados
+          // Evitar duplicados de alertas
           if (processedAlerts.has(alertId)) return;
 
           const formattedDate = format(expirationDate, "d 'de' MMMM 'de' yyyy", { locale: es });
@@ -72,6 +84,7 @@ export const useContractExpirationAlerts = () => {
             message = `El contrato de ${company.name} vence en ${period.label} (${formattedDate})`;
           }
 
+          // Agregar alerta visual
           addAlert({
             id: alertId,
             type: period.severity,
@@ -84,19 +97,51 @@ export const useContractExpirationAlerts = () => {
             daysUntilExpiration: daysUntilExpiration
           });
 
-          // Marcar como procesada
+          // Enviar email si no se ha enviado hoy y el usuario está autenticado
+          if (user?.email && !emailsSentToday.has(emailKey)) {
+            try {
+              if (period.days === 0) {
+                // Contrato vence HOY
+                await sendContractDueTodayNotification(user.email, {
+                  companyId: company.id,
+                  companyName: company.name,
+                  expirationDate: formattedDate,
+                  userName: user.displayName || user.email
+                });
+              } else {
+                // Contrato vence en X días
+                await sendContractExpirationNotification(user.email, {
+                  companyId: company.id,
+                  companyName: company.name,
+                  expirationDate: formattedDate,
+                  daysUntilExpiration: period.days,
+                  period: period.label,
+                  userName: user.displayName || user.email
+                });
+              }
+              
+              console.log(`📧 Email enviado: Contrato de ${company.name} vence en ${period.label}`);
+              setEmailsSentToday(prev => new Set([...prev, emailKey]));
+            } catch (error) {
+              console.error('❌ Error enviando email de contrato:', error);
+            }
+          }
+
+          // Marcar alerta como procesada
           setProcessedAlerts(prev => new Set([...prev, alertId]));
         }
       });
 
       // Alertas para contratos ya vencidos (días negativos)
       if (daysUntilExpiration < 0 && daysUntilExpiration >= -30) {
-        const alertId = `contract-expired-${company.id}-${Math.abs(daysUntilExpiration)}`;
+        const daysExpired = Math.abs(daysUntilExpiration);
+        const alertId = `contract-expired-${company.id}-${daysExpired}`;
+        const emailKey = `expired-${company.id}-${today.toDateString()}`;
         
         if (!processedAlerts.has(alertId)) {
-          const daysExpired = Math.abs(daysUntilExpiration);
           const formattedDate = format(expirationDate, "d 'de' MMMM 'de' yyyy", { locale: es });
           
+          // Agregar alerta visual
           addAlert({
             id: alertId,
             type: 'error',
@@ -109,11 +154,32 @@ export const useContractExpirationAlerts = () => {
             daysUntilExpiration: daysUntilExpiration
           });
 
+          // Enviar email DIARIO de contrato vencido (uno por día)
+          if (user?.email && !emailsSentToday.has(emailKey)) {
+            try {
+              await sendContractExpiredNotification(user.email, {
+                companyId: company.id,
+                companyName: company.name,
+                expirationDate: formattedDate,
+                daysExpired: daysExpired,
+                userName: user.displayName || user.email
+              });
+              
+              console.log(`📧 Email enviado: Contrato vencido de ${company.name} (${daysExpired} días)`);
+              setEmailsSentToday(prev => new Set([...prev, emailKey]));
+            } catch (error) {
+              console.error('❌ Error enviando email de contrato vencido:', error);
+            }
+          }
+
           setProcessedAlerts(prev => new Set([...prev, alertId]));
         }
       }
-    });
-  }, [companies, addAlert, processedAlerts]);
+      } // Fin del for loop
+    }; // Fin de processAlerts
+    
+    processAlerts(); // Ejecutar función async
+  }, [companies, addAlert, processedAlerts, user, sendContractExpirationNotification, sendContractDueTodayNotification, sendContractExpiredNotification, emailsSentToday]);
 
   // Función para obtener contratos próximos a vencer (para el calendario)
   const getUpcomingExpirations = (daysAhead = 90) => {
