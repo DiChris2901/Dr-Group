@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Button,
@@ -24,11 +24,14 @@ import {
   People as PeopleIcon,
   AttachMoney as MoneyIcon,
   Phone as PhoneIcon,
-  Email as EmailIcon
+  Email as EmailIcon,
+  PictureAsPdf as PdfIcon,
+  Description as DocumentIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import PDFViewerModal from './PDFViewerModal';
 
 /**
  * Modal para ver detalles completos de una sala
@@ -43,6 +46,13 @@ const ViewSalaModal = ({
   getStatusColor
 }) => {
   const theme = useTheme();
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [currentDocument, setCurrentDocument] = useState(null);
+
+  const handleViewDocument = (doc, title) => {
+    setCurrentDocument({ url: doc.url, title });
+    setPdfViewerOpen(true);
+  };
 
   return (
     <Dialog
@@ -330,6 +340,128 @@ const ViewSalaModal = ({
               )}
             </Grid>
 
+            {/* Sección: Documentos Adjuntos */}
+            {(selectedSala.attachments?.camaraComercio || selectedSala.attachments?.usoSuelos) && (
+              <Box sx={{ mt: 3 }}>
+                <Typography variant="h6" sx={{ 
+                  fontWeight: 600, 
+                  mb: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}>
+                  <DocumentIcon color="primary" />
+                  Documentos Adjuntos
+                </Typography>
+                <Grid container spacing={2}>
+                  {/* Cámara de Comercio */}
+                  {selectedSala.attachments?.camaraComercio && (
+                    <Grid item xs={12} md={6}>
+                      <Paper 
+                        elevation={0}
+                        sx={{ 
+                          p: 2.5, 
+                          border: `2px solid ${theme.palette.primary.main}`,
+                          borderRadius: 2,
+                          backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                          transition: 'all 0.2s',
+                          '&:hover': {
+                            boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`,
+                            transform: 'translateY(-2px)'
+                          }
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                          <Avatar sx={{ 
+                            bgcolor: 'primary.main', 
+                            color: 'primary.contrastText',
+                            width: 40,
+                            height: 40
+                          }}>
+                            <PdfIcon />
+                          </Avatar>
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="subtitle1" fontWeight={600} color="primary.main">
+                              Cámara de Comercio
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {selectedSala.attachments.camaraComercio.name || 'Documento PDF'}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Button
+                          variant="contained"
+                          fullWidth
+                          startIcon={<VisibilityIcon />}
+                          onClick={() => handleViewDocument(selectedSala.attachments.camaraComercio, 'Cámara de Comercio')}
+                          sx={{ 
+                            borderRadius: 2,
+                            textTransform: 'none',
+                            fontWeight: 600
+                          }}
+                        >
+                          Ver Documento
+                        </Button>
+                      </Paper>
+                    </Grid>
+                  )}
+
+                  {/* Uso de Suelos */}
+                  {selectedSala.attachments?.usoSuelos && (
+                    <Grid item xs={12} md={6}>
+                      <Paper 
+                        elevation={0}
+                        sx={{ 
+                          p: 2.5, 
+                          border: `2px solid ${theme.palette.secondary.main}`,
+                          borderRadius: 2,
+                          backgroundColor: alpha(theme.palette.secondary.main, 0.05),
+                          transition: 'all 0.2s',
+                          '&:hover': {
+                            boxShadow: `0 4px 12px ${alpha(theme.palette.secondary.main, 0.15)}`,
+                            transform: 'translateY(-2px)'
+                          }
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                          <Avatar sx={{ 
+                            bgcolor: 'secondary.main', 
+                            color: 'secondary.contrastText',
+                            width: 40,
+                            height: 40
+                          }}>
+                            <PdfIcon />
+                          </Avatar>
+                          <Box sx={{ flex: 1 }}>
+                            <Typography variant="subtitle1" fontWeight={600} color="secondary.main">
+                              Uso de Suelos
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {selectedSala.attachments.usoSuelos.name || 'Documento PDF'}
+                            </Typography>
+                          </Box>
+                        </Box>
+                        <Button
+                          variant="contained"
+                          color="secondary"
+                          fullWidth
+                          startIcon={<VisibilityIcon />}
+                          onClick={() => handleViewDocument(selectedSala.attachments.usoSuelos, 'Uso de Suelos')}
+                          sx={{ 
+                            borderRadius: 2,
+                            textTransform: 'none',
+                            fontWeight: 600
+                          }}
+                        >
+                          Ver Documento
+                        </Button>
+                      </Paper>
+                    </Grid>
+                  )}
+                </Grid>
+              </Box>
+            )}
+
             {/* Footer: Metadatos */}
             <Box sx={{ 
               mt: 3, 
@@ -372,6 +504,17 @@ const ViewSalaModal = ({
           Editar Sala
         </Button>
       </DialogActions>
+
+      {/* Modal Visor PDF */}
+      <PDFViewerModal
+        open={pdfViewerOpen}
+        onClose={() => {
+          setPdfViewerOpen(false);
+          setCurrentDocument(null);
+        }}
+        documentUrl={currentDocument?.url}
+        documentTitle={currentDocument?.title}
+      />
     </Dialog>
   );
 };

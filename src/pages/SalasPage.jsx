@@ -93,7 +93,8 @@ import {
 import { 
   ref, 
   uploadBytes, 
-  getDownloadURL 
+  getDownloadURL,
+  deleteObject
 } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
@@ -555,6 +556,59 @@ const SalasPage = () => {
         updatedAt: serverTimestamp()
       };
 
+      // Subir archivos nuevos si los hay
+      if (camaraComercioFile || usoSuelosFile) {
+        setUploadingFiles(true);
+        
+        try {
+          const attachments = { ...selectedSala.attachments };
+          
+          // Reemplazar Cámara de Comercio (eliminar anterior si existe)
+          if (camaraComercioFile) {
+            // Eliminar archivo anterior de Storage
+            if (attachments.camaraComercio?.path) {
+              try {
+                const oldFileRef = ref(storage, attachments.camaraComercio.path);
+                await deleteObject(oldFileRef);
+              } catch (deleteError) {
+                console.warn('Error eliminando archivo anterior:', deleteError);
+              }
+            }
+            // Subir nuevo archivo
+            const camaraData = await uploadFileToStorage(camaraComercioFile, selectedSala.id, 'camara_comercio');
+            attachments.camaraComercio = camaraData;
+          }
+          
+          // Reemplazar Uso de Suelos (eliminar anterior si existe)
+          if (usoSuelosFile) {
+            // Eliminar archivo anterior de Storage
+            if (attachments.usoSuelos?.path) {
+              try {
+                const oldFileRef = ref(storage, attachments.usoSuelos.path);
+                await deleteObject(oldFileRef);
+              } catch (deleteError) {
+                console.warn('Error eliminando archivo anterior:', deleteError);
+              }
+            }
+            // Subir nuevo archivo
+            const usoSuelosData = await uploadFileToStorage(usoSuelosFile, selectedSala.id, 'uso_suelos');
+            attachments.usoSuelos = usoSuelosData;
+          }
+          
+          updateData.attachments = attachments;
+          updateData.hasAttachments = !!(attachments.camaraComercio || attachments.usoSuelos);
+          
+        } catch (fileError) {
+          console.error('Error subiendo archivos:', fileError);
+          addNotification('Error al subir archivos', 'error');
+          setUploadingFiles(false);
+          setSaving(false);
+          return;
+        } finally {
+          setUploadingFiles(false);
+        }
+      }
+
       await updateDoc(salaRef, updateData);
       
       // Registrar actividad
@@ -575,6 +629,8 @@ const SalasPage = () => {
       setEditDialogOpen(false);
       setSelectedSala(null);
       clearForm();
+      setCamaraComercioFile(null);
+      setUsoSuelosFile(null);
       
     } catch (error) {
       console.error('Error actualizando sala:', error);
@@ -606,6 +662,48 @@ const SalasPage = () => {
       addNotification('Error al eliminar la sala', 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Eliminar documento adjunto
+  const handleDeleteDocument = async (documentType) => {
+    try {
+      const salaRef = doc(db, 'salas', selectedSala.id);
+      const attachments = { ...selectedSala.attachments };
+      let filePathToDelete = null;
+      
+      if (documentType === 'camaraComercio' && attachments.camaraComercio) {
+        filePathToDelete = attachments.camaraComercio.path;
+        delete attachments.camaraComercio;
+      } else if (documentType === 'usoSuelos' && attachments.usoSuelos) {
+        filePathToDelete = attachments.usoSuelos.path;
+        delete attachments.usoSuelos;
+      }
+      
+      // Eliminar archivo de Storage si existe
+      if (filePathToDelete) {
+        try {
+          const fileRef = ref(storage, filePathToDelete);
+          await deleteObject(fileRef);
+        } catch (storageError) {
+          console.warn('Error eliminando archivo de Storage (puede que no exista):', storageError);
+        }
+      }
+      
+      // Actualizar Firestore
+      await updateDoc(salaRef, {
+        attachments,
+        hasAttachments: !!(attachments.camaraComercio || attachments.usoSuelos),
+        updatedAt: serverTimestamp()
+      });
+      
+      // Actualizar selectedSala para reflejar el cambio
+      setSelectedSala({ ...selectedSala, attachments });
+      
+      addNotification('Documento eliminado exitosamente de Storage y Firestore', 'success');
+    } catch (error) {
+      console.error('Error eliminando documento:', error);
+      addNotification('Error al eliminar documento', 'error');
     }
   };
 
@@ -1728,6 +1826,8 @@ const SalasPage = () => {
           setEditDialogOpen(false);
           setSelectedSala(null);
           clearForm();
+          setCamaraComercioFile(null);
+          setUsoSuelosFile(null);
         }}
         formData={formData}
         onFormChange={handleFormChange}
@@ -1740,6 +1840,15 @@ const SalasPage = () => {
         saving={saving}
         formatCurrencyInput={formatCurrencyInput}
         parseCurrencyValue={parseCurrencyValue}
+        existingCamaraComercio={selectedSala?.attachments?.camaraComercio}
+        existingUsoSuelos={selectedSala?.attachments?.usoSuelos}
+        camaraComercioFile={camaraComercioFile}
+        setCamaraComercioFile={setCamaraComercioFile}
+        usoSuelosFile={usoSuelosFile}
+        setUsoSuelosFile={setUsoSuelosFile}
+        onDeleteDocument={handleDeleteDocument}
+        uploadingFiles={uploadingFiles}
+        addNotification={addNotification}
       />
 
       {/* Modal Ver Sala */}

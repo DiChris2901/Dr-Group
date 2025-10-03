@@ -16,6 +16,7 @@ import {
   InputLabel,
   Autocomplete,
   CircularProgress,
+  IconButton,
   alpha
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
@@ -25,6 +26,12 @@ import BusinessIcon from '@mui/icons-material/Business';
 import PersonIcon from '@mui/icons-material/Person';
 import PeopleIcon from '@mui/icons-material/People';
 import MoneyIcon from '@mui/icons-material/AttachMoney';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import PdfIcon from '@mui/icons-material/PictureAsPdf';
+import CloseIcon from '@mui/icons-material/Close';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 const EditSalaModal = ({
   open,
@@ -39,7 +46,19 @@ const EditSalaModal = ({
   onSave,
   saving,
   formatCurrencyInput,
-  parseCurrencyValue
+  parseCurrencyValue,
+  // Documentos existentes
+  existingCamaraComercio,
+  existingUsoSuelos,
+  // Archivos nuevos
+  camaraComercioFile,
+  setCamaraComercioFile,
+  usoSuelosFile,
+  setUsoSuelosFile,
+  // Handlers
+  onDeleteDocument,
+  uploadingFiles,
+  addNotification
 }) => {
   const theme = useTheme();
 
@@ -496,6 +515,291 @@ const EditSalaModal = ({
             />
           </Grid>
           
+          {/* Documentos Adjuntos */}
+          <Grid item xs={12}>
+            <Paper 
+              elevation={1} 
+              sx={{ 
+                p: 2, 
+                mb: 2,
+                mt: 1,
+                borderLeft: `4px solid ${theme.palette.warning.main}`,
+                backgroundColor: theme.palette.mode === 'dark' 
+                  ? `${theme.palette.warning.main}20` 
+                  : `${theme.palette.warning.main}08`
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box 
+                  sx={{ 
+                    backgroundColor: 'warning.main', 
+                    borderRadius: '50%', 
+                    p: 0.8,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <AttachFileIcon sx={{ color: 'white', fontSize: 18 }} />
+                </Box>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ 
+                    fontWeight: 'bold',
+                    color: 'warning.main',
+                    lineHeight: 1.2
+                  }}>
+                    Documentos Adjuntos
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Gestione los documentos legales de la sala
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+          </Grid>
+          
+          {/* Cámara de Comercio */}
+          <Grid item xs={12} md={6}>
+            <Box>
+              {/* Input oculto - siempre disponible */}
+              <input
+                accept=".pdf,.jpg,.jpeg,.png"
+                style={{ display: 'none' }}
+                id="edit-camara-comercio-file"
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    if (file.size > 10 * 1024 * 1024) {
+                      addNotification('El archivo no debe superar 10MB', 'error');
+                      e.target.value = '';
+                      return;
+                    }
+                    setCamaraComercioFile(file);
+                    addNotification('Archivo de Cámara de Comercio seleccionado', 'success');
+                  }
+                }}
+              />
+              
+              {/* Documento existente */}
+              {existingCamaraComercio && !camaraComercioFile && (
+                <Paper 
+                  elevation={0}
+                  sx={{ 
+                    p: 2, 
+                    mb: 1,
+                    border: `2px solid ${theme.palette.success.main}`,
+                    borderRadius: 2,
+                    backgroundColor: alpha(theme.palette.success.main, 0.05)
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} />
+                    <Typography variant="subtitle2" fontWeight={600} color="success.main">
+                      Cámara de Comercio (Actual)
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <PdfIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
+                      {existingCamaraComercio.name || 'Documento guardado'}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 1, mt: 1.5 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      startIcon={<EditIcon />}
+                      onClick={() => document.getElementById('edit-camara-comercio-file').click()}
+                      sx={{ flex: 1, borderRadius: 1.5 }}
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={() => onDeleteDocument('camaraComercio')}
+                      sx={{ flex: 1, borderRadius: 1.5 }}
+                    >
+                      Eliminar
+                    </Button>
+                  </Box>
+                </Paper>
+              )}
+              
+              {/* Subir nuevo documento */}
+              {(!existingCamaraComercio || camaraComercioFile) && (
+                <>
+                  <label htmlFor="edit-camara-comercio-file">
+                    <Button
+                      variant="outlined"
+                      component="span"
+                      fullWidth
+                      startIcon={camaraComercioFile ? <CheckCircleIcon /> : <CloudUploadIcon />}
+                      sx={{
+                        borderRadius: 2,
+                        py: 1.5,
+                        borderColor: camaraComercioFile ? 'success.main' : 'primary.main',
+                        color: camaraComercioFile ? 'success.main' : 'primary.main',
+                        borderStyle: 'dashed',
+                        borderWidth: 2,
+                        '&:hover': {
+                          borderWidth: 2,
+                          borderStyle: 'dashed',
+                          backgroundColor: alpha(theme.palette.primary.main, 0.05)
+                        }
+                      }}
+                    >
+                      {camaraComercioFile ? 'Cámara de Comercio ✓' : existingCamaraComercio ? 'Reemplazar Cámara de Comercio' : 'Adjuntar Cámara de Comercio'}
+                    </Button>
+                  </label>
+                  {camaraComercioFile && (
+                    <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <PdfIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                      <Typography variant="caption" color="text.secondary" sx={{ flex: 1, wordBreak: 'break-all' }}>
+                        {camaraComercioFile.name}
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setCamaraComercioFile(null);
+                          document.getElementById('edit-camara-comercio-file').value = '';
+                        }}
+                        sx={{ p: 0.5 }}
+                      >
+                        <CloseIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Box>
+                  )}
+                </>
+              )}
+            </Box>
+          </Grid>
+          
+          {/* Uso de Suelos */}
+          <Grid item xs={12} md={6}>
+            <Box>
+              {/* Input oculto - siempre disponible */}
+              <input
+                accept=".pdf,.jpg,.jpeg,.png"
+                style={{ display: 'none' }}
+                id="edit-uso-suelos-file"
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    if (file.size > 10 * 1024 * 1024) {
+                      addNotification('El archivo no debe superar 10MB', 'error');
+                      e.target.value = '';
+                      return;
+                    }
+                    setUsoSuelosFile(file);
+                    addNotification('Archivo de Uso de Suelos seleccionado', 'success');
+                  }
+                }}
+              />
+              
+              {/* Documento existente */}
+              {existingUsoSuelos && !usoSuelosFile && (
+                <Paper 
+                  elevation={0}
+                  sx={{ 
+                    p: 2, 
+                    mb: 1,
+                    border: `2px solid ${theme.palette.success.main}`,
+                    borderRadius: 2,
+                    backgroundColor: alpha(theme.palette.success.main, 0.05)
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <CheckCircleIcon sx={{ color: 'success.main', fontSize: 20 }} />
+                    <Typography variant="subtitle2" fontWeight={600} color="success.main">
+                      Uso de Suelos (Actual)
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <PdfIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
+                      {existingUsoSuelos.name || 'Documento guardado'}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 1, mt: 1.5 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="primary"
+                      startIcon={<EditIcon />}
+                      onClick={() => document.getElementById('edit-uso-suelos-file').click()}
+                      sx={{ flex: 1, borderRadius: 1.5 }}
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={() => onDeleteDocument('usoSuelos')}
+                      sx={{ flex: 1, borderRadius: 1.5 }}
+                    >
+                      Eliminar
+                    </Button>
+                  </Box>
+                </Paper>
+              )}
+              
+              {/* Subir nuevo documento */}
+              {(!existingUsoSuelos || usoSuelosFile) && (
+                <>
+                  <label htmlFor="edit-uso-suelos-file">
+                    <Button
+                      variant="outlined"
+                      component="span"
+                      fullWidth
+                      startIcon={usoSuelosFile ? <CheckCircleIcon /> : <CloudUploadIcon />}
+                      sx={{
+                        borderRadius: 2,
+                        py: 1.5,
+                        borderColor: usoSuelosFile ? 'success.main' : 'primary.main',
+                        color: usoSuelosFile ? 'success.main' : 'primary.main',
+                        borderStyle: 'dashed',
+                        borderWidth: 2,
+                        '&:hover': {
+                          borderWidth: 2,
+                          borderStyle: 'dashed',
+                          backgroundColor: alpha(theme.palette.primary.main, 0.05)
+                        }
+                      }}
+                    >
+                      {usoSuelosFile ? 'Uso de Suelos ✓' : existingUsoSuelos ? 'Reemplazar Uso de Suelos' : 'Adjuntar Uso de Suelos'}
+                    </Button>
+                  </label>
+                  {usoSuelosFile && (
+                    <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <PdfIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                      <Typography variant="caption" color="text.secondary" sx={{ flex: 1, wordBreak: 'break-all' }}>
+                        {usoSuelosFile.name}
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setUsoSuelosFile(null);
+                          document.getElementById('edit-uso-suelos-file').value = '';
+                        }}
+                        sx={{ p: 0.5 }}
+                      >
+                        <CloseIcon sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </Box>
+                  )}
+                </>
+              )}
+            </Box>
+          </Grid>
+          
           {/* Costos Adicionales */}
           <Grid item xs={12}>
             <Paper 
@@ -580,7 +884,7 @@ const EditSalaModal = ({
       <DialogActions sx={{ p: 3, pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
         <Button
           onClick={onClose}
-          disabled={saving}
+          disabled={saving || uploadingFiles}
           sx={{ borderRadius: 2 }}
         >
           Cancelar
@@ -588,11 +892,16 @@ const EditSalaModal = ({
         <Button
           onClick={onSave}
           variant="contained"
-          disabled={saving}
+          disabled={saving || uploadingFiles}
           startIcon={<SaveIcon />}
           sx={{ borderRadius: 2 }}
         >
-          {saving ? (
+          {uploadingFiles ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <CircularProgress size={16} color="inherit" />
+              Subiendo archivos...
+            </Box>
+          ) : saving ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <CircularProgress size={16} color="inherit" />
               Guardando...
