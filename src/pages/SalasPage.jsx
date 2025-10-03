@@ -69,7 +69,11 @@ import {
   Search as SearchIcon,
   Clear as ClearIcon,
   Block as BlockIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  AttachFile as AttachFileIcon,
+  PictureAsPdf as PdfIcon,
+  CloudUpload as CloudUploadIcon,
+  CheckCircle as CheckCircleIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -86,7 +90,12 @@ import {
   where,
   getDocs
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { 
+  ref, 
+  uploadBytes, 
+  getDownloadURL 
+} from 'firebase/storage';
+import { db, storage } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import useActivityLogs from '../hooks/useActivityLogs';
 import { useSettings } from '../context/SettingsContext';
@@ -152,6 +161,11 @@ const SalasPage = () => {
     administracion: 0,
     conexion: 0
   });
+  
+  // Estados para archivos adjuntos
+  const [camaraComercioFile, setCamaraComercioFile] = useState(null);
+  const [usoSuelosFile, setUsoSuelosFile] = useState(null);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
 
 
 
@@ -390,6 +404,31 @@ const SalasPage = () => {
 
 
 
+  // Subir archivo a Firebase Storage
+  const uploadFileToStorage = async (file, salaId, fileType) => {
+    try {
+      const timestamp = Date.now();
+      const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+      const filePath = `salas/${salaId}/${fileType}_${timestamp}_${sanitizedFileName}`;
+      const storageRef = ref(storage, filePath);
+      
+      const snapshot = await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      
+      return {
+        url: downloadURL,
+        path: filePath,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        uploadedAt: serverTimestamp()
+      };
+    } catch (error) {
+      console.error(`Error subiendo archivo ${fileType}:`, error);
+      throw error;
+    }
+  };
+
   // Limpiar formulario
   const clearForm = () => {
     setFormData({
@@ -411,6 +450,8 @@ const SalasPage = () => {
       administracion: 0,
       conexion: 0
     });
+    setCamaraComercioFile(null);
+    setUsoSuelosFile(null);
   };
 
   // Crear nueva sala
@@ -450,12 +491,42 @@ const SalasPage = () => {
 
       const docRef = await addDoc(collection(db, 'salas'), salaData);
       
+      // Subir archivos adjuntos si existen
+      if (camaraComercioFile || usoSuelosFile) {
+        setUploadingFiles(true);
+        const attachments = {};
+        
+        try {
+          if (camaraComercioFile) {
+            const camaraData = await uploadFileToStorage(camaraComercioFile, docRef.id, 'camara_comercio');
+            attachments.camaraComercio = camaraData;
+          }
+          
+          if (usoSuelosFile) {
+            const usoSuelosData = await uploadFileToStorage(usoSuelosFile, docRef.id, 'uso_suelos');
+            attachments.usoSuelos = usoSuelosData;
+          }
+          
+          // Actualizar documento con URLs de archivos
+          await updateDoc(doc(db, 'salas', docRef.id), {
+            attachments,
+            updatedAt: serverTimestamp()
+          });
+        } catch (fileError) {
+          console.error('Error subiendo archivos:', fileError);
+          addNotification('Sala creada pero hubo un error al subir los archivos', 'warning');
+        } finally {
+          setUploadingFiles(false);
+        }
+      }
+      
       // Registrar actividad
       await logActivity('create_room', 'room', docRef.id, {
         roomName: formData.name,
         companyName: formData.companyName,
         proveedorOnline: formData.proveedorOnline,
-        ciudad: formData.ciudad
+        ciudad: formData.ciudad,
+        hasAttachments: !!(camaraComercioFile || usoSuelosFile)
       }, currentUser.uid, userProfile?.displayName, userProfile?.email);
 
       addNotification('Sala creada exitosamente', 'success');
@@ -2163,6 +2234,177 @@ const SalasPage = () => {
               />
             </Grid>
             
+            {/* Archivos Adjuntos */}
+            <Grid item xs={12}>
+              <Paper 
+                elevation={1} 
+                sx={{ 
+                  p: 2, 
+                  mb: 2,
+                  mt: 1,
+                  borderLeft: `4px solid ${theme.palette.warning.main}`,
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? `${theme.palette.warning.main}20` 
+                    : `${theme.palette.warning.main}08`
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box 
+                    sx={{ 
+                      backgroundColor: 'warning.main', 
+                      borderRadius: '50%', 
+                      p: 0.8,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    <AttachFileIcon sx={{ color: 'white', fontSize: 18 }} />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ 
+                      fontWeight: 'bold',
+                      color: 'warning.main',
+                      lineHeight: 1.2
+                    }}>
+                      Documentos Adjuntos
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Adjunte documentos legales de la sala (opcionales)
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Box>
+                <input
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  style={{ display: 'none' }}
+                  id="camara-comercio-file"
+                  type="file"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 10 * 1024 * 1024) {
+                        addNotification('El archivo no debe superar 10MB', 'error');
+                        e.target.value = '';
+                        return;
+                      }
+                      setCamaraComercioFile(file);
+                      addNotification('Archivo de Cámara de Comercio seleccionado', 'success');
+                    }
+                  }}
+                />
+                <label htmlFor="camara-comercio-file">
+                  <Button
+                    variant="outlined"
+                    component="span"
+                    fullWidth
+                    startIcon={camaraComercioFile ? <CheckCircleIcon /> : <CloudUploadIcon />}
+                    sx={{
+                      borderRadius: 2,
+                      py: 1.5,
+                      borderColor: camaraComercioFile ? 'success.main' : 'primary.main',
+                      color: camaraComercioFile ? 'success.main' : 'primary.main',
+                      borderStyle: 'dashed',
+                      borderWidth: 2,
+                      '&:hover': {
+                        borderWidth: 2,
+                        borderStyle: 'dashed',
+                        backgroundColor: alpha(theme.palette.primary.main, 0.05)
+                      }
+                    }}
+                  >
+                    {camaraComercioFile ? 'Cámara de Comercio ✓' : 'Adjuntar Cámara de Comercio'}
+                  </Button>
+                </label>
+                {camaraComercioFile && (
+                  <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <PdfIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ flex: 1, wordBreak: 'break-all' }}>
+                      {camaraComercioFile.name}
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        setCamaraComercioFile(null);
+                        document.getElementById('camara-comercio-file').value = '';
+                      }}
+                      sx={{ p: 0.5 }}
+                    >
+                      <CloseIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Box>
+                )}
+              </Box>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Box>
+                <input
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  style={{ display: 'none' }}
+                  id="uso-suelos-file"
+                  type="file"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 10 * 1024 * 1024) {
+                        addNotification('El archivo no debe superar 10MB', 'error');
+                        e.target.value = '';
+                        return;
+                      }
+                      setUsoSuelosFile(file);
+                      addNotification('Archivo de Uso de Suelos seleccionado', 'success');
+                    }
+                  }}
+                />
+                <label htmlFor="uso-suelos-file">
+                  <Button
+                    variant="outlined"
+                    component="span"
+                    fullWidth
+                    startIcon={usoSuelosFile ? <CheckCircleIcon /> : <CloudUploadIcon />}
+                    sx={{
+                      borderRadius: 2,
+                      py: 1.5,
+                      borderColor: usoSuelosFile ? 'success.main' : 'primary.main',
+                      color: usoSuelosFile ? 'success.main' : 'primary.main',
+                      borderStyle: 'dashed',
+                      borderWidth: 2,
+                      '&:hover': {
+                        borderWidth: 2,
+                        borderStyle: 'dashed',
+                        backgroundColor: alpha(theme.palette.primary.main, 0.05)
+                      }
+                    }}
+                  >
+                    {usoSuelosFile ? 'Uso de Suelos ✓' : 'Adjuntar Uso de Suelos'}
+                  </Button>
+                </label>
+                {usoSuelosFile && (
+                  <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <PdfIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ flex: 1, wordBreak: 'break-all' }}>
+                      {usoSuelosFile.name}
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        setUsoSuelosFile(null);
+                        document.getElementById('uso-suelos-file').value = '';
+                      }}
+                      sx={{ p: 0.5 }}
+                    >
+                      <CloseIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Box>
+                )}
+              </Box>
+            </Grid>
+            
             {/* Costos Adicionales */}
             <Grid item xs={12}>
               <Paper 
@@ -2262,11 +2504,16 @@ const SalasPage = () => {
           <Button
             onClick={handleCreateSala}
             variant="contained"
-            disabled={saving}
+            disabled={saving || uploadingFiles}
             startIcon={<SaveIcon />}
             sx={{ borderRadius: 2 }}
           >
-            {saving ? (
+            {uploadingFiles ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CircularProgress size={16} color="inherit" />
+                Subiendo archivos...
+              </Box>
+            ) : saving ? (
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <CircularProgress size={16} color="inherit" />
                 Guardando...
