@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Box,
   List,
@@ -19,7 +19,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button
+  Button,
+  Badge as MuiBadge
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -27,11 +28,14 @@ import {
   Clear as ClearIcon,
   Email as EmailIcon,
   Badge as BadgeIcon,
-  Close as CloseIcon
+  Close as CloseIcon,
+  Phone as PhoneIcon,
+  WhatsApp as WhatsAppIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import Fuse from 'fuse.js';
 import { useAuth } from '../../context/AuthContext';
+import { useChat } from '../../context/ChatContext';
 
 /**
  * Lista de contactos (usuarios registrados) estilo WhatsApp
@@ -43,9 +47,34 @@ const ContactsList = ({
   loading = false 
 }) => {
   const { currentUser } = useAuth();
+  const { usersPresence, unreadByUser } = useChat();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUserInfo, setSelectedUserInfo] = useState(null);
   const [userInfoDialogOpen, setUserInfoDialogOpen] = useState(false);
+
+  // Helper robusto para identificar si un item es el usuario actual
+  const isMe = useCallback((u) => {
+    if (!u || !currentUser) return false;
+    // Preferimos id de documento, luego uid del payload, y de respaldo email
+    return (
+      u.id === currentUser.uid ||
+      u.uid === currentUser.uid ||
+      (!!u.email && !!currentUser.email && u.email.toLowerCase() === currentUser.email.toLowerCase())
+    );
+  }, [currentUser]);
+
+  // 🐛 Debug: Log de presencia y filtrado
+  React.useEffect(() => {
+    console.log('� currentUser?.uid:', currentUser?.uid);
+    console.log('�👥 Users Presence:', usersPresence);
+    console.log('📋 Users:', users.map(u => ({ 
+      id: u.id,
+      uid: u.uid, 
+      name: u.displayName || u.name, 
+      online: usersPresence[u.id]?.state,
+      isMe: u.id === currentUser?.uid
+    })));
+  }, [usersPresence, users, currentUser]);
 
   const handleAvatarClick = (event, user) => {
     event.stopPropagation(); // Evitar que se active onSelectUser
@@ -60,7 +89,7 @@ const ContactsList = ({
 
   // 🔍 D. Configurar Fuse.js para búsqueda fuzzy optimizada
   const fuse = useMemo(() => {
-    const usersWithoutMe = users.filter(user => user.uid !== currentUser?.uid);
+    const usersWithoutMe = users.filter(user => !isMe(user));
     
     return new Fuse(usersWithoutMe, {
       keys: [
@@ -78,7 +107,7 @@ const ContactsList = ({
 
   // 🔍 D. Búsqueda fuzzy con Fuse.js
   const filteredUsers = useMemo(() => {
-    const usersWithoutMe = users.filter(user => user.uid !== currentUser?.uid);
+    const usersWithoutMe = users.filter(user => !isMe(user));
 
     if (!searchTerm || searchTerm.length < 2) {
       // Sin búsqueda, devolver todos ordenados
@@ -93,6 +122,9 @@ const ContactsList = ({
     const results = fuse.search(searchTerm);
     return results.map(result => result.item);
   }, [users, currentUser?.uid, searchTerm, fuse]);
+
+  // Lista final a renderizar (ya sin mí)
+  const displayedUsers = useMemo(() => filteredUsers.filter(u => !isMe(u)), [filteredUsers, isMe]);
 
   // Color del rol según el tipo
   const getRoleColor = (role) => {
@@ -157,7 +189,7 @@ const ContactsList = ({
             gap: 1
           }}
         >
-          👥 {filteredUsers.length} {filteredUsers.length === 1 ? 'Usuario' : 'Usuarios'}
+          👥 {displayedUsers.length} {displayedUsers.length === 1 ? 'Usuario' : 'Usuarios'}
         </Typography>
       </Box>
 
@@ -232,7 +264,7 @@ const ContactsList = ({
         ) : (
           <List sx={{ p: 0 }}>
             <AnimatePresence>
-              {filteredUsers.map((user, index) => {
+              {displayedUsers.map((user, index) => {
                 const isSelected = selectedUserId === user.uid;
                 const userName = user.displayName || user.name || user.email?.split('@')[0] || 'Usuario';
                 const userEmail = user.email || '';
@@ -271,26 +303,48 @@ const ContactsList = ({
                         }}
                       >
                         <ListItemAvatar>
-                          <Avatar
-                            src={userPhoto}
-                            alt={userName}
-                            onClick={(e) => handleAvatarClick(e, user)}
+                          <MuiBadge
+                            overlap="circular"
+                            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                            variant="dot"
+                            invisible={
+                              isMe(user) ||
+                              !usersPresence[user.id] ||
+                              !(usersPresence[user.id]?.online === true || usersPresence[user.id]?.state === 'online')
+                            }
                             sx={{
-                              width: 44,
-                              height: 44,
-                              border: isSelected ? 2 : 0,
-                              borderColor: 'primary.main',
-                              boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.15)' : '0 2px 8px rgba(0,0,0,0.06)',
-                              transition: 'all 0.3s ease',
-                              cursor: 'pointer',
-                              '&:hover': {
-                                transform: 'scale(1.1)',
-                                boxShadow: '0 4px 16px rgba(0,0,0,0.2)'
-                              }
+                              '& .MuiBadge-badge': {
+                                backgroundColor: '#44b700',
+                                color: '#44b700',
+                                boxShadow: '0 0 0 2.5px white',
+                                width: 14,
+                                height: 14,
+                                borderRadius: '50%',
+                                border: '2px solid white',
+                              },
                             }}
                           >
-                            {userName.charAt(0).toUpperCase()}
-                          </Avatar>
+                            <Avatar
+                              src={userPhoto}
+                              alt={userName}
+                              onClick={(e) => handleAvatarClick(e, user)}
+                              sx={{
+                                width: 44,
+                                height: 44,
+                                border: isSelected ? 2 : 0,
+                                borderColor: 'primary.main',
+                                boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.15)' : '0 2px 8px rgba(0,0,0,0.06)',
+                                transition: 'all 0.3s ease',
+                                cursor: 'pointer',
+                                '&:hover': {
+                                  transform: 'scale(1.1)',
+                                  boxShadow: '0 4px 16px rgba(0,0,0,0.2)'
+                                }
+                              }}
+                            >
+                              {userName.charAt(0).toUpperCase()}
+                            </Avatar>
+                          </MuiBadge>
                         </ListItemAvatar>
 
                         <ListItemText
@@ -309,6 +363,14 @@ const ContactsList = ({
                                 size="small"
                                 sx={{ height: 20, fontSize: '0.7rem' }}
                               />
+                              {unreadByUser?.[user.id] > 0 && (
+                                <Chip
+                                  label={unreadByUser[user.id]}
+                                  color="primary"
+                                  size="small"
+                                  sx={{ height: 20, fontSize: '0.7rem', fontWeight: 700 }}
+                                />
+                              )}
                             </Box>
                           }
                           secondary={
@@ -338,7 +400,7 @@ const ContactsList = ({
       <Dialog
         open={userInfoDialogOpen}
         onClose={handleCloseUserInfo}
-        maxWidth="xs"
+        maxWidth="sm"
         fullWidth
         sx={{
           '& .MuiDialog-container': {
@@ -437,6 +499,48 @@ const ContactsList = ({
                     </Typography>
                   </Box>
                 </Box>
+
+                {/* Teléfono */}
+                {selectedUserInfo.phone && (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      p: 2,
+                      mb: 1,
+                      bgcolor: alpha('#000', 0.02),
+                      borderRadius: 1,
+                      border: 1,
+                      borderColor: alpha('#000', 0.08)
+                    }}
+                  >
+                    <PhoneIcon color="success" />
+                    <Box sx={{ flexGrow: 1 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Teléfono / WhatsApp
+                      </Typography>
+                      <Typography variant="body2" fontWeight={500}>
+                        {selectedUserInfo.phone}
+                      </Typography>
+                    </Box>
+                    <IconButton
+                      size="small"
+                      onClick={() => window.open(`https://wa.me/${selectedUserInfo.phone.replace(/\D/g, '')}`, '_blank')}
+                      sx={{
+                        bgcolor: '#25D366',
+                        color: 'white',
+                        '&:hover': {
+                          bgcolor: '#128C7E',
+                          transform: 'scale(1.1)'
+                        },
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      <WhatsAppIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                )}
 
                 {/* UID */}
                 <Box

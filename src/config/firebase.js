@@ -4,6 +4,7 @@ import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
+import { getDatabase, connectDatabaseEmulator } from 'firebase/database';
 
 // Firebase configuration usando variables de entorno
 const firebaseConfig = {
@@ -12,7 +13,8 @@ const firebaseConfig = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  databaseURL: `https://${import.meta.env.VITE_FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com`
 };
 
 // Validar configuración antes de inicializar
@@ -78,5 +80,15 @@ try {
   throw error;
 }
 
-export { auth, db, storage, functions };
+// Initialize Realtime Database for presence system
+let database;
+try {
+  database = getDatabase(app);
+  console.log('✅ Firebase Realtime Database initialized successfully');
+} catch (error) {
+  console.error('🚨 Error initializing Realtime Database:', error);
+  console.warn('⚠️ La aplicación funcionará sin el sistema de presencia');
+}
+
+export { auth, db, storage, functions, database };
 export default app;

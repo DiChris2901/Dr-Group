@@ -37,8 +37,28 @@ export const ChatProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // 🟢 Estado de presencia de usuarios
+  const [usersPresence, setUsersPresence] = useState({});
+
   // Cache para evitar re-renders innecesarios
   const [conversationsCache, setConversationsCache] = useState({});
+
+  // Derivado: mensajes no leídos por usuario (para chats directos)
+  const unreadByUser = React.useMemo(() => {
+    if (!currentUser?.uid) return {};
+    const map = {};
+    conversations.forEach((conv) => {
+      if (!conv || !Array.isArray(conv.participantIds)) return;
+      // Solo aplica para conversaciones directas
+      const otherId = conv.participantIds.find((id) => id !== currentUser.uid);
+      if (!otherId) return;
+      const count = conv.unreadCount?.[currentUser.uid] || 0;
+      if (count > 0) {
+        map[otherId] = (map[otherId] || 0) + count;
+      }
+    });
+    return map;
+  }, [conversations, currentUser?.uid]);
 
   // 🔥 LISTENER: Conversaciones del usuario actual
   useEffect(() => {
@@ -104,6 +124,44 @@ export const ChatProvider = ({ children }) => {
       setLoading(false);
     }
   }, [currentUser?.uid, addNotification]);
+
+  // 🟢 LISTENER: Estado de presencia de usuarios desde Firestore
+  useEffect(() => {
+    console.log('🔥 Iniciando listener de presencia (Firestore)...');
+    
+    const usersRef = collection(db, 'users');
+    const unsubscribe = onSnapshot(usersRef, (snapshot) => {
+      const presenceData = {};
+      snapshot.docs.forEach((doc) => {
+        const userData = doc.data();
+        // Señales de presencia
+        const lastSeenDate = userData.lastSeen?.toDate ? userData.lastSeen.toDate() : userData.lastSeen;
+        const hasFreshLastSeen = lastSeenDate ? (Date.now() - lastSeenDate.getTime()) < 180000 : false; // 3 min
+        const onlineFlag = userData.online === true;
+        // Relajamos condición: online si hay flag o lastSeen fresco
+        const isOnline = onlineFlag || hasFreshLastSeen;
+        
+        presenceData[doc.id] = {
+          state: isOnline ? 'online' : 'offline',
+          online: isOnline,
+          lastSeen: lastSeenDate,
+          // Señales crudas útiles para debug fino
+          _onlineFlag: onlineFlag,
+          _fresh: hasFreshLastSeen
+        };
+      });
+      
+      console.log('👥 Presencia recibida:', presenceData);
+      setUsersPresence(presenceData);
+    }, (error) => {
+      console.error('❌ Error en listener de presencia:', error);
+    });
+
+    return () => {
+      console.log('🔚 Desconectando listener de presencia');
+      unsubscribe();
+    };
+  }, []);
 
   // ✅ FUNCIÓN: Marcar mensajes como leídos
   const markConversationAsRead = useCallback(async (conversationId) => {
@@ -296,6 +354,8 @@ export const ChatProvider = ({ children }) => {
     unreadCount,
     loading,
     error,
+    usersPresence,
+  unreadByUser,
 
     // Setters
     setActiveConversationId,

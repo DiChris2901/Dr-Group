@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import EmojiPicker from 'emoji-picker-react';
 import {
   Box,
   TextField,
@@ -15,7 +16,8 @@ import {
   Send as SendIcon,
   AttachFile as AttachFileIcon,
   Close as CloseIcon,
-  InsertDriveFile as FileIcon
+  InsertDriveFile as FileIcon,
+  EmojiEmotions as EmojiIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../../context/NotificationsContext';
@@ -45,10 +47,30 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const fileInputRef = useRef(null);
+  const emojiPickerRef = useRef(null);
 
   // ⌨️ C. Debounced typing indicator
   const debouncedTypingUpdate = useDebounce(updateTypingStatus, 500);
+
+  // 😊 Manejar selección de emoji
+  const onEmojiClick = (emojiData) => {
+    setMessage(prev => prev + emojiData.emoji);
+  };
+
+  // Cerrar picker al hacer click fuera
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    if (showEmojiPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showEmojiPicker]);
 
   // Manejar envío de mensaje
   const handleSend = async () => {
@@ -228,6 +250,53 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
             </IconButton>
           </span>
         </Tooltip>
+
+        {/* Botón emoji */}
+        <Box sx={{ position: 'relative' }} ref={emojiPickerRef}>
+          <Tooltip title="Emojis">
+            <IconButton
+              onClick={() => setShowEmojiPicker(prev => !prev)}
+              disabled={uploading}
+              sx={{
+                bgcolor: showEmojiPicker ? alpha('#667eea', 0.12) : alpha('#000', 0.04),
+                transition: 'all 0.3s ease',
+                '&:hover': { 
+                  bgcolor: showEmojiPicker ? alpha('#667eea', 0.16) : alpha('#000', 0.08),
+                  transform: 'scale(1.05)'
+                }
+              }}
+            >
+              <EmojiIcon />
+            </IconButton>
+          </Tooltip>
+
+          {/* Emoji Picker */}
+          <AnimatePresence>
+            {showEmojiPicker && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                style={{
+                  position: 'absolute',
+                  bottom: '60px',
+                  left: 0,
+                  zIndex: 1300
+                }}
+              >
+                <EmojiPicker
+                  onEmojiClick={onEmojiClick}
+                  width={320}
+                  height={400}
+                  theme="light"
+                  searchPlaceholder="Buscar emoji..."
+                  previewConfig={{ showPreview: false }}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Box>
 
         {/* Campo de texto Sobrio */}
         <TextField

@@ -6,7 +6,6 @@ import {
   CircularProgress,
   Alert,
   IconButton,
-  Tooltip,
   Divider,
   Paper,
   alpha,
@@ -20,11 +19,12 @@ import {
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
-  MoreVert as MoreVertIcon,
   Person as PersonIcon,
   Close as CloseIcon,
   Email as EmailIcon,
-  Badge as BadgeIcon
+  Badge as BadgeIcon,
+  Phone as PhoneIcon,
+  WhatsApp as WhatsAppIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { onSnapshot, doc } from 'firebase/firestore';
@@ -221,19 +221,6 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
             💬 {messages.length} {messages.length === 1 ? 'mensaje' : 'mensajes'}
           </Typography>
         </Box>
-
-        {/* Opciones */}
-        <Tooltip title="Opciones de conversación">
-          <IconButton
-            sx={{
-              '&:hover': {
-                bgcolor: alpha('#000', 0.04)
-              }
-            }}
-          >
-            <MoreVertIcon />
-          </IconButton>
-        </Tooltip>
       </Paper>
 
       {/* Área de mensajes Sobrio */}
@@ -368,6 +355,8 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
       <Dialog
         open={userInfoDialogOpen}
         onClose={handleCloseUserInfo}
+        maxWidth="sm"
+        fullWidth
         sx={{
           '& .MuiDialog-container': {
             alignItems: 'center',
@@ -380,8 +369,7 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
             borderRadius: 2,
             border: 1,
             borderColor: alpha('#000', 0.08),
-            m: { xs: 2, md: 0 },
-            maxWidth: 400
+            m: { xs: 2, md: 0 }
           }
         }}
       >
@@ -476,6 +464,48 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
                         {selectedUser.email}
                       </Typography>
                     </Box>
+                  </Box>
+                )}
+
+                {/* Teléfono */}
+                {selectedUser.phone && (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      p: 2,
+                      mb: 1,
+                      bgcolor: alpha('#000', 0.02),
+                      borderRadius: 1,
+                      border: 1,
+                      borderColor: alpha('#000', 0.08)
+                    }}
+                  >
+                    <PhoneIcon color="success" />
+                    <Box sx={{ flexGrow: 1 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Teléfono / WhatsApp
+                      </Typography>
+                      <Typography variant="body2" fontWeight={500}>
+                        {selectedUser.phone}
+                      </Typography>
+                    </Box>
+                    <IconButton
+                      size="small"
+                      onClick={() => window.open(`https://wa.me/${selectedUser.phone.replace(/\D/g, '')}`, '_blank')}
+                      sx={{
+                        bgcolor: '#25D366',
+                        color: 'white',
+                        '&:hover': {
+                          bgcolor: '#128C7E',
+                          transform: 'scale(1.1)'
+                        },
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      <WhatsAppIcon fontSize="small" />
+                    </IconButton>
                   </Box>
                 )}
 

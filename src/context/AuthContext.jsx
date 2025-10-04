@@ -3,6 +3,7 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebas
 import { auth, db } from '../config/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 import { clearAllListeners } from '../utils/listenerManager';
+import { useUserPresence } from '../hooks/useUserPresence';
 
 // Helper function para logs de auditoría (no podemos usar hooks dentro del provider)
 const logAuthActivity = async (action, userId, details = {}) => {
@@ -76,6 +77,10 @@ export const AuthProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // 🟢 Activar sistema de presencia para el usuario actual
+  console.log('🔍 AuthProvider: currentUser?.uid =', currentUser?.uid);
+  useUserPresence(currentUser?.uid);
 
   // Función para iniciar sesión
   const login = async (email, password) => {

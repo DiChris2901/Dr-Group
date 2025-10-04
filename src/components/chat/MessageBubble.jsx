@@ -34,7 +34,10 @@ import {
   Delete as DeleteIcon,
   Edit as EditIcon,
   Reply as ReplyIcon,
-  Forward as ForwardIcon
+  Forward as ForwardIcon,
+  Close as CloseIcon,
+  Image as ImageIcon,
+  PictureAsPdf as PdfIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
@@ -64,6 +67,37 @@ const MessageBubble = ({
   const [editedText, setEditedText] = useState(message.text || '');
   const [selectedConversation, setSelectedConversation] = useState(null);
   const menuOpen = Boolean(anchorEl);
+  
+  // 📄 Estados para modal de PDF/Imagen
+  const [fileViewerOpen, setFileViewerOpen] = useState(false);
+  const [viewingFile, setViewingFile] = useState(null);
+
+  // 📄 Manejar click en archivo adjunto
+  const handleFileClick = (attachment) => {
+    const fileType = attachment.type || '';
+    const fileName = attachment.name || '';
+    const fileExtension = fileName.split('.').pop().toLowerCase();
+
+    // PDFs e imágenes se abren en modal
+    if (fileType.startsWith('image/') || fileType === 'application/pdf' || fileExtension === 'pdf') {
+      setViewingFile(attachment);
+      setFileViewerOpen(true);
+    } else {
+      // Otros archivos se descargan
+      const link = document.createElement('a');
+      link.href = attachment.url;
+      link.download = fileName;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  const handleCloseFileViewer = () => {
+    setFileViewerOpen(false);
+    setViewingFile(null);
+  };
 
   const handleMenuOpen = (event) => {
     event.stopPropagation();
@@ -289,11 +323,24 @@ const MessageBubble = ({
                         borderRadius: 1,
                         cursor: 'pointer'
                       }}
-                      onClick={() => window.open(attachment.url, '_blank')}
+                      onClick={() => handleFileClick(attachment)}
                     />
                   ) : (
-                    <>
-                      <FileIcon />
+                    <Box
+                      onClick={() => handleFileClick(attachment)}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        cursor: 'pointer',
+                        width: '100%'
+                      }}
+                    >
+                      {attachment.type === 'application/pdf' || attachment.name?.endsWith('.pdf') ? (
+                        <PdfIcon color="error" />
+                      ) : (
+                        <FileIcon />
+                      )}
                       <Typography
                         variant="body2"
                         sx={{
@@ -305,17 +352,19 @@ const MessageBubble = ({
                       >
                         {attachment.name}
                       </Typography>
-                      <Tooltip title="Descargar">
+                      <Tooltip title="Ver / Descargar">
                         <IconButton
                           size="small"
-                          href={attachment.url}
-                          download={attachment.name}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleFileClick(attachment);
+                          }}
                           sx={{ color: 'inherit' }}
                         >
                           <DownloadIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                    </>
+                    </Box>
                   )}
                 </Box>
               ))}
@@ -706,6 +755,100 @@ const MessageBubble = ({
             Reenviar
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Modal de visor de PDF/Imagen */}
+      <Dialog
+        open={fileViewerOpen}
+        onClose={handleCloseFileViewer}
+        maxWidth="lg"
+        fullWidth
+        sx={{
+          '& .MuiDialog-container': {
+            alignItems: 'center',
+            justifyContent: 'center'
+          }
+        }}
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            maxHeight: '90vh',
+            m: 2
+          }
+        }}
+      >
+        <DialogTitle sx={{ p: 0 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              p: 2,
+              bgcolor: alpha('#667eea', 0.04),
+              borderBottom: 1,
+              borderColor: alpha('#000', 0.08)
+            }}
+          >
+            <Box display="flex" alignItems="center" gap={1}>
+              {viewingFile?.type?.startsWith('image/') ? (
+                <ImageIcon color="primary" />
+              ) : (
+                <PdfIcon color="error" />
+              )}
+              <Typography variant="body1" fontWeight={600} noWrap>
+                {viewingFile?.name || 'Archivo'}
+              </Typography>
+            </Box>
+            <Box display="flex" gap={1}>
+              <Tooltip title="Descargar">
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = viewingFile.url;
+                    link.download = viewingFile.name;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                >
+                  <DownloadIcon />
+                </IconButton>
+              </Tooltip>
+              <IconButton size="small" onClick={handleCloseFileViewer}>
+                <CloseIcon />
+              </IconButton>
+            </Box>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 0, bgcolor: alpha('#000', 0.02), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {viewingFile?.type?.startsWith('image/') ? (
+            <Box
+              component="img"
+              src={viewingFile.url}
+              alt={viewingFile.name}
+              sx={{
+                maxWidth: '100%',
+                maxHeight: 'calc(90vh - 120px)',
+                objectFit: 'contain',
+                p: 2
+              }}
+            />
+          ) : (
+            <Box
+              component="iframe"
+              src={viewingFile?.url}
+              title={viewingFile?.name}
+              sx={{
+                width: '100%',
+                height: 'calc(90vh - 120px)',
+                border: 'none',
+                bgcolor: 'white'
+              }}
+            />
+          )}
+        </DialogContent>
       </Dialog>
     </Box>
   );
