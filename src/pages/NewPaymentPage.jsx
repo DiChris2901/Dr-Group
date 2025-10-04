@@ -209,6 +209,9 @@ const NewPaymentPage = () => {
   const [compressionPreviewOpen, setCompressionPreviewOpen] = useState(false);
   const [pendingPDFFile, setPendingPDFFile] = useState(null);
   const [compressionEnabled, setCompressionEnabled] = useState(true); // Compresión habilitada por defecto
+  
+  // ✅ ESTADO PARA MODAL DE CONFIRMACIÓN
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
   // 📄 Estado para visor PDF de factura del compromiso
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
@@ -301,12 +304,14 @@ const NewPaymentPage = () => {
       
       if (!needsInterests) {
         // Limpiar todos los tipos de intereses si no se requieren
+        // 💰 Usar saldo pendiente si hay pagos parciales, sino el monto original
+        const baseAmount = selectedCommitment.remainingBalance || prev.originalAmount;
         setFormData(prev => ({
           ...prev,
           interests: 0,
           interesesDerechosExplotacion: 0,
           interesesGastosAdministracion: 0,
-          finalAmount: prev.originalAmount
+          finalAmount: baseAmount
         }));
       }
     }
@@ -339,8 +344,9 @@ const NewPaymentPage = () => {
       return;
     }
     
-    // Si no es pago parcial, calcular el total con intereses
-    const baseAmount = formData.originalAmount || 0;
+    // 💰 Si no es pago parcial, calcular el total con intereses USANDO EL SALDO PENDIENTE
+    // Si hay pagos parciales previos, usar remainingBalance; si no, usar originalAmount
+    const baseAmount = selectedCommitment.remainingBalance || formData.originalAmount || 0;
     const regularInterests = formData.interests || 0;
     const coljuegosInterests1 = formData.interesesDerechosExplotacion || 0;
     const coljuegosInterests2 = formData.interesesGastosAdministracion || 0;
@@ -1119,6 +1125,7 @@ const NewPaymentPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  // 📦 MANEJAR CLICK DEL BOTÓN DE GUARDAR (muestra modal de confirmación)
   const handleSubmit = async (event) => {
     event.preventDefault();
     console.log('🎯 handleSubmit INICIADO - event:', event);
@@ -1144,6 +1151,13 @@ const NewPaymentPage = () => {
       return;
     }
 
+    // Mostrar modal de confirmación
+    setConfirmDialogOpen(true);
+  };
+
+  // ✅ CONFIRMAR Y GUARDAR PAGO (después de confirmar en el modal)
+  const handleConfirmPayment = async () => {
+    setConfirmDialogOpen(false);
     setIsSubmitting(true);
     
     try {
@@ -3461,6 +3475,256 @@ const NewPaymentPage = () => {
         onAccept={handleCompressionAccept}
         onReject={handleCompressionReject}
       />
+
+      {/* ✅ MODAL DE CONFIRMACIÓN DE PAGO */}
+      <Dialog
+        open={confirmDialogOpen}
+        onClose={() => setConfirmDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: theme.palette.mode === 'dark'
+              ? 'linear-gradient(135deg, rgba(30, 30, 40, 0.98) 0%, rgba(20, 20, 30, 0.98) 100%)'
+              : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 250, 252, 0.98) 100%)',
+            backdropFilter: 'blur(20px)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 20px 60px rgba(0, 0, 0, 0.5)'
+              : '0 20px 60px rgba(0, 0, 0, 0.1)',
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          pb: 1,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2
+        }}>
+          <Box sx={{
+            width: 48,
+            height: 48,
+            borderRadius: 2,
+            background: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.dark} 100%)`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: `0 4px 20px ${alpha(theme.palette.success.main, 0.3)}`
+          }}>
+            <SaveIcon sx={{ color: 'white', fontSize: 28 }} />
+          </Box>
+          <Box>
+            <Typography variant="h6" fontWeight="600">
+              Confirmar Pago
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Revisa la información antes de registrar
+            </Typography>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent>
+          <Box sx={{ mt: 1 }}>
+            {/* Compromiso */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                COMPROMISO
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                <CompanyIcon color="primary" fontSize="small" />
+                <Typography variant="body1" fontWeight="500">
+                  {selectedCommitment?.companyName || 'Sin empresa'}
+                </Typography>
+              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ ml: 4 }}>
+                {selectedCommitment?.concept || selectedCommitment?.name || 'Sin concepto'}
+              </Typography>
+            </Box>
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* Beneficiario */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                BENEFICIARIO
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <PersonIcon color="primary" fontSize="small" />
+                <Typography variant="body1" fontWeight="500">
+                  {selectedCommitment?.beneficiary || selectedCommitment?.provider || 'Sin beneficiario'}
+                </Typography>
+              </Box>
+            </Box>
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* Montos */}
+            <Grid container spacing={2} sx={{ mb: 2.5 }}>
+              <Grid item xs={6}>
+                <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                  MONTO ORIGINAL
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <MoneyIcon color="info" fontSize="small" />
+                  <Typography variant="body1" fontWeight="600">
+                    ${parseFloat(formData.originalAmount || 0).toLocaleString('es-CO')}
+                  </Typography>
+                </Box>
+              </Grid>
+
+              {formData.interests > 0 && (
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                    INTERESES
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <InterestIcon color="warning" fontSize="small" />
+                    <Typography variant="body1" fontWeight="600" color="warning.main">
+                      ${parseFloat(formData.interests || 0).toLocaleString('es-CO')}
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
+
+              {formData.fourPerThousand > 0 && (
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                    4x1000
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AccountBalanceIcon color="error" fontSize="small" />
+                    <Typography variant="body1" fontWeight="600" color="error.main">
+                      ${parseFloat(formData.fourPerThousand || 0).toLocaleString('es-CO')}
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
+
+              <Grid item xs={12}>
+                <Box sx={{ 
+                  p: 2, 
+                  borderRadius: 2, 
+                  background: alpha(theme.palette.success.main, 0.1),
+                  border: `2px solid ${theme.palette.success.main}`
+                }}>
+                  <Typography variant="caption" color="success.main" fontWeight="700" sx={{ mb: 0.5, display: 'block' }}>
+                    MONTO TOTAL A PAGAR
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <MoneyIcon color="success" sx={{ fontSize: 28 }} />
+                    <Typography variant="h5" fontWeight="700" color="success.main">
+                      ${parseFloat(formData.finalAmount || 0).toLocaleString('es-CO')}
+                    </Typography>
+                  </Box>
+                </Box>
+              </Grid>
+            </Grid>
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* Fecha y método de pago */}
+            <Grid container spacing={2} sx={{ mb: 2.5 }}>
+              <Grid item xs={6}>
+                <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                  FECHA DE PAGO
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <DateRangeIcon color="primary" fontSize="small" />
+                  <Typography variant="body1" fontWeight="600">
+                    {formData.paymentDate ? format(createLocalDate(formData.paymentDate), 'dd/MM/yyyy', { locale: es }) : 'Sin fecha'}
+                  </Typography>
+                </Box>
+              </Grid>
+
+              <Grid item xs={6}>
+                <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                  MÉTODO DE PAGO
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <PaymentIcon color="primary" fontSize="small" />
+                  <Typography variant="body1" fontWeight="600">
+                    {formData.paymentMethod === 'transfer' ? 'Transferencia' :
+                     formData.paymentMethod === 'check' ? 'Cheque' :
+                     formData.paymentMethod === 'cash' ? 'Efectivo' :
+                     formData.paymentMethod === 'debit' ? 'Débito' :
+                     formData.paymentMethod === 'credit' ? 'Crédito' : formData.paymentMethod}
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+
+            {/* Pago parcial */}
+            {isPartialPayment && (
+              <>
+                <Divider sx={{ my: 2 }} />
+                <Alert severity="info" sx={{ borderRadius: 2 }}>
+                  <Typography variant="body2" fontWeight="600">
+                    ⚠️ Pago Parcial
+                  </Typography>
+                  <Typography variant="caption">
+                    Este pago no cubre el monto total del compromiso. El saldo restante quedará pendiente.
+                  </Typography>
+                </Alert>
+              </>
+            )}
+
+            {/* Archivos */}
+            {files && files.length > 0 && (
+              <>
+                <Divider sx={{ my: 2 }} />
+                <Box>
+                  <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                    ARCHIVOS ADJUNTOS
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AttachIcon color="primary" fontSize="small" />
+                    <Typography variant="body2">
+                      {files.length} archivo{files.length !== 1 ? 's' : ''}
+                    </Typography>
+                  </Box>
+                </Box>
+              </>
+            )}
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
+          <Button
+            onClick={() => setConfirmDialogOpen(false)}
+            disabled={isSubmitting}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              px: 3,
+              fontWeight: 600
+            }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleConfirmPayment}
+            variant="contained"
+            disabled={isSubmitting}
+            startIcon={isSubmitting ? <CircularProgress size={16} color="inherit" /> : <CheckCircleIcon />}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              px: 3,
+              fontWeight: 600,
+              background: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.dark} 100%)`,
+              boxShadow: `0 4px 20px ${alpha(theme.palette.success.main, 0.3)}`,
+              '&:hover': {
+                boxShadow: `0 6px 25px ${alpha(theme.palette.success.main, 0.4)}`,
+                transform: 'translateY(-2px)',
+                transition: 'all 0.3s ease'
+              }
+            }}
+          >
+            {isSubmitting ? 'Registrando...' : 'Confirmar y Registrar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

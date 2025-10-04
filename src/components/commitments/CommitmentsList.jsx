@@ -828,6 +828,9 @@ const CommitmentsList = ({
     
   }, [allCommitments, currentPage, filteredTotal, paginationConfig]); // ✅ Use whole paginationConfig object
   
+  // 🔔 Hook de alertas de compromisos - Genera alertas automáticas basadas en vencimientos
+  useCommitmentAlerts(allCommitments);
+  
   // ✅ Efecto separado para notificar cambios al padre
   useEffect(() => {
     if (onCommitmentsChange && commitments.length > 0) {

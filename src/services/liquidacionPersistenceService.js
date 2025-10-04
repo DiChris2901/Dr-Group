@@ -985,10 +985,9 @@ class LiquidacionPersistenceService {
 
       const liquidacionData = docSnap.data();
 
-      // 2. Verificar permisos
-      if (liquidacionData.userId !== userId) {
-        throw new Error('No tienes permisos para acceder a esta liquidación');
-      }
+      // 2. Verificación de permisos eliminada - Permitir acceso a todas las liquidaciones
+      // Todos los usuarios autenticados pueden ver y editar liquidaciones del sistema
+      console.log('✅ Acceso permitido a liquidación. Usuario actual:', userId, '| Creada por:', liquidacionData.userId);
 
       // 3. Descargar archivos originales de Storage
       console.log('📁 Descargando archivo original...');

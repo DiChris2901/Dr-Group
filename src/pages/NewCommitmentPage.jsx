@@ -25,6 +25,10 @@ import {
   Checkbox,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   FormControl,
   FormControlLabel,
@@ -40,6 +44,9 @@ import {
   TextField,
   Typography
 } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { alpha, useTheme } from '@mui/material/styles';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -91,6 +98,7 @@ const NewCommitmentPage = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadingCompanies, setLoadingCompanies] = useState(true);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   
   // Estados para autocompletado
   const [providersSuggestions, setProvidersSuggestions] = useState([]);
@@ -1175,7 +1183,13 @@ const NewCommitmentPage = () => {
       return;
     }
     
-    // Si todo está completo, proceder a guardar
+    // Si todo está completo, mostrar modal de confirmación
+    setConfirmDialogOpen(true);
+  };
+
+  // ✅ CONFIRMAR Y GUARDAR COMPROMISO
+  const handleConfirmSave = () => {
+    setConfirmDialogOpen(false);
     handleSaveCommitment();
   };
 
@@ -2564,25 +2578,29 @@ const NewCommitmentPage = () => {
 
                       {/* Fila 4: Fecha de vencimiento, Pago aplazado */}
                       <Grid item xs={12} md={4}>
-                        <TextField
-                          fullWidth
-                          type="date"
-                          label="Fecha de vencimiento"
-                          value={formData.dueDate ? formData.dueDate.toISOString().split('T')[0] : ''}
-                          onChange={(e) => handleFormChange('dueDate', e.target.value ? createLocalDate(e.target.value) : null)}
-                          disabled={saving}
-                          InputLabelProps={{
-                            shrink: true,
-                          }}
-                          InputProps={{
-                            startAdornment: (
-                              <InputAdornment position="start">
-                                <CalendarIcon color="primary" />
-                              </InputAdornment>
-                            ),
-                          }}
-                          helperText="Fecha específica de vencimiento del compromiso"
-                        />
+                        <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={es}>
+                          <DatePicker
+                            label="Fecha de vencimiento"
+                            value={formData.dueDate}
+                            onChange={(newValue) => handleFormChange('dueDate', newValue)}
+                            disabled={saving}
+                            format="dd/MM/yyyy"
+                            slotProps={{
+                              textField: {
+                                fullWidth: true,
+                                required: true,
+                                helperText: "Fecha específica de vencimiento del compromiso",
+                                InputProps: {
+                                  startAdornment: (
+                                    <InputAdornment position="start">
+                                      <CalendarIcon color="primary" />
+                                    </InputAdornment>
+                                  ),
+                                },
+                              },
+                            }}
+                          />
+                        </LocalizationProvider>
                       </Grid>
 
                       <Grid item xs={12} md={3}>
@@ -3109,6 +3127,225 @@ const NewCommitmentPage = () => {
           onAccept={handleCompressionAccept}
           onReject={handleCompressionReject}
         />
+
+        {/* ✅ MODAL DE CONFIRMACIÓN DE GUARDADO */}
+        <Dialog
+          open={confirmDialogOpen}
+          onClose={() => setConfirmDialogOpen(false)}
+          maxWidth="sm"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              background: theme.palette.mode === 'dark'
+                ? 'linear-gradient(135deg, rgba(30, 30, 40, 0.98) 0%, rgba(20, 20, 30, 0.98) 100%)'
+                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 250, 252, 0.98) 100%)',
+              backdropFilter: 'blur(20px)',
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 20px 60px rgba(0, 0, 0, 0.5)'
+                : '0 20px 60px rgba(0, 0, 0, 0.1)',
+            }
+          }}
+        >
+          <DialogTitle sx={{ 
+            pb: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2
+          }}>
+            <Box sx={{
+              width: 48,
+              height: 48,
+              borderRadius: 2,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.3)}`
+            }}>
+              <SaveIcon sx={{ color: 'white', fontSize: 28 }} />
+            </Box>
+            <Box>
+              <Typography variant="h6" fontWeight="600">
+                Confirmar Compromiso
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Revisa la información antes de guardar
+              </Typography>
+            </Box>
+          </DialogTitle>
+
+          <DialogContent>
+            <Stack spacing={2.5} sx={{ mt: 1 }}>
+              {/* Empresa */}
+              <Box>
+                <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                  EMPRESA
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <BusinessIcon color="primary" fontSize="small" />
+                  <Typography variant="body1" fontWeight="500">
+                    {formData.companyName || 'Sin empresa'}
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Divider />
+
+              {/* Beneficiario y Concepto */}
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                    BENEFICIARIO
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <PersonIcon color="primary" fontSize="small" />
+                    <Typography variant="body1" fontWeight="500">
+                      {formData.beneficiary || 'Sin beneficiario'}
+                    </Typography>
+                  </Box>
+                  {formData.beneficiaryNit && (
+                    <Typography variant="body2" color="text.secondary" sx={{ ml: 4 }}>
+                      NIT: {formData.beneficiaryNit}
+                    </Typography>
+                  )}
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                    CONCEPTO
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <DescriptionIcon color="primary" fontSize="small" />
+                    <Typography variant="body1">
+                      {formData.concept || 'Sin concepto'}
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+
+              <Divider />
+
+              {/* Monto y Fecha */}
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                    MONTO TOTAL
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <MoneyIcon color="success" fontSize="small" />
+                    <Typography variant="h6" fontWeight="700" color="success.main">
+                      ${parseFloat(formData.totalAmount || 0).toLocaleString('es-CO')}
+                    </Typography>
+                  </Box>
+                </Grid>
+
+                <Grid item xs={6}>
+                  <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                    FECHA VENCIMIENTO
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CalendarIcon color="primary" fontSize="small" />
+                    <Typography variant="body1" fontWeight="600">
+                      {formData.dueDate ? format(formData.dueDate, 'dd/MM/yyyy', { locale: es }) : 'Sin fecha'}
+                    </Typography>
+                  </Box>
+                </Grid>
+              </Grid>
+
+              <Divider />
+
+              {/* Periodicidad */}
+              <Box>
+                <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                  TIPO DE COMPROMISO
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <RepeatIcon color="primary" fontSize="small" />
+                  <Chip 
+                    label={getPeriodicityDescription(formData.periodicity)}
+                    color={formData.periodicity === 'unique' ? 'default' : 'primary'}
+                    size="small"
+                    sx={{ fontWeight: 600 }}
+                  />
+                  {formData.periodicity !== 'unique' && (
+                    <Typography variant="body2" color="text.secondary">
+                      ({formData.recurringCount} compromisos)
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+
+              {/* Método de pago */}
+              <Box>
+                <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                  MÉTODO DE PAGO
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <PaymentIcon color="primary" fontSize="small" />
+                  <Typography variant="body1">
+                    {getPaymentMethodOptions(settings).find(m => m.value === formData.paymentMethod)?.label || formData.paymentMethod}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Archivos adjuntos */}
+              {formData.invoiceFiles && formData.invoiceFiles.length > 0 && (
+                <>
+                  <Divider />
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                      ARCHIVOS ADJUNTOS
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <AttachFileIcon color="primary" fontSize="small" />
+                      <Typography variant="body2">
+                        {formData.invoiceFiles.length} archivo{formData.invoiceFiles.length !== 1 ? 's' : ''}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </>
+              )}
+            </Stack>
+          </DialogContent>
+
+          <DialogActions sx={{ px: 3, pb: 3, gap: 1 }}>
+            <Button
+              onClick={() => setConfirmDialogOpen(false)}
+              disabled={saving}
+              sx={{
+                borderRadius: 2,
+                textTransform: 'none',
+                px: 3,
+                fontWeight: 600
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmSave}
+              variant="contained"
+              disabled={saving}
+              startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+              sx={{
+                borderRadius: 2,
+                textTransform: 'none',
+                px: 3,
+                fontWeight: 600,
+                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+                boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.3)}`,
+                '&:hover': {
+                  boxShadow: `0 6px 25px ${alpha(theme.palette.primary.main, 0.4)}`,
+                  transform: 'translateY(-2px)',
+                  transition: 'all 0.3s ease'
+                }
+              }}
+            >
+              {saving ? 'Guardando...' : 'Confirmar y Guardar'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     );
   };

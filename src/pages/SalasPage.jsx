@@ -139,6 +139,9 @@ const SalasPage = () => {
   const [selectedSala, setSelectedSala] = useState(null);
   const [saving, setSaving] = useState(false);
   
+  // Estado para trackear salas con historial de cambios
+  const [salasConHistorial, setSalasConHistorial] = useState(new Set());
+  
   // Estados de filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [companyFilter, setCompanyFilter] = useState('all');
@@ -207,6 +210,33 @@ const SalasPage = () => {
 
     loadCompanies();
   }, []);
+
+  // Verificar qué salas tienen historial de cambios
+  useEffect(() => {
+    const checkSalasWithHistory = async () => {
+      try {
+        const changesQuery = query(collection(db, 'sala_changes'));
+        const changesSnapshot = await getDocs(changesQuery);
+        
+        // Crear Set con IDs de salas que tienen cambios
+        const salasConCambios = new Set();
+        changesSnapshot.docs.forEach(doc => {
+          const salaId = doc.data().salaId;
+          if (salaId) {
+            salasConCambios.add(salaId);
+          }
+        });
+        
+        setSalasConHistorial(salasConCambios);
+      } catch (error) {
+        console.error('Error verificando historial de cambios:', error);
+      }
+    };
+
+    if (salas.length > 0) {
+      checkSalasWithHistory();
+    }
+  }, [salas]);
 
   // Cargar salas al montar el componente
   useEffect(() => {
@@ -639,6 +669,9 @@ const SalasPage = () => {
           formData,
           currentUser
         );
+        
+        // Actualizar el Set de salas con historial
+        setSalasConHistorial(prev => new Set(prev).add(selectedSala.id));
       } catch (logError) {
         console.error('Error registrando cambios:', logError);
         // No bloqueamos la actualización si falla el log
@@ -1609,11 +1642,13 @@ const SalasPage = () => {
                             <VisibilityIcon />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Ver historial de cambios">
-                          <IconButton onClick={() => handleOpenHistory(sala)} size="small" color="info">
-                            <HistoryIcon />
-                          </IconButton>
-                        </Tooltip>
+                        {salasConHistorial.has(sala.id) && (
+                          <Tooltip title="Ver historial de cambios">
+                            <IconButton onClick={() => handleOpenHistory(sala)} size="small" color="info">
+                              <HistoryIcon />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                         <Tooltip title="Editar sala">
                           <IconButton onClick={() => handleOpenEdit(sala)} size="small">
                             <EditIcon />
