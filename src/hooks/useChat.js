@@ -157,7 +157,7 @@ export const useChatMessages = (conversationId, messagesPerPage = 50) => {
   }, [conversationId, hasMore, lastVisible, loading, messagesPerPage]);
 
   // ✅ FUNCIÓN: Enviar mensaje de texto
-  const sendMessage = useCallback(async (text, attachments = [], replyToId = null) => {
+  const sendMessage = useCallback(async (text, attachments = [], replyToId = null, mentionedUserIds = []) => {
     if (!conversationId || !currentUser?.uid || (!text?.trim() && attachments.length === 0)) {
       return;
     }
@@ -184,6 +184,7 @@ export const useChatMessages = (conversationId, messagesPerPage = 50) => {
         text: text.trim(),
         type: attachments.length > 0 ? 'file' : 'text',
         attachments: attachments,
+        mentions: mentionedUserIds || [],
         status: {
           sent: true,
           delivered: false,

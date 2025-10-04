@@ -346,7 +346,7 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
       {/* Input de mensaje */}
       <MessageInput
         conversationId={conversationId}
-        onSendMessage={(text, attachments, replyToId) => sendMessage(text, attachments, replyToId)}
+        onSendMessage={(text, attachments, replyToId, mentionedUserIds) => sendMessage(text, attachments, replyToId, mentionedUserIds)}
         replyingTo={replyingTo}
         onCancelReply={() => setReplyingTo(null)}
       />

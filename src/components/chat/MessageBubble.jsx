@@ -46,6 +46,65 @@ import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
 
 /**
+ * Renderizar texto con menciones resaltadas
+ */
+const renderTextWithMentions = (text, theme, isMentionedUser) => {
+  if (!text) return null;
+
+  // Regex para detectar menciones @usuario
+  const mentionRegex = /@(\w+)/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = mentionRegex.exec(text)) !== null) {
+    // Agregar texto antes de la mención
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+
+    // Agregar mención resaltada
+    const mentionName = match[1];
+    parts.push(
+      <Box
+        key={`mention-${match.index}`}
+        component="span"
+        sx={{
+          bgcolor: isMentionedUser 
+            ? alpha(theme.palette.warning.main, 0.3)
+            : alpha(theme.palette.primary.main, 0.15),
+          color: isMentionedUser
+            ? theme.palette.warning.dark
+            : theme.palette.primary.main,
+          px: 0.5,
+          py: 0.25,
+          borderRadius: 1,
+          fontWeight: 600,
+          cursor: 'pointer',
+          transition: 'all 0.3s ease',
+          '&:hover': {
+            bgcolor: isMentionedUser
+              ? alpha(theme.palette.warning.main, 0.4)
+              : alpha(theme.palette.primary.main, 0.25)
+          }
+        }}
+      >
+        @{mentionName}
+      </Box>
+    );
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Agregar texto restante
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
+};
+
+/**
  * Burbuja de mensaje individual con diseño sobrio
  */
 const MessageBubble = ({ 
@@ -67,6 +126,9 @@ const MessageBubble = ({
   const [editedText, setEditedText] = useState(message.text || '');
   const [selectedConversation, setSelectedConversation] = useState(null);
   const menuOpen = Boolean(anchorEl);
+
+  // Verificar si el usuario actual fue mencionado
+  const isMentionedUser = message.mentions?.includes(currentUser?.uid);
   
   // 📄 Estados para modal de PDF/Imagen
   const [fileViewerOpen, setFileViewerOpen] = useState(false);
@@ -371,7 +433,7 @@ const MessageBubble = ({
             </Box>
           )}
 
-          {/* Texto del mensaje */}
+          {/* Texto del mensaje con menciones resaltadas */}
           {message.text && (
             <Typography
               variant="body2"
@@ -381,7 +443,7 @@ const MessageBubble = ({
                 lineHeight: 1.5
               }}
             >
-              {message.text}
+              {renderTextWithMentions(message.text, theme, isMentionedUser)}
             </Typography>
           )}
 

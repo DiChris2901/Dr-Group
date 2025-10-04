@@ -10,7 +10,10 @@ import {
   serverTimestamp,
   getDoc,
   getDocs,
-  addDoc
+  addDoc,
+  arrayUnion,
+  arrayRemove,
+  deleteField
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from './AuthContext';
@@ -347,6 +350,275 @@ export const ChatProvider = ({ children }) => {
     }
   }, [currentUser?.uid]);
 
+  // ✅ FUNCIÓN: Crear chat grupal
+  const createGroupChat = useCallback(async (groupName, memberIds, photoURL = null) => {
+    if (!currentUser?.uid) {
+      throw new Error('Usuario no autenticado');
+    }
+
+    if (!groupName || groupName.trim().length === 0) {
+      throw new Error('El nombre del grupo es obligatorio');
+    }
+
+    if (!memberIds || memberIds.length < 2) {
+      throw new Error('Se requieren al menos 2 miembros además del creador');
+    }
+
+    try {
+      // Incluir al creador en la lista de participantes
+      const allParticipantIds = [currentUser.uid, ...memberIds.filter(id => id !== currentUser.uid)];
+
+      // Obtener info de todos los participantes
+      const participantInfoPromises = allParticipantIds.map(id => getParticipantInfo(id));
+      const participantsInfo = await Promise.all(participantInfoPromises);
+
+      // Construir maps de nombres y fotos
+      const participantNames = {};
+      const participantPhotos = {};
+      const unreadCount = {};
+
+      participantsInfo.forEach(info => {
+        if (info) {
+          participantNames[info.id] = info.name;
+          participantPhotos[info.id] = info.photoURL;
+          unreadCount[info.id] = 0;
+        }
+      });
+
+      const groupData = {
+        type: 'group',
+        participantIds: allParticipantIds,
+        participantNames,
+        participantPhotos,
+        lastMessage: null,
+        unreadCount,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        metadata: {
+          groupName: groupName.trim(),
+          groupPhoto: photoURL,
+          admins: [currentUser.uid], // Creador es admin por defecto
+          createdBy: currentUser.uid,
+          archived: false
+        }
+      };
+
+      const groupRef = await addDoc(collection(db, 'conversations'), groupData);
+
+      console.log('✅ Grupo creado:', groupRef.id);
+      addNotification(`Grupo "${groupName}" creado exitosamente`, 'success');
+
+      return groupRef.id;
+    } catch (err) {
+      console.error('❌ Error creando grupo:', err);
+      addNotification('Error al crear grupo', 'error');
+      throw err;
+    }
+  }, [currentUser?.uid, getParticipantInfo, addNotification]);
+
+  // ✅ FUNCIÓN: Agregar miembro a grupo
+  const addGroupMember = useCallback(async (conversationId, userId) => {
+    if (!currentUser?.uid) {
+      throw new Error('Usuario no autenticado');
+    }
+
+    try {
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationSnap = await getDoc(conversationRef);
+
+      if (!conversationSnap.exists()) {
+        throw new Error('Conversación no encontrada');
+      }
+
+      const conversationData = conversationSnap.data();
+
+      // Verificar que es un grupo
+      if (conversationData.type !== 'group') {
+        throw new Error('Solo se pueden agregar miembros a grupos');
+      }
+
+      // Verificar que el usuario actual es admin
+      const admins = conversationData.metadata?.admins || [];
+      if (!admins.includes(currentUser.uid)) {
+        throw new Error('Solo los administradores pueden agregar miembros');
+      }
+
+      // Verificar que el usuario no está ya en el grupo
+      if (conversationData.participantIds.includes(userId)) {
+        throw new Error('El usuario ya es miembro del grupo');
+      }
+
+      // Obtener info del nuevo miembro
+      const userInfo = await getParticipantInfo(userId);
+      if (!userInfo) {
+        throw new Error('Usuario no encontrado');
+      }
+
+      // Actualizar grupo
+      await updateDoc(conversationRef, {
+        participantIds: arrayUnion(userId),
+        [`participantNames.${userId}`]: userInfo.name,
+        [`participantPhotos.${userId}`]: userInfo.photoURL,
+        [`unreadCount.${userId}`]: 0,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('✅ Miembro agregado al grupo');
+      addNotification(`${userInfo.name} agregado al grupo`, 'success');
+
+      return true;
+    } catch (err) {
+      console.error('❌ Error agregando miembro:', err);
+      addNotification(err.message || 'Error al agregar miembro', 'error');
+      throw err;
+    }
+  }, [currentUser?.uid, getParticipantInfo, addNotification]);
+
+  // ✅ FUNCIÓN: Remover miembro de grupo
+  const removeGroupMember = useCallback(async (conversationId, userId) => {
+    if (!currentUser?.uid) {
+      throw new Error('Usuario no autenticado');
+    }
+
+    try {
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationSnap = await getDoc(conversationRef);
+
+      if (!conversationSnap.exists()) {
+        throw new Error('Conversación no encontrada');
+      }
+
+      const conversationData = conversationSnap.data();
+
+      // Verificar que es un grupo
+      if (conversationData.type !== 'group') {
+        throw new Error('Solo se pueden remover miembros de grupos');
+      }
+
+      // Verificar que el usuario actual es admin
+      const admins = conversationData.metadata?.admins || [];
+      if (!admins.includes(currentUser.uid)) {
+        throw new Error('Solo los administradores pueden remover miembros');
+      }
+
+      // No permitir remover al creador
+      if (userId === conversationData.metadata?.createdBy) {
+        throw new Error('No se puede remover al creador del grupo');
+      }
+
+      // Verificar que el usuario está en el grupo
+      if (!conversationData.participantIds.includes(userId)) {
+        throw new Error('El usuario no es miembro del grupo');
+      }
+
+      // Actualizar grupo
+      await updateDoc(conversationRef, {
+        participantIds: arrayRemove(userId),
+        [`participantNames.${userId}`]: deleteField(),
+        [`participantPhotos.${userId}`]: deleteField(),
+        [`unreadCount.${userId}`]: deleteField(),
+        updatedAt: serverTimestamp()
+      });
+
+      // Si era admin, removerlo también de admins
+      if (admins.includes(userId)) {
+        await updateDoc(conversationRef, {
+          'metadata.admins': arrayRemove(userId)
+        });
+      }
+
+      console.log('✅ Miembro removido del grupo');
+      addNotification('Miembro removido del grupo', 'success');
+
+      return true;
+    } catch (err) {
+      console.error('❌ Error removiendo miembro:', err);
+      addNotification(err.message || 'Error al remover miembro', 'error');
+      throw err;
+    }
+  }, [currentUser?.uid, addNotification]);
+
+  // ✅ FUNCIÓN: Actualizar info del grupo
+  const updateGroupInfo = useCallback(async (conversationId, updates) => {
+    if (!currentUser?.uid) {
+      throw new Error('Usuario no autenticado');
+    }
+
+    try {
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationSnap = await getDoc(conversationRef);
+
+      if (!conversationSnap.exists()) {
+        throw new Error('Conversación no encontrada');
+      }
+
+      const conversationData = conversationSnap.data();
+
+      // Verificar que es un grupo
+      if (conversationData.type !== 'group') {
+        throw new Error('Solo se puede actualizar info de grupos');
+      }
+
+      // Verificar que el usuario actual es admin
+      const admins = conversationData.metadata?.admins || [];
+      if (!admins.includes(currentUser.uid)) {
+        throw new Error('Solo los administradores pueden actualizar el grupo');
+      }
+
+      const updateData = {
+        updatedAt: serverTimestamp()
+      };
+
+      if (updates.groupName) {
+        updateData['metadata.groupName'] = updates.groupName.trim();
+      }
+
+      if (updates.groupPhoto !== undefined) {
+        updateData['metadata.groupPhoto'] = updates.groupPhoto;
+      }
+
+      await updateDoc(conversationRef, updateData);
+
+      console.log('✅ Info de grupo actualizada');
+      addNotification('Información del grupo actualizada', 'success');
+
+      return true;
+    } catch (err) {
+      console.error('❌ Error actualizando grupo:', err);
+      addNotification(err.message || 'Error al actualizar grupo', 'error');
+      throw err;
+    }
+  }, [currentUser?.uid, addNotification]);
+
+  // ✅ FUNCIÓN: Verificar si usuario es admin de grupo
+  const isGroupAdmin = useCallback((conversationId, userId = currentUser?.uid) => {
+    if (!conversationId || !userId) return false;
+
+    const conversation = conversationsCache[conversationId];
+    if (!conversation) return false;
+
+    if (conversation.type !== 'group') return false;
+
+    const admins = conversation.metadata?.admins || [];
+    return admins.includes(userId);
+  }, [conversationsCache, currentUser?.uid]);
+
+  // ✅ FUNCIÓN: Obtener miembros del grupo
+  const getGroupMembers = useCallback((conversationId) => {
+    const conversation = conversationsCache[conversationId];
+    if (!conversation || conversation.type !== 'group') {
+      return [];
+    }
+
+    return conversation.participantIds.map(id => ({
+      id,
+      name: conversation.participantNames?.[id] || 'Usuario',
+      photoURL: conversation.participantPhotos?.[id] || null,
+      isAdmin: conversation.metadata?.admins?.includes(id) || false,
+      isCreator: id === conversation.metadata?.createdBy
+    }));
+  }, [conversationsCache]);
+
   const value = {
     // Estados
     conversations,
@@ -355,18 +627,26 @@ export const ChatProvider = ({ children }) => {
     loading,
     error,
     usersPresence,
-  unreadByUser,
+    unreadByUser,
 
     // Setters
     setActiveConversationId,
 
-    // Funciones
+    // Funciones directas
     markConversationAsRead,
     getParticipantInfo,
     getOrCreateConversation,
     getConversation,
     getAllUsers,
-    searchUsers
+    searchUsers,
+
+    // Funciones de grupos
+    createGroupChat,
+    addGroupMember,
+    removeGroupMember,
+    updateGroupInfo,
+    isGroupAdmin,
+    getGroupMembers
   };
 
   return (

@@ -10,19 +10,27 @@ import {
   Paper,
   alpha,
   useTheme,
-  Typography
+  Typography,
+  List,
+  ListItem,
+  ListItemAvatar,
+  ListItemText,
+  Avatar,
+  ListItemButton
 } from '@mui/material';
 import {
   Send as SendIcon,
   AttachFile as AttachFileIcon,
   Close as CloseIcon,
   InsertDriveFile as FileIcon,
-  EmojiEmotions as EmojiIcon
+  EmojiEmotions as EmojiIcon,
+  AlternateEmail as MentionIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../../context/NotificationsContext';
 import { useTypingIndicator } from '../../hooks/useTypingIndicator';
 import { uploadChatAttachment } from '../../utils/chatFileUpload';
+import { useChat } from '../../context/ChatContext';
 
 // 🔧 Utilidad para debounce
 const useDebounce = (callback, delay) => {
@@ -39,17 +47,24 @@ const useDebounce = (callback, delay) => {
 };
 
 /**
- * Input para enviar mensajes con soporte de archivos adjuntos y respuestas
+ * Input para enviar mensajes con soporte de archivos adjuntos, respuestas y menciones
  */
 const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply }) => {
   const { addNotification } = useNotifications();
   const { updateTypingStatus } = useTypingIndicator(conversationId);
+  const { getGroupMembers, getConversation } = useChat();
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
+  const [mentionSearch, setMentionSearch] = useState('');
+  const [mentionCursorPosition, setMentionCursorPosition] = useState(0);
+  const [mentions, setMentions] = useState([]);
   const fileInputRef = useRef(null);
   const emojiPickerRef = useRef(null);
+  const mentionPickerRef = useRef(null);
+  const textFieldRef = useRef(null);
 
   // ⌨️ C. Debounced typing indicator
   const debouncedTypingUpdate = useDebounce(updateTypingStatus, 500);
@@ -65,21 +80,115 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
       if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
         setShowEmojiPicker(false);
       }
+      if (mentionPickerRef.current && !mentionPickerRef.current.contains(event.target)) {
+        setShowMentionSuggestions(false);
+      }
     };
-    if (showEmojiPicker) {
+    if (showEmojiPicker || showMentionSuggestions) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showEmojiPicker]);
+  }, [showEmojiPicker, showMentionSuggestions]);
+
+  // 👥 Obtener miembros del grupo para menciones
+  const groupMembers = React.useMemo(() => {
+    const conversation = getConversation(conversationId);
+    if (!conversation || conversation.type !== 'group') return [];
+    return getGroupMembers(conversationId);
+  }, [conversationId, getConversation, getGroupMembers]);
+
+  // 🔍 Detectar @ para menciones
+  const handleMessageChange = (e) => {
+    const newValue = e.target.value;
+    const cursorPos = e.target.selectionStart;
+    
+    setMessage(newValue);
+    debouncedTypingUpdate(true);
+
+    // Detectar si hay un @ antes del cursor
+    const textBeforeCursor = newValue.substring(0, cursorPos);
+    const lastAtIndex = textBeforeCursor.lastIndexOf('@');
+    
+    if (lastAtIndex !== -1 && groupMembers.length > 0) {
+      const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
+      
+      // Solo mostrar si no hay espacios después del @
+      if (!textAfterAt.includes(' ')) {
+        setMentionSearch(textAfterAt.toLowerCase());
+        setMentionCursorPosition(lastAtIndex);
+        setShowMentionSuggestions(true);
+        return;
+      }
+    }
+    
+    setShowMentionSuggestions(false);
+  };
+
+  // 👤 Insertar mención
+  const handleSelectMention = (member) => {
+    const beforeMention = message.substring(0, mentionCursorPosition);
+    const afterMention = message.substring(textFieldRef.current.selectionStart);
+    const mentionText = `@${member.name} `;
+    
+    const newMessage = beforeMention + mentionText + afterMention;
+    setMessage(newMessage);
+    
+    // Agregar a lista de menciones
+    if (!mentions.find(m => m.id === member.id)) {
+      setMentions(prev => [...prev, { id: member.id, name: member.name }]);
+    }
+    
+    setShowMentionSuggestions(false);
+    setMentionSearch('');
+    
+    // Enfocar de nuevo el input
+    setTimeout(() => {
+      if (textFieldRef.current) {
+        textFieldRef.current.focus();
+        const newCursorPos = beforeMention.length + mentionText.length;
+        textFieldRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 0);
+  };
+
+  // 🔍 Filtrar sugerencias de menciones
+  const filteredMentions = React.useMemo(() => {
+    if (!mentionSearch) return groupMembers;
+    return groupMembers.filter(member => 
+      member.name.toLowerCase().includes(mentionSearch)
+    );
+  }, [groupMembers, mentionSearch]);
+
+  // Extraer IDs de usuarios mencionados del texto
+  const extractMentionIds = (text) => {
+    const mentionRegex = /@(\w+)/g;
+    const matches = [...text.matchAll(mentionRegex)];
+    const mentionedIds = [];
+    
+    matches.forEach(match => {
+      const mentionName = match[1];
+      const member = groupMembers.find(m => 
+        m.name.toLowerCase().includes(mentionName.toLowerCase())
+      );
+      if (member && !mentionedIds.includes(member.id)) {
+        mentionedIds.push(member.id);
+      }
+    });
+    
+    return mentionedIds;
+  };
 
   // Manejar envío de mensaje
   const handleSend = async () => {
     if (!message.trim() && attachments.length === 0) return;
 
     try {
-      await onSendMessage(message, attachments, replyingTo?.id);
+      const mentionedUserIds = extractMentionIds(message);
+      
+      await onSendMessage(message, attachments, replyingTo?.id, mentionedUserIds);
       setMessage('');
       setAttachments([]);
+      setMentions([]);
       if (onCancelReply) onCancelReply();
     } catch (error) {
       console.error('Error enviando mensaje:', error);
@@ -298,38 +407,89 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
           </AnimatePresence>
         </Box>
 
-        {/* Campo de texto Sobrio */}
-        <TextField
-          fullWidth
-          multiline
-          maxRows={4}
-          placeholder="Escribe un mensaje..."
-          value={message}
-          onChange={(e) => {
-            setMessage(e.target.value);
-            // ⌨️ C. Actualizar indicador de "escribiendo" con debounce
-            if (e.target.value.trim()) {
-              debouncedTypingUpdate();
-            }
-          }}
-          onKeyPress={handleKeyPress}
-          disabled={uploading}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 3,
-              bgcolor: alpha('#000', 0.02),
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                bgcolor: alpha('#000', 0.04),
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-              },
-              '&.Mui-focused': {
-                bgcolor: 'background.paper',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+        {/* Campo de texto Sobrio con soporte de menciones */}
+        <Box sx={{ position: 'relative', flex: 1 }}>
+          <TextField
+            fullWidth
+            multiline
+            maxRows={4}
+            placeholder="Escribe un mensaje..."
+            value={message}
+            onChange={handleMessageChange}
+            onKeyPress={handleKeyPress}
+            disabled={uploading}
+            inputRef={textFieldRef}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 3,
+                bgcolor: alpha('#000', 0.02),
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  bgcolor: alpha('#000', 0.04),
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                },
+                '&.Mui-focused': {
+                  bgcolor: 'background.paper',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                }
               }
-            }
-          }}
-        />
+            }}
+          />
+
+          {/* Autocomplete de menciones */}
+          <AnimatePresence>
+            {showMentionSuggestions && filteredMentions.length > 0 && (
+              <Paper
+                ref={mentionPickerRef}
+                component={motion.div}
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                sx={{
+                  position: 'absolute',
+                  bottom: '100%',
+                  left: 0,
+                  right: 0,
+                  mb: 1,
+                  maxHeight: 200,
+                  overflowY: 'auto',
+                  borderRadius: 2,
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+                  zIndex: 1300
+                }}
+              >
+                <List dense disablePadding>
+                  {filteredMentions.map((member, index) => (
+                    <ListItemButton
+                      key={member.id}
+                      onClick={() => handleSelectMention(member)}
+                      sx={{
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          bgcolor: alpha('#667eea', 0.08)
+                        }
+                      }}
+                    >
+                      <ListItemAvatar>
+                        <Avatar src={member.photoURL} sx={{ width: 32, height: 32 }}>
+                          {member.name[0].toUpperCase()}
+                        </Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={member.name}
+                        primaryTypographyProps={{ fontWeight: 500, fontSize: '0.9rem' }}
+                      />
+                      {member.isAdmin && (
+                        <Chip label="Admin" size="small" color="primary" sx={{ height: 18 }} />
+                      )}
+                    </ListItemButton>
+                  ))}
+                </List>
+              </Paper>
+            )}
+          </AnimatePresence>
+        </Box>
 
         {/* Botón enviar Sobrio */}
         <Tooltip title="Enviar mensaje">

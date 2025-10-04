@@ -8,17 +8,20 @@ import {
   Alert,
   Divider,
   Paper,
-  alpha
+  alpha,
+  Button
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  ChatBubbleOutline as ChatIcon
+  ChatBubbleOutline as ChatIcon,
+  GroupAdd as GroupAddIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
 import { useChat } from '../../context/ChatContext';
 import ContactsList from './ContactsList';
 import MessageThread from './MessageThread';
+import CreateGroupModal from './CreateGroupModal';
 
 /**
  * Drawer lateral de chat estilo WhatsApp Web
@@ -41,6 +44,7 @@ const ChatDrawer = ({ open, onClose }) => {
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingConversation, setLoadingConversation] = useState(false);
   const [showContacts, setShowContacts] = useState(true);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
 
   // 🔥 Cargar todos los usuarios al abrir el drawer
   useEffect(() => {
@@ -95,6 +99,13 @@ const ChatDrawer = ({ open, onClose }) => {
     setSelectedUserId(null);
     setActiveConversationId(null);
     onClose();
+  };
+
+  // 👥 Manejar creación de grupo
+  const handleGroupCreated = async (groupId) => {
+    setShowCreateGroup(false);
+    setActiveConversationId(groupId);
+    setShowContacts(false);
   };
 
   // 🎨 Estado vacío cuando no hay contacto seleccionado
@@ -207,17 +218,40 @@ const ChatDrawer = ({ open, onClose }) => {
               DR Group Dashboard
             </Typography>
           </Box>
-          <IconButton 
-            onClick={handleClose} 
-            sx={{ 
-              color: 'white',
-              '&:hover': {
-                bgcolor: 'rgba(255, 255, 255, 0.1)'
-              }
-            }}
-          >
-            <CloseIcon />
-          </IconButton>
+
+          <Box display="flex" alignItems="center" gap={1}>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<GroupAddIcon />}
+              onClick={() => setShowCreateGroup(true)}
+              sx={{
+                bgcolor: 'rgba(255, 255, 255, 0.15)',
+                color: 'white',
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 2,
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.25)'
+                }
+              }}
+            >
+              Nuevo Grupo
+            </Button>
+
+            <IconButton 
+              onClick={handleClose} 
+              sx={{ 
+                color: 'white',
+                '&:hover': {
+                  bgcolor: 'rgba(255, 255, 255, 0.1)'
+                }
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Box>
         </Box>
       </Paper>
 
@@ -288,6 +322,13 @@ const ChatDrawer = ({ open, onClose }) => {
           </>
         )}
       </Box>
+
+      {/* 👥 Modal de Creación de Grupo */}
+      <CreateGroupModal
+        open={showCreateGroup}
+        onClose={() => setShowCreateGroup(false)}
+        onGroupCreated={handleGroupCreated}
+      />
     </Drawer>
   );
 };

@@ -38,7 +38,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useChat } from '../../context/ChatContext';
 
 /**
- * Lista de contactos (usuarios registrados) estilo WhatsApp
+ * Lista de contactos (usuarios registrados) y grupos estilo WhatsApp
  */
 const ContactsList = ({ 
   users = [], 
@@ -47,7 +47,7 @@ const ContactsList = ({
   loading = false 
 }) => {
   const { currentUser } = useAuth();
-  const { usersPresence, unreadByUser } = useChat();
+  const { usersPresence, unreadByUser, conversations, setActiveConversationId } = useChat();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUserInfo, setSelectedUserInfo] = useState(null);
   const [userInfoDialogOpen, setUserInfoDialogOpen] = useState(false);
@@ -125,6 +125,18 @@ const ContactsList = ({
 
   // Lista final a renderizar (ya sin mí)
   const displayedUsers = useMemo(() => filteredUsers.filter(u => !isMe(u)), [filteredUsers, isMe]);
+
+  // Obtener conversaciones grupales
+  const groupConversations = useMemo(() => {
+    if (!conversations) return [];
+    return conversations.filter(conv => conv.type === 'group');
+  }, [conversations]);
+
+  // Manejar click en grupo
+  const handleSelectGroup = (conversationId) => {
+    setActiveConversationId(conversationId);
+    // No usamos onSelectUser para grupos, solo activamos la conversación
+  };
 
   // Color del rol según el tipo
   const getRoleColor = (role) => {
@@ -241,48 +253,161 @@ const ContactsList = ({
         />
       </Box>
 
-      {/* Lista de contactos */}
+      {/* Lista de grupos y contactos */}
       <Box sx={{ flex: 1, overflow: 'auto' }}>
         {loading ? (
           <Box display="flex" justifyContent="center" py={4}>
             <CircularProgress />
           </Box>
-        ) : filteredUsers.length === 0 ? (
-          <Box
-            display="flex"
-            flexDirection="column"
-            alignItems="center"
-            justifyContent="center"
-            height="100%"
-            px={3}
-          >
-            <PersonIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
-            <Typography variant="body1" color="text.secondary" textAlign="center">
-              {searchTerm ? 'No se encontraron contactos' : 'No hay usuarios disponibles'}
-            </Typography>
-          </Box>
         ) : (
-          <List sx={{ p: 0 }}>
-            <AnimatePresence>
-              {displayedUsers.map((user, index) => {
-                const isSelected = selectedUserId === user.uid;
-                const userName = user.displayName || user.name || user.email?.split('@')[0] || 'Usuario';
-                const userEmail = user.email || '';
-                const userRole = user.role || 'VISUALIZADOR';
-                const userPhoto = user.photoURL || user.photo || '';
-
-                return (
-                  <motion.div
-                    key={user.uid}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ delay: index * 0.05 }}
+          <>
+            {/* Sección de Grupos */}
+            {groupConversations.length > 0 && !searchTerm && (
+              <>
+                <Box sx={{ px: 2.5, py: 1, bgcolor: alpha('#000', 0.02) }}>
+                  <Typography 
+                    variant="caption" 
+                    fontWeight={600} 
+                    color="text.secondary"
+                    sx={{ letterSpacing: 0.5 }}
                   >
-                    <ListItem disablePadding>
-                      <ListItemButton
-                        selected={isSelected}
-                        onClick={() => onSelectUser(user.uid)}
+                    GRUPOS ({groupConversations.length})
+                  </Typography>
+                </Box>
+                <List sx={{ p: 0, mb: 1 }}>
+                  <AnimatePresence>
+                    {groupConversations.map((group, index) => {
+                      const groupName = group.metadata?.groupName || 'Grupo sin nombre';
+                      const groupPhoto = group.metadata?.groupPhoto;
+                      const memberCount = group.participantIds?.length || 0;
+                      const unread = group.unreadCount?.[currentUser?.uid] || 0;
+
+                      return (
+                        <motion.div
+                          key={group.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          transition={{ delay: index * 0.05 }}
+                        >
+                          <ListItem disablePadding>
+                            <ListItemButton
+                              onClick={() => handleSelectGroup(group.id)}
+                              sx={{
+                                py: 1.5,
+                                px: 2.5,
+                                borderRadius: 0,
+                                transition: 'all 0.3s ease',
+                                '&:hover': {
+                                  bgcolor: alpha('#667eea', 0.08)
+                                }
+                              }}
+                            >
+                              <ListItemAvatar>
+                                <Avatar
+                                  src={groupPhoto}
+                                  sx={{
+                                    width: 48,
+                                    height: 48,
+                                    bgcolor: 'secondary.main',
+                                    fontSize: 20,
+                                    fontWeight: 600
+                                  }}
+                                >
+                                  {groupName[0].toUpperCase()}
+                                </Avatar>
+                              </ListItemAvatar>
+
+                              <ListItemText
+                                primary={
+                                  <Box display="flex" alignItems="center" gap={0.5}>
+                                    <Typography fontWeight={600} fontSize="0.95rem">
+                                      {groupName}
+                                    </Typography>
+                                    {unread > 0 && (
+                                      <Chip
+                                        label={unread}
+                                        size="small"
+                                        color="primary"
+                                        sx={{
+                                          height: 20,
+                                          minWidth: 20,
+                                          '& .MuiChip-label': {
+                                            px: 0.75,
+                                            fontSize: '0.7rem',
+                                            fontWeight: 700
+                                          }
+                                        }}
+                                      />
+                                    )}
+                                  </Box>
+                                }
+                                secondary={`${memberCount} miembros`}
+                                secondaryTypographyProps={{
+                                  sx: { fontSize: '0.8rem' }
+                                }}
+                              />
+                            </ListItemButton>
+                          </ListItem>
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                </List>
+                <Divider sx={{ my: 1 }} />
+              </>
+            )}
+
+            {/* Sección de Contactos Directos */}
+            {filteredUsers.length === 0 ? (
+              <Box
+                display="flex"
+                flexDirection="column"
+                alignItems="center"
+                justifyContent="center"
+                height="100%"
+                px={3}
+              >
+                <PersonIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+                <Typography variant="body1" color="text.secondary" textAlign="center">
+                  {searchTerm ? 'No se encontraron contactos' : 'No hay usuarios disponibles'}
+                </Typography>
+              </Box>
+            ) : (
+              <>
+                {groupConversations.length > 0 && !searchTerm && (
+                  <Box sx={{ px: 2.5, py: 1, bgcolor: alpha('#000', 0.02) }}>
+                    <Typography 
+                      variant="caption" 
+                      fontWeight={600} 
+                      color="text.secondary"
+                      sx={{ letterSpacing: 0.5 }}
+                    >
+                      CONTACTOS DIRECTOS ({displayedUsers.length})
+                    </Typography>
+                  </Box>
+                )}
+                <List sx={{ p: 0 }}>
+                  <AnimatePresence>
+                    {displayedUsers.map((user, index) => {
+                      const isSelected = selectedUserId === user.uid;
+                      const userName = user.displayName || user.name || user.email?.split('@')[0] || 'Usuario';
+                      const userEmail = user.email || '';
+                      const userRole = user.role || 'VISUALIZADOR';
+                      const userPhoto = user.photoURL || user.photo || '';
+
+                      return (
+                        <motion.div
+                          key={user.uid}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          transition={{ delay: index * 0.05 }}
+                        >
+                          <ListItem disablePadding>
+                            <ListItemButton
+                              selected={isSelected}
+                              onClick={() => onSelectUser(user.uid)}
                         sx={{
                           py: 1.5,
                           px: 2.5,
@@ -390,9 +515,12 @@ const ContactsList = ({
                     )}
                   </motion.div>
                 );
-              })}
-            </AnimatePresence>
-          </List>
+                    })}
+                  </AnimatePresence>
+                </List>
+              </>
+            )}
+          </>
         )}
       </Box>
 
