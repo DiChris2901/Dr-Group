@@ -174,6 +174,13 @@ Este es un dashboard para control de compromisos financieros empresariales desar
 - **`docs/MODAL_PDF_VIEWER_DESIGN.md`** - Implementación avanzada de visores PDF
 - **`docs/EXCEL_EXPORT_DESIGN_SYSTEM.md`** - Formato Python profesional para exportación Excel (ExcelJS, BRAND_COLORS, estructura 7 filas, freeze panes)
 
+### 🚫 PROHIBIDO: Documentación de Cambios
+- **NUNCA crear archivos de documentación de cambios** como "CHAT_OPTIMIZATIONS.md", "FEATURE_CHANGELOG.md", "IMPLEMENTATION_NOTES.md", etc.
+- **SOLO documentar en archivos existentes** si es absolutamente necesario para arquitectura/diseño
+- **Preferir explicación verbal directa** de cambios implementados en lugar de crear nuevos archivos .md
+- **Los únicos docs permitidos** son los de diseño/arquitectura/patrones listados arriba
+- **Explicar cambios en el chat** con resúmenes concisos, no en documentos
+
 ### 🎨 SISTEMA DE DISEÑO ORIGINAL SPECTACULAR
 
 ### Gradientes y Efectos Visuales

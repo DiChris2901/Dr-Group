@@ -1,7 +1,6 @@
 import {
     AccountBalance,
     AddBox,
-    Analytics,
     Assessment,
     Assignment,
     AttachMoney,

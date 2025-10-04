@@ -4,6 +4,7 @@ import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 
 // Context Providers
 import { AuthProvider } from './context/AuthContext';
+import { ChatProvider } from './context/ChatContext';
 import { NotificationsProvider } from './context/NotificationsContext';
 import SettingsProvider from './context/SettingsContext';
 import { CustomThemeProvider } from './context/ThemeContext';
@@ -283,6 +284,11 @@ const DashboardLayout = () => {
           </MainLayout>
         }
       />
+      {/* ========================================= */}
+      {/* MÓDULO DE CHAT - Ahora es un componente flotante global */}
+      {/* El chat está disponible en todas las páginas mediante FloatingChatButton */}
+      {/* ========================================= */}
+      {/* ========================================= */}
       {/* Ruta temporal sin restricción de rol */}
       <Route 
         path="/users" 
@@ -385,9 +391,11 @@ function App() {
         <CssBaseline />
         <AuthProvider>
           <NotificationsProvider>
-            <ToastProvider>
-              <AppContent />
-            </ToastProvider>
+            <ChatProvider>
+              <ToastProvider>
+                <AppContent />
+              </ToastProvider>
+            </ChatProvider>
           </NotificationsProvider>
         </AuthProvider>
       </CustomThemeProvider>

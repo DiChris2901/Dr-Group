@@ -25,6 +25,7 @@ import { useNotificationSystem } from '../../hooks/useNotificationSystem';
 import Sidebar from './Sidebar';
 import DashboardHeader from '../dashboard/DashboardHeader';
 import { AdvancedSettingsDrawer } from '../settings';
+import FloatingChatButton from '../chat/FloatingChatButton';
 
 const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
   const navigate = useNavigate();
@@ -315,12 +316,14 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
         </Container>
       </Box>
 
-      {/* Botón flotante de búsqueda */}
       {/* Drawer de configuración avanzada */}
       <AdvancedSettingsDrawer 
         open={settingsOpen} 
         onClose={() => setSettingsOpen(false)} 
       />
+
+      {/* Botón flotante de chat - Visible en todas las páginas */}
+      <FloatingChatButton />
     </Box>
   );
 };
