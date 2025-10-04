@@ -207,7 +207,7 @@ const LiquidacionesHistorialPage = () => {
 
     setLoading(true);
     try {
-      console.log('🔍 Cargando historial de liquidaciones para usuario:', currentUser.uid);
+      console.log('🔍 Cargando historial de TODAS las liquidaciones del sistema');
       
       // Cargar empresas y usuarios primero para obtener los logos y nombres
       const [empresasData, usuariosData] = await Promise.all([
@@ -215,13 +215,12 @@ const LiquidacionesHistorialPage = () => {
         cargarUsuarios()
       ]);
       
-      // Cargar liquidaciones desde Firebase
-      const liquidacionesFirebase = await liquidacionPersistenceService.getUserLiquidaciones(
-        currentUser.uid, 
+      // Cargar TODAS las liquidaciones desde Firebase (sin filtro de usuario)
+      const liquidacionesFirebase = await liquidacionPersistenceService.getAllLiquidaciones(
         50 // Cargar hasta 50 liquidaciones
       );
 
-      console.log('📊 Liquidaciones cargadas desde Firebase:', liquidacionesFirebase.length);
+      console.log('📊 Liquidaciones cargadas desde Firebase (todas):', liquidacionesFirebase.length);
 
       // Mapear datos de Firebase al formato esperado por la UI
       const liquidacionesMapeadas = liquidacionesFirebase.map(liq => {

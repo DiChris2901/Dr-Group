@@ -310,10 +310,9 @@ const LiquidacionesPorSalaPage = () => {
     setLoading(true);
     setError(null);
 
-    // Crear query base para liquidaciones por sala
+    // Crear query base para TODAS las liquidaciones por sala (sin filtro de usuario)
     const liquidacionesQuery = query(
-      collection(db, 'liquidaciones_por_sala'),
-      where('userId', '==', currentUser.uid)
+      collection(db, 'liquidaciones_por_sala')
     );
 
     // Listener en tiempo real
@@ -338,9 +337,10 @@ const LiquidacionesPorSalaPage = () => {
             }
           });
 
-          console.log(`📡 Datos en tiempo real: ${liquidacionesRealTime.length} liquidaciones`);
+          console.log(`📡 Datos en tiempo real: ${liquidacionesRealTime.length} liquidaciones (TODAS)`);
           console.log('🔍 Usuario actual:', currentUser?.uid);
           console.log('🔍 Filtros aplicados:', filtrosAplicados);
+          console.log('ℹ️ Mostrando liquidaciones de TODOS los usuarios del sistema');
           
           if (liquidacionesRealTime.length > 0) {
             console.log('🔍 Primera liquidación encontrada:', liquidacionesRealTime[0]);
@@ -1159,6 +1159,15 @@ const LiquidacionesPorSalaPage = () => {
       .replace(/\./g, '') // Remover puntos de miles
       .replace(/,/g, '.'); // Convertir coma decimal a punto
     return parseFloat(valorString) || 0;
+  };
+
+  // Aplicar normalización para valores negativos en máquinas
+  const aplicarNormalizacionNegativos = (maquinas) => {
+    if (!Array.isArray(maquinas)) return maquinas;
+    
+    // Simplemente retornar las máquinas ya que la normalización se hace en tiempo real
+    // Esta función existe para mantener compatibilidad con ediciones previas
+    return maquinas;
   };
 
   // Formatear período (de "agosto_2025" a "Agosto 2025")

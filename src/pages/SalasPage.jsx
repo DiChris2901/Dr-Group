@@ -73,7 +73,8 @@ import {
   AttachFile as AttachFileIcon,
   PictureAsPdf as PdfIcon,
   CloudUpload as CloudUploadIcon,
-  CheckCircle as CheckCircleIcon
+  CheckCircle as CheckCircleIcon,
+  History as HistoryIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -98,6 +99,7 @@ import {
 } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+import { logSalaChange, logSalaCreation } from '../utils/salaChangeLogger';
 import useActivityLogs from '../hooks/useActivityLogs';
 import { useSettings } from '../context/SettingsContext';
 import { useNotifications } from '../context/NotificationsContext';
@@ -106,6 +108,7 @@ import { es } from 'date-fns/locale';
 import AddSalaModal from '../components/modals/AddSalaModal';
 import ViewSalaModal from '../components/modals/ViewSalaModal';
 import EditSalaModal from '../components/modals/EditSalaModal';
+import SalaChangeHistoryModal from '../components/modals/SalaChangeHistoryModal';
 
 /**
  * Página de Gestión de Salas
@@ -130,6 +133,7 @@ const SalasPage = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   
   // Estados de selección
   const [selectedSala, setSelectedSala] = useState(null);
@@ -151,11 +155,15 @@ const SalasPage = () => {
     companyId: '',
     companyName: '',
     proveedorOnline: '',
+    fechaInicioContrato: '',
     ciudad: '',
     departamento: '',
     direccion: '',
     status: 'active',
+    fechaRetiro: '',
     propietario: '',
+    nombreRepLegal: '',
+    cedulaRepLegal: '',
     contactPhone: '',
     contactEmail: '',
     contactoAutorizado: '',
@@ -440,11 +448,15 @@ const SalasPage = () => {
       companyId: '',
       companyName: '',
       proveedorOnline: '',
+      fechaInicioContrato: '',
       ciudad: '',
       departamento: '',
       direccion: '',
       status: 'active',
+      fechaRetiro: '',
       propietario: '',
+      nombreRepLegal: '',
+      cedulaRepLegal: '',
       contactPhone: '',
       contactEmail: '',
       contactoAutorizado: '',
@@ -478,6 +490,10 @@ const SalasPage = () => {
       }
       if (!formData.conexion || formData.conexion <= 0) {
         addNotification('El campo Conexión es obligatorio', 'error');
+        return;
+      }
+      if (formData.status === 'retired' && !formData.fechaRetiro) {
+        addNotification('Debe especificar la fecha de retiro para salas retiradas', 'error');
         return;
       }
 
@@ -550,6 +566,9 @@ const SalasPage = () => {
     try {
       setSaving(true);
 
+      // Guardar datos anteriores para logging de cambios
+      const oldData = { ...selectedSala };
+
       const salaRef = doc(db, 'salas', selectedSala.id);
       const updateData = {
         ...formData,
@@ -611,7 +630,21 @@ const SalasPage = () => {
 
       await updateDoc(salaRef, updateData);
       
-      // Registrar actividad
+      // Registrar cambios específicos para auditoría
+      try {
+        await logSalaChange(
+          selectedSala.id,
+          formData.name,
+          oldData,
+          formData,
+          currentUser
+        );
+      } catch (logError) {
+        console.error('Error registrando cambios:', logError);
+        // No bloqueamos la actualización si falla el log
+      }
+      
+      // Registrar actividad general
       await logActivity('update_room', 'room', selectedSala.id, {
         roomName: formData.name,
         companyName: formData.companyName,
@@ -736,6 +769,12 @@ const SalasPage = () => {
   const handleOpenView = (sala) => {
     setSelectedSala(sala);
     setViewDialogOpen(true);
+  };
+
+  // Abrir diálogo de historial de cambios
+  const handleOpenHistory = (sala) => {
+    setSelectedSala(sala);
+    setHistoryDialogOpen(true);
   };
 
   // Abrir diálogo de eliminación
@@ -1565,18 +1604,30 @@ const SalasPage = () => {
                     }
                     action={
                       <Box>
-                        <IconButton onClick={() => handleOpenView(sala)}>
-                          <VisibilityIcon />
-                        </IconButton>
-                        <IconButton onClick={() => handleOpenEdit(sala)}>
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton 
-                          onClick={() => handleOpenDelete(sala)}
-                          color="error"
-                        >
-                          <DeleteIcon />
-                        </IconButton>
+                        <Tooltip title="Ver detalles">
+                          <IconButton onClick={() => handleOpenView(sala)} size="small">
+                            <VisibilityIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Ver historial de cambios">
+                          <IconButton onClick={() => handleOpenHistory(sala)} size="small" color="info">
+                            <HistoryIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Editar sala">
+                          <IconButton onClick={() => handleOpenEdit(sala)} size="small">
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Eliminar sala">
+                          <IconButton 
+                            onClick={() => handleOpenDelete(sala)}
+                            color="error"
+                            size="small"
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
                       </Box>
                     }
                   />
@@ -1865,6 +1916,17 @@ const SalasPage = () => {
         }}
         getStatusText={getStatusText}
         getStatusColor={getStatusColor}
+      />
+
+      {/* Modal Historial de Cambios */}
+      <SalaChangeHistoryModal
+        open={historyDialogOpen}
+        onClose={() => {
+          setHistoryDialogOpen(false);
+          setSelectedSala(null);
+        }}
+        salaId={selectedSala?.id}
+        salaName={selectedSala?.name}
       />
 
       {/* Modal Eliminar Sala */}

@@ -776,6 +776,48 @@ class LiquidacionPersistenceService {
   }
 
   /**
+   * Obtiene TODAS las liquidaciones del sistema (sin filtro de usuario)
+   * Para páginas de histórico donde todos los usuarios deben ver todas las liquidaciones
+   * @param {number} limitCount - Límite de registros a obtener
+   * @returns {Promise<Array>} - Lista de todas las liquidaciones
+   */
+  async getAllLiquidaciones(limitCount = 50) {
+    try {
+      // Consulta sin filtro de usuario
+      const q = query(
+        collection(db, 'liquidaciones'),
+        limit(limitCount)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const liquidaciones = [];
+
+      querySnapshot.forEach((doc) => {
+        liquidaciones.push({
+          id: doc.id,
+          ...doc.data()
+        });
+      });
+
+      // Ordenar en el cliente por fecha de creación (más recientes primero)
+      liquidaciones.sort((a, b) => {
+        // Si tienen timestamp, usar eso
+        if (a.createdAt && b.createdAt) {
+          return b.createdAt.toMillis() - a.createdAt.toMillis();
+        }
+        // Fallback: ordenar por ID (que incluye timestamp)
+        return b.id.localeCompare(a.id);
+      });
+
+      console.log(`✅ Cargadas ${liquidaciones.length} liquidaciones del sistema (todas)`);
+      return liquidaciones;
+    } catch (error) {
+      console.error('Error obteniendo todas las liquidaciones:', error);
+      throw new Error(`Error al obtener liquidaciones: ${error.message}`);
+    }
+  }
+
+  /**
    * Carga una liquidación y procesa los archivos originales bajo demanda
    * @param {string} liquidacionId - ID de la liquidación
    * @param {string} userId - ID del usuario (para verificar permisos)

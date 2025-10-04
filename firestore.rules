@@ -45,6 +45,23 @@ service cloud.firestore {
       allow read, write: if request.auth != null;
     }
     
+    // Historial de cambios de salas: Solo usuarios autenticados pueden leer, solo sistema puede escribir
+    match /sala_changes/{changeId} {
+      // Cualquier usuario autenticado puede leer el historial
+      allow read: if request.auth != null;
+      
+      // Solo usuarios autenticados pueden crear registros de cambios
+      allow create: if request.auth != null;
+      
+      // No permitir actualización ni eliminación (logs son inmutables)
+      allow update, delete: if false;
+    }
+    
+    // Salas: Solo usuarios autenticados
+    match /salas/{salaId} {
+      allow read, write: if request.auth != null;
+    }
+    
     // Configuraciones: Solo usuarios autenticados
     match /settings/{settingId} {
       allow read, write: if request.auth != null;

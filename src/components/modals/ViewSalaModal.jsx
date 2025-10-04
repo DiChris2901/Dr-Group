@@ -115,12 +115,23 @@ const ViewSalaModal = ({
                 <Typography variant="h5" fontWeight={700} color="text.primary">
                   {selectedSala.name}
                 </Typography>
-                <Chip 
-                  label={getStatusText(selectedSala.status)}
-                  color={getStatusColor(selectedSala.status)}
-                  size="medium"
-                  sx={{ fontWeight: 600 }}
-                />
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+                  <Chip 
+                    label={getStatusText(selectedSala.status)}
+                    color={getStatusColor(selectedSala.status)}
+                    size="medium"
+                    sx={{ fontWeight: 600 }}
+                  />
+                  {selectedSala.status === 'retired' && selectedSala.fechaRetiro && (
+                    <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                      Retirada: {new Date(selectedSala.fechaRetiro).toLocaleDateString('es-CO', { 
+                        year: 'numeric', 
+                        month: 'short', 
+                        day: 'numeric' 
+                      })}
+                    </Typography>
+                  )}
+                </Box>
               </Box>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mt: 2 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -149,7 +160,7 @@ const ViewSalaModal = ({
             </Paper>
 
             <Grid container spacing={2.5}>
-              {/* Card: Información del Propietario */}
+              {/* Card: Información del Propietario y Representante Legal */}
               <Grid item xs={12} md={6}>
                 <Paper elevation={0} sx={{ 
                   p: 2.5, 
@@ -175,13 +186,31 @@ const ViewSalaModal = ({
                       Propietario
                     </Typography>
                   </Box>
-                  <Typography variant="body1" color="text.primary" sx={{ mb: 0.5 }}>
+                  <Typography variant="body1" color="text.primary" sx={{ mb: 1, fontWeight: 600 }}>
                     {selectedSala.propietario || 'No especificado'}
                   </Typography>
-                  {selectedSala.proveedorOnline && (
-                    <Typography variant="caption" color="text.secondary">
-                      Proveedor: {selectedSala.proveedorOnline}
-                    </Typography>
+                  
+                  {/* Representante Legal */}
+                  {(selectedSala.nombreRepLegal || selectedSala.cedulaRepLegal) && (
+                    <Box sx={{ 
+                      mt: 2, 
+                      pt: 2, 
+                      borderTop: `1px solid ${theme.palette.divider}` 
+                    }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
+                        📋 Representante Legal
+                      </Typography>
+                      {selectedSala.nombreRepLegal && (
+                        <Typography variant="body2" color="text.primary" sx={{ display: 'block', mb: 0.5 }}>
+                          {selectedSala.nombreRepLegal}
+                        </Typography>
+                      )}
+                      {selectedSala.cedulaRepLegal && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          CC: {selectedSala.cedulaRepLegal}
+                        </Typography>
+                      )}
+                    </Box>
                   )}
                 </Paper>
               </Grid>
@@ -230,6 +259,64 @@ const ViewSalaModal = ({
                   </Box>
                 </Paper>
               </Grid>
+
+              {/* Card: Información del Proveedor y Contrato */}
+              {(selectedSala.proveedorOnline || selectedSala.fechaInicioContrato) && (
+                <Grid item xs={12} md={6}>
+                  <Paper elevation={0} sx={{ 
+                    p: 2.5, 
+                    height: '100%',
+                    borderRadius: 2,
+                    border: `1px solid ${theme.palette.divider}`,
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      boxShadow: `0 4px 12px ${alpha(theme.palette.info.main, 0.08)}`,
+                      borderColor: alpha(theme.palette.info.main, 0.3)
+                    }
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                      <Avatar sx={{ 
+                        bgcolor: alpha(theme.palette.info.main, 0.1), 
+                        color: 'info.main',
+                        width: 36,
+                        height: 36
+                      }}>
+                        <BusinessIcon fontSize="small" />
+                      </Avatar>
+                      <Typography variant="subtitle1" fontWeight={600}>
+                        Proveedor y Contrato
+                      </Typography>
+                    </Box>
+                    
+                    {selectedSala.proveedorOnline && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                          Proveedor de Servicios
+                        </Typography>
+                        <Typography variant="body1" color="text.primary" sx={{ fontWeight: 600 }}>
+                          {selectedSala.proveedorOnline}
+                        </Typography>
+                      </Box>
+                    )}
+                    
+                    {selectedSala.fechaInicioContrato && (
+                      <Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                          📅 Fecha Inicio Contrato
+                        </Typography>
+                        <Typography variant="body2" color="text.primary">
+                          {new Date(selectedSala.fechaInicioContrato).toLocaleDateString('es-CO', { 
+                            weekday: 'long',
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}
+                        </Typography>
+                      </Box>
+                    )}
+                  </Paper>
+                </Grid>
+              )}
 
               {/* Card: Contacto Principal */}
               {selectedSala.contactoAutorizado && (

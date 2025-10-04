@@ -225,6 +225,25 @@ const EditSalaModal = ({
           </Grid>
           
           <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Fecha Inicio Contrato"
+              type="date"
+              value={formData.fechaInicioContrato || ''}
+              onChange={(e) => onFormChange('fechaInicioContrato', e.target.value)}
+              InputLabelProps={{
+                shrink: true,
+              }}
+              helperText="Fecha de inicio del contrato con el proveedor"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2
+                }
+              }}
+            />
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
             <Autocomplete
               freeSolo
               options={[...new Set(salas.map(sala => sala.ciudad).filter(Boolean))]}
@@ -293,7 +312,7 @@ const EditSalaModal = ({
             />
           </Grid>
           
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={formData.status === 'retired' ? 6 : 6}>
             <FormControl fullWidth sx={{
               '& .MuiOutlinedInput-root': {
                 borderRadius: 2
@@ -302,7 +321,13 @@ const EditSalaModal = ({
               <InputLabel>Estado</InputLabel>
               <Select
                 value={formData.status}
-                onChange={(e) => onFormChange('status', e.target.value)}
+                onChange={(e) => {
+                  onFormChange('status', e.target.value);
+                  // Si cambia a activa, limpiar fecha de retiro
+                  if (e.target.value === 'active') {
+                    onFormChange('fechaRetiro', '');
+                  }
+                }}
                 label="Estado"
               >
                 <MenuItem value="active">Activa</MenuItem>
@@ -310,6 +335,28 @@ const EditSalaModal = ({
               </Select>
             </FormControl>
           </Grid>
+          
+          {formData.status === 'retired' && (
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Fecha de Retiro"
+                type="date"
+                value={formData.fechaRetiro || ''}
+                onChange={(e) => onFormChange('fechaRetiro', e.target.value)}
+                required
+                InputLabelProps={{
+                  shrink: true,
+                }}
+                helperText="Fecha en la que la sala fue retirada"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2
+                  }
+                }}
+              />
+            </Grid>
+          )}
           
           <Grid item xs={12} md={6}>
             <Autocomplete
@@ -334,6 +381,36 @@ const EditSalaModal = ({
                   }}
                 />
               )}
+            />
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Nombre Representante Legal"
+              value={formData.nombreRepLegal || ''}
+              onChange={(e) => onFormChange('nombreRepLegal', e.target.value)}
+              helperText="Nombre completo del representante legal"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2
+                }
+              }}
+            />
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Cédula Representante Legal"
+              value={formData.cedulaRepLegal || ''}
+              onChange={(e) => onFormChange('cedulaRepLegal', e.target.value)}
+              helperText="Número de cédula del representante legal"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2
+                }
+              }}
             />
           </Grid>
           
