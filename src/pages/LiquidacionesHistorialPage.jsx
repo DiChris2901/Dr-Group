@@ -30,7 +30,6 @@ import {
   InputLabel,
   Select,
   Tooltip,
-  Fab,
   Avatar,
   alpha
 } from '@mui/material';
@@ -54,15 +53,10 @@ import {
   Close
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { DatePicker as MuiDatePicker } from '@mui/x-date-pickers/DatePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import useActivityLogs from '../hooks/useActivityLogs';
 import liquidacionPersistenceService from '../services/liquidacionPersistenceService';
-import MonthYearFilter from '../components/common/MonthYearFilter';
 import { isValid } from 'date-fns';
 import { motion } from 'framer-motion';
 import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
@@ -83,8 +77,6 @@ const LiquidacionesHistorialPage = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEmpresa, setFilterEmpresa] = useState('todas');
-  const [selectedMonth, setSelectedMonth] = useState('all');
-  const [selectedYear, setSelectedYear] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   
@@ -287,29 +279,7 @@ const LiquidacionesHistorialPage = () => {
     // Filtro por mes y año
     let matchesMonthYear = true;
     
-    if (selectedMonth !== 'all' || selectedYear !== 'all') {
-      const liquidacionDate = new Date(liquidacion.fecha);
-      
-      // Si ambos están seleccionados (mes y año específico)
-      if (selectedMonth !== 'all' && selectedYear !== 'all') {
-        const targetMonth = parseInt(selectedMonth);
-        const targetYear = parseInt(selectedYear);
-        matchesMonthYear = (liquidacionDate.getMonth() + 1) === targetMonth && 
-                          liquidacionDate.getFullYear() === targetYear;
-      }
-      // Si solo el mes está seleccionado (cualquier año)
-      else if (selectedMonth !== 'all') {
-        const targetMonth = parseInt(selectedMonth);
-        matchesMonthYear = (liquidacionDate.getMonth() + 1) === targetMonth;
-      }
-      // Si solo el año está seleccionado (cualquier mes)
-      else if (selectedYear !== 'all') {
-        const targetYear = parseInt(selectedYear);
-        matchesMonthYear = liquidacionDate.getFullYear() === targetYear;
-      }
-    }
-    
-    return matchesSearch && matchesEmpresa && matchesMonthYear;
+    return matchesSearch && matchesEmpresa;
   });
 
   // Paginación
@@ -598,9 +568,7 @@ const LiquidacionesHistorialPage = () => {
 
   // Detectar si hay filtros activos
   const hasActiveFilters = searchTerm || 
-    filterEmpresa !== 'todas' || 
-    selectedMonth !== 'all' ||
-    selectedYear !== 'all';
+    filterEmpresa !== 'todas';
 
   // Funciones wrapper para resetear página al cambiar filtros
   const handleSearchChange = (value) => {
@@ -613,22 +581,10 @@ const LiquidacionesHistorialPage = () => {
     setCurrentPage(1);
   };
 
-  const handleMonthChange = (value) => {
-    setSelectedMonth(value);
-    setCurrentPage(1);
-  };
-
-  const handleYearChange = (value) => {
-    setSelectedYear(value);
-    setCurrentPage(1);
-  };
-
   // Limpiar filtros
   const limpiarFiltros = () => {
     setSearchTerm('');
     setFilterEmpresa('todas');
-    setSelectedMonth('all');
-    setSelectedYear('all');
     setCurrentPage(1);
   };
 
@@ -716,7 +672,7 @@ const LiquidacionesHistorialPage = () => {
           
           <Grid container spacing={2} alignItems="center">
             {/* Búsqueda por texto */}
-            <Grid item xs={12} md={2.5}>
+            <Grid item xs={12} md={hasActiveFilters ? 5 : 6}>
               <TextField
                 fullWidth
                 label="Buscar liquidaciones"
@@ -762,7 +718,7 @@ const LiquidacionesHistorialPage = () => {
             </Grid>
             
             {/* Filtro por empresa */}
-            <Grid item xs={12} md={2.5}>
+            <Grid item xs={12} md={hasActiveFilters ? 4 : 6}>
               <FormControl 
                 fullWidth
                 sx={{
@@ -798,20 +754,10 @@ const LiquidacionesHistorialPage = () => {
                 </Select>
               </FormControl>
             </Grid>
-            
-            {/* Filtro por mes y año */}
-            <Grid item xs={12} md={5}>
-              <MonthYearFilter
-                selectedMonth={selectedMonth}
-                selectedYear={selectedYear}
-                onMonthChange={handleMonthChange}
-                onYearChange={handleYearChange}
-              />
-            </Grid>
 
             {/* Botón Limpiar Filtros */}
             {hasActiveFilters && (
-              <Grid item xs={12} md={2}>
+              <Grid item xs={12} md={3}>
                 <motion.div
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -823,7 +769,7 @@ const LiquidacionesHistorialPage = () => {
                     startIcon={<Close />}
                     onClick={limpiarFiltros}
                     sx={{
-                      height: 56, // Altura similar a los otros campos
+                      height: 56,
                       borderRadius: 0.6,
                       textTransform: 'none',
                       fontWeight: 600,
@@ -1078,7 +1024,7 @@ const LiquidacionesHistorialPage = () => {
                 Aplica filtros para ver liquidaciones
               </Typography>
               <Typography variant="body1" color="textSecondary" sx={{ mb: 2 }}>
-                Utiliza los filtros de búsqueda, empresa, mes o año para encontrar liquidaciones específicas.
+                Utiliza los filtros de búsqueda o empresa para encontrar liquidaciones específicas.
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Los resultados se mostrarán paginados con un máximo de 10 registros por página.
@@ -1842,26 +1788,6 @@ const LiquidacionesHistorialPage = () => {
           )}
         </DialogActions>
       </Dialog>
-
-      {/* FAB para nueva liquidación - Sistema de Diseño Sobrio */}
-      <Fab
-        color="primary"
-        aria-label="Nueva liquidación"
-        sx={{
-          position: 'fixed',
-          bottom: 16,
-          right: 16,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-          '&:hover': {
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            transform: 'translateY(-1px)'
-          },
-          transition: 'all 0.2s ease'
-        }}
-        href="/liquidaciones"
-      >
-        <Add />
-      </Fab>
     </Container>
   );
 };
