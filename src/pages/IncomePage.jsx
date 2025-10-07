@@ -60,6 +60,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useAuth } from '../context/AuthContext';
 import useActivityLogs from '../hooks/useActivityLogs';
+import { isAdminUser } from '../utils/permissions';
 import { useToast } from '../context/ToastContext';
 import { useSettings } from '../context/SettingsContext';
 import { db, storage } from '../config/firebase';
@@ -88,6 +89,7 @@ import {
 const IncomePage = () => {
   const theme = useTheme();
   const { currentUser, userProfile } = useAuth();
+  const isAdmin = isAdminUser(currentUser, userProfile);
   const { logActivity } = useActivityLogs();
   const { success: showSuccess, error: showError, warning: showWarning, info: showInfo } = useToast();
   const { settings } = useSettings();
@@ -693,7 +695,9 @@ const IncomePage = () => {
         bank: incomeToDelete.bank,
         description: incomeToDelete.description || 'Sin descripción',
         attachmentsCount: (incomeToDelete.attachments || []).length,
-        deletedAttachments: (incomeToDelete.attachments || []).map(f => f.name).join(', ')
+        deletedAttachments: (incomeToDelete.attachments || []).map(f => f.name).join(', '),
+        performedByRole: userProfile?.role || 'unknown',
+        performedByIsAdmin: isAdmin
       }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
       
       showSuccess('El ingreso y sus archivos han sido eliminados correctamente');

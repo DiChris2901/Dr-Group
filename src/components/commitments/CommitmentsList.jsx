@@ -35,6 +35,7 @@ import { collection, query, orderBy, onSnapshot, where, doc, getDoc, deleteDoc, 
 import { ref, deleteObject, getDownloadURL, getMetadata } from 'firebase/storage';
 import { db, storage } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { isAdminUser } from '../../utils/permissions';
 import { useNotifications } from '../../context/NotificationsContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useTableTokens } from '../../hooks/useTokens';
@@ -295,7 +296,8 @@ const CommitmentsList = ({
     }
   }, [shouldLoadData]);
   // Context & hooks
-  const { currentUser } = useAuth();
+  const { currentUser, userProfile } = useAuth();
+  const isAdmin = useMemo(() => isAdminUser(currentUser, userProfile), [currentUser, userProfile]);
   const { addNotification, addAlert } = useNotifications();
   const { settings } = useSettings();
   const navigate = useNavigate();

@@ -34,6 +34,8 @@ import {
   Avatar,
   alpha
 } from '@mui/material';
+// Admin helpers
+import { isSystemUser } from '../config/systemUsers';
 import {
   Search,
   FilterList,
@@ -552,11 +554,32 @@ const LiquidacionesHistorialPage = () => {
     }
     
     try {
-      console.log('🔄 Eliminando liquidación:', liquidacionToDelete.id, 'para usuario:', currentUser.uid);
+      // 🔑 Verificar si el usuario es ADMIN o SUPER_ADMIN (case-insensitive) o pertenece a SYSTEM_USERS
+      const normalizedRole = (userProfile?.role || '').toString().trim().toUpperCase();
+      const isAdmin = normalizedRole === 'ADMIN' || normalizedRole === 'SUPER_ADMIN' || isSystemUser(currentUser?.email);
+      console.log('� [UI] Usuario es admin?', isAdmin, '- Role:', userProfile?.role, '- Email:', currentUser?.email);
+
+      console.log('�🔄 [UI] Eliminando liquidación:', {
+        liquidacionId: liquidacionToDelete.id,
+        userId: currentUser.uid,
+        userEmail: currentUser.email,
+        isAdmin,
+        liquidacionData: {
+          empresa: liquidacionToDelete.empresa,
+          periodo: liquidacionToDelete.periodoLiquidacion,
+          archivo: liquidacionToDelete.archivo
+        }
+      });
+      
+      // 🔒 VALIDACIÓN ADICIONAL DE SEGURIDAD
+      if (!liquidacionToDelete.id || !currentUser.uid) {
+        throw new Error('Datos de eliminación incompletos');
+      }
       
       await liquidacionPersistenceService.deleteLiquidacion(
         liquidacionToDelete.id, 
-        currentUser.uid
+        currentUser.uid,
+        isAdmin // Pasar flag de admin al servicio
       );
       
       console.log('✅ Liquidación eliminada exitosamente');

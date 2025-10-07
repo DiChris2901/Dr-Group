@@ -42,8 +42,32 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       caches.match(event.request).then(response => {
         return response || fetch(event.request);
+      }).catch(error => {
+        console.warn('SW: Cache error for', event.request.url, error);
+        return fetch(event.request);
       })
     );
+  }
+});
+
+// 🔧 FIX: Manejo de mensajes para evitar error de message channel
+self.addEventListener('message', (event) => {
+  try {
+    console.log('SW: Message received:', event.data);
+    
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+      self.skipWaiting();
+      // Responder inmediatamente para evitar timeout
+      if (event.ports && event.ports[0]) {
+        event.ports[0].postMessage({ success: true });
+      }
+    }
+  } catch (error) {
+    console.warn('SW: Error handling message:', error);
+    // Enviar respuesta de error si es posible
+    if (event.ports && event.ports[0]) {
+      event.ports[0].postMessage({ success: false, error: error.message });
+    }
   }
 });
 

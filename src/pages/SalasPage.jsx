@@ -99,6 +99,7 @@ import {
 } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+import { isAdminUser } from '../utils/permissions';
 import { logSalaChange, logSalaCreation } from '../utils/salaChangeLogger';
 import useActivityLogs from '../hooks/useActivityLogs';
 import { useSettings } from '../context/SettingsContext';
@@ -117,6 +118,7 @@ import SalaChangeHistoryModal from '../components/modals/SalaChangeHistoryModal'
  */
 const SalasPage = () => {
   const { currentUser, userProfile } = useAuth();
+  const isAdmin = isAdminUser(currentUser, userProfile);
   const { logActivity } = useActivityLogs();
   const { settings } = useSettings();
   const { addNotification } = useNotifications();

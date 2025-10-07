@@ -140,36 +140,36 @@ export const useStorageStats = () => {
 
   const getFirebaseStorageStats = async () => {
     const storage = getStorage();
-    const storageRef = ref(storage);
-
+    
     let totalSize = 0;
     let imageCount = 0;
     let fileCount = 0;
 
     try {
-      const result = await listAll(storageRef);
-      
-      // Procesar archivos en la raíz
-      for (const itemRef of result.items) {
-        try {
-          const metadata = await getMetadata(itemRef);
-          totalSize += metadata.size || 0;
-          
-          if (metadata.contentType?.startsWith('image/')) {
-            imageCount++;
-          } else {
-            fileCount++;
-          }
-        } catch (metadataError) {
-          console.warn('Error getting metadata for file:', itemRef.name, metadataError);
-        }
-      }
+      // 🔒 FIX PRODUCCIÓN: No acceder al root storage directamente
+      // Las reglas de Firebase Security no permiten listAll() en el root
+      // En su lugar, escaneamos las carpetas conocidas
+      const knownFolders = [
+        'logos',
+        'receipts',
+        'profile-photos',
+        'company-documents',
+        'liquidaciones',
+        'payments',
+        'commitments'
+      ];
 
-      // Procesar carpetas (recursivamente si es necesario)
-      for (const folderRef of result.prefixes) {
+      console.log('🔍 [StorageStats] Escaneando carpetas conocidas en lugar del root...');
+
+      for (const folderName of knownFolders) {
         try {
-          const folderResult = await listAll(folderRef);
-          for (const itemRef of folderResult.items) {
+          const folderRef = ref(storage, folderName);
+          const result = await listAll(folderRef);
+          
+          console.log(`📁 [StorageStats] Procesando carpeta: ${folderName}`);
+          
+          // Procesar archivos en la carpeta
+          for (const itemRef of result.items) {
             try {
               const metadata = await getMetadata(itemRef);
               totalSize += metadata.size || 0;
@@ -180,11 +180,36 @@ export const useStorageStats = () => {
                 fileCount++;
               }
             } catch (metadataError) {
-              console.warn('Error getting metadata for file:', itemRef.name, metadataError);
+              console.warn(`Error getting metadata for file ${itemRef.name} in folder ${folderName}:`, metadataError);
             }
           }
+
+          // Procesar subcarpetas (recursivamente si es necesario)
+          for (const subfolderRef of result.prefixes) {
+            try {
+              const subfolderResult = await listAll(subfolderRef);
+              for (const itemRef of subfolderResult.items) {
+                try {
+                  const metadata = await getMetadata(itemRef);
+                  totalSize += metadata.size || 0;
+                  
+                  if (metadata.contentType?.startsWith('image/')) {
+                    imageCount++;
+                  } else {
+                    fileCount++;
+                  }
+                } catch (metadataError) {
+                  console.warn(`Error getting metadata for file ${itemRef.name} in subfolder ${subfolderRef.name}:`, metadataError);
+                }
+              }
+            } catch (subfolderError) {
+              console.warn(`Error processing subfolder ${subfolderRef.name}:`, subfolderError);
+            }
+          }
+          
         } catch (folderError) {
-          console.warn('Error processing folder:', folderRef.name, folderError);
+          console.warn(`Error accessing folder ${folderName}:`, folderError);
+          // Continúa con la siguiente carpeta sin fallar
         }
       }
 

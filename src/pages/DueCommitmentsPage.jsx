@@ -649,6 +649,19 @@ const DueCommitmentsPage = () => {
     }
     
     setDeleting(true);
+
+    // Compute admin status consistently
+    const isAdmin = (() => {
+      try {
+        const role = userProfile?.role;
+        const email = (currentUser?.email || '').toLowerCase();
+        const byRole = role && (String(role).toUpperCase() === 'ADMIN' || String(role).toUpperCase() === 'SUPER_ADMIN');
+        // Lazy import to avoid cycle; duplicate tiny logic to avoid heavy import
+        const systemEmails = ['admin@drgroup.com','diego@drgroup.com','daruedagu@gmail.com'];
+        const bySystem = systemEmails.includes(email);
+        return Boolean(byRole || bySystem);
+      } catch { return false; }
+    })();
     
     try {
       console.log('🗑️ Iniciando eliminación del compromiso:', commitmentToDelete.id);
@@ -703,7 +716,7 @@ const DueCommitmentsPage = () => {
       }
 
       // 2. Eliminar el documento de Firestore
-      await deleteDoc(doc(db, 'commitments', commitmentToDelete.id));
+  await deleteDoc(doc(db, 'commitments', commitmentToDelete.id));
       console.log('✅ Compromiso eliminado de Firestore');
       
       // 📝 Registrar actividad de auditoría
@@ -712,7 +725,9 @@ const DueCommitmentsPage = () => {
           concept: commitmentToDelete.concept || commitmentToDelete.description || 'Sin concepto',
           companyName: commitmentToDelete.company || 'Sin empresa',
           amount: commitmentToDelete.amount || 0,
-          deletedAmount: commitmentToDelete.totalAmount || commitmentToDelete.amount || 0
+          deletedAmount: commitmentToDelete.totalAmount || commitmentToDelete.amount || 0,
+          performedByRole: userProfile?.role || 'unknown',
+          performedByIsAdmin: isAdmin
         }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
       } catch (logError) {
         console.warn('⚠️ Error al registrar log de actividad (no crítico):', logError.message);

@@ -1122,9 +1122,20 @@ class LiquidacionPersistenceService {
    * @param {string} userId - ID del usuario
    * @returns {Promise<void>}
    */
-  async deleteLiquidacion(liquidacionId, userId) {
+  async deleteLiquidacion(liquidacionId, userId, isAdmin = false) {
     try {
-      console.log('🔍 [Service] Iniciando eliminación - ID:', liquidacionId, 'Usuario:', userId);
+      console.log('🔍 [Service] Iniciando eliminación - ID:', liquidacionId, 'Usuario:', userId, 'Admin:', isAdmin);
+      
+      // 🔒 VALIDACIONES DE SEGURIDAD MEJORADAS
+      if (!liquidacionId || typeof liquidacionId !== 'string') {
+        console.log('❌ [Service] ID de liquidación inválido:', liquidacionId);
+        throw new Error('ID de liquidación inválido');
+      }
+      
+      if (!userId || typeof userId !== 'string') {
+        console.log('❌ [Service] Usuario ID inválido:', userId);
+        throw new Error('Usuario no autenticado correctamente');
+      }
       
       // Verificar permisos
       const docRef = doc(db, 'liquidaciones', liquidacionId);
@@ -1136,13 +1147,70 @@ class LiquidacionPersistenceService {
       }
 
       const liquidacionData = docSnap.data();
-      console.log('📄 [Service] Documento encontrado:', liquidacionData.userId, 'vs', userId);
-      console.log('📁 [Service] Estructura completa del documento:', JSON.stringify(liquidacionData, null, 2));
+      console.log('📄 [Service] Documento encontrado - Usuario propietario:', liquidacionData.userId);
+      console.log('🔑 [Service] Usuario solicitante:', userId);
+      console.log('� [Service] Tipos de datos:', 
+        'propietario:', typeof liquidacionData.userId, 
+        'solicitante:', typeof userId
+      );
       
-      if (liquidacionData.userId !== userId) {
-        console.log('❌ [Service] Sin permisos - Usuario del documento:', liquidacionData.userId, 'Usuario solicitante:', userId);
-        throw new Error('No tienes permisos para eliminar esta liquidación');
+      // 🆕 VALIDACIÓN MEJORADA: Normalizar y comparar IDs
+      const propietarioId = String(liquidacionData.userId || '').trim();
+      const solicitanteId = String(userId || '').trim();
+      
+      console.log('🔍 [Service] Comparación normalizada:', {
+        propietario: propietarioId,
+        solicitante: solicitanteId,
+        iguales: propietarioId === solicitanteId
+      });
+      
+      // 🔍 DIAGNÓSTICO TEMPORAL: Imprimir TODA la estructura del documento
+      console.log('🗂️ [DEBUG TEMPORAL] Estructura COMPLETA del documento:', {
+        ...liquidacionData,
+        // Campos específicos que podrían contener el userId
+        usuario: liquidacionData.usuario,
+        user: liquidacionData.user,
+        createdBy: liquidacionData.createdBy,
+        owner: liquidacionData.owner,
+        authorId: liquidacionData.authorId,
+        // Mostrar todas las claves del documento
+        allKeys: Object.keys(liquidacionData)
+      });
+      
+      // 🔍 VERIFICACIÓN ALTERNATIVA: Buscar userId en diferentes campos
+      const possibleUserFields = [
+        liquidacionData.userId,
+        liquidacionData.user?.uid,
+        liquidacionData.usuario?.uid,
+        liquidacionData.createdBy,
+        liquidacionData.owner,
+        liquidacionData.authorId
+      ].filter(Boolean);
+      
+      console.log('🔍 [DEBUG] Posibles campos de usuario encontrados:', possibleUserFields);
+      
+      // 🆕 LÓGICA DE VALIDACIÓN AMPLIADA CON SOPORTE PARA ADMINS
+      const isUserAuthorized = possibleUserFields.some(fieldValue => {
+        const normalizedField = String(fieldValue || '').trim();
+        const isMatch = normalizedField === solicitanteId;
+        console.log(`🔍 Comparando campo "${fieldValue}" con usuario "${solicitanteId}": ${isMatch}`);
+        return isMatch;
+      });
+      
+      const isOwner = isUserAuthorized || propietarioId === solicitanteId;
+      
+      // 🔑 PERMITIR A ADMINS ELIMINAR CUALQUIER LIQUIDACIÓN
+      if (isAdmin) {
+        console.log('✅ [Service] Usuario es ADMIN - Permitiendo eliminación');
+      } else if (!isOwner) {
+        console.log('❌ [Service] Sin permisos para eliminar - Usuario no es propietario ni admin');
+        console.log('📋 [Service] Propietario de la liquidación:', propietarioId);
+        console.log('🔑 [Service] Usuario solicitante:', solicitanteId);
+        console.log('📊 [Service] Usuario es admin?', isAdmin);
+        throw new Error('No tienes permisos para eliminar esta liquidación. Solo el propietario o un administrador pueden eliminarla.');
       }
+      
+      console.log('✅ [Service] Validación de permisos exitosa -', isAdmin ? 'Usuario ADMIN' : 'Usuario propietario');
 
       console.log('🗂️ [Service] Eliminando archivos de Storage...');
       // Eliminar archivos de Storage

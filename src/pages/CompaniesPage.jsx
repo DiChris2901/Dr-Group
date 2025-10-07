@@ -69,6 +69,7 @@ import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, d
 import { ref, uploadBytes, getDownloadURL, deleteObject, getMetadata } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+import { isAdminUser } from '../utils/permissions';
 import useActivityLogs from '../hooks/useActivityLogs';
 import { useSettings } from '../context/SettingsContext';
 import { useNotifications } from '../context/NotificationsContext';
@@ -79,6 +80,7 @@ const CompaniesPage = () => {
   const { settings } = useSettings();
   const { addNotification } = useNotifications();
   const theme = useTheme();
+  const isAdmin = isAdminUser(currentUser, userProfile);
   
   const [companies, setCompanies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -786,7 +788,9 @@ const CompaniesPage = () => {
           companyName: company.name,
           nit: company.nit,
           hadLogo: !!company.logoURL,
-          hadBankAccount: !!company.bankAccount
+          hadBankAccount: !!company.bankAccount,
+          performedByRole: userProfile?.role || 'unknown',
+          performedByIsAdmin: isAdmin
         });
         
         addNotification({

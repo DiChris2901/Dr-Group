@@ -109,11 +109,13 @@ import AddSamplePayments from '../components/debug/AddSamplePayments';
 import PaymentReceiptViewer from '../components/commitments/PaymentReceiptViewer';
 // Context para autenticación
 import { useAuth } from '../context/AuthContext';
+import { isAdminUser } from '../utils/permissions';
 // Hook para auditoría
 import useActivityLogs from '../hooks/useActivityLogs';
 
 const PaymentsPage = () => {
   const { currentUser, userProfile } = useAuth();
+  const isAdmin = isAdminUser(currentUser, userProfile);
   const { logActivity } = useActivityLogs();
   const theme = useTheme();
   // Tomar colores desde el tema efectivo de MUI (que ya refleja SettingsContext)
@@ -1979,7 +1981,9 @@ useEffect(() => {
         commitmentId: paymentToDelete.commitmentId || null,
         paymentMethod: paymentToDelete.paymentMethod || 'No especificado',
         had4x1000: tax4x1000Records.length > 0,
-        deleted4x1000Count: tax4x1000Records.length
+        deleted4x1000Count: tax4x1000Records.length,
+        performedByRole: userProfile?.role || 'unknown',
+        performedByIsAdmin: isAdmin
       }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
       
       console.log('✅ Pago eliminado exitosamente');
