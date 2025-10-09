@@ -150,6 +150,7 @@ const SalasPage = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [propietarioFilter, setPropietarioFilter] = useState('all');
   const [proveedorFilter, setProveedorFilter] = useState('all');
+  const [salaFilter, setSalaFilter] = useState(null); // ✅ NUEVO: Filtro por sala con autocompletado
   
   // ✅ NUEVO: Estado para empresa seleccionada en el grid
   const [selectedCompanyId, setSelectedCompanyId] = useState(null);
@@ -275,6 +276,7 @@ const SalasPage = () => {
     const matchesStatus = statusFilter === 'all' || sala.status === statusFilter;
     const matchesPropietario = propietarioFilter === 'all' || sala.propietario === propietarioFilter;
     const matchesProveedor = proveedorFilter === 'all' || sala.proveedorOnline === proveedorFilter;
+    const matchesSala = !salaFilter || sala.id === salaFilter.id; // ✅ NUEVO: Filtro por sala específica
     
     // ✅ NUEVO: Filtro de búsqueda por texto
     const matchesSearch = searchTerm === '' || 
@@ -286,12 +288,25 @@ const SalasPage = () => {
       sala.proveedorOnline?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       sala.contactoAutorizado?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    return matchesStatus && matchesPropietario && matchesProveedor && matchesSearch;
+    return matchesStatus && matchesPropietario && matchesProveedor && matchesSala && matchesSearch;
   });
 
   // Obtener listas únicas para los filtros
   const propietariosUnicos = ['all', ...new Set(salas.map(sala => sala.propietario).filter(Boolean))];
   const proveedoresUnicos = ['all', ...new Set(salas.map(sala => sala.proveedorOnline).filter(Boolean))];
+  
+  // ✅ NUEVO: Lista de salas para autocompletado (ordenadas alfabéticamente)
+  const salasParaAutocomplete = React.useMemo(() => {
+    return salas
+      .map(sala => ({
+        id: sala.id,
+        label: sala.name,
+        companyName: sala.companyName,
+        ciudad: sala.ciudad,
+        propietario: sala.propietario
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [salas]);
 
   // ✅ Obtener contactos únicos con sus datos completos
   const contactosUnicos = React.useMemo(() => {
@@ -823,6 +838,7 @@ const SalasPage = () => {
     setStatusFilter('all');
     setPropietarioFilter('all');
     setProveedorFilter('all');
+    setSalaFilter(null); // ✅ NUEVO: Limpiar filtro de sala
   };
 
   // Obtener color de estado
@@ -1107,7 +1123,7 @@ const SalasPage = () => {
           
           <Grid container spacing={3}>
             {/* Filtro por estado */}
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={6} lg={3}>
               <FormControl fullWidth>
                 <InputLabel>Estado</InputLabel>
                 <Select
@@ -1123,7 +1139,7 @@ const SalasPage = () => {
             </Grid>
 
             {/* Filtro por propietario */}
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={6} lg={3}>
               <FormControl fullWidth>
                 <InputLabel>Propietario</InputLabel>
                 <Select
@@ -1142,7 +1158,7 @@ const SalasPage = () => {
             </Grid>
 
             {/* Filtro por proveedor online */}
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={6} lg={2}>
               <FormControl fullWidth>
                 <InputLabel>Proveedor Online</InputLabel>
                 <Select
@@ -1160,8 +1176,62 @@ const SalasPage = () => {
               </FormControl>
             </Grid>
 
+            {/* ✅ NUEVO: Filtro por sala con autocompletado */}
+            <Grid item xs={12} md={6} lg={3}>
+              <Autocomplete
+                value={salaFilter}
+                onChange={(event, newValue) => {
+                  setSalaFilter(newValue);
+                }}
+                options={salasParaAutocomplete}
+                getOptionLabel={(option) => option.label}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Buscar Sala"
+                    placeholder="Escribe para buscar..."
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <>
+                          <InputAdornment position="start">
+                            <SearchIcon color="action" />
+                          </InputAdornment>
+                          {params.InputProps.startAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+                renderOption={(props, option) => {
+                  const { key, ...otherProps } = props;
+                  return (
+                    <li key={key} {...otherProps}>
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>
+                          {option.label}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {option.companyName} • {option.ciudad}
+                        </Typography>
+                      </Box>
+                    </li>
+                  );
+                }}
+                noOptionsText="No se encontraron salas"
+                clearText="Limpiar"
+                openText="Abrir"
+                closeText="Cerrar"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    paddingLeft: '8px'
+                  }
+                }}
+              />
+            </Grid>
+
             {/* Limpiar filtros */}
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={12} lg={1}>
               <Button
                 fullWidth
                 variant="outlined"
@@ -1178,7 +1248,7 @@ const SalasPage = () => {
 
       {/* Tabla contextual (solo se muestra cuando hay filtros activos) */}
       <AnimatePresence>
-        {(statusFilter !== 'all' || propietarioFilter !== 'all' || proveedorFilter !== 'all') && (
+        {(statusFilter !== 'all' || propietarioFilter !== 'all' || proveedorFilter !== 'all' || salaFilter !== null) && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
