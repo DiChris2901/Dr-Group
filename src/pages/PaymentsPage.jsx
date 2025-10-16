@@ -103,8 +103,6 @@ import { doc, updateDoc, getDoc, deleteDoc, collection, query, orderBy, onSnapsh
 import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../config/firebase';
 import { managedOnSnapshot } from '../utils/listenerManager';
-// Componente temporal para agregar datos de prueba
-import AddSamplePayments from '../components/debug/AddSamplePayments';
 // Componente para visor de comprobantes de pago
 import PaymentReceiptViewer from '../components/commitments/PaymentReceiptViewer';
 // Context para autenticación
@@ -661,7 +659,7 @@ const PaymentsPage = () => {
         }
         
         if (matchesDateRange && paymentDate && isValid(paymentDate)) {
-          matchesDateRange = paymentDate >= dateRange.start && paymentDate <= dateRange.end;
+          matchesDateRange = paymentDate >= dateRange.startDate && paymentDate <= dateRange.endDate;
         }
       }
     }
@@ -2885,9 +2883,6 @@ useEffect(() => {
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                       Crea el primer registro con el botón "Nuevo Pago"
                     </Typography>
-                    
-                    {/* Componente temporal para agregar datos de prueba */}
-                    <AddSamplePayments />
                   </Box>
                 )}
               </Box>

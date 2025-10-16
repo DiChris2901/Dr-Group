@@ -221,7 +221,7 @@ export class EnterprisePDFCompressor {
   async simulateRealisticCompression(file) {
     console.log('🔧 Iniciando compresión REAL con pdf-lib...');
     
-    const fileName = file.name.toLowerCase();
+    const fileName = file.name?.toLowerCase() || 'documento.pdf';
     const fileSize = file.size;
     
     try {
