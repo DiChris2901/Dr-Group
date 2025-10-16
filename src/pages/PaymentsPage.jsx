@@ -1394,10 +1394,11 @@ useEffect(() => {
       companyName: correctedPayment.companyName || '',
       provider: providerName,
       interests: isColjuegos ? '' : fCurrency(interesesNormales),
-      interesesDerechosExplotacion: isColjuegos ? fCurrency(correctedPayment.interesesDerechosExplotacion ?? commitment?.interesesDerechosExplotacion ?? 0) : '',
-      interesesGastosAdministracion: isColjuegos ? fCurrency(correctedPayment.interesesGastosAdministracion ?? commitment?.interesesGastosAdministracion ?? 0) : '',
-      derechosExplotacion: isColjuegos ? fCurrency(correctedPayment.derechosExplotacion ?? commitment?.derechosExplotacion ?? 0) : '',
-      gastosAdministracion: isColjuegos ? fCurrency(correctedPayment.gastosAdministracion ?? commitment?.gastosAdministracion ?? 0) : '',
+      // ✅ SIEMPRE cargar los valores de Coljuegos si existen (para preservarlos)
+      interesesDerechosExplotacion: fCurrency(correctedPayment.interesesDerechosExplotacion ?? commitment?.interesesDerechosExplotacion ?? 0),
+      interesesGastosAdministracion: fCurrency(correctedPayment.interesesGastosAdministracion ?? commitment?.interesesGastosAdministracion ?? 0),
+      derechosExplotacion: fCurrency(correctedPayment.derechosExplotacion ?? commitment?.derechosExplotacion ?? 0),
+      gastosAdministracion: fCurrency(correctedPayment.gastosAdministracion ?? commitment?.gastosAdministracion ?? 0),
       originalAmount: fCurrency(baseOriginal + ivaOriginal), // Monto original (base + IVA)
       baseOriginal: fCurrency(baseOriginal),
       ivaOriginal: fCurrency(ivaOriginal),
@@ -1656,32 +1657,85 @@ useEffect(() => {
       // Determinar si es Coljuegos para guardar campos específicos
       const isColjuegos = isColjuegosCommitment(commitmentData);
       
-      const updateData = {
-        concept: editFormData.concept.trim(),
-        amount: parseFloat(cleanCurrency(editFormData.amount)),
-        originalAmount: parseFloat(cleanCurrency(editFormData.originalAmount || editFormData.amount)),
-        method: editFormData.method,
-        notes: editFormData.notes.trim(),
-        reference: editFormData.reference?.trim() || '',
-        companyName: editFormData.companyName?.trim() || '',
-        sourceAccount: editFormData.sourceAccount?.trim() || '',
-        sourceBank: editFormData.sourceBank?.trim() || '',
-        date: createLocalDate(editFormData.date),
-        updatedAt: new Date()
+      // 📦 Construir actualización PARCIAL (solo campos realmente cambiados)
+      const updateData = { updatedAt: new Date() };
+
+      // Helpers de comparación
+      const normalizeNumber = (val) => {
+        const n = typeof val === 'string' ? parseFloat(cleanCurrency(val)) : Number(val);
+        return Number.isFinite(n) ? n : undefined;
+      };
+      const normalizeDate = (val) => {
+        if (!val) return undefined;
+        const d = createLocalDate(val);
+        if (!(d instanceof Date) || Number.isNaN(d.getTime())) return undefined;
+        d.setHours(0,0,0,0);
+        return d;
+      };
+      const normalizeExistingDate = (val) => {
+        if (!val) return undefined;
+        const d = val.toDate ? val.toDate() : new Date(val);
+        if (!(d instanceof Date) || Number.isNaN(d.getTime())) return undefined;
+        d.setHours(0,0,0,0);
+        return d;
+      };
+      const addIfChangedStr = (key, newVal, oldVal) => {
+        const a = (newVal ?? '').trim();
+        const b = (oldVal ?? '').trim();
+        if (a !== b) updateData[key] = a;
+      };
+      const addIfChangedNum = (key, newValRaw, oldValRaw) => {
+        const a = normalizeNumber(newValRaw);
+        const b = normalizeNumber(oldValRaw);
+        if (a !== undefined && a !== b) updateData[key] = a;
+      };
+      const addIfChangedDate = (key, newValRaw, oldValRaw) => {
+        const a = normalizeDate(newValRaw);
+        const b = normalizeExistingDate(oldValRaw);
+        if (a && (!b || a.getTime() !== b.getTime())) updateData[key] = a;
       };
 
-      // Agregar campos de intereses según el tipo
+      // Cadenas
+      addIfChangedStr('concept', editFormData.concept, editingPayment.concept);
+      addIfChangedStr('method', editFormData.method, editingPayment.method);
+      addIfChangedStr('notes', editFormData.notes, editingPayment.notes);
+      addIfChangedStr('reference', editFormData.reference, editingPayment.reference);
+      addIfChangedStr('companyName', editFormData.companyName, editingPayment.companyName);
+      addIfChangedStr('sourceAccount', editFormData.sourceAccount, editingPayment.sourceAccount);
+      addIfChangedStr('sourceBank', editFormData.sourceBank, editingPayment.sourceBank);
+
+      // Números
+      addIfChangedNum('amount', editFormData.amount, editingPayment.amount);
+      addIfChangedNum('originalAmount', editFormData.originalAmount, editingPayment.originalAmount);
+
+      // Fecha
+      addIfChangedDate('date', editFormData.date, editingPayment.date);
+
+      // ✅ AGREGAR CAMPOS DE INTERESES SOLO SI ES COLJUEGOS
+      // Si NO es Coljuegos, NO incluir estos campos en updateData para preservar valores existentes
       if (isColjuegos) {
-        updateData.interesesDerechosExplotacion = parseFloat(cleanCurrency(editFormData.interesesDerechosExplotacion)) || 0;
-        updateData.interesesGastosAdministracion = parseFloat(cleanCurrency(editFormData.interesesGastosAdministracion)) || 0;
-        updateData.derechosExplotacion = parseFloat(cleanCurrency(editFormData.derechosExplotacion)) || 0;
-        updateData.gastosAdministracion = parseFloat(cleanCurrency(editFormData.gastosAdministracion)) || 0;
-        updateData.interests = updateData.interesesDerechosExplotacion + updateData.interesesGastosAdministracion;
+        // Es Coljuegos: actualizar SOLO los campos que cambian
+        addIfChangedNum('interesesDerechosExplotacion', editFormData.interesesDerechosExplotacion, editingPayment.interesesDerechosExplotacion);
+        addIfChangedNum('interesesGastosAdministracion', editFormData.interesesGastosAdministracion, editingPayment.interesesGastosAdministracion);
+        addIfChangedNum('derechosExplotacion', editFormData.derechosExplotacion, editingPayment.derechosExplotacion);
+        addIfChangedNum('gastosAdministracion', editFormData.gastosAdministracion, editingPayment.gastosAdministracion);
+
+        // Intereses totales (derivado) - recalcular sólo si cambian sus componentes o si interests mismo cambió
+        const newInterests = (normalizeNumber(editFormData.interesesDerechosExplotacion) || 0) + (normalizeNumber(editFormData.interesesGastosAdministracion) || 0);
+        const oldInterests = normalizeNumber(editingPayment.interests) || 0;
+        if (newInterests !== oldInterests) updateData.interests = newInterests;
       } else {
-        updateData.interests = parseFloat(cleanCurrency(editFormData.interests)) || 0;
-        updateData.interesesDerechosExplotacion = 0;
-        updateData.interesesGastosAdministracion = 0;
-        // No agregar campos específicos de Coljuegos para otros compromisos
+        // NO Coljuegos: actualizar sólo interests normal si cambió
+        addIfChangedNum('interests', editFormData.interests, editingPayment.interests);
+        // No tocar campos específicos de Coljuegos
+      }
+
+      // Si no hay cambios en updateData (más allá de updatedAt) y no hay archivos, evitar write
+      const keysToWrite = Object.keys(updateData).filter(k => k !== 'updatedAt');
+      if (keysToWrite.length === 0 && selectedFiles.length === 0) {
+        setUploadingFile(false);
+        showNotification('No hay cambios para guardar', 'info');
+        return;
       }
 
       // =====================================================
@@ -1753,18 +1807,23 @@ useEffect(() => {
       setUploadProgress(90);
       await updateDoc(paymentRef, updateData);
       
-      // 📝 Registrar actividad de auditoría
-      await logActivity('update_payment', 'payment', editingPayment.id, {
-        concept: updateData.concept,
-        amount: updateData.amount,
-        originalAmount: updateData.originalAmount,
-        companyName: updateData.companyName || 'Sin empresa',
-        paymentMethod: updateData.method,
+      // 📝 Registrar actividad de auditoría (sin undefineds)
+      const activityDetails = {
+        concept: updateData.concept ?? editingPayment.concept ?? 'Sin concepto',
+        amount: updateData.amount ?? editingPayment.amount ?? 0,
+        originalAmount: updateData.originalAmount ?? editingPayment.originalAmount ?? editingPayment.amount ?? 0,
+        companyName: (updateData.companyName ?? editingPayment.companyName) || 'Sin empresa',
+        paymentMethod: updateData.method ?? editingPayment.method ?? '',
         hasNewAttachments: selectedFiles.length > 0,
         attachmentCount: selectedFiles.length,
         isColjuegos: isColjuegos,
-        interestsPaid: updateData.interests || 0
-      }, currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
+        interestsPaid: updateData.interests ?? editingPayment.interests ?? 0
+      };
+      // Eliminar claves con undefined explícitamente (seguridad)
+      Object.keys(activityDetails).forEach(k => activityDetails[k] === undefined && delete activityDetails[k]);
+
+      await logActivity('update_payment', 'payment', editingPayment.id, activityDetails, 
+        currentUser?.uid, userProfile?.name || userProfile?.displayName || 'Usuario desconocido', currentUser?.email);
       
       // =====================================================
       // GENERAR 4x1000 AUTOMÁTICAMENTE (SI APLICA)
