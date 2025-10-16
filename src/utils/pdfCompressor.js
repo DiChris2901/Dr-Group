@@ -216,88 +216,127 @@ export class EnterprisePDFCompressor {
   }
 
   /**
-   * Compresión simulada realista basada en algoritmos reales
+   * Compresión REAL usando pdf-lib con optimizaciones
    */
   async simulateRealisticCompression(file) {
-    console.log('🎭 Simulando compresión realista...');
+    console.log('🔧 Iniciando compresión REAL con pdf-lib...');
     
-    // Determinar tipo de PDF basado en el nombre y tamaño
     const fileName = file.name.toLowerCase();
     const fileSize = file.size;
     
-    let pdfType = 'general';
-    if (fileName.includes('factura') || fileName.includes('invoice') || fileName.includes('receipt')) {
-      pdfType = 'invoice';
-    } else if (fileName.includes('reporte') || fileName.includes('report')) {
-      pdfType = 'report';  
-    } else if (fileName.includes('scan') || fileName.includes('escaneado')) {
-      pdfType = 'scanned';
-    } else if (fileSize > 5 * 1024 * 1024) { // > 5MB
-      pdfType = 'large';
-    }
-    
-    console.log('📄 Tipo de PDF detectado:', pdfType);
-    
-    // Configurar reducción según nivel y tipo
-    let reductionRange;
-    switch (this.settings.aggressiveOptimization ? 'aggressive' : 
-           this.settings.maxReduction > 60 ? 'balanced' : 'conservative') {
-      case 'conservative':
-        reductionRange = pdfType === 'scanned' ? [5, 15] : [15, 35];
-        break;
-      case 'balanced':
-        reductionRange = pdfType === 'scanned' ? [10, 25] : [25, 55];
-        break;
-      case 'aggressive':
-        reductionRange = pdfType === 'scanned' ? [15, 35] : [45, 75];
-        break;
-      default:
-        reductionRange = [20, 50];
-    }
-    
-    // Ajustar según tipo específico
-    if (pdfType === 'invoice' || pdfType === 'report') {
-      reductionRange[0] += 10;
-      reductionRange[1] += 15; // PDFs del navegador comprimen más
-    }
-    
-    // Generar reducción aleatoria dentro del rango
-    const minReduction = reductionRange[0];
-    const maxReduction = Math.min(reductionRange[1], this.settings.maxReduction);
-    const reductionPercent = minReduction + (Math.random() * (maxReduction - minReduction));
-    
-    const reduction = Math.floor(fileSize * (reductionPercent / 100));
-    const compressedSize = fileSize - reduction;
-    
-    console.log('🔍 COMPRESIÓN SIMULADA:', {
-      tipo: pdfType,
-      reductionRange,
-      reductionPercent: reductionPercent.toFixed(1) + '%',
-      originalSize: this.formatFileSize(fileSize),
-      compressedSize: this.formatFileSize(compressedSize),
-      reduction: this.formatFileSize(reduction)
-    });
-    
-    // Simular proceso de compresión con delay realista
-    await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1500));
-    
-    // Crear blob "comprimido" (mismo contenido pero diferente tamaño reportado)
-    const compressedBlob = new Blob([file], { type: 'application/pdf' });
-    
-    return {
-      compressedBlob,
-      stats: {
-        originalSize: fileSize,
-        compressedSize: compressedSize,
-        reduction: reduction,
-        reductionPercent: reductionPercent.toFixed(1) + '%',
-        saved: this.formatFileSize(reduction),
-        pdfType,
-        compressionLevel: this.settings.aggressiveOptimization ? 'Agresiva' : 
-                         this.settings.maxReduction > 60 ? 'Balanceada' : 'Conservadora',
-        message: `Optimizado ${reductionPercent.toFixed(1)}% usando compresión ${this.settings.aggressiveOptimization ? 'agresiva' : 'inteligente'}`
+    try {
+      // 1. Cargar PDF original
+      const arrayBuffer = await file.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(arrayBuffer, { 
+        ignoreEncryption: true,
+        throwOnInvalidObject: false 
+      });
+      
+      const pageCount = pdfDoc.getPageCount();
+      console.log(`📄 PDF cargado: ${pageCount} páginas, ${this.formatFileSize(fileSize)}`);
+      
+      // 2. Aplicar optimizaciones reales según el nivel
+      const level = this.settings.aggressiveOptimization ? 'aggressive' : 
+                   this.settings.maxReduction > 60 ? 'balanced' : 'conservative';
+      
+      console.log(`🎯 Nivel de compresión: ${level}`);
+      
+      // Limpiar metadatos para reducir tamaño
+      pdfDoc.setCreationDate(new Date());
+      pdfDoc.setModificationDate(new Date());
+      pdfDoc.setProducer('DR Group');
+      pdfDoc.setCreator('DR Group Dashboard');
+      
+      // Si es agresivo, limpiar más metadatos
+      if (level === 'aggressive') {
+        try {
+          pdfDoc.setTitle('');
+          pdfDoc.setAuthor('');
+          pdfDoc.setSubject('');
+          pdfDoc.setKeywords([]);
+        } catch (e) {
+          console.log('⚠️ Algunos metadatos no pudieron ser limpiados');
+        }
       }
-    };
+      
+      // 3. Configurar opciones de serialización según nivel
+      let saveOptions = {
+        useObjectStreams: true,        // Comprime objetos (ahorro real)
+        addDefaultPage: false,
+        updateFieldAppearances: false,
+        useDebugInfo: false
+      };
+      
+      if (level === 'balanced' || level === 'aggressive') {
+        saveOptions.objectsPerTick = 50;
+      }
+      
+      // 4. Guardar PDF optimizado
+      console.log('💾 Serializando PDF optimizado...');
+      const compressedBytes = await pdfDoc.save(saveOptions);
+      const compressedSize = compressedBytes.length;
+      
+      // 5. Calcular reducción REAL
+      const reduction = fileSize - compressedSize;
+      const reductionPercent = ((reduction / fileSize) * 100).toFixed(1);
+      
+      console.log('✅ COMPRESIÓN REAL COMPLETADA:', {
+        originalSize: this.formatFileSize(fileSize),
+        compressedSize: this.formatFileSize(compressedSize),
+        reduction: this.formatFileSize(reduction),
+        reductionPercent: `${reductionPercent}%`,
+        level
+      });
+      
+      // 6. Crear Blob con el PDF REALMENTE comprimido
+      const compressedBlob = new Blob([compressedBytes], { type: 'application/pdf' });
+      
+      // 7. Verificar que el PDF comprimido es válido
+      try {
+        await PDFDocument.load(compressedBytes);
+        console.log('✅ PDF comprimido verificado como válido');
+      } catch (verifyError) {
+        console.error('❌ PDF comprimido inválido, usando original');
+        throw verifyError;
+      }
+      
+      return {
+        compressedBlob,
+        stats: {
+          originalSize: fileSize,
+          compressedSize: compressedSize,
+          reduction: reduction,
+          reductionPercent: `${reductionPercent}%`,
+          saved: this.formatFileSize(reduction),
+          compressionLevel: level === 'aggressive' ? 'Agresiva' : 
+                           level === 'balanced' ? 'Balanceada' : 'Conservadora',
+          message: `Optimizado ${reductionPercent}% usando compresión real pdf-lib`,
+          realCompression: true
+        }
+      };
+      
+    } catch (error) {
+      console.error('❌ Error en compresión real:', error);
+      console.warn('⚠️ Usando archivo original sin comprimir');
+      
+      // Fallback: devolver original
+      const compressedBlob = new Blob([file], { type: 'application/pdf' });
+      
+      return {
+        compressedBlob,
+        stats: {
+          originalSize: fileSize,
+          compressedSize: fileSize,
+          reduction: 0,
+          reductionPercent: '0.0%',
+          saved: '0 Bytes',
+          compressionLevel: 'Ninguna (error)',
+          message: 'No se pudo comprimir, se mantuvo original',
+          realCompression: false,
+          error: true
+        }
+      };
+    }
   }
 
   /**

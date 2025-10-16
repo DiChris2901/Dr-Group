@@ -671,7 +671,31 @@ const CommitmentsList = ({
       q = query(collection(db, 'commitments'), where('companyId', '==', debouncedCompanyFilter), orderBy('dueDate', 'desc'));
     }
     
-    if (debouncedYearFilter && debouncedYearFilter !== 'all') {
+    // ✅ Aplicar filtro de rango de fechas (Este mes, Último mes, etc.)
+    if (debouncedDateRangeFilter && debouncedDateRangeFilter !== 'all') {
+      const { startDate, endDate } = getDateRangeFromFilter(
+        debouncedDateRangeFilter,
+        debouncedCustomStartDate,
+        debouncedCustomEndDate
+      );
+
+      if (startDate && endDate && isValid(startDate) && isValid(endDate)) {
+        if (debouncedCompanyFilter && debouncedCompanyFilter !== 'all') {
+          q = query(collection(db, 'commitments'),
+            where('companyId', '==', debouncedCompanyFilter),
+            where('dueDate', '>=', startDate),
+            where('dueDate', '<=', endDate),
+            orderBy('dueDate', 'desc')
+          );
+        } else {
+          q = query(collection(db, 'commitments'),
+            where('dueDate', '>=', startDate),
+            where('dueDate', '<=', endDate),
+            orderBy('dueDate', 'desc')
+          );
+        }
+      }
+    } else if (debouncedYearFilter && debouncedYearFilter !== 'all') {
       let startDate, endDate;
       
       if (debouncedMonthFilter && debouncedMonthFilter.month !== 'all' && debouncedMonthFilter.year !== 'all') {
@@ -701,7 +725,7 @@ const CommitmentsList = ({
           );
         }
       }
-    } else if (debouncedMonthFilter && debouncedMonthFilter.month !== 'all' && debouncedMonthFilter.year !== 'all') {
+  } else if (debouncedMonthFilter && debouncedMonthFilter.month !== 'all' && debouncedMonthFilter.year !== 'all') {
       // Solo filtro por mes/año sin filtro de año heredado
       console.log('🗓️ [MONTH FILTER] *** APLICANDO FILTRO DE MES ***', debouncedMonthFilter);
       

@@ -381,35 +381,35 @@ export const getDateRangeFromFilter = (filterValue, customStartDate = null, cust
   switch (filterValue) {
     case 'thisMonth':
       return {
-        start: startOfMonth(now),
-        end: endOfMonth(now)
+        startDate: startOfMonth(now),
+        endDate: endOfMonth(now)
       };
     case 'lastMonth':
       const lastMonth = subMonths(now, 1);
       return {
-        start: startOfMonth(lastMonth),
-        end: endOfMonth(lastMonth)
+        startDate: startOfMonth(lastMonth),
+        endDate: endOfMonth(lastMonth)
       };
     case 'last90Days':
       return {
-        start: startOfDay(subDays(now, 89)),
-        end: endOfDay(now)
+        startDate: startOfDay(subDays(now, 89)),
+        endDate: endOfDay(now)
       };
     case 'thisYear':
       return {
-        start: startOfYear(now),
-        end: endOfYear(now)
+        startDate: startOfYear(now),
+        endDate: endOfYear(now)
       };
     case 'lastYear':
       const lastYear = new Date(now.getFullYear() - 1, 0, 1);
       return {
-        start: startOfYear(lastYear),
-        end: endOfYear(lastYear)
+        startDate: startOfYear(lastYear),
+        endDate: endOfYear(lastYear)
       };
     case 'custom':
       return customStartDate && customEndDate ? {
-        start: startOfDay(customStartDate),
-        end: endOfDay(customEndDate)
+        startDate: startOfDay(customStartDate),
+        endDate: endOfDay(customEndDate)
       } : null;
     default:
       return null;

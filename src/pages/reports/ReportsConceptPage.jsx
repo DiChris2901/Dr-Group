@@ -133,7 +133,7 @@ const ReportsConceptPage = () => {
         appliedFilters.customEndDate
       );
       
-      if (!range || !isValid(range.start) || !isValid(range.end)) {
+      if (!range || !isValid(range.startDate) || !isValid(range.endDate)) {
         return commitmentsArray;
       }
       
@@ -145,7 +145,7 @@ const ReportsConceptPage = () => {
         else if (commitment.createdAt) commitmentDate = new Date(commitment.createdAt);
         else return false;
         
-        return isWithinInterval(commitmentDate, { start: range.start, end: range.end });
+        return isWithinInterval(commitmentDate, { start: range.startDate, end: range.endDate });
       });
     };
   }, [appliedFilters.dateRangeFilter, appliedFilters.customStartDate, appliedFilters.customEndDate]);

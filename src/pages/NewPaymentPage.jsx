@@ -781,16 +781,20 @@ const NewPaymentPage = () => {
   const requiresInterests = (commitment, paymentDate) => {
     if (!commitment?.dueDate || !paymentDate) return false;
     
+    // Convertir dueDate de Firestore a Date local
     const dueDate = commitment.dueDate.toDate();
-    const payment = new Date(paymentDate);
-    
-    // Resetear horas para comparar solo fechas
     dueDate.setHours(0, 0, 0, 0);
-    payment.setHours(0, 0, 0, 0);
+    
+    // Parsear paymentDate explícitamente en zona local (evitar problemas UTC)
+    // Input format: "YYYY-MM-DD"
+    const [year, month, day] = paymentDate.split('-').map(Number);
+    const payment = new Date(year, month - 1, day, 0, 0, 0, 0);
     
     console.log('Checking interests requirement:', {
       dueDate: dueDate.toDateString(),
       paymentDate: payment.toDateString(),
+      dueDateMs: dueDate.getTime(),
+      paymentMs: payment.getTime(),
       isLater: payment > dueDate
     });
     
@@ -802,12 +806,15 @@ const NewPaymentPage = () => {
     if (!commitment) return false;
     const companyName = commitment.companyName?.toLowerCase() || '';
     const concept = commitment.concept?.toLowerCase() || '';
+    const beneficiary = commitment.beneficiary?.toLowerCase() || '';
     
-    console.log('Checking Coljuegos for:', { companyName, concept });
+    console.log('Checking Coljuegos for:', { companyName, concept, beneficiary });
     
-    // Buscar por nombre de empresa o concepto relacionado a Coljuegos
+    // Buscar por nombre de empresa, concepto o beneficiario relacionado a Coljuegos
     const isColjuegos = companyName.includes('coljuegos') || 
            companyName.includes('col juegos') ||
+           beneficiary.includes('coljuegos') ||
+           beneficiary.includes('col juegos') ||
            concept.includes('derechos de explotación') ||
            concept.includes('derechos de explotacion') ||
            concept.includes('gastos de administración') ||
@@ -3573,18 +3580,55 @@ const NewPaymentPage = () => {
                 </Box>
               </Grid>
 
-              {formData.interests > 0 && (
-                <Grid item xs={6}>
-                  <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
-                    INTERESES
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <InterestIcon color="warning" fontSize="small" />
-                    <Typography variant="body1" fontWeight="600" color="warning.main">
-                      ${parseFloat(formData.interests || 0).toLocaleString('es-CO')}
-                    </Typography>
-                  </Box>
-                </Grid>
+              {/* Intereses - Condicional según tipo de compromiso */}
+              {isColjuegosCommitment(selectedCommitment) ? (
+                <>
+                  {/* Intereses Coljuegos - Derechos de Explotación */}
+                  {formData.interesesDerechosExplotacion > 0 && (
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                        INTERESES DERECHOS
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <InterestIcon color="warning" fontSize="small" />
+                        <Typography variant="body1" fontWeight="600" color="warning.main">
+                          ${parseFloat(formData.interesesDerechosExplotacion || 0).toLocaleString('es-CO')}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  )}
+                  {/* Intereses Coljuegos - Gastos de Administración */}
+                  {formData.interesesGastosAdministracion > 0 && (
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                        INTERESES GASTOS
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <InterestIcon color="error" fontSize="small" />
+                        <Typography variant="body1" fontWeight="600" color="error.main">
+                          ${parseFloat(formData.interesesGastosAdministracion || 0).toLocaleString('es-CO')}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Intereses normales para otros compromisos */}
+                  {formData.interests > 0 && (
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                        INTERESES
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <InterestIcon color="warning" fontSize="small" />
+                        <Typography variant="body1" fontWeight="600" color="warning.main">
+                          ${parseFloat(formData.interests || 0).toLocaleString('es-CO')}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  )}
+                </>
               )}
 
               {formData.fourPerThousand > 0 && (
@@ -3632,7 +3676,7 @@ const NewPaymentPage = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <DateRangeIcon color="primary" fontSize="small" />
                   <Typography variant="body1" fontWeight="600">
-                    {formData.paymentDate ? format(createLocalDate(formData.paymentDate), 'dd/MM/yyyy', { locale: es }) : 'Sin fecha'}
+                    {formData.date ? format(createLocalDate(formData.date), 'dd/MM/yyyy', { locale: es }) : 'Sin fecha'}
                   </Typography>
                 </Box>
               </Grid>
@@ -3644,14 +3688,35 @@ const NewPaymentPage = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <PaymentIcon color="primary" fontSize="small" />
                   <Typography variant="body1" fontWeight="600">
-                    {formData.paymentMethod === 'transfer' ? 'Transferencia' :
-                     formData.paymentMethod === 'check' ? 'Cheque' :
-                     formData.paymentMethod === 'cash' ? 'Efectivo' :
-                     formData.paymentMethod === 'debit' ? 'Débito' :
-                     formData.paymentMethod === 'credit' ? 'Crédito' : formData.paymentMethod}
+                    {formData.method || 'Sin método'}
                   </Typography>
                 </Box>
               </Grid>
+
+              {/* Cuenta de Origen */}
+              {formData.sourceAccount && (
+                <Grid item xs={12}>
+                  <Typography variant="caption" color="text.secondary" fontWeight="600" sx={{ mb: 0.5, display: 'block' }}>
+                    CUENTA DE ORIGEN
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <AccountBalanceIcon color="primary" fontSize="small" />
+                    <Box>
+                      <Typography variant="body1" fontWeight="600">
+                        {formData.sourceAccount}
+                      </Typography>
+                      {(() => {
+                        const accountInfo = getBankAccounts().find(acc => acc.bankAccount === formData.sourceAccount);
+                        return accountInfo ? (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                            {accountInfo.companyName}
+                          </Typography>
+                        ) : null;
+                      })()}
+                    </Box>
+                  </Box>
+                </Grid>
+              )}
             </Grid>
 
             {/* Pago parcial */}

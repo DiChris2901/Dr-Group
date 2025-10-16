@@ -69,6 +69,7 @@ import {
 } from '../utils/recurringCommitments';
 // 🗜️ IMPORTAR SISTEMA DE COMPRESIÓN
 import PDFCompressionPreview from '../components/common/PDFCompressionPreview';
+import { drGroupCompressor } from '../utils/pdfCompressor';
 // 📄 IMPORTAR SISTEMA DE COMBINACIÓN
 import { combineFilesToPDF } from '../utils/pdfCombiner';
 
@@ -906,6 +907,34 @@ const NewCommitmentPage = () => {
       const combinationResult = await combineFilesToPDF(files, commitmentMetadata);
       setUploadProgress(60); // 60% - Combinación completada
 
+      // 🗜️ APLICAR COMPRESIÓN AL PDF COMBINADO
+      console.log('🗜️ Iniciando compresión del PDF combinado...');
+      setUploadProgress(70); // 70% - Iniciando compresión
+
+      let finalPDF = combinationResult.combinedPDF;
+      let compressionStats = null;
+
+      // Aplicar compresión solo a PDFs mayores de 100KB
+      if (combinationResult.combinedPDF.size > 100 * 1024) {
+        const compressionResult = await drGroupCompressor.compressPDF(
+          combinationResult.combinedPDF,
+          'balanced' // Usar compresión balanceada
+        );
+
+        if (compressionResult.success && compressionResult.compressedBlob) {
+          finalPDF = compressionResult.compressedBlob;
+          compressionStats = compressionResult.stats;
+          
+          console.log('✅ Compresión aplicada:', {
+            original: `${(combinationResult.combinedPDF.size / 1024).toFixed(2)} KB`,
+            comprimido: `${(finalPDF.size / 1024).toFixed(2)} KB`,
+            reducción: compressionStats?.reductionPercent || 'N/A'
+          });
+        }
+      }
+
+      setUploadProgress(80); // 80% - Compresión completada
+
       // Generar nombre único para el archivo combinado
       const timestamp = new Date().getTime();
       const fileName = `invoices/combined_${timestamp}_${Math.random().toString(36).substr(2, 9)}.pdf`;
@@ -913,19 +942,23 @@ const NewCommitmentPage = () => {
       // Crear referencia en Firebase Storage
       const storageRef = ref(storage, fileName);
       
-      setUploadProgress(80); // 80% - Preparando subida
+      setUploadProgress(90); // 90% - Preparando subida
 
-      // Subir archivo combinado único
-      const snapshot = await uploadBytes(storageRef, combinationResult.combinedPDF);
+      // Subir archivo combinado y comprimido
+      const snapshot = await uploadBytes(storageRef, finalPDF);
       const downloadURL = await getDownloadURL(snapshot.ref);
       
       setUploadProgress(100);
 
-      // Mostrar estadísticas de combinación
+      // Mostrar estadísticas de combinación y compresión
+      const statsMessage = compressionStats 
+        ? `${combinationResult.stats.processedFiles} archivo${combinationResult.stats.processedFiles !== 1 ? 's' : ''} combinado${combinationResult.stats.processedFiles !== 1 ? 's' : ''} en ${combinationResult.stats.totalPages} página${combinationResult.stats.totalPages !== 1 ? 's' : ''} | Compresión: ${compressionStats.reductionPercent} reducción`
+        : `${combinationResult.stats.processedFiles} archivo${combinationResult.stats.processedFiles !== 1 ? 's' : ''} combinado${combinationResult.stats.processedFiles !== 1 ? 's' : ''} en ${combinationResult.stats.totalPages} página${combinationResult.stats.totalPages !== 1 ? 's' : ''}`;
+
       addNotification({
         type: 'success',
-        title: 'Archivos Combinados Exitosamente',
-        message: `${combinationResult.stats.processedFiles} archivo${combinationResult.stats.processedFiles !== 1 ? 's' : ''} combinado${combinationResult.stats.processedFiles !== 1 ? 's' : ''} en ${combinationResult.stats.totalPages} página${combinationResult.stats.totalPages !== 1 ? 's' : ''} (${combinationResult.stats.sizeFormatted})`,
+        title: compressionStats ? 'Archivos Combinados y Comprimidos' : 'Archivos Combinados Exitosamente',
+        message: statsMessage,
         icon: 'success',
         color: 'success'
       });
@@ -935,13 +968,14 @@ const NewCommitmentPage = () => {
         setUploadProgress(0);
       }, 500);
 
-      // Retornar información del archivo único combinado
+      // Retornar información del archivo único combinado y comprimido
       return [{
         fileName: `Factura_Combinada_${timestamp}.pdf`,
         downloadURL: downloadURL,
-        size: combinationResult.combinedPDF.size,
+        size: finalPDF.size,
         type: 'application/pdf',
-        combinationStats: combinationResult.stats // Estadísticas adicionales
+        combinationStats: combinationResult.stats,
+        compressionStats: compressionStats // Agregar estadísticas de compresión
       }];
 
     } catch (error) {
@@ -951,8 +985,8 @@ const NewCommitmentPage = () => {
       
       addNotification({
         type: 'error',
-        title: 'Error al Combinar Archivos',
-        message: `No se pudieron combinar los archivos: ${error.message}`,
+        title: 'Error al Procesar Archivos',
+        message: `No se pudieron procesar los archivos: ${error.message}`,
         icon: 'error',
         color: 'error'
       });

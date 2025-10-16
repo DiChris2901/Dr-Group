@@ -253,11 +253,11 @@ const ReportsCompanyPage = () => {
     setCustomEndDate(endDate);
   };
 
-  // Helper para obtener rango activo (start/end)
+  // Helper para obtener rango activo (startDate/endDate)
   const activeDateRange = useMemo(() => {
     if (!dateRangeFilter || dateRangeFilter === 'all') return null;
     const r = getDateRangeFromFilter(dateRangeFilter, customStartDate, customEndDate);
-    if (!r || !isValid(r.start) || !isValid(r.end)) return null;
+    if (!r || !isValid(r.startDate) || !isValid(r.endDate)) return null;
     return r;
   }, [dateRangeFilter, customStartDate, customEndDate]);
 
@@ -559,12 +559,12 @@ const ReportsCompanyPage = () => {
     let dateFiltered = true;
     if (filters.dateRangeFilter && filters.dateRangeFilter !== 'all') {
       const dateRange = getDateRangeFromFilter(filters.dateRangeFilter, filters.customStartDate, filters.customEndDate);
-      if (dateRange && isValid(dateRange.start) && isValid(dateRange.end)) {
+      if (dateRange && isValid(dateRange.startDate) && isValid(dateRange.endDate)) {
         // Filtrar por compromisos que tengan fechas en el rango seleccionado
         const hasCommitmentsInRange = company.rawCommitments && company.rawCommitments.some(commitment => {
           if (!commitment.dueDate) return false;
           const commitmentDate = commitment.dueDate.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate);
-          return commitmentDate >= dateRange.start && commitmentDate <= dateRange.end;
+          return commitmentDate >= dateRange.startDate && commitmentDate <= dateRange.endDate;
         });
         dateFiltered = hasCommitmentsInRange;
       }
@@ -601,7 +601,7 @@ const ReportsCompanyPage = () => {
       
       // Aplicar filtro de fecha a los compromisos para recalcular métricas
       const dateRange = getDateRangeFromFilter(dateRangeFilter, customStartDate, customEndDate);
-      if (!dateRange || !isValid(dateRange.start) || !isValid(dateRange.end)) {
+      if (!dateRange || !isValid(dateRange.startDate) || !isValid(dateRange.endDate)) {
         return company;
       }
       
@@ -609,7 +609,7 @@ const ReportsCompanyPage = () => {
       const filteredCommitments = company.rawCommitments.filter(commitment => {
         if (!commitment.dueDate) return false;
         const commitmentDate = commitment.dueDate.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate);
-        return commitmentDate >= dateRange.start && commitmentDate <= dateRange.end;
+        return commitmentDate >= dateRange.startDate && commitmentDate <= dateRange.endDate;
       });
       
       // Recalcular métricas solo con compromisos del período
