@@ -61,8 +61,8 @@ const avatarMenuStyles = `
       opacity: 1;
     }
     50% { 
-      transform: scale(1.15);
-      opacity: 0.85;
+      transform: scale(1.2);
+      opacity: 0.8;
     }
   }
   
@@ -77,10 +77,19 @@ const avatarMenuStyles = `
   
   @keyframes glowPulse {
     0%, 100% {
-      box-shadow: 0 0 5px rgba(103, 126, 234, 0.3), 0 0 10px rgba(103, 126, 234, 0.2);
+      box-shadow: 0 0 8px rgba(103, 126, 234, 0.4), 0 0 16px rgba(103, 126, 234, 0.3), 0 0 24px rgba(103, 126, 234, 0.2);
     }
     50% {
-      box-shadow: 0 0 20px rgba(103, 126, 234, 0.6), 0 0 30px rgba(103, 126, 234, 0.4);
+      box-shadow: 0 0 16px rgba(103, 126, 234, 0.7), 0 0 32px rgba(103, 126, 234, 0.5), 0 0 48px rgba(103, 126, 234, 0.3);
+    }
+  }
+  
+  @keyframes iconGlow {
+    0%, 100% {
+      filter: drop-shadow(0 0 2px rgba(103, 126, 234, 0.3));
+    }
+    50% {
+      filter: drop-shadow(0 0 8px rgba(103, 126, 234, 0.6));
     }
   }
 `;
@@ -162,26 +171,41 @@ const DashboardHeader = ({ onOpenSettings }) => {
     }
   };
 
-  // 🎨 Estilo unificado para botones de la topbar - Spectacular V2
+  // 🎨 Estilo unificado para botones de la topbar - Spectacular V3 (Sin glassmorphism)
   const topbarButtonStyle = {
     width: 44,
     height: 44,
     color: theme.palette.text.secondary,
     borderRadius: 2,
-    background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.05)}, ${alpha(theme.palette.primary.main, 0.02)})`,
-    backdropFilter: 'blur(8px)',
-    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-    transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+    background: 'transparent',
+    border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+    transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+    position: 'relative',
+    overflow: 'hidden',
+    '&::before': {
+      content: '""',
+      position: 'absolute',
+      top: 0,
+      left: '-100%',
+      width: '100%',
+      height: '100%',
+      background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.1)}, transparent)`,
+      transition: 'left 0.5s ease',
+    },
     '&:hover': {
       color: theme.palette.primary.main,
-      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.15)}, ${alpha(theme.palette.primary.light, 0.08)})`,
-      transform: 'translateY(-3px) scale(1.05)',
-      boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.3)}, 0 0 20px ${alpha(theme.palette.primary.main, 0.2)}`,
-      border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.12)}, ${alpha(theme.palette.primary.light, 0.08)})`,
+      transform: 'translateY(-4px) scale(1.15)',
+      boxShadow: `0 12px 40px ${alpha(theme.palette.primary.main, 0.35)}, 0 0 30px ${alpha(theme.palette.primary.main, 0.25)}`,
+      border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
+      '&::before': {
+        left: '100%',
+      },
     },
     '& .MuiSvgIcon-root': {
       fontSize: '21px',
       filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
+      transition: 'all 0.3s ease',
     }
   };
 
@@ -637,31 +661,50 @@ const DashboardHeader = ({ onOpenSettings }) => {
               sx={{
                 width: '100%',
                 '& .MuiOutlinedInput-root': {
-                  height: '42px',
+                  height: '44px',
                   borderRadius: '16px',
-                  background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.4)}, ${alpha(theme.palette.primary.main, 0.05)})`,
-                  backdropFilter: 'blur(12px)',
-                  transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                  boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.08)}`,
+                  backgroundColor: theme.palette.mode === 'dark' 
+                    ? alpha(theme.palette.background.paper, 0.95)
+                    : '#ffffff',
+                  transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.1)}`,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    top: '-50%',
+                    left: '-50%',
+                    width: '200%',
+                    height: '200%',
+                    background: `linear-gradient(45deg, transparent 30%, ${alpha(theme.palette.primary.main, 0.1)} 50%, transparent 70%)`,
+                    animation: 'shimmer 3s infinite',
+                    pointerEvents: 'none',
+                  },
                   '& fieldset': {
-                    border: `1.5px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+                    border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`,
                     borderRadius: '16px',
+                    transition: 'all 0.3s ease',
                   },
                   '&:hover': {
-                    background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.6)}, ${alpha(theme.palette.primary.main, 0.1)})`,
-                    transform: 'translateY(-2px) scale(1.02)',
-                    boxShadow: `0 8px 30px ${alpha(theme.palette.primary.main, 0.2)}, 0 0 20px ${alpha(theme.palette.primary.main, 0.15)}`,
+                    transform: 'translateY(-3px) scale(1.03)',
+                    boxShadow: `0 12px 40px ${alpha(theme.palette.primary.main, 0.25)}`,
                     '& fieldset': {
-                      borderColor: alpha(theme.palette.primary.main, 0.3),
+                      borderColor: alpha(theme.palette.primary.main, 0.5),
+                      borderWidth: '2px',
                     },
                   },
                   '&.Mui-focused': {
-                    background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.primary.main, 0.12)})`,
-                    boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.25)}, 0 0 30px ${alpha(theme.palette.primary.main, 0.2)}`,
+                    transform: 'translateY(-3px) scale(1.03)',
+                    boxShadow: `0 12px 40px ${alpha(theme.palette.primary.main, 0.35)}`,
                     '& fieldset': {
                       borderColor: theme.palette.primary.main,
-                      borderWidth: '1.5px',
+                      borderWidth: '2px',
                     },
+                  },
+                  '@keyframes shimmer': {
+                    '0%': { transform: 'translate(-50%, -50%) rotate(0deg)' },
+                    '100%': { transform: 'translate(-50%, -50%) rotate(360deg)' },
                   },
                 },
                 '& .MuiInputBase-input': {
@@ -712,8 +755,9 @@ const DashboardHeader = ({ onOpenSettings }) => {
             onClick={handleNotificationsOpen}
             sx={{
               ...topbarButtonStyle,
+              animation: (unreadCount + alertsCount) > 0 ? 'iconGlow 2s ease-in-out infinite' : 'none',
               '& .MuiSvgIcon-root': {
-                fontSize: '23px', // Más grande para iconos críticos
+                fontSize: '24px', // Más grande para iconos críticos
               }
             }}
           >
@@ -767,12 +811,13 @@ const DashboardHeader = ({ onOpenSettings }) => {
         <Box
           sx={{
             mx: { xs: 0.5, md: 1 },
-            width: '2px',
-            height: 24,
+            width: '3px',
+            height: 28,
             alignSelf: 'center',
-            background: `linear-gradient(180deg, transparent, ${alpha(theme.palette.primary.main, 0.4)}, transparent)`,
-            borderRadius: '2px',
-            boxShadow: `0 0 8px ${alpha(theme.palette.primary.main, 0.2)}`,
+            background: `linear-gradient(180deg, transparent, ${alpha(theme.palette.primary.main, 0.6)}, transparent)`,
+            borderRadius: '3px',
+            boxShadow: `0 0 12px ${alpha(theme.palette.primary.main, 0.4)}`,
+            animation: 'glowPulse 4s ease-in-out infinite',
           }}
         />
 
@@ -816,12 +861,13 @@ const DashboardHeader = ({ onOpenSettings }) => {
         <Box
           sx={{
             mx: { xs: 0.5, md: 1 },
-            width: '2px',
-            height: 24,
+            width: '3px',
+            height: 28,
             alignSelf: 'center',
-            background: `linear-gradient(180deg, transparent, ${alpha(theme.palette.primary.main, 0.4)}, transparent)`,
-            borderRadius: '2px',
-            boxShadow: `0 0 8px ${alpha(theme.palette.primary.main, 0.2)}`,
+            background: `linear-gradient(180deg, transparent, ${alpha(theme.palette.primary.main, 0.6)}, transparent)`,
+            borderRadius: '3px',
+            boxShadow: `0 0 12px ${alpha(theme.palette.primary.main, 0.4)}`,
+            animation: 'glowPulse 4.5s ease-in-out infinite',
           }}
         />
 
@@ -872,8 +918,9 @@ const DashboardHeader = ({ onOpenSettings }) => {
             onClick={handleTasksOpen}
             sx={{
               ...topbarButtonStyle,
+              animation: pendingTasksCount > 0 ? 'iconGlow 2.5s ease-in-out infinite' : 'none',
               '& .MuiSvgIcon-root': {
-                fontSize: '23px', // Más grande para iconos críticos
+                fontSize: '24px', // Más grande para iconos críticos
               }
             }}
           >
@@ -972,11 +1019,11 @@ const DashboardHeader = ({ onOpenSettings }) => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.3)}, 0 0 30px ${alpha(theme.palette.primary.main, 0.15)}`,
-                transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.37)}`,
+                transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
                 '&:hover': {
-                  transform: 'translateY(-3px) scale(1.08)',
-                  boxShadow: `0 8px 30px ${alpha(theme.palette.primary.main, 0.4)}, 0 0 40px ${alpha(theme.palette.primary.main, 0.25)}`,
+                  transform: 'translateY(-4px) scale(1.1)',
+                  boxShadow: `0 12px 40px ${alpha(theme.palette.primary.main, 0.5)}`,
                   animation: 'glowPulse 1.5s ease-in-out infinite',
                 },
               }}
@@ -999,8 +1046,8 @@ const DashboardHeader = ({ onOpenSettings }) => {
                   borderRadius: '50%',
                   background: `radial-gradient(circle, ${theme.palette.success.light}, ${theme.palette.success.main})`,
                   border: `3px solid ${theme.palette.background.paper}`,
-                  boxShadow: `0 0 0 2px ${theme.palette.background.paper}, 0 0 12px ${alpha(theme.palette.success.main, 0.8)}, 0 0 20px ${alpha(theme.palette.success.main, 0.5)}`,
-                  animation: 'glowPulse 2s ease-in-out infinite',
+                  boxShadow: `0 0 0 2px ${theme.palette.background.paper}, 0 0 16px ${alpha(theme.palette.success.main, 0.9)}, 0 0 24px ${alpha(theme.palette.success.main, 0.6)}`,
+                  animation: 'glowPulse 2.5s ease-in-out infinite',
                 }}
               />
             </Box>
