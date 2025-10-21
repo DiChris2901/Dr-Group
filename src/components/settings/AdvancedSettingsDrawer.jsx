@@ -436,8 +436,11 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
   // Cargar datos al abrir la pestaña de seguridad
   React.useEffect(() => {
     if (activeTab === 3 && user) { // Pestaña de seguridad
-      loadLoginHistory();
-      loadActiveSessions();
+      // Delay para no bloquear la animación del drawer
+      setTimeout(() => {
+        loadLoginHistory();
+        loadActiveSessions();
+      }, 300);
     }
   }, [activeTab, user]);
 
@@ -554,7 +557,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
             animate={settings?.theme?.animations ? { x: 0, opacity: 1 } : { opacity: 1 }}
             exit={settings?.theme?.animations ? { x: 300, opacity: 0 } : { opacity: 0 }}
             transition={settings?.theme?.animations ? 
-              { type: 'spring', damping: 25, stiffness: 200 } : 
+              { duration: 0.2, ease: 'easeOut' } : 
               { duration: 0.1 }
             }
             style={{ height: '100%' }}
@@ -785,7 +788,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
             <Box sx={{ flex: 1, overflow: 'auto' }}>
               {/* TEMA TAB */}
               <TabPanel value={activeTab} index={0}>
-                <Stack spacing={3}>
+                {activeTab === 0 && (
+                  <Stack spacing={3}>
                   {/* Temas Predefinidos */}
                   <Card sx={{ 
                     border: `1px solid ${theme.palette.divider}`,
@@ -1390,6 +1394,24 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             <MenuItem value="Roboto" sx={{ fontFamily: 'Roboto' }}>
                               Roboto
                             </MenuItem>
+                            <MenuItem value="Poppins" sx={{ fontFamily: 'Poppins' }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                Poppins
+                                <Chip label="Moderna" size="small" color="secondary" sx={{ ml: 1 }} />
+                              </Box>
+                            </MenuItem>
+                            <MenuItem value="Montserrat" sx={{ fontFamily: 'Montserrat' }}>
+                              Montserrat
+                            </MenuItem>
+                            <MenuItem value="Open Sans" sx={{ fontFamily: 'Open Sans' }}>
+                              Open Sans
+                            </MenuItem>
+                            <MenuItem value="Lato" sx={{ fontFamily: 'Lato' }}>
+                              Lato
+                            </MenuItem>
+                            <MenuItem value="Source Sans Pro" sx={{ fontFamily: 'Source Sans Pro' }}>
+                              Source Sans Pro
+                            </MenuItem>
                             <MenuItem value="Public Sans" sx={{ fontFamily: 'Public Sans' }}>
                               Public Sans
                             </MenuItem>
@@ -1398,6 +1420,24 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             </MenuItem>
                             <MenuItem value="Nunito Sans" sx={{ fontFamily: 'Nunito Sans' }}>
                               Nunito Sans
+                            </MenuItem>
+                            <MenuItem value="Work Sans" sx={{ fontFamily: 'Work Sans' }}>
+                              Work Sans
+                            </MenuItem>
+                            <MenuItem value="Plus Jakarta Sans" sx={{ fontFamily: 'Plus Jakarta Sans' }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                Plus Jakarta Sans
+                                <Chip label="Premium" size="small" color="warning" sx={{ ml: 1 }} />
+                              </Box>
+                            </MenuItem>
+                            <MenuItem value="Outfit" sx={{ fontFamily: 'Outfit' }}>
+                              Outfit
+                            </MenuItem>
+                            <MenuItem value="Space Grotesk" sx={{ fontFamily: 'Space Grotesk' }}>
+                              Space Grotesk
+                            </MenuItem>
+                            <MenuItem value="Manrope" sx={{ fontFamily: 'Manrope' }}>
+                              Manrope
                             </MenuItem>
                             <MenuItem value="system-ui" sx={{ fontFamily: 'system-ui' }}>
                               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
@@ -1408,8 +1448,23 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             <MenuItem value="Arial" sx={{ fontFamily: 'Arial' }}>
                               Arial
                             </MenuItem>
+                            <MenuItem value="Helvetica" sx={{ fontFamily: 'Helvetica' }}>
+                              Helvetica
+                            </MenuItem>
+                            <MenuItem value="Segoe UI" sx={{ fontFamily: 'Segoe UI' }}>
+                              Segoe UI
+                            </MenuItem>
+                            <MenuItem value="Georgia" sx={{ fontFamily: 'Georgia' }}>
+                              Georgia
+                            </MenuItem>
                             <MenuItem value="Times New Roman" sx={{ fontFamily: 'Times New Roman' }}>
                               Times New Roman
+                            </MenuItem>
+                            <MenuItem value="Courier New" sx={{ fontFamily: 'Courier New' }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                                Courier New
+                                <Chip label="Mono" size="small" sx={{ ml: 1, bgcolor: alpha(theme.palette.info.main, 0.1), color: 'info.main' }} />
+                              </Box>
                             </MenuItem>
                           </Select>
                         </FormControl>
@@ -1581,11 +1636,13 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     </CardContent>
                   </Card>
                 </Stack>
+                )}
               </TabPanel>
 
               {/* DASHBOARD TAB */}
               <TabPanel value={activeTab} index={1}>
-                <Stack spacing={3}>
+                {activeTab === 1 && (
+                  <Stack spacing={3}>
                   {/* Layout Configuration */}
                   <Card sx={{ 
                     border: `1px solid ${theme.palette.divider}`,
@@ -2127,11 +2184,13 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     </CardContent>
                   </Card>
                 </Stack>
+                )}
               </TabPanel>
 
               {/* NOTIFICACIONES TAB */}
               <TabPanel value={activeTab} index={2}>
-                <Stack spacing={3}>
+                {activeTab === 2 && (
+                  <Stack spacing={3}>
                   {/* Notifications Main Settings */}
                   <Card sx={{ 
                     border: `1px solid ${theme.palette.divider}`,
@@ -2455,11 +2514,13 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     </>
                   )}
                 </Stack>
+                )}
               </TabPanel>
 
               {/* SEGURIDAD TAB */}
               <TabPanel value={activeTab} index={3}>
-                <Stack spacing={3}>
+                {activeTab === 3 && (
+                  <Stack spacing={3}>
                   {/* Historial de Inicios de Sesión */}
                   <Card sx={{ 
                     border: `1px solid ${theme.palette.divider}`,
@@ -2783,6 +2844,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     </Typography>
                   </Alert>
                 </Stack>
+                )}
               </TabPanel>
             </Box>
           </motion.div>
