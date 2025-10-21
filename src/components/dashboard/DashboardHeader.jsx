@@ -993,10 +993,11 @@ const DashboardHeader = ({ onOpenSettings }) => {
               ...topbarButtonStyle,
               '&:hover': {
                 ...topbarButtonStyle['&:hover'],
-                boxShadow: `0 12px 40px ${alpha(theme.palette.secondary.main, 0.35)}`,
+                boxShadow: `0 12px 40px ${alpha(theme.palette.mode === 'dark' ? theme.palette.warning.main : theme.palette.secondary.main, 0.35)}`,
               },
               '& .MuiSvgIcon-root': {
-                color: theme.palette.secondary.main,
+                color: theme.palette.mode === 'dark' ? theme.palette.warning.main : theme.palette.secondary.main,
+                filter: theme.palette.mode === 'dark' ? 'drop-shadow(0 0 6px rgba(255, 152, 0, 0.5))' : 'none',
               }
             }}
           >
