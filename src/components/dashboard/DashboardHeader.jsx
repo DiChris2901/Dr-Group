@@ -1197,7 +1197,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
           >
             <ListItemIcon sx={{ 
               minWidth: 40,
-              color: theme.palette.text.secondary
+              color: theme.palette.primary.main
             }}>
               <PersonIcon sx={{ fontSize: '24px' }} />
             </ListItemIcon>
@@ -1216,7 +1216,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
           >
             <ListItemIcon sx={{ 
               minWidth: 40,
-              color: theme.palette.text.secondary
+              color: theme.palette.secondary.main
             }}>
               <SettingsIcon sx={{ fontSize: '24px' }} />
             </ListItemIcon>
@@ -1255,7 +1255,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
           >
             <ListItemIcon sx={{ 
               minWidth: 40,
-              color: theme.palette.text.secondary
+              color: theme.palette.error.main
             }}>
               <LogoutIcon sx={{ fontSize: '24px' }} />
             </ListItemIcon>
