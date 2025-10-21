@@ -2585,26 +2585,28 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                         sx={{ fontSize: '0.7rem', height: 20 }}
                                       />
                                       <TimeIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                                      <Typography variant="body2">
+                                      <Typography variant="body2" component="span">
                                         {entry.timestamp ? format(entry.timestamp, "dd/MM/yyyy 'a las' HH:mm", { locale: es }) : 'Fecha no disponible'}
                                       </Typography>
                                     </Box>
                                   }
                                   secondary={
-                                    <Stack spacing={0.5}>
-                                      <Typography variant="body2" color="text.secondary">
+                                    <Stack spacing={0.5} component="div">
+                                      <Typography variant="body2" color="text.secondary" component="span">
                                         {entry.deviceInfo || 'Dispositivo desconocido'}
                                       </Typography>
                                       {entry.location && (
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                           <LocationIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-                                          <Typography variant="body2" color="text.secondary">
+                                          <Typography variant="body2" color="text.secondary" component="span">
                                             {entry.location}
                                           </Typography>
                                         </Box>
                                       )}
                                     </Stack>
                                   }
+                                  primaryTypographyProps={{ component: 'div' }}
+                                  secondaryTypographyProps={{ component: 'div' }}
                                 />
                               </ListItem>
                             ))
@@ -2682,7 +2684,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                 <ListItemText
                                   primary={
                                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                      <Typography variant="body1">
+                                      <Typography variant="body1" component="span">
                                         {session.deviceInfo || 'Dispositivo desconocido'}
                                       </Typography>
                                       {session.isCurrent ? (
@@ -2703,20 +2705,22 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                     </Box>
                                   }
                                   secondary={
-                                    <Stack spacing={0.5}>
-                                      <Typography variant="body2" color="text.secondary">
+                                    <Stack spacing={0.5} component="div">
+                                      <Typography variant="body2" color="text.secondary" component="span">
                                         Última actividad: {session.lastActivity ? format(session.lastActivity, "dd/MM/yyyy 'a las' HH:mm", { locale: es }) : 'Desconocida'}
                                       </Typography>
                                       {session.location && (
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                           <LocationIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-                                          <Typography variant="body2" color="text.secondary">
+                                          <Typography variant="body2" color="text.secondary" component="span">
                                             {session.location}
                                           </Typography>
                                         </Box>
                                       )}
                                     </Stack>
                                   }
+                                  primaryTypographyProps={{ component: 'div' }}
+                                  secondaryTypographyProps={{ component: 'div' }}
                                 />
                               </ListItem>
                             ))
