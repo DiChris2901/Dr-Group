@@ -1614,8 +1614,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                 <Stack spacing={3}>
                   {/* Layout Configuration */}
                   <Card sx={{ 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: 4,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
                     background: theme.palette.background.paper,
                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                     position: 'relative'
@@ -1687,10 +1687,10 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             sx={{
                               borderRadius: 2,
                               background: alpha(theme.palette.background.paper, 0.8),
-                              border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                              border: `1px solid ${theme.palette.divider}`,
                               '& .MuiToggleButton-root': {
                                 border: 'none',
-                                borderRadius: '8px !important',
+                                borderRadius: 1,
                                 mx: 0.5,
                                 transition: 'all 0.2s ease',
                                 '&.Mui-selected': {
@@ -1728,8 +1728,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
 
                   {/* Chart Type Configuration */}
                   <Card sx={{ 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: 4,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
                     background: theme.palette.background.paper,
                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                     position: 'relative'
@@ -2160,8 +2160,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                 <Stack spacing={3}>
                   {/* Notifications Main Settings */}
                   <Card sx={{ 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: 4,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
                     background: theme.palette.background.paper,
                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                     position: 'relative'
@@ -2230,8 +2230,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     <>
                       {/* Notification Types */}
                       <Card sx={{ 
-                        border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                        borderRadius: 4,
+                        border: `1px solid ${theme.palette.divider}`,
+                        borderRadius: 2,
                         background: theme.palette.background.paper,
                         boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                         position: 'relative'
@@ -2267,10 +2267,10 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             <Box 
                               sx={{
                                 p: 2,
-                                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                border: `1px solid ${theme.palette.divider}`,
                                 borderRadius: 2,
                                 bgcolor: settings.notifications?.proximosPagos ? alpha(theme.palette.primary.main, 0.04) : 'transparent',
-                                transition: 'all 0.3s ease'
+                                transition: 'all 0.2s ease'
                               }}
                             >
                               <Tooltip 
@@ -2320,10 +2320,10 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             <Box 
                               sx={{
                                 p: 2,
-                                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                border: `1px solid ${theme.palette.divider}`,
                                 borderRadius: 2,
                                 bgcolor: settings.notifications?.actualizacionesSistema ? alpha(theme.palette.primary.main, 0.04) : 'transparent',
-                                transition: 'all 0.3s ease'
+                                transition: 'all 0.2s ease'
                               }}
                             >
                               <Tooltip 
@@ -2373,10 +2373,10 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                             <Box 
                               sx={{
                                 p: 2,
-                                border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                                border: `1px solid ${theme.palette.divider}`,
                                 borderRadius: 2,
                                 bgcolor: settings.notifications?.montosElevados ? alpha(theme.palette.primary.main, 0.04) : 'transparent',
-                                transition: 'all 0.3s ease'
+                                transition: 'all 0.2s ease'
                               }}
                             >
                               <Tooltip 
