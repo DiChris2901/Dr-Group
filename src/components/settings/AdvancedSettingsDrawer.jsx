@@ -563,9 +563,9 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
             <Box
               sx={{
                 p: 3,
-                borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+                borderBottom: `1px solid ${theme.palette.divider}`,
                 background: theme.palette.background.paper,
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                 position: 'relative'
               }}
             >
@@ -575,7 +575,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     sx={{
                       width: 60,
                       height: 60,
-                      borderRadius: 4,
+                      borderRadius: 2,
                       background: settings?.theme?.primaryColor || '#667eea',
                       display: 'flex',
                       alignItems: 'center',
@@ -608,16 +608,9 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Typography variant="body2" sx={{ 
-                        color: 'text.secondary',
+                        color: theme.palette.text.secondary,
                         fontSize: `${(settings?.theme?.fontSize || 14) - 1}px`,
-                        fontWeight: 500,
-                        background: `linear-gradient(90deg, 
-                          ${alpha(settings?.theme?.primaryColor || '#667eea', 0.7)} 0%, 
-                          ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.7)} 100%
-                        )`,
-                        backgroundClip: 'text',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent'
+                        fontWeight: 500
                       }}>
                         Personaliza tu dashboard
                       </Typography>
@@ -629,7 +622,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           sx={{ 
                             fontSize: `${(settings?.theme?.fontSize || 14) - 4}px`, 
                             height: 18,
-                            borderRadius: `${(settings?.theme?.borderRadius || 8) / 2}px`
+                            borderRadius: 1
                           }}
                         />
                       )}
@@ -641,7 +634,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           sx={{ 
                             fontSize: `${(settings?.theme?.fontSize || 14) - 4}px`, 
                             height: 18,
-                            borderRadius: `${(settings?.theme?.borderRadius || 8) / 2}px`
+                            borderRadius: 1
                           }}
                         />
                       )}
@@ -680,26 +673,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
             <Box sx={{ 
               borderBottom: 1, 
               borderColor: 'divider',
-              background: `linear-gradient(135deg, 
-                ${alpha(settings?.theme?.primaryColor || '#667eea', 0.02)} 0%, 
-                ${alpha(theme.palette.background.default, 0.95)} 50%,
-                ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.02)} 100%
-              )`,
-              position: 'relative',
-              '&::before': {
-                content: '""',
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                height: '1px',
-                background: `linear-gradient(90deg, 
-                  transparent 0%, 
-                  ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)} 20%,
-                  ${alpha(settings?.theme?.secondaryColor || '#764ba2', 0.3)} 80%,
-                  transparent 100%
-                )`,
-              }
+              background: theme.palette.background.paper
             }}>
               <Tabs
                 value={activeTab}
@@ -729,7 +703,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     color: alpha(theme.palette.text.primary, 0.7),
                     padding: '10px 16px',
                     margin: '0 4px',
-                    borderRadius: '4px 4px 0 0',
+                    borderRadius: '8px 8px 0 0',
                     transition: 'all 0.2s ease',
                     '&:hover': {
                       backgroundColor: alpha(theme.palette.primary.main, 0.08),
