@@ -1114,7 +1114,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
                 photoURL={userProfile?.photoURL}
                 name={userProfile?.name}
                 email={userProfile?.email}
-                size={52}
+                size={56}
                 border={true}
                 sx={{
                   border: `2px solid ${theme.palette.primary.main}`,
@@ -1142,7 +1142,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
                 variant="h6" 
                 sx={{ 
                   fontWeight: 600, 
-                  fontSize: '1rem',
+                  fontSize: '1.125rem',
                   mb: 0.5,
                   color: theme.palette.text.primary
                 }}
@@ -1153,7 +1153,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
                 variant="body2" 
                 sx={{ 
                   color: theme.palette.text.secondary,
-                  fontSize: '0.875rem',
+                  fontSize: '0.9375rem',
                   mb: 1
                 }}
               >
@@ -1174,7 +1174,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
                   variant="caption" 
                   sx={{ 
                     fontWeight: 500,
-                    fontSize: '0.75rem',
+                    fontSize: '0.8125rem',
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px',
                     color: theme.palette.primary.main
@@ -1199,13 +1199,13 @@ const DashboardHeader = ({ onOpenSettings }) => {
               minWidth: 40,
               color: theme.palette.text.secondary
             }}>
-              <PersonIcon sx={{ fontSize: '21px' }} />
+              <PersonIcon sx={{ fontSize: '24px' }} />
             </ListItemIcon>
             <ListItemText 
               primary="Mi Perfil" 
               primaryTypographyProps={{
                 fontWeight: 500,
-                fontSize: '0.9rem'
+                fontSize: '1rem'
               }}
             />
           </MenuItem>
@@ -1218,13 +1218,13 @@ const DashboardHeader = ({ onOpenSettings }) => {
               minWidth: 40,
               color: theme.palette.text.secondary
             }}>
-              <SettingsIcon sx={{ fontSize: '21px' }} />
+              <SettingsIcon sx={{ fontSize: '24px' }} />
             </ListItemIcon>
             <ListItemText 
               primary="Configuración" 
               primaryTypographyProps={{
                 fontWeight: 500,
-                fontSize: '0.9rem'
+                fontSize: '1rem'
               }}
             />
           </MenuItem>
@@ -1257,13 +1257,13 @@ const DashboardHeader = ({ onOpenSettings }) => {
               minWidth: 40,
               color: theme.palette.text.secondary
             }}>
-              <LogoutIcon sx={{ fontSize: '21px' }} />
+              <LogoutIcon sx={{ fontSize: '24px' }} />
             </ListItemIcon>
             <ListItemText 
               primary="Cerrar Sesión" 
               primaryTypographyProps={{
                 fontWeight: 500,
-                fontSize: '0.9rem'
+                fontSize: '1rem'
               }}
             />
           </MenuItem>
