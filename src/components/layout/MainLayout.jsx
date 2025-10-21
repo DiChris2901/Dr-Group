@@ -183,7 +183,7 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
                   <Box
                     sx={{
                       width: 4,
-                      height: 22,
+                      height: 26,
                       backgroundColor: theme.palette.primary.main,
                       borderRadius: 1,
                       mr: 1.5,
@@ -193,9 +193,9 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
                   <Typography
                     variant="h6"
                     sx={{
-                      fontWeight: 600,
+                      fontWeight: 700,
                       color: theme.palette.text.primary,
-                      fontSize: '1.1rem',
+                      fontSize: '1.5rem',
                       whiteSpace: 'nowrap',
                       overflow: 'visible',
                       maxWidth: 'none',
@@ -211,7 +211,7 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
                   <Breadcrumbs
                     aria-label="breadcrumb"
                     sx={{
-                      fontSize: '0.75rem',
+                      fontSize: '1rem',
                       '& .MuiBreadcrumbs-separator': {
                         color: theme.palette.text.secondary,
                         opacity: 0.7,
@@ -243,12 +243,12 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
                         },
                       }}
                     >
-                      <HomeIcon sx={{ mr: 0.5, fontSize: '16px', flexShrink: 0 }} />
+                      <HomeIcon sx={{ mr: 0.5, fontSize: '18px', flexShrink: 0 }} />
                       <Typography 
                         variant="caption" 
                         sx={{ 
                           fontWeight: 500, 
-                          fontSize: '0.75rem',
+                          fontSize: '1rem',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -270,11 +270,11 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
                           maxWidth: 200,
                         }}
                       >
-                        <BusinessIcon sx={{ mr: 0.5, fontSize: 16, color: theme.palette.primary.main, flexShrink: 0 }} />
+                        <BusinessIcon sx={{ mr: 0.5, fontSize: 18, color: theme.palette.primary.main, flexShrink: 0 }} />
                         <Typography
                           variant="caption"
                           sx={{
-                            fontSize: '0.75rem',
+                            fontSize: '1rem',
                             color: theme.palette.text.primary,
                             fontWeight: 600,
                             whiteSpace: 'nowrap',
