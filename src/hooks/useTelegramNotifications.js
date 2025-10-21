@@ -25,6 +25,16 @@ export const useTelegramNotifications = () => {
       throw new Error('❌ Chat ID de Telegram no proporcionado');
     }
 
+    // Convertir chatId a número si es string
+    const numericChatId = typeof chatId === 'string' ? parseInt(chatId, 10) : chatId;
+    
+    console.log('🔍 Telegram Debug:', {
+      originalChatId: chatId,
+      numericChatId,
+      type: typeof numericChatId,
+      botToken: BOT_TOKEN ? '✅ Configurado' : '❌ Faltante'
+    });
+
     setSending(true);
     setError(null);
 
@@ -35,7 +45,7 @@ export const useTelegramNotifications = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          chat_id: chatId,
+          chat_id: numericChatId,
           text: message,
           parse_mode: 'HTML',
           disable_web_page_preview: options.disablePreview || false,
@@ -66,7 +76,10 @@ export const useTelegramNotifications = () => {
    */
   const verifyChatId = async (chatId) => {
     try {
-      const response = await fetch(`${TELEGRAM_API_URL}/getChat?chat_id=${chatId}`);
+      // Convertir chatId a número si es string
+      const numericChatId = typeof chatId === 'string' ? parseInt(chatId, 10) : chatId;
+      
+      const response = await fetch(`${TELEGRAM_API_URL}/getChat?chat_id=${numericChatId}`);
       const data = await response.json();
       
       if (!data.ok) {
