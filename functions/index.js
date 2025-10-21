@@ -193,3 +193,76 @@ exports.storageProxy = onRequest(async (req, res) => {
     res.status(500).json({ error: 'Internal error', details: err.message });
   }
 });
+
+/**
+ * Webhook para Telegram Bot
+ * Responde automáticamente al comando /start con el Chat ID del usuario
+ */
+exports.telegramWebhook = onRequest(async (req, res) => {
+  // Solo aceptar POST requests
+  if (req.method !== 'POST') {
+    return res.status(200).send('OK');
+  }
+
+  try {
+    const update = req.body;
+    
+    // Verificar si hay un mensaje
+    if (!update.message) {
+      return res.status(200).send('OK');
+    }
+
+    const message = update.message;
+    const chatId = message.chat.id;
+    const text = message.text;
+    const firstName = message.from.first_name || 'Usuario';
+    const username = message.from.username || '';
+
+    // Responder al comando /start
+    if (text && text.toLowerCase() === '/start') {
+      const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+      
+      if (!BOT_TOKEN) {
+        console.error('❌ TELEGRAM_BOT_TOKEN no configurado');
+        return res.status(200).send('OK');
+      }
+
+      const responseMessage = 
+        `🎉 ¡Hola ${firstName}! 👋\n\n` +
+        `Tu bot de DR Group está listo para enviarte notificaciones.\n\n` +
+        `📱 <b>Tu Chat ID es:</b> <code>${chatId}</code>\n\n` +
+        `✅ Copia este número y pégalo en la configuración de notificaciones del dashboard.\n\n` +
+        `💡 <b>Instrucciones:</b>\n` +
+        `1. Ve a la página de Usuarios en el dashboard\n` +
+        `2. Haz clic en el botón de configuración (⚙️)\n` +
+        `3. Activa Telegram\n` +
+        `4. Pega tu Chat ID: <code>${chatId}</code>\n` +
+        `5. Guarda y prueba la notificación\n\n` +
+        `🤖 <i>DR Group Bot</i>`;
+
+      // Enviar respuesta
+      const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: responseMessage,
+          parse_mode: 'HTML'
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.ok) {
+        console.log(`✅ Respuesta enviada a ${firstName} (${username}) - Chat ID: ${chatId}`);
+      } else {
+        console.error('❌ Error enviando mensaje:', data);
+      }
+    }
+
+    return res.status(200).send('OK');
+  } catch (error) {
+    console.error('❌ Error en webhook:', error);
+    return res.status(200).send('OK'); // Siempre retornar 200 para Telegram
+  }
+});
