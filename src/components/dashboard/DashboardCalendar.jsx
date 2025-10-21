@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Box,
   Card,
@@ -51,6 +51,12 @@ import { useCommitments } from '../../hooks/useCommitments';
 import { useContractExpirationAlerts } from '../../hooks/useContractExpirationAlerts';
 import CalendarEventDetails from './CalendarEventDetails';
 import AddEventModal from './AddEventModal';
+import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
+import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import { useEmailNotifications } from '../../hooks/useEmailNotifications';
+import { useTelegramNotifications } from '../../hooks/useTelegramNotifications';
 
 /**
  * Función para verificar si un día es hábil (no fin de semana ni festivo)
@@ -150,10 +156,37 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
   const [customEvents, setCustomEvents] = useState([]);
   const [showAddEventModal, setShowAddEventModal] = useState(false);
   const [selectedDateForEvent, setSelectedDateForEvent] = useState(null);
+  const [savingEvent, setSavingEvent] = useState(false);
 
   const holidays = useColombianHolidays(currentDate.getFullYear());
   const { commitments } = useCommitments();
   const { companies } = useContractExpirationAlerts();
+  const { user } = useAuth();
+  const { showToast } = useToast();
+  const { sendCustomNotification: sendEmailNotification } = useEmailNotifications();
+  const { sendCustomNotification: sendTelegramNotification } = useTelegramNotifications();
+
+  // 🔄 Cargar eventos desde Firestore
+  useEffect(() => {
+    const loadCalendarEvents = async () => {
+      try {
+        const eventsQuery = query(collection(db, 'calendar_events'));
+        const eventsSnapshot = await getDocs(eventsQuery);
+        
+        const loadedEvents = eventsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          date: doc.data().date?.toDate ? doc.data().date.toDate() : new Date(doc.data().date)
+        }));
+        
+        setCustomEvents(loadedEvents);
+      } catch (error) {
+        console.error('Error cargando eventos del calendario:', error);
+      }
+    };
+    
+    loadCalendarEvents();
+  }, []);
 
   // Generar días del calendario
   const calendarDays = useMemo(() => {
@@ -393,11 +426,104 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
     setShowAddEventModal(true);
   };
 
-  // 🆕 Guardar evento personalizado
-  const handleSaveEvent = (eventData) => {
-    setCustomEvents(prev => [...prev, eventData]);
-    setShowAddEventModal(false);
-    setSelectedDateForEvent(null);
+  // 🆕 Guardar evento personalizado con notificaciones
+  const handleSaveEvent = async (eventData) => {
+    setSavingEvent(true);
+    
+    try {
+      // Guardar en Firestore
+      const eventToSave = {
+        ...eventData,
+        createdBy: user?.uid,
+        createdByName: user?.displayName || user?.email,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      const docRef = await addDoc(collection(db, 'calendar_events'), eventToSave);
+      
+      // Actualizar estado local
+      const savedEvent = {
+        ...eventToSave,
+        id: docRef.id
+      };
+      
+      setCustomEvents(prev => [...prev, savedEvent]);
+      
+      // 📧 Obtener configuraciones de notificación de todos los usuarios
+      const notificationsQuery = query(
+        collection(db, 'notificationSettings'),
+        where('calendarEventsEnabled', '==', true)
+      );
+      const notificationsSnapshot = await getDocs(notificationsQuery);
+      
+      // 📨 Enviar notificaciones a usuarios suscritos
+      const notificationPromises = [];
+      
+      notificationsSnapshot.forEach(doc => {
+        const settings = doc.data();
+        
+        // Preparar datos del evento para notificación
+        const eventNotificationData = {
+          eventTitle: eventData.title,
+          eventDescription: eventData.description || 'Sin descripción',
+          eventDate: format(eventData.date, "dd 'de' MMMM 'de' yyyy", { locale: es }),
+          eventPriority: eventData.priority === 'high' ? 'Alta' : eventData.priority === 'medium' ? 'Media' : 'Baja',
+          createdBy: user?.displayName || user?.email
+        };
+        
+        // Email
+        if (settings.emailEnabled && settings.email) {
+          notificationPromises.push(
+            sendEmailNotification(
+              settings.email,
+              `📅 Nuevo Evento en Calendario: ${eventData.title}`,
+              `
+                <h2>Nuevo Evento Agregado al Calendario</h2>
+                <p><strong>📌 Título:</strong> ${eventNotificationData.eventTitle}</p>
+                <p><strong>📅 Fecha:</strong> ${eventNotificationData.eventDate}</p>
+                <p><strong>📝 Descripción:</strong> ${eventNotificationData.eventDescription}</p>
+                <p><strong>⚡ Prioridad:</strong> ${eventNotificationData.eventPriority}</p>
+                <p><strong>👤 Creado por:</strong> ${eventNotificationData.createdBy}</p>
+                <hr>
+                <p style="color: #666; font-size: 12px;">Puedes ver más detalles en el dashboard de DR Group.</p>
+              `
+            ).catch(err => console.error('Error enviando email:', err))
+          );
+        }
+        
+        // Telegram
+        if (settings.telegramEnabled && settings.telegramChatId) {
+          const telegramMessage = `
+📅 <b>Nuevo Evento en Calendario</b>\n\n` +
+            `📌 <b>Título:</b> ${eventNotificationData.eventTitle}\n` +
+            `📅 <b>Fecha:</b> ${eventNotificationData.eventDate}\n` +
+            `📝 <b>Descripción:</b> ${eventNotificationData.eventDescription}\n` +
+            `⚡ <b>Prioridad:</b> ${eventNotificationData.eventPriority}\n` +
+            `👤 <b>Creado por:</b> ${eventNotificationData.createdBy}`;
+          
+          notificationPromises.push(
+            sendTelegramNotification(
+              settings.telegramChatId,
+              telegramMessage
+            ).catch(err => console.error('Error enviando Telegram:', err))
+          );
+        }
+      });
+      
+      // Esperar a que se envíen todas las notificaciones
+      await Promise.allSettled(notificationPromises);
+      
+      showToast('✅ Evento creado y notificaciones enviadas', 'success');
+      setShowAddEventModal(false);
+      setSelectedDateForEvent(null);
+      
+    } catch (error) {
+      console.error('Error guardando evento:', error);
+      showToast('❌ Error al guardar el evento', 'error');
+    } finally {
+      setSavingEvent(false);
+    }
   };
 
   const saveEvent = () => {

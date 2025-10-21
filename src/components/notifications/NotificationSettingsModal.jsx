@@ -100,7 +100,8 @@ const NotificationSettingsModal = ({ open, onClose, user }) => {
     dataExport: false,
     // 📋 Otros
     newCommitments: true,
-    automaticEvents: true
+    automaticEvents: true,
+    calendarEventsEnabled: true // 🆕 Eventos del calendario
   });
   
   const [loading, setLoading] = useState(false);
@@ -708,13 +709,14 @@ const NotificationSettingsModal = ({ open, onClose, user }) => {
                   Eventos adicionales del sistema
                 </Typography>
               </Box>
-              <Chip label={`${[settings.newCommitments, settings.automaticEvents].filter(Boolean).length}/2`} size="small" />
+              <Chip label={`${[settings.newCommitments, settings.automaticEvents, settings.calendarEventsEnabled].filter(Boolean).length}/3`} size="small" />
             </Box>
           </AccordionSummary>
           <AccordionDetails>
             <FormGroup>
               <FormControlLabel control={<Checkbox checked={settings.newCommitments} onChange={handleCheckboxChange('newCommitments')} />} label="✨ Nuevos compromisos" />
               <FormControlLabel control={<Checkbox checked={settings.automaticEvents} onChange={handleCheckboxChange('automaticEvents')} />} label="🤖 Eventos automáticos" />
+              <FormControlLabel control={<Checkbox checked={settings.calendarEventsEnabled} onChange={handleCheckboxChange('calendarEventsEnabled')} />} label="📅 Eventos del calendario" />
             </FormGroup>
           </AccordionDetails>
         </Accordion>

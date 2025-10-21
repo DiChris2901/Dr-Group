@@ -276,6 +276,13 @@ export const useTelegramNotifications = () => {
     return await sendTelegramMessage(chatId, message);
   };
 
+  /**
+   * 📅 Notificación Personalizada (para eventos del calendario)
+   */
+  const sendCustomNotification = async (chatId, message) => {
+    return await sendTelegramMessage(chatId, message);
+  };
+
   return {
     // Estados
     sending,
@@ -296,6 +303,9 @@ export const useTelegramNotifications = () => {
     sendPaymentRegisteredNotification,
     sendPartialPaymentNotification,
     sendIncomeReceivedNotification,
-    sendTestNotification
+    sendTestNotification,
+    
+    // 📅 Eventos Personalizados
+    sendCustomNotification
   };
 };

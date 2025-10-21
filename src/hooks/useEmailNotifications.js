@@ -430,6 +430,30 @@ export const useEmailNotifications = () => {
     });
   };
 
+  // 📅 Notificación personalizada (para eventos del calendario)
+  const sendCustomNotification = async (recipientEmail, subject, htmlContent) => {
+    setSending(true);
+    setError(null);
+
+    try {
+      const response = await sendEmailNotification(recipientEmail, {
+        recipient_name: 'Usuario',
+        recipient_email: recipientEmail,
+        subject: subject,
+        message: htmlContent
+      });
+
+      console.log('✅ Notificación personalizada enviada');
+      return response;
+    } catch (err) {
+      console.error('❌ Error enviando notificación personalizada:', err);
+      setError(err.message);
+      throw err;
+    } finally {
+      setSending(false);
+    }
+  };
+
   // Estado y funciones expuestas
   return {
     // Estados
@@ -464,6 +488,9 @@ export const useEmailNotifications = () => {
     
     // �🔐 Seguridad (FASE 2)
     sendCriticalPermissionChangeNotification,
+    
+    // 📅 Eventos Personalizados
+    sendCustomNotification,
     
     // Utilidades
     initEmailJS,
