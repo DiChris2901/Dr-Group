@@ -814,8 +814,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                 <Stack spacing={3}>
                   {/* Temas Predefinidos */}
                   <Card sx={{ 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: 4,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
                     background: theme.palette.background.paper,
                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                     position: 'relative'
@@ -865,39 +865,34 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                               }}
                               onClick={() => applyPredefinedTheme(themeKey)}
                             >
-                              {/* Theme preview background - más compacto */}
+                              {/* Theme preview background - diseño sobrio */}
                               <Box sx={{
-                                height: 36, // Reducido de 60 a 36
+                                height: 48,
                                 background: themeConfig.mode === 'dark' 
-                                  ? `linear-gradient(135deg, ${themeConfig.primaryColor}22 0%, ${themeConfig.secondaryColor}22 100%)`
-                                  : `linear-gradient(135deg, ${themeConfig.primaryColor}33 0%, ${themeConfig.secondaryColor}33 100%)`,
+                                  ? alpha(themeConfig.primaryColor, 0.15)
+                                  : alpha(themeConfig.primaryColor, 0.25),
                                 position: 'relative',
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'center'
+                                justifyContent: 'center',
+                                borderBottom: `2px solid ${themeConfig.primaryColor}`
                               }}>
                                 <Box sx={{
                                   display: 'flex',
-                                  gap: 0.3, // Reducido el gap
+                                  gap: 0.5,
                                   alignItems: 'center'
                                 }}>
                                   <Box sx={{
-                                    width: 8, // Reducido de 12 a 8
-                                    height: 8,
+                                    width: 12,
+                                    height: 12,
                                     borderRadius: '50%',
                                     backgroundColor: themeConfig.primaryColor
                                   }} />
                                   <Box sx={{
-                                    width: 6, // Reducido de 10 a 6
-                                    height: 6,
+                                    width: 10,
+                                    height: 10,
                                     borderRadius: '50%',
                                     backgroundColor: themeConfig.secondaryColor
-                                  }} />
-                                  <Box sx={{
-                                    width: 5, // Reducido de 8 a 5
-                                    height: 5,
-                                    borderRadius: '50%',
-                                    backgroundColor: alpha(themeConfig.primaryColor, 0.6)
                                   }} />
                                 </Box>
                               </Box>
@@ -929,7 +924,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                 </Typography>
                                 <Box sx={{ 
                                   display: 'flex', 
-                                  gap: 0.5, // Reducido gap
+                                  gap: 0.5,
                                   alignItems: 'center',
                                   flexWrap: 'wrap'
                                 }}>
@@ -937,11 +932,11 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                     label={themeConfig.mode === 'dark' ? '🌙' : '☀️'}
                                     size="small"
                                     sx={{ 
-                                      fontSize: '0.6rem', // Reducido
-                                      height: 16, // Reducido de 20 a 16
+                                      fontSize: '0.7rem',
+                                      height: 20,
                                       minWidth: 'auto',
                                       '& .MuiChip-label': { 
-                                        px: 0.5, // Reducido padding
+                                        px: 0.75,
                                         py: 0
                                       }
                                     }}
@@ -950,13 +945,13 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                     label={themeConfig.fontFamily}
                                     size="small"
                                     sx={{ 
-                                      fontSize: '0.58rem', // Muy pequeño
-                                      height: 16,
+                                      fontSize: '0.7rem',
+                                      height: 20,
                                       backgroundColor: alpha(themeConfig.primaryColor, 0.1),
                                       color: themeConfig.primaryColor,
                                       fontWeight: 500,
                                       '& .MuiChip-label': { 
-                                        px: 0.5,
+                                        px: 0.75,
                                         py: 0
                                       }
                                     }}
@@ -972,8 +967,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
 
                   {/* Color Presets */}
                   <Card sx={{ 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: 4,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
                     background: theme.palette.background.paper,
                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                     position: 'relative'
@@ -1037,27 +1032,16 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                 <Box
                                   sx={{
                                     width: '100%',
-                                    height: 36,
-                                    borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
-                                    background: `linear-gradient(135deg, ${colors.light} 0%, ${colors.main} 50%, ${colors.dark} 100%)`,
+                                    height: 48,
+                                    borderRadius: 1,
+                                    background: colors.main,
                                     mb: 1.5,
-                                    boxShadow: `0 3px 12px ${alpha(colors.main, 0.3)}`,
-                                    position: 'relative',
-                                    overflow: 'hidden',
-                                    transition: 'all 0.3s ease',
-                                    '&::after': {
-                                      content: '""',
-                                      position: 'absolute',
-                                      top: 0,
-                                      left: '-50%',
-                                      width: '50%',
-                                      height: '100%',
-                                      background: `linear-gradient(90deg, transparent 0%, ${alpha(colors.lighter, 0.4)} 50%, transparent 100%)`,
-                                      transform: 'skewX(-25deg)',
-                                      transition: 'left 0.6s ease'
-                                    },
-                                    '&:hover::after': {
-                                      left: '100%'
+                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                                    transition: 'all 0.2s ease',
+                                    border: `1px solid ${alpha(colors.main, 0.6)}`,
+                                    '&:hover': {
+                                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                                      borderColor: colors.dark
                                     }
                                   }}
                                 />
@@ -1075,8 +1059,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
 
                   {/* Selectores de Color Personalizados */}
                   <Card sx={{ 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: 4,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
                     background: theme.palette.background.paper,
                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                     position: 'relative'
@@ -1144,8 +1128,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       <Box sx={{ 
                         mt: 3, 
                         p: 2, 
-                        borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
-                        border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                        borderRadius: 1,
+                        border: `1px solid ${theme.palette.divider}`,
                         background: alpha(settings?.theme?.primaryColor || '#1976d2', 0.05)
                       }}>
                         <Typography variant="caption" sx={{ 
@@ -1188,8 +1172,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
 
                   {/* Mode Selection */}
                   <Card sx={{ 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: 4,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
                     background: theme.palette.background.paper,
                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                     position: 'relative'
@@ -1225,7 +1209,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           sx={{ 
                             flex: 1, 
                             py: 1.5, 
-                            borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
+                            borderRadius: 1,
                             fontWeight: 500,
                             textTransform: 'none',
                             ...(settings?.theme?.mode === 'light' ? {
@@ -1255,7 +1239,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           sx={{ 
                             flex: 1, 
                             py: 1.5,
-                            borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
+                            borderRadius: 1,
                             fontWeight: 500,
                             textTransform: 'none',
                             ...(settings?.theme?.mode === 'dark' ? {
@@ -1282,8 +1266,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
 
                   {/* Advanced Options */}
                   <Card sx={{ 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: 4,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
                     background: theme.palette.background.paper,
                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                     position: 'relative'
@@ -1370,8 +1354,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
 
                   {/* Typography Settings */}
                   <Card sx={{ 
-                    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-                    borderRadius: 4,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
                     background: theme.palette.background.paper,
                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                     position: 'relative'
@@ -1505,9 +1489,9 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                   width: 24,
                                   backgroundColor: theme.palette.primary.main,
                                   border: `3px solid ${theme.palette.background.paper}`,
-                                  boxShadow: `0 3px 12px ${alpha(theme.palette.primary.main, 0.4)}`,
+                                  boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
                                   '&:hover': {
-                                    boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.5)}`,
+                                    boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}`,
                                   },
                                   '&.Mui-focusVisible': {
                                     boxShadow: `0 0 0 8px ${alpha(theme.palette.primary.main, 0.16)}`,
@@ -1539,8 +1523,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                           <Box sx={{ 
                             mt: 2, 
                             p: 2, 
-                            borderRadius: `${(settings?.theme?.borderRadius || 8)}px`,
-                            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                            borderRadius: 1,
+                            border: `1px solid ${theme.palette.divider}`,
                             backgroundColor: alpha(theme.palette.primary.main, 0.05)
                           }}>
                             <Typography variant="caption" sx={{ 
