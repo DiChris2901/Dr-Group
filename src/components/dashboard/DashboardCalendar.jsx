@@ -450,18 +450,21 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
       
       setCustomEvents(prev => [...prev, savedEvent]);
       
-      // 📧 Obtener configuraciones de notificación de todos los usuarios
-      const notificationsQuery = query(
-        collection(db, 'notificationSettings'),
-        where('calendarEventsEnabled', '==', true)
-      );
-      const notificationsSnapshot = await getDocs(notificationsQuery);
+      // 📧 Obtener todos los usuarios con sus configuraciones de notificación
+      const usersQuery = query(collection(db, 'users'));
+      const usersSnapshot = await getDocs(usersQuery);
       
       // 📨 Enviar notificaciones a usuarios suscritos
       const notificationPromises = [];
       
-      notificationsSnapshot.forEach(doc => {
-        const settings = doc.data();
+      usersSnapshot.forEach(userDoc => {
+        const userData = userDoc.data();
+        const settings = userData.notificationSettings;
+        
+        // Verificar si el usuario tiene notificaciones de calendario habilitadas
+        if (!settings || !settings.calendarEventsEnabled) {
+          return; // Skip este usuario
+        }
         
         // Preparar datos del evento para notificación
         const eventNotificationData = {
