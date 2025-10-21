@@ -756,8 +756,21 @@ const DashboardHeader = ({ onOpenSettings }) => {
             sx={{
               ...topbarButtonStyle,
               animation: (unreadCount + alertsCount) > 0 ? 'iconGlow 2s ease-in-out infinite' : 'none',
+              '&:hover': {
+                ...topbarButtonStyle['&:hover'],
+                boxShadow: alertsCount > 0 
+                  ? `0 12px 40px ${alpha(theme.palette.error.main, 0.35)}`
+                  : unreadCount > 0 
+                  ? `0 12px 40px ${alpha(theme.palette.warning.main, 0.35)}`
+                  : `0 12px 40px ${alpha(theme.palette.info.main, 0.35)}`,
+              },
               '& .MuiSvgIcon-root': {
-                fontSize: '26px', // Más grande para iconos críticos
+                fontSize: '26px',
+                color: alertsCount > 0 
+                  ? theme.palette.error.main 
+                  : unreadCount > 0 
+                  ? theme.palette.warning.main 
+                  : theme.palette.info.main,
               }
             }}
           >
@@ -833,9 +846,15 @@ const DashboardHeader = ({ onOpenSettings }) => {
         >
           <IconButton
             onClick={handleCalendarOpen}
-            sx={topbarButtonStyle}
+            sx={{
+              ...topbarButtonStyle,
+              '&:hover': {
+                ...topbarButtonStyle['&:hover'],
+                boxShadow: `0 12px 40px ${alpha(theme.palette.primary.main, 0.35)}`,
+              },
+            }}
           >
-            <CalendarIcon sx={{ fontSize: 22 }} />
+            <CalendarIcon sx={{ fontSize: 22, color: theme.palette.primary.main }} />
           </IconButton>
         </Tooltip>
 
@@ -851,9 +870,15 @@ const DashboardHeader = ({ onOpenSettings }) => {
         >
           <IconButton
             onClick={handleNotesOpen}
-            sx={topbarButtonStyle}
+            sx={{
+              ...topbarButtonStyle,
+              '&:hover': {
+                ...topbarButtonStyle['&:hover'],
+                boxShadow: `0 12px 40px ${alpha(theme.palette.warning.main, 0.35)}`,
+              },
+            }}
           >
-            <NotesIcon sx={{ fontSize: 22 }} />
+            <NotesIcon sx={{ fontSize: 22, color: theme.palette.warning.main }} />
           </IconButton>
         </Tooltip>
 
@@ -877,25 +902,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
             onClick={handleMoreMenuOpen}
             sx={topbarButtonStyle}
           >
-            <Badge 
-              badgeContent={3}
-              color="default"
-              overlap="circular"
-              sx={{
-                '& .MuiBadge-badge': {
-                  fontSize: '0.65rem',
-                  fontWeight: 600,
-                  minWidth: 18,
-                  height: 18,
-                  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.25)}, ${alpha(theme.palette.primary.dark, 0.35)})`,
-                  color: theme.palette.primary.main,
-                  border: `1.5px solid ${theme.palette.background.paper}`,
-                  boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
-                }
-              }}
-            >
-              <MoreVertIcon sx={{ fontSize: 20 }} />
-            </Badge>
+            <MoreVertIcon sx={{ fontSize: 22, color: theme.palette.text.secondary }} />
           </IconButton>
         </Tooltip>
 
@@ -919,8 +926,17 @@ const DashboardHeader = ({ onOpenSettings }) => {
             sx={{
               ...topbarButtonStyle,
               animation: pendingTasksCount > 0 ? 'iconGlow 2.5s ease-in-out infinite' : 'none',
+              '&:hover': {
+                ...topbarButtonStyle['&:hover'],
+                boxShadow: highPriorityPendingCount > 0 
+                  ? `0 12px 40px ${alpha(theme.palette.error.main, 0.35)}`
+                  : `0 12px 40px ${alpha(theme.palette.primary.main, 0.35)}`,
+              },
               '& .MuiSvgIcon-root': {
-                fontSize: '26px', // Más grande para iconos críticos
+                fontSize: '26px',
+                color: highPriorityPendingCount > 0 
+                  ? theme.palette.error.main 
+                  : theme.palette.primary.main,
               }
             }}
           >
@@ -975,11 +991,12 @@ const DashboardHeader = ({ onOpenSettings }) => {
             onClick={handleThemeChange}
             sx={{
               ...topbarButtonStyle,
-              color: theme.palette.secondary.main,
               '&:hover': {
                 ...topbarButtonStyle['&:hover'],
-                borderColor: alpha(theme.palette.secondary.main, 0.2),
-                color: theme.palette.secondary.dark,
+                boxShadow: `0 12px 40px ${alpha(theme.palette.secondary.main, 0.35)}`,
+              },
+              '& .MuiSvgIcon-root': {
+                color: theme.palette.secondary.main,
               }
             }}
           >
@@ -1327,10 +1344,13 @@ const DashboardHeader = ({ onOpenSettings }) => {
               '&:hover': {
                 backgroundColor: alpha(theme.palette.primary.main, 0.08),
                 transform: 'translateX(4px)',
+                '& .MuiListItemIcon-root': {
+                  color: theme.palette.primary.main,
+                }
               }
             }}
           >
-            <ListItemIcon sx={{ minWidth: 40, color: theme.palette.text.secondary }}>
+            <ListItemIcon sx={{ minWidth: 40, color: theme.palette.primary.main }}>
               <CommitmentStatusIcon sx={{ fontSize: 20 }} />
             </ListItemIcon>
             <ListItemText 
@@ -1351,12 +1371,15 @@ const DashboardHeader = ({ onOpenSettings }) => {
               py: 1.5,
               transition: 'all 0.2s',
               '&:hover': {
-                backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                backgroundColor: alpha(theme.palette.success.main, 0.08),
                 transform: 'translateX(4px)',
+                '& .MuiListItemIcon-root': {
+                  color: theme.palette.success.main,
+                }
               }
             }}
           >
-            <ListItemIcon sx={{ minWidth: 40, color: theme.palette.text.secondary }}>
+            <ListItemIcon sx={{ minWidth: 40, color: theme.palette.success.main }}>
               <StorageIcon sx={{ fontSize: 22 }} />
             </ListItemIcon>
             <ListItemText 
@@ -1378,12 +1401,15 @@ const DashboardHeader = ({ onOpenSettings }) => {
               py: 1.5,
               transition: 'all 0.2s',
               '&:hover': {
-                backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                backgroundColor: alpha(theme.palette.secondary.main, 0.08),
                 transform: 'translateX(4px)',
+                '& .MuiListItemIcon-root': {
+                  color: theme.palette.secondary.main,
+                }
               }
             }}
           >
-            <ListItemIcon sx={{ minWidth: 40, color: theme.palette.text.secondary }}>
+            <ListItemIcon sx={{ minWidth: 40, color: theme.palette.secondary.main }}>
               <SettingsIcon sx={{ fontSize: 21 }} />
             </ListItemIcon>
             <ListItemText 
