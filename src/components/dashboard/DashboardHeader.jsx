@@ -48,7 +48,7 @@ import CalendarMenu from './CalendarMenu';
 import NotesMenu from '../notes/NotesMenu';
 import TasksMenu from '../tasks/TasksMenu';
 
-// Estilos CSS para animaciones spectacular del menú de avatar
+// Estilos CSS para animaciones spectacular del menú de avatar y topbar
 const avatarMenuStyles = `
   @keyframes shimmer {
     0% { transform: translateX(-100%); }
@@ -56,8 +56,32 @@ const avatarMenuStyles = `
   }
   
   @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.05); }
+    0%, 100% { 
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% { 
+      transform: scale(1.15);
+      opacity: 0.85;
+    }
+  }
+  
+  @keyframes shimmerBadge {
+    0% {
+      background-position: -200% center;
+    }
+    100% {
+      background-position: 200% center;
+    }
+  }
+  
+  @keyframes glowPulse {
+    0%, 100% {
+      box-shadow: 0 0 5px rgba(103, 126, 234, 0.3), 0 0 10px rgba(103, 126, 234, 0.2);
+    }
+    50% {
+      box-shadow: 0 0 20px rgba(103, 126, 234, 0.6), 0 0 30px rgba(103, 126, 234, 0.4);
+    }
   }
 `;
 
@@ -138,23 +162,26 @@ const DashboardHeader = ({ onOpenSettings }) => {
     }
   };
 
-  // 🎨 Estilo unificado para botones de la topbar - DS 3.0 Sobrio Premium
+  // 🎨 Estilo unificado para botones de la topbar - Spectacular V2
   const topbarButtonStyle = {
     width: 44,
     height: 44,
     color: theme.palette.text.secondary,
     borderRadius: 2,
-    backgroundColor: 'transparent',
-    border: 'none',
-    transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+    background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.05)}, ${alpha(theme.palette.primary.main, 0.02)})`,
+    backdropFilter: 'blur(8px)',
+    border: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+    transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
     '&:hover': {
       color: theme.palette.primary.main,
-      backgroundColor: alpha(theme.palette.primary.main, 0.08),
-      transform: 'translateY(-2px)',
-      boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`,
+      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.15)}, ${alpha(theme.palette.primary.light, 0.08)})`,
+      transform: 'translateY(-3px) scale(1.05)',
+      boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.3)}, 0 0 20px ${alpha(theme.palette.primary.main, 0.2)}`,
+      border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
     },
     '& .MuiSvgIcon-root': {
       fontSize: '21px',
+      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
     }
   };
 
@@ -610,42 +637,41 @@ const DashboardHeader = ({ onOpenSettings }) => {
               sx={{
                 width: '100%',
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: '24px',
-                  backgroundColor: theme.palette.mode === 'dark' 
-                    ? alpha(theme.palette.background.paper, 0.9)
-                    : '#ffffff',
-                  height: '38px', // Más esbelto y moderno
-                  border: 'none',
-                  transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  height: '42px',
+                  borderRadius: '16px',
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.4)}, ${alpha(theme.palette.primary.main, 0.05)})`,
+                  backdropFilter: 'blur(12px)',
+                  transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.08)}`,
                   '& fieldset': {
-                    border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-                    borderRadius: '24px',
-                    transition: 'all 0.3s ease',
+                    border: `1.5px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+                    borderRadius: '16px',
                   },
                   '&:hover': {
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.6)}, ${alpha(theme.palette.primary.main, 0.1)})`,
+                    transform: 'translateY(-2px) scale(1.02)',
+                    boxShadow: `0 8px 30px ${alpha(theme.palette.primary.main, 0.2)}, 0 0 20px ${alpha(theme.palette.primary.main, 0.15)}`,
                     '& fieldset': {
                       borderColor: alpha(theme.palette.primary.main, 0.3),
                     },
-                    transform: 'translateY(-1px)',
-                    boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.08)}`,
                   },
                   '&.Mui-focused': {
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.primary.main, 0.12)})`,
+                    boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.25)}, 0 0 30px ${alpha(theme.palette.primary.main, 0.2)}`,
                     '& fieldset': {
-                      borderColor: alpha(theme.palette.primary.main, 0.4),
-                      borderWidth: '1px',
+                      borderColor: theme.palette.primary.main,
+                      borderWidth: '1.5px',
                     },
-                    transform: 'translateY(-1px)',
-                    boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.12)}`,
                   },
                 },
                 '& .MuiInputBase-input': {
                   fontSize: '0.875rem',
-                  fontWeight: 400,
-                  padding: '8px 4px',
+                  fontWeight: 500,
+                  padding: '10px 4px',
                   '&::placeholder': {
                     color: theme.palette.text.secondary,
-                    opacity: 0.7,
-                    fontWeight: 400,
+                    opacity: 0.8,
+                    fontWeight: 500,
                   },
                 },
                 '& .MuiInputAdornment-root': {
@@ -699,25 +725,35 @@ const DashboardHeader = ({ onOpenSettings }) => {
               sx={{
                 '& .MuiBadge-badge': {
                   fontSize: '0.75rem',
-                  fontWeight: 600,
-                  minWidth: 20,
-                  height: 20,
-                  backgroundColor: alertsCount > 0 
-                    ? theme.palette.error.main 
+                  fontWeight: 700,
+                  minWidth: 22,
+                  height: 22,
+                  padding: '0 7px',
+                  borderRadius: '11px',
+                  background: alertsCount > 0 
+                    ? `linear-gradient(135deg, ${theme.palette.error.main}, ${theme.palette.error.dark})` 
                     : unreadCount > 0 
+                    ? `linear-gradient(135deg, ${theme.palette.warning.main}, ${theme.palette.warning.dark})` 
+                    : `linear-gradient(135deg, ${theme.palette.info.main}, ${theme.palette.info.dark})`,
+                  color: '#fff',
+                  border: `2.5px solid ${theme.palette.background.paper}`,
+                  boxShadow: `0 4px 12px ${alpha(
+                    alertsCount > 0 
+                      ? theme.palette.error.main 
+                      : unreadCount > 0 
                       ? theme.palette.warning.main 
-                      : theme.palette.info.main,
-                  color: 'white',
-                  boxShadow: alertsCount > 0
-                    ? `0 2px 8px ${alpha(theme.palette.error.main, 0.4)}`
-                    : `0 2px 8px ${alpha(theme.palette.warning.main, 0.3)}`,
-                  border: `2px solid ${theme.palette.background.paper}`,
-                  animation: alertsCount > 0 ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' : 'none',
-                  '@keyframes pulse': {
-                    '0%': { transform: 'scale(1)', opacity: 1 },
-                    '50%': { transform: 'scale(1.15)', opacity: 0.85 },
-                    '100%': { transform: 'scale(1)', opacity: 1 },
-                  },
+                      : theme.palette.info.main, 
+                    0.5
+                  )}, 0 0 20px ${alpha(
+                    alertsCount > 0 
+                      ? theme.palette.error.main 
+                      : unreadCount > 0 
+                      ? theme.palette.warning.main 
+                      : theme.palette.info.main, 
+                    0.3
+                  )}`,
+                  textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                  animation: alertsCount > 0 ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite, glowPulse 2s ease-in-out infinite' : unreadCount > 0 ? 'glowPulse 3s ease-in-out infinite' : 'none',
                 },
               }}
             >
@@ -728,16 +764,16 @@ const DashboardHeader = ({ onOpenSettings }) => {
         )}
 
         {/* Separador visual - Grupo Crítico */}
-        <Divider 
-          orientation="vertical" 
-          flexItem 
-          sx={{ 
+        <Box
+          sx={{
             mx: { xs: 0.5, md: 1 },
+            width: '2px',
             height: 24,
             alignSelf: 'center',
-            borderColor: alpha(theme.palette.divider, 0.6),
-            borderWidth: 1,
-          }} 
+            background: `linear-gradient(180deg, transparent, ${alpha(theme.palette.primary.main, 0.4)}, transparent)`,
+            borderRadius: '2px',
+            boxShadow: `0 0 8px ${alpha(theme.palette.primary.main, 0.2)}`,
+          }}
         />
 
         {/* Botón de calendario */}
@@ -777,16 +813,16 @@ const DashboardHeader = ({ onOpenSettings }) => {
         </Tooltip>
 
         {/* Separador visual - Grupo Herramientas */}
-        <Divider 
-          orientation="vertical" 
-          flexItem 
-          sx={{ 
+        <Box
+          sx={{
             mx: { xs: 0.5, md: 1 },
+            width: '2px',
             height: 24,
             alignSelf: 'center',
-            borderColor: alpha(theme.palette.divider, 0.6),
-            borderWidth: 1,
-          }} 
+            background: `linear-gradient(180deg, transparent, ${alpha(theme.palette.primary.main, 0.4)}, transparent)`,
+            borderRadius: '2px',
+            boxShadow: `0 0 8px ${alpha(theme.palette.primary.main, 0.2)}`,
+          }}
         />
 
         {/* Botón de menú "Más" - Agrupa opciones menos frecuentes */}
@@ -802,12 +838,13 @@ const DashboardHeader = ({ onOpenSettings }) => {
               sx={{
                 '& .MuiBadge-badge': {
                   fontSize: '0.65rem',
-                  fontWeight: 500,
-                  minWidth: 16,
-                  height: 16,
-                  backgroundColor: alpha(theme.palette.text.secondary, 0.15),
-                  color: theme.palette.text.secondary,
-                  border: 'none',
+                  fontWeight: 600,
+                  minWidth: 18,
+                  height: 18,
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.25)}, ${alpha(theme.palette.primary.dark, 0.35)})`,
+                  color: theme.palette.primary.main,
+                  border: `1.5px solid ${theme.palette.background.paper}`,
+                  boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`,
                 }
               }}
             >
@@ -848,19 +885,35 @@ const DashboardHeader = ({ onOpenSettings }) => {
               sx={{
                 '& .MuiBadge-badge': {
                   fontSize: '0.75rem',
-                  fontWeight: 600,
-                  minWidth: 20,
-                  height: 20,
-                  backgroundColor: highPriorityPendingCount > 0 ? theme.palette.error.main : theme.palette.primary.main,
-                  color: 'white',
-                  boxShadow: `0 2px 8px ${alpha(highPriorityPendingCount > 0 ? theme.palette.error.main : theme.palette.primary.main, 0.4)}`,
-                  border: `2px solid ${theme.palette.background.paper}`,
-                  animation: highPriorityPendingCount > 0 ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' : 'none',
-                  '@keyframes pulse': {
-                    '0%': { transform: 'scale(1)', opacity: 1 },
-                    '50%': { transform: 'scale(1.15)', opacity: 0.85 },
-                    '100%': { transform: 'scale(1)', opacity: 1 },
-                  },
+                  fontWeight: 700,
+                  minWidth: 22,
+                  height: 22,
+                  padding: '0 7px',
+                  borderRadius: '11px',
+                  background: highPriorityPendingCount > 0 
+                    ? `linear-gradient(135deg, ${theme.palette.error.main}, ${theme.palette.error.dark})` 
+                    : pendingTasksCount > 0 
+                    ? `linear-gradient(135deg, ${theme.palette.warning.main}, ${theme.palette.warning.dark})` 
+                    : `linear-gradient(135deg, ${theme.palette.info.main}, ${theme.palette.info.dark})`,
+                  color: '#fff',
+                  border: `2.5px solid ${theme.palette.background.paper}`,
+                  boxShadow: `0 4px 12px ${alpha(
+                    highPriorityPendingCount > 0 
+                      ? theme.palette.error.main 
+                      : pendingTasksCount > 0 
+                      ? theme.palette.warning.main 
+                      : theme.palette.info.main, 
+                    0.5
+                  )}, 0 0 20px ${alpha(
+                    highPriorityPendingCount > 0 
+                      ? theme.palette.error.main 
+                      : pendingTasksCount > 0 
+                      ? theme.palette.warning.main 
+                      : theme.palette.info.main, 
+                    0.3
+                  )}`,
+                  textShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                  animation: highPriorityPendingCount > 0 ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite, glowPulse 2s ease-in-out infinite' : pendingTasksCount > 0 ? 'glowPulse 3s ease-in-out infinite' : 'none',
                 },
               }}
             >
@@ -908,33 +961,46 @@ const DashboardHeader = ({ onOpenSettings }) => {
               transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
             }}
           >
-            <Box sx={{ position: 'relative' }}>
+            <Box 
+              sx={{ 
+                position: 'relative',
+                width: 48,
+                height: 48,
+                borderRadius: '50%',
+                background: `linear-gradient(${theme.palette.background.paper}, ${theme.palette.background.paper}) padding-box, linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main}) border-box`,
+                border: '3px solid transparent',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.3)}, 0 0 30px ${alpha(theme.palette.primary.main, 0.15)}`,
+                transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                '&:hover': {
+                  transform: 'translateY(-3px) scale(1.08)',
+                  boxShadow: `0 8px 30px ${alpha(theme.palette.primary.main, 0.4)}, 0 0 40px ${alpha(theme.palette.primary.main, 0.25)}`,
+                  animation: 'glowPulse 1.5s ease-in-out infinite',
+                },
+              }}
+            >
               <ProfileAvatar
                 photoURL={userProfile?.photoURL}
                 name={userProfile?.name}
                 email={userProfile?.email}
-                size={38} // +2px más grande
+                size={40}
                 border={false}
-                sx={{
-                  border: `2px solid ${alpha(theme.palette.primary.main, 0.1)}`,
-                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                  '&:hover': {
-                    borderColor: alpha(theme.palette.primary.main, 0.3),
-                  }
-                }}
               />
-              {/* Indicador de estado online mejorado */}
+              {/* Indicador de estado online spectacular con glow intenso */}
               <Box
                 sx={{
                   position: 'absolute',
                   bottom: 0,
                   right: 0,
-                  width: 10,
-                  height: 10,
+                  width: 14,
+                  height: 14,
                   borderRadius: '50%',
-                  backgroundColor: theme.palette.success.main,
-                  border: `2px solid ${theme.palette.background.paper}`,
-                  boxShadow: `0 0 0 2px ${theme.palette.background.paper}, 0 0 6px ${alpha(theme.palette.success.main, 0.6)}`,
+                  background: `radial-gradient(circle, ${theme.palette.success.light}, ${theme.palette.success.main})`,
+                  border: `3px solid ${theme.palette.background.paper}`,
+                  boxShadow: `0 0 0 2px ${theme.palette.background.paper}, 0 0 12px ${alpha(theme.palette.success.main, 0.8)}, 0 0 20px ${alpha(theme.palette.success.main, 0.5)}`,
+                  animation: 'glowPulse 2s ease-in-out infinite',
                 }}
               />
             </Box>
