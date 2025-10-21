@@ -11,7 +11,8 @@ import {
     Storage as StorageIcon,
     Search as SearchIcon,
     StickyNote2 as NotesIcon,
-    Task as TaskIcon
+    Task as TaskIcon,
+    MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import {
     Badge,
@@ -84,6 +85,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
   const [storageAnchor, setStorageAnchor] = useState(null);
   const [notesAnchor, setNotesAnchor] = useState(null);
   const [tasksAnchor, setTasksAnchor] = useState(null);
+  const [moreMenuAnchor, setMoreMenuAnchor] = useState(null);
   const [searchValue, setSearchValue] = useState('');
   const [searchSuggestions, setSearchSuggestions] = useState([]);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -402,6 +404,14 @@ const DashboardHeader = ({ onOpenSettings }) => {
     setTasksAnchor(null);
   };
 
+  const handleMoreMenuOpen = (event) => {
+    setMoreMenuAnchor(event.currentTarget);
+  };
+
+  const handleMoreMenuClose = () => {
+    setMoreMenuAnchor(null);
+  };
+
   const handleThemeChange = () => {
     const modes = ['light', 'dark', 'auto'];
     const currentIndex = modes.indexOf(settings?.theme?.mode || 'light');
@@ -582,7 +592,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
             <TextField
               {...params}
               size="small"
-              placeholder="Buscar"
+              placeholder="Buscar compromisos, pagos..."
               onKeyDown={handleSearchSubmit}
               InputProps={{
                 ...params.InputProps,
@@ -645,16 +655,29 @@ const DashboardHeader = ({ onOpenSettings }) => {
         justifyContent: 'flex-end',
         gap: theme.spacing(0.5) // Espaciado uniforme DS 3.0 sobrio
       }}>
-        {/* Botón de notificaciones - Condicional según configuración */}
+        {/* Botón de notificaciones con badge inteligente */}
         {notificationsEnabled && (
-          <Tooltip title="Notificaciones y Alertas" arrow>
+          <Tooltip 
+            title={
+              <Box>
+                <Typography variant="caption" fontWeight="bold" display="block">Notificaciones</Typography>
+                {(unreadCount + alertsCount) > 0 && (
+                  <Typography variant="caption" display="block" color={alertsCount > 0 ? "error.light" : "info.light"}>
+                    {unreadCount + alertsCount} {alertsCount > 0 ? `(${alertsCount} urgentes)` : 'sin leer'}
+                  </Typography>
+                )}
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>Atajo: Alt+N</Typography>
+              </Box>
+            }
+            arrow
+          >
             <IconButton
             onClick={handleNotificationsOpen}
             sx={topbarButtonStyle}
           >
             <Badge 
               badgeContent={unreadCount + alertsCount} 
-              color="error"
+              color={alertsCount > 0 ? "error" : unreadCount > 0 ? "warning" : "info"}
               max={99}
               overlap="circular"
               sx={{
@@ -662,10 +685,21 @@ const DashboardHeader = ({ onOpenSettings }) => {
                   fontSize: '0.7rem',
                   minWidth: 18,
                   height: 18,
-                  backgroundColor: theme.palette.error.main,
+                  backgroundColor: alertsCount > 0 
+                    ? theme.palette.error.main 
+                    : unreadCount > 0 
+                      ? theme.palette.warning.main 
+                      : theme.palette.info.main,
                   color: 'white',
-                  boxShadow: `0 2px 4px ${alpha(theme.palette.error.main, 0.3)}`,
+                  boxShadow: alertsCount > 0
+                    ? `0 2px 4px ${alpha(theme.palette.error.main, 0.3)}`
+                    : `0 2px 4px ${alpha(theme.palette.warning.main, 0.3)}`,
                   border: `1px solid ${theme.palette.background.paper}`,
+                  animation: alertsCount > 0 ? 'pulse 2s infinite' : 'none',
+                  '@keyframes pulse': {
+                    '0%, 100%': { transform: 'scale(1)' },
+                    '50%': { transform: 'scale(1.1)' },
+                  },
                 },
               }}
             >
@@ -676,7 +710,15 @@ const DashboardHeader = ({ onOpenSettings }) => {
         )}
 
         {/* Botón de calendario */}
-        <Tooltip title="Calendario de Compromisos" arrow>
+        <Tooltip 
+          title={
+            <Box>
+              <Typography variant="caption" fontWeight="bold" display="block">Calendario</Typography>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>Atajo: Alt+C</Typography>
+            </Box>
+          }
+          arrow
+        >
           <IconButton
             onClick={handleCalendarOpen}
             sx={topbarButtonStyle}
@@ -685,28 +727,16 @@ const DashboardHeader = ({ onOpenSettings }) => {
           </IconButton>
         </Tooltip>
 
-        {/* Botón de estado de compromisos */}
-        <Tooltip title="Estado de Compromisos" arrow>
-          <IconButton
-            onClick={handleCommitmentStatusOpen}
-            sx={topbarButtonStyle}
-          >
-            <CommitmentStatusIcon sx={{ fontSize: 20 }} />
-          </IconButton>
-        </Tooltip>
-
-        {/* Botón de almacenamiento */}
-        <Tooltip title="Almacenamiento" arrow>
-          <IconButton
-            onClick={handleStorageOpen}
-            sx={topbarButtonStyle}
-          >
-            <StorageIcon sx={{ fontSize: 22 }} />
-          </IconButton>
-        </Tooltip>
-
         {/* Botón de notas */}
-        <Tooltip title="Mis Notas" arrow>
+        <Tooltip 
+          title={
+            <Box>
+              <Typography variant="caption" fontWeight="bold" display="block">Mis Notas</Typography>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>Atajo: Alt+M</Typography>
+            </Box>
+          }
+          arrow
+        >
           <IconButton
             onClick={handleNotesOpen}
             sx={topbarButtonStyle}
@@ -715,8 +745,31 @@ const DashboardHeader = ({ onOpenSettings }) => {
           </IconButton>
         </Tooltip>
 
-        {/* Botón de tareas */}
-        <Tooltip title="Mis Tareas" arrow>
+        {/* Botón de menú "Más" - Agrupa opciones menos frecuentes */}
+        <Tooltip title="Más opciones" arrow>
+          <IconButton
+            onClick={handleMoreMenuOpen}
+            sx={topbarButtonStyle}
+          >
+            <MoreVertIcon sx={{ fontSize: 22 }} />
+          </IconButton>
+        </Tooltip>
+
+        {/* Botón de tareas con badge inteligente */}
+        <Tooltip 
+          title={
+            <Box>
+              <Typography variant="caption" fontWeight="bold" display="block">Mis Tareas</Typography>
+              {pendingTasksCount > 0 && (
+                <Typography variant="caption" display="block" color={highPriorityPendingCount > 0 ? "error.light" : "primary.light"}>
+                  {pendingTasksCount} pendientes {highPriorityPendingCount > 0 ? `(${highPriorityPendingCount} urgentes)` : ''}
+                </Typography>
+              )}
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>Atajo: Alt+T</Typography>
+            </Box>
+          }
+          arrow
+        >
           <IconButton
             onClick={handleTasksOpen}
             sx={topbarButtonStyle}
@@ -735,6 +788,11 @@ const DashboardHeader = ({ onOpenSettings }) => {
                   color: 'white',
                   boxShadow: `0 2px 4px ${alpha(highPriorityPendingCount > 0 ? theme.palette.error.main : theme.palette.primary.main, 0.3)}`,
                   border: `1px solid ${theme.palette.background.paper}`,
+                  animation: highPriorityPendingCount > 0 ? 'pulse 2s infinite' : 'none',
+                  '@keyframes pulse': {
+                    '0%, 100%': { transform: 'scale(1)' },
+                    '50%': { transform: 'scale(1.1)' },
+                  },
                 },
               }}
             >
@@ -1040,6 +1098,106 @@ const DashboardHeader = ({ onOpenSettings }) => {
         open={Boolean(tasksAnchor)}
         onClose={handleTasksClose}
       />
+
+      {/* Menú "Más" - Opciones agrupadas */}
+      <Menu
+        anchorEl={moreMenuAnchor}
+        open={Boolean(moreMenuAnchor)}
+        onClose={handleMoreMenuClose}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+        PaperProps={{
+          sx: {
+            mt: 1.5,
+            minWidth: 220,
+            borderRadius: 2,
+            backgroundColor: theme.palette.background.paper,
+            boxShadow: theme.shadows[4],
+            border: `1px solid ${theme.palette.divider}`,
+          },
+        }}
+      >
+        <Box sx={{ p: 1 }}>
+          <MenuItem 
+            onClick={() => {
+              handleCommitmentStatusOpen({ currentTarget: moreMenuAnchor });
+              handleMoreMenuClose();
+            }}
+            sx={{
+              borderRadius: 1.5,
+              mb: 0.5,
+              px: 2,
+              py: 1.5,
+              transition: 'all 0.2s',
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                transform: 'translateX(4px)',
+              }
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 40, color: theme.palette.text.secondary }}>
+              <CommitmentStatusIcon sx={{ fontSize: 20 }} />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Estado de Compromisos" 
+              primaryTypographyProps={{ fontWeight: 500, fontSize: '0.9rem' }}
+            />
+          </MenuItem>
+
+          <MenuItem 
+            onClick={() => {
+              handleStorageOpen({ currentTarget: moreMenuAnchor });
+              handleMoreMenuClose();
+            }}
+            sx={{
+              borderRadius: 1.5,
+              mb: 0.5,
+              px: 2,
+              py: 1.5,
+              transition: 'all 0.2s',
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                transform: 'translateX(4px)',
+              }
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 40, color: theme.palette.text.secondary }}>
+              <StorageIcon sx={{ fontSize: 22 }} />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Almacenamiento" 
+              primaryTypographyProps={{ fontWeight: 500, fontSize: '0.9rem' }}
+            />
+          </MenuItem>
+
+          <Divider sx={{ my: 1 }} />
+
+          <MenuItem 
+            onClick={() => {
+              if (onOpenSettings) onOpenSettings();
+              handleMoreMenuClose();
+            }}
+            sx={{
+              borderRadius: 1.5,
+              px: 2,
+              py: 1.5,
+              transition: 'all 0.2s',
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                transform: 'translateX(4px)',
+              }
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 40, color: theme.palette.text.secondary }}>
+              <SettingsIcon sx={{ fontSize: 21 }} />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Configuración Avanzada" 
+              primaryTypographyProps={{ fontWeight: 500, fontSize: '0.9rem' }}
+            />
+          </MenuItem>
+        </Box>
+      </Menu>
     </Box>
   );
 };
