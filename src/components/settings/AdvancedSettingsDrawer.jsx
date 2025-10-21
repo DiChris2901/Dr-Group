@@ -1,66 +1,11 @@
 /**
  * Professional Settings Drawer with Tabs
  * Complete configuration system for DR Group Dashboard
- * Enhanced with Spectacular Design System effects
+ * Design System 3.0 - Diseño Sobrio Empresarial
  */
 
-// Inyectar estilos CSS para animaciones spectacular
-const spectacularStyles = `
-  @keyframes shimmer {
-    0% { transform: translateX(-100%) skewX(-15deg); }
-    100% { transform: translateX(200%) skewX(-15deg); }
-  }
-  
-  @keyframes pulse-glow {
-    0%, 100% { 
-      box-shadow: 0 0 8px rgba(102, 126, 234, 0.3);
-      transform: scale(1);
-    }
-    50% { 
-      box-shadow: 0 0 25px rgba(102, 126, 234, 0.7);
-      transform: scale(1.02);
-    }
-  }
-  
-  @keyframes gradient-shift {
-    0%, 100% { 
-      background-position: 0% 50%;
-    }
-    50% { 
-      background-position: 100% 50%;
-    }
-  }
-
-  @keyframes title-underline {
-    0%, 100% { width: 0%; opacity: 0.3; }
-    25% { width: 100%; opacity: 1; }
-    75% { width: 100%; opacity: 1; }
-  }
-
-  @keyframes icon-pulse {
-    0%, 100% { 
-      transform: scale(1) rotate(0deg);
-      filter: brightness(1) saturate(1);
-    }
-    25% { 
-      transform: scale(1.05) rotate(2deg);
-      filter: brightness(1.1) saturate(1.2);
-    }
-    75% { 
-      transform: scale(1.05) rotate(-2deg);
-      filter: brightness(1.1) saturate(1.2);
-    }
-  }
-
-  @keyframes tab-glow {
-    0%, 100% { 
-      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
-    }
-    50% { 
-      box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
-    }
-  }
-
+// Estilos CSS minimalistas para diseño sobrio
+const soberStyles = `
   @keyframes rotate {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
@@ -68,11 +13,11 @@ const spectacularStyles = `
 `;
 
 // Inyectar estilos si no existen
-if (typeof document !== 'undefined' && !document.getElementById('settings-spectacular-styles')) {
+if (typeof document !== 'undefined' && !document.getElementById('settings-sober-styles')) {
   const styleSheet = document.createElement('style');
-  styleSheet.id = 'settings-spectacular-styles';
+  styleSheet.id = 'settings-sober-styles';
   styleSheet.type = 'text/css';
-  styleSheet.innerText = spectacularStyles;
+  styleSheet.innerText = soberStyles;
   document.head.appendChild(styleSheet);
 }
 
@@ -591,8 +536,8 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
         sx: {
           width: { xs: '100vw', sm: 680, md: 800, lg: 900, xl: 1000 },
           background: theme.palette.background.paper,
-          borderLeft: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
+          borderLeft: `1px solid ${theme.palette.divider}`,
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
           zIndex: 1300,
           position: 'relative'
         }
@@ -635,47 +580,17 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
                       position: 'relative',
                       overflow: 'hidden',
                       cursor: 'pointer',
-                      transition: settings?.theme?.animations ? 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
-                      '&::before': settings?.theme?.animations ? {
-                        content: '""',
-                        position: 'absolute',
-                        top: '-50%',
-                        left: '-100%',
-                        width: '200%',
-                        height: '200%',
-                        background: `conic-gradient(from 45deg, 
-                          transparent 0deg,
-                          ${alpha('#ffffff', 0.1)} 90deg,
-                          ${alpha('#ffffff', 0.2)} 180deg,
-                          ${alpha('#ffffff', 0.1)} 270deg,
-                          transparent 360deg
-                        )`,
-                        animation: 'icon-pulse 5s ease-in-out infinite',
-                        borderRadius: '50%'
-                      } : {},
-                      '&::after': {
-                        content: '""',
-                        position: 'absolute',
-                        inset: '2px',
-                        borderRadius: 'inherit',
-                        background: `linear-gradient(135deg, 
-                          ${alpha('#ffffff', theme.palette.mode === 'dark' ? 0.05 : 0.15)} 0%, 
-                          transparent 50%,
-                          ${alpha('#000000', 0.08)} 100%
-                        )`,
-                        pointerEvents: 'none'
-                      },
-                      '&:hover': settings?.theme?.animations ? {
-                        transform: 'translateY(-4px) scale(1.08) rotate(8deg)',
-                        boxShadow: `
-                          0 12px 40px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.5)},
-                          0 4px 12px ${alpha(settings?.theme?.primaryColor || '#667eea', 0.3)}
-                        `
-                      } : {}
+                      transition: 'all 0.2s ease',
+                      border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                        borderColor: alpha(theme.palette.primary.main, 0.8)
+                      }
                     }}
                   >
                     <SettingsIcon sx={{ 

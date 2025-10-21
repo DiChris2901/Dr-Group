@@ -318,7 +318,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
               photoURL={userProfile?.photoURL}
               name={userProfile?.name}
               email={userProfile?.email}
-              size={40}
+              size={48}
               border={true}
             />
           ) : (
@@ -327,7 +327,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                 photoURL={userProfile?.photoURL}
                 name={userProfile?.name}
                 email={userProfile?.email}
-                size={48}
+                size={80}
                 border={true}
               />
               <Box>
