@@ -138,7 +138,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
     }
   };
 
-  // 🎨 Estilo unificado para botones de la topbar - DS 3.0 Sobrio
+  // 🎨 Estilo unificado para botones de la topbar - DS 3.0 Sobrio Premium
   const topbarButtonStyle = {
     width: 44,
     height: 44,
@@ -146,10 +146,12 @@ const DashboardHeader = ({ onOpenSettings }) => {
     borderRadius: 2,
     backgroundColor: 'transparent',
     border: 'none',
-    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+    transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
     '&:hover': {
       color: theme.palette.primary.main,
-      backgroundColor: alpha(theme.palette.primary.main, 0.04),
+      backgroundColor: alpha(theme.palette.primary.main, 0.08),
+      transform: 'translateY(-2px)',
+      boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`,
     },
     '& .MuiSvgIcon-root': {
       fontSize: '21px',
@@ -487,8 +489,8 @@ const DashboardHeader = ({ onOpenSettings }) => {
         flex: '0 0 auto',
         display: 'flex', 
         justifyContent: 'center',
-        minWidth: 240, // Más pequeño y compacto
-        maxWidth: 320, // Más pequeño como en la imagen
+        minWidth: { xs: 200, sm: 260, md: 320 }, // Responsive: móvil → tablet → desktop
+        maxWidth: { xs: 240, sm: 300, md: 380 },
         position: 'relative',
       }}>
         <Autocomplete
@@ -608,32 +610,41 @@ const DashboardHeader = ({ onOpenSettings }) => {
               sx={{
                 width: '100%',
                 '& .MuiOutlinedInput-root': {
-                  borderRadius: '24px', // Bordes más redondeados como en la imagen
+                  borderRadius: '24px',
                   backgroundColor: theme.palette.mode === 'dark' 
                     ? alpha(theme.palette.background.paper, 0.9)
                     : '#ffffff',
-                  height: '40px', // Altura específica
+                  height: '38px', // Más esbelto y moderno
                   border: 'none',
+                  transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
                   '& fieldset': {
                     border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                     borderRadius: '24px',
+                    transition: 'all 0.3s ease',
                   },
-                  '&:hover fieldset': {
-                    borderColor: alpha(theme.palette.divider, 0.3),
+                  '&:hover': {
+                    '& fieldset': {
+                      borderColor: alpha(theme.palette.primary.main, 0.3),
+                    },
+                    transform: 'translateY(-1px)',
+                    boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.08)}`,
                   },
-                  '&.Mui-focused fieldset': {
-                    borderColor: alpha(theme.palette.primary.main, 0.3),
-                    borderWidth: '1px',
-                    boxShadow: 'none', // Sin sombras para mantener limpio
+                  '&.Mui-focused': {
+                    '& fieldset': {
+                      borderColor: alpha(theme.palette.primary.main, 0.4),
+                      borderWidth: '1px',
+                    },
+                    transform: 'translateY(-1px)',
+                    boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.12)}`,
                   },
                 },
                 '& .MuiInputBase-input': {
                   fontSize: '0.875rem',
                   fontWeight: 400,
-                  padding: '8px 4px', // Padding más pequeño
+                  padding: '8px 4px',
                   '&::placeholder': {
                     color: theme.palette.text.secondary,
-                    opacity: 0.6,
+                    opacity: 0.7,
                     fontWeight: 400,
                   },
                 },
@@ -653,7 +664,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'flex-end',
-        gap: theme.spacing(0.5) // Espaciado uniforme DS 3.0 sobrio
+        gap: { xs: 0.5, sm: 1, md: 1.5 } // Espaciado responsive mejorado
       }}>
         {/* Botón de notificaciones con badge inteligente */}
         {notificationsEnabled && (
@@ -673,7 +684,12 @@ const DashboardHeader = ({ onOpenSettings }) => {
           >
             <IconButton
             onClick={handleNotificationsOpen}
-            sx={topbarButtonStyle}
+            sx={{
+              ...topbarButtonStyle,
+              '& .MuiSvgIcon-root': {
+                fontSize: '23px', // Más grande para iconos críticos
+              }
+            }}
           >
             <Badge 
               badgeContent={unreadCount + alertsCount} 
@@ -682,9 +698,10 @@ const DashboardHeader = ({ onOpenSettings }) => {
               overlap="circular"
               sx={{
                 '& .MuiBadge-badge': {
-                  fontSize: '0.7rem',
-                  minWidth: 18,
-                  height: 18,
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  minWidth: 20,
+                  height: 20,
                   backgroundColor: alertsCount > 0 
                     ? theme.palette.error.main 
                     : unreadCount > 0 
@@ -692,13 +709,14 @@ const DashboardHeader = ({ onOpenSettings }) => {
                       : theme.palette.info.main,
                   color: 'white',
                   boxShadow: alertsCount > 0
-                    ? `0 2px 4px ${alpha(theme.palette.error.main, 0.3)}`
-                    : `0 2px 4px ${alpha(theme.palette.warning.main, 0.3)}`,
-                  border: `1px solid ${theme.palette.background.paper}`,
-                  animation: alertsCount > 0 ? 'pulse 2s infinite' : 'none',
+                    ? `0 2px 8px ${alpha(theme.palette.error.main, 0.4)}`
+                    : `0 2px 8px ${alpha(theme.palette.warning.main, 0.3)}`,
+                  border: `2px solid ${theme.palette.background.paper}`,
+                  animation: alertsCount > 0 ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' : 'none',
                   '@keyframes pulse': {
-                    '0%, 100%': { transform: 'scale(1)' },
-                    '50%': { transform: 'scale(1.1)' },
+                    '0%': { transform: 'scale(1)', opacity: 1 },
+                    '50%': { transform: 'scale(1.15)', opacity: 0.85 },
+                    '100%': { transform: 'scale(1)', opacity: 1 },
                   },
                 },
               }}
@@ -708,6 +726,19 @@ const DashboardHeader = ({ onOpenSettings }) => {
           </IconButton>
         </Tooltip>
         )}
+
+        {/* Separador visual - Grupo Crítico */}
+        <Divider 
+          orientation="vertical" 
+          flexItem 
+          sx={{ 
+            mx: { xs: 0.5, md: 1 },
+            height: 24,
+            alignSelf: 'center',
+            borderColor: alpha(theme.palette.divider, 0.6),
+            borderWidth: 1,
+          }} 
+        />
 
         {/* Botón de calendario */}
         <Tooltip 
@@ -745,13 +776,43 @@ const DashboardHeader = ({ onOpenSettings }) => {
           </IconButton>
         </Tooltip>
 
+        {/* Separador visual - Grupo Herramientas */}
+        <Divider 
+          orientation="vertical" 
+          flexItem 
+          sx={{ 
+            mx: { xs: 0.5, md: 1 },
+            height: 24,
+            alignSelf: 'center',
+            borderColor: alpha(theme.palette.divider, 0.6),
+            borderWidth: 1,
+          }} 
+        />
+
         {/* Botón de menú "Más" - Agrupa opciones menos frecuentes */}
         <Tooltip title="Más opciones" arrow>
           <IconButton
             onClick={handleMoreMenuOpen}
             sx={topbarButtonStyle}
           >
-            <MoreVertIcon sx={{ fontSize: 22 }} />
+            <Badge 
+              badgeContent={3}
+              color="default"
+              overlap="circular"
+              sx={{
+                '& .MuiBadge-badge': {
+                  fontSize: '0.65rem',
+                  fontWeight: 500,
+                  minWidth: 16,
+                  height: 16,
+                  backgroundColor: alpha(theme.palette.text.secondary, 0.15),
+                  color: theme.palette.text.secondary,
+                  border: 'none',
+                }
+              }}
+            >
+              <MoreVertIcon sx={{ fontSize: 20 }} />
+            </Badge>
           </IconButton>
         </Tooltip>
 
@@ -772,7 +833,12 @@ const DashboardHeader = ({ onOpenSettings }) => {
         >
           <IconButton
             onClick={handleTasksOpen}
-            sx={topbarButtonStyle}
+            sx={{
+              ...topbarButtonStyle,
+              '& .MuiSvgIcon-root': {
+                fontSize: '23px', // Más grande para iconos críticos
+              }
+            }}
           >
             <Badge 
               badgeContent={pendingTasksCount} 
@@ -781,17 +847,19 @@ const DashboardHeader = ({ onOpenSettings }) => {
               overlap="circular"
               sx={{
                 '& .MuiBadge-badge': {
-                  fontSize: '0.7rem',
-                  minWidth: 18,
-                  height: 18,
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  minWidth: 20,
+                  height: 20,
                   backgroundColor: highPriorityPendingCount > 0 ? theme.palette.error.main : theme.palette.primary.main,
                   color: 'white',
-                  boxShadow: `0 2px 4px ${alpha(highPriorityPendingCount > 0 ? theme.palette.error.main : theme.palette.primary.main, 0.3)}`,
-                  border: `1px solid ${theme.palette.background.paper}`,
-                  animation: highPriorityPendingCount > 0 ? 'pulse 2s infinite' : 'none',
+                  boxShadow: `0 2px 8px ${alpha(highPriorityPendingCount > 0 ? theme.palette.error.main : theme.palette.primary.main, 0.4)}`,
+                  border: `2px solid ${theme.palette.background.paper}`,
+                  animation: highPriorityPendingCount > 0 ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' : 'none',
                   '@keyframes pulse': {
-                    '0%, 100%': { transform: 'scale(1)' },
-                    '50%': { transform: 'scale(1.1)' },
+                    '0%': { transform: 'scale(1)', opacity: 1 },
+                    '50%': { transform: 'scale(1.15)', opacity: 0.85 },
+                    '100%': { transform: 'scale(1)', opacity: 1 },
                   },
                 },
               }}
@@ -826,36 +894,50 @@ const DashboardHeader = ({ onOpenSettings }) => {
             sx={{ 
               p: 0, 
               ml: 0.5,
-              width: 44,
-              height: 44,
+              width: 46, // +2px más grande
+              height: 46,
               backgroundColor: alpha(theme.palette.primary.main, 0.08),
               border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`,
               borderRadius: 2.5,
               '&:hover': {
                 backgroundColor: alpha(theme.palette.primary.main, 0.12),
                 borderColor: alpha(theme.palette.primary.main, 0.3),
-                transform: 'translateY(-1px)',
-                boxShadow: theme.shadows[2]
+                transform: 'translateY(-2px)',
+                boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`
               },
-              transition: theme.transitions.create(['background-color', 'border-color', 'transform', 'box-shadow'], {
-                duration: theme.transitions.duration.short,
-              }),
+              transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
             }}
           >
-            <ProfileAvatar
-              photoURL={userProfile?.photoURL}
-              name={userProfile?.name}
-              email={userProfile?.email}
-              size={36}
-              border={false}
-              sx={{
-                border: `2px solid ${alpha(theme.palette.primary.main, 0.1)}`,
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                '&:hover': {
-                  borderColor: alpha(theme.palette.primary.main, 0.3),
-                }
-              }}
-            />
+            <Box sx={{ position: 'relative' }}>
+              <ProfileAvatar
+                photoURL={userProfile?.photoURL}
+                name={userProfile?.name}
+                email={userProfile?.email}
+                size={38} // +2px más grande
+                border={false}
+                sx={{
+                  border: `2px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '&:hover': {
+                    borderColor: alpha(theme.palette.primary.main, 0.3),
+                  }
+                }}
+              />
+              {/* Indicador de estado online mejorado */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 0,
+                  right: 0,
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  backgroundColor: theme.palette.success.main,
+                  border: `2px solid ${theme.palette.background.paper}`,
+                  boxShadow: `0 0 0 2px ${theme.palette.background.paper}, 0 0 6px ${alpha(theme.palette.success.main, 0.6)}`,
+                }}
+              />
+            </Box>
           </IconButton>
         </Tooltip>
       </Box>
