@@ -173,8 +173,8 @@ const DashboardHeader = ({ onOpenSettings }) => {
 
   // 🎨 Estilo unificado para botones de la topbar - Spectacular V3 (Sin glassmorphism)
   const topbarButtonStyle = {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     color: theme.palette.text.secondary,
     borderRadius: 2,
     background: 'transparent',
@@ -661,7 +661,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
               sx={{
                 width: '100%',
                 '& .MuiOutlinedInput-root': {
-                  height: '44px',
+                  height: '48px',
                   borderRadius: '16px',
                   backgroundColor: theme.palette.mode === 'dark' 
                     ? alpha(theme.palette.background.paper, 0.95)
@@ -757,7 +757,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
               ...topbarButtonStyle,
               animation: (unreadCount + alertsCount) > 0 ? 'iconGlow 2s ease-in-out infinite' : 'none',
               '& .MuiSvgIcon-root': {
-                fontSize: '24px', // Más grande para iconos críticos
+                fontSize: '26px', // Más grande para iconos críticos
               }
             }}
           >
@@ -812,7 +812,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
           sx={{
             mx: { xs: 0.5, md: 1 },
             width: '3px',
-            height: 28,
+            height: 32,
             alignSelf: 'center',
             background: `linear-gradient(180deg, transparent, ${alpha(theme.palette.primary.main, 0.6)}, transparent)`,
             borderRadius: '3px',
@@ -862,7 +862,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
           sx={{
             mx: { xs: 0.5, md: 1 },
             width: '3px',
-            height: 28,
+            height: 32,
             alignSelf: 'center',
             background: `linear-gradient(180deg, transparent, ${alpha(theme.palette.primary.main, 0.6)}, transparent)`,
             borderRadius: '3px',
@@ -920,7 +920,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
               ...topbarButtonStyle,
               animation: pendingTasksCount > 0 ? 'iconGlow 2.5s ease-in-out infinite' : 'none',
               '& .MuiSvgIcon-root': {
-                fontSize: '24px', // Más grande para iconos críticos
+                fontSize: '26px', // Más grande para iconos críticos
               }
             }}
           >
@@ -1011,8 +1011,8 @@ const DashboardHeader = ({ onOpenSettings }) => {
             <Box 
               sx={{ 
                 position: 'relative',
-                width: 48,
-                height: 48,
+                width: 52,
+                height: 52,
                 borderRadius: '50%',
                 background: `linear-gradient(${theme.palette.background.paper}, ${theme.palette.background.paper}) padding-box, linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main}) border-box`,
                 border: '3px solid transparent',
@@ -1032,7 +1032,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
                 photoURL={userProfile?.photoURL}
                 name={userProfile?.name}
                 email={userProfile?.email}
-                size={40}
+                size={44}
                 border={false}
               />
               {/* Indicador de estado online spectacular con glow intenso */}
@@ -1041,8 +1041,8 @@ const DashboardHeader = ({ onOpenSettings }) => {
                   position: 'absolute',
                   bottom: 0,
                   right: 0,
-                  width: 14,
-                  height: 14,
+                  width: 16,
+                  height: 16,
                   borderRadius: '50%',
                   background: `radial-gradient(circle, ${theme.palette.success.light}, ${theme.palette.success.main})`,
                   border: `3px solid ${theme.palette.background.paper}`,

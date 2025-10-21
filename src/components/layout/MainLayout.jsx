@@ -119,7 +119,7 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
             left: !isMobile && sidebarPosition === 'left' ? `${currentSidebarWidth + 16}px` : '16px',
             right: !isMobile && sidebarPosition === 'right' ? `${currentSidebarWidth + 16}px` : '16px',
             zIndex: 1100,
-            height: 64,
+            height: 80,
             backgroundColor: theme.palette.background.paper,
             borderRadius: 2,
             border: `1px solid ${theme.palette.divider}`,
@@ -136,6 +136,7 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
               alignItems: 'center',
               justifyContent: 'space-between',
               px: 3,
+              py: 2,
               height: '100%', // Ocupa toda la altura disponible
             }}
           >
