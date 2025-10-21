@@ -47,11 +47,17 @@ import { doc, updateDoc, getFirestore, getDoc } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
 import { useEmailNotifications } from '../../hooks/useEmailNotifications';
+import { useTelegramNotifications } from '../../hooks/useTelegramNotifications';
 
 const NotificationSettingsModal = ({ open, onClose, user }) => {
   const { user: currentUser } = useAuth();
   const { addNotification } = useNotifications();
   const { sendTestNotification, isLoading: emailLoading } = useEmailNotifications();
+  const { 
+    sendTestNotification: sendTelegramTest, 
+    verifyChatId,
+    sending: telegramSending 
+  } = useTelegramNotifications();
   const theme = useTheme();
   
   const [settings, setSettings] = useState({
@@ -214,12 +220,39 @@ const NotificationSettingsModal = ({ open, onClose, user }) => {
         });
       }
     } else if (channel === 'telegram') {
-      addNotification({
-        type: 'info',
-        title: 'Telegram en Desarrollo',
-        message: 'La integración con Telegram está en desarrollo...',
-        icon: 'telegram'
-      });
+      // Verificar que haya Chat ID configurado
+      if (!settings.telegramChatId) {
+        addNotification({
+          type: 'warning',
+          title: '⚠️ Chat ID requerido',
+          message: 'Por favor configura tu Chat ID de Telegram primero',
+          icon: 'telegram'
+        });
+        return;
+      }
+
+      try {
+        // Enviar mensaje de prueba por Telegram
+        await sendTelegramTest(
+          settings.telegramChatId,
+          user?.displayName || user?.email || 'Usuario'
+        );
+
+        addNotification({
+          type: 'success',
+          title: '✅ Telegram Enviado',
+          message: `Mensaje de prueba enviado a ${settings.telegramChatId}`,
+          icon: 'telegram'
+        });
+      } catch (error) {
+        console.error('Error enviando mensaje de Telegram:', error);
+        addNotification({
+          type: 'error',
+          title: '❌ Error en Telegram',
+          message: error.message || 'Error al enviar el mensaje de prueba',
+          icon: 'telegram'
+        });
+      }
     }
   };
 
@@ -420,8 +453,9 @@ const NotificationSettingsModal = ({ open, onClose, user }) => {
                       e.stopPropagation();
                       handleTestNotification('telegram');
                     }}
+                    disabled={telegramSending}
                   >
-                    ▶ Prueba
+                    {telegramSending ? 'Enviando...' : '▶ Prueba'}
                   </Button>
                 )}
               </Paper>
