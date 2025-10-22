@@ -14,7 +14,7 @@ export const useTelegramNotifications = () => {
   const TELEGRAM_API_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
   /**
-   * Enviar mensaje de Telegram
+   * Enviar mensaje de Telegram con soporte de prioridad
    */
   const sendTelegramMessage = async (chatId, message, options = {}) => {
     if (!BOT_TOKEN) {
@@ -28,9 +28,27 @@ export const useTelegramNotifications = () => {
     // Convertir chatId a número si es string
     const numericChatId = typeof chatId === 'string' ? parseInt(chatId, 10) : chatId;
     
-    console.log('🔍 Telegram Debug:', {
+    // Configurar prioridad
+    const priority = options.priority || 'normal';
+    const silent = priority === 'low' || options.silent || false;
+    
+    // Agregar emoji según prioridad si no está en el mensaje
+    let finalMessage = message;
+    if (!message.startsWith('�') && !message.startsWith('⚠️') && !message.startsWith('📌') && !message.startsWith('📝')) {
+      const priorityEmoji = {
+        critical: '🔴 ',
+        high: '⚠️ ',
+        normal: '📌 ',
+        low: '📝 '
+      };
+      finalMessage = (priorityEmoji[priority] || '') + message;
+    }
+    
+    console.log('�🔍 Telegram Debug:', {
       originalChatId: chatId,
       numericChatId,
+      priority,
+      silent,
       type: typeof numericChatId,
       botToken: BOT_TOKEN ? '✅ Configurado' : '❌ Faltante'
     });
