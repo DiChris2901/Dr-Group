@@ -107,7 +107,6 @@ const NotificationSettingsModal = ({ open, onClose, user }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
-  const [detectingChatId, setDetectingChatId] = useState(false);
   const [showChatIdInstructions, setShowChatIdInstructions] = useState(false);
 
   useEffect(() => {
@@ -144,43 +143,8 @@ const NotificationSettingsModal = ({ open, onClose, user }) => {
     }));
   };
 
-  const handleDetectChatId = async () => {
-    setDetectingChatId(true);
-    setError('');
-    
-    try {
-      const BOT_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
-      const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates`);
-      const data = await response.json();
-      
-      if (data.ok && data.result.length > 0) {
-        // Obtener el último mensaje
-        const lastUpdate = data.result[data.result.length - 1];
-        const chatId = lastUpdate.message?.chat?.id;
-        const firstName = lastUpdate.message?.from?.first_name;
-        const username = lastUpdate.message?.from?.username;
-        
-        if (chatId) {
-          setSettings(prev => ({ ...prev, telegramChatId: String(chatId) }));
-          addNotification({
-            type: 'success',
-            title: '✅ Chat ID Detectado',
-            message: `Chat ID encontrado: ${chatId} (${firstName || username})`,
-            icon: 'telegram'
-          });
-          setShowChatIdInstructions(false);
-        } else {
-          setError('No se encontraron mensajes. Envía /start al bot primero.');
-        }
-      } else {
-        setShowChatIdInstructions(true);
-      }
-    } catch (err) {
-      console.error('Error detectando Chat ID:', err);
-      setError('Error al detectar Chat ID. Intenta manualmente.');
-    } finally {
-      setDetectingChatId(false);
-    }
+  const handleShowInstructions = () => {
+    setShowChatIdInstructions(!showChatIdInstructions);
   };
 
   const handleSave = async () => {
@@ -513,7 +477,7 @@ const NotificationSettingsModal = ({ open, onClose, user }) => {
                 action={
                   <Button 
                     size="small" 
-                    onClick={() => setShowChatIdInstructions(!showChatIdInstructions)}
+                    onClick={handleShowInstructions}
                   >
                     {showChatIdInstructions ? 'Ocultar' : 'Ver Guía'}
                   </Button>
@@ -543,37 +507,28 @@ const NotificationSettingsModal = ({ open, onClose, user }) => {
                     </li>
                     <li>
                       <Typography variant="body2" sx={{ mb: 1 }}>
-                        Haz clic en el botón <strong>"🔍 Detectar Chat ID"</strong> abajo
+                        <strong>El bot te responderá automáticamente</strong> con tu Chat ID 🤖
                       </Typography>
                     </li>
                     <li>
                       <Typography variant="body2">
-                        Tu Chat ID se completará automáticamente ✅
+                        Copia el número y pégalo en el campo de abajo ✅
                       </Typography>
                     </li>
                   </Box>
                 </Paper>
               )}
 
-              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                <TextField
-                  fullWidth
-                  label="Chat ID de Telegram"
-                  value={settings.telegramChatId}
-                  onChange={(e) => setSettings(prev => ({ ...prev, telegramChatId: e.target.value }))}
-                  placeholder="Ej: 7821863320"
-                  variant="outlined"
-                  size="small"
-                />
-                <Button
-                  variant="contained"
-                  onClick={handleDetectChatId}
-                  disabled={detectingChatId}
-                  sx={{ minWidth: 180, whiteSpace: 'nowrap' }}
-                >
-                  {detectingChatId ? '⏳ Buscando...' : '🔍 Detectar Chat ID'}
-                </Button>
-              </Box>
+              <TextField
+                fullWidth
+                label="Chat ID de Telegram"
+                value={settings.telegramChatId}
+                onChange={(e) => setSettings(prev => ({ ...prev, telegramChatId: e.target.value }))}
+                placeholder="Ej: 7821863320"
+                helperText="Envía /start a @DrGroup_notifications_bot para obtener tu Chat ID"
+                variant="outlined"
+                size="small"
+              />
             </Box>
           )}
         </Paper>
