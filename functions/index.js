@@ -238,35 +238,97 @@ const getDashboardSummary = async (userId = null) => {
     id: doc.id,
     ...doc.data()
   }));
-
-  // Filtrar compromisos por estado
-  const overdue = commitments.filter(c => {
+  
+  console.log(`📊 Total compromisos en BD: ${commitments.length}`);
+  
+  // Obtener TODOS los pagos para cruzar con compromisos
+  const allPaymentsSnapshot = await db.collection('payments').get();
+  const allPayments = allPaymentsSnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+  
+  // Indexar pagos por commitmentId para búsqueda rápida
+  const paymentsByCommitment = {};
+  allPayments.forEach(payment => {
+    if (payment.commitmentId && !payment.is4x1000Tax) {
+      if (!paymentsByCommitment[payment.commitmentId]) {
+        paymentsByCommitment[payment.commitmentId] = [];
+      }
+      paymentsByCommitment[payment.commitmentId].push(payment);
+    }
+  });
+  
+  console.log(`💳 Total pagos indexados: ${Object.keys(paymentsByCommitment).length} compromisos con pagos`);
+  
+  // Clasificar compromisos según LÓGICA DE NEGOCIO CORRECTA
+  const overdue = [];        // SIN pagos + fecha vencida
+  const partialPayment = []; // CON pagos parciales (sin importar fecha)
+  const dueToday = [];
+  const next7Days = [];
+  const paid = [];
+  const pending = [];
+  
+  commitments.forEach(c => {
+    // Verificar si está COMPLETAMENTE pagado
+    const isCompletelyPaid = c.status === 'paid' || 
+                            c.status === 'completed' || 
+                            c.paid === true || 
+                            c.isPaid === true;
+    
+    if (isCompletelyPaid) {
+      paid.push(c);
+      return;
+    }
+    
+    // Obtener fecha de vencimiento
     const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
     dueDate.setHours(0, 0, 0, 0);
-    return dueDate < today && c.status !== 'paid';
-  });
-
-  const dueToday = commitments.filter(c => {
-    const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
-    const dueDateOnly = new Date(dueDate);
-    dueDateOnly.setHours(0, 0, 0, 0);
-    return dueDateOnly.getTime() === today.getTime() && c.status !== 'paid';
-  });
-
-  const next7Days = commitments.filter(c => {
-    const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
-    dueDate.setHours(0, 0, 0, 0);
+    
+    // Verificar si tiene pagos asociados
+    const commitmentPayments = paymentsByCommitment[c.id] || [];
+    const totalPaidAmount = commitmentPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const hasPayments = commitmentPayments.length > 0 && totalPaidAmount > 0;
+    
+    // LÓGICA DE CLASIFICACIÓN:
+    // 1. Si tiene pagos parciales → PENDIENTE (aunque esté vencido)
+    if (hasPayments) {
+      partialPayment.push(c);
+      pending.push(c);
+      return;
+    }
+    
+    // 2. Sin pagos + fecha vencida → VENCIDO
+    if (dueDate < today) {
+      overdue.push(c);
+      return;
+    }
+    
+    // 3. Sin pagos + vence hoy → DUE TODAY
+    if (dueDate.getTime() === today.getTime()) {
+      dueToday.push(c);
+      pending.push(c);
+      return;
+    }
+    
+    // 4. Sin pagos + vence en 7 días → NEXT 7 DAYS
     const diff = (dueDate - today) / (1000 * 60 * 60 * 24);
-    return diff > 0 && diff <= 7 && c.status !== 'paid';
+    if (diff > 0 && diff <= 7) {
+      next7Days.push(c);
+      pending.push(c);
+      return;
+    }
+    
+    // 5. Sin pagos + fecha futura → PENDING
+    pending.push(c);
   });
-
-  const pending = commitments.filter(c => c.status === 'pending' || c.status === 'overdue');
-  const paid = commitments.filter(c => c.status === 'paid');
   
   // Calcular totales de compromisos
   const totalPending = pending.reduce((sum, c) => sum + (c.amount || 0), 0);
   const totalOverdue = overdue.reduce((sum, c) => sum + (c.amount || 0), 0);
   const totalPaid = paid.reduce((sum, c) => sum + (c.amount || 0), 0);
+  
+  console.log(`📋 Clasificación: Vencidos=${overdue.length}, Parciales=${partialPayment.length}, Pendientes=${pending.length}, Pagados=${paid.length}`);
   
   // ========== PAGOS ==========
   const paymentsSnapshot = await db.collection('payments').get();
@@ -321,11 +383,19 @@ const getDashboardSummary = async (userId = null) => {
     next7Days: next7Days.length,
     pendingCount: pending.length,
     paidCount: paid.length,
+    partialPaymentCount: partialPayment.length,
     totalPending: totalPending,
     totalPaid: totalPaid,
     
     // Pagos
-    totalPayments: payments.length,
+    totalPayments: realPayments.length,
+    totalPaymentsAmount: totalPaymentsAmount,
+    paymentsThisMonth: paymentsThisMonth.filter(p => !p.is4x1000Tax).length,
+    totalPaymentsThisMonth: totalPaymentsThisMonth,
+    paymentsToday: paymentsToday.filter(p => !p.is4x1000Tax).length,
+    totalPaymentsToday: totalPaymentsToday
+  };
+};
     totalPaymentsAmount: totalPaymentsAmount,
     paymentsThisMonth: paymentsThisMonth.length,
     totalPaymentsThisMonth: totalPaymentsThisMonth,
@@ -425,8 +495,9 @@ exports.telegramWebhook = onRequest(async (req, res) => {
           `📅 <b>Compromisos:</b>\n` +
           `• Total: ${summary.totalCommitments}\n` +
           `• Pendientes: ${summary.pendingCount}\n` +
-          `• Pagados: ${summary.paidCount} ✅\n` +
-          `• Vencidos: ${summary.overdue} ⚠️\n` +
+          `• Con pagos parciales: ${summary.partialPaymentCount} 🟠\n` +
+          `• Pagados completos: ${summary.paidCount} ✅\n` +
+          `• Vencidos sin pago: ${summary.overdue} ⚠️\n` +
           `• Vencen hoy: ${summary.dueToday}\n` +
           `• Próximos 7 días: ${summary.next7Days}\n\n` +
           `💰 <b>Montos Compromisos:</b>\n` +
@@ -533,8 +604,9 @@ exports.telegramWebhook = onRequest(async (req, res) => {
           `💰 <b>Resumen de Pagos</b>\n\n` +
           `📊 <b>Compromisos Pendientes:</b>\n` +
           `• Cantidad: ${summary.pendingCount}\n` +
+          `• Con pagos parciales: ${summary.partialPaymentCount} 🟠\n` +
           `• Total a pagar: $${summary.totalPending.toLocaleString('es-CO')}\n` +
-          `• Vencidos: ${summary.overdue} compromisos\n` +
+          `• Vencidos sin pago: ${summary.overdue} compromisos\n` +
           `• Monto vencido: $${summary.overdueAmount.toLocaleString('es-CO')}\n\n` +
           `✅ <b>Compromisos Pagados:</b>\n` +
           `• Cantidad: ${summary.paidCount}\n` +
@@ -718,8 +790,9 @@ exports.dailyTelegramReport = onSchedule({
         `📋 <b>Compromisos:</b>\n` +
         `• Total activos: ${summary.totalCommitments}\n` +
         `• Pendientes: ${summary.pendingCount}\n` +
-        `• Pagados: ${summary.paidCount} ✅\n` +
-        `• 🔴 Vencidos: ${summary.overdue}\n` +
+        `• Con pagos parciales: ${summary.partialPaymentCount} 🟠\n` +
+        `• Pagados completos: ${summary.paidCount} ✅\n` +
+        `• 🔴 Vencidos sin pago: ${summary.overdue}\n` +
         `• ⚠️ Vencen hoy: ${summary.dueToday}\n` +
         `• 🟡 Próximos 7 días: ${summary.next7Days}\n\n` +
         `💰 <b>Situación Financiera:</b>\n` +
@@ -730,8 +803,9 @@ exports.dailyTelegramReport = onSchedule({
         `• Registrados: ${summary.paymentsThisMonth} pagos\n` +
         `• Total: $${summary.totalPaymentsThisMonth.toLocaleString('es-CO')}\n` +
         `• Hoy: ${summary.paymentsToday} ($${summary.totalPaymentsToday.toLocaleString('es-CO')})\n\n` +
-        `${summary.overdue > 0 ? '⚠️ <b>ATENCIÓN:</b> Hay compromisos vencidos que requieren acción inmediata.\n\n' : ''}` +
+        `${summary.overdue > 0 ? '⚠️ <b>ATENCIÓN:</b> Hay compromisos vencidos SIN PAGOS que requieren acción inmediata.\n\n' : ''}` +
         `${summary.dueToday > 0 ? '📌 <b>RECORDATORIO:</b> Hay compromisos que vencen hoy.\n\n' : ''}` +
+        `${summary.partialPaymentCount > 0 ? '🟠 <b>INFO:</b> Hay ' + summary.partialPaymentCount + ' compromiso(s) con pagos parciales pendientes de completar.\n\n' : ''}` +
         `<b>═══════════════════</b>\n\n` +
         `💡 Usa /help para ver comandos disponibles\n` +
         `🔗 <a href="https://dr-group-cd21b.web.app">Abrir Dashboard</a>`;
