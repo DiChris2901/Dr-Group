@@ -196,7 +196,7 @@ exports.storageProxy = onRequest(async (req, res) => {
 });
 
 /**
- * Helper: Enviar mensaje de Telegram
+ * Helper: Enviar mensaje de Telegram con soporte para botones inline
  */
 const sendTelegramMessage = async (chatId, text, options = {}) => {
   const BOT_TOKEN = process.env.VITE_TELEGRAM_BOT_TOKEN || 
@@ -210,6 +210,11 @@ const sendTelegramMessage = async (chatId, text, options = {}) => {
     disable_notification: options.silent || false,
     ...options
   };
+
+  // Agregar botones inline si se proporcionan
+  if (options.reply_markup) {
+    payload.reply_markup = options.reply_markup;
+  }
 
   const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
     method: 'POST',
@@ -492,8 +497,27 @@ async function handleCommitmentsMonth(chatId, monthNumber, year, monthName, firs
     message += `• 💵 Monto total: $${totalAmount.toLocaleString('es-CO')}\n\n`;
     message += `🔗 <a href="https://dr-group-cd21b.web.app/commitments">Ver en dashboard</a>`;
     
-    await sendTelegramMessage(chatId, message);
-    console.log(`✅ /compromisos mes ${monthNumber} - ${firstName}`);
+    // Crear botones inline para ver detalles de cada compromiso
+    const buttons = [];
+    monthCommitments.slice(0, 5).forEach((commitment) => {
+      buttons.push([{
+        text: `📋 ${(commitment.concept || 'Sin concepto').substring(0, 30)}...`,
+        callback_data: `detail_commitment_${commitment.id}`
+      }]);
+    });
+    
+    // Agregar botón de dashboard al final
+    buttons.push([{
+      text: '🌐 Abrir Dashboard Completo',
+      url: 'https://dr-group-cd21b.web.app/commitments'
+    }]);
+    
+    await sendTelegramMessage(chatId, message, {
+      reply_markup: {
+        inline_keyboard: buttons
+      }
+    });
+    console.log(`✅ /compromisos mes ${monthNumber} - ${firstName} - ${monthCommitments.length} compromisos con botones`);
   } catch (error) {
     console.error('Error en handleCommitmentsMonth:', error);
     await sendTelegramMessage(chatId, '❌ Error al obtener compromisos del mes.');
@@ -571,8 +595,27 @@ async function handlePaymentsMonth(chatId, monthNumber, year, monthName, firstNa
     message += `📊 <b>Cantidad:</b> ${monthPayments.length} ${monthPayments.length === 1 ? 'pago' : 'pagos'}\n\n`;
     message += `🔗 <a href="https://dr-group-cd21b.web.app/payments">Ver en dashboard</a>`;
     
-    await sendTelegramMessage(chatId, message);
-    console.log(`✅ /pagos mes ${monthNumber} - ${firstName}`);
+    // Crear botones inline para ver detalles de cada pago
+    const buttons = [];
+    monthPayments.slice(0, 5).forEach((payment) => {
+      buttons.push([{
+        text: `💳 ${(payment.concept || 'Sin concepto').substring(0, 30)}...`,
+        callback_data: `detail_payment_${payment.id}`
+      }]);
+    });
+    
+    // Agregar botón de dashboard al final
+    buttons.push([{
+      text: '🌐 Abrir Dashboard Completo',
+      url: 'https://dr-group-cd21b.web.app/payments'
+    }]);
+    
+    await sendTelegramMessage(chatId, message, {
+      reply_markup: {
+        inline_keyboard: buttons
+      }
+    });
+    console.log(`✅ /pagos mes ${monthNumber} - ${firstName} - ${monthPayments.length} pagos con botones`);
   } catch (error) {
     console.error('Error en handlePaymentsMonth:', error);
     await sendTelegramMessage(chatId, '❌ Error al obtener pagos del mes.');
@@ -681,6 +724,104 @@ exports.telegramWebhook = onRequest(async (req, res) => {
 
   try {
     const update = req.body;
+    
+    // === HANDLER PARA CALLBACK QUERY (BOTONES INLINE) ===
+    if (update.callback_query) {
+      const callbackQuery = update.callback_query;
+      const chatId = callbackQuery.message.chat.id;
+      const data = callbackQuery.data;
+      const messageId = callbackQuery.message.message_id;
+      
+      console.log(`🔘 Callback recibido: ${data} de chat ${chatId}`);
+      
+      // Inicializar Firestore
+      const db = getFirestore();
+      const BOT_TOKEN = process.env.VITE_TELEGRAM_BOT_TOKEN || 
+                        process.env.TELEGRAM_BOT_TOKEN ||
+                        '8430298503:AAEVPOGrIp5_UdUNGXSy3AD9rI8mS2OKipQ';
+      
+      // Responder al callback inmediatamente para quitar el loader
+      await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/answerCallbackQuery`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          callback_query_id: callbackQuery.id,
+          text: 'Cargando detalles...'
+        })
+      });
+      
+      // Procesar callback según el tipo
+      if (data.startsWith('detail_commitment_')) {
+        const commitmentId = data.replace('detail_commitment_', '');
+        
+        try {
+          // Consultar compromiso desde Firestore
+          const commitmentDoc = await db.collection('commitments').doc(commitmentId).get();
+          
+          if (!commitmentDoc.exists) {
+            await sendTelegramMessage(chatId, '❌ No se encontró el compromiso solicitado.');
+            return res.status(200).send('OK');
+          }
+          
+          const commitment = { id: commitmentDoc.id, ...commitmentDoc.data() };
+          const dueDate = commitment.dueDate?.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate);
+          const isPaid = commitment.status === 'paid' || commitment.paid === true || commitment.isPaid === true;
+          
+          // Formatear mensaje de detalles
+          let detailMessage = `📋 <b>DETALLES DEL COMPROMISO</b>\n\n`;
+          detailMessage += `<b>Concepto:</b> ${commitment.concept || 'Sin concepto'}\n`;
+          detailMessage += `<b>Empresa:</b> ${commitment.companyName || 'Sin empresa'}\n`;
+          if (commitment.beneficiaryName) detailMessage += `<b>Beneficiario:</b> ${commitment.beneficiaryName}\n`;
+          detailMessage += `<b>Monto:</b> $${(commitment.amount || 0).toLocaleString('es-CO')}\n`;
+          detailMessage += `<b>Fecha de vencimiento:</b> ${dueDate.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n`;
+          detailMessage += `<b>Estado:</b> ${isPaid ? '✅ Pagado' : '🟡 Pendiente'}\n`;
+          if (commitment.paymentMethod) detailMessage += `<b>Método de pago:</b> ${commitment.paymentMethod}\n`;
+          if (commitment.observations) detailMessage += `\n<b>Observaciones:</b>\n${commitment.observations}\n`;
+          detailMessage += `\n🔗 <a href="https://dr-group-cd21b.web.app/commitments">Ver en dashboard</a>`;
+          
+          await sendTelegramMessage(chatId, detailMessage);
+          console.log(`✅ Detalles de compromiso ${commitmentId} enviados a chat ${chatId}`);
+        } catch (error) {
+          console.error('Error consultando compromiso:', error);
+          await sendTelegramMessage(chatId, '❌ Error al cargar detalles del compromiso.');
+        }
+      }
+      else if (data.startsWith('detail_payment_')) {
+        const paymentId = data.replace('detail_payment_', '');
+        
+        try {
+          // Consultar pago desde Firestore
+          const paymentDoc = await db.collection('payments').doc(paymentId).get();
+          
+          if (!paymentDoc.exists) {
+            await sendTelegramMessage(chatId, '❌ No se encontró el pago solicitado.');
+            return res.status(200).send('OK');
+          }
+          
+          const payment = { id: paymentDoc.id, ...paymentDoc.data() };
+          const paymentDate = payment.date?.toDate ? payment.date.toDate() : new Date(payment.date);
+          
+          // Formatear mensaje de detalles
+          let detailMessage = `💳 <b>DETALLES DEL PAGO</b>\n\n`;
+          detailMessage += `<b>Concepto:</b> ${payment.concept || 'Sin concepto'}\n`;
+          detailMessage += `<b>Empresa:</b> ${payment.companyName || 'Sin empresa'}\n`;
+          detailMessage += `<b>Monto:</b> $${(payment.amount || 0).toLocaleString('es-CO')}\n`;
+          detailMessage += `<b>Fecha:</b> ${paymentDate.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n`;
+          if (payment.method || payment.paymentMethod) detailMessage += `<b>Método:</b> ${payment.method || payment.paymentMethod}\n`;
+          if (payment.reference) detailMessage += `<b>Referencia:</b> ${payment.reference}\n`;
+          if (payment.notes) detailMessage += `\n<b>Notas:</b>\n${payment.notes}\n`;
+          detailMessage += `\n🔗 <a href="https://dr-group-cd21b.web.app/payments">Ver en dashboard</a>`;
+          
+          await sendTelegramMessage(chatId, detailMessage);
+          console.log(`✅ Detalles de pago ${paymentId} enviados a chat ${chatId}`);
+        } catch (error) {
+          console.error('Error consultando pago:', error);
+          await sendTelegramMessage(chatId, '❌ Error al cargar detalles del pago.');
+        }
+      }
+      
+      return res.status(200).send('OK');
+    }
     
     // Verificar si hay un mensaje
     if (!update.message) {
