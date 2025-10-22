@@ -963,10 +963,21 @@ exports.telegramWebhook = onRequest(async (req, res) => {
     // Comando /pagos_del_dia - Pagos de hoy
     else if (text && text.toLowerCase() === '/pagos_del_dia') {
       try {
+        // Usar zona horaria de Colombia explícitamente
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
+        const colombiaOffset = -5; // UTC-5
+        const colombiaDate = new Date(today.getTime() + (colombiaOffset * 60 * 60 * 1000));
+        
+        const year = colombiaDate.getUTCFullYear();
+        const month = colombiaDate.getUTCMonth();
+        const day = colombiaDate.getUTCDate();
+        
+        const startOfDay = new Date(Date.UTC(year, month, day, 5, 0, 0, 0)); // 00:00 Colombia = 05:00 UTC
+        const endOfDay = new Date(Date.UTC(year, month, day + 1, 4, 59, 59, 999)); // 23:59:59 Colombia
+        
+        console.log(`🕐 Fecha actual Colombia: ${colombiaDate.toLocaleString('es-CO')}`);
+        console.log(`📅 Buscando pagos del día: ${day}/${month + 1}/${year}`);
+        console.log(`⏰ Rango UTC: ${startOfDay.toISOString()} - ${endOfDay.toISOString()}`);
         
         // Obtener pagos de hoy
         const paymentsSnapshot = await db.collection('payments').get();
@@ -979,13 +990,14 @@ exports.telegramWebhook = onRequest(async (req, res) => {
           const data = doc.data();
           if (!data.is4x1000Tax) {
             const paymentDate = data.date?.toDate ? data.date.toDate() : new Date(data.date);
-            paymentDate.setHours(0, 0, 0, 0);
             
-            if (paymentDate.getTime() === today.getTime()) {
+            // Verificar si el pago es del día de hoy
+            if (paymentDate >= startOfDay && paymentDate <= endOfDay) {
               todayPayments.push({
                 id: doc.id,
                 ...data
               });
+              console.log(`✅ Pago encontrado: ${data.concept} - ${paymentDate.toLocaleString('es-CO')}`);
             }
           }
         });
@@ -997,17 +1009,19 @@ exports.telegramWebhook = onRequest(async (req, res) => {
           return dateB - dateA;
         });
         
-        console.log(`💳 Pagos de hoy: ${todayPayments.length}`);
+        console.log(`💳 Pagos de hoy encontrados: ${todayPayments.length}`);
 
         if (todayPayments.length === 0) {
-          await sendTelegramMessage(chatId, `📭 No hay pagos registrados hoy\n📅 ${today.toLocaleDateString('es-CO')}`);
+          const todayDisplay = new Date(year, month, day);
+          await sendTelegramMessage(chatId, `📭 No hay pagos registrados hoy\n📅 ${todayDisplay.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`);
           console.log(`✅ /pagos_del_dia - ${firstName} - Sin pagos`);
           return res.status(200).send('OK');
         }
 
         let totalAmount = 0;
+        const todayDisplay = new Date(year, month, day);
         let message = `💵 <b>Pagos de Hoy</b>\n`;
-        message += `📅 ${today.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
+        message += `📅 ${todayDisplay.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n\n`;
         
         todayPayments.forEach((payment, index) => {
           const paymentDate = payment.date?.toDate ? payment.date.toDate() : new Date(payment.date);
