@@ -396,13 +396,6 @@ const getDashboardSummary = async (userId = null) => {
     totalPaymentsToday: totalPaymentsToday
   };
 };
-    totalPaymentsAmount: totalPaymentsAmount,
-    paymentsThisMonth: paymentsThisMonth.length,
-    totalPaymentsThisMonth: totalPaymentsThisMonth,
-    paymentsToday: paymentsToday.length,
-    totalPaymentsToday: totalPaymentsToday
-  };
-};
 
 /**
  * Webhook para Telegram Bot (Mejorado con comandos)
