@@ -1,4 +1,5 @@
 const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
 const { getFirestore } = require('firebase-admin/firestore');
@@ -195,8 +196,85 @@ exports.storageProxy = onRequest(async (req, res) => {
 });
 
 /**
- * Webhook para Telegram Bot
- * Responde automáticamente al comando /start con el Chat ID del usuario
+ * Helper: Enviar mensaje de Telegram
+ */
+const sendTelegramMessage = async (chatId, text, options = {}) => {
+  const BOT_TOKEN = process.env.VITE_TELEGRAM_BOT_TOKEN || 
+                    process.env.TELEGRAM_BOT_TOKEN ||
+                    '8430298503:AAEVPOGrIp5_UdUNGXSy3AD9rI8mS2OKipQ';
+  
+  const payload = {
+    chat_id: chatId,
+    text: text,
+    parse_mode: 'HTML',
+    disable_notification: options.silent || false,
+    ...options
+  };
+
+  const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+
+  return await response.json();
+};
+
+/**
+ * Helper: Obtener resumen del dashboard
+ */
+const getDashboardSummary = async (userId = null) => {
+  const db = getFirestore();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // Obtener compromisos
+  let commitmentsQuery = db.collection('commitments');
+  const commitmentsSnapshot = await commitmentsQuery.get();
+  
+  const commitments = commitmentsSnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+
+  // Filtrar compromisos por estado
+  const overdue = commitments.filter(c => {
+    const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
+    return dueDate < today && c.status !== 'paid';
+  });
+
+  const dueToday = commitments.filter(c => {
+    const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
+    const dueDateOnly = new Date(dueDate);
+    dueDateOnly.setHours(0, 0, 0, 0);
+    return dueDateOnly.getTime() === today.getTime() && c.status !== 'paid';
+  });
+
+  const next7Days = commitments.filter(c => {
+    const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
+    const diff = (dueDate - today) / (1000 * 60 * 60 * 24);
+    return diff > 0 && diff <= 7 && c.status !== 'paid';
+  });
+
+  const pending = commitments.filter(c => c.status === 'pending' || c.status === 'overdue');
+  
+  // Calcular totales
+  const totalPending = pending.reduce((sum, c) => sum + (c.amount || 0), 0);
+  const totalOverdue = overdue.reduce((sum, c) => sum + (c.amount || 0), 0);
+
+  return {
+    totalCommitments: commitments.length,
+    overdue: overdue.length,
+    overdueAmount: totalOverdue,
+    dueToday: dueToday.length,
+    next7Days: next7Days.length,
+    pendingCount: pending.length,
+    totalPending: totalPending
+  };
+};
+
+/**
+ * Webhook para Telegram Bot (Mejorado con comandos)
  */
 exports.telegramWebhook = onRequest(async (req, res) => {
   // Solo aceptar POST requests
@@ -218,18 +296,17 @@ exports.telegramWebhook = onRequest(async (req, res) => {
     const firstName = message.from.first_name || 'Usuario';
     const username = message.from.username || '';
 
-    // Responder al comando /start
-    if (text && text.toLowerCase() === '/start') {
-      // Usar variable de entorno directamente
-      const BOT_TOKEN = process.env.VITE_TELEGRAM_BOT_TOKEN || 
-                        process.env.TELEGRAM_BOT_TOKEN ||
-                        '8430298503:AAEVPOGrIp5_UdUNGXSy3AD9rI8mS2OKipQ'; // Fallback
-      
-      if (!BOT_TOKEN) {
-        console.error('❌ TELEGRAM_BOT_TOKEN no configurado');
-        return res.status(200).send('OK');
-      }
+    const BOT_TOKEN = process.env.VITE_TELEGRAM_BOT_TOKEN || 
+                      process.env.TELEGRAM_BOT_TOKEN ||
+                      '8430298503:AAEVPOGrIp5_UdUNGXSy3AD9rI8mS2OKipQ';
 
+    if (!BOT_TOKEN) {
+      console.error('❌ TELEGRAM_BOT_TOKEN no configurado');
+      return res.status(200).send('OK');
+    }
+
+    // Comando /start
+    if (text && text.toLowerCase() === '/start') {
       const responseMessage = 
         `🎉 ¡Hola ${firstName}! 👋\n\n` +
         `Tu bot de DR Group está listo para enviarte notificaciones.\n\n` +
@@ -241,31 +318,250 @@ exports.telegramWebhook = onRequest(async (req, res) => {
         `3. Activa Telegram\n` +
         `4. Pega tu Chat ID: <code>${chatId}</code>\n` +
         `5. Guarda y prueba la notificación\n\n` +
+        `📋 <b>Comandos disponibles:</b>\n` +
+        `/help - Ver todos los comandos\n` +
+        `/dashboard - Resumen del dashboard\n` +
+        `/compromisos - Ver compromisos próximos\n` +
+        `/pagos - Resumen de pagos pendientes\n\n` +
         `🤖 <i>DR Group Bot</i>`;
 
-      // Enviar respuesta
-      const response = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: responseMessage,
-          parse_mode: 'HTML'
-        })
-      });
+      await sendTelegramMessage(chatId, responseMessage);
+      console.log(`✅ /start - ${firstName} (${username}) - Chat ID: ${chatId}`);
+    }
+    
+    // Comando /help
+    else if (text && text.toLowerCase() === '/help') {
+      const helpMessage = 
+        `📚 <b>Ayuda - DR Group Bot</b>\n\n` +
+        `<b>Comandos Disponibles:</b>\n\n` +
+        `🏠 /dashboard - Resumen general del sistema\n` +
+        `📅 /compromisos - Ver compromisos próximos a vencer\n` +
+        `💰 /pagos - Resumen de pagos pendientes\n` +
+        `📊 /reporte - Solicitar reporte del día\n` +
+        `❓ /help - Mostrar esta ayuda\n\n` +
+        `<b>Notificaciones Automáticas:</b>\n` +
+        `• Reporte diario a las 8:00 AM\n` +
+        `• Alertas de compromisos vencidos\n` +
+        `• Notificaciones de pagos registrados\n` +
+        `• Eventos del calendario\n\n` +
+        `💡 <b>Configuración:</b>\n` +
+        `Administra tus notificaciones desde el dashboard en la sección de Usuarios.\n\n` +
+        `🔗 <b>Dashboard:</b> https://dr-group-cd21b.web.app`;
 
-      const data = await response.json();
-      
-      if (data.ok) {
-        console.log(`✅ Respuesta enviada a ${firstName} (${username}) - Chat ID: ${chatId}`);
-      } else {
-        console.error('❌ Error enviando mensaje:', data);
+      await sendTelegramMessage(chatId, helpMessage);
+      console.log(`✅ /help - ${firstName}`);
+    }
+    
+    // Comando /dashboard
+    else if (text && text.toLowerCase() === '/dashboard') {
+      try {
+        const summary = await getDashboardSummary();
+        const dashboardMessage = 
+          `📊 <b>Resumen del Dashboard</b>\n\n` +
+          `📅 <b>Compromisos:</b>\n` +
+          `• Total: ${summary.totalCommitments}\n` +
+          `• Pendientes: ${summary.pendingCount}\n` +
+          `• Vencidos: ${summary.overdue} ⚠️\n` +
+          `• Vencen hoy: ${summary.dueToday}\n` +
+          `• Próximos 7 días: ${summary.next7Days}\n\n` +
+          `💰 <b>Montos:</b>\n` +
+          `• Total pendiente: $${summary.totalPending.toLocaleString('es-CO')}\n` +
+          `• Vencido: $${summary.overdueAmount.toLocaleString('es-CO')} ${summary.overdueAmount > 0 ? '⚠️' : '✅'}\n\n` +
+          `🕐 Actualizado: ${new Date().toLocaleString('es-CO')}\n\n` +
+          `🔗 <a href="https://dr-group-cd21b.web.app">Abrir Dashboard</a>`;
+
+        await sendTelegramMessage(chatId, dashboardMessage);
+        console.log(`✅ /dashboard - ${firstName}`);
+      } catch (error) {
+        console.error('Error en /dashboard:', error);
+        await sendTelegramMessage(chatId, '❌ Error al obtener resumen. Intenta nuevamente.');
       }
+    }
+    
+    // Comando /compromisos
+    else if (text && text.toLowerCase() === '/compromisos') {
+      try {
+        const db = getFirestore();
+        const today = new Date();
+        const next7Days = new Date(today);
+        next7Days.setDate(today.getDate() + 7);
+
+        const snapshot = await db.collection('commitments')
+          .where('status', 'in', ['pending', 'overdue'])
+          .orderBy('dueDate', 'asc')
+          .limit(10)
+          .get();
+
+        if (snapshot.empty) {
+          await sendTelegramMessage(chatId, '✅ No hay compromisos pendientes próximos.');
+          return res.status(200).send('OK');
+        }
+
+        let message = `📅 <b>Compromisos Próximos</b>\n\n`;
+        
+        snapshot.docs.forEach((doc, index) => {
+          const data = doc.data();
+          const dueDate = data.dueDate?.toDate ? data.dueDate.toDate() : new Date(data.dueDate);
+          const isOverdue = dueDate < today;
+          const icon = isOverdue ? '🔴' : '🟡';
+          
+          message += `${icon} <b>${data.concept || 'Sin concepto'}</b>\n`;
+          message += `   💰 $${(data.amount || 0).toLocaleString('es-CO')}\n`;
+          message += `   📅 Vence: ${dueDate.toLocaleDateString('es-CO')}\n`;
+          if (data.companyName) message += `   🏢 ${data.companyName}\n`;
+          message += `\n`;
+        });
+
+        message += `\n🔗 <a href="https://dr-group-cd21b.web.app/commitments">Ver todos</a>`;
+
+        await sendTelegramMessage(chatId, message);
+        console.log(`✅ /compromisos - ${firstName}`);
+      } catch (error) {
+        console.error('Error en /compromisos:', error);
+        await sendTelegramMessage(chatId, '❌ Error al obtener compromisos.');
+      }
+    }
+    
+    // Comando /pagos
+    else if (text && text.toLowerCase() === '/pagos') {
+      try {
+        const summary = await getDashboardSummary();
+        const pagosMessage = 
+          `💰 <b>Resumen de Pagos</b>\n\n` +
+          `📊 <b>Estadísticas:</b>\n` +
+          `• Compromisos pendientes: ${summary.pendingCount}\n` +
+          `• Total a pagar: $${summary.totalPending.toLocaleString('es-CO')}\n` +
+          `• Vencidos: ${summary.overdue} compromisos\n` +
+          `• Monto vencido: $${summary.overdueAmount.toLocaleString('es-CO')}\n\n` +
+          `⚠️ <b>Urgente:</b>\n` +
+          `• Vencen hoy: ${summary.dueToday}\n` +
+          `• Próximos 7 días: ${summary.next7Days}\n\n` +
+          `🔗 <a href="https://dr-group-cd21b.web.app/payments">Registrar pago</a>`;
+
+        await sendTelegramMessage(chatId, pagosMessage);
+        console.log(`✅ /pagos - ${firstName}`);
+      } catch (error) {
+        console.error('Error en /pagos:', error);
+        await sendTelegramMessage(chatId, '❌ Error al obtener información de pagos.');
+      }
+    }
+    
+    // Comando /reporte
+    else if (text && text.toLowerCase() === '/reporte') {
+      try {
+        const summary = await getDashboardSummary();
+        const now = new Date();
+        const reporteMessage = 
+          `📊 <b>Reporte Diario - DR Group</b>\n` +
+          `📅 ${now.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n\n` +
+          `<b>═══════════════════</b>\n\n` +
+          `📋 <b>Compromisos:</b>\n` +
+          `• Total activos: ${summary.totalCommitments}\n` +
+          `• Pendientes: ${summary.pendingCount}\n` +
+          `• 🔴 Vencidos: ${summary.overdue}\n` +
+          `• ⚠️ Vencen hoy: ${summary.dueToday}\n` +
+          `• 🟡 Próximos 7 días: ${summary.next7Days}\n\n` +
+          `💰 <b>Situación Financiera:</b>\n` +
+          `• Total pendiente: $${summary.totalPending.toLocaleString('es-CO')}\n` +
+          `• Monto vencido: $${summary.overdueAmount.toLocaleString('es-CO')}\n\n` +
+          `${summary.overdue > 0 ? '⚠️ <b>ATENCIÓN:</b> Hay compromisos vencidos que requieren acción inmediata.\n\n' : ''}` +
+          `<b>═══════════════════</b>\n\n` +
+          `🕐 Generado: ${now.toLocaleTimeString('es-CO')}\n` +
+          `🔗 <a href="https://dr-group-cd21b.web.app">Abrir Dashboard</a>`;
+
+        await sendTelegramMessage(chatId, reporteMessage);
+        console.log(`✅ /reporte - ${firstName}`);
+      } catch (error) {
+        console.error('Error en /reporte:', error);
+        await sendTelegramMessage(chatId, '❌ Error al generar reporte.');
+      }
+    }
+    
+    // Comando no reconocido
+    else if (text && text.startsWith('/')) {
+      const unknownMessage = 
+        `❓ Comando no reconocido: <code>${text}</code>\n\n` +
+        `Usa /help para ver los comandos disponibles.`;
+      await sendTelegramMessage(chatId, unknownMessage);
     }
 
     return res.status(200).send('OK');
   } catch (error) {
     console.error('❌ Error en webhook:', error);
     return res.status(200).send('OK'); // Siempre retornar 200 para Telegram
+  }
+});
+
+/**
+ * Reporte Automático Diario (8:00 AM Colombia)
+ * Enviado a todos los usuarios con Telegram habilitado
+ */
+exports.dailyTelegramReport = onSchedule({
+  schedule: '0 8 * * *',
+  timeZone: 'America/Bogota',
+  memory: '256MiB'
+}, async (event) => {
+  console.log('🤖 Iniciando reporte diario automático...');
+  
+  try {
+    const db = getFirestore();
+    
+    // Obtener todos los usuarios con Telegram habilitado
+    const usersSnapshot = await db.collection('users').get();
+    const summary = await getDashboardSummary();
+    
+    const now = new Date();
+    const greeting = now.getHours() < 12 ? '☀️ Buenos días' : '🌤️ Buenas tardes';
+    
+    let sentCount = 0;
+    let errorCount = 0;
+    
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data();
+      const settings = userData.notificationSettings;
+      
+      // Verificar si tiene Telegram habilitado y Chat ID configurado
+      if (!settings || !settings.telegramEnabled || !settings.telegramChatId) {
+        continue;
+      }
+      
+      const userName = userData.displayName || userData.name || 'Usuario';
+      
+      const reportMessage = 
+        `${greeting} <b>${userName}</b> 👋\n\n` +
+        `📊 <b>Reporte Diario - DR Group</b>\n` +
+        `📅 ${now.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n\n` +
+        `<b>═══════════════════</b>\n\n` +
+        `📋 <b>Compromisos:</b>\n` +
+        `• Total activos: ${summary.totalCommitments}\n` +
+        `• Pendientes: ${summary.pendingCount}\n` +
+        `• 🔴 Vencidos: ${summary.overdue}\n` +
+        `• ⚠️ Vencen hoy: ${summary.dueToday}\n` +
+        `• 🟡 Próximos 7 días: ${summary.next7Days}\n\n` +
+        `💰 <b>Situación Financiera:</b>\n` +
+        `• Total pendiente: $${summary.totalPending.toLocaleString('es-CO')}\n` +
+        `• Monto vencido: $${summary.overdueAmount.toLocaleString('es-CO')}\n\n` +
+        `${summary.overdue > 0 ? '⚠️ <b>ATENCIÓN:</b> Hay compromisos vencidos que requieren acción inmediata.\n\n' : ''}` +
+        `${summary.dueToday > 0 ? '📌 <b>RECORDATORIO:</b> Hay compromisos que vencen hoy.\n\n' : ''}` +
+        `<b>═══════════════════</b>\n\n` +
+        `💡 Usa /help para ver comandos disponibles\n` +
+        `🔗 <a href="https://dr-group-cd21b.web.app">Abrir Dashboard</a>`;
+      
+      try {
+        await sendTelegramMessage(settings.telegramChatId, reportMessage);
+        sentCount++;
+        console.log(`✅ Reporte enviado a ${userName} (${settings.telegramChatId})`);
+      } catch (error) {
+        errorCount++;
+        console.error(`❌ Error enviando a ${userName}:`, error);
+      }
+    }
+    
+    console.log(`✅ Reporte diario completado: ${sentCount} enviados, ${errorCount} errores`);
+    return { success: true, sent: sentCount, errors: errorCount };
+    
+  } catch (error) {
+    console.error('❌ Error en reporte diario:', error);
+    throw error;
   }
 });
