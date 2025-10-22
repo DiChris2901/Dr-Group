@@ -220,7 +220,10 @@ exports.telegramWebhook = onRequest(async (req, res) => {
 
     // Responder al comando /start
     if (text && text.toLowerCase() === '/start') {
-      const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+      // Usar variable de entorno directamente
+      const BOT_TOKEN = process.env.VITE_TELEGRAM_BOT_TOKEN || 
+                        process.env.TELEGRAM_BOT_TOKEN ||
+                        '8430298503:AAEVPOGrIp5_UdUNGXSy3AD9rI8mS2OKipQ'; // Fallback
       
       if (!BOT_TOKEN) {
         console.error('❌ TELEGRAM_BOT_TOKEN no configurado');
