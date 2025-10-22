@@ -14,6 +14,7 @@ export const NotificationsProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [resolvedAlerts, setResolvedAlerts] = useState(new Set());
+  const [dismissedNotifications, setDismissedNotifications] = useState(new Set());
 
   // Cargar alertas resueltas desde localStorage al inicializar
   useEffect(() => {
@@ -27,6 +28,18 @@ export const NotificationsProvider = ({ children }) => {
     }
   }, []);
 
+  // Cargar notificaciones descartadas desde localStorage al inicializar
+  useEffect(() => {
+    try {
+      const savedDismissed = localStorage.getItem('dr_group_dismissed_notifications');
+      if (savedDismissed) {
+        setDismissedNotifications(new Set(JSON.parse(savedDismissed)));
+      }
+    } catch (error) {
+      console.warn('Error cargando notificaciones descartadas:', error);
+    }
+  }, []);
+
   // Guardar alertas resueltas en localStorage cuando cambien
   useEffect(() => {
     try {
@@ -35,6 +48,15 @@ export const NotificationsProvider = ({ children }) => {
       console.warn('Error guardando alertas resueltas:', error);
     }
   }, [resolvedAlerts]);
+
+  // Guardar notificaciones descartadas en localStorage cuando cambien
+  useEffect(() => {
+    try {
+      localStorage.setItem('dr_group_dismissed_notifications', JSON.stringify([...dismissedNotifications]));
+    } catch (error) {
+      console.warn('Error guardando notificaciones descartadas:', error);
+    }
+  }, [dismissedNotifications]);
 
   // Función para agregar notificación (soporta ambos formatos)
   const addNotification = (messageOrNotification, type = 'info') => {
@@ -55,13 +77,33 @@ export const NotificationsProvider = ({ children }) => {
       notificationData = messageOrNotification;
     }
     
+    // Generar ID único basado en el contenido para evitar duplicados
+    const notificationId = notificationData.source === 'chat' && notificationData.conversationId
+      ? `chat_${notificationData.conversationId}_${Date.now()}`
+      : Date.now() + Math.random();
+    
+    // No agregar si ya fue descartada
+    if (dismissedNotifications.has(notificationId)) {
+      return;
+    }
+    
     const newNotification = {
-      id: Date.now() + Math.random(),
+      id: notificationId,
       timestamp: new Date(),
       read: false,
       ...notificationData
     };
-    setNotifications(prev => [newNotification, ...prev]);
+    
+    setNotifications(prev => {
+      // Evitar duplicados exactos
+      const exists = prev.some(n => 
+        n.message === newNotification.message && 
+        n.title === newNotification.title &&
+        Math.abs(new Date(n.timestamp) - new Date(newNotification.timestamp)) < 1000
+      );
+      if (exists) return prev;
+      return [newNotification, ...prev];
+    });
   };
 
   // Función para agregar alerta (solo si no está resuelta)
@@ -97,6 +139,9 @@ export const NotificationsProvider = ({ children }) => {
 
   // Función para eliminar notificación
   const deleteNotification = (notificationId) => {
+    // Marcar como descartada para evitar que vuelva a aparecer
+    setDismissedNotifications(prev => new Set([...prev, notificationId]));
+    
     setNotifications(prev => 
       prev.filter(notification => notification.id !== notificationId)
     );
@@ -104,6 +149,10 @@ export const NotificationsProvider = ({ children }) => {
 
   // Función para limpiar todas las notificaciones
   const clearAllNotifications = () => {
+    // Marcar todas como descartadas
+    const allIds = notifications.map(n => n.id);
+    setDismissedNotifications(prev => new Set([...prev, ...allIds]));
+    
     setNotifications([]);
   };
 
@@ -130,6 +179,29 @@ export const NotificationsProvider = ({ children }) => {
     setResolvedAlerts(new Set());
     localStorage.removeItem('dr_group_resolved_alerts');
   };
+
+  // Limpiar notificaciones descartadas antiguas (más de 7 días)
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      try {
+        const savedDismissed = localStorage.getItem('dr_group_dismissed_notifications');
+        if (savedDismissed) {
+          const dismissed = JSON.parse(savedDismissed);
+          // Mantener solo los últimos 500 IDs
+          if (dismissed.length > 500) {
+            const recent = dismissed.slice(-500);
+            localStorage.setItem('dr_group_dismissed_notifications', JSON.stringify(recent));
+            setDismissedNotifications(new Set(recent));
+            console.log('🧹 Limpieza de notificaciones descartadas antiguas');
+          }
+        }
+      } catch (error) {
+        console.warn('Error en limpieza de notificaciones:', error);
+      }
+    }, 24 * 60 * 60 * 1000); // Cada 24 horas
+
+    return () => clearInterval(cleanupInterval);
+  }, []);
 
   // Contar notificaciones no leídas
   const unreadCount = notifications.filter(n => !n.read).length;
