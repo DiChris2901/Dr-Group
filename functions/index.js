@@ -2,7 +2,7 @@ const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https')
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { initializeApp } = require('firebase-admin/app');
 const { getAuth } = require('firebase-admin/auth');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getStorage } = require('firebase-admin/storage');
 
 // Inicializar Firebase Admin
@@ -402,6 +402,7 @@ const getDashboardSummary = async (userId = null) => {
  */
 async function handleCommitmentsMonth(chatId, monthNumber, year, monthName, firstName) {
   try {
+    console.log(`🔍 handleCommitmentsMonth - Chat: ${chatId}, Mes: ${monthNumber}, Año: ${year}`);
     const db = getFirestore();
     
     // Calcular rango de fechas del mes
@@ -410,11 +411,14 @@ async function handleCommitmentsMonth(chatId, monthNumber, year, monthName, firs
     const endDate = new Date(year, monthNumber, 0); // Último día del mes
     endDate.setHours(23, 59, 59, 999);
     
+    console.log(`📅 Rango: ${startDate.toLocaleDateString('es-CO')} - ${endDate.toLocaleDateString('es-CO')}`);
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     // Obtener todos los compromisos y filtrar por mes
     const snapshot = await db.collection('commitments').get();
+    console.log(`📊 Total compromisos en BD: ${snapshot.size}`);
     
     const monthCommitments = [];
     snapshot.docs.forEach(doc => {
@@ -435,6 +439,8 @@ async function handleCommitmentsMonth(chatId, monthNumber, year, monthName, firs
       const dateB = b.dueDate?.toDate ? b.dueDate.toDate() : new Date(b.dueDate);
       return dateA - dateB;
     });
+    
+    console.log(`📋 Compromisos filtrados del mes: ${monthCommitments.length}`);
     
     if (monthCommitments.length === 0) {
       await sendTelegramMessage(chatId, `📅 No hay compromisos registrados para ${monthName} ${year}`);
@@ -499,6 +505,7 @@ async function handleCommitmentsMonth(chatId, monthNumber, year, monthName, firs
  */
 async function handlePaymentsMonth(chatId, monthNumber, year, monthName, firstName) {
   try {
+    console.log(`🔍 handlePaymentsMonth - Chat: ${chatId}, Mes: ${monthNumber}, Año: ${year}`);
     const db = getFirestore();
     
     // Calcular rango de fechas del mes
@@ -507,8 +514,11 @@ async function handlePaymentsMonth(chatId, monthNumber, year, monthName, firstNa
     const endDate = new Date(year, monthNumber, 0);
     endDate.setHours(23, 59, 59, 999);
     
+    console.log(`📅 Rango: ${startDate.toLocaleDateString('es-CO')} - ${endDate.toLocaleDateString('es-CO')}`);
+    
     // Obtener todos los pagos y filtrar por mes
     const paymentsSnapshot = await db.collection('payments').get();
+    console.log(`📊 Total pagos en BD: ${paymentsSnapshot.size}`);
     
     const monthPayments = [];
     paymentsSnapshot.docs.forEach(doc => {
@@ -531,6 +541,8 @@ async function handlePaymentsMonth(chatId, monthNumber, year, monthName, firstNa
       const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date);
       return dateB - dateA;
     });
+    
+    console.log(`💳 Pagos filtrados del mes: ${monthPayments.length}`);
     
     if (monthPayments.length === 0) {
       await sendTelegramMessage(chatId, `💳 No hay pagos registrados para ${monthName} ${year}`);
@@ -572,6 +584,7 @@ async function handlePaymentsMonth(chatId, monthNumber, year, monthName, firstNa
  */
 async function handleReportMonth(chatId, monthNumber, year, monthName, firstName) {
   try {
+    console.log(`🔍 handleReportMonth - Chat: ${chatId}, Mes: ${monthNumber}, Año: ${year}`);
     const db = getFirestore();
     
     // Calcular rango de fechas del mes
@@ -582,8 +595,11 @@ async function handleReportMonth(chatId, monthNumber, year, monthName, firstName
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
+    console.log(`📅 Rango: ${startDate.toLocaleDateString('es-CO')} - ${endDate.toLocaleDateString('es-CO')}`);
+    
     // Obtener compromisos del mes
     const commitmentsSnapshot = await db.collection('commitments').get();
+    console.log(`📊 Total compromisos en BD: ${commitmentsSnapshot.size}`);
     const monthCommitments = [];
     commitmentsSnapshot.docs.forEach(doc => {
       const data = doc.data();
@@ -1028,6 +1044,8 @@ exports.telegramWebhook = onRequest(async (req, res) => {
           const command = stateData.command;
           const monthNumber = parseInt(text);
           
+          console.log(`📱 Estado detectado: ${command} - Mes: ${monthNumber} - Chat: ${chatId}`);
+          
           // Validar que sea un número de mes válido
           if (isNaN(monthNumber) || monthNumber < 1 || monthNumber > 12) {
             await sendTelegramMessage(chatId, '❌ Número de mes inválido. Por favor ingresa un número entre 1 y 12.');
@@ -1039,6 +1057,8 @@ exports.telegramWebhook = onRequest(async (req, res) => {
                               'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
           const monthName = monthNames[monthNumber - 1];
           
+          console.log(`🔄 Procesando: ${command} para ${monthName} ${currentYear}`);
+          
           // Procesar según el comando original
           if (command === 'compromisos') {
             await handleCommitmentsMonth(chatId, monthNumber, currentYear, monthName, firstName);
@@ -1048,12 +1068,15 @@ exports.telegramWebhook = onRequest(async (req, res) => {
             await handleReportMonth(chatId, monthNumber, currentYear, monthName, firstName);
           }
           
+          console.log(`✅ Comando ${command} ejecutado - Limpiando estado`);
+          
           // Limpiar estado
           await db.collection('telegram_states').doc(chatId.toString()).delete();
           return res.status(200).send('OK');
         }
       } catch (error) {
         console.error('Error procesando estado:', error);
+        await sendTelegramMessage(chatId, '❌ Error al procesar tu solicitud. Intenta nuevamente con el comando.');
       }
     }
     
