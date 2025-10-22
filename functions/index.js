@@ -221,17 +221,19 @@ const sendTelegramMessage = async (chatId, text, options = {}) => {
 };
 
 /**
- * Helper: Obtener resumen del dashboard
+ * Helper: Obtener resumen del dashboard (con datos reales de Firestore)
  */
 const getDashboardSummary = async (userId = null) => {
   const db = getFirestore();
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  // Obtener compromisos
-  let commitmentsQuery = db.collection('commitments');
-  const commitmentsSnapshot = await commitmentsQuery.get();
+  const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+  lastDayOfMonth.setHours(23, 59, 59, 999);
   
+  // ========== COMPROMISOS ==========
+  const commitmentsSnapshot = await db.collection('commitments').get();
   const commitments = commitmentsSnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data()
@@ -240,6 +242,7 @@ const getDashboardSummary = async (userId = null) => {
   // Filtrar compromisos por estado
   const overdue = commitments.filter(c => {
     const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
+    dueDate.setHours(0, 0, 0, 0);
     return dueDate < today && c.status !== 'paid';
   });
 
@@ -252,24 +255,63 @@ const getDashboardSummary = async (userId = null) => {
 
   const next7Days = commitments.filter(c => {
     const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
+    dueDate.setHours(0, 0, 0, 0);
     const diff = (dueDate - today) / (1000 * 60 * 60 * 24);
     return diff > 0 && diff <= 7 && c.status !== 'paid';
   });
 
   const pending = commitments.filter(c => c.status === 'pending' || c.status === 'overdue');
+  const paid = commitments.filter(c => c.status === 'paid');
   
-  // Calcular totales
+  // Calcular totales de compromisos
   const totalPending = pending.reduce((sum, c) => sum + (c.amount || 0), 0);
   const totalOverdue = overdue.reduce((sum, c) => sum + (c.amount || 0), 0);
+  const totalPaid = paid.reduce((sum, c) => sum + (c.amount || 0), 0);
+  
+  // ========== PAGOS ==========
+  const paymentsSnapshot = await db.collection('payments').get();
+  const payments = paymentsSnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+  
+  // Pagos del mes actual
+  const paymentsThisMonth = payments.filter(p => {
+    const paymentDate = p.paymentDate?.toDate ? p.paymentDate.toDate() : new Date(p.paymentDate);
+    return paymentDate >= firstDayOfMonth && paymentDate <= lastDayOfMonth;
+  });
+  
+  // Pagos de hoy
+  const paymentsToday = payments.filter(p => {
+    const paymentDate = p.paymentDate?.toDate ? p.paymentDate.toDate() : new Date(p.paymentDate);
+    paymentDate.setHours(0, 0, 0, 0);
+    return paymentDate.getTime() === today.getTime();
+  });
+  
+  // Calcular totales de pagos
+  const totalPaymentsAmount = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const totalPaymentsThisMonth = paymentsThisMonth.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const totalPaymentsToday = paymentsToday.reduce((sum, p) => sum + (p.amount || 0), 0);
 
   return {
+    // Compromisos
     totalCommitments: commitments.length,
     overdue: overdue.length,
     overdueAmount: totalOverdue,
     dueToday: dueToday.length,
     next7Days: next7Days.length,
     pendingCount: pending.length,
-    totalPending: totalPending
+    paidCount: paid.length,
+    totalPending: totalPending,
+    totalPaid: totalPaid,
+    
+    // Pagos
+    totalPayments: payments.length,
+    totalPaymentsAmount: totalPaymentsAmount,
+    paymentsThisMonth: paymentsThisMonth.length,
+    totalPaymentsThisMonth: totalPaymentsThisMonth,
+    paymentsToday: paymentsToday.length,
+    totalPaymentsToday: totalPaymentsToday
   };
 };
 
@@ -322,7 +364,8 @@ exports.telegramWebhook = onRequest(async (req, res) => {
         `/help - Ver todos los comandos\n` +
         `/dashboard - Resumen del dashboard\n` +
         `/compromisos - Ver compromisos próximos\n` +
-        `/pagos - Resumen de pagos pendientes\n\n` +
+        `/pagos - Resumen de pagos\n` +
+        `/ultimos_pagos - Ver últimos pagos registrados\n\n` +
         `🤖 <i>DR Group Bot</i>`;
 
       await sendTelegramMessage(chatId, responseMessage);
@@ -336,10 +379,12 @@ exports.telegramWebhook = onRequest(async (req, res) => {
         `<b>Comandos Disponibles:</b>\n\n` +
         `🏠 /dashboard - Resumen general del sistema\n` +
         `📅 /compromisos - Ver compromisos próximos a vencer\n` +
-        `💰 /pagos - Resumen de pagos pendientes\n` +
+        `💰 /pagos - Resumen completo de pagos\n` +
+        `💳 /ultimos_pagos - Ver últimos 10 pagos registrados\n` +
         `📊 /reporte - Solicitar reporte del día\n` +
         `❓ /help - Mostrar esta ayuda\n\n` +
         `<b>Notificaciones Automáticas:</b>\n` +
+        `• Recordatorios inteligentes a las 7:00 AM\n` +
         `• Reporte diario a las 8:00 AM\n` +
         `• Alertas de compromisos vencidos\n` +
         `• Notificaciones de pagos registrados\n` +
@@ -361,12 +406,19 @@ exports.telegramWebhook = onRequest(async (req, res) => {
           `📅 <b>Compromisos:</b>\n` +
           `• Total: ${summary.totalCommitments}\n` +
           `• Pendientes: ${summary.pendingCount}\n` +
+          `• Pagados: ${summary.paidCount} ✅\n` +
           `• Vencidos: ${summary.overdue} ⚠️\n` +
           `• Vencen hoy: ${summary.dueToday}\n` +
           `• Próximos 7 días: ${summary.next7Days}\n\n` +
-          `💰 <b>Montos:</b>\n` +
+          `💰 <b>Montos Compromisos:</b>\n` +
           `• Total pendiente: $${summary.totalPending.toLocaleString('es-CO')}\n` +
+          `• Monto pagado: $${summary.totalPaid.toLocaleString('es-CO')} ✅\n` +
           `• Vencido: $${summary.overdueAmount.toLocaleString('es-CO')} ${summary.overdueAmount > 0 ? '⚠️' : '✅'}\n\n` +
+          `💳 <b>Pagos Registrados:</b>\n` +
+          `• Total histórico: ${summary.totalPayments} pagos\n` +
+          `• Monto total: $${summary.totalPaymentsAmount.toLocaleString('es-CO')}\n` +
+          `• Este mes: ${summary.paymentsThisMonth} ($${summary.totalPaymentsThisMonth.toLocaleString('es-CO')})\n` +
+          `• Hoy: ${summary.paymentsToday} ($${summary.totalPaymentsToday.toLocaleString('es-CO')})\n\n` +
           `🕐 Actualizado: ${new Date().toLocaleString('es-CO')}\n\n` +
           `🔗 <a href="https://dr-group-cd21b.web.app">Abrir Dashboard</a>`;
 
@@ -383,6 +435,7 @@ exports.telegramWebhook = onRequest(async (req, res) => {
       try {
         const db = getFirestore();
         const today = new Date();
+        today.setHours(0, 0, 0, 0);
         const next7Days = new Date(today);
         next7Days.setDate(today.getDate() + 7);
 
@@ -402,6 +455,7 @@ exports.telegramWebhook = onRequest(async (req, res) => {
         snapshot.docs.forEach((doc, index) => {
           const data = doc.data();
           const dueDate = data.dueDate?.toDate ? data.dueDate.toDate() : new Date(data.dueDate);
+          dueDate.setHours(0, 0, 0, 0);
           const isOverdue = dueDate < today;
           const icon = isOverdue ? '🔴' : '🟡';
           
@@ -426,13 +480,24 @@ exports.telegramWebhook = onRequest(async (req, res) => {
     else if (text && text.toLowerCase() === '/pagos') {
       try {
         const summary = await getDashboardSummary();
+        const now = new Date();
+        const monthName = now.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+        
         const pagosMessage = 
           `💰 <b>Resumen de Pagos</b>\n\n` +
-          `📊 <b>Estadísticas:</b>\n` +
-          `• Compromisos pendientes: ${summary.pendingCount}\n` +
+          `📊 <b>Compromisos Pendientes:</b>\n` +
+          `• Cantidad: ${summary.pendingCount}\n` +
           `• Total a pagar: $${summary.totalPending.toLocaleString('es-CO')}\n` +
           `• Vencidos: ${summary.overdue} compromisos\n` +
           `• Monto vencido: $${summary.overdueAmount.toLocaleString('es-CO')}\n\n` +
+          `✅ <b>Compromisos Pagados:</b>\n` +
+          `• Cantidad: ${summary.paidCount}\n` +
+          `• Monto pagado: $${summary.totalPaid.toLocaleString('es-CO')}\n\n` +
+          `💳 <b>Pagos Registrados (${monthName}):</b>\n` +
+          `• Pagos este mes: ${summary.paymentsThisMonth}\n` +
+          `• Total del mes: $${summary.totalPaymentsThisMonth.toLocaleString('es-CO')}\n` +
+          `• Pagos hoy: ${summary.paymentsToday}\n` +
+          `• Total hoy: $${summary.totalPaymentsToday.toLocaleString('es-CO')}\n\n` +
           `⚠️ <b>Urgente:</b>\n` +
           `• Vencen hoy: ${summary.dueToday}\n` +
           `• Próximos 7 días: ${summary.next7Days}\n\n` +
@@ -451,6 +516,8 @@ exports.telegramWebhook = onRequest(async (req, res) => {
       try {
         const summary = await getDashboardSummary();
         const now = new Date();
+        const monthName = now.toLocaleDateString('es-CO', { month: 'long' });
+        
         const reporteMessage = 
           `📊 <b>Reporte Diario - DR Group</b>\n` +
           `📅 ${now.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}\n\n` +
@@ -458,12 +525,18 @@ exports.telegramWebhook = onRequest(async (req, res) => {
           `📋 <b>Compromisos:</b>\n` +
           `• Total activos: ${summary.totalCommitments}\n` +
           `• Pendientes: ${summary.pendingCount}\n` +
+          `• Pagados: ${summary.paidCount} ✅\n` +
           `• 🔴 Vencidos: ${summary.overdue}\n` +
           `• ⚠️ Vencen hoy: ${summary.dueToday}\n` +
           `• 🟡 Próximos 7 días: ${summary.next7Days}\n\n` +
           `💰 <b>Situación Financiera:</b>\n` +
           `• Total pendiente: $${summary.totalPending.toLocaleString('es-CO')}\n` +
+          `• Total pagado: $${summary.totalPaid.toLocaleString('es-CO')} ✅\n` +
           `• Monto vencido: $${summary.overdueAmount.toLocaleString('es-CO')}\n\n` +
+          `💳 <b>Pagos de ${monthName}:</b>\n` +
+          `• Pagos registrados: ${summary.paymentsThisMonth}\n` +
+          `• Monto del mes: $${summary.totalPaymentsThisMonth.toLocaleString('es-CO')}\n` +
+          `• Pagos hoy: ${summary.paymentsToday} ($${summary.totalPaymentsToday.toLocaleString('es-CO')})\n\n` +
           `${summary.overdue > 0 ? '⚠️ <b>ATENCIÓN:</b> Hay compromisos vencidos que requieren acción inmediata.\n\n' : ''}` +
           `<b>═══════════════════</b>\n\n` +
           `🕐 Generado: ${now.toLocaleTimeString('es-CO')}\n` +
@@ -474,6 +547,46 @@ exports.telegramWebhook = onRequest(async (req, res) => {
       } catch (error) {
         console.error('Error en /reporte:', error);
         await sendTelegramMessage(chatId, '❌ Error al generar reporte.');
+      }
+    }
+    
+    // Comando /ultimos_pagos
+    else if (text && text.toLowerCase() === '/ultimos_pagos') {
+      try {
+        const db = getFirestore();
+        
+        // Obtener últimos 10 pagos ordenados por fecha
+        const paymentsSnapshot = await db.collection('payments')
+          .orderBy('paymentDate', 'desc')
+          .limit(10)
+          .get();
+
+        if (paymentsSnapshot.empty) {
+          await sendTelegramMessage(chatId, '📭 No hay pagos registrados aún.');
+          return res.status(200).send('OK');
+        }
+
+        let message = `💳 <b>Últimos Pagos Registrados</b>\n\n`;
+        
+        paymentsSnapshot.docs.forEach((doc, index) => {
+          const data = doc.data();
+          const paymentDate = data.paymentDate?.toDate ? data.paymentDate.toDate() : new Date(data.paymentDate);
+          
+          message += `${index + 1}. <b>${data.concept || 'Sin concepto'}</b>\n`;
+          message += `   💰 $${(data.amount || 0).toLocaleString('es-CO')}\n`;
+          message += `   📅 ${paymentDate.toLocaleDateString('es-CO')}\n`;
+          if (data.companyName) message += `   🏢 ${data.companyName}\n`;
+          if (data.paymentMethod) message += `   💳 ${data.paymentMethod}\n`;
+          message += `\n`;
+        });
+
+        message += `🔗 <a href="https://dr-group-cd21b.web.app/payments">Ver todos los pagos</a>`;
+
+        await sendTelegramMessage(chatId, message);
+        console.log(`✅ /ultimos_pagos - ${firstName}`);
+      } catch (error) {
+        console.error('Error en /ultimos_pagos:', error);
+        await sendTelegramMessage(chatId, '❌ Error al obtener pagos.');
       }
     }
     
@@ -526,6 +639,7 @@ exports.dailyTelegramReport = onSchedule({
       }
       
       const userName = userData.displayName || userData.name || 'Usuario';
+      const monthName = now.toLocaleDateString('es-CO', { month: 'long' });
       
       const reportMessage = 
         `${greeting} <b>${userName}</b> 👋\n\n` +
@@ -535,12 +649,18 @@ exports.dailyTelegramReport = onSchedule({
         `📋 <b>Compromisos:</b>\n` +
         `• Total activos: ${summary.totalCommitments}\n` +
         `• Pendientes: ${summary.pendingCount}\n` +
+        `• Pagados: ${summary.paidCount} ✅\n` +
         `• 🔴 Vencidos: ${summary.overdue}\n` +
         `• ⚠️ Vencen hoy: ${summary.dueToday}\n` +
         `• 🟡 Próximos 7 días: ${summary.next7Days}\n\n` +
         `💰 <b>Situación Financiera:</b>\n` +
         `• Total pendiente: $${summary.totalPending.toLocaleString('es-CO')}\n` +
+        `• Total pagado: $${summary.totalPaid.toLocaleString('es-CO')} ✅\n` +
         `• Monto vencido: $${summary.overdueAmount.toLocaleString('es-CO')}\n\n` +
+        `💳 <b>Pagos de ${monthName}:</b>\n` +
+        `• Registrados: ${summary.paymentsThisMonth} pagos\n` +
+        `• Total: $${summary.totalPaymentsThisMonth.toLocaleString('es-CO')}\n` +
+        `• Hoy: ${summary.paymentsToday} ($${summary.totalPaymentsToday.toLocaleString('es-CO')})\n\n` +
         `${summary.overdue > 0 ? '⚠️ <b>ATENCIÓN:</b> Hay compromisos vencidos que requieren acción inmediata.\n\n' : ''}` +
         `${summary.dueToday > 0 ? '📌 <b>RECORDATORIO:</b> Hay compromisos que vencen hoy.\n\n' : ''}` +
         `<b>═══════════════════</b>\n\n` +
@@ -565,3 +685,175 @@ exports.dailyTelegramReport = onSchedule({
     throw error;
   }
 });
+
+/**
+ * Recordatorios Inteligentes de Compromisos
+ * Se ejecuta cada día a las 7:00 AM (1 hora antes del reporte)
+ */
+exports.smartCommitmentReminders = onSchedule({
+  schedule: '0 7 * * *',
+  timeZone: 'America/Bogota',
+  memory: '256MiB'
+}, async (event) => {
+  console.log('⏰ Iniciando recordatorios inteligentes...');
+  
+  try {
+    const db = getFirestore();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Fechas de referencia
+    const threeDaysFromNow = new Date(today);
+    threeDaysFromNow.setDate(today.getDate() + 3);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    
+    // Obtener compromisos pendientes
+    const commitmentsSnapshot = await db.collection('commitments')
+      .where('status', 'in', ['pending', 'overdue'])
+      .get();
+    
+    const reminders = {
+      overdue: [],      // Ya vencidos
+      dueToday: [],     // Vencen hoy
+      due3Days: []      // Vencen en 3 días
+    };
+    
+    // Clasificar compromisos
+    commitmentsSnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      const dueDate = data.dueDate?.toDate ? data.dueDate.toDate() : new Date(data.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
+      
+      if (dueDate < today) {
+        reminders.overdue.push({ id: doc.id, ...data, dueDate });
+      } else if (dueDate.getTime() === today.getTime()) {
+        reminders.dueToday.push({ id: doc.id, ...data, dueDate });
+      } else if (dueDate.getTime() === threeDaysFromNow.getTime()) {
+        reminders.due3Days.push({ id: doc.id, ...data, dueDate });
+      }
+    });
+    
+    // Obtener usuarios con notificaciones habilitadas
+    const usersSnapshot = await db.collection('users').get();
+    
+    let sentCount = 0;
+    
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data();
+      const settings = userData.notificationSettings;
+      
+      if (!settings || !settings.telegramEnabled || !settings.telegramChatId) {
+        continue;
+      }
+      
+      const userName = userData.displayName || userData.name || 'Usuario';
+      
+      // 🔴 CRÍTICO: Compromisos vencidos
+      if (reminders.overdue.length > 0) {
+        const overdueMessage = 
+          `🔴 <b>ALERTA CRÍTICA</b>\n\n` +
+          `⚠️ Tienes ${reminders.overdue.length} compromiso(s) VENCIDO(S)\n\n` +
+          reminders.overdue.slice(0, 5).map(c => 
+            `• <b>${c.concept}</b>\n` +
+            `  💰 $${(c.amount || 0).toLocaleString('es-CO')}\n` +
+            `  📅 Venció: ${c.dueDate.toLocaleDateString('es-CO')}\n` +
+            `  ${c.companyName ? `🏢 ${c.companyName}\n` : ''}`
+          ).join('\n') +
+          (reminders.overdue.length > 5 ? `\n...y ${reminders.overdue.length - 5} más` : '') +
+          `\n\n⚡ <b>ACCIÓN REQUERIDA INMEDIATA</b>`;
+        
+        await sendTelegramMessage(settings.telegramChatId, overdueMessage, { 
+          disable_notification: false  // Sonido ALTO
+        });
+        sentCount++;
+      }
+      
+      // ⚠️ URGENTE: Vencen hoy
+      if (reminders.dueToday.length > 0) {
+        const todayMessage = 
+          `⚠️ <b>RECORDATORIO URGENTE</b>\n\n` +
+          `📅 ${reminders.dueToday.length} compromiso(s) VENCEN HOY\n\n` +
+          reminders.dueToday.slice(0, 5).map(c => 
+            `• <b>${c.concept}</b>\n` +
+            `  💰 $${(c.amount || 0).toLocaleString('es-CO')}\n` +
+            `  ${c.companyName ? `🏢 ${c.companyName}\n` : ''}`
+          ).join('\n') +
+          (reminders.dueToday.length > 5 ? `\n...y ${reminders.dueToday.length - 5} más` : '') +
+          `\n\n⏰ Vencen antes de medianoche`;
+        
+        await sendTelegramMessage(settings.telegramChatId, todayMessage, { 
+          disable_notification: false  // Sonido MEDIO
+        });
+        sentCount++;
+      }
+      
+      // 🟡 INFO: Vencen en 3 días
+      if (reminders.due3Days.length > 0) {
+        const threeDaysMessage = 
+          `🟡 <b>Recordatorio</b>\n\n` +
+          `📌 ${reminders.due3Days.length} compromiso(s) vencen en 3 días\n\n` +
+          reminders.due3Days.slice(0, 5).map(c => 
+            `• <b>${c.concept}</b>\n` +
+            `  💰 $${(c.amount || 0).toLocaleString('es-CO')}\n` +
+            `  📅 ${c.dueDate.toLocaleDateString('es-CO')}\n` +
+            `  ${c.companyName ? `🏢 ${c.companyName}\n` : ''}`
+          ).join('\n') +
+          (reminders.due3Days.length > 5 ? `\n...y ${reminders.due3Days.length - 5} más` : '') +
+          `\n\n💡 Planifica el pago con anticipación`;
+        
+        await sendTelegramMessage(settings.telegramChatId, threeDaysMessage, { 
+          disable_notification: true  // Modo SILENCIOSO
+        });
+        sentCount++;
+      }
+    }
+    
+    console.log(`✅ Recordatorios completados: ${sentCount} enviados`);
+    console.log(`   - Vencidos: ${reminders.overdue.length}`);
+    console.log(`   - Hoy: ${reminders.dueToday.length}`);
+    console.log(`   - 3 días: ${reminders.due3Days.length}`);
+    
+    return { 
+      success: true, 
+      sent: sentCount,
+      overdue: reminders.overdue.length,
+      today: reminders.dueToday.length,
+      threeDays: reminders.due3Days.length
+    };
+    
+  } catch (error) {
+    console.error('❌ Error en recordatorios:', error);
+    throw error;
+  }
+});
+
+/**
+ * Helper mejorado: Enviar mensaje con prioridad
+ */
+const sendTelegramMessageWithPriority = async (chatId, text, priority = 'normal') => {
+  const options = {
+    silent: priority === 'low',
+    disable_notification: priority === 'low'
+  };
+  
+  // Agregar emoji según prioridad
+  let prefix = '';
+  switch(priority) {
+    case 'critical':
+      prefix = '🔴 ';
+      break;
+    case 'high':
+      prefix = '⚠️ ';
+      break;
+    case 'normal':
+      prefix = '📌 ';
+      break;
+    case 'low':
+      prefix = '📝 ';
+      break;
+  }
+  
+  return await sendTelegramMessage(chatId, prefix + text, options);
+};
