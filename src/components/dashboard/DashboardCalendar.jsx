@@ -457,14 +457,26 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
       // 📨 Enviar notificaciones a usuarios suscritos
       const notificationPromises = [];
       
+      console.log(`📧 Verificando notificaciones para ${usersSnapshot.size} usuarios`);
+      
       usersSnapshot.forEach(userDoc => {
         const userData = userDoc.data();
         const settings = userData.notificationSettings;
         
+        console.log(`Usuario: ${userData.email || userData.displayName}`, {
+          hasSettings: !!settings,
+          calendarEventsEnabled: settings?.calendarEventsEnabled,
+          emailEnabled: settings?.emailEnabled,
+          telegramEnabled: settings?.telegramEnabled
+        });
+        
         // Verificar si el usuario tiene notificaciones de calendario habilitadas
         if (!settings || !settings.calendarEventsEnabled) {
+          console.log(`❌ Usuario ${userData.email} no tiene calendarEventsEnabled habilitado`);
           return; // Skip este usuario
         }
+        
+        console.log(`✅ Usuario ${userData.email} recibirá notificación del evento`);
         
         // Preparar datos del evento para notificación
         const eventNotificationData = {

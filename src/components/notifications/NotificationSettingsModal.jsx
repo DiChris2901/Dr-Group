@@ -119,9 +119,14 @@ const NotificationSettingsModal = ({ open, onClose, user }) => {
         const userData = await getDoc(userDoc);
         
         if (userData.exists() && userData.data().notificationSettings) {
+          const userSettings = userData.data().notificationSettings;
           setSettings(prev => ({
             ...prev,
-            ...userData.data().notificationSettings
+            ...userSettings,
+            // Asegurar que nuevos campos tengan valores por defecto si no existen
+            calendarEventsEnabled: userSettings.calendarEventsEnabled !== undefined 
+              ? userSettings.calendarEventsEnabled 
+              : true
           }));
         }
       } catch (error) {
