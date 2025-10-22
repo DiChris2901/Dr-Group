@@ -692,6 +692,9 @@ exports.telegramWebhook = onRequest(async (req, res) => {
     const text = message.text;
     const firstName = message.from.first_name || 'Usuario';
     const username = message.from.username || '';
+    
+    // Inicializar Firestore para estados conversacionales
+    const db = getFirestore();
 
     const BOT_TOKEN = process.env.VITE_TELEGRAM_BOT_TOKEN || 
                       process.env.TELEGRAM_BOT_TOKEN ||
@@ -816,6 +819,7 @@ exports.telegramWebhook = onRequest(async (req, res) => {
         timestamp: FieldValue.serverTimestamp()
       });
       
+      console.log(`💾 Estado guardado: compromisos - Chat: ${chatId}`);
       console.log(`✅ /compromisos - ${firstName} - Solicitando mes`);
     }
     
@@ -846,6 +850,7 @@ exports.telegramWebhook = onRequest(async (req, res) => {
         timestamp: FieldValue.serverTimestamp()
       });
       
+      console.log(`💾 Estado guardado: pagos - Chat: ${chatId}`);
       console.log(`✅ /pagos - ${firstName} - Solicitando mes`);
     }
     
@@ -876,13 +881,13 @@ exports.telegramWebhook = onRequest(async (req, res) => {
         timestamp: FieldValue.serverTimestamp()
       });
       
+      console.log(`💾 Estado guardado: reporte - Chat: ${chatId}`);
       console.log(`✅ /reporte - ${firstName} - Solicitando mes`);
     }
     
     // Comando /ultimos_pagos - Últimos 15 días
     else if (text && text.toLowerCase() === '/ultimos_pagos') {
       try {
-        const db = getFirestore();
         const today = new Date();
         const fifteenDaysAgo = new Date(today);
         fifteenDaysAgo.setDate(today.getDate() - 15);
@@ -958,7 +963,6 @@ exports.telegramWebhook = onRequest(async (req, res) => {
     // Comando /pagos_del_dia - Pagos de hoy
     else if (text && text.toLowerCase() === '/pagos_del_dia') {
       try {
-        const db = getFirestore();
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const tomorrow = new Date(today);
