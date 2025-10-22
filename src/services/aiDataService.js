@@ -157,13 +157,15 @@ class AIDataService {
       return {
         found: filteredPayments.length > 0,
         payments: filteredPayments,
+        paymentIds: filteredPayments.map(p => ({ id: p.id, concept: p.concept, amount: p.amount })),
         summary: {
           totalAmount,
           averageAmount,
           paymentCount: filteredPayments.length,
           period: `${format(startDate, 'MMM yyyy')} - ${format(endDate, 'MMM yyyy')}`
         },
-        monthlyBreakdown: monthlyData
+        monthlyBreakdown: monthlyData,
+        type: 'payments' // Identificador de tipo de datos
       };
     } catch (error) {
       console.error('Error al consultar historial de pagos:', error);
@@ -237,7 +239,16 @@ class AIDataService {
           all: filteredCommitments.slice(0, 10), // Limitar respuesta
           overdue: overdue.slice(0, 5),
           upcoming: upcoming.slice(0, 5)
-        }
+        },
+        commitmentIds: filteredCommitments.slice(0, 10).map(c => ({ 
+          id: c.id, 
+          concept: c.concept, 
+          amount: c.amount, 
+          status: c.status,
+          companyName: c.companyName,
+          dueDate: c.dueDate
+        })),
+        type: 'commitments' // Identificador de tipo de datos
       };
     } catch (error) {
       console.error('Error al analizar compromisos:', error);

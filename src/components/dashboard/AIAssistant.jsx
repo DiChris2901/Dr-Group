@@ -15,19 +15,33 @@ import {
   CircularProgress,
   alpha,
   useTheme,
-  Tooltip
+  Tooltip,
+  Button,
+  Grid,
+  Divider,
+  DialogActions
 } from '@mui/material';
 import {
   SmartToy as AIIcon,
   Send as SendIcon,
   Close as CloseIcon,
   Person as UserIcon,
-  ContentCopy as CopyIcon
+  ContentCopy as CopyIcon,
+  Visibility as ViewIcon,
+  AccountBalance as CommitmentIcon,
+  Receipt as PaymentIcon,
+  Business as CompanyIcon,
+  CalendarToday as DateIcon,
+  AttachMoney as MoneyIcon,
+  Description as DescriptionIcon,
+  AttachFile as FileIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { fCurrency } from '../../utils/formatNumber';
 import aiDataService from '../../services/aiDataService';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
 const AIAssistant = () => {
   const theme = useTheme();
@@ -38,6 +52,12 @@ const AIAssistant = () => {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
 
+  // Estados para detalles de registros
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState(null);
+  const [recordType, setRecordType] = useState(null); // 'commitment' | 'payment'
+  const [loadingDetails, setLoadingDetails] = useState(false);
+
   // Scroll automático al final
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -46,6 +66,38 @@ const AIAssistant = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Función para cargar detalles completos desde Firestore
+  const loadRecordDetails = async (recordId, type) => {
+    setLoadingDetails(true);
+    setRecordType(type);
+    
+    try {
+      const collectionName = type === 'commitment' ? 'commitments' : 'payments';
+      const docRef = doc(db, collectionName, recordId);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        const data = { id: docSnap.id, ...docSnap.data() };
+        console.log('📋 Detalles cargados:', data);
+        setSelectedRecord(data);
+        setDetailsModalOpen(true);
+      } else {
+        console.error('❌ No se encontró el registro');
+      }
+    } catch (error) {
+      console.error('❌ Error al cargar detalles:', error);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  // Función para cerrar modal de detalles
+  const handleCloseDetails = () => {
+    setDetailsModalOpen(false);
+    setSelectedRecord(null);
+    setRecordType(null);
+  };
 
   // Mensaje de bienvenida
   useEffect(() => {
@@ -70,13 +122,13 @@ const AIAssistant = () => {
       
       // Si es un mensaje de ayuda
       if (data.help) {
-        return data.message;
+        return { text: data.message, data: null };
       }
       
       // Formatear respuesta según tipo de datos
       if (data.company) {
         const company = data.company;
-        return `🏢 **${company.name || company.businessName || 'Empresa'}**\n\n` +
+        const text = `🏢 **${company.name || company.businessName || 'Empresa'}**\n\n` +
                `• **NIT:** ${company.nit || 'No registrado'}\n` +
                `• **Razón Social:** ${company.businessName || company.name || 'No registrada'}\n` +
                `• **Estado:** ${company.status === 'active' ? '✅ Activa' : company.status === 'inactive' ? '❌ Inactiva' : '⚠️ ' + (company.status || 'Sin estado')}\n` +
@@ -85,6 +137,7 @@ const AIAssistant = () => {
                `• **Dirección:** ${company.address || 'No registrada'}\n` +
                `• **Fecha de registro:** ${company.createdAt ? new Date(company.createdAt.seconds * 1000).toLocaleDateString('es-ES') : 'No registrada'}\n\n` +
                `📊 **Total de empresas registradas:** ${data.totalCompanies}`;
+        return { text, data: null };
       }
 
       // Si no encontró la empresa específica
@@ -107,7 +160,7 @@ const AIAssistant = () => {
           response += `• Luego podrás consultarla aquí`;
         }
         
-        return response;
+        return { text: response, data: null };
       }
 
       if (data.payments) {
@@ -115,7 +168,8 @@ const AIAssistant = () => {
         const monthlyData = Object.entries(data.monthlyBreakdown);
         
         if (summary.paymentCount === 0) {
-          return `💰 **Historial de Pagos**\n\n❌ **No se encontraron pagos** que coincidan con tu consulta en los últimos 3 meses.\n\n💡 **Sugerencias:**\n• Verifica el nombre de la empresa\n• Revisa si hay pagos registrados en la sección "Pagos"\n• Intenta con un término más general`;
+          const text = `💰 **Historial de Pagos**\n\n❌ **No se encontraron pagos** que coincidan con tu consulta en los últimos 3 meses.\n\n💡 **Sugerencias:**\n• Verifica el nombre de la empresa\n• Revisa si hay pagos registrados en la sección "Pagos"\n• Intenta con un término más general`;
+          return { text, data: null };
         }
         
         let response = `💰 **Historial de Pagos**\n\n`;
@@ -133,14 +187,15 @@ const AIAssistant = () => {
           });
         }
 
-        return response;
+        return { text: response, data: { type: 'payments', records: data.paymentIds || [] } };
       }
 
       if (data.summary && data.commitments) {
         const summary = data.summary;
         
         if (summary.total === 0) {
-          return `📋 **Análisis de Compromisos**\n\n❌ **No se encontraron compromisos** registrados.\n\n💡 **Para empezar:**\n• Ve a "Compromisos" → "Agregar Nuevo"\n• Registra tus obligaciones financieras\n• Luego podrás consultarlas aquí`;
+          const text = `📋 **Análisis de Compromisos**\n\n❌ **No se encontraron compromisos** registrados.\n\n💡 **Para empezar:**\n• Ve a "Compromisos" → "Agregar Nuevo"\n• Registra tus obligaciones financieras\n• Luego podrás consultarlas aquí`;
+          return { text, data: null };
         }
         
         let response = `📋 **Análisis de Compromisos`;
@@ -167,12 +222,12 @@ const AIAssistant = () => {
           });
         }
 
-        return response;
+        return { text: response, data: { type: 'commitments', records: data.commitmentIds || [] } };
       }
 
       // Estadísticas generales
       if (data.companies && data.commitments && data.payments) {
-        return `📊 **Dashboard General - Resumen Ejecutivo**\n\n` +
+        const text = `📊 **Dashboard General - Resumen Ejecutivo**\n\n` +
                `🏢 **Empresas:**\n` +
                `• Total: ${data.companies.total}\n` +
                `• Activas: ${data.companies.active}\n\n` +
@@ -185,12 +240,14 @@ const AIAssistant = () => {
                `• Total procesados: ${data.payments.total}\n` +
                `• Valor total: ${fCurrency(data.payments.totalAmount)}\n` +
                `• Este mes: ${data.payments.thisMonth} pagos`;
+        return { text, data: null };
       }
 
-      return '🤖 He procesado tu consulta pero no encontré información específica. ¿Podrías ser más específico sobre qué datos necesitas?';
+      return { text: '🤖 He procesado tu consulta pero no encontré información específica. ¿Podrías ser más específico sobre qué datos necesitas?', data: null };
     } catch (error) {
       console.error('❌ Error al obtener respuesta IA:', error);
-      return `❌ **Error al consultar datos**\n\n**Detalles técnicos:**\n${error.message}\n\n💡 **Sugerencias:**\n• Verifica tu conexión a internet\n• Intenta de nuevo en unos segundos\n• Si el problema persiste, contacta al administrador`;
+      const text = `❌ **Error al consultar datos**\n\n**Detalles técnicos:**\n${error.message}\n\n💡 **Sugerencias:**\n• Verifica tu conexión a internet\n• Intenta de nuevo en unos segundos\n• Si el problema persiste, contacta al administrador`;
+      return { text, data: null };
     }
   };
 
@@ -215,7 +272,8 @@ const AIAssistant = () => {
       const aiMessage = {
         id: Date.now() + 1,
         type: 'ai',
-        content: aiResponse,
+        content: aiResponse.text,
+        data: aiResponse.data, // Datos estructurados con IDs de registros
         timestamp: new Date()
       };
 
@@ -301,6 +359,41 @@ const AIAssistant = () => {
               >
                 {message.content}
               </Typography>
+              
+              {/* Botones de Ver Detalles si hay datos */}
+              {message.data && message.data.records && message.data.records.length > 0 && (
+                <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Divider sx={{ mb: 1 }} />
+                  <Typography variant="caption" color="text.secondary" fontWeight="600">
+                    {message.data.type === 'commitments' ? '📋 Compromisos disponibles:' : '💰 Pagos disponibles:'}
+                  </Typography>
+                  {message.data.records.map((record, index) => (
+                    <Button
+                      key={record.id}
+                      size="small"
+                      variant="outlined"
+                      startIcon={message.data.type === 'commitments' ? <CommitmentIcon /> : <PaymentIcon />}
+                      onClick={() => loadRecordDetails(record.id, message.data.type === 'commitments' ? 'commitment' : 'payment')}
+                      sx={{
+                        textTransform: 'none',
+                        justifyContent: 'flex-start',
+                        borderRadius: 1,
+                        fontSize: '0.75rem',
+                        py: 0.5
+                      }}
+                    >
+                      <Box sx={{ textAlign: 'left', overflow: 'hidden' }}>
+                        <Typography variant="caption" fontWeight="600" noWrap>
+                          {record.concept || record.description || 'Sin concepto'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          {fCurrency(record.amount)} • {record.companyName || 'Ver detalles'}
+                        </Typography>
+                      </Box>
+                    </Button>
+                  ))}
+                </Box>
+              )}
               
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
                 <Typography 
@@ -475,8 +568,298 @@ const AIAssistant = () => {
           </Box>
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Detalles Completos */}
+      <Dialog
+        open={detailsModalOpen}
+        onClose={handleCloseDetails}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            maxHeight: '90vh'
+          }
+        }}
+      >
+        <DialogTitle
+          sx={{
+            bgcolor: recordType === 'commitment' ? 'primary.main' : 'secondary.main',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            p: 2
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {recordType === 'commitment' ? <CommitmentIcon /> : <PaymentIcon />}
+            <Typography variant="h6" fontWeight="600">
+              {recordType === 'commitment' ? 'Detalles del Compromiso' : 'Detalles del Pago'}
+            </Typography>
+          </Box>
+          <IconButton onClick={handleCloseDetails} sx={{ color: 'white' }}>
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 3, mt: 2 }}>
+          {loadingDetails ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : selectedRecord ? (
+            <Grid container spacing={3}>
+              {/* Información General */}
+              <Grid item xs={12}>
+                <Typography variant="overline" color="text.secondary" fontWeight="600">
+                  INFORMACIÓN GENERAL
+                </Typography>
+              </Grid>
+
+              {recordType === 'commitment' ? (
+                <>
+                  {/* Concepto */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                      <DescriptionIcon fontSize="small" color="primary" />
+                      <Typography variant="caption" color="text.secondary">Concepto</Typography>
+                    </Box>
+                    <Typography variant="body1" fontWeight="600">
+                      {selectedRecord.concept || 'Sin concepto'}
+                    </Typography>
+                  </Grid>
+
+                  {/* Empresa */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                      <CompanyIcon fontSize="small" color="primary" />
+                      <Typography variant="caption" color="text.secondary">Empresa</Typography>
+                    </Box>
+                    <Typography variant="body1" fontWeight="600">
+                      {selectedRecord.companyName || 'Sin empresa'}
+                    </Typography>
+                  </Grid>
+
+                  {/* Beneficiario */}
+                  {selectedRecord.beneficiaryName && (
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                        <UserIcon fontSize="small" color="primary" />
+                        <Typography variant="caption" color="text.secondary">Beneficiario</Typography>
+                      </Box>
+                      <Typography variant="body1" fontWeight="600">
+                        {selectedRecord.beneficiaryName}
+                      </Typography>
+                    </Grid>
+                  )}
+
+                  {/* Fecha de Vencimiento */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                      <DateIcon fontSize="small" color="primary" />
+                      <Typography variant="caption" color="text.secondary">Fecha de Vencimiento</Typography>
+                    </Box>
+                    <Typography variant="body1" fontWeight="600">
+                      {selectedRecord.dueDate ? new Date(selectedRecord.dueDate.seconds * 1000).toLocaleDateString('es-ES', { 
+                        day: '2-digit', 
+                        month: 'long', 
+                        year: 'numeric' 
+                      }) : 'Sin fecha'}
+                    </Typography>
+                  </Grid>
+
+                  {/* Monto */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                      <MoneyIcon fontSize="small" color="success" />
+                      <Typography variant="caption" color="text.secondary">Monto Total</Typography>
+                    </Box>
+                    <Typography variant="h6" color="success.main" fontWeight="700">
+                      {fCurrency(selectedRecord.amount || 0)}
+                    </Typography>
+                  </Grid>
+
+                  {/* Estado */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary">Estado</Typography>
+                    </Box>
+                    <Chip
+                      label={selectedRecord.status === 'paid' || selectedRecord.status === 'completed' ? 'Pagado' : 
+                             selectedRecord.status === 'pending' ? 'Pendiente' : 
+                             selectedRecord.status === 'overdue' ? 'Vencido' : selectedRecord.status}
+                      color={selectedRecord.status === 'paid' || selectedRecord.status === 'completed' ? 'success' : 
+                             selectedRecord.status === 'pending' ? 'warning' : 'error'}
+                      size="small"
+                    />
+                  </Grid>
+
+                  {/* Observaciones */}
+                  {selectedRecord.observations && (
+                    <Grid item xs={12}>
+                      <Typography variant="overline" color="text.secondary" fontWeight="600" sx={{ mt: 2, display: 'block' }}>
+                        OBSERVACIONES
+                      </Typography>
+                      <Typography variant="body2" sx={{ mt: 1, whiteSpace: 'pre-line' }}>
+                        {selectedRecord.observations}
+                      </Typography>
+                    </Grid>
+                  )}
+
+                  {/* Archivos Adjuntos */}
+                  {((selectedRecord.invoices && selectedRecord.invoices.length > 0) || 
+                    (selectedRecord.receiptUrls && selectedRecord.receiptUrls.length > 0)) && (
+                    <Grid item xs={12}>
+                      <Typography variant="overline" color="text.secondary" fontWeight="600" sx={{ mt: 2, display: 'block' }}>
+                        ARCHIVOS ADJUNTOS
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                        {(selectedRecord.invoices || selectedRecord.receiptUrls || []).map((file, index) => (
+                          <Chip
+                            key={index}
+                            icon={<FileIcon />}
+                            label={file.name || `Archivo ${index + 1}`}
+                            clickable
+                            onClick={() => window.open(file.url || file, '_blank')}
+                            size="small"
+                            sx={{ bgcolor: alpha(theme.palette.primary.main, 0.1) }}
+                          />
+                        ))}
+                      </Box>
+                    </Grid>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* PAGO - Concepto */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                      <DescriptionIcon fontSize="small" color="secondary" />
+                      <Typography variant="caption" color="text.secondary">Concepto</Typography>
+                    </Box>
+                    <Typography variant="body1" fontWeight="600">
+                      {selectedRecord.concept || selectedRecord.description || 'Sin concepto'}
+                    </Typography>
+                  </Grid>
+
+                  {/* Empresa */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                      <CompanyIcon fontSize="small" color="secondary" />
+                      <Typography variant="caption" color="text.secondary">Empresa</Typography>
+                    </Box>
+                    <Typography variant="body1" fontWeight="600">
+                      {selectedRecord.companyName || 'Sin empresa'}
+                    </Typography>
+                  </Grid>
+
+                  {/* Fecha de Pago */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                      <DateIcon fontSize="small" color="secondary" />
+                      <Typography variant="caption" color="text.secondary">Fecha de Pago</Typography>
+                    </Box>
+                    <Typography variant="body1" fontWeight="600">
+                      {selectedRecord.paymentDate ? new Date(selectedRecord.paymentDate.seconds * 1000).toLocaleDateString('es-ES', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric'
+                      }) : selectedRecord.createdAt ? new Date(selectedRecord.createdAt.seconds * 1000).toLocaleDateString('es-ES', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric'
+                      }) : 'Sin fecha'}
+                    </Typography>
+                  </Grid>
+
+                  {/* Monto */}
+                  <Grid item xs={12} sm={6}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                      <MoneyIcon fontSize="small" color="success" />
+                      <Typography variant="caption" color="text.secondary">Monto Pagado</Typography>
+                    </Box>
+                    <Typography variant="h6" color="success.main" fontWeight="700">
+                      {fCurrency(selectedRecord.amount || 0)}
+                    </Typography>
+                  </Grid>
+
+                  {/* Método de Pago */}
+                  {selectedRecord.paymentMethod && (
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                        <Typography variant="caption" color="text.secondary">Método de Pago</Typography>
+                      </Box>
+                      <Typography variant="body1" fontWeight="600">
+                        {selectedRecord.paymentMethod}
+                      </Typography>
+                    </Grid>
+                  )}
+
+                  {/* Referencia */}
+                  {selectedRecord.reference && (
+                    <Grid item xs={12} sm={6}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                        <Typography variant="caption" color="text.secondary">Referencia</Typography>
+                      </Box>
+                      <Typography variant="body1" fontWeight="600">
+                        {selectedRecord.reference}
+                      </Typography>
+                    </Grid>
+                  )}
+
+                  {/* Notas */}
+                  {selectedRecord.notes && (
+                    <Grid item xs={12}>
+                      <Typography variant="overline" color="text.secondary" fontWeight="600" sx={{ mt: 2, display: 'block' }}>
+                        NOTAS
+                      </Typography>
+                      <Typography variant="body2" sx={{ mt: 1, whiteSpace: 'pre-line' }}>
+                        {selectedRecord.notes}
+                      </Typography>
+                    </Grid>
+                  )}
+
+                  {/* Comprobantes */}
+                  {selectedRecord.receiptUrls && selectedRecord.receiptUrls.length > 0 && (
+                    <Grid item xs={12}>
+                      <Typography variant="overline" color="text.secondary" fontWeight="600" sx={{ mt: 2, display: 'block' }}>
+                        COMPROBANTES
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                        {selectedRecord.receiptUrls.map((url, index) => (
+                          <Chip
+                            key={index}
+                            icon={<FileIcon />}
+                            label={`Comprobante ${index + 1}`}
+                            clickable
+                            onClick={() => window.open(url, '_blank')}
+                            size="small"
+                            sx={{ bgcolor: alpha(theme.palette.secondary.main, 0.1) }}
+                          />
+                        ))}
+                      </Box>
+                    </Grid>
+                  )}
+                </>
+              )}
+            </Grid>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              No se pudo cargar la información del registro.
+            </Typography>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+          <Button onClick={handleCloseDetails} variant="outlined">
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };
 
 export default AIAssistant;
+
