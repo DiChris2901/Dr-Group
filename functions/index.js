@@ -270,28 +270,47 @@ const getDashboardSummary = async (userId = null) => {
   
   // ========== PAGOS ==========
   const paymentsSnapshot = await db.collection('payments').get();
+  console.log(`📊 Total pagos en BD: ${paymentsSnapshot.size}`);
+  
   const payments = paymentsSnapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data()
   }));
   
-  // Pagos del mes actual
+  // Pagos del mes actual (usar campo 'date' que es el correcto)
   const paymentsThisMonth = payments.filter(p => {
-    const paymentDate = p.paymentDate?.toDate ? p.paymentDate.toDate() : new Date(p.paymentDate);
-    return paymentDate >= firstDayOfMonth && paymentDate <= lastDayOfMonth;
+    try {
+      // El campo correcto es 'date', no 'paymentDate'
+      const paymentDate = p.date?.toDate ? p.date.toDate() : new Date(p.date);
+      if (isNaN(paymentDate.getTime())) return false;
+      return paymentDate >= firstDayOfMonth && paymentDate <= lastDayOfMonth;
+    } catch (error) {
+      console.warn('Error procesando fecha de pago:', p.id, error);
+      return false;
+    }
   });
   
   // Pagos de hoy
   const paymentsToday = payments.filter(p => {
-    const paymentDate = p.paymentDate?.toDate ? p.paymentDate.toDate() : new Date(p.paymentDate);
-    paymentDate.setHours(0, 0, 0, 0);
-    return paymentDate.getTime() === today.getTime();
+    try {
+      const paymentDate = p.date?.toDate ? p.date.toDate() : new Date(p.date);
+      if (isNaN(paymentDate.getTime())) return false;
+      const paymentDateOnly = new Date(paymentDate);
+      paymentDateOnly.setHours(0, 0, 0, 0);
+      return paymentDateOnly.getTime() === today.getTime();
+    } catch (error) {
+      console.warn('Error procesando fecha de pago hoy:', p.id, error);
+      return false;
+    }
   });
   
-  // Calcular totales de pagos
-  const totalPaymentsAmount = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-  const totalPaymentsThisMonth = paymentsThisMonth.reduce((sum, p) => sum + (p.amount || 0), 0);
-  const totalPaymentsToday = paymentsToday.reduce((sum, p) => sum + (p.amount || 0), 0);
+  // Calcular totales de pagos (excluir 4x1000)
+  const realPayments = payments.filter(p => !p.is4x1000Tax);
+  const totalPaymentsAmount = realPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const totalPaymentsThisMonth = paymentsThisMonth.filter(p => !p.is4x1000Tax).reduce((sum, p) => sum + (p.amount || 0), 0);
+  const totalPaymentsToday = paymentsToday.filter(p => !p.is4x1000Tax).reduce((sum, p) => sum + (p.amount || 0), 0);
+  
+  console.log(`💰 Resumen pagos: Total=${realPayments.length}, Este mes=${paymentsThisMonth.filter(p => !p.is4x1000Tax).length}, Hoy=${paymentsToday.filter(p => !p.is4x1000Tax).length}`);
 
   return {
     // Compromisos
@@ -436,33 +455,60 @@ exports.telegramWebhook = onRequest(async (req, res) => {
         const db = getFirestore();
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const next7Days = new Date(today);
-        next7Days.setDate(today.getDate() + 7);
+        const next30Days = new Date(today);
+        next30Days.setDate(today.getDate() + 30);
 
-        const snapshot = await db.collection('commitments')
-          .where('status', 'in', ['pending', 'overdue'])
-          .orderBy('dueDate', 'asc')
-          .limit(10)
-          .get();
+        // CORREGIDO: Traer todos los compromisos y filtrar en memoria
+        // (evita error de índice compuesto con where + orderBy)
+        const snapshot = await db.collection('commitments').get();
+        
+        console.log(`📊 Total compromisos en BD: ${snapshot.size}`);
+        
+        // Filtrar manualmente compromisos pendientes/vencidos
+        const filteredCommitments = [];
+        snapshot.docs.forEach(doc => {
+          const data = doc.data();
+          const status = data.status || 'pending';
+          
+          // Solo compromisos no pagados
+          if (status !== 'paid' && status !== 'cancelled') {
+            filteredCommitments.push({
+              id: doc.id,
+              ...data
+            });
+          }
+        });
+        
+        // Ordenar por fecha de vencimiento
+        filteredCommitments.sort((a, b) => {
+          const dateA = a.dueDate?.toDate ? a.dueDate.toDate() : new Date(a.dueDate);
+          const dateB = b.dueDate?.toDate ? b.dueDate.toDate() : new Date(b.dueDate);
+          return dateA - dateB;
+        });
+        
+        // Tomar solo los primeros 10
+        const topCommitments = filteredCommitments.slice(0, 10);
+        
+        console.log(`📋 Compromisos filtrados: ${topCommitments.length}`);
 
-        if (snapshot.empty) {
+        if (topCommitments.length === 0) {
           await sendTelegramMessage(chatId, '✅ No hay compromisos pendientes próximos.');
+          console.log(`✅ /compromisos - ${firstName} - Sin compromisos`);
           return res.status(200).send('OK');
         }
 
-        let message = `📅 <b>Compromisos Próximos</b>\n\n`;
+        let message = `📅 <b>Compromisos Próximos</b> (${topCommitments.length})\n\n`;
         
-        snapshot.docs.forEach((doc, index) => {
-          const data = doc.data();
-          const dueDate = data.dueDate?.toDate ? data.dueDate.toDate() : new Date(data.dueDate);
+        topCommitments.forEach((commitment, index) => {
+          const dueDate = commitment.dueDate?.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate);
           dueDate.setHours(0, 0, 0, 0);
           const isOverdue = dueDate < today;
           const icon = isOverdue ? '🔴' : '🟡';
           
-          message += `${icon} <b>${data.concept || 'Sin concepto'}</b>\n`;
-          message += `   💰 $${(data.amount || 0).toLocaleString('es-CO')}\n`;
+          message += `${icon} <b>${commitment.concept || 'Sin concepto'}</b>\n`;
+          message += `   💰 $${(commitment.amount || 0).toLocaleString('es-CO')}\n`;
           message += `   📅 Vence: ${dueDate.toLocaleDateString('es-CO')}\n`;
-          if (data.companyName) message += `   🏢 ${data.companyName}\n`;
+          if (commitment.companyName) message += `   🏢 ${commitment.companyName}\n`;
           message += `\n`;
         });
 
@@ -555,28 +601,51 @@ exports.telegramWebhook = onRequest(async (req, res) => {
       try {
         const db = getFirestore();
         
-        // Obtener últimos 10 pagos ordenados por fecha
-        const paymentsSnapshot = await db.collection('payments')
-          .orderBy('paymentDate', 'desc')
-          .limit(10)
-          .get();
+        // Obtener pagos (sin orderBy para evitar índice)
+        const paymentsSnapshot = await db.collection('payments').get();
+        
+        console.log(`📊 Total pagos en BD: ${paymentsSnapshot.size}`);
+        
+        // Filtrar pagos reales (excluir 4x1000) y ordenar manualmente
+        const realPayments = [];
+        paymentsSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          if (!data.is4x1000Tax) {
+            realPayments.push({
+              id: doc.id,
+              ...data
+            });
+          }
+        });
+        
+        // Ordenar por fecha descendente
+        realPayments.sort((a, b) => {
+          const dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date);
+          const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date);
+          return dateB - dateA;
+        });
+        
+        // Tomar solo los primeros 10
+        const lastPayments = realPayments.slice(0, 10);
+        
+        console.log(`💳 Últimos pagos filtrados: ${lastPayments.length}`);
 
-        if (paymentsSnapshot.empty) {
+        if (lastPayments.length === 0) {
           await sendTelegramMessage(chatId, '📭 No hay pagos registrados aún.');
+          console.log(`✅ /ultimos_pagos - ${firstName} - Sin pagos`);
           return res.status(200).send('OK');
         }
 
-        let message = `💳 <b>Últimos Pagos Registrados</b>\n\n`;
+        let message = `💳 <b>Últimos Pagos Registrados</b> (${lastPayments.length})\n\n`;
         
-        paymentsSnapshot.docs.forEach((doc, index) => {
-          const data = doc.data();
-          const paymentDate = data.paymentDate?.toDate ? data.paymentDate.toDate() : new Date(data.paymentDate);
+        lastPayments.forEach((payment, index) => {
+          const paymentDate = payment.date?.toDate ? payment.date.toDate() : new Date(payment.date);
           
-          message += `${index + 1}. <b>${data.concept || 'Sin concepto'}</b>\n`;
-          message += `   💰 $${(data.amount || 0).toLocaleString('es-CO')}\n`;
+          message += `${index + 1}. <b>${payment.concept || 'Sin concepto'}</b>\n`;
+          message += `   💰 $${(payment.amount || 0).toLocaleString('es-CO')}\n`;
           message += `   📅 ${paymentDate.toLocaleDateString('es-CO')}\n`;
-          if (data.companyName) message += `   🏢 ${data.companyName}\n`;
-          if (data.paymentMethod) message += `   💳 ${data.paymentMethod}\n`;
+          if (payment.companyName) message += `   🏢 ${payment.companyName}\n`;
+          if (payment.method) message += `   💳 ${payment.method}\n`;
           message += `\n`;
         });
 
