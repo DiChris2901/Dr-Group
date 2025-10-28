@@ -8,12 +8,15 @@ import {
   Delete as DeleteIcon,
   Description as DescriptionIcon,
   InsertDriveFile as FileIcon,
+  Lock as LockIcon,
+  LockOpen as LockOpenIcon,
   AttachMoney as MoneyIcon,
   Payment as PaymentIcon,
   Person as PersonIcon,
   Repeat as RepeatIcon,
   Save as SaveIcon,
-  Schedule as ScheduleIcon
+  Schedule as ScheduleIcon,
+  SwapHoriz as SwapHorizIcon
 } from '@mui/icons-material';
 import {
   Alert,
@@ -100,6 +103,11 @@ const NewCommitmentPage = () => {
   const [saving, setSaving] = useState(false);
   const [loadingCompanies, setLoadingCompanies] = useState(true);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  
+  // 🏢 Estados para modal de selección de empresa
+  const [companyModalOpen, setCompanyModalOpen] = useState(false);
+  const [companyLocked, setCompanyLocked] = useState(false);
+  const [selectedCompanyInModal, setSelectedCompanyInModal] = useState(null);
   
   // Estados para autocompletado
   const [providersSuggestions, setProvidersSuggestions] = useState([]);
@@ -594,9 +602,18 @@ const NewCommitmentPage = () => {
     loadSuggestions();
   }, [currentUser]);
 
+  // 🏢 Abrir modal de empresa si no hay preselección y companies cargaron
+  useEffect(() => {
+    if (!preselectedCompany && companies.length > 0 && !companyLocked && !formData.companyId) {
+      setCompanyModalOpen(true);
+    }
+  }, [companies, preselectedCompany, companyLocked, formData.companyId]);
+
   // Mostrar notificación cuando se preselecciona una empresa
   useEffect(() => {
     if (preselectedCompany && companies.length > 0) {
+      // Bloquear empresa automáticamente si viene preseleccionada
+      setCompanyLocked(true);
       addNotification({
         type: 'info',
         title: 'Empresa preseleccionada',
@@ -1207,7 +1224,62 @@ const NewCommitmentPage = () => {
     });
   };
 
-  // 🎯 MANEJAR CLICK DEL BOTÓN DE GUARDAR
+  // � MANEJAR SELECCIÓN DE EMPRESA EN MODAL
+  const handleCompanyModalConfirm = () => {
+    if (!selectedCompanyInModal) return;
+    
+    // Actualizar formulario con la empresa seleccionada
+    setFormData(prev => ({
+      ...prev,
+      companyId: selectedCompanyInModal.id,
+      companyName: selectedCompanyInModal.name
+    }));
+    
+    // Bloquear campo de empresa
+    setCompanyLocked(true);
+    
+    // Cerrar modal
+    setCompanyModalOpen(false);
+    
+    // Notificación
+    addNotification({
+      type: 'success',
+      title: 'Empresa seleccionada',
+      message: `Trabajarás con "${selectedCompanyInModal.name}"`,
+      icon: 'success',
+      color: 'success',
+      duration: 3000
+    });
+  };
+
+  // 🔄 CAMBIAR EMPRESA (desbloquear y reabrir modal)
+  const handleChangeCompany = () => {
+    // Verificar si hay datos en el formulario
+    const hasData = formData.beneficiary || formData.concept || formData.baseAmount || 
+                    formData.invoiceFiles.length > 0;
+    
+    if (hasData) {
+      const confirmed = window.confirm(
+        '⚠️ Si cambias de empresa, perderás los datos ingresados.\n\n¿Deseas continuar?'
+      );
+      if (!confirmed) return;
+    }
+    
+    // Resetear empresa seleccionada en modal
+    setSelectedCompanyInModal(null);
+    
+    // Desbloquear y abrir modal
+    setCompanyLocked(false);
+    setCompanyModalOpen(true);
+  };
+
+  // ❌ CANCELAR MODAL DE EMPRESA (regresar)
+  const handleCompanyModalCancel = () => {
+    setCompanyModalOpen(false);
+    navigate(-1); // Regresar a la página anterior
+  };
+
+  // �🎯 MANEJAR CLICK DEL BOTÓN DE GUARDAR
   const handleSaveButtonClick = () => {
     const missingFields = getMissingFields();
     
@@ -1786,68 +1858,120 @@ const NewCommitmentPage = () => {
                     
                     <Grid container spacing={3}>
                       <Grid item xs={12} md={6}>
-                        <Autocomplete
-                          fullWidth
-                          options={companies}
-                          value={companies.find(company => company.id === formData.companyId) || null}
-                          onChange={(event, newValue) => {
-                            handleFormChange('companyId', newValue ? newValue.id : '');
-                          }}
-                          getOptionLabel={(option) => option.name || ''}
-                          isOptionEqualToValue={(option, value) => option.id === value.id}
-                          disabled={saving}
-                          renderOption={(props, option) => {
-                            const { key, ...otherProps } = props;
-                            return (
-                              <Box key={key} component="li" {...otherProps}>
-                                <Box display="flex" alignItems="center" gap={1}>
-                                  {option.logoURL && (
-                                    <img 
-                                      src={option.logoURL} 
-                                      alt={option.name}
-                                      style={{ width: 24, height: 24, borderRadius: 4 }}
-                                    />
-                                  )}
-                                  <Box>
-                                    <Typography variant="body2" fontWeight="500">
-                                      {option.name}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                      NIT: {option.nit}
-                                    </Typography>
+                        <Box position="relative">
+                          <Autocomplete
+                            fullWidth
+                            options={companies}
+                            value={companies.find(company => company.id === formData.companyId) || null}
+                            onChange={(event, newValue) => {
+                              handleFormChange('companyId', newValue ? newValue.id : '');
+                            }}
+                            getOptionLabel={(option) => option.name || ''}
+                            isOptionEqualToValue={(option, value) => option.id === value.id}
+                            disabled={saving || companyLocked}
+                            renderOption={(props, option) => {
+                              const { key, ...otherProps } = props;
+                              return (
+                                <Box key={key} component="li" {...otherProps}>
+                                  <Box display="flex" alignItems="center" gap={1}>
+                                    {option.logoURL && (
+                                      <img 
+                                        src={option.logoURL} 
+                                        alt={option.name}
+                                        style={{ width: 24, height: 24, borderRadius: 4 }}
+                                      />
+                                    )}
+                                    <Box>
+                                      <Typography variant="body2" fontWeight="500">
+                                        {option.name}
+                                      </Typography>
+                                      <Typography variant="caption" color="text.secondary">
+                                        NIT: {option.nit}
+                                      </Typography>
+                                    </Box>
                                   </Box>
                                 </Box>
-                              </Box>
-                            );
-                          }}
-                          renderInput={(params) => (
-                            <TextField
-                              {...params}
-                              label="Empresa"
-                              required
-                              placeholder="Buscar empresa... (ej: King)"
-                              InputProps={{
-                                ...params.InputProps,
-                                startAdornment: (
-                                  <InputAdornment position="start">
-                                    <BusinessIcon sx={{ color: primaryColor }} />
-                                  </InputAdornment>
-                                ),
-                                sx: {
-                                  borderRadius: `${borderRadius}px`,
-                                  '& .MuiOutlinedInput-root': {
-                                    transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
-                                    '&:hover': animationsEnabled ? {
-                                      borderColor: primaryColor,
-                                      transform: 'translateY(-1px)',
-                                      boxShadow: `0 4px 12px ${alpha(primaryColor, 0.25)}`
-                                    } : {}
+                              );
+                            }}
+                            renderInput={(params) => (
+                              <TextField
+                                {...params}
+                                label="Empresa"
+                                required
+                                placeholder={companyLocked ? "Empresa bloqueada" : "Buscar empresa... (ej: King)"}
+                                InputProps={{
+                                  ...params.InputProps,
+                                  startAdornment: (
+                                    <InputAdornment position="start">
+                                      {companyLocked ? (
+                                        <LockIcon sx={{ color: theme.palette.success.main }} />
+                                      ) : (
+                                        <BusinessIcon sx={{ color: primaryColor }} />
+                                      )}
+                                    </InputAdornment>
+                                  ),
+                                  sx: {
+                                    borderRadius: `${borderRadius}px`,
+                                    backgroundColor: companyLocked 
+                                      ? alpha(theme.palette.success.main, 0.05)
+                                      : 'transparent',
+                                    '& .MuiOutlinedInput-root': {
+                                      transition: animationsEnabled ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
+                                      '&:hover': animationsEnabled && !companyLocked ? {
+                                        borderColor: primaryColor,
+                                        transform: 'translateY(-1px)',
+                                        boxShadow: `0 4px 12px ${alpha(primaryColor, 0.25)}`
+                                      } : {}
+                                    }
                                   }
-                                }
-                              }}
-                            />
+                                }}
+                              />
+                            )}
+                          />
+                          
+                          {/* 🔒 Indicador de bloqueo y botón cambiar */}
+                          {companyLocked && formData.companyId && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              <Box 
+                                display="flex" 
+                                alignItems="center" 
+                                justifyContent="space-between"
+                                mt={1}
+                              >
+                                <Chip
+                                  icon={<LockIcon sx={{ fontSize: 14 }} />}
+                                  label="Empresa bloqueada"
+                                  size="small"
+                                  color="success"
+                                  variant="outlined"
+                                  sx={{
+                                    fontSize: '0.75rem',
+                                    fontWeight: 500
+                                  }}
+                                />
+                                <Button
+                                  size="small"
+                                  startIcon={<SwapHorizIcon />}
+                                  onClick={handleChangeCompany}
+                                  sx={{
+                                    textTransform: 'none',
+                                    fontSize: '0.75rem',
+                                    color: theme.palette.warning.main,
+                                    '&:hover': {
+                                      backgroundColor: alpha(theme.palette.warning.main, 0.1)
+                                    }
+                                  }}
+                                >
+                                  Cambiar empresa
+                                </Button>
+                              </Box>
+                            </motion.div>
                           )}
-                        />
+                        </Box>
                       </Grid>
                     </Grid>
                   </Paper>
@@ -3161,6 +3285,215 @@ const NewCommitmentPage = () => {
           onAccept={handleCompressionAccept}
           onReject={handleCompressionReject}
         />
+
+        {/* 🏢 MODAL DE SELECCIÓN INICIAL DE EMPRESA */}
+        <Dialog
+          open={companyModalOpen}
+          onClose={() => {}} // Deshabilitado para forzar selección
+          maxWidth="sm"
+          fullWidth
+          disableEscapeKeyDown
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              background: theme.palette.mode === 'dark'
+                ? 'linear-gradient(135deg, rgba(30, 30, 40, 0.98) 0%, rgba(20, 20, 30, 0.98) 100%)'
+                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 250, 252, 0.98) 100%)',
+              backdropFilter: 'blur(20px)',
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+              boxShadow: theme.palette.mode === 'dark'
+                ? '0 20px 60px rgba(0, 0, 0, 0.5)'
+                : '0 20px 60px rgba(0, 0, 0, 0.15)',
+            }
+          }}
+        >
+          <DialogTitle sx={{ 
+            pb: 2,
+            background: getGradientBackground(),
+            color: 'white'
+          }}>
+            <Box display="flex" alignItems="center" gap={2}>
+              <Box sx={{
+                width: 48,
+                height: 48,
+                borderRadius: 2,
+                background: 'rgba(255, 255, 255, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255, 255, 255, 0.3)'
+              }}>
+                <BusinessIcon sx={{ fontSize: 28, color: 'white' }} />
+              </Box>
+              <Box>
+                <Typography variant="h6" fontWeight="700" sx={{ color: 'white' }}>
+                  Selecciona una Empresa
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.9)' }}>
+                  Elige la empresa para este compromiso
+                </Typography>
+              </Box>
+            </Box>
+          </DialogTitle>
+
+          <DialogContent sx={{ pt: 6, pb: 3, px: 3 }}>
+            <Box sx={{ minHeight: 150, mt: 3 }}>
+              <Autocomplete
+                fullWidth
+                options={companies}
+                value={selectedCompanyInModal}
+                onChange={(event, newValue) => {
+                  setSelectedCompanyInModal(newValue);
+                }}
+                getOptionLabel={(option) => option.name || ''}
+                isOptionEqualToValue={(option, value) => option.id === value.id}
+                autoHighlight
+                openOnFocus
+                renderOption={(props, option) => {
+                  const { key, ...otherProps } = props;
+                  return (
+                    <Box 
+                      key={key} 
+                      component="li" 
+                      {...otherProps}
+                      sx={{
+                        py: 1.5,
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.primary.main, 0.1)
+                        }
+                      }}
+                    >
+                      <Box display="flex" alignItems="center" gap={1.5} width="100%">
+                        {option.logoURL ? (
+                          <img 
+                            src={option.logoURL} 
+                            alt={option.name}
+                            style={{ 
+                              width: 32, 
+                              height: 32, 
+                              borderRadius: 6,
+                              objectFit: 'cover'
+                            }}
+                          />
+                        ) : (
+                          <Box
+                            sx={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: 1.5,
+                              background: getGradientBackground(),
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <BusinessIcon sx={{ fontSize: 18, color: 'white' }} />
+                          </Box>
+                        )}
+                        <Box flex={1}>
+                          <Typography variant="body1" fontWeight="600">
+                            {option.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            NIT: {option.nit}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  );
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Buscar empresa"
+                    placeholder="Escribe para buscar... (ej: King)"
+                    autoFocus
+                    InputProps={{
+                      ...params.InputProps,
+                      startAdornment: (
+                        <>
+                          <InputAdornment position="start">
+                            <BusinessIcon sx={{ color: theme.palette.primary.main }} />
+                          </InputAdornment>
+                          {params.InputProps.startAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+                noOptionsText="No se encontraron empresas"
+                loadingText="Cargando empresas..."
+              />
+
+              {/* Mensaje informativo */}
+              <Alert 
+                severity="info" 
+                icon={<LockOpenIcon />}
+                sx={{ 
+                  mt: 3,
+                  borderRadius: 2,
+                  '& .MuiAlert-icon': {
+                    color: theme.palette.info.main
+                  }
+                }}
+              >
+                <Typography variant="body2" fontWeight="500">
+                  Una vez seleccionada, la empresa quedará bloqueada para este compromiso
+                </Typography>
+              </Alert>
+            </Box>
+          </DialogContent>
+
+          <DialogActions sx={{ px: 3, pb: 3, gap: 1.5 }}>
+            <Button
+              onClick={handleCompanyModalCancel}
+              variant="outlined"
+              startIcon={<CancelIcon />}
+              sx={{
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 3,
+                borderColor: theme.palette.divider,
+                color: theme.palette.text.secondary,
+                '&:hover': {
+                  borderColor: theme.palette.error.main,
+                  backgroundColor: alpha(theme.palette.error.main, 0.05),
+                  color: theme.palette.error.main
+                }
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCompanyModalConfirm}
+              variant="contained"
+              disabled={!selectedCompanyInModal}
+              startIcon={<SaveIcon />}
+              sx={{
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+                px: 3,
+                background: selectedCompanyInModal 
+                  ? getGradientBackground()
+                  : theme.palette.action.disabledBackground,
+                boxShadow: selectedCompanyInModal
+                  ? `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}`
+                  : 'none',
+                '&:hover': selectedCompanyInModal ? {
+                  background: getGradientBackground(),
+                  transform: 'translateY(-1px)',
+                  boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.5)}`
+                } : {},
+                transition: 'all 0.3s ease'
+              }}
+            >
+              Continuar
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         {/* ✅ MODAL DE CONFIRMACIÓN DE GUARDADO */}
         <Dialog
