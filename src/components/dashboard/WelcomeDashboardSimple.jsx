@@ -41,6 +41,8 @@ import { fCurrency } from '../../utils/formatNumber';
 import { useNavigate } from 'react-router-dom';
 import DashboardCalendar from './DashboardCalendar';
 import QuickAccessLinks from './QuickAccessLinks';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
 const WelcomeDashboardSimple = () => {
   const theme = useTheme();
@@ -52,6 +54,53 @@ const WelcomeDashboardSimple = () => {
   const [currentTime] = useState(new Date().getHours());
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [alertsModalOpen, setAlertsModalOpen] = useState(false);
+  const [payments, setPayments] = useState([]);
+
+  // 🔥 CARGAR PAGOS DESDE FIREBASE
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      collection(db, 'payments'),
+      (snapshot) => {
+        const paymentsData = [];
+        snapshot.forEach((doc) => {
+          const payment = doc.data();
+          paymentsData.push({
+            id: doc.id,
+            commitmentId: payment.commitmentId,
+            amount: parseFloat(payment.amount || payment.totalAmount || 0)
+          });
+        });
+        setPayments(paymentsData);
+        console.log('💳 Pagos cargados:', paymentsData.length);
+      },
+      (error) => {
+        console.error('Error cargando pagos:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  // 🔥 FUNCIÓN PARA CALCULAR SALDO REAL
+  const calculateRemainingBalance = useCallback((commitment) => {
+    const originalAmount = parseFloat(commitment.amount || commitment.totalAmount || 0);
+    
+    // Obtener pagos para este compromiso
+    const commitmentsPayments = payments.filter(p => p.commitmentId === commitment.id);
+    const totalPaid = commitmentsPayments.reduce((sum, payment) => sum + payment.amount, 0);
+    
+    // Calcular saldo restante
+    const remainingBalance = Math.max(0, originalAmount - totalPaid);
+    
+    console.log('💰 Saldo para', commitment.concept, ':', {
+      original: originalAmount,
+      pagado: totalPaid,
+      saldo: remainingBalance,
+      pagos: commitmentsPayments.length
+    });
+    
+    return remainingBalance;
+  }, [payments]);
 
   // Obtener compromisos vencidos - Usando la misma lógica que useDashboardStats
   const getOverdueCommitments = useCallback(() => {
@@ -79,11 +128,17 @@ const WelcomeDashboardSimple = () => {
       
       // Solo mostrar compromisos vencidos Y no pagados
       return isOverdue && !isPaid;
-    }).map(commitment => ({
-      ...commitment,
-      dueDate: commitment.dueDate?.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate)
-    })).sort((a, b) => a.dueDate - b.dueDate); // Ordenar por fecha de vencimiento
-  }, [commitments]);
+    }).map(commitment => {
+      const dueDate = commitment.dueDate?.toDate ? commitment.dueDate.toDate() : new Date(commitment.dueDate);
+      const remainingBalance = calculateRemainingBalance(commitment);
+      
+      return {
+        ...commitment,
+        dueDate,
+        remainingBalance // 🔥 Agregar saldo real calculado
+      };
+    }).sort((a, b) => a.dueDate - b.dueDate); // Ordenar por fecha de vencimiento
+  }, [commitments, calculateRemainingBalance]);
 
   const overdueCommitments = getOverdueCommitments();
 
@@ -401,7 +456,7 @@ const WelcomeDashboardSimple = () => {
                         {commitment.concept || commitment.description || commitment.title || commitment.name || 'Compromiso sin descripción'}
                       </Typography>
                       <Chip 
-                        label={fCurrency(commitment.amount || 0)}
+                        label={fCurrency(commitment.remainingBalance || commitment.amount || 0)}
                         size="small"
                         sx={{
                           backgroundColor: alpha(theme.palette.error.main, 0.08),

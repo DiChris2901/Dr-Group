@@ -265,6 +265,7 @@ const CalendarEventDetails = ({ selectedDate, events, onClose }) => {
                           />
                         </Box>
                       }
+                      secondaryTypographyProps={{ component: 'div' }}
                       secondary={
                         <Box>
                           {event.company && (
