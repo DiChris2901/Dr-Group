@@ -45,9 +45,23 @@ export const useDashboardStats = () => {
             });
 
             const paymentsByCommitment = {};
+            console.log('🔥 TOTAL PAGOS EN FIREBASE:', paymentsSnapshot.size);
+            
             paymentsSnapshot.forEach((doc) => {
               const payment = doc.data();
               const commitmentId = payment.commitmentId;
+              
+              console.log('💰 Pago encontrado:', {
+                id: doc.id,
+                commitmentId,
+                amount: payment.amount || payment.totalAmount,
+                createdAt: payment.createdAt,
+                paymentDate: payment.paymentDate,
+                date: payment.date,
+                timestamp: payment.timestamp,
+                allFields: Object.keys(payment)
+              });
+              
               if (commitmentId) {
                 if (!paymentsByCommitment[commitmentId]) {
                   paymentsByCommitment[commitmentId] = [];
@@ -56,6 +70,9 @@ export const useDashboardStats = () => {
                   id: doc.id,
                   amount: parseFloat(payment.amount || payment.totalAmount || 0),
                   createdAt: payment.createdAt,
+                  paymentDate: payment.paymentDate,
+                  date: payment.date,
+                  timestamp: payment.timestamp,
                   ...payment
                 });
               }
@@ -122,25 +139,59 @@ export const useDashboardStats = () => {
 
               const isPaid = isCompletelyPaid || isMarkedAsPaid;
 
+              // 🔥 CONTAR PAGOS DEL MES ACTUAL - INDEPENDIENTE del estado del compromiso
+              console.log(`📅 Revisando ${paymentsForCommitment.length} pagos para compromiso ${commitment.id}`);
+              
+              paymentsForCommitment.forEach(payment => {
+                // ⚡ CLAVE: Los pagos se guardan con el campo 'date' (no createdAt)
+                let paymentDate = null;
+                
+                // Prioridad 1: Campo 'date' (usado en NewPaymentPage.jsx línea 1207)
+                if (payment.date?.toDate) {
+                  paymentDate = payment.date.toDate();
+                  console.log('  ✓ Usando date:', paymentDate);
+                } 
+                // Prioridad 2: Campo 'createdAt' (timestamp de creación)
+                else if (payment.createdAt?.toDate) {
+                  paymentDate = payment.createdAt.toDate();
+                  console.log('  ✓ Usando createdAt:', paymentDate);
+                } 
+                // Prioridad 3: Campo 'paymentDate'
+                else if (payment.paymentDate?.toDate) {
+                  paymentDate = payment.paymentDate.toDate();
+                  console.log('  ✓ Usando paymentDate:', paymentDate);
+                } 
+                // Fallback: Usar fecha actual
+                else {
+                  paymentDate = now;
+                  console.log('  ⚠️ Sin fecha válida, usando NOW');
+                }
+                
+                const isCurrentMonth = paymentDate.getMonth() === currentMonth && 
+                                      paymentDate.getFullYear() === currentYear;
+                
+                console.log(`  📆 Pago $${payment.amount} | Fecha: ${paymentDate.toLocaleDateString('es-CO')} | Mes actual: ${isCurrentMonth}`);
+                
+                if (isCurrentMonth) {
+                  currentMonthPayments++;
+                  currentMonthPaymentAmount += payment.amount;
+                  console.log(`  💳✅ PAGO DEL MES CONTADO! Total acumulado: $${currentMonthPaymentAmount.toLocaleString()}`);
+                }
+              });
+
               if (isPaid) {
                 completedCommitments++;
                 amounts.paid += originalAmount;
-                
-                paymentsForCommitment.forEach(payment => {
-                  const paymentDate = payment.createdAt?.toDate ? payment.createdAt.toDate() : now;
-                  if (paymentDate.getMonth() === currentMonth && 
-                      paymentDate.getFullYear() === currentYear) {
-                    currentMonthPayments++;
-                    currentMonthPaymentAmount += payment.amount;
-                  }
-                });
+                console.log('✅ Compromiso PAGADO completamente');
               } else {
                 activeCommitments++;
                 pendingCommitments++;
                 amounts.pending += remainingAmount;
+                console.log('⏳ Compromiso PENDIENTE - Saldo:', remainingAmount);
                 
                 if (isOverdue) {
                   overDueCommitments++;
+                  console.log('🚨 Compromiso VENCIDO');
                 }
               }
             });
@@ -148,7 +199,10 @@ export const useDashboardStats = () => {
             const totalCompanies = uniqueCompanies.size;
             const totalCommitments = commitments.length;
 
-            console.log('Pendientes SALDO REAL:', amounts.pending);
+            console.log('🎯 RESUMEN FINAL:');
+            console.log('  📊 Pendientes SALDO REAL:', amounts.pending);
+            console.log('  💳 Pagos del mes:', currentMonthPayments);
+            console.log('  💰 Monto pagos del mes:', currentMonthPaymentAmount);
 
             setStats({
               totalCommitments,
