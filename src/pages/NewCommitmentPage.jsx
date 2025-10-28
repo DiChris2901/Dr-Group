@@ -1636,6 +1636,17 @@ const NewCommitmentPage = () => {
     
     // Limpiar archivos drag & drop si están activos
     setIsDragOver(false);
+    
+    // 🔄 RESETEAR ESTADO DE EMPRESA Y RE-ABRIR MODAL
+    // Solo si NO hay empresa preseleccionada desde otra vista
+    if (!preselectedCompany) {
+      setCompanyLocked(false);
+      setSelectedCompanyInModal(null);
+      // Re-abrir modal automáticamente para el siguiente compromiso
+      setTimeout(() => {
+        setCompanyModalOpen(true);
+      }, 500); // Pequeño delay para que se vea la transición
+    }
   };
 
   // Opciones para los selects

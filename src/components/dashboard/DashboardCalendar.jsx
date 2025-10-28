@@ -53,7 +53,7 @@ import CalendarEventDetails from './CalendarEventDetails';
 import AddEventModal from './AddEventModal';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useEmailNotifications } from '../../hooks/useEmailNotifications';
 import { useTelegramNotifications } from '../../hooks/useTelegramNotifications';
@@ -166,22 +166,72 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
   const { sendCustomNotification: sendEmailNotification } = useEmailNotifications();
   const { sendCustomNotification: sendTelegramNotification } = useTelegramNotifications();
 
-  // 🔄 Cargar eventos desde Firestore
+  // 🔄 Cargar eventos desde Firestore y limpiar eventos antiguos
   useEffect(() => {
     const loadCalendarEvents = async () => {
       try {
+        // 🗓️ Calcular fecha límite: hace 1 año
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+        oneYearAgo.setHours(0, 0, 0, 0);
+        
+        console.log('📅 Cargando eventos del calendario...');
+        console.log('🗑️ Fecha límite para limpieza:', oneYearAgo.toLocaleDateString('es-CO'));
+        
+        // Cargar TODOS los eventos primero (para limpiar antiguos)
         const eventsQuery = query(collection(db, 'calendar_events'));
         const eventsSnapshot = await getDocs(eventsQuery);
         
-        const loadedEvents = eventsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          date: doc.data().date?.toDate ? doc.data().date.toDate() : new Date(doc.data().date)
-        }));
+        const currentEvents = [];
+        const eventsToDelete = [];
         
-        setCustomEvents(loadedEvents);
+        // Clasificar eventos: actuales vs antiguos
+        eventsSnapshot.docs.forEach(eventDoc => {
+          const eventData = eventDoc.data();
+          const eventDate = eventData.date?.toDate ? eventData.date.toDate() : new Date(eventData.date);
+          
+          // Si el evento es de hace más de 1 año, marcarlo para eliminar
+          if (eventDate < oneYearAgo) {
+            eventsToDelete.push({
+              id: eventDoc.id,
+              title: eventData.title,
+              date: eventDate
+            });
+          } else {
+            // Evento reciente, mantenerlo
+            currentEvents.push({
+              id: eventDoc.id,
+              ...eventData,
+              date: eventDate
+            });
+          }
+        });
+        
+        // 🗑️ Eliminar eventos antiguos (>1 año)
+        if (eventsToDelete.length > 0) {
+          console.log(`🗑️ Eliminando ${eventsToDelete.length} eventos antiguos (>1 año):`);
+          
+          const deletePromises = eventsToDelete.map(async (event) => {
+            try {
+              await deleteDoc(doc(db, 'calendar_events', event.id));
+              console.log(`  ✅ Eliminado: "${event.title}" (${event.date.toLocaleDateString('es-CO')})`);
+            } catch (error) {
+              console.error(`  ❌ Error eliminando evento ${event.id}:`, error);
+            }
+          });
+          
+          await Promise.all(deletePromises);
+          console.log(`✅ Limpieza completada: ${eventsToDelete.length} eventos eliminados`);
+        } else {
+          console.log('✅ No hay eventos antiguos para eliminar');
+        }
+        
+        // Actualizar estado con eventos actuales
+        setCustomEvents(currentEvents);
+        console.log(`📊 Eventos cargados: ${currentEvents.length} eventos del último año`);
+        
       } catch (error) {
-        console.error('Error cargando eventos del calendario:', error);
+        console.error('❌ Error cargando/limpiando eventos del calendario:', error);
       }
     };
     
