@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, where } from 'firebase/firestore';
+﻿import { useState, useEffect } from 'react';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 
@@ -27,73 +27,88 @@ export const useDashboardStats = () => {
       return;
     }
 
-    const unsubscribe = onSnapshot(
+    const commitmentsUnsubscribe = onSnapshot(
       collection(db, 'commitments'),
-      (snapshot) => {
-        const commitments = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          commitments.push({
-            id: doc.id,
-            ...data,
-            dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : new Date(data.dueDate),
-            amount: parseFloat(data.amount) || 0
-          });
-        });
+      (commitmentsSnapshot) => {
+        const paymentsUnsubscribe = onSnapshot(
+          collection(db, 'payments'),
+          (paymentsSnapshot) => {
+            const commitments = [];
+            commitmentsSnapshot.forEach((doc) => {
+              const data = doc.data();
+              commitments.push({
+                id: doc.id,
+                ...data,
+                dueDate: data.dueDate?.toDate ? data.dueDate.toDate() : new Date(data.dueDate),
+                amount: parseFloat(data.amount) || 0
+              });
+            });
 
-        // Calcular estadísticas
-        const now = new Date();
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
-        
-        let pendingCommitments = 0;
-        let overDueCommitments = 0;
-        let completedCommitments = 0;
-        let activeCommitments = 0; // Compromisos activos (no pagados)
-        let currentMonthPayments = 0;
-        let currentMonthPaymentAmount = 0;
-        
-        // Objeto para manejar montos
-        const amounts = {
-          total: 0,
-          paid: 0,
-          pending: 0
-        };
-        
-        // Calcular empresas únicas
-        const uniqueCompanies = new Set();
+            const paymentsByCommitment = {};
+            paymentsSnapshot.forEach((doc) => {
+              const payment = doc.data();
+              const commitmentId = payment.commitmentId;
+              if (commitmentId) {
+                if (!paymentsByCommitment[commitmentId]) {
+                  paymentsByCommitment[commitmentId] = [];
+                }
+                paymentsByCommitment[commitmentId].push({
+                  id: doc.id,
+                  amount: parseFloat(payment.amount || payment.totalAmount || 0),
+                  createdAt: payment.createdAt,
+                  ...payment
+                });
+              }
+            });
 
-        commitments.forEach(commitment => {
-          const amount = commitment.amount || 0;
-          amounts.total += amount;
-          
-          // Agregar empresa al set de empresas únicas
-          if (commitment.companyId) {
-            uniqueCompanies.add(commitment.companyId);
-          }
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            
+            let pendingCommitments = 0;
+            let overDueCommitments = 0;
+            let completedCommitments = 0;
+            let activeCommitments = 0;
+            let currentMonthPayments = 0;
+            let currentMonthPaymentAmount = 0;
+            
+            const amounts = {
+              total: 0,
+              paid: 0,
+              pending: 0
+            };
+            
+            const uniqueCompanies = new Set();
 
-          // Debug: log de cada compromiso con TODOS los campos
-          console.log('📊 Procesando compromiso:', {
-            id: commitment.id,
-            description: commitment.description,
-            status: commitment.status,
-            paid: commitment.paid,
-            paymentStatus: commitment.paymentStatus,
-            isPaid: commitment.isPaid,
-            completed: commitment.completed,
-            amount: amount,
-            dueDate: commitment.dueDate,
-            isOverdue: commitment.dueDate < now,
-            companyId: commitment.companyId,
-            companyName: commitment.companyName,
-            allFields: Object.keys(commitment)
-          });
+            commitments.forEach(commitment => {
+              const originalAmount = commitment.amount || 0;
+              amounts.total += originalAmount;
+              
+              if (commitment.companyId) {
+                uniqueCompanies.add(commitment.companyId);
+              }
 
-          // Verificar si está vencido ANTES de revisar el status
-          const isOverdue = commitment.dueDate && commitment.dueDate < now;
+              const paymentsForCommitment = paymentsByCommitment[commitment.id] || [];
+              const totalPaidForCommitment = paymentsForCommitment.reduce((sum, payment) => {
+                return sum + payment.amount;
+              }, 0);
 
-          // Verificar múltiples formas de identificar un compromiso PAGADO
-          const isPaid = commitment.status === 'completed' || 
+              const remainingAmount = Math.max(0, originalAmount - totalPaidForCommitment);
+              const tolerance = originalAmount * 0.01;
+              const isCompletelyPaid = Math.abs(remainingAmount) <= tolerance || totalPaidForCommitment >= originalAmount;
+
+              console.log('Compromiso:', {
+                id: commitment.id,
+                description: commitment.description,
+                originalAmount: originalAmount,
+                totalPaidForCommitment: totalPaidForCommitment,
+                remainingAmount: remainingAmount,
+                paymentsCount: paymentsForCommitment.length
+              });
+
+              const isOverdue = commitment.dueDate && commitment.dueDate < now;
+
+              const isMarkedAsPaid = commitment.status === 'completed' || 
                         commitment.status === 'paid' || 
                         commitment.status === 'Pagado' ||
                         commitment.status === 'pagado' ||
@@ -105,97 +120,66 @@ export const useDashboardStats = () => {
                         commitment.paymentStatus === 'pagado' ||
                         commitment.completed === true;
 
-          console.log('💰 Estado de pago determinado:', {
-            id: commitment.id,
-            isPaid: isPaid,
-            reasonForPaidStatus: isPaid ? 'Marcado como pagado' : 'Sin indicadores de pago'
-          });
+              const isPaid = isCompletelyPaid || isMarkedAsPaid;
 
-          if (isPaid) {
-            completedCommitments++;
-            amounts.paid += amount;
-            console.log('✅ Compromiso marcado como PAGADO');
+              if (isPaid) {
+                completedCommitments++;
+                amounts.paid += originalAmount;
+                
+                paymentsForCommitment.forEach(payment => {
+                  const paymentDate = payment.createdAt?.toDate ? payment.createdAt.toDate() : now;
+                  if (paymentDate.getMonth() === currentMonth && 
+                      paymentDate.getFullYear() === currentYear) {
+                    currentMonthPayments++;
+                    currentMonthPaymentAmount += payment.amount;
+                  }
+                });
+              } else {
+                activeCommitments++;
+                pendingCommitments++;
+                amounts.pending += remainingAmount;
+                
+                if (isOverdue) {
+                  overDueCommitments++;
+                }
+              }
+            });
             
-            // Verificar si el pago fue en el mes actual
-            // Usar la fecha de modificación o creación como referencia de pago
-            const paymentDate = commitment.updatedAt?.toDate ? commitment.updatedAt.toDate() : 
-                               commitment.createdAt?.toDate ? commitment.createdAt.toDate() : 
-                               commitment.dueDate; // fallback a dueDate
-            
-            if (paymentDate && 
-                paymentDate.getMonth() === currentMonth && 
-                paymentDate.getFullYear() === currentYear) {
-              currentMonthPayments++;
-              currentMonthPaymentAmount += amount;
-              console.log('💳 Pago del mes actual detectado:', {
-                amount,
-                paymentDate,
-                description: commitment.description
-              });
-            }
-          } else {
-            // Si no está pagado, es activo y pendiente
-            activeCommitments++;
-            pendingCommitments++;
-            amounts.pending += amount;
-            console.log('⏳ Compromiso marcado como PENDIENTE');
-            
-            // Verificar si además está vencido
-            if (isOverdue) {
-              overDueCommitments++;
-              console.log('🚨 Compromiso VENCIDO');
-            }
+            const totalCompanies = uniqueCompanies.size;
+            const totalCommitments = commitments.length;
+
+            console.log('Pendientes SALDO REAL:', amounts.pending);
+
+            setStats({
+              totalCommitments,
+              activeCommitments,
+              pendingCommitments,
+              overDueCommitments,
+              completedCommitments,
+              totalCompanies,
+              totalAmount: amounts.total,
+              paidAmount: amounts.paid,
+              pendingAmount: amounts.pending,
+              currentMonthPayments,
+              currentMonthPaymentAmount,
+              loading: false,
+              error: null
+            });
+          },
+          (error) => {
+            console.error('Error loading payments:', error);
+            setStats(prev => ({
+              ...prev,
+              loading: false,
+              error: error.message
+            }));
           }
-        });
-        
-        const totalCompanies = uniqueCompanies.size;
-        const totalCommitments = commitments.length;
+        );
 
-        console.log('🏢 DEBUG EMPRESAS:', {
-          uniqueCompaniesSet: Array.from(uniqueCompanies),
-          totalCompanies: totalCompanies,
-          totalCommitments: totalCommitments
-        });
-
-        console.log('📈 Estadísticas finales:', {
-          totalCommitments,
-          activeCommitments,
-          pendingCommitments,
-          overDueCommitments,
-          completedCommitments,
-          totalCompanies,
-          totalAmount: amounts.total,
-          paidAmount: amounts.paid,
-          pendingAmount: amounts.pending
-        });
-
-        console.log('🎯 RESUMEN EJECUTIVO:', {
-          'Total de compromisos': totalCommitments,
-          'Compromisos pagados': completedCommitments,
-          'Compromisos activos (sin pagar)': activeCommitments,
-          'Compromisos vencidos': overDueCommitments,
-          'Monto total pendiente': `$${amounts.pending.toLocaleString()}`,
-          'Monto total pagado': `$${amounts.paid.toLocaleString()}`
-        });
-
-        setStats({
-          totalCommitments,
-          activeCommitments,
-          pendingCommitments,
-          overDueCommitments,
-          completedCommitments,
-          totalCompanies,
-          totalAmount: amounts.total,
-          paidAmount: amounts.paid,
-          pendingAmount: amounts.pending,
-          currentMonthPayments,
-          currentMonthPaymentAmount,
-          loading: false,
-          error: null
-        });
+        return paymentsUnsubscribe;
       },
       (error) => {
-        console.error('Error loading dashboard stats:', error);
+        console.error('Error loading commitments:', error);
         setStats(prev => ({
           ...prev,
           loading: false,
@@ -204,7 +188,9 @@ export const useDashboardStats = () => {
       }
     );
 
-    return unsubscribe;
+    return () => {
+      commitmentsUnsubscribe();
+    };
   }, [currentUser]);
 
   return {
