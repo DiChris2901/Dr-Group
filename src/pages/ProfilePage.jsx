@@ -562,36 +562,50 @@ const ProfilePage = () => {
         </Alert>
       )}
 
-      {/* Header sobrio */}
+      {/* Header con gradiente - Diseño sobrio */}
       <Box sx={{ 
-        mb: 6,
-        textAlign: 'left'
+        mb: 4,
+        borderRadius: 2,
+        overflow: 'hidden',
+        background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
       }}>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-          <Box>
-            <Typography 
-              variant="h4" 
-              component="h1" 
-              sx={{ 
-                fontWeight: 600,
-                mb: 1,
-                color: 'text.primary'
-              }}
-            >
-              👤 Perfil de Usuario
-            </Typography>
-            <Typography 
-              variant="body1" 
-              color="text.secondary"
-              sx={{ 
-                fontWeight: 400
-              }}
-            >
-              {formData.name || 'Sin nombre'} • {getUserRole()}
-            </Typography>
+        <Box sx={{ 
+          p: 3,
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 2
+        }}>
+          <Box display="flex" alignItems="center" gap={2}>
+            <Person sx={{ fontSize: 32, color: 'white' }} />
+            <Box>
+              <Typography 
+                variant="h5" 
+                component="h1" 
+                sx={{ 
+                  fontWeight: 600,
+                  color: 'white',
+                  lineHeight: 1.2
+                }}
+              >
+                Perfil de Usuario
+              </Typography>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  fontWeight: 400,
+                  mt: 0.5
+                }}
+              >
+                {formData.name || 'Sin nombre'} • {getUserRole()}
+              </Typography>
+            </Box>
           </Box>
           
-          {/* Botones sobrios */}
+          {/* Botones en el header */}
           <Box display="flex" gap={1}>
             {!editing ? (
               <Button
@@ -599,11 +613,19 @@ const ProfilePage = () => {
                 startIcon={<Edit />}
                 onClick={() => setEditing(true)}
                 sx={{
+                  bgcolor: 'rgba(255, 255, 255, 0.2)',
+                  color: 'white',
                   borderRadius: 1,
                   fontWeight: 600,
                   px: 3,
                   py: 1,
-                  textTransform: 'none'
+                  textTransform: 'none',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  '&:hover': {
+                    bgcolor: 'rgba(255, 255, 255, 0.3)',
+                    border: '1px solid rgba(255, 255, 255, 0.5)'
+                  }
                 }}
               >
                 Editar Perfil
@@ -612,15 +634,24 @@ const ProfilePage = () => {
               <>
                 <Button
                   variant="contained"
-                  startIcon={loading ? <CircularProgress size={16} /> : <Save />}
+                  startIcon={loading ? <CircularProgress size={16} sx={{ color: 'white' }} /> : <Save />}
                   onClick={handleSave}
                   disabled={loading || Object.keys(errors).length > 0}
                   sx={{
+                    bgcolor: 'rgba(76, 175, 80, 0.9)',
+                    color: 'white',
                     borderRadius: 1,
                     fontWeight: 600,
                     px: 3,
                     py: 1,
-                    textTransform: 'none'
+                    textTransform: 'none',
+                    '&:hover': {
+                      bgcolor: 'rgba(76, 175, 80, 1)'
+                    },
+                    '&:disabled': {
+                      bgcolor: 'rgba(255, 255, 255, 0.2)',
+                      color: 'rgba(255, 255, 255, 0.5)'
+                    }
                   }}
                 >
                   {loading ? 'Guardando...' : 'Guardar'}
@@ -632,11 +663,17 @@ const ProfilePage = () => {
                   onClick={handleCancel}
                   disabled={loading}
                   sx={{
+                    color: 'white',
+                    borderColor: 'rgba(255, 255, 255, 0.5)',
                     borderRadius: 1,
                     fontWeight: 600,
                     px: 3,
                     py: 1,
-                    textTransform: 'none'
+                    textTransform: 'none',
+                    '&:hover': {
+                      borderColor: 'white',
+                      bgcolor: 'rgba(255, 255, 255, 0.1)'
+                    }
                   }}
                 >
                   Cancelar
