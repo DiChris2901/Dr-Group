@@ -843,7 +843,8 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 0.5,
-                fontSize: '0.7rem'
+                fontSize: '0.7rem',
+                mb: 1
               }}>
                 <Box sx={{ 
                   width: 6, 
@@ -854,6 +855,43 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                 }} />
                 Sistema Activo
               </Typography>
+              
+              {/* Indicador de modo de navegación */}
+              {settings?.navigation?.mode && (
+                <Box sx={{ 
+                  display: 'flex', 
+                  gap: 0.5, 
+                  justifyContent: 'center',
+                  flexWrap: 'wrap'
+                }}>
+                  {(settings.navigation.mode === 'sidebar' || settings.navigation.mode === 'both') && (
+                    <Chip 
+                      label="Sidebar" 
+                      size="small"
+                      sx={{ 
+                        height: 20,
+                        fontSize: '0.65rem',
+                        bgcolor: alpha(theme.palette.primary.main, 0.15),
+                        color: theme.palette.primary.main,
+                        fontWeight: 600
+                      }} 
+                    />
+                  )}
+                  {(settings.navigation.mode === 'taskbar' || settings.navigation.mode === 'both') && (
+                    <Chip 
+                      label="Taskbar" 
+                      size="small"
+                      sx={{ 
+                        height: 20,
+                        fontSize: '0.65rem',
+                        bgcolor: alpha('#FF5722', 0.15),
+                        color: '#FF5722',
+                        fontWeight: 600
+                      }} 
+                    />
+                  )}
+                </Box>
+              )}
             </Box>
           )}
         </Box>

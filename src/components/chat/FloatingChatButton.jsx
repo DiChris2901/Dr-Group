@@ -4,6 +4,7 @@ import { Chat as ChatIcon } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { useChat } from '../../context/ChatContext';
 import { useChatNotifications } from '../../hooks/useChatNotifications';
+import { useSettings } from '../../context/SettingsContext';
 import ChatDrawer from './ChatDrawer';
 
 /**
@@ -14,6 +15,7 @@ import ChatDrawer from './ChatDrawer';
 const FloatingChatButton = () => {
   const theme = useTheme();
   const { unreadCount } = useChat();
+  const { settings } = useSettings();
   
   // 💾 A. Persistencia del estado - Recuperar preferencia del localStorage
   const [drawerOpen, setDrawerOpen] = useState(() => {
@@ -27,6 +29,11 @@ const FloatingChatButton = () => {
   // 🎨 Gradiente dinámico con colores del tema
   const primaryColor = theme.palette.primary.main;
   const secondaryColor = theme.palette.secondary.main;
+
+  // 📍 Detectar si la Taskbar está activa para ajustar posición
+  const navigationMode = settings?.navigation?.mode || 'sidebar';
+  const showTaskbar = settings?.navigation?.showTaskbar !== false;
+  const isTaskbarActive = (navigationMode === 'taskbar' || navigationMode === 'both') && showTaskbar;
 
   const handleOpen = () => {
     setDrawerOpen(true);
@@ -47,7 +54,9 @@ const FloatingChatButton = () => {
             onClick={handleOpen}
             sx={{
               position: 'fixed',
-              bottom: { xs: 16, md: 24 },
+              bottom: isTaskbarActive 
+                ? { xs: 88, md: 104 } // Elevado cuando Taskbar está activa (64px móvil + 16px bottom + 8px margen, 72px desktop + 16px bottom + 16px margen)
+                : { xs: 16, md: 24 }, // Posición normal sin Taskbar
               right: { xs: 16, md: 24 },
               zIndex: 1200,
               background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
@@ -58,7 +67,7 @@ const FloatingChatButton = () => {
                 transform: 'scale(1.1)',
                 boxShadow: `0 12px 35px ${primaryColor}66`
               },
-              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' // Transición suave al cambiar posición
             }}
           >
             <Badge

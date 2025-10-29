@@ -26,6 +26,7 @@ import Sidebar from './Sidebar';
 import DashboardHeader from '../dashboard/DashboardHeader';
 import { AdvancedSettingsDrawer } from '../settings';
 import FloatingChatButton from '../chat/FloatingChatButton';
+import { Taskbar } from './Taskbar';
 
 const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
   const navigate = useNavigate();
@@ -44,10 +45,16 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
   const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;
   const isDarkMode = theme.palette.mode === 'dark';
 
-  // Configuración del sidebar
+  // Configuración de navegación
+  const navigationMode = settings?.navigation?.mode || 'sidebar';
+  const showTaskbar = settings?.navigation?.showTaskbar !== false;
   const sidebarWidth = settings?.sidebar?.width || 280;
   const sidebarPosition = settings?.sidebar?.position || 'left';
   const isCompactMode = settings?.sidebar?.compactMode || false;
+  
+  // Determinar si mostrar sidebar según el modo de navegación
+  const showSidebar = navigationMode === 'sidebar' || navigationMode === 'both';
+  const showTaskbarComponent = (navigationMode === 'taskbar' || navigationMode === 'both') && showTaskbar;
   
   // Ancho dinámico del sidebar que se adapta al modo compacto y hover
   const currentSidebarWidth = isCompactMode 
@@ -73,7 +80,7 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Sidebar para móvil */}
+      {/* Sidebar para móvil (siempre visible en móvil independiente del modo) */}
       {isMobile && (
         <Sidebar
           open={mobileOpen}
@@ -83,8 +90,8 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
         />
       )}
 
-      {/* Sidebar para desktop */}
-      {!isMobile && (
+      {/* Sidebar para desktop (solo si el modo lo permite) */}
+      {!isMobile && showSidebar && (
         <Sidebar
           open={true}
           onClose={() => {}}
@@ -101,9 +108,9 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
           minHeight: '100vh',
           background: 'transparent',
           position: 'relative',
-          // Margen dinámico que se adapta al ancho actual del sidebar
-          marginLeft: !isMobile && sidebarPosition === 'left' ? `${currentSidebarWidth}px` : '0px',
-          marginRight: !isMobile && sidebarPosition === 'right' ? `${currentSidebarWidth}px` : '0px',
+          // Margen dinámico que se adapta al ancho actual del sidebar (solo si sidebar está visible)
+          marginLeft: !isMobile && showSidebar && sidebarPosition === 'left' ? `${currentSidebarWidth}px` : '0px',
+          marginRight: !isMobile && showSidebar && sidebarPosition === 'right' ? `${currentSidebarWidth}px` : '0px',
           transition: theme.transitions.create(['margin-left', 'margin-right'], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.leavingScreen,
@@ -116,8 +123,8 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
           sx={{
             position: 'fixed',
             top: 16,
-            left: !isMobile && sidebarPosition === 'left' ? `${currentSidebarWidth + 16}px` : '16px',
-            right: !isMobile && sidebarPosition === 'right' ? `${currentSidebarWidth + 16}px` : '16px',
+            left: !isMobile && showSidebar && sidebarPosition === 'left' ? `${currentSidebarWidth + 16}px` : '16px',
+            right: !isMobile && showSidebar && sidebarPosition === 'right' ? `${currentSidebarWidth + 16}px` : '16px',
             zIndex: 1100,
             height: 80,
             backgroundColor: theme.palette.background.paper,
@@ -304,6 +311,7 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
             py: { xs: 2, sm: 3 },
             px: { xs: 2, sm: 3 },
             mt: '96px', // Margen que considera la altura del TopBar + espaciado
+            pb: { xs: '96px', md: '104px' }, // Padding bottom para evitar que la taskbar tape el contenido (72px + 16px margin + 16px extra)
             flexGrow: 1,
           }}
         >
@@ -325,6 +333,9 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
 
       {/* Botón flotante de chat - Visible en todas las páginas */}
       <FloatingChatButton />
+
+      {/* Taskbar Horizontal - Navegación estilo Windows */}
+      {showTaskbarComponent && <Taskbar />}
     </Box>
   );
 };

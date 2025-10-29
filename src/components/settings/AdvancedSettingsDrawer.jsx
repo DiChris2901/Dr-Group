@@ -1330,6 +1330,164 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                     </CardContent>
                   </Card>
 
+                  {/* Navigation Mode Settings */}
+                  <Card sx={{ 
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    background: theme.palette.background.paper,
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+                    position: 'relative'
+                  }}>
+                    <CardContent>
+                      <Typography variant="h6" sx={{ 
+                        mb: 3, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 1.5,
+                        fontWeight: 600,
+                        color: theme.palette.text.primary
+                      }}>
+                        <Box sx={{
+                          p: 1,
+                          borderRadius: 2,
+                          backgroundColor: '#FF5722', // Deep Orange
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center'
+                        }}>
+                          <DashboardIcon sx={{ fontSize: 20 }} />
+                        </Box>
+                        Modo de Navegación
+                      </Typography>
+
+                      <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                          🎯 Sistema Triple de Navegación
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
+                          Elige cómo quieres navegar por el dashboard: Sidebar tradicional, modo compacto o la nueva Taskbar estilo Windows
+                        </Typography>
+                      </Alert>
+
+                      <Stack spacing={3}>
+                        {/* Navigation Mode Selector */}
+                        <FormControl fullWidth>
+                          <FormLabel sx={{ mb: 2, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+                            Estilo de Navegación
+                          </FormLabel>
+                          <ToggleButtonGroup
+                            value={settings?.navigation?.mode || 'sidebar'}
+                            exclusive
+                            onChange={(e, newMode) => {
+                              if (newMode !== null) {
+                                updateSettings('navigation', { 
+                                  ...settings.navigation, 
+                                  mode: newMode,
+                                  showTaskbar: newMode === 'taskbar' || newMode === 'both'
+                                });
+                              }
+                            }}
+                            fullWidth
+                            sx={{
+                              '& .MuiToggleButton-root': {
+                                py: 2,
+                                borderRadius: 2,
+                                border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                                '&.Mui-selected': {
+                                  bgcolor: alpha(theme.palette.primary.main, 0.12),
+                                  borderColor: theme.palette.primary.main,
+                                  '&:hover': {
+                                    bgcolor: alpha(theme.palette.primary.main, 0.2)
+                                  }
+                                }
+                              }
+                            }}
+                          >
+                            <ToggleButton value="sidebar">
+                              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                                <DashboardIcon />
+                                <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                  Sidebar
+                                </Typography>
+                                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                                  Tradicional
+                                </Typography>
+                              </Box>
+                            </ToggleButton>
+                            <ToggleButton value="taskbar">
+                              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                                <GridIcon />
+                                <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                  Taskbar
+                                </Typography>
+                                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                                  Windows Style
+                                </Typography>
+                              </Box>
+                            </ToggleButton>
+                            <ToggleButton value="both">
+                              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                                <Badge badgeContent="NEW" color="error">
+                                  <GridIcon />
+                                </Badge>
+                                <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                  Ambos
+                                </Typography>
+                                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                                  Triple System
+                                </Typography>
+                              </Box>
+                            </ToggleButton>
+                          </ToggleButtonGroup>
+                        </FormControl>
+
+                        {/* Taskbar Visibility Toggle */}
+                        {(settings?.navigation?.mode === 'taskbar' || settings?.navigation?.mode === 'both') && (
+                          <Fade in timeout={300}>
+                            <FormControlLabel
+                              control={
+                                <Switch
+                                  checked={settings?.navigation?.showTaskbar !== false}
+                                  onChange={(e) => updateSettings('navigation', { 
+                                    ...settings.navigation, 
+                                    showTaskbar: e.target.checked 
+                                  })}
+                                />
+                              }
+                              label={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  Mostrar Taskbar
+                                  <Chip label="Experimental" size="small" color="warning" />
+                                </Box>
+                              }
+                            />
+                          </Fade>
+                        )}
+
+                        {/* Sidebar Position (only when sidebar is visible) */}
+                        {(settings?.navigation?.mode === 'sidebar' || settings?.navigation?.mode === 'both') && (
+                          <Fade in timeout={300}>
+                            <FormControl fullWidth>
+                              <FormLabel sx={{ mb: 1, fontWeight: 600 }}>
+                                Posición del Sidebar
+                              </FormLabel>
+                              <Select
+                                value={settings?.sidebar?.position || 'left'}
+                                onChange={(e) => updateSettings('sidebar', { 
+                                  ...settings.sidebar, 
+                                  position: e.target.value 
+                                })}
+                              >
+                                <MenuItem value="left">⬅️ Izquierda</MenuItem>
+                                <MenuItem value="right">➡️ Derecha</MenuItem>
+                              </Select>
+                            </FormControl>
+                          </Fade>
+                        )}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+
                   {/* Typography Settings */}
                   <Card sx={{ 
                     border: `1px solid ${theme.palette.divider}`,
