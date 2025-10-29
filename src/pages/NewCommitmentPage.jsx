@@ -63,6 +63,7 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { useSettings } from '../context/SettingsContext';
 import useActivityLogs from '../hooks/useActivityLogs';
+import { useTelegramNotifications } from '../hooks/useTelegramNotifications';
 import { getPaymentMethodOptions } from '../utils/formatUtils';
 import {
   calculateNextDueDates,
@@ -81,6 +82,7 @@ const NewCommitmentPage = () => {
   const { addNotification } = useNotifications();
   const { logActivity } = useActivityLogs();
   const { settings } = useSettings();
+  const telegram = useTelegramNotifications(); // 🆕 Hook de Telegram
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -1548,6 +1550,22 @@ const NewCommitmentPage = () => {
             color: 'info',
             duration: 8000
           });
+
+          // 📱 TELEGRAM: Notificar compromiso creado
+          if (settings?.telegramEnabled && settings?.telegramChatId) {
+            try {
+              await telegram.sendHighValueCommitmentNotification(settings.telegramChatId, {
+                companyName: formData.companyName || formData.beneficiary,
+                concept: formData.concept,
+                amount: `$${parseFloat(formData.amount).toLocaleString('es-CO')}`,
+                dueDate: format(new Date(formData.dueDate), 'dd/MM/yyyy', { locale: es }),
+                threshold: 'Nuevo compromiso registrado'
+              });
+              console.log('✅ Notificación de Telegram enviada para compromiso');
+            } catch (telegramError) {
+              console.warn('⚠️ Error enviando notificación de Telegram (no crítico):', telegramError);
+            }
+          }
         }
         
         // 🧹 Limpiar formulario después del éxito

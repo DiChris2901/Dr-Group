@@ -78,7 +78,9 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationsContext';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 import useActivityLogs from '../hooks/useActivityLogs';
+import { useTelegramNotifications } from '../hooks/useTelegramNotifications';
 import { collection, query, where, getDocs, addDoc, updateDoc, doc, Timestamp, onSnapshot, orderBy, limit } from 'firebase/firestore';
 import { db, storage } from '../config/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -94,7 +96,9 @@ const NewPaymentPage = () => {
   const navigate = useNavigate();
   const { addNotification } = useNotifications();
   const { user } = useAuth();
+  const { settings } = useSettings();
   const { logActivity } = useActivityLogs();
+  const telegram = useTelegramNotifications(); // 🆕 Hook de Telegram
   
   // Helper para crear fecha local sin problemas de zona horaria
   const createLocalDate = (dateString) => {
@@ -1371,6 +1375,22 @@ const NewPaymentPage = () => {
         message: `Pago de $${formData.finalAmount.toLocaleString()} registrado para ${selectedCommitment.companyName}`,
         icon: 'success'
       });
+
+      // 📱 TELEGRAM: Notificar pago registrado
+      if (settings?.telegramEnabled && settings?.telegramChatId) {
+        try {
+          await telegram.sendPaymentRegisteredNotification(settings.telegramChatId, {
+            companyName: selectedCommitment.companyName,
+            amount: `$${formData.finalAmount.toLocaleString('es-CO')}`,
+            paymentDate: format(new Date(formData.date), 'dd/MM/yyyy', { locale: es }),
+            concept: selectedCommitment.concept || 'Pago registrado',
+            registeredBy: user?.email || 'Usuario'
+          });
+          console.log('✅ Notificación de Telegram enviada para pago');
+        } catch (telegramError) {
+          console.warn('⚠️ Error enviando notificación de Telegram (no crítico):', telegramError);
+        }
+      }
       
       // Limpiar el formulario para permitir otro pago
       setSelectedCommitment(null);
