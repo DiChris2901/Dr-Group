@@ -28,7 +28,8 @@ import {
     ListItemIcon,
     ListItemText,
     Tooltip,
-    Typography
+    Typography,
+    alpha
 } from '@mui/material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -37,6 +38,20 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import ProfileAvatar from '../common/ProfileAvatar';
+
+// Animación pulse para el indicador de sistema activo
+const pulseAnimation = `
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.5;
+      transform: scale(1.2);
+    }
+  }
+`;
 
 const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
   const navigate = useNavigate();
@@ -289,16 +304,23 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
   });
 
   const sidebarContent = (
-    <Box 
-      sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      {/* Header del Sidebar */}
+    <>
+      <style>{pulseAnimation}</style>
+      <Box 
+        sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {/* Header del Sidebar */}
       <Box
         sx={{
           p: isCompactMode && !isHoverExpanded ? 1 : 3,
-          background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+          background: theme.palette.mode === 'dark' 
+            ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+            : '0 4px 20px rgba(0, 0, 0, 0.08)',
           color: 'white',
           display: 'flex',
           justifyContent: 'center',
@@ -350,7 +372,23 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       </Box>
 
       {/* Menú Principal */}
-      <Box sx={{ flex: 1, overflow: 'auto' }}>
+      <Box sx={{ 
+        flex: 1, 
+        overflow: 'auto',
+        '&::-webkit-scrollbar': {
+          width: '6px'
+        },
+        '&::-webkit-scrollbar-track': {
+          background: 'transparent'
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: alpha(theme.palette.primary.main, 0.3),
+          borderRadius: '10px',
+          '&:hover': {
+            background: alpha(theme.palette.primary.main, 0.5)
+          }
+        }
+      }}>
         <List sx={{ pt: isCompactMode ? 1 : 2 }}>
           {filteredMenuItems.map((item, index) => (
             <React.Fragment key={item.title}>
@@ -361,7 +399,32 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
               >
                 <ListItem disablePadding sx={{ mb: 0.5 }}>
                   {(isCompactMode && !isHoverExpanded) ? (
-                    <Tooltip title={item.title} placement={anchor === 'left' ? 'right' : 'left'}>
+                    <Tooltip 
+                      title={item.title} 
+                      placement={anchor === 'left' ? 'right' : 'left'}
+                      arrow
+                      componentsProps={{
+                        tooltip: {
+                          sx: {
+                            bgcolor: theme.palette.mode === 'dark' 
+                              ? theme.palette.grey[800] 
+                              : theme.palette.grey[900],
+                            color: 'white',
+                            fontSize: '0.875rem',
+                            fontWeight: 500,
+                            px: 2,
+                            py: 1,
+                            borderRadius: 1,
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                            '& .MuiTooltip-arrow': {
+                              color: theme.palette.mode === 'dark' 
+                                ? theme.palette.grey[800] 
+                                : theme.palette.grey[900]
+                            }
+                          }
+                        }
+                      }}
+                    >
                       <ListItemButton
                         onClick={() => item.submenu ? handleSubmenuToggle(item.title) : handleNavigation(item.path)}
                         sx={{
@@ -416,11 +479,29 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                         py: 1,
                         minHeight: 48,
                         justifyContent: 'flex-start',
-                        bgcolor: isActiveRoute(item.path) || hasActiveSubmenu(item.submenu) ? `${primaryColor}20` : 'transparent',
+                        bgcolor: isActiveRoute(item.path) || hasActiveSubmenu(item.submenu) 
+                          ? alpha(theme.palette.primary.main, 0.12) 
+                          : 'transparent',
+                        boxShadow: isActiveRoute(item.path) || hasActiveSubmenu(item.submenu)
+                          ? '0 2px 4px rgba(0,0,0,0.04)' 
+                          : 'none',
+                        borderLeft: isActiveRoute(item.path) || hasActiveSubmenu(item.submenu)
+                          ? `3px solid ${theme.palette.primary.main}` 
+                          : '3px solid transparent',
                         '&:hover': {
-                          bgcolor: `${primaryColor}20`,
+                          bgcolor: alpha(theme.palette.primary.main, 0.08),
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                          transform: 'translateX(2px)',
+                          transition: 'all 0.2s ease',
                           '& .MuiListItemIcon-root': {
-                            color: item.color
+                            color: item.color,
+                            transform: 'scale(1.1)',
+                            transition: 'transform 0.2s ease'
+                          },
+                          '& .MuiListItemText-primary': {
+                            color: theme.palette.primary.main,
+                            fontWeight: 600,
+                            transition: 'color 0.2s ease'
                           }
                         }
                       }}
@@ -480,14 +561,24 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                           <ListItemButton
                             onClick={() => handleNavigation(subItem.path)}
                             sx={{
-                              pl: 6,
+                              pl: 7,
                               mx: 2,
+                              my: 0.5,
                               borderRadius: 2,
                               py: 0.75,
                               minHeight: 40,
-                              bgcolor: isActiveRoute(subItem.path) ? `${primaryColor}10` : 'transparent',
+                              bgcolor: isActiveRoute(subItem.path) 
+                                ? alpha(theme.palette.primary.main, 0.08) 
+                                : 'transparent',
+                              borderLeft: `2px solid ${isActiveRoute(subItem.path) 
+                                ? theme.palette.primary.main 
+                                : 'transparent'}`,
+                              ml: 3,
                               '&:hover': {
-                                bgcolor: `${primaryColor}10`,
+                                bgcolor: alpha(theme.palette.primary.main, 0.05),
+                                borderLeftColor: alpha(theme.palette.primary.main, 0.5),
+                                transform: 'translateX(4px)',
+                                transition: 'all 0.2s ease'
                               }
                             }}
                           >
@@ -537,7 +628,11 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
 
               {/* Dividers para agrupación */}
               {settings?.sidebar?.grouping !== false && (index === 0 || index === 3) && (
-                <Divider sx={{ mx: 2, my: 1, opacity: 0.6 }} />
+                <Divider sx={{ 
+                  mx: 2, 
+                  my: 1.5, 
+                  borderColor: alpha(theme.palette.primary.main, 0.12)
+                }} />
               )}
             </React.Fragment>
           ))}
@@ -547,7 +642,11 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
             <>
               {settings?.sidebar?.grouping !== false && (!isCompactMode || isHoverExpanded) && (
                 <>
-                  <Divider sx={{ my: 2, mx: 3 }} />
+                  <Divider sx={{ 
+                    my: 2, 
+                    mx: 3,
+                    borderColor: alpha(theme.palette.primary.main, 0.12)
+                  }} />
                   <Typography
                     variant="overline"
                     sx={{
@@ -571,7 +670,32 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                 >
                   <ListItem disablePadding sx={{ mb: 0.5 }}>
                     {(isCompactMode && !isHoverExpanded) ? (
-                      <Tooltip title={item.title} placement={anchor === 'left' ? 'right' : 'left'}>
+                      <Tooltip 
+                        title={item.title} 
+                        placement={anchor === 'left' ? 'right' : 'left'}
+                        arrow
+                        componentsProps={{
+                          tooltip: {
+                            sx: {
+                              bgcolor: theme.palette.mode === 'dark' 
+                                ? theme.palette.grey[800] 
+                                : theme.palette.grey[900],
+                              color: 'white',
+                              fontSize: '0.875rem',
+                              fontWeight: 500,
+                              px: 2,
+                              py: 1,
+                              borderRadius: 1,
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                              '& .MuiTooltip-arrow': {
+                                color: theme.palette.mode === 'dark' 
+                                  ? theme.palette.grey[800] 
+                                  : theme.palette.grey[900]
+                              }
+                            }
+                          }
+                        }}
+                      >
                         <ListItemButton
                           onClick={() => handleNavigation(item.path)}
                           sx={{
@@ -626,11 +750,29 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                           py: 1,
                           minHeight: 48,
                           justifyContent: 'flex-start',
-                          bgcolor: isActiveRoute(item.path) ? `${primaryColor}20` : 'transparent',
+                          bgcolor: isActiveRoute(item.path) 
+                            ? alpha(theme.palette.primary.main, 0.12) 
+                            : 'transparent',
+                          boxShadow: isActiveRoute(item.path) 
+                            ? '0 2px 4px rgba(0,0,0,0.04)' 
+                            : 'none',
+                          borderLeft: isActiveRoute(item.path) 
+                            ? `3px solid ${theme.palette.primary.main}` 
+                            : '3px solid transparent',
                           '&:hover': {
-                            bgcolor: `${primaryColor}20`,
+                            bgcolor: alpha(theme.palette.primary.main, 0.08),
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+                            transform: 'translateX(2px)',
+                            transition: 'all 0.2s ease',
                             '& .MuiListItemIcon-root': {
-                              color: item.color
+                              color: item.color,
+                              transform: 'scale(1.1)',
+                              transition: 'transform 0.2s ease'
+                            },
+                            '& .MuiListItemText-primary': {
+                              color: theme.palette.primary.main,
+                              fontWeight: 600,
+                              transition: 'color 0.2s ease'
                             }
                           }
                         }}
@@ -686,20 +828,38 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
           sx={{ 
             p: isCompactMode && !isHoverExpanded ? 1 : 2, 
             mt: 'auto',
-            borderTop: '1px solid',
-            borderColor: 'divider'
+            borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`
           }}
         >
           {(!isCompactMode || isHoverExpanded) && (
-            <Box sx={{ textAlign: 'center' }}>
-              <Typography variant="caption" color="text.secondary">
-                DR Group Dashboard v1.0
+            <Box sx={{ textAlign: 'center', p: 2 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                DR Group Dashboard
+              </Typography>
+              <Typography variant="caption" sx={{ 
+                color: alpha(theme.palette.success.main, 0.8),
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 0.5,
+                fontSize: '0.7rem'
+              }}>
+                <Box sx={{ 
+                  width: 6, 
+                  height: 6, 
+                  borderRadius: '50%', 
+                  bgcolor: 'success.main',
+                  animation: 'pulse 2s infinite'
+                }} />
+                Sistema Activo
               </Typography>
             </Box>
           )}
         </Box>
       </Box>
-    </Box>
+      </Box>
+    </>
   );
 
   return (
@@ -734,21 +894,25 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
             overflowX: 'hidden',
             // Diseño limpio sin efectos glass
             background: theme.palette.background.paper,
-            borderRight: anchor === 'left' ? `1px solid ${theme.palette.divider}` : 'none',
-            borderLeft: anchor === 'right' ? `1px solid ${theme.palette.divider}` : 'none',
+            borderRight: anchor === 'left' 
+              ? `1px solid ${alpha(theme.palette.primary.main, 0.2)}` 
+              : 'none',
+            borderLeft: anchor === 'right' 
+              ? `1px solid ${alpha(theme.palette.primary.main, 0.2)}` 
+              : 'none',
             borderRadius: 0,
             boxShadow: anchor === 'left' ? 
               theme.shadows[2] : 
               theme.shadows[2],
-            transition: theme.transitions.create(['width'], {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
-          }),
+            transition: theme.transitions.create(['width', 'transform', 'box-shadow'], {
+              easing: theme.transitions.easing.easeOut,
+              duration: 200
+            }),
           zIndex: theme.zIndex.drawer,
           ...(isCompactMode && {
-            transition: theme.transitions.create(['width'], {
-              easing: theme.transitions.easing.sharp,
-              duration: theme.transitions.duration.enteringScreen,
+            transition: theme.transitions.create(['width', 'transform', 'box-shadow'], {
+              easing: theme.transitions.easing.easeOut,
+              duration: 200
             }),
           }),
         },
