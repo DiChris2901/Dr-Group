@@ -208,6 +208,7 @@ const NewPaymentPage = () => {
   // 🗜️ ESTADO PARA COMPRESIÓN DE PDFs
   const [compressionPreviewOpen, setCompressionPreviewOpen] = useState(false);
   const [pendingPDFFile, setPendingPDFFile] = useState(null);
+  const [pendingPDFQueue, setPendingPDFQueue] = useState([]); // 🆕 Cola de PDFs pendientes
   const [compressionEnabled, setCompressionEnabled] = useState(true); // Compresión habilitada por defecto
   
   // ✅ ESTADO PARA MODAL DE CONFIRMACIÓN
@@ -1459,17 +1460,31 @@ const NewPaymentPage = () => {
       });
     }
 
-    // 🗜️ PROCESAR CADA ARCHIVO (COMPRIMIR PDFs SI ES NECESARIO)
+    // 🗜️ SEPARAR ARCHIVOS: PDFs que necesitan compresión vs archivos directos
+    const pdfsToCompress = [];
+    const directFiles = [];
+
     validFiles.forEach(file => {
-      if (file.type === 'application/pdf' && compressionEnabled && file.size > 100 * 1024) { // Solo comprimir PDFs > 100KB
-        // Mostrar vista previa de compresión para PDFs grandes
-        setPendingPDFFile(file);
-        setCompressionPreviewOpen(true);
+      if (file.type === 'application/pdf' && compressionEnabled && file.size > 100 * 1024) {
+        // PDFs grandes que necesitan compresión
+        pdfsToCompress.push(file);
       } else {
-        // Agregar archivos no-PDF o PDFs pequeños directamente
-        addFileToList(file);
+        // Archivos que se agregan directamente (imágenes o PDFs pequeños)
+        directFiles.push(file);
       }
     });
+
+    // Agregar archivos directos inmediatamente
+    directFiles.forEach(file => addFileToList(file));
+
+    // 🆕 AGREGAR PDFs A LA COLA Y PROCESAR EL PRIMERO
+    if (pdfsToCompress.length > 0) {
+      console.log(`📋 Agregando ${pdfsToCompress.length} PDFs a la cola de compresión`);
+      setPendingPDFQueue(pdfsToCompress);
+      // Procesar el primer PDF inmediatamente
+      setPendingPDFFile(pdfsToCompress[0]);
+      setCompressionPreviewOpen(true);
+    }
   };
 
   // 🗜️ MANEJAR RESULTADO DE COMPRESIÓN
@@ -1482,7 +1497,6 @@ const NewPaymentPage = () => {
     });
     
     addFileToList(compressedFile, compressionResult.stats);
-    setPendingPDFFile(null);
     
     addNotification({
       type: 'success',
@@ -1490,12 +1504,15 @@ const NewPaymentPage = () => {
       message: `Archivo comprimido exitosamente (${compressionResult.stats.reductionPercent} reducido)`,
       icon: 'success'
     });
+
+    // 🆕 PROCESAR SIGUIENTE PDF EN LA COLA
+    processNextPDFInQueue();
   };
 
   const handleCompressionReject = () => {
     console.log('❌ Compresión rechazada, usando original');
+    
     addFileToList(pendingPDFFile);
-    setPendingPDFFile(null);
     
     addNotification({
       type: 'info',
@@ -1503,6 +1520,36 @@ const NewPaymentPage = () => {
       message: 'Se usará el archivo original sin comprimir',
       icon: 'info'
     });
+
+    // 🆕 PROCESAR SIGUIENTE PDF EN LA COLA
+    processNextPDFInQueue();
+  };
+
+  // 🆕 FUNCIÓN PARA PROCESAR SIGUIENTE PDF EN LA COLA
+  const processNextPDFInQueue = () => {
+    // Remover el PDF actual de la cola
+    const remainingQueue = pendingPDFQueue.slice(1);
+    setPendingPDFQueue(remainingQueue);
+
+    if (remainingQueue.length > 0) {
+      // Hay más PDFs en la cola, procesar el siguiente
+      console.log(`📋 Procesando siguiente PDF (${remainingQueue.length} restantes)`);
+      
+      addNotification({
+        type: 'info',
+        title: 'PDFs Pendientes',
+        message: `Quedan ${remainingQueue.length} PDF${remainingQueue.length > 1 ? 's' : ''} por procesar`,
+        icon: 'info'
+      });
+
+      setPendingPDFFile(remainingQueue[0]);
+      setCompressionPreviewOpen(true);
+    } else {
+      // No hay más PDFs en la cola, cerrar modal
+      console.log('✅ Todos los PDFs procesados');
+      setPendingPDFFile(null);
+      setCompressionPreviewOpen(false);
+    }
   };
 
   // Función auxiliar para agregar archivos a la lista
@@ -3477,10 +3524,18 @@ const NewPaymentPage = () => {
       {/* 🗜️ DIÁLOGO DE VISTA PREVIA DE COMPRESIÓN */}
       <PDFCompressionPreview
         open={compressionPreviewOpen}
-        onClose={() => setCompressionPreviewOpen(false)}
+        onClose={() => {
+          // 🆕 No cerrar si hay archivos en cola, solo si se cancela manualmente
+          if (pendingPDFQueue.length <= 1) {
+            setCompressionPreviewOpen(false);
+            setPendingPDFFile(null);
+            setPendingPDFQueue([]);
+          }
+        }}
         file={pendingPDFFile}
         onAccept={handleCompressionAccept}
         onReject={handleCompressionReject}
+        keepOpenAfterAction={pendingPDFQueue.length > 1}  // 🆕 Mantener abierto si hay más archivos
       />
 
       {/* ✅ MODAL DE CONFIRMACIÓN DE PAGO */}

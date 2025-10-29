@@ -52,7 +52,8 @@ const PDFCompressionPreview = ({
   onClose, 
   file, 
   onAccept, 
-  onReject 
+  onReject,
+  keepOpenAfterAction = false  // 🆕 No cerrar después de aceptar/rechazar (para colas)
 }) => {
   const theme = useTheme();
   const { settings } = useSettings();
@@ -168,12 +169,16 @@ const PDFCompressionPreview = ({
     if (compressionResult) {
       onAccept(compressionResult);
     }
-    handleClose();
+    if (!keepOpenAfterAction) {
+      handleClose();
+    }
   };
 
   const handleReject = () => {
     onReject();
-    handleClose();
+    if (!keepOpenAfterAction) {
+      handleClose();
+    }
   };
 
   const handleClose = () => {
