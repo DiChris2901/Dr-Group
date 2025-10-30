@@ -200,7 +200,8 @@ export const useTelegramNotifications = () => {
     const message = formatTelegramMessage(
       '💎 Compromiso de Alto Valor',
       `🏢 <b>${commitmentData.companyName}</b>\n` +
-      `💼 ${commitmentData.concept}\n` +
+      `� Beneficiario: ${commitmentData.beneficiary || commitmentData.companyName}\n` +
+      `�💼 ${commitmentData.concept}\n` +
       `💰 <b>${commitmentData.amount}</b>\n` +
       `📅 Vencimiento: ${commitmentData.dueDate}\n` +
       `⚡ Umbral: ${commitmentData.threshold}`,
@@ -234,7 +235,8 @@ export const useTelegramNotifications = () => {
     const message = formatTelegramMessage(
       '💳 Nuevo Pago Registrado',
       `🏢 <b>${paymentData.companyName}</b>\n` +
-      `💰 Monto: <b>${paymentData.amount}</b>\n` +
+      `� Beneficiario: ${paymentData.beneficiary || paymentData.companyName}\n` +
+      `�💰 Monto: <b>${paymentData.amount}</b>\n` +
       `📅 Fecha: ${paymentData.paymentDate}\n` +
       `💼 Concepto: ${paymentData.concept}\n` +
       `👤 Registrado por: ${paymentData.registeredBy}`,

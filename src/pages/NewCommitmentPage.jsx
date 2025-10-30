@@ -1552,16 +1552,32 @@ const NewCommitmentPage = () => {
           });
 
           // 📱 TELEGRAM: Notificar compromiso creado
-          if (settings?.telegramEnabled && settings?.telegramChatId) {
+          if (settings?.notificationSettings?.telegramEnabled && settings?.notificationSettings?.telegramChatId) {
             try {
-              await telegram.sendHighValueCommitmentNotification(settings.telegramChatId, {
-                companyName: formData.companyName || formData.beneficiary,
-                concept: formData.concept,
-                amount: `$${parseFloat(formData.amount).toLocaleString('es-CO')}`,
+              // Convertir amount correctamente - usar totalAmount o baseAmount
+              const rawAmount = formData.totalAmount || formData.baseAmount || '0';
+              const amountValue = typeof rawAmount === 'string' 
+                ? parseFloat(rawAmount.replace(/[^0-9.-]/g, ''))
+                : parseFloat(rawAmount);
+              
+              const formattedAmount = !isNaN(amountValue) && amountValue > 0
+                ? `$${amountValue.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+                : 'Monto no especificado';
+              
+              await telegram.sendHighValueCommitmentNotification(settings.notificationSettings.telegramChatId, {
+                companyName: formData.companyName || formData.beneficiary || 'Sin empresa',
+                beneficiary: formData.beneficiary || 'Sin beneficiario',
+                concept: formData.concept || 'Sin concepto',
+                amount: formattedAmount,
                 dueDate: format(new Date(formData.dueDate), 'dd/MM/yyyy', { locale: es }),
                 threshold: 'Nuevo compromiso registrado'
               });
-              console.log('✅ Notificación de Telegram enviada para compromiso');
+              console.log('✅ Notificación de Telegram enviada para compromiso', {
+                amount: formattedAmount,
+                baseAmount: formData.baseAmount,
+                totalAmount: formData.totalAmount,
+                parsedAmount: amountValue
+              });
             } catch (telegramError) {
               console.warn('⚠️ Error enviando notificación de Telegram (no crítico):', telegramError);
             }

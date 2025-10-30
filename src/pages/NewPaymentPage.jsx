@@ -1377,16 +1377,27 @@ const NewPaymentPage = () => {
       });
 
       // 📱 TELEGRAM: Notificar pago registrado
-      if (settings?.telegramEnabled && settings?.telegramChatId) {
+      if (settings?.notificationSettings?.telegramEnabled && settings?.notificationSettings?.telegramChatId) {
         try {
-          await telegram.sendPaymentRegisteredNotification(settings.telegramChatId, {
-            companyName: selectedCommitment.companyName,
-            amount: `$${formData.finalAmount.toLocaleString('es-CO')}`,
+          // Validar y formatear el monto correctamente
+          const amountValue = parseFloat(formData.finalAmount);
+          const formattedAmount = !isNaN(amountValue) && amountValue > 0
+            ? `$${amountValue.toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+            : 'Monto no especificado';
+          
+          await telegram.sendPaymentRegisteredNotification(settings.notificationSettings.telegramChatId, {
+            companyName: selectedCommitment.companyName || 'Sin empresa',
+            beneficiary: selectedCommitment.beneficiary || selectedCommitment.companyName || 'Sin beneficiario',
+            amount: formattedAmount,
             paymentDate: format(new Date(formData.date), 'dd/MM/yyyy', { locale: es }),
             concept: selectedCommitment.concept || 'Pago registrado',
-            registeredBy: user?.email || 'Usuario'
+            registeredBy: user?.displayName || user?.email || 'Usuario'
           });
-          console.log('✅ Notificación de Telegram enviada para pago');
+          console.log('✅ Notificación de Telegram enviada para pago', {
+            amount: formattedAmount,
+            originalAmount: formData.finalAmount,
+            parsedAmount: amountValue
+          });
         } catch (telegramError) {
           console.warn('⚠️ Error enviando notificación de Telegram (no crítico):', telegramError);
         }

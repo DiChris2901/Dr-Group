@@ -522,6 +522,13 @@ const SettingsProvider = ({ children }) => {
         const userSettingsRef = doc(db, 'userSettings', user.uid);
         const docSnap = await getDoc(userSettingsRef);
         
+        // 📱 Cargar también notificationSettings desde users/{userId}
+        const userRef = doc(db, 'users', user.uid);
+        const userDocSnap = await getDoc(userRef);
+        const notificationSettings = userDocSnap.exists() 
+          ? userDocSnap.data()?.notificationSettings || {}
+          : {};
+        
         if (docSnap.exists()) {
           const firebaseSettings = docSnap.data();
           // Merge configuraciones de Firebase con las por defecto
@@ -540,7 +547,9 @@ const SettingsProvider = ({ children }) => {
               behavior: { ...defaultSettings.dashboard.behavior, ...firebaseSettings.dashboard?.behavior },
               appearance: { ...defaultSettings.dashboard.appearance, ...firebaseSettings.dashboard?.appearance }
             },
-            notifications: { ...defaultSettings.notifications, ...firebaseSettings.notifications }
+            notifications: { ...defaultSettings.notifications, ...firebaseSettings.notifications },
+            // 🆕 Agregar notificationSettings (Telegram/Email)
+            notificationSettings: notificationSettings
           };
           setSettings(mergedSettings);
           
@@ -553,8 +562,14 @@ const SettingsProvider = ({ children }) => {
             createdAt: new Date(),
             lastUpdated: new Date()
           });
-          setSettings(defaultSettings);
-          localStorage.setItem('drgroup-settings', JSON.stringify(defaultSettings));
+          
+          // 🆕 Incluir notificationSettings incluso si no hay userSettings
+          const settingsWithNotifications = {
+            ...defaultSettings,
+            notificationSettings: notificationSettings
+          };
+          setSettings(settingsWithNotifications);
+          localStorage.setItem('drgroup-settings', JSON.stringify(settingsWithNotifications));
         }
       } catch (error) {
         console.error('Error loading user settings from Firebase:', error);
@@ -580,9 +595,19 @@ const SettingsProvider = ({ children }) => {
 
     // Listener en tiempo real para cambios de configuración
     const userSettingsRef = doc(db, 'userSettings', user.uid);
-    const unsubscribe = onSnapshot(userSettingsRef, (doc) => {
+    const userRef = doc(db, 'users', user.uid);
+    
+    // Listener para userSettings
+    const unsubscribeSettings = onSnapshot(userSettingsRef, async (doc) => {
       if (doc.exists()) {
         const firebaseSettings = doc.data();
+        
+        // 📱 Obtener también notificationSettings actualizadas
+        const userDoc = await getDoc(userRef);
+        const notificationSettings = userDoc.exists() 
+          ? userDoc.data()?.notificationSettings || {}
+          : {};
+        
         const mergedSettings = {
           ...defaultSettings,
           ...firebaseSettings,
@@ -597,7 +622,9 @@ const SettingsProvider = ({ children }) => {
             behavior: { ...defaultSettings.dashboard.behavior, ...firebaseSettings.dashboard?.behavior },
             appearance: { ...defaultSettings.dashboard.appearance, ...firebaseSettings.dashboard?.appearance }
           },
-          notifications: { ...defaultSettings.notifications, ...firebaseSettings.notifications }
+          notifications: { ...defaultSettings.notifications, ...firebaseSettings.notifications },
+          // 🆕 Agregar notificationSettings
+          notificationSettings: notificationSettings
         };
         setSettings(mergedSettings);
         localStorage.setItem('drgroup-settings', JSON.stringify(mergedSettings));
@@ -605,8 +632,22 @@ const SettingsProvider = ({ children }) => {
     }, (error) => {
       console.error('Error listening to settings changes:', error);
     });
+    
+    // 🆕 Listener adicional para cambios en notificationSettings desde users/{userId}
+    const unsubscribeNotifications = onSnapshot(userRef, (doc) => {
+      if (doc.exists()) {
+        const notificationSettings = doc.data()?.notificationSettings || {};
+        setSettings(prev => ({
+          ...prev,
+          notificationSettings: notificationSettings
+        }));
+      }
+    });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeSettings();
+      unsubscribeNotifications();
+    };
   }, [user]);
 
   // Función para actualizar configuración en Firebase
