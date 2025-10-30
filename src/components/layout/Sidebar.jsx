@@ -864,9 +864,9 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                   justifyContent: 'center',
                   flexWrap: 'wrap'
                 }}>
-                  {(settings.navigation.mode === 'sidebar' || settings.navigation.mode === 'both') && (
+                  {settings.navigation.mode === 'sidebar' && (
                     <Chip 
-                      label="Sidebar" 
+                      label="Sidebar Activo" 
                       size="small"
                       sx={{ 
                         height: 20,
@@ -877,9 +877,9 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                       }} 
                     />
                   )}
-                  {(settings.navigation.mode === 'taskbar' || settings.navigation.mode === 'both') && (
+                  {settings.navigation.mode === 'taskbar' && (
                     <Chip 
-                      label="Taskbar" 
+                      label="Taskbar Activo" 
                       size="small"
                       sx={{ 
                         height: 20,

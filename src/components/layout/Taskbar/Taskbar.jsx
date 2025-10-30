@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   IconButton,
@@ -31,8 +31,8 @@ import { useAuth } from '../../../context/AuthContext';
 import { useSettings } from '../../../context/SettingsContext';
 import TaskbarMenu from './TaskbarMenu';
 
-// Animación pulse para notificaciones
-const pulseAnimation = `
+// Animaciones para Taskbar - Spectacular Style
+const taskbarAnimations = `
   @keyframes taskbar-pulse {
     0%, 100% {
       opacity: 1;
@@ -41,6 +41,15 @@ const pulseAnimation = `
     50% {
       opacity: 0.8;
       transform: scale(1.15);
+    }
+  }
+  
+  @keyframes taskbar-shimmer {
+    0% {
+      left: -100%;
+    }
+    100% {
+      left: 100%;
     }
   }
 `;
@@ -55,15 +64,42 @@ const Taskbar = () => {
 
   const [openMenu, setOpenMenu] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
-  // Calcular márgenes considerando el Sidebar
+  // Actualizar la hora cada segundo
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Formatear hora y fecha
+  const formatTime = (date) => {
+    return date.toLocaleTimeString('es-CO', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: true 
+    });
+  };
+
+  const formatDate = (date) => {
+    return date.toLocaleDateString('es-CO', { 
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short'
+    });
+  };
+
+  // Calcular márgenes considerando el Sidebar (solo cuando modo sidebar está activo)
   const navigationMode = settings?.navigation?.mode || 'sidebar';
-  const showSidebar = navigationMode === 'sidebar' || navigationMode === 'both';
+  const showSidebar = navigationMode === 'sidebar';
   const sidebarWidth = settings?.sidebar?.width || 280;
   const sidebarPosition = settings?.sidebar?.position || 'left';
   const isCompactMode = settings?.sidebar?.compactMode || false;
   
-  // Ancho actual del sidebar
+  // Ancho actual del sidebar (solo aplica si sidebar está visible)
   const currentSidebarWidth = isCompactMode ? 80 : sidebarWidth;
 
   // Definir items principales del taskbar (coinciden exactamente con Sidebar)
@@ -280,7 +316,7 @@ const Taskbar = () => {
 
   return (
     <>
-      <style>{pulseAnimation}</style>
+      <style>{taskbarAnimations}</style>
       
       {/* Taskbar Container - Diseño TopBar Style */}
       <Box
@@ -354,40 +390,40 @@ const Taskbar = () => {
                 sx={{
                   width: isMobile ? 44 : 48,
                   height: isMobile ? 44 : 48,
-                  borderRadius: 1.5,
-                  color: isActive(item) 
-                    ? theme.palette.primary.main 
-                    : theme.palette.text.secondary,
-                  bgcolor: isActive(item) 
-                    ? alpha(theme.palette.primary.main, 0.1) 
-                    : 'transparent',
+                  color: isActive(item) ? item.color : alpha(item.color, 0.7),
+                  borderRadius: 2,
+                  background: 'transparent',
+                  border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   position: 'relative',
-                  transition: theme.transitions.create(['background-color', 'color', 'transform'], {
-                    easing: theme.transitions.easing.easeInOut,
-                    duration: theme.transitions.duration.shorter,
-                  }),
                   '&:hover': {
-                    bgcolor: theme.palette.action.hover,
-                    color: theme.palette.primary.main,
+                    color: item.color,
+                    background: alpha(item.color, 0.08),
                     transform: 'translateY(-2px)',
+                    boxShadow: `0 4px 12px ${alpha(item.color, 0.15)}`,
+                    border: `1px solid ${alpha(item.color, 0.2)}`,
                   },
-                  '&::after': isActive(item) ? {
-                    content: '""',
-                    position: 'absolute',
-                    bottom: -2,
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: '60%',
-                    height: 3,
-                    borderRadius: '3px 3px 0 0',
-                    bgcolor: theme.palette.primary.main,
-                  } : {}
+                  ...(isActive(item) && {
+                    background: alpha(item.color, 0.1),
+                    border: `1px solid ${alpha(item.color, 0.3)}`,
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      bottom: -2,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      width: '60%',
+                      height: 3,
+                      borderRadius: '3px 3px 0 0',
+                      bgcolor: item.color,
+                    }
+                  })
                 }}
               >
                 <item.icon 
                   sx={{ 
                     fontSize: isMobile ? 21 : 24,
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transition: 'all 0.2s ease',
                   }} 
                 />
               </IconButton>
@@ -395,27 +431,66 @@ const Taskbar = () => {
           ))}
         </Box>
 
-        {/* User Info - Positioned Absolutely Right */}
-        {!isMobile && userProfile && (
+        {/* Right Section - Date/Time & User Info */}
+        {!isMobile && (
           <Box sx={{ 
             position: 'absolute',
             right: isMobile ? 16 : 24,
             display: 'flex', 
             alignItems: 'center',
             gap: 1.5,
+          }}>
+            {/* Date and Time */}
+            <Box sx={{ 
+              display: 'flex', 
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              px: 2,
+              py: 1,
+              borderRadius: 2,
+              border: `1px solid ${theme.palette.divider}`,
+              bgcolor: alpha(theme.palette.background.default, 0.3),
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              '&:hover': {
+                bgcolor: theme.palette.action.hover,
+                borderColor: theme.palette.primary.main,
+              }
+            }}>
+              <Typography variant="caption" sx={{ 
+                fontWeight: 600,
+                fontSize: '0.8rem',
+                color: theme.palette.text.primary,
+                lineHeight: 1.3
+              }}>
+                {formatTime(currentTime)}
+              </Typography>
+              <Typography variant="caption" sx={{ 
+                fontSize: '0.7rem',
+                color: theme.palette.text.secondary,
+                fontWeight: 500,
+                textTransform: 'capitalize'
+              }}>
+                {formatDate(currentTime)}
+              </Typography>
+            </Box>
+
+            {/* User Info */}
+            {userProfile && (
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center',
+                gap: 1.5,
             px: 2,
             py: 1,
-            borderRadius: 1.5,
+            borderRadius: 2,
             border: `1px solid ${theme.palette.divider}`,
-            bgcolor: alpha(theme.palette.background.default, 0.5),
+            bgcolor: alpha(theme.palette.background.default, 0.3),
             cursor: 'pointer',
-            transition: theme.transitions.create(['background-color', 'border-color'], {
-              easing: theme.transitions.easing.easeInOut,
-              duration: theme.transitions.duration.shorter,
-            }),
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             '&:hover': {
               bgcolor: theme.palette.action.hover,
-              borderColor: theme.palette.primary.main
+              borderColor: theme.palette.primary.main,
+              transform: 'translateY(-1px)',
             }
           }}>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
@@ -447,6 +522,8 @@ const Taskbar = () => {
                 </Typography>
               </Box>
             </Box>
+          </Box>
+            )}
           </Box>
         )}
       </Box>

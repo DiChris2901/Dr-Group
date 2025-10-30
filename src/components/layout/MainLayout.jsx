@@ -52,9 +52,9 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
   const sidebarPosition = settings?.sidebar?.position || 'left';
   const isCompactMode = settings?.sidebar?.compactMode || false;
   
-  // Determinar si mostrar sidebar según el modo de navegación
-  const showSidebar = navigationMode === 'sidebar' || navigationMode === 'both';
-  const showTaskbarComponent = (navigationMode === 'taskbar' || navigationMode === 'both') && showTaskbar;
+  // Determinar si mostrar sidebar o taskbar según el modo de navegación
+  const showSidebar = navigationMode === 'sidebar';
+  const showTaskbarComponent = navigationMode === 'taskbar' && showTaskbar;
   
   // Ancho dinámico del sidebar que se adapta al modo compacto y hover
   const currentSidebarWidth = isCompactMode 
@@ -124,7 +124,7 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
             position: 'fixed',
             top: 16,
             left: !isMobile && showSidebar && sidebarPosition === 'left' ? `${currentSidebarWidth + 16}px` : '16px',
-            right: !isMobile && showSidebar && sidebarPosition === 'right' ? `${currentSidebarWidth + 16}px` : '16px',
+            right: !isMobile && showSidebar && sidebarPosition === 'right' ? `${currentSidebarWidth + 32}px` : '32px',
             zIndex: 1100,
             height: 80,
             backgroundColor: theme.palette.background.paper,

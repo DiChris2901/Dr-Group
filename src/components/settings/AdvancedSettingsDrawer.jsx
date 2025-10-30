@@ -1362,10 +1362,10 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
 
                       <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
                         <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
-                          🎯 Sistema Triple de Navegación
+                          🎯 Sistema de Navegación
                         </Typography>
                         <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary' }}>
-                          Elige cómo quieres navegar por el dashboard: Sidebar tradicional, modo compacto o la nueva Taskbar estilo Windows
+                          Elige tu estilo de navegación: Sidebar tradicional o Taskbar estilo Windows en la parte inferior
                         </Typography>
                       </Alert>
 
@@ -1383,12 +1383,13 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                 updateSettings('navigation', { 
                                   ...settings.navigation, 
                                   mode: newMode,
-                                  showTaskbar: newMode === 'taskbar' || newMode === 'both'
+                                  showTaskbar: newMode === 'taskbar'
                                 });
                               }
                             }}
                             fullWidth
                             sx={{
+                              gap: 2,
                               '& .MuiToggleButton-root': {
                                 py: 2,
                                 borderRadius: 2,
@@ -1425,24 +1426,11 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                                 </Typography>
                               </Box>
                             </ToggleButton>
-                            <ToggleButton value="both">
-                              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                                <Badge badgeContent="NEW" color="error">
-                                  <GridIcon />
-                                </Badge>
-                                <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                                  Ambos
-                                </Typography>
-                                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
-                                  Triple System
-                                </Typography>
-                              </Box>
-                            </ToggleButton>
                           </ToggleButtonGroup>
                         </FormControl>
 
                         {/* Taskbar Visibility Toggle */}
-                        {(settings?.navigation?.mode === 'taskbar' || settings?.navigation?.mode === 'both') && (
+                        {settings?.navigation?.mode === 'taskbar' && (
                           <Fade in timeout={300}>
                             <FormControlLabel
                               control={
@@ -1465,7 +1453,7 @@ export function AdvancedSettingsDrawer({ open, onClose }) {
                         )}
 
                         {/* Sidebar Position (only when sidebar is visible) */}
-                        {(settings?.navigation?.mode === 'sidebar' || settings?.navigation?.mode === 'both') && (
+                        {settings?.navigation?.mode === 'sidebar' && (
                           <Fade in timeout={300}>
                             <FormControl fullWidth>
                               <FormLabel sx={{ mb: 1, fontWeight: 600 }}>
