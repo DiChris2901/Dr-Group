@@ -508,81 +508,56 @@ const GlobalSearchPage = () => {
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
       <motion.div
-        initial={{ opacity: 0, y: -30, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ 
-          type: "spring", 
-          damping: 20, 
-          stiffness: 100,
-          delay: 0.1 
-        }}
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
       >
-        <Box
+        <Paper
           sx={{
-            background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 1.0)}, ${alpha(theme.palette.secondary.main, 1.0)})`,
+            background: theme.palette.mode === 'dark' 
+              ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+              : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
             color: 'white',
             p: 3,
-            borderRadius: '8px',
-            position: 'relative',
-            overflow: 'hidden',
+            borderRadius: 2,
             mb: 4,
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.15) 0%, transparent 50%)',
-              zIndex: 1
-            },
-            '&::after': {
-              content: '""',
-              position: 'absolute',
-              top: -50,
-              right: -50,
-              width: 120,
-              height: 120,
-              borderRadius: '50%',
-              background: 'rgba(255, 255, 255, 0.1)',
-              animation: 'float 6s ease-in-out infinite',
-              zIndex: 1
-            },
-            '@keyframes float': {
-              '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
-              '50%': { transform: 'translateY(-20px) rotate(180deg)' }
-            }
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            overflow: 'hidden'
           }}
         >
-          <Box sx={{ position: 'relative', zIndex: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-              <motion.div
-                initial={{ scale: 0.8, rotate: -15 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ delay: 0.2, duration: 0.6, type: "spring", bounce: 0.4 }}
-                whileHover={{ scale: 1.05, rotate: 5 }}
-              >
-                <SearchIcon sx={{ fontSize: 40, mr: 2, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }} />
-              </motion.div>
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <SearchIcon sx={{ fontSize: 32, mr: 2 }} />
               
               <Box>
+                <Typography 
+                  variant="overline"
+                  sx={{
+                    fontWeight: 600,
+                    fontSize: '0.7rem',
+                    color: 'rgba(255, 255, 255, 0.8)',
+                    letterSpacing: 1.2
+                  }}
+                >
+                  BÚSQUEDA GLOBAL
+                </Typography>
                 <Typography 
                   variant="h4" 
                   sx={{ 
                     fontWeight: 700,
-                    fontSize: { xs: '1.75rem', sm: '2.125rem' },
-                    textShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    color: 'white',
                     mb: 0.5
                   }}
                 >
                   Resultados de Búsqueda
                 </Typography>
                 <Typography 
-                  variant="h6" 
+                  variant="body1" 
                   sx={{ 
-                    opacity: 0.9,
-                    fontWeight: 400,
-                    fontSize: '1.1rem'
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    fontWeight: 400
                   }}
                 >
                   {searchTerm ? (
@@ -595,38 +570,26 @@ const GlobalSearchPage = () => {
             </Box>
 
             {searchTerm && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.4 }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                  <Chip 
-                    label={`${totalResults} resultado${totalResults !== 1 ? 's' : ''} encontrado${totalResults !== 1 ? 's' : ''}`}
-                    sx={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                      color: 'white',
-                      fontWeight: 600,
-                      backdropFilter: 'blur(10px)',
-                      border: '1px solid rgba(255, 255, 255, 0.3)'
-                    }}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mt: 2 }}>
+                <Chip 
+                  label={`${totalResults} resultado${totalResults !== 1 ? 's' : ''} encontrado${totalResults !== 1 ? 's' : ''}`}
+                  sx={{
+                    backgroundColor: alpha(theme.palette.background.paper, 0.2),
+                    color: 'white',
+                    fontWeight: 600,
+                    border: `1px solid ${alpha(theme.palette.background.paper, 0.3)}`
+                  }}
+                />
+                {loading && (
+                  <CircularProgress 
+                    size={20} 
+                    sx={{ color: 'rgba(255, 255, 255, 0.9)' }} 
                   />
-                  {loading && (
-                    <motion.div
-                      animate={{ rotate: 360 }}
-                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                    >
-                      <CircularProgress 
-                        size={20} 
-                        sx={{ color: 'rgba(255, 255, 255, 0.9)' }} 
-                      />
-                    </motion.div>
-                  )}
-                </Box>
-              </motion.div>
+                )}
+              </Box>
             )}
           </Box>
-        </Box>
+        </Paper>
       </motion.div>
 
       <AnimatePresence>

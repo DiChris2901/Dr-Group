@@ -55,7 +55,7 @@ const FloatingChatButton = () => {
             sx={{
               position: 'fixed',
               bottom: isTaskbarActive 
-                ? { xs: 88, md: 104 } // Elevado cuando Taskbar está activa (64px móvil + 16px bottom + 8px margen, 72px desktop + 16px bottom + 16px margen)
+                ? { xs: 88, md: 112 } // Elevado cuando Taskbar está activa (64px móvil + 16px bottom + 8px margen, 80px desktop + 16px bottom + 16px margen)
                 : { xs: 16, md: 24 }, // Posición normal sin Taskbar
               right: { xs: 16, md: 24 },
               zIndex: 1200,

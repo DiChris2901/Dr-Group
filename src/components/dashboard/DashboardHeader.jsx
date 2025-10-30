@@ -171,7 +171,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
     }
   };
 
-  // 🎨 Estilo unificado para botones de la topbar - Spectacular V3 (Sin glassmorphism)
+  // 🎨 Estilo unificado para botones de la topbar - Consistente con Taskbar
   const topbarButtonStyle = {
     width: 48,
     height: 48,
@@ -179,33 +179,17 @@ const DashboardHeader = ({ onOpenSettings }) => {
     borderRadius: 2,
     background: 'transparent',
     border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-    transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
-    position: 'relative',
-    overflow: 'hidden',
-    '&::before': {
-      content: '""',
-      position: 'absolute',
-      top: 0,
-      left: '-100%',
-      width: '100%',
-      height: '100%',
-      background: `linear-gradient(90deg, transparent, ${alpha(theme.palette.primary.main, 0.1)}, transparent)`,
-      transition: 'left 0.5s ease',
-    },
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     '&:hover': {
       color: theme.palette.primary.main,
-      background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.12)}, ${alpha(theme.palette.primary.light, 0.08)})`,
-      transform: 'translateY(-4px) scale(1.15)',
-      boxShadow: `0 12px 40px ${alpha(theme.palette.primary.main, 0.35)}, 0 0 30px ${alpha(theme.palette.primary.main, 0.25)}`,
-      border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
-      '&::before': {
-        left: '100%',
-      },
+      background: alpha(theme.palette.primary.main, 0.08),
+      transform: 'translateY(-2px)',
+      boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`,
+      border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
     },
     '& .MuiSvgIcon-root': {
       fontSize: '21px',
-      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))',
-      transition: 'all 0.3s ease',
+      transition: 'all 0.2s ease',
     }
   };
 
@@ -687,16 +671,16 @@ const DashboardHeader = ({ onOpenSettings }) => {
                     transition: 'all 0.3s ease',
                   },
                   '&:hover': {
-                    transform: 'translateY(-3px) scale(1.03)',
-                    boxShadow: `0 12px 40px ${alpha(theme.palette.primary.main, 0.25)}`,
+                    transform: 'translateY(-2px)',
+                    boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`,
                     '& fieldset': {
                       borderColor: alpha(theme.palette.primary.main, 0.5),
                       borderWidth: '2px',
                     },
                   },
                   '&.Mui-focused': {
-                    transform: 'translateY(-3px) scale(1.03)',
-                    boxShadow: `0 12px 40px ${alpha(theme.palette.primary.main, 0.35)}`,
+                    transform: 'translateY(-2px)',
+                    boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`,
                     '& fieldset': {
                       borderColor: theme.palette.primary.main,
                       borderWidth: '2px',
@@ -757,12 +741,36 @@ const DashboardHeader = ({ onOpenSettings }) => {
               ...topbarButtonStyle,
               animation: (unreadCount + alertsCount) > 0 ? 'iconGlow 2s ease-in-out infinite' : 'none',
               '&:hover': {
-                ...topbarButtonStyle['&:hover'],
-                boxShadow: alertsCount > 0 
-                  ? `0 12px 40px ${alpha(theme.palette.error.main, 0.35)}`
+                color: alertsCount > 0 
+                  ? theme.palette.error.main 
                   : unreadCount > 0 
-                  ? `0 12px 40px ${alpha(theme.palette.warning.main, 0.35)}`
-                  : `0 12px 40px ${alpha(theme.palette.info.main, 0.35)}`,
+                  ? theme.palette.warning.main 
+                  : theme.palette.info.main,
+                background: alpha(
+                  alertsCount > 0 
+                    ? theme.palette.error.main 
+                    : unreadCount > 0 
+                    ? theme.palette.warning.main 
+                    : theme.palette.info.main,
+                  0.08
+                ),
+                transform: 'translateY(-2px)',
+                boxShadow: `0 4px 12px ${alpha(
+                  alertsCount > 0 
+                    ? theme.palette.error.main 
+                    : unreadCount > 0 
+                    ? theme.palette.warning.main 
+                    : theme.palette.info.main,
+                  0.15
+                )}`,
+                border: `1px solid ${alpha(
+                  alertsCount > 0 
+                    ? theme.palette.error.main 
+                    : unreadCount > 0 
+                    ? theme.palette.warning.main 
+                    : theme.palette.info.main,
+                  0.2
+                )}`,
               },
               '& .MuiSvgIcon-root': {
                 fontSize: '26px',
@@ -824,13 +832,10 @@ const DashboardHeader = ({ onOpenSettings }) => {
         <Box
           sx={{
             mx: { xs: 0.5, md: 1 },
-            width: '3px',
+            width: '1px',
             height: 32,
             alignSelf: 'center',
-            background: `linear-gradient(180deg, transparent, ${alpha(theme.palette.primary.main, 0.6)}, transparent)`,
-            borderRadius: '3px',
-            boxShadow: `0 0 12px ${alpha(theme.palette.primary.main, 0.4)}`,
-            animation: 'glowPulse 4s ease-in-out infinite',
+            background: `linear-gradient(180deg, transparent, ${alpha(theme.palette.divider, 0.3)}, transparent)`,
           }}
         />
 
@@ -846,13 +851,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
         >
           <IconButton
             onClick={handleCalendarOpen}
-            sx={{
-              ...topbarButtonStyle,
-              '&:hover': {
-                ...topbarButtonStyle['&:hover'],
-                boxShadow: `0 12px 40px ${alpha(theme.palette.primary.main, 0.35)}`,
-              },
-            }}
+            sx={topbarButtonStyle}
           >
             <CalendarIcon sx={{ fontSize: 22, color: theme.palette.primary.main }} />
           </IconButton>
@@ -870,13 +869,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
         >
           <IconButton
             onClick={handleNotesOpen}
-            sx={{
-              ...topbarButtonStyle,
-              '&:hover': {
-                ...topbarButtonStyle['&:hover'],
-                boxShadow: `0 12px 40px ${alpha(theme.palette.warning.main, 0.35)}`,
-              },
-            }}
+            sx={topbarButtonStyle}
           >
             <NotesIcon sx={{ fontSize: 22, color: theme.palette.warning.main }} />
           </IconButton>
@@ -886,13 +879,10 @@ const DashboardHeader = ({ onOpenSettings }) => {
         <Box
           sx={{
             mx: { xs: 0.5, md: 1 },
-            width: '3px',
+            width: '1px',
             height: 32,
             alignSelf: 'center',
-            background: `linear-gradient(180deg, transparent, ${alpha(theme.palette.primary.main, 0.6)}, transparent)`,
-            borderRadius: '3px',
-            boxShadow: `0 0 12px ${alpha(theme.palette.primary.main, 0.4)}`,
-            animation: 'glowPulse 4.5s ease-in-out infinite',
+            background: `linear-gradient(180deg, transparent, ${alpha(theme.palette.divider, 0.3)}, transparent)`,
           }}
         />
 
@@ -927,10 +917,28 @@ const DashboardHeader = ({ onOpenSettings }) => {
               ...topbarButtonStyle,
               animation: pendingTasksCount > 0 ? 'iconGlow 2.5s ease-in-out infinite' : 'none',
               '&:hover': {
-                ...topbarButtonStyle['&:hover'],
-                boxShadow: highPriorityPendingCount > 0 
-                  ? `0 12px 40px ${alpha(theme.palette.error.main, 0.35)}`
-                  : `0 12px 40px ${alpha(theme.palette.primary.main, 0.35)}`,
+                color: highPriorityPendingCount > 0 
+                  ? theme.palette.error.main 
+                  : theme.palette.primary.main,
+                background: alpha(
+                  highPriorityPendingCount > 0 
+                    ? theme.palette.error.main 
+                    : theme.palette.primary.main,
+                  0.08
+                ),
+                transform: 'translateY(-2px)',
+                boxShadow: `0 4px 12px ${alpha(
+                  highPriorityPendingCount > 0 
+                    ? theme.palette.error.main 
+                    : theme.palette.primary.main,
+                  0.15
+                )}`,
+                border: `1px solid ${alpha(
+                  highPriorityPendingCount > 0 
+                    ? theme.palette.error.main 
+                    : theme.palette.primary.main,
+                  0.2
+                )}`,
               },
               '& .MuiSvgIcon-root': {
                 fontSize: '26px',
@@ -993,11 +1001,9 @@ const DashboardHeader = ({ onOpenSettings }) => {
               ...topbarButtonStyle,
               '&:hover': {
                 ...topbarButtonStyle['&:hover'],
-                boxShadow: `0 12px 40px ${alpha(theme.palette.mode === 'dark' ? theme.palette.warning.main : theme.palette.secondary.main, 0.35)}`,
               },
               '& .MuiSvgIcon-root': {
                 color: theme.palette.mode === 'dark' ? theme.palette.warning.main : theme.palette.secondary.main,
-                filter: theme.palette.mode === 'dark' ? 'drop-shadow(0 0 6px rgba(255, 152, 0, 0.5))' : 'none',
               }
             }}
           >
@@ -1012,38 +1018,29 @@ const DashboardHeader = ({ onOpenSettings }) => {
             sx={{ 
               p: 0, 
               ml: 0.5,
-              width: 46, // +2px más grande
+              width: 46,
               height: 46,
-              backgroundColor: alpha(theme.palette.primary.main, 0.08),
-              border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+              backgroundColor: 'transparent',
+              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
               borderRadius: 2.5,
               '&:hover': {
-                backgroundColor: alpha(theme.palette.primary.main, 0.12),
-                borderColor: alpha(theme.palette.primary.main, 0.3),
+                backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                borderColor: alpha(theme.palette.primary.main, 0.2),
                 transform: 'translateY(-2px)',
-                boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`
+                boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`
               },
-              transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             }}
           >
             <Box 
               sx={{ 
                 position: 'relative',
-                width: 52,
-                height: 52,
+                width: 44,
+                height: 44,
                 borderRadius: '50%',
-                background: `linear-gradient(${theme.palette.background.paper}, ${theme.palette.background.paper}) padding-box, linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main}) border-box`,
-                border: '3px solid transparent',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.37)}`,
-                transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-                '&:hover': {
-                  transform: 'translateY(-4px) scale(1.1)',
-                  boxShadow: `0 12px 40px ${alpha(theme.palette.primary.main, 0.5)}`,
-                  animation: 'glowPulse 1.5s ease-in-out infinite',
-                },
               }}
             >
               <ProfileAvatar
@@ -1053,19 +1050,18 @@ const DashboardHeader = ({ onOpenSettings }) => {
                 size={44}
                 border={false}
               />
-              {/* Indicador de estado online spectacular con glow intenso */}
+              {/* Indicador de estado online */}
               <Box
                 sx={{
                   position: 'absolute',
                   bottom: 0,
                   right: 0,
-                  width: 16,
-                  height: 16,
+                  width: 14,
+                  height: 14,
                   borderRadius: '50%',
-                  background: `radial-gradient(circle, ${theme.palette.success.light}, ${theme.palette.success.main})`,
-                  border: `3px solid ${theme.palette.background.paper}`,
-                  boxShadow: `0 0 0 2px ${theme.palette.background.paper}, 0 0 16px ${alpha(theme.palette.success.main, 0.9)}, 0 0 24px ${alpha(theme.palette.success.main, 0.6)}`,
-                  animation: 'glowPulse 2.5s ease-in-out infinite',
+                  backgroundColor: theme.palette.success.main,
+                  border: `2px solid ${theme.palette.background.paper}`,
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)',
                 }}
               />
             </Box>
@@ -1093,97 +1089,57 @@ const DashboardHeader = ({ onOpenSettings }) => {
           },
         }}
       >
-        {/* Header del usuario - DS 3.0 sobrio */}
+        {/* Header del usuario - Sobrio sin avatar */}
         <Box sx={{ 
-          px: 0, 
-          py: 0,
+          px: 3, 
+          py: 2.5,
           backgroundColor: theme.palette.background.paper,
           borderBottom: `1px solid ${theme.palette.divider}`,
-          position: 'relative'
         }}>
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 2, 
-            p: 3,
-            position: 'relative',
-            zIndex: 1
-          }}>
-            <Box sx={{ position: 'relative' }}>
-              <ProfileAvatar
-                photoURL={userProfile?.photoURL}
-                name={userProfile?.name}
-                email={userProfile?.email}
-                size={56}
-                border={true}
-                sx={{
-                  border: `2px solid ${theme.palette.primary.main}`,
-                  boxShadow: theme.shadows[1]
-                }}
-              />
-              {/* Indicador de estado online */}
-              <Box
-                sx={{
-                  position: 'absolute',
-                  bottom: 2,
-                  right: 2,
-                  width: 14,
-                  height: 14,
-                  borderRadius: '50%',
-                  backgroundColor: theme.palette.success.main,
-                  border: `2px solid ${theme.palette.background.paper}`,
-                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)'
-                }}
-              />
-            </Box>
-            
-            <Box sx={{ flex: 1, color: theme.palette.text.primary }}>
-              <Typography 
-                variant="h6" 
-                sx={{ 
-                  fontWeight: 600, 
-                  fontSize: '1.125rem',
-                  mb: 0.5,
-                  color: theme.palette.text.primary
-                }}
-              >
-                {userProfile.name}
-              </Typography>
-              <Typography 
-                variant="body2" 
-                sx={{ 
-                  color: theme.palette.text.secondary,
-                  fontSize: '0.9375rem',
-                  mb: 1
-                }}
-              >
-                {userProfile.email}
-              </Typography>
-              <Box
-                sx={{
-                  px: 1.5,
-                  py: 0.5,
-                  borderRadius: 1,
-                  backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
-                  display: 'inline-flex',
-                  alignItems: 'center'
-                }}
-              >
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    fontWeight: 500,
-                    fontSize: '0.8125rem',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    color: theme.palette.primary.main
-                  }}
-                >
-                  {userProfile.role || 'Admin'}
-                </Typography>
-              </Box>
-            </Box>
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              fontWeight: 600, 
+              fontSize: '1.125rem',
+              mb: 0.5,
+              color: theme.palette.text.primary
+            }}
+          >
+            {userProfile.name}
+          </Typography>
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              color: theme.palette.text.secondary,
+              fontSize: '0.875rem',
+              mb: 1
+            }}
+          >
+            {userProfile.email}
+          </Typography>
+          <Box
+            sx={{
+              px: 1.5,
+              py: 0.5,
+              borderRadius: 1,
+              backgroundColor: alpha(theme.palette.primary.main, 0.08),
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`,
+              display: 'inline-flex',
+              alignItems: 'center'
+            }}
+          >
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                fontWeight: 500,
+                fontSize: '0.8125rem',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                color: theme.palette.primary.main
+              }}
+            >
+              {userProfile.role || 'Admin'}
+            </Typography>
           </Box>
         </Box>
         

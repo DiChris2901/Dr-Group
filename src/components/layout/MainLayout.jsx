@@ -8,7 +8,8 @@ import {
   Breadcrumbs,
   Link,
   useMediaQuery,
-  Container
+  Container,
+  alpha
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -129,12 +130,16 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
             height: 80,
             backgroundColor: theme.palette.background.paper,
             borderRadius: 2,
-            border: `1px solid ${theme.palette.divider}`,
-            boxShadow: theme.shadows[1],
-            transition: theme.transitions.create(['left', 'right'], {
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            boxShadow: `${theme.shadows[1]}, 0 0 0 1px ${alpha(theme.palette.primary.main, 0.1)}`,
+            transition: theme.transitions.create(['left', 'right', 'box-shadow', 'border'], {
               easing: theme.transitions.easing.easeInOut,
               duration: theme.transitions.duration.leavingScreen,
             }),
+            '&:hover': {
+              boxShadow: `${theme.shadows[2]}, 0 0 0 1px ${alpha(theme.palette.primary.main, 0.3)}`,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
+            }
           }}
         >
           <Box
@@ -311,7 +316,7 @@ const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {
             py: { xs: 2, sm: 3 },
             px: { xs: 2, sm: 3 },
             mt: '96px', // Margen que considera la altura del TopBar + espaciado
-            pb: { xs: '96px', md: '104px' }, // Padding bottom para evitar que la taskbar tape el contenido (72px + 16px margin + 16px extra)
+            pb: { xs: '96px', md: '112px' }, // Padding bottom para evitar que la taskbar tape el contenido (80px + 16px margin + 16px extra)
             flexGrow: 1,
           }}
         >

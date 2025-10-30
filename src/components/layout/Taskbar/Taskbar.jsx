@@ -329,22 +329,23 @@ const Taskbar = () => {
           right: !isMobile && showSidebar && sidebarPosition === 'right' 
             ? `${currentSidebarWidth + 32}px`  // Extra margen para compensar scrollbar
             : '32px',  // Margen aumentado para equilibrar con el left
-          height: isMobile ? 64 : 72,
+          height: isMobile ? 64 : 80,
           backgroundColor: theme.palette.background.paper,
           borderRadius: 2,
-          border: `1px solid ${theme.palette.divider}`,
-          boxShadow: theme.shadows[1],
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+          boxShadow: `${theme.shadows[1]}, 0 0 0 1px ${alpha(theme.palette.primary.main, 0.1)}`,
           zIndex: 1300,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           px: isMobile ? 2 : 3,
-          transition: theme.transitions.create(['box-shadow', 'background-color', 'left', 'right'], {
+          transition: theme.transitions.create(['box-shadow', 'background-color', 'left', 'right', 'border'], {
             easing: theme.transitions.easing.easeInOut,
             duration: theme.transitions.duration.leavingScreen,
           }),
           '&:hover': {
-            boxShadow: theme.shadows[2]
+            boxShadow: `${theme.shadows[2]}, 0 0 0 1px ${alpha(theme.palette.primary.main, 0.3)}`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
           }
         }}
       >
@@ -356,78 +357,91 @@ const Taskbar = () => {
           justifyContent: 'center'
         }}>
           {filteredTaskbarItems.map((item, index) => (
-            <Tooltip 
-              key={item.id} 
-              title={item.label} 
-              placement="top"
-              arrow
-              enterDelay={300}
-              enterNextDelay={100}
-              componentsProps={{
-                tooltip: {
-                  sx: {
-                    bgcolor: theme.palette.mode === 'dark' 
-                      ? theme.palette.grey[800] 
-                      : theme.palette.grey[900],
-                    color: 'white',
-                    fontSize: '0.875rem',
-                    fontWeight: 500,
-                    px: 2,
-                    py: 1,
-                    borderRadius: 1,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    '& .MuiTooltip-arrow': {
-                      color: theme.palette.mode === 'dark' 
+            <React.Fragment key={item.id}>
+              <Tooltip 
+                title={item.label} 
+                placement="top"
+                arrow
+                enterDelay={300}
+                enterNextDelay={100}
+                componentsProps={{
+                  tooltip: {
+                    sx: {
+                      bgcolor: theme.palette.mode === 'dark' 
                         ? theme.palette.grey[800] 
-                        : theme.palette.grey[900]
+                        : theme.palette.grey[900],
+                      color: 'white',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      px: 2,
+                      py: 1,
+                      borderRadius: 1,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                      '& .MuiTooltip-arrow': {
+                        color: theme.palette.mode === 'dark' 
+                          ? theme.palette.grey[800] 
+                          : theme.palette.grey[900]
+                      }
                     }
                   }
-                }
-              }}
-            >
-              <IconButton
-                onClick={(e) => handleItemClick(item, e)}
-                sx={{
-                  width: isMobile ? 44 : 48,
-                  height: isMobile ? 44 : 48,
-                  color: isActive(item) ? item.color : alpha(item.color, 0.7),
-                  borderRadius: 2,
-                  background: 'transparent',
-                  border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  position: 'relative',
-                  '&:hover': {
-                    color: item.color,
-                    background: alpha(item.color, 0.08),
-                    transform: 'translateY(-2px)',
-                    boxShadow: `0 4px 12px ${alpha(item.color, 0.15)}`,
-                    border: `1px solid ${alpha(item.color, 0.2)}`,
-                  },
-                  ...(isActive(item) && {
-                    background: alpha(item.color, 0.1),
-                    border: `1px solid ${alpha(item.color, 0.3)}`,
-                    '&::after': {
-                      content: '""',
-                      position: 'absolute',
-                      bottom: -2,
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      width: '60%',
-                      height: 3,
-                      borderRadius: '3px 3px 0 0',
-                      bgcolor: item.color,
-                    }
-                  })
                 }}
               >
-                <item.icon 
-                  sx={{ 
-                    fontSize: isMobile ? 21 : 24,
-                    transition: 'all 0.2s ease',
-                  }} 
+                <IconButton
+                  onClick={(e) => handleItemClick(item, e)}
+                  sx={{
+                    width: isMobile ? 44 : 48,
+                    height: isMobile ? 44 : 48,
+                    color: isActive(item) ? item.color : alpha(item.color, 0.7),
+                    borderRadius: 2,
+                    background: 'transparent',
+                    border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    position: 'relative',
+                    '&:hover': {
+                      color: item.color,
+                      background: alpha(item.color, 0.08),
+                      transform: 'translateY(-2px)',
+                      boxShadow: `0 4px 12px ${alpha(item.color, 0.15)}`,
+                      border: `1px solid ${alpha(item.color, 0.2)}`,
+                    },
+                    ...(isActive(item) && {
+                      background: alpha(item.color, 0.1),
+                      border: `1px solid ${alpha(item.color, 0.3)}`,
+                      '&::after': {
+                        content: '""',
+                        position: 'absolute',
+                        bottom: -2,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: '60%',
+                        height: 3,
+                        borderRadius: '3px 3px 0 0',
+                        bgcolor: item.color,
+                      }
+                    })
+                  }}
+                >
+                  <item.icon 
+                    sx={{ 
+                      fontSize: isMobile ? 21 : 24,
+                      transition: 'all 0.2s ease',
+                    }} 
+                  />
+                </IconButton>
+              </Tooltip>
+
+              {/* Divisores para agrupación - después de Dashboard (0), después de Ingresos (3), y antes de Administración */}
+              {(index === 0 || index === 3 || (filteredTaskbarItems[index + 1]?.id === 'admin')) && (
+                <Box
+                  sx={{
+                    width: '1px',
+                    height: isMobile ? 32 : 40,
+                    mx: isMobile ? 0.5 : 1,
+                    background: `linear-gradient(180deg, transparent, ${alpha(theme.palette.divider, 0.3)}, transparent)`,
+                  }}
                 />
-              </IconButton>
-            </Tooltip>
+              )}
+            </React.Fragment>
           ))}
         </Box>
 
