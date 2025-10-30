@@ -69,6 +69,10 @@ const GlobalSearchPage = () => {
     companies: [],
     payments: [],
     users: [],
+    incomes: [],
+    liquidaciones: [],
+    salas: [],
+    notes: [],
     pages: []
   });
   const [loading, setLoading] = useState(false);
@@ -88,13 +92,17 @@ const GlobalSearchPage = () => {
     companies: { page: 0, rowsPerPage: 5 },
     payments: { page: 0, rowsPerPage: 5 },
     users: { page: 0, rowsPerPage: 5 },
+    incomes: { page: 0, rowsPerPage: 5 },
+    liquidaciones: { page: 0, rowsPerPage: 5 },
+    salas: { page: 0, rowsPerPage: 5 },
+    notes: { page: 0, rowsPerPage: 5 },
     pages: { page: 0, rowsPerPage: 5 }
   });
 
   // 🔍 Función para realizar búsqueda global
   const performGlobalSearch = async (term) => {
     if (!term || term.length < 2) {
-      setResults({ commitments: [], companies: [], payments: [], users: [], pages: [] });
+      setResults({ commitments: [], companies: [], payments: [], users: [], incomes: [], liquidaciones: [], salas: [], notes: [], pages: [] });
       setTotalResults(0);
       return;
     }
@@ -106,13 +114,17 @@ const GlobalSearchPage = () => {
         companies: [],
         payments: [],
         users: [],
+        incomes: [],
+        liquidaciones: [],
+        salas: [],
+        notes: [],
         pages: []
       };
       
       const searchLower = term.toLowerCase();
 
-      // Buscar en compromisos
-      const commitmentsQuery = query(collection(db, 'commitments'), limit(20));
+      // Buscar en compromisos (aumentado límite)
+      const commitmentsQuery = query(collection(db, 'commitments'), limit(50));
       const commitmentsSnapshot = await getDocs(commitmentsQuery);
       
       commitmentsSnapshot.forEach((doc) => {
@@ -121,7 +133,8 @@ const GlobalSearchPage = () => {
           (data.concept && data.concept.toLowerCase().includes(searchLower)) ||
           (data.beneficiary && data.beneficiary.toLowerCase().includes(searchLower)) ||
           (data.companyName && data.companyName.toLowerCase().includes(searchLower)) ||
-          (data.description && data.description.toLowerCase().includes(searchLower))
+          (data.description && data.description.toLowerCase().includes(searchLower)) ||
+          (data.invoiceNumber && data.invoiceNumber.toLowerCase().includes(searchLower))
         ) {
           searchResults.commitments.push({ id: doc.id, ...data });
         }
@@ -142,8 +155,8 @@ const GlobalSearchPage = () => {
         }
       });
 
-      // Buscar en pagos
-      const paymentsQuery = query(collection(db, 'payments'), limit(15));
+      // Buscar en pagos (aumentado límite)
+      const paymentsQuery = query(collection(db, 'payments'), limit(30));
       const paymentsSnapshot = await getDocs(paymentsQuery);
       
       paymentsSnapshot.forEach((doc) => {
@@ -151,7 +164,8 @@ const GlobalSearchPage = () => {
         if (
           (data.concept && data.concept.toLowerCase().includes(searchLower)) ||
           (data.beneficiary && data.beneficiary.toLowerCase().includes(searchLower)) ||
-          (data.companyName && data.companyName.toLowerCase().includes(searchLower))
+          (data.companyName && data.companyName.toLowerCase().includes(searchLower)) ||
+          (data.invoiceNumber && data.invoiceNumber.toLowerCase().includes(searchLower))
         ) {
           searchResults.payments.push({ id: doc.id, ...data });
         }
@@ -171,18 +185,114 @@ const GlobalSearchPage = () => {
         }
       });
 
-      // Páginas del sistema
+      // 🆕 Buscar en ingresos
+      const incomesQuery = query(collection(db, 'incomes'), limit(20));
+      const incomesSnapshot = await getDocs(incomesQuery);
+      
+      incomesSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (
+          (data.concept && data.concept.toLowerCase().includes(searchLower)) ||
+          (data.description && data.description.toLowerCase().includes(searchLower)) ||
+          (data.companyName && data.companyName.toLowerCase().includes(searchLower)) ||
+          (data.accountName && data.accountName.toLowerCase().includes(searchLower))
+        ) {
+          searchResults.incomes.push({ id: doc.id, ...data });
+        }
+      });
+
+      // 🆕 Buscar en liquidaciones
+      const liquidacionesQuery = query(collection(db, 'liquidaciones'), limit(20));
+      const liquidacionesSnapshot = await getDocs(liquidacionesQuery);
+      
+      liquidacionesSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (
+          (data.salaName && data.salaName.toLowerCase().includes(searchLower)) ||
+          (data.period && data.period.toLowerCase().includes(searchLower)) ||
+          (data.companyName && data.companyName.toLowerCase().includes(searchLower))
+        ) {
+          searchResults.liquidaciones.push({ id: doc.id, ...data });
+        }
+      });
+
+      // 🆕 Buscar en salas
+      const salasQuery = query(collection(db, 'salas'), limit(15));
+      const salasSnapshot = await getDocs(salasQuery);
+      
+      salasSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (
+          (data.name && data.name.toLowerCase().includes(searchLower)) ||
+          (data.description && data.description.toLowerCase().includes(searchLower)) ||
+          (data.location && data.location.toLowerCase().includes(searchLower))
+        ) {
+          searchResults.salas.push({ id: doc.id, ...data });
+        }
+      });
+
+      // 🆕 Buscar en notas
+      const notesQuery = query(collection(db, 'notes'), limit(15));
+      const notesSnapshot = await getDocs(notesQuery);
+      
+      notesSnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (
+          (data.title && data.title.toLowerCase().includes(searchLower)) ||
+          (data.content && data.content.toLowerCase().includes(searchLower)) ||
+          (data.tags && data.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+        ) {
+          searchResults.notes.push({ id: doc.id, ...data });
+        }
+      });
+
+      // Páginas del sistema (SOLO IMPLEMENTADAS - 20 páginas)
       const systemPages = [
+        // Dashboard & Inicio
         { name: 'Dashboard Principal', path: '/', keywords: ['dashboard', 'inicio', 'principal', 'resumen'], icon: KPIIcon },
+        { name: 'Dashboard Ejecutivo', path: '/reports/executive', keywords: ['ejecutivo', 'gerencia', 'directivo', 'kpi'], icon: KPIIcon },
+        { name: 'Data Analytics', path: '/data', keywords: ['data', 'analytics', 'analisis', 'estadistica'], icon: PageIcon },
+        
+        // Compromisos
         { name: 'Compromisos', path: '/commitments', keywords: ['compromiso', 'obligacion', 'pago', 'deuda'], icon: CommitmentIcon },
+        { name: 'Nuevo Compromiso', path: '/commitments/new', keywords: ['nuevo', 'crear', 'compromiso'], icon: CommitmentIcon },
+        { name: 'Compromisos Vencidos', path: '/commitments/due', keywords: ['vencido', 'atrasado', 'moroso', 'due'], icon: CommitmentIcon },
+        
+        // Pagos
         { name: 'Pagos', path: '/payments', keywords: ['pago', 'abono', 'transferencia', 'consignacion'], icon: PaymentIcon },
+        { name: 'Nuevo Pago', path: '/payments/new', keywords: ['nuevo', 'crear', 'pago'], icon: PaymentIcon },
+        
+        // Empresas & Clientes
         { name: 'Empresas', path: '/companies', keywords: ['empresa', 'compania', 'negocio'], icon: CompanyIcon },
-        { name: 'Usuarios', path: '/users', keywords: ['usuario', 'persona', 'empleado'], icon: PersonIcon },
+        { name: 'Clientes', path: '/clientes', keywords: ['cliente', 'customer'], icon: CompanyIcon },
+        
+        // Ingresos
+        { name: 'Ingresos', path: '/income', keywords: ['ingreso', 'entrada', 'revenue', 'ganancia'], icon: PaymentIcon },
+        { name: 'Historial de Ingresos', path: '/income/history', keywords: ['historial', 'ingreso', 'history'], icon: PageIcon },
+        { name: 'Cuentas Bancarias', path: '/income/accounts', keywords: ['cuenta', 'banco', 'bancaria'], icon: PageIcon },
+        
+        // Liquidaciones & Facturación
+        { name: 'Liquidaciones', path: '/liquidaciones', keywords: ['liquidacion', 'calculo', 'sala'], icon: PageIcon },
+        { name: 'Historial Liquidaciones', path: '/liquidaciones/historico', keywords: ['historial', 'liquidacion'], icon: PageIcon },
+        { name: 'Liquidaciones por Sala', path: '/facturacion/liquidaciones-por-sala', keywords: ['sala', 'liquidacion', 'facturacion'], icon: PageIcon },
+        { name: 'Gestión de Salas', path: '/facturacion/salas', keywords: ['sala', 'gestion', 'facturacion'], icon: CompanyIcon },
+        
+        // Reportes
         { name: 'Reportes', path: '/reports', keywords: ['reporte', 'informe', 'estadistica'], icon: PageIcon },
-        { name: 'Centro de Alertas', path: '/alerts-center', keywords: ['alerta', 'notificacion', 'aviso'], icon: PageIcon },
-        { name: 'KPIs Financieros', path: '/financial-kpis', keywords: ['kpi', 'indicador', 'metrica', 'financiero'], icon: KPIIcon },
-        { name: 'Dashboard Ejecutivo', path: '/executive-dashboard', keywords: ['ejecutivo', 'gerencia', 'directivo'], icon: KPIIcon },
-        { name: 'Compromisos Vencidos', path: '/due-commitments', keywords: ['vencido', 'atrasado', 'moroso'], icon: CommitmentIcon }
+        { name: 'Reporte Resumen', path: '/reports/summary', keywords: ['resumen', 'summary', 'reporte'], icon: PageIcon },
+        { name: 'Reporte por Empresa', path: '/reports/company', keywords: ['empresa', 'company', 'reporte'], icon: PageIcon },
+        { name: 'Reporte por Período', path: '/reports/period', keywords: ['periodo', 'period', 'reporte'], icon: PageIcon },
+        { name: 'Reporte por Concepto', path: '/reports/concept', keywords: ['concepto', 'concept', 'reporte'], icon: PageIcon },
+        
+        // Administración
+        { name: 'Usuarios', path: '/users', keywords: ['usuario', 'persona', 'empleado', 'user'], icon: PersonIcon },
+        { name: 'Perfil', path: '/profile', keywords: ['perfil', 'cuenta', 'usuario', 'profile'], icon: PersonIcon },
+        { name: 'Limpieza del Sistema', path: '/admin/cleanup', keywords: ['limpieza', 'cleanup', 'admin'], icon: PageIcon },
+        { name: 'Registro de Actividad', path: '/admin/activity-logs', keywords: ['actividad', 'log', 'auditoria', 'historial'], icon: PageIcon },
+        { name: 'Archivos Huérfanos', path: '/admin/orphan-files', keywords: ['huerfano', 'archivo', 'limpieza', 'orphan'], icon: PageIcon },
+        
+        // Alertas
+        { name: 'Centro de Alertas', path: '/alerts', keywords: ['alerta', 'notificacion', 'aviso', 'alert'], icon: PageIcon }
       ];
 
       systemPages.forEach(page => {
@@ -383,6 +493,21 @@ const GlobalSearchPage = () => {
         break;
       case 'user':
         navigate(`/users?search=${encodeURIComponent(item.displayName || searchTerm)}`);
+        break;
+      case 'income':
+        // Redirige a página principal con parámetro search (ruta a definir)
+        navigate(`/?search=${encodeURIComponent(item.concept || searchTerm)}&type=income`);
+        break;
+      case 'liquidacion':
+        navigate(`/liquidaciones?search=${encodeURIComponent(item.salaName || searchTerm)}`);
+        break;
+      case 'sala':
+        // La ruta correcta es /facturacion/salas
+        navigate(`/facturacion/salas?search=${encodeURIComponent(item.name || searchTerm)}`);
+        break;
+      case 'note':
+        // Redirige a página principal con parámetro search (ruta a definir)
+        navigate(`/?search=${encodeURIComponent(item.title || searchTerm)}&type=note`);
         break;
       case 'page':
         navigate(item.path);
@@ -869,6 +994,282 @@ const GlobalSearchPage = () => {
                         }}
                       >
                         <PersonIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              )}
+            />
+            
+            {/* 🆕 Tabla de Ingresos */}
+            <ResultTable
+              title="Ingresos"
+              data={results.incomes}
+              type="incomes"
+              icon={PaymentIcon}
+              color={theme.palette.success.main}
+              columns={['Concepto', 'Empresa', 'Monto', 'Fecha']}
+              renderRow={(item, index) => (
+                <TableRow 
+                  key={index}
+                  sx={{ 
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': { 
+                      backgroundColor: alpha(theme.palette.success.main, 0.05),
+                      cursor: 'pointer',
+                      transform: 'translateY(-1px)',
+                      boxShadow: `0 4px 12px ${alpha(theme.palette.success.main, 0.15)}`
+                    }
+                  }}
+                  onClick={() => handleResultClick('income', item)}
+                >
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {item.concept || 'Sin concepto'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {item.companyName || 'N/A'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>
+                      {item.amount ? `$${item.amount.toLocaleString()}` : 'N/A'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {safeFormatDate(item.date, "dd/MM/yyyy")}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Tooltip title="Ver ingreso">
+                      <IconButton 
+                        size="small" 
+                        color="success"
+                        sx={{
+                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': {
+                            transform: 'scale(1.1)',
+                            backgroundColor: alpha(theme.palette.success.main, 0.1)
+                          }
+                        }}
+                      >
+                        <ViewIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              )}
+            />
+
+            {/* 🆕 Tabla de Liquidaciones */}
+            <ResultTable
+              title="Liquidaciones"
+              data={results.liquidaciones}
+              type="liquidaciones"
+              icon={PageIcon}
+              color={theme.palette.info.main}
+              columns={['Sala', 'Período', 'Empresa', 'Total']}
+              renderRow={(item, index) => (
+                <TableRow 
+                  key={index}
+                  sx={{ 
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': { 
+                      backgroundColor: alpha(theme.palette.info.main, 0.05),
+                      cursor: 'pointer',
+                      transform: 'translateY(-1px)',
+                      boxShadow: `0 4px 12px ${alpha(theme.palette.info.main, 0.15)}`
+                    }
+                  }}
+                  onClick={() => handleResultClick('liquidacion', item)}
+                >
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {item.salaName || 'Sin sala'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {item.period || 'N/A'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {item.companyName || 'N/A'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="info.main" sx={{ fontWeight: 600 }}>
+                      {item.totalAmount ? `$${item.totalAmount.toLocaleString()}` : 'N/A'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Tooltip title="Ver liquidación">
+                      <IconButton 
+                        size="small" 
+                        color="info"
+                        sx={{
+                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': {
+                            transform: 'scale(1.1)',
+                            backgroundColor: alpha(theme.palette.info.main, 0.1)
+                          }
+                        }}
+                      >
+                        <ViewIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              )}
+            />
+
+            {/* 🆕 Tabla de Salas */}
+            <ResultTable
+              title="Salas"
+              data={results.salas}
+              type="salas"
+              icon={CompanyIcon}
+              color={theme.palette.secondary.main}
+              columns={['Nombre', 'Ubicación', 'Descripción']}
+              renderRow={(item, index) => (
+                <TableRow 
+                  key={index}
+                  sx={{ 
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': { 
+                      backgroundColor: alpha(theme.palette.secondary.main, 0.05),
+                      cursor: 'pointer',
+                      transform: 'translateY(-1px)',
+                      boxShadow: `0 4px 12px ${alpha(theme.palette.secondary.main, 0.15)}`
+                    }
+                  }}
+                  onClick={() => handleResultClick('sala', item)}
+                >
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {item.name || 'Sin nombre'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {item.location || 'N/A'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography 
+                      variant="body2" 
+                      color="text.secondary"
+                      sx={{
+                        maxWidth: 200,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {item.description || 'Sin descripción'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Tooltip title="Ver sala">
+                      <IconButton 
+                        size="small" 
+                        color="secondary"
+                        sx={{
+                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': {
+                            transform: 'scale(1.1)',
+                            backgroundColor: alpha(theme.palette.secondary.main, 0.1)
+                          }
+                        }}
+                      >
+                        <LaunchIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              )}
+            />
+
+            {/* 🆕 Tabla de Notas */}
+            <ResultTable
+              title="Notas"
+              data={results.notes}
+              type="notes"
+              icon={PageIcon}
+              color="#9c27b0"
+              columns={['Título', 'Contenido', 'Tags']}
+              renderRow={(item, index) => (
+                <TableRow 
+                  key={index}
+                  sx={{ 
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': { 
+                      backgroundColor: alpha('#9c27b0', 0.05),
+                      cursor: 'pointer',
+                      transform: 'translateY(-1px)',
+                      boxShadow: `0 4px 12px ${alpha('#9c27b0', 0.15)}`
+                    }
+                  }}
+                  onClick={() => handleResultClick('note', item)}
+                >
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {item.title || 'Sin título'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography 
+                      variant="body2" 
+                      color="text.secondary"
+                      sx={{
+                        maxWidth: 250,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      {item.content || 'Sin contenido'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                      {item.tags && item.tags.length > 0 ? (
+                        item.tags.slice(0, 3).map((tag, idx) => (
+                          <Chip 
+                            key={idx}
+                            label={tag} 
+                            size="small"
+                            sx={{ 
+                              bgcolor: alpha('#9c27b0', 0.1),
+                              color: '#9c27b0',
+                              fontSize: '0.75rem',
+                              height: 20
+                            }}
+                          />
+                        ))
+                      ) : (
+                        <Typography variant="caption" color="text.secondary">Sin tags</Typography>
+                      )}
+                    </Box>
+                  </TableCell>
+                  <TableCell align="center">
+                    <Tooltip title="Ver nota">
+                      <IconButton 
+                        size="small"
+                        sx={{
+                          color: '#9c27b0',
+                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                          '&:hover': {
+                            transform: 'scale(1.1)',
+                            backgroundColor: alpha('#9c27b0', 0.1)
+                          }
+                        }}
+                      >
+                        <ViewIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
                   </TableCell>
