@@ -392,6 +392,76 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
         <List sx={{ pt: isCompactMode ? 1 : 2 }}>
           {filteredMenuItems.map((item, index) => (
             <React.Fragment key={item.title}>
+              {/* Etiquetas de Categoría */}
+              {index === 0 && !isCompactMode && (
+                <Box sx={{ px: 3, pt: 1, pb: 1 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.65rem',
+                      fontWeight: 600,
+                      letterSpacing: 0.8,
+                      color: alpha(theme.palette.text.secondary, 0.7),
+                      textTransform: 'uppercase',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Inicio
+                  </Typography>
+                </Box>
+              )}
+              {index === 1 && !isCompactMode && (
+                <Box sx={{ px: 3, pt: 2, pb: 1 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.65rem',
+                      fontWeight: 600,
+                      letterSpacing: 0.8,
+                      color: alpha(theme.palette.text.secondary, 0.7),
+                      textTransform: 'uppercase',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Operaciones
+                  </Typography>
+                </Box>
+              )}
+              {item.title === 'Gestión Empresarial' && !isCompactMode && (
+                <Box sx={{ px: 3, pt: 2, pb: 1 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.65rem',
+                      fontWeight: 600,
+                      letterSpacing: 0.8,
+                      color: alpha(theme.palette.text.secondary, 0.7),
+                      textTransform: 'uppercase',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Gestión
+                  </Typography>
+                </Box>
+              )}
+              {item.title === 'Reportes' && !isCompactMode && (
+                <Box sx={{ px: 3, pt: 2, pb: 1 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.65rem',
+                      fontWeight: 600,
+                      letterSpacing: 0.8,
+                      color: alpha(theme.palette.text.secondary, 0.7),
+                      textTransform: 'uppercase',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Reportes
+                  </Typography>
+                </Box>
+              )}
+              
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -647,17 +717,21 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                     mx: 3,
                     borderColor: alpha(theme.palette.primary.main, 0.12)
                   }} />
-                  <Typography
-                    variant="overline"
-                    sx={{
-                      px: 3,
-                      color: 'text.secondary',
-                      fontSize: '0.75rem',
-                      fontWeight: 600
-                    }}
-                  >
-                    Administración
-                  </Typography>
+                  <Box sx={{ px: 3, pt: 1, pb: 1 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontSize: '0.65rem',
+                        fontWeight: 600,
+                        letterSpacing: 0.8,
+                        color: alpha(theme.palette.text.secondary, 0.7),
+                        textTransform: 'uppercase',
+                        userSelect: 'none'
+                      }}
+                    >
+                      Admin
+                    </Typography>
+                  </Box>
                 </>
               )}
 

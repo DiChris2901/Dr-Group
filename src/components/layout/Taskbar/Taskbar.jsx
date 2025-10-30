@@ -358,6 +358,88 @@ const Taskbar = () => {
         }}>
           {filteredTaskbarItems.map((item, index) => (
             <React.Fragment key={item.id}>
+              {/* Etiquetas de Categoría */}
+              {index === 0 && !isMobile && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.65rem',
+                    fontWeight: 600,
+                    letterSpacing: 0.8,
+                    color: alpha(theme.palette.text.secondary, 0.7),
+                    textTransform: 'uppercase',
+                    mr: 1,
+                    userSelect: 'none'
+                  }}
+                >
+                  Inicio
+                </Typography>
+              )}
+              {index === 1 && !isMobile && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.65rem',
+                    fontWeight: 600,
+                    letterSpacing: 0.8,
+                    color: alpha(theme.palette.text.secondary, 0.7),
+                    textTransform: 'uppercase',
+                    mr: 1,
+                    userSelect: 'none'
+                  }}
+                >
+                  Operaciones
+                </Typography>
+              )}
+              {item.id === 'gestion' && !isMobile && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.65rem',
+                    fontWeight: 600,
+                    letterSpacing: 0.8,
+                    color: alpha(theme.palette.text.secondary, 0.7),
+                    textTransform: 'uppercase',
+                    mr: 1,
+                    userSelect: 'none'
+                  }}
+                >
+                  Gestión
+                </Typography>
+              )}
+              {item.id === 'reports' && !isMobile && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.65rem',
+                    fontWeight: 600,
+                    letterSpacing: 0.8,
+                    color: alpha(theme.palette.text.secondary, 0.7),
+                    textTransform: 'uppercase',
+                    mr: 1,
+                    userSelect: 'none'
+                  }}
+                >
+                  Reportes
+                </Typography>
+              )}
+              {item.id === 'admin' && !isMobile && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.65rem',
+                    fontWeight: 600,
+                    letterSpacing: 0.8,
+                    color: alpha(theme.palette.text.secondary, 0.7),
+                    textTransform: 'uppercase',
+                    mr: 1,
+                    userSelect: 'none'
+                  }}
+                >
+                  Admin
+                </Typography>
+              )}
+
               <Tooltip 
                 title={item.label} 
                 placement="top"
