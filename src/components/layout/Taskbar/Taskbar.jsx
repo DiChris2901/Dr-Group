@@ -4,6 +4,7 @@ import {
   IconButton,
   Tooltip,
   Typography,
+  Avatar,
   alpha,
   useTheme,
   useMediaQuery
@@ -576,49 +577,68 @@ const Taskbar = () => {
                 display: 'flex', 
                 alignItems: 'center',
                 gap: 1.5,
-            px: 2,
-            py: 1,
-            borderRadius: 2,
-            border: `1px solid ${theme.palette.divider}`,
-            bgcolor: alpha(theme.palette.background.default, 0.3),
-            cursor: 'pointer',
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            '&:hover': {
-              bgcolor: theme.palette.action.hover,
-              borderColor: theme.palette.primary.main,
-              transform: 'translateY(-1px)',
-            }
-          }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-              <Typography variant="caption" sx={{ 
-                fontWeight: 600,
-                fontSize: '0.8rem',
-                color: theme.palette.text.primary,
-                lineHeight: 1.3
+                px: 2,
+                py: 1,
+                borderRadius: 2,
+                border: `1px solid ${theme.palette.divider}`,
+                bgcolor: alpha(theme.palette.background.default, 0.3),
+                cursor: 'pointer',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                  bgcolor: theme.palette.action.hover,
+                  borderColor: theme.palette.primary.main,
+                  transform: 'translateY(-1px)',
+                }
               }}>
-                {userProfile?.name?.split(' ')[0] || 'Usuario'}
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Box
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                  <Typography variant="caption" sx={{ 
+                    fontWeight: 600,
+                    fontSize: '0.8rem',
+                    color: theme.palette.text.primary,
+                    lineHeight: 1.3
+                  }}>
+                    {userProfile?.name?.split(' ')[0] || 'Usuario'}
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <Box
+                      sx={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        bgcolor: theme.palette.success.main,
+                        boxShadow: `0 0 4px ${theme.palette.success.main}`,
+                        animation: 'taskbar-pulse 2s infinite'
+                      }}
+                    />
+                    <Typography variant="caption" sx={{ 
+                      fontSize: '0.7rem',
+                      color: theme.palette.text.secondary,
+                      fontWeight: 500
+                    }}>
+                      Conectado
+                    </Typography>
+                  </Box>
+                </Box>
+                
+                {/* Avatar del Usuario */}
+                <Avatar
+                  src={userProfile?.photoURL}
+                  alt={userProfile?.name || 'Usuario'}
                   sx={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    bgcolor: theme.palette.success.main,
-                    boxShadow: `0 0 4px ${theme.palette.success.main}`,
-                    animation: 'taskbar-pulse 2s infinite'
+                    width: 42,
+                    height: 42,
+                    border: `2px solid ${theme.palette.primary.main}`,
+                    boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.1)}`,
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': {
+                      transform: 'scale(1.1)',
+                      boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.2)}`,
+                    }
                   }}
-                />
-                <Typography variant="caption" sx={{ 
-                  fontSize: '0.7rem',
-                  color: theme.palette.text.secondary,
-                  fontWeight: 500
-                }}>
-                  Conectado
-                </Typography>
+                >
+                  {!userProfile?.photoURL && (userProfile?.name?.charAt(0) || 'U')}
+                </Avatar>
               </Box>
-            </Box>
-          </Box>
             )}
           </Box>
         )}
