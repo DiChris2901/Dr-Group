@@ -134,8 +134,8 @@ export function fPaymentMethod(method) {
  */
 export function getPaymentMethodOptions() {
   return [
-    { value: 'transfer', label: 'Transferencia' },
-    { value: 'cash', label: 'Efectivo' },
-    { value: 'pse', label: 'PSE' }
+    { value: 'Transferencia', label: 'Transferencia' },
+    { value: 'PSE', label: 'PSE' },
+    { value: 'Efectivo', label: 'Efectivo' }
   ];
 }

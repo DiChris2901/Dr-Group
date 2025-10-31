@@ -8,8 +8,11 @@ import {
   useTheme
 } from '@mui/material';
 
-const TaskbarMenu = ({ open, anchorEl, onClose, items, onItemClick }) => {
+const TaskbarMenu = ({ open, anchorEl, onClose, items, onItemClick, categoryColor }) => {
   const theme = useTheme();
+
+  // Color base para los íconos de subcategorías (heredado de la categoría padre)
+  const iconColor = categoryColor || theme.palette.primary.main;
 
   return (
     <Menu
@@ -34,7 +37,7 @@ const TaskbarMenu = ({ open, anchorEl, onClose, items, onItemClick }) => {
             borderRadius: 2,
             overflow: 'hidden',
             bgcolor: theme.palette.background.paper,
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+            border: `1px solid ${alpha(iconColor, 0.2)}`,
             boxShadow: theme.palette.mode === 'dark'
               ? '0 8px 32px rgba(0,0,0,0.4)'
               : '0 8px 32px rgba(0,0,0,0.15)'
@@ -51,11 +54,12 @@ const TaskbarMenu = ({ open, anchorEl, onClose, items, onItemClick }) => {
               px: 2,
               borderLeft: '3px solid transparent',
               '&:hover': {
-                bgcolor: alpha(theme.palette.primary.main, 0.08),
-                borderLeft: `3px solid ${theme.palette.primary.main}`,
+                bgcolor: alpha(iconColor, 0.08),
+                borderLeft: `3px solid ${iconColor}`,
                 transform: 'translateX(2px)',
                 '& .MuiListItemIcon-root': {
-                  color: theme.palette.primary.main
+                  color: iconColor,
+                  transform: 'scale(1.1)'
                 }
               },
               transition: 'all 0.1s ease-out'
@@ -63,7 +67,8 @@ const TaskbarMenu = ({ open, anchorEl, onClose, items, onItemClick }) => {
           >
             <ListItemIcon sx={{ 
               minWidth: 40,
-              transition: 'color 0.1s ease-out'
+              color: alpha(iconColor, 0.7), // Color base con transparencia
+              transition: 'all 0.1s ease-out'
             }}>
               <item.icon sx={{ fontSize: 22 }} />
             </ListItemIcon>

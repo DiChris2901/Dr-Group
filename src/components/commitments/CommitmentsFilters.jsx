@@ -269,6 +269,7 @@ const CommitmentsFilters = ({
                   value={companies.find(c => c.id === companyFilter) || { id: 'all', name: 'Todas las empresas' }}
                   onChange={handleCompanyChange}
                   getOptionLabel={(option) => option.name || ''}
+                  isOptionEqualToValue={(option, value) => option.id === value.id}
                   renderOption={(props, option) => {
                     const { key, ...otherProps } = props;
                     return (

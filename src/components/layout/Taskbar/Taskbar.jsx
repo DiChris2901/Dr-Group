@@ -441,77 +441,87 @@ const Taskbar = () => {
                 </Typography>
               )}
 
-              <Tooltip 
-                title={item.label} 
-                placement="top"
-                arrow
-                enterDelay={300}
-                enterNextDelay={100}
-                componentsProps={{
-                  tooltip: {
-                    sx: {
-                      bgcolor: theme.palette.mode === 'dark' 
-                        ? theme.palette.grey[800] 
-                        : theme.palette.grey[900],
-                      color: 'white',
-                      fontSize: '0.875rem',
-                      fontWeight: 500,
-                      px: 2,
-                      py: 1,
-                      borderRadius: 1,
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                      '& .MuiTooltip-arrow': {
-                        color: theme.palette.mode === 'dark' 
-                          ? theme.palette.grey[800] 
-                          : theme.palette.grey[900]
-                      }
+              {/* Contenedor minimalista de ícono + label */}
+              <Box
+                onClick={(e) => handleItemClick(item, e)}
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 0.75,
+                  cursor: 'pointer',
+                  padding: isMobile ? '6px' : '8px',
+                  borderRadius: 2,
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  position: 'relative',
+                  '&:hover': {
+                    background: alpha(item.color, 0.04),
+                    '& .taskbar-icon': {
+                      color: item.color,
+                      transform: 'scale(1.05)',
+                    },
+                    '& .taskbar-label': {
+                      color: item.color,
+                      fontWeight: 600,
                     }
                   }
                 }}
               >
-                <IconButton
-                  onClick={(e) => handleItemClick(item, e)}
+                {/* Ícono simple sin borde */}
+                <Box
+                  className="taskbar-icon"
                   sx={{
-                    width: isMobile ? 44 : 48,
-                    height: isMobile ? 44 : 48,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     color: isActive(item) ? item.color : alpha(item.color, 0.7),
-                    borderRadius: 2,
-                    background: 'transparent',
-                    border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    position: 'relative',
-                    '&:hover': {
-                      color: item.color,
-                      background: alpha(item.color, 0.08),
-                      transform: 'translateY(-2px)',
-                      boxShadow: `0 4px 12px ${alpha(item.color, 0.15)}`,
-                      border: `1px solid ${alpha(item.color, 0.2)}`,
-                    },
+                    transition: 'all 0.2s ease',
                     ...(isActive(item) && {
-                      background: alpha(item.color, 0.1),
-                      border: `1px solid ${alpha(item.color, 0.3)}`,
-                      '&::after': {
-                        content: '""',
-                        position: 'absolute',
-                        bottom: -2,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        width: '60%',
-                        height: 3,
-                        borderRadius: '3px 3px 0 0',
-                        bgcolor: item.color,
-                      }
+                      filter: `drop-shadow(0 2px 4px ${alpha(item.color, 0.3)})`,
                     })
                   }}
                 >
                   <item.icon 
                     sx={{ 
-                      fontSize: isMobile ? 21 : 24,
+                      fontSize: isMobile ? 22 : 24,
                       transition: 'all 0.2s ease',
                     }} 
                   />
-                </IconButton>
-              </Tooltip>
+                </Box>
+
+                {/* Label minimalista sin chip */}
+                <Typography
+                  className="taskbar-label"
+                  variant="caption"
+                  sx={{
+                    fontSize: isMobile ? '0.65rem' : '0.7rem',
+                    fontWeight: isActive(item) ? 600 : 500,
+                    color: isActive(item) ? item.color : 'text.secondary',
+                    letterSpacing: 0.2,
+                    transition: 'all 0.2s ease',
+                    textTransform: 'none',
+                    lineHeight: 1,
+                    opacity: isActive(item) ? 1 : 0.8,
+                  }}
+                >
+                  {item.label}
+                </Typography>
+
+                {/* Indicador de activo - dot sutil arriba del ícono */}
+                {isActive(item) && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: 2,
+                      width: 4,
+                      height: 4,
+                      borderRadius: '50%',
+                      bgcolor: item.color,
+                      boxShadow: `0 0 6px ${alpha(item.color, 0.6)}`,
+                    }}
+                  />
+                )}
+              </Box>
 
               {/* Divisores para agrupación - después de Dashboard (0), después de Ingresos (3), y antes de Administración */}
               {(index === 0 || index === 3 || (filteredTaskbarItems[index + 1]?.id === 'admin')) && (
@@ -654,6 +664,12 @@ const Taskbar = () => {
             const currentItem = filteredTaskbarItems.find(item => item.id === openMenu);
             if (!currentItem || !currentItem.submenu) return [];
             return filterSubmenu(currentItem.submenu, currentItem.permission);
+          })()
+        }
+        categoryColor={
+          (() => {
+            const currentItem = filteredTaskbarItems.find(item => item.id === openMenu);
+            return currentItem?.color || theme.palette.primary.main;
           })()
         }
         onItemClick={handleMenuItemClick}

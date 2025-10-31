@@ -1137,11 +1137,12 @@ const NewCommitmentPage = () => {
         return false;
       }
 
-      if (!formData.gastosAdministracion || parseFloat(formData.gastosAdministracion) <= 0) {
+      // ✅ Gastos de administración puede ser $0 (es válido no tener gastos)
+      if (formData.gastosAdministracion === '' || formData.gastosAdministracion === null || formData.gastosAdministracion === undefined) {
         addNotification({
           type: 'error',
           title: 'Error de validación',
-          message: 'Los gastos de administración deben ser mayor a cero',
+          message: 'Debe ingresar el monto de gastos de administración (puede ser $0)',
           icon: 'error',
           color: 'error'
         });
@@ -1191,7 +1192,8 @@ const NewCommitmentPage = () => {
       if (!parseFloat(parseFormattedNumber(formData.derechosExplotacion))) {
         missingFields.push('Derechos de Explotación');
       }
-      if (!parseFloat(parseFormattedNumber(formData.gastosAdministracion))) {
+      // ✅ Gastos de administración puede ser $0 - solo validar que el campo no esté vacío
+      if (formData.gastosAdministracion === '' || formData.gastosAdministracion === null || formData.gastosAdministracion === undefined) {
         missingFields.push('Gastos de Administración');
       }
     } else {
@@ -3394,7 +3396,6 @@ const NewCommitmentPage = () => {
                 getOptionLabel={(option) => option.name || ''}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
                 autoHighlight
-                openOnFocus
                 renderOption={(props, option) => {
                   const { key, ...otherProps } = props;
                   return (

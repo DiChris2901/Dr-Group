@@ -206,7 +206,7 @@ const BankAccountsPage = () => {
     );
 
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      console.log('🌍 [BankAccountsPage] Personal accounts snapshot (GLOBAL) size:', snapshot.size);
+      // console.log('🌍 [BankAccountsPage] Personal accounts snapshot (GLOBAL) size:', snapshot.size);
       let accounts = snapshot.docs.map(doc => {
         const data = doc.data();
         const normalized = {

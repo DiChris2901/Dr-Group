@@ -22,8 +22,13 @@ export const useDashboardStats = () => {
   });
 
   useEffect(() => {
+    // ⚠️ VALIDACIÓN: No ejecutar si no hay usuario autenticado
     if (!currentUser) {
-      setStats(prev => ({ ...prev, loading: false }));
+      setStats(prev => ({ 
+        ...prev, 
+        loading: false,
+        error: null // Limpiar errores si no hay usuario
+      }));
       return;
     }
 
@@ -221,24 +226,44 @@ export const useDashboardStats = () => {
             });
           },
           (error) => {
-            console.error('Error loading payments:', error);
-            setStats(prev => ({
-              ...prev,
-              loading: false,
-              error: error.message
-            }));
+            // ⚠️ MANEJO SILENCIOSO: Si es error de permisos, no mostrar en consola
+            if (error.code === 'permission-denied') {
+              console.warn('⚠️ Permisos insuficientes para cargar pagos (esperado durante logout)');
+              setStats(prev => ({
+                ...prev,
+                loading: false,
+                error: null // No mostrar error al usuario
+              }));
+            } else {
+              console.error('Error loading payments:', error);
+              setStats(prev => ({
+                ...prev,
+                loading: false,
+                error: error.message
+              }));
+            }
           }
         );
 
         return paymentsUnsubscribe;
       },
       (error) => {
-        console.error('Error loading commitments:', error);
-        setStats(prev => ({
-          ...prev,
-          loading: false,
-          error: error.message
-        }));
+        // ⚠️ MANEJO SILENCIOSO: Si es error de permisos, no mostrar en consola
+        if (error.code === 'permission-denied') {
+          console.warn('⚠️ Permisos insuficientes para cargar compromisos (esperado durante logout)');
+          setStats(prev => ({
+            ...prev,
+            loading: false,
+            error: null // No mostrar error al usuario
+          }));
+        } else {
+          console.error('Error loading commitments:', error);
+          setStats(prev => ({
+            ...prev,
+            loading: false,
+            error: error.message
+          }));
+        }
       }
     );
 

@@ -295,7 +295,7 @@ const IncomePage = () => {
             ...data
           });
         });
-        console.log('🌍 [IncomePage] personal_accounts snapshot (GLOBAL) size:', accounts.length);
+        // console.log('🌍 [IncomePage] personal_accounts snapshot (GLOBAL) size:', accounts.length);
         setPersonalAccounts(accounts);
       },
       (error) => {

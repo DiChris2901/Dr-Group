@@ -44,14 +44,14 @@ export const useTelegramNotifications = () => {
       finalMessage = (priorityEmoji[priority] || '') + message;
     }
     
-    console.log('�🔍 Telegram Debug:', {
-      originalChatId: chatId,
-      numericChatId,
-      priority,
-      silent,
-      type: typeof numericChatId,
-      botToken: BOT_TOKEN ? '✅ Configurado' : '❌ Faltante'
-    });
+    // console.log('🔍 Telegram Debug:', {
+    //   originalChatId: chatId,
+    //   numericChatId,
+    //   priority,
+    //   silent,
+    //   type: typeof numericChatId,
+    //   botToken: BOT_TOKEN ? '✅ Configurado' : '❌ Faltante'
+    // });
 
     setSending(true);
     setError(null);
@@ -77,7 +77,7 @@ export const useTelegramNotifications = () => {
         throw new Error(data.description || 'Error al enviar mensaje de Telegram');
       }
 
-      console.log('✅ Telegram - Mensaje enviado:', data.result.message_id);
+      // console.log('✅ Telegram - Mensaje enviado:', data.result.message_id);
       return { success: true, messageId: data.result.message_id };
 
     } catch (err) {
@@ -235,15 +235,28 @@ export const useTelegramNotifications = () => {
     const message = formatTelegramMessage(
       '💳 Nuevo Pago Registrado',
       `🏢 <b>${paymentData.companyName}</b>\n` +
-      `� Beneficiario: ${paymentData.beneficiary || paymentData.companyName}\n` +
-      `�💰 Monto: <b>${paymentData.amount}</b>\n` +
+      `👤 Beneficiario: ${paymentData.beneficiary || paymentData.companyName}\n` +
+      `💰 Monto: <b>${paymentData.amount}</b>\n` +
       `📅 Fecha: ${paymentData.paymentDate}\n` +
       `💼 Concepto: ${paymentData.concept}\n` +
       `👤 Registrado por: ${paymentData.registeredBy}`,
       'DR Group Dashboard'
     );
 
-    return await sendTelegramMessage(chatId, message);
+    // Agregar botón de comprobante si existe URL
+    const options = {};
+    if (paymentData.receiptURL) {
+      options.reply_markup = {
+        inline_keyboard: [[
+          {
+            text: '📎 Ver Comprobante',
+            url: paymentData.receiptURL
+          }
+        ]]
+      };
+    }
+
+    return await sendTelegramMessage(chatId, message, options);
   };
 
   /**

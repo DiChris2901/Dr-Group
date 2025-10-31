@@ -74,17 +74,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
 import useActivityLogs from '../../hooks/useActivityLogs';
 import { generateRecurringCommitments, saveRecurringCommitments } from '../../utils/recurringCommitments';
-
-// Opciones de método de pago - COINCIDEN CON FIREBASE
-const PAYMENT_METHOD_OPTIONS = [
-  { value: 'Transferencia', label: 'Transferencia' },
-  { value: 'PSE', label: 'PSE' },
-  { value: 'Efectivo', label: 'Efectivo' },
-  { value: 'Cheque', label: 'Cheque' },
-  { value: 'Tarjeta', label: 'Tarjeta' },
-  { value: 'Giro', label: 'Giro' },
-  { value: 'Otro', label: 'Otro' }
-];
+import { getPaymentMethodOptions } from '../../utils/formatUtils';
 
 // 📅 Funciones de manejo de fechas
 const formatSafeDate = (dateValue, formatString = 'yyyy-MM-dd') => {
@@ -308,6 +298,24 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
       }
       
       console.log('✅ Archivos procesados:', { invoiceFiles, invoiceURLs, invoiceFileNames });
+      console.log('📋 Método de pago desde Firestore:', commitment.paymentMethod);
+      
+      // Mapear valores antiguos (inglés) a nuevos (español)
+      const mapPaymentMethod = (value) => {
+        const mapping = {
+          'transfer': 'Transferencia',
+          'pse': 'PSE',
+          'cash': 'Efectivo',
+          'check': 'Cheque',
+          'card': 'Tarjeta',
+          'wire': 'Giro',
+          'other': 'Otro'
+        };
+        return mapping[value] || value || 'Transferencia';
+      };
+      
+      const mappedPaymentMethod = mapPaymentMethod(commitment.paymentMethod);
+      console.log('🔄 Método de pago mapeado:', mappedPaymentMethod);
       
       const initialData = {
         concept: commitment.concept || commitment.description || '',
@@ -324,7 +332,7 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
         invoiceNumber: commitment.invoiceNumber || '',
         hasTaxes: commitment.hasTaxes || false,
         totalAmount: commitment.totalAmount || commitment.amount || '',
-        paymentMethod: commitment.paymentMethod || 'Transferencia',
+        paymentMethod: mappedPaymentMethod,
         observations: commitment.observations || '',
         deferredPayment: commitment.deferredPayment || false,
         status: commitment.status || 'pending',
@@ -341,6 +349,7 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
       setFormData(initialData);
       setOriginalData(initialData);
       setHasChanges(false);
+      console.log('✅ FormData inicializado con método de pago:', initialData.paymentMethod);
     }
   }, [commitment, open]);
 
@@ -1281,19 +1290,25 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
                     <FormControl fullWidth variant="outlined">
                       <InputLabel>Método de Pago</InputLabel>
                       <Select
-                        value={formData.paymentMethod}
-                        onChange={(e) => handleFormChange('paymentMethod', e.target.value)}
+                        value={formData.paymentMethod || ''}
+                        onChange={(e) => {
+                          console.log('🔄 Cambiando método de pago a:', e.target.value);
+                          handleFormChange('paymentMethod', e.target.value);
+                        }}
                         label="Método de Pago"
-                        startAdornment={
-                          <InputAdornment position="start">
-                            <Payment color="primary" />
-                          </InputAdornment>
-                        }
                         sx={{ borderRadius: 1 }}
+                        onOpen={() => {
+                          console.log('📋 Select abierto. Valor actual:', formData.paymentMethod);
+                          console.log('📋 Opciones disponibles:', getPaymentMethodOptions());
+                          console.log('📋 ¿Valor coincide con opciones?:', getPaymentMethodOptions().some(opt => opt.value === formData.paymentMethod));
+                        }}
                       >
-                        {PAYMENT_METHOD_OPTIONS.map((option) => (
+                        {getPaymentMethodOptions().map((option) => (
                           <MenuItem key={option.value} value={option.value}>
-                            {option.label}
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Payment color="primary" fontSize="small" />
+                              {option.label}
+                            </Box>
                           </MenuItem>
                         ))}
                       </Select>

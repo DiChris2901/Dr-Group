@@ -96,9 +96,12 @@ export const AuthProvider = ({ children }) => {
         sessionId: `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
       });
       
-      // 🆕 Registrar inicio de sesión en historial
+      // 🆕 Registrar inicio de sesión en historial (con ID único para evitar duplicados)
       try {
-        await addDoc(collection(db, 'loginHistory'), {
+        const loginHistoryId = `${result.user.uid}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const loginHistoryRef = doc(db, 'loginHistory', loginHistoryId);
+        
+        await setDoc(loginHistoryRef, {
           userId: result.user.uid,
           action: 'login',
           timestamp: new Date(),
@@ -108,10 +111,11 @@ export const AuthProvider = ({ children }) => {
           deviceType: getDeviceType(),
           deviceInfo: getBrowserInfo(),
           success: true
-        });
+        }, { merge: true }); // merge: true previene errores si el documento ya existe
+        
         console.log('✅ Inicio de sesión registrado en historial');
       } catch (historyError) {
-        console.error('⚠️ Error registrando historial:', historyError);
+        console.warn('⚠️ Error registrando historial (no crítico):', historyError.message);
         // No bloquear el login si falla el registro del historial
       }
 

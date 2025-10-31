@@ -662,7 +662,7 @@ const CommitmentsList = ({
     // ✅ Solo cargar datos si shouldLoadData es true
     if (!currentUser || !shouldLoadData) return;
     
-    console.log('🔄 [REAL TIME] Configurando listener en tiempo real...');
+    // console.log('🔄 [REAL TIME] Configurando listener en tiempo real...');
     
     let q = query(collection(db, 'commitments'), orderBy('dueDate', 'desc'));
 
@@ -759,10 +759,10 @@ const CommitmentsList = ({
 
     // Configurar listener en tiempo real
     const unsubscribe = onSnapshot(q, async (snapshot) => {
-      console.log('🔔 [REAL TIME] Datos actualizados desde Firestore');
+      // console.log('🔔 [REAL TIME] Datos actualizados desde Firestore');
       
       if (snapshot.empty) {
-        console.log('📄 [REAL TIME] No hay compromisos');
+        // console.log('📄 [REAL TIME] No hay compromisos');
         setAllCommitments([]);
         setFilteredTotal(0);
         setLoading(false);
@@ -780,7 +780,7 @@ const CommitmentsList = ({
         });
       });
 
-      console.log(`📊 [REAL TIME] ${commitmentsData.length} compromisos cargados desde Firestore`);
+      // console.log(`📊 [REAL TIME] ${commitmentsData.length} compromisos cargados desde Firestore`);
 
       // Aplicar filtros locales
       let filteredCommitments = commitmentsData;
@@ -809,7 +809,7 @@ const CommitmentsList = ({
         }
       }
 
-      console.log(`🎯 [REAL TIME] ${filteredCommitments.length} compromisos después de filtros`);
+      // console.log(`🎯 [REAL TIME] ${filteredCommitments.length} compromisos después de filtros`);
 
       // Guardar todos los compromisos filtrados
       setAllCommitments(filteredCommitments);
@@ -825,12 +825,12 @@ const CommitmentsList = ({
     // Limpiar caché cuando se conecte el listener
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_COMMITMENTS_CACHE' });
-      console.log('🧹 [REAL TIME] Cache de compromisos limpiado al iniciar listener');
+      // console.log('🧹 [REAL TIME] Cache de compromisos limpiado al iniciar listener');
     }
 
     // Cleanup del listener
     return () => {
-      console.log('🧹 [REAL TIME] Desconectando listener...');
+      // console.log('🧹 [REAL TIME] Desconectando listener...');
       unsubscribe();
     };
     
@@ -867,7 +867,7 @@ const CommitmentsList = ({
   // Reset página cuando cambien SOLO los filtros (no la página) - CON DEBOUNCE
   useEffect(() => {
     const resetTimer = setTimeout(() => {
-      console.log('🔄 [DEBUG Reset] Resetting to page 1 due to filter change (debounced)');
+      // console.log('🔄 [DEBUG Reset] Resetting to page 1 due to filter change (debounced)');
       if (currentPage !== 1) { // Solo resetear si no está ya en página 1
         setCurrentPage(1);
         setLastVisibleDoc(null);
@@ -1289,8 +1289,8 @@ const CommitmentsList = ({
   };
 
   const handleCommitmentSaved = async () => {
-    console.log('🔄 [DEBUG] handleCommitmentSaved iniciado');
-    console.log('🔍 [DEBUG] Compromiso seleccionado antes de actualizar:', selectedCommitment?.id);
+    // console.log('🔄 [DEBUG] handleCommitmentSaved iniciado');
+    // console.log('🔍 [DEBUG] Compromiso seleccionado antes de actualizar:', selectedCommitment?.id);
     
     // Cerrar el modal de edición
     setEditDialogOpen(false);
@@ -1299,14 +1299,14 @@ const CommitmentsList = ({
     // Recargar la página actual directamente - SIMPLE Y EFECTIVO
     try {
       setLoading(true);
-      console.log('🔄 [DEBUG] Recargando datos después de guardar compromiso...');
+      // console.log('🔄 [DEBUG] Recargando datos después de guardar compromiso...');
       
       const total = await getTotalCount();
-      console.log('📊 [DEBUG] Total compromisos después de actualizar:', total);
+      // console.log('📊 [DEBUG] Total compromisos después de actualizar:', total);
       setTotalCommitments(total);
       
       await loadCommitmentsPage(currentPage);
-      console.log('✅ [DEBUG] Página recargada exitosamente');
+      // console.log('✅ [DEBUG] Página recargada exitosamente');
       
       // Agregar notificación de éxito
       addNotification({
@@ -1334,7 +1334,7 @@ const CommitmentsList = ({
 
   // Funciones de manejo de paginación spectacular - SIMPLIFICADO SIN RECARGA
   const handlePageChange = async (newPage) => {
-    console.log(`🔄 [PAGINATION] Cambiando a página ${newPage} (sin recarga)`);
+    // console.log(`🔄 [PAGINATION] Cambiando a página ${newPage} (sin recarga)`);
     if (newPage !== currentPage && newPage >= 1) {
       setCurrentPage(newPage);
       // Ya no necesitamos recargar datos, el useEffect de paginación se encarga
@@ -1400,13 +1400,13 @@ const CommitmentsList = ({
       // 1. Análisis previo de archivos
       const filesToDelete = [];
       
-      console.log('📋 Analizando archivos asociados...');
-      console.log('📊 Datos del compromiso:', {
-        id: commitmentToDelete.id,
-        receiptUrl: commitmentToDelete.receiptUrl ? '✅ Presente' : '❌ No presente',
-        receiptUrls: commitmentToDelete.receiptUrls ? `✅ Array con ${commitmentToDelete.receiptUrls.length} elementos` : '❌ No presente',
-        attachments: commitmentToDelete.attachments ? `✅ Array con ${commitmentToDelete.attachments.length} elementos` : '❌ No presente'
-      });
+      // console.log('📋 Analizando archivos asociados...');
+      // console.log('📊 Datos del compromiso:', {
+      //   id: commitmentToDelete.id,
+      //   receiptUrl: commitmentToDelete.receiptUrl ? '✅ Presente' : '❌ No presente',
+      //   receiptUrls: commitmentToDelete.receiptUrls ? `✅ Array con ${commitmentToDelete.receiptUrls.length} elementos` : '❌ No presente',
+      //   attachments: commitmentToDelete.attachments ? `✅ Array con ${commitmentToDelete.attachments.length} elementos` : '❌ No presente'
+      // });
 
       // Función avanzada para debug y extracción de paths
       const debugAndExtractPath = (url, type = 'archivo') => {
@@ -1703,20 +1703,20 @@ const CommitmentsList = ({
         failedPaymentDeletions++;
       }
 
-      console.log(`📊 RESULTADO PAGOS: ${deletedPayments} eliminados, ${failedPaymentDeletions} fallos`);
+      // console.log(`📊 RESULTADO PAGOS: ${deletedPayments} eliminados, ${failedPaymentDeletions} fallos`);
 
       // 3. Verificar si el documento existe antes de eliminar
-      console.log('� Verificando existencia del documento...');
+      // console.log('🔍 Verificando existencia del documento...');
       const docRef = doc(db, 'commitments', commitmentToDelete.id);
       const docSnapshot = await getDoc(docRef);
       
       if (!docSnapshot.exists()) {
-        console.log('❌ El documento ya no existe en Firestore');
+        // console.log('❌ El documento ya no existe en Firestore');
         
         // Actualizar estado local para remover el compromiso inexistente
         setCommitments(prevCommitments => {
           const filtered = prevCommitments.filter(c => c.id !== commitmentToDelete.id);
-          console.log(`📊 Limpiando estado local: ${prevCommitments.length} → ${filtered.length}`);
+          // console.log(`📊 Limpiando estado local: ${prevCommitments.length} → ${filtered.length}`);
           return filtered;
         });
         
@@ -1737,26 +1737,26 @@ const CommitmentsList = ({
       // 4. Eliminar el documento de Firestore
       console.log('🗑️ Eliminando documento de Firestore...');
       await deleteDoc(docRef);
-      console.log('✅ Documento eliminado de Firestore exitosamente');
+      // console.log('✅ Documento eliminado de Firestore exitosamente');
       
       // 4. Actualizar estado local
-      console.log(`� Actualizando estado local: ${commitmentToDelete.concept} (ID: ${commitmentToDelete.id})`);
+      // console.log(`🔄 Actualizando estado local: ${commitmentToDelete.concept} (ID: ${commitmentToDelete.id})`);
       setCommitments(prevCommitments => {
         const filtered = prevCommitments.filter(c => c.id !== commitmentToDelete.id);
-        console.log(`📊 Compromisos: ${prevCommitments.length} → ${filtered.length}`);
+        // console.log(`📊 Compromisos: ${prevCommitments.length} → ${filtered.length}`);
         return filtered;
       });
       
       // 5. Limpiar caché del Service Worker (opcional)
-      console.log(`🧹 Limpiando caché del Service Worker...`);
+      // console.log(`🧹 Limpiando caché del Service Worker...`);
       // Limpiar caché básico si está disponible
       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
         navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
-        console.log(`✅ Service Worker cache cleared via message`);
+        // console.log(`✅ Service Worker cache cleared via message`);
       }
       
       // 6. Recargar datos
-      console.log(`🔄 Recargando datos después de eliminación...`);
+      // console.log(`🔄 Recargando datos después de eliminación...`);
       try {
         const total = await getTotalCount();
         setTotalCommitments(total);
@@ -1932,19 +1932,19 @@ const CommitmentsList = ({
       }
       
       // 5. Actualizar estado local inmediatamente
-      console.log('🔄 Actualizando estado local...');
+      // console.log('🔄 Actualizando estado local...');
       setCommitments(prevCommitments => {
         const filtered = prevCommitments.filter(commitment => 
           commitment.companyName && 
           commitment.companyName !== 'Sin empresa' && 
           commitment.companyName.trim() !== ''
         );
-        console.log(`📊 Estado local: ${prevCommitments.length} → ${filtered.length}`);
+        // console.log(`📊 Estado local: ${prevCommitments.length} → ${filtered.length}`);
         return filtered;
       });
       
       // 6. Recargar datos desde servidor
-      console.log('🔄 Recargando datos desde servidor...');
+      // console.log('🔄 Recargando datos desde servidor...');
       try {
         const total = await getTotalCount();
         setTotalCommitments(total);
@@ -1955,7 +1955,7 @@ const CommitmentsList = ({
       }
       
       // 7. Mostrar resultado al usuario
-      console.log(`📊 LIMPIEZA COMPLETADA: ${deletedCount} eliminados, ${errorCount} errores`);
+      // console.log(`📊 LIMPIEZA COMPLETADA: ${deletedCount} eliminados, ${errorCount} errores`);
       
       if (deletedCount > 0) {
         addNotification({

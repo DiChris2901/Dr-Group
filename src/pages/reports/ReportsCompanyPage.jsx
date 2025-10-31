@@ -126,14 +126,56 @@ const ReportsCompanyPage = () => {
         const amount = parseFloat(c.totalAmount) || parseFloat(c.amount) || 0;
         return sum + amount;
       }, 0);
-      // ✅ CORRECCIÓN: Contar correctamente compromisos pagados
+      // ✅ CORRECCIÓN: Contar correctamente compromisos considerando pagos
       const completed = companyCommitments.filter(c => {
         const isPaidByStatus = c.status === 'completed' || c.status === 'paid';
         const isPaidByFlag = c.paid === true || c.isPaid === true;
-        return isPaidByStatus || isPaidByFlag;
+        
+        // Verificar pagos del compromiso
+        const commitmentPayments = payments?.filter(p => p.commitmentId === c.id) || [];
+        const totalPaid = commitmentPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || parseFloat(p.totalAmount) || 0), 0);
+        const commitmentAmount = parseFloat(c.totalAmount) || parseFloat(c.amount) || 0;
+        const isFullyPaid = totalPaid >= commitmentAmount && commitmentAmount > 0;
+        
+        return isPaidByStatus || isPaidByFlag || isFullyPaid;
       }).length;
-      const pending = companyCommitments.filter(c => c.status === 'pending').length;
-      const overdue = companyCommitments.filter(c => c.status === 'overdue').length;
+      
+      // Contar pendientes: compromisos que NO están completados
+      const now = new Date();
+      const pending = companyCommitments.filter(c => {
+        const isPaidByStatus = c.status === 'completed' || c.status === 'paid';
+        const isPaidByFlag = c.paid === true || c.isPaid === true;
+        
+        const commitmentPayments = payments?.filter(p => p.commitmentId === c.id) || [];
+        const totalPaid = commitmentPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || parseFloat(p.totalAmount) || 0), 0);
+        const commitmentAmount = parseFloat(c.totalAmount) || parseFloat(c.amount) || 0;
+        const isFullyPaid = totalPaid >= commitmentAmount && commitmentAmount > 0;
+        
+        const isCompleted = isPaidByStatus || isPaidByFlag || isFullyPaid;
+        if (isCompleted) return false; // Excluir completados
+        
+        // Es pendiente si no está vencido
+        const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
+        return dueDate >= now;
+      }).length;
+      
+      // Contar vencidos: compromisos que NO están completados Y están vencidos
+      const overdue = companyCommitments.filter(c => {
+        const isPaidByStatus = c.status === 'completed' || c.status === 'paid';
+        const isPaidByFlag = c.paid === true || c.isPaid === true;
+        
+        const commitmentPayments = payments?.filter(p => p.commitmentId === c.id) || [];
+        const totalPaid = commitmentPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || parseFloat(p.totalAmount) || 0), 0);
+        const commitmentAmount = parseFloat(c.totalAmount) || parseFloat(c.amount) || 0;
+        const isFullyPaid = totalPaid >= commitmentAmount && commitmentAmount > 0;
+        
+        const isCompleted = isPaidByStatus || isPaidByFlag || isFullyPaid;
+        if (isCompleted) return false; // Excluir completados
+        
+        // Es vencido si la fecha ya pasó
+        const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
+        return dueDate < now;
+      }).length;
       
       return {
         id: company.id,
@@ -152,7 +194,7 @@ const ReportsCompanyPage = () => {
     });
 
     return result;
-  }, [commitments, companiesData, commitmentsLoading, companiesLoading]);
+  }, [commitments, companiesData, payments, commitmentsLoading, companiesLoading, paymentsLoading]);
 
   // ✅ FUNCIONES PARA SISTEMA DE FILTROS SPECTACULAR
   const handleApplyFilters = () => {
@@ -277,8 +319,16 @@ const ReportsCompanyPage = () => {
         buckets.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: monthsLabels[d.getMonth()], month: d.getMonth(), year: d.getFullYear(), start: new Date(d.getFullYear(), d.getMonth(), 1), end: new Date(d.getFullYear(), d.getMonth()+1, 0) });
       }
     } else {
-      const start = activeDateRange.start;
-      const end = activeDateRange.end;
+      // ⚠️ FIX: activeDateRange tiene startDate/endDate, no start/end
+      const start = activeDateRange.startDate;
+      const end = activeDateRange.endDate;
+      
+      // Validación adicional para evitar errores
+      if (!start || !end) {
+        console.warn('⚠️ Fechas inválidas en activeDateRange:', activeDateRange);
+        return [];
+      }
+      
       // Si el rango es <= 92 días mostrar por semana, si > 92 días y <= 15 meses mostrar por mes, si > 15 meses limitar a últimos 12 meses
       const diffDays = Math.round((end - start)/(1000*60*60*24))+1;
       if (diffDays <= 92) {
@@ -618,14 +668,53 @@ const ReportsCompanyPage = () => {
         return sum + amount;
       }, 0);
       
+      // Contar completados considerando pagos reales
       const completed = filteredCommitments.filter(c => {
         const isPaidByStatus = c.status === 'completed' || c.status === 'paid';
         const isPaidByFlag = c.paid === true || c.isPaid === true;
-        return isPaidByStatus || isPaidByFlag;
+        
+        const commitmentPayments = payments?.filter(p => p.commitmentId === c.id) || [];
+        const totalPaid = commitmentPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || parseFloat(p.totalAmount) || 0), 0);
+        const commitmentAmount = parseFloat(c.totalAmount) || parseFloat(c.amount) || 0;
+        const isFullyPaid = totalPaid >= commitmentAmount && commitmentAmount > 0;
+        
+        return isPaidByStatus || isPaidByFlag || isFullyPaid;
       }).length;
       
-      const pending = filteredCommitments.filter(c => c.status === 'pending').length;
-      const overdue = filteredCommitments.filter(c => c.status === 'overdue').length;
+      // Contar pendientes: NO completados y NO vencidos
+      const now = new Date();
+      const pending = filteredCommitments.filter(c => {
+        const isPaidByStatus = c.status === 'completed' || c.status === 'paid';
+        const isPaidByFlag = c.paid === true || c.isPaid === true;
+        
+        const commitmentPayments = payments?.filter(p => p.commitmentId === c.id) || [];
+        const totalPaid = commitmentPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || parseFloat(p.totalAmount) || 0), 0);
+        const commitmentAmount = parseFloat(c.totalAmount) || parseFloat(c.amount) || 0;
+        const isFullyPaid = totalPaid >= commitmentAmount && commitmentAmount > 0;
+        
+        const isCompleted = isPaidByStatus || isPaidByFlag || isFullyPaid;
+        if (isCompleted) return false;
+        
+        const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
+        return dueDate >= now;
+      }).length;
+      
+      // Contar vencidos: NO completados y fecha vencida
+      const overdue = filteredCommitments.filter(c => {
+        const isPaidByStatus = c.status === 'completed' || c.status === 'paid';
+        const isPaidByFlag = c.paid === true || c.isPaid === true;
+        
+        const commitmentPayments = payments?.filter(p => p.commitmentId === c.id) || [];
+        const totalPaid = commitmentPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || parseFloat(p.totalAmount) || 0), 0);
+        const commitmentAmount = parseFloat(c.totalAmount) || parseFloat(c.amount) || 0;
+        const isFullyPaid = totalPaid >= commitmentAmount && commitmentAmount > 0;
+        
+        const isCompleted = isPaidByStatus || isPaidByFlag || isFullyPaid;
+        if (isCompleted) return false;
+        
+        const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
+        return dueDate < now;
+      }).length;
       
       return {
         ...company,
@@ -638,7 +727,7 @@ const ReportsCompanyPage = () => {
         rawCommitments: filteredCommitments
       };
     });
-  }, [filteredCompanies, dateRangeFilter, customStartDate, customEndDate]);
+  }, [filteredCompanies, dateRangeFilter, customStartDate, customEndDate, payments]);
 
   // Estadísticas globales para el header (usando datos recalculados)
   const globalStats = useMemo(() => {
