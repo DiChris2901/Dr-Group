@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Menu,
   Box,
@@ -25,11 +25,12 @@ import {
   Error as ErrorIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, getDocs } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useFirestore } from '../../hooks/useFirestore';
 import { fCurrency } from '../../utils/formatNumber';
 import { useSettings } from '../../context/SettingsContext';
+import { format } from 'date-fns';
 
 // Estilos CSS para animaciones spectacular
 const shimmerStyles = `
@@ -55,8 +56,33 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
   const [hoveredDate, setHoveredDate] = useState(null);
   const { data: commitments = [], loading } = useFirestore('commitments');
   const [companyCache, setCompanyCache] = useState({});
+  const [customEvents, setCustomEvents] = useState([]); // 🆕 Eventos personalizados
   const theme = useTheme();
   const { settings } = useSettings();
+
+  // 🆕 Cargar eventos personalizados desde Firestore
+  useEffect(() => {
+    const loadCustomEvents = async () => {
+      try {
+        const eventsQuery = query(collection(db, 'calendar_events'));
+        const eventsSnapshot = await getDocs(eventsQuery);
+        
+        const events = eventsSnapshot.docs.map(eventDoc => ({
+          id: eventDoc.id,
+          ...eventDoc.data(),
+          date: eventDoc.data().date?.toDate ? eventDoc.data().date.toDate() : new Date(eventDoc.data().date)
+        }));
+        
+        setCustomEvents(events);
+      } catch (error) {
+        console.error('Error cargando eventos personalizados:', error);
+      }
+    };
+
+    if (open) {
+      loadCustomEvents();
+    }
+  }, [open]);
 
   // Configuraciones dinámicas del Design System
   const primaryColor = settings?.theme?.primaryColor || theme.palette.primary.main;
@@ -181,13 +207,31 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
     return date.getMonth() === selectedMonth.getMonth();
   };
 
+  // 🆕 Verificar si hay compromisos O eventos personalizados en una fecha
   const hasCommitments = (date) => {
-    return getCommitmentsForDate(date).length > 0;
+    const hasCommitmentsOnDate = getCommitmentsForDate(date).length > 0;
+    const hasCustomEventsOnDate = getCustomEventsForDate(date).length > 0;
+    return hasCommitmentsOnDate || hasCustomEventsOnDate;
+  };
+
+  // 🆕 Obtener eventos personalizados para una fecha específica
+  const getCustomEventsForDate = (date) => {
+    if (!customEvents.length) return [];
+    
+    const dayStr = format(date, 'yyyy-MM-dd');
+    
+    return customEvents.filter(event => {
+      const eventDate = format(new Date(event.date), 'yyyy-MM-dd');
+      return eventDate === dayStr;
+    });
   };
 
   const getCommitmentPriority = (date) => {
     const dayCommitments = getCommitmentsForDate(date);
-    if (dayCommitments.length === 0) return null;
+    const dayCustomEvents = getCustomEventsForDate(date);
+    
+    // Si no hay compromisos ni eventos, retornar null
+    if (dayCommitments.length === 0 && dayCustomEvents.length === 0) return null;
     
   const now = new Date();
   const todayMid = toLocalMidnightFromUTC(now);
@@ -213,7 +257,16 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
     });
     
     if (isOverdue) return 'error';
-    return dayCommitments.some(c => c.priority === 'high') ? 'warning' : 'info';
+    
+    // Verificar prioridad de compromisos
+    const hasHighPriorityCommitment = dayCommitments.some(c => c.priority === 'high');
+    
+    // Verificar prioridad de eventos personalizados
+    const hasHighPriorityEvent = dayCustomEvents.some(e => e.priority === 'high');
+    
+    if (hasHighPriorityCommitment || hasHighPriorityEvent) return 'warning';
+    
+    return 'info';
   };
 
   const days = getDaysInMonth();
@@ -514,9 +567,15 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
               </Typography>
             </Box>
             
-            {getCommitmentsForDate(selectedDate).length > 0 ? (
+            {(() => {
+              const dayCommitments = getCommitmentsForDate(selectedDate);
+              const dayEvents = getCustomEventsForDate(selectedDate);
+              const totalItems = dayCommitments.length + dayEvents.length;
+              
+              return totalItems > 0 ? (
               <List sx={{ py: 0, '& .MuiListItem-root': { py: 0.25 } }}>
-                {getCommitmentsForDate(selectedDate).slice(0, 3).map((commitment, index) => {
+                {/* Mostrar compromisos */}
+                {dayCommitments.slice(0, 3).map((commitment, index) => {
                   const dueDateNorm = normalizeDate(commitment.dueDate);
                   const priority = dueDateNorm && toLocalMidnightFromUTC(dueDateNorm) < toLocalMidnightFromUTC(new Date()) && commitment.status !== 'completed' ? 'error' :
                                  commitment.priority === 'high' ? 'warning' : 
@@ -564,7 +623,43 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
                     </ListItem>
                   );
                 })}
-                {getCommitmentsForDate(selectedDate).length > 3 && (
+                {/* Mostrar eventos personalizados */}
+                {dayEvents.slice(0, 2).map((event, index) => {
+                  const priorityColor = event.priority === 'high' ? theme.palette.error.main :
+                                       event.priority === 'medium' ? theme.palette.warning.main :
+                                       theme.palette.info.main;
+                  
+                  return (
+                    <ListItem key={event.id} sx={{ px: 0 }}>
+                      <ListItemIcon sx={{ minWidth: 20 }}>
+                        <EventIcon sx={{ fontSize: 14, color: priorityColor }} />
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={event.title}
+                        secondary={event.description || 'Evento personalizado'}
+                        primaryTypographyProps={{
+                          variant: 'body2',
+                          sx: { 
+                            fontSize: '0.8rem',
+                            fontWeight: 500,
+                            color: theme.palette.mode === 'dark' ? 'common.white' : 'text.primary'
+                          }
+                        }}
+                        secondaryTypographyProps={{
+                          variant: 'caption',
+                          sx: { 
+                            fontSize: '0.7rem',
+                            color: theme.palette.mode === 'dark' 
+                              ? alpha(theme.palette.common.white, 0.7)
+                              : 'text.secondary'
+                          }
+                        }}
+                      />
+                    </ListItem>
+                  );
+                })}
+                
+                {totalItems > 5 && (
                   <Typography variant="caption" sx={{ 
                     ml: 2, 
                     fontSize: '0.7rem',
@@ -572,7 +667,7 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
                       ? alpha(theme.palette.common.white, 0.6)
                       : 'text.secondary'
                   }}>
-                    +{getCommitmentsForDate(selectedDate).length - 3} compromisos más...
+                    +{totalItems - 5} elementos más...
                   </Typography>
                 )}
               </List>
@@ -589,10 +684,11 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
                   fontSize: '0.8rem',
                   color: 'inherit'
                 }}>
-                  No hay compromisos
+                  No hay eventos
                 </Typography>
               </Box>
-            )}
+            );
+            })()}
           </Box>
         )}
       </Box>

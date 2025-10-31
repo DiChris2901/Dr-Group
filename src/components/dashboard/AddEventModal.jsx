@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -20,20 +20,42 @@ import {
 import {
   Event as EventIcon,
   Save as SaveIcon,
-  Cancel as CancelIcon
+  Cancel as CancelIcon,
+  Edit as EditIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-const AddEventModal = ({ open, onClose, selectedDate, onSave }) => {
+const AddEventModal = ({ open, onClose, selectedDate, onSave, editingEvent }) => {
   const theme = useTheme();
+  const isEditing = !!editingEvent;
   
   const [eventData, setEventData] = useState({
     title: '',
     description: '',
-    priority: 'medium' // low, medium, high
+    priority: 'medium', // low, medium, high
+    subType: 'personal' // personal, business, reminder
   });
+
+  // Cargar datos del evento cuando se está editando
+  useEffect(() => {
+    if (editingEvent) {
+      setEventData({
+        title: editingEvent.title || '',
+        description: editingEvent.description || '',
+        priority: editingEvent.priority || 'medium',
+        subType: editingEvent.subType || 'personal'
+      });
+    } else {
+      setEventData({
+        title: '',
+        description: '',
+        priority: 'medium',
+        subType: 'personal'
+      });
+    }
+  }, [editingEvent]);
 
   const [errors, setErrors] = useState({});
 
@@ -67,15 +89,19 @@ const AddEventModal = ({ open, onClose, selectedDate, onSave }) => {
   const handleSave = () => {
     if (!validateForm()) return;
     
-    const newEvent = {
+    const eventToSave = {
       ...eventData,
       date: selectedDate,
-      id: Date.now().toString(),
-      createdAt: new Date(),
       type: 'custom' // Tipo fijo para eventos personalizados
     };
     
-    onSave(newEvent);
+    // NO agregamos ID aquí porque Firestore lo genera automáticamente
+    // Solo agregamos createdAt si es un evento nuevo
+    if (!isEditing) {
+      eventToSave.createdAt = new Date();
+    }
+    
+    onSave(eventToSave);
     handleClose();
   };
 
@@ -83,7 +109,8 @@ const AddEventModal = ({ open, onClose, selectedDate, onSave }) => {
     setEventData({
       title: '',
       description: '',
-      priority: 'medium'
+      priority: 'medium',
+      subType: 'personal'
     });
     setErrors({});
     onClose();
@@ -119,10 +146,10 @@ const AddEventModal = ({ open, onClose, selectedDate, onSave }) => {
         borderBottom: `1px solid ${theme.palette.divider}` // Solo borde inferior
       }}>
         <Box display="flex" alignItems="center" gap={1}>
-          <EventIcon color="primary" />
+          {isEditing ? <EditIcon color="primary" /> : <EventIcon color="primary" />}
           <Box>
             <Typography variant="h6" component="div">
-              Agregar Evento
+              {isEditing ? 'Editar Evento' : 'Agregar Evento'}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {selectedDate && format(selectedDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
@@ -204,11 +231,11 @@ const AddEventModal = ({ open, onClose, selectedDate, onSave }) => {
         </Button>
         <Button
           onClick={handleSave}
-          startIcon={<SaveIcon />}
+          startIcon={isEditing ? <EditIcon /> : <SaveIcon />}
           variant="contained"
           color="primary"
         >
-          Guardar Evento
+          {isEditing ? 'Actualizar Evento' : 'Guardar Evento'}
         </Button>
       </DialogActions>
     </Dialog>

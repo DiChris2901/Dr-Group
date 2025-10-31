@@ -24,14 +24,16 @@ import {
   CheckCircle,
   Cancel,
   Add,
-  Close
+  Close,
+  Edit,
+  Delete
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 
-const CalendarEventDetails = ({ selectedDate, events, onClose }) => {
+const CalendarEventDetails = ({ selectedDate, events, onClose, onEditEvent, onDeleteEvent }) => {
   const theme = useTheme();
   const navigate = useNavigate();
 
@@ -316,6 +318,42 @@ const CalendarEventDetails = ({ selectedDate, events, onClose }) => {
                                 />
                               </Box>
                             </>
+                          )}
+                          
+                          {/* Botones de acción para eventos personalizados */}
+                          {event.type === 'custom' && (
+                            <Box mt={1} display="flex" gap={1}>
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEditEvent?.(event);
+                                }}
+                                sx={{
+                                  color: 'primary.main',
+                                  '&:hover': {
+                                    backgroundColor: alpha(theme.palette.primary.main, 0.08)
+                                  }
+                                }}
+                              >
+                                <Edit sx={{ fontSize: 16 }} />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteEvent?.(event);
+                                }}
+                                sx={{
+                                  color: 'error.main',
+                                  '&:hover': {
+                                    backgroundColor: alpha(theme.palette.error.main, 0.08)
+                                  }
+                                }}
+                              >
+                                <Delete sx={{ fontSize: 16 }} />
+                              </IconButton>
+                            </Box>
                           )}
                           
                           {/* Botón para crear compromiso basado en este evento */}

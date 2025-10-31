@@ -1119,31 +1119,83 @@ const ReportsCompanyPage = () => {
         { width: 15 }, { width: 12 }, { width: 12 }, { width: 8 }
       ];
 
-      // 📋 HOJA 4: COMPROMISOS COMPLETADOS DETALLADOS
-      // ✅ CORRECCIÓN: Incluir TODOS los compromisos pagados, no solo 'completed'
-      const completedCommitments = commitments.filter(c => {
-        const isSelectedCompany = selectedCompanies.length === 0 || selectedCompanies.includes(c.companyId);
-        const isPaidByStatus = c.status === 'completed' || c.status === 'paid';
-        const isPaidByFlag = c.paid === true || c.isPaid === true;
-        const isPaidCommitment = isPaidByStatus || isPaidByFlag;
-        
-        return isSelectedCompany && isPaidCommitment;
-      });
+      // 📋 HOJA 4: COMPROMISOS COMPLETADOS DETALLADOS CON FECHAS DE PAGO
+      // ✅ EXTRAER compromisos filtrados de las empresas (YA CON FILTRO DE FECHA APLICADO)
+      const filteredCommitmentsFromCompanies = filteredCompaniesWithRecalculatedStats.flatMap(company => 
+        company.rawCommitments || []
+      );
       
-      console.log(`� [EXCEL DEBUG] Compromisos filtrados para exportación:`, {
-        totalCommitments: commitments.length,
+      // ✅ OBTENER PAGOS para cada compromiso completado
+      const completedCommitmentsWithPayments = await Promise.all(
+        filteredCommitmentsFromCompanies
+          .filter(c => {
+            const isSelectedCompany = selectedCompanies.length === 0 || selectedCompanies.includes(c.companyId);
+            const isPaidByStatus = c.status === 'completed' || c.status === 'paid';
+            const isPaidByFlag = c.paid === true || c.isPaid === true;
+            const isPaidCommitment = isPaidByStatus || isPaidByFlag;
+            
+            return isSelectedCompany && isPaidCommitment;
+          })
+          .map(async (commitment) => {
+            try {
+              const paymentsQuery = query(
+                collection(db, 'payments'),
+                where('commitmentId', '==', commitment.id)
+              );
+              const paymentsSnapshot = await getDocs(paymentsQuery);
+              const payments = paymentsSnapshot.docs
+                .map(doc => ({
+                  id: doc.id,
+                  ...doc.data()
+                }))
+                .filter(p => !p.is4x1000Tax); // Excluir impuestos 4x1000
+              
+              // ✅ Obtener fecha del pago más reciente usando el campo correcto 'date'
+              const latestPayment = payments.length > 0 
+                ? [...payments].sort((a, b) => {
+                    const dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date || 0);
+                    const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date || 0);
+                    return dateB - dateA;
+                  })[0]
+                : null;
+              
+              return {
+                ...commitment,
+                paymentDate: latestPayment?.date || null,
+                paymentMethod: latestPayment?.method || commitment.paymentMethod || 'N/A',
+                payments
+              };
+            } catch (error) {
+              console.error('Error obteniendo pagos para compromiso:', commitment.id, error);
+              return commitment;
+            }
+          })
+      );
+      
+      // Eliminar duplicados basados en ID único
+      const uniqueCompletedCommitments = Array.from(
+        new Map(completedCommitmentsWithPayments.map(c => [c.id, c])).values()
+      );
+      
+      console.log(`✅ [EXCEL DEBUG] Compromisos completados únicos:`, {
+        totalCommitmentsFiltered: filteredCommitmentsFromCompanies.length,
         selectedCompanies: selectedCompanies.length === 0 ? 'TODAS' : selectedCompanies.length,
-        completedCommitments: completedCommitments.length,
-        sampleCompleted: completedCommitments.slice(0, 3).map(c => ({
+        completedCommitments: uniqueCompletedCommitments.length,
+        sampleCompleted: uniqueCompletedCommitments.slice(0, 3).map(c => ({
           id: c.id,
           concept: c.concept,
-          status: c.status,
-          paid: c.paid,
-          isPaid: c.isPaid
+          paymentDate: c.paymentDate,
+          paymentMethod: c.paymentMethod,
+          paymentsCount: c.payments?.length || 0,
+          paymentsDetails: c.payments?.map(p => ({
+            date: p.date, // ✅ Campo correcto
+            amount: p.amount,
+            method: p.method // ✅ Campo correcto
+          }))
         }))
       });
       
-      if (completedCommitments.length > 0) {
+      if (uniqueCompletedCommitments.length > 0) {
         const completedSheet = workbook.addWorksheet('Compromisos Completados');
         
         // Header
@@ -1158,7 +1210,7 @@ const ReportsCompanyPage = () => {
         // Subtítulo
         completedSheet.mergeCells('A2:O2');
         const completedSubtitleCell = completedSheet.getCell('A2');
-        completedSubtitleCell.value = `Total compromisos completados: ${completedCommitments.length} | Monto total: ${formatCurrency(completedCommitments.reduce((sum, c) => sum + (parseFloat(c.totalAmount) || parseFloat(c.amount) || 0), 0))}`;
+        completedSubtitleCell.value = `Total compromisos completados: ${uniqueCompletedCommitments.length} | Monto total: ${formatCurrency(uniqueCompletedCommitments.reduce((sum, c) => sum + (parseFloat(c.totalAmount) || parseFloat(c.amount) || 0), 0))}`;
         completedSubtitleCell.font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FF2E7D32' } };
         completedSubtitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E8' } };
         completedSubtitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -1186,7 +1238,7 @@ const ReportsCompanyPage = () => {
 
         // Datos detallados de compromisos completados
         let completedTotal = 0;
-        completedCommitments.forEach((commitment, index) => {
+        uniqueCompletedCommitments.forEach((commitment, index) => {
           const company = companiesData.find(comp => comp.id === commitment.companyId);
           const row = completedSheet.getRow(5 + index);
           
@@ -1202,6 +1254,37 @@ const ReportsCompanyPage = () => {
           
           completedTotal += totalAmount;
           
+          // ✅ MOSTRAR TODAS LAS FECHAS DE PAGO SI HAY MÚLTIPLES PAGOS (CAMPO CORRECTO: 'date')
+          let paymentDateFormatted = 'Sin pagos registrados';
+          
+          if (commitment.payments && commitment.payments.length > 0) {
+            // Ordenar pagos por fecha usando el campo correcto 'date'
+            const sortedPayments = commitment.payments
+              .filter(p => p.date) // Solo pagos con fecha (campo correcto)
+              .sort((a, b) => {
+                const dateA = a.date?.toDate ? a.date.toDate() : new Date(a.date || 0);
+                const dateB = b.date?.toDate ? b.date.toDate() : new Date(b.date || 0);
+                return dateA - dateB; // Orden ascendente
+              });
+            
+            if (sortedPayments.length === 1) {
+              // Un solo pago: mostrar la fecha
+              const date = sortedPayments[0].date;
+              paymentDateFormatted = new Date(date.toDate ? date.toDate() : date).toLocaleDateString('es-ES');
+            } else if (sortedPayments.length > 1) {
+              // Múltiples pagos: mostrar todas las fechas separadas por coma
+              paymentDateFormatted = sortedPayments.map(p => {
+                const date = p.date.toDate ? p.date.toDate() : p.date;
+                return new Date(date).toLocaleDateString('es-ES');
+              }).join(', ');
+            }
+          } else if (commitment.paymentDate) {
+            // Fallback: usar paymentDate del commitment
+            paymentDateFormatted = new Date(
+              commitment.paymentDate.toDate ? commitment.paymentDate.toDate() : commitment.paymentDate
+            ).toLocaleDateString('es-ES');
+          }
+          
           const rowData = [
             company?.name || 'N/A',
             commitment.beneficiary || 'N/A',
@@ -1216,7 +1299,7 @@ const ReportsCompanyPage = () => {
             intereses,
             descuentos,
             totalAmount,
-            commitment.paidDate ? new Date(commitment.paidDate.toDate ? commitment.paidDate.toDate() : commitment.paidDate).toLocaleDateString('es-ES') : 'N/A',
+            paymentDateFormatted,
             commitment.paymentMethod || 'N/A'
           ];
           
@@ -1251,7 +1334,7 @@ const ReportsCompanyPage = () => {
         });
 
         // Fila de totales
-        const totalRow = completedSheet.getRow(5 + completedCommitments.length);
+        const totalRow = completedSheet.getRow(5 + uniqueCompletedCommitments.length);
         totalRow.getCell(1).value = 'TOTAL COMPLETADOS';
         totalRow.getCell(1).font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
         totalRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2E7D32' } };
@@ -1274,7 +1357,7 @@ const ReportsCompanyPage = () => {
       // 📋 HOJA 5: COMPROMISOS PENDIENTES DETALLADOS
       // ✅ NUEVA LÓGICA: Obtener pagos de cada compromiso para determinar correctamente los pendientes
       const commitmentsWithPayments = await Promise.all(
-        commitments.map(async (commitment) => {
+        filteredCommitmentsFromCompanies.map(async (commitment) => {
           try {
             const paymentsQuery = query(
               collection(db, 'payments'),
@@ -1338,7 +1421,7 @@ const ReportsCompanyPage = () => {
       });
       
       console.log(`📊 [EXCEL PENDIENTES] Debug filtros detallado:`, {
-        totalCommitments: commitments.length,
+        totalCommitmentsFiltered: filteredCommitmentsFromCompanies.length,
         commitmentsWithPayments: commitmentsWithPayments.length,
         pendingCommitments: pendingCommitments.length,
         completedCommitments: commitmentsWithPayments.filter(c => c.isCompletelyPaid).length,

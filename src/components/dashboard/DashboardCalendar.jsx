@@ -53,7 +53,7 @@ import CalendarEventDetails from './CalendarEventDetails';
 import AddEventModal from './AddEventModal';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
-import { collection, addDoc, query, where, getDocs, deleteDoc, doc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, deleteDoc, doc, Timestamp, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useEmailNotifications } from '../../hooks/useEmailNotifications';
 import { useTelegramNotifications } from '../../hooks/useTelegramNotifications';
@@ -157,6 +157,7 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
   const [showAddEventModal, setShowAddEventModal] = useState(false);
   const [selectedDateForEvent, setSelectedDateForEvent] = useState(null);
   const [savingEvent, setSavingEvent] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
 
   const holidays = useColombianHolidays(currentDate.getFullYear());
   const { commitments } = useCommitments();
@@ -178,43 +179,57 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
         console.log('📅 Cargando eventos del calendario...');
         console.log('🗑️ Fecha límite para limpieza:', oneYearAgo.toLocaleDateString('es-CO'));
         
-        // Cargar TODOS los eventos primero (para limpiar antiguos)
+        // Cargar TODOS los eventos primero (para limpiar antiguos y corruptos)
         const eventsQuery = query(collection(db, 'calendar_events'));
         const eventsSnapshot = await getDocs(eventsQuery);
         
         const currentEvents = [];
         const eventsToDelete = [];
         
-        // Clasificar eventos: actuales vs antiguos
+        // Clasificar eventos: actuales vs antiguos/corruptos
         eventsSnapshot.docs.forEach(eventDoc => {
           const eventData = eventDoc.data();
           const eventDate = eventData.date?.toDate ? eventData.date.toDate() : new Date(eventData.date);
+          const eventId = eventDoc.id;
           
-          // Si el evento es de hace más de 1 año, marcarlo para eliminar
-          if (eventDate < oneYearAgo) {
+          // 🔍 Verificar si el ID es temporal/corrupto (IDs numéricos tipo "1761949092350")
+          const isCorruptId = /^\d+$/.test(eventId);
+          
+          if (isCorruptId) {
+            // ID temporal/corrupto - eliminar
+            console.warn(`⚠️ Evento con ID temporal detectado: ${eventId} - "${eventData.title}"`);
             eventsToDelete.push({
-              id: eventDoc.id,
+              id: eventId,
               title: eventData.title,
-              date: eventDate
+              date: eventDate,
+              reason: 'ID temporal corrupto'
+            });
+          } else if (eventDate < oneYearAgo) {
+            // Evento antiguo (>1 año) - eliminar
+            eventsToDelete.push({
+              id: eventId,
+              title: eventData.title,
+              date: eventDate,
+              reason: 'Evento antiguo (>1 año)'
             });
           } else {
-            // Evento reciente, mantenerlo
+            // Evento válido - mantenerlo
             currentEvents.push({
-              id: eventDoc.id,
+              id: eventId,
               ...eventData,
               date: eventDate
             });
           }
         });
         
-        // 🗑️ Eliminar eventos antiguos (>1 año)
+        // 🗑️ Eliminar eventos antiguos o corruptos
         if (eventsToDelete.length > 0) {
-          console.log(`🗑️ Eliminando ${eventsToDelete.length} eventos antiguos (>1 año):`);
+          console.log(`🗑️ Eliminando ${eventsToDelete.length} eventos no válidos:`);
           
           const deletePromises = eventsToDelete.map(async (event) => {
             try {
               await deleteDoc(doc(db, 'calendar_events', event.id));
-              console.log(`  ✅ Eliminado: "${event.title}" (${event.date.toLocaleDateString('es-CO')})`);
+              console.log(`  ✅ Eliminado: "${event.title}" - ${event.reason}`);
             } catch (error) {
               console.error(`  ❌ Error eliminando evento ${event.id}:`, error);
             }
@@ -223,12 +238,12 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
           await Promise.all(deletePromises);
           console.log(`✅ Limpieza completada: ${eventsToDelete.length} eventos eliminados`);
         } else {
-          console.log('✅ No hay eventos antiguos para eliminar');
+          console.log('✅ No hay eventos para eliminar');
         }
         
-        // Actualizar estado con eventos actuales
+        // Actualizar estado con eventos válidos
         setCustomEvents(currentEvents);
-        console.log(`📊 Eventos cargados: ${currentEvents.length} eventos del último año`);
+        console.log(`📊 Eventos cargados: ${currentEvents.length} eventos válidos`);
         
       } catch (error) {
         console.error('❌ Error cargando/limpiando eventos del calendario:', error);
@@ -275,11 +290,16 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
       const eventColor = '#1976d2'; // Azul estándar para todos los eventos personalizados
       
       events.push({
+        id: event.id, // ✅ ID necesario para editar/eliminar
         type: 'custom',
+        subType: event.subType || 'personal', // ✅ Subtipo del evento
         title: event.title,
         description: event.description,
         priority: event.priority,
-        color: eventColor
+        color: eventColor,
+        date: event.date, // ✅ Fecha completa para editar
+        createdBy: event.createdBy,
+        createdByName: event.createdByName
       });
     });
 
@@ -588,6 +608,120 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
       showToast('❌ Error al guardar el evento', 'error');
     } finally {
       setSavingEvent(false);
+    }
+  };
+
+  // 🆕 Función para editar evento personalizado
+  const handleEditEvent = (event) => {
+    console.log('✏️ Abriendo editor para evento:', event);
+    console.log('🆔 ID del evento:', event?.id);
+    
+    if (!event?.id) {
+      console.error('❌ El evento no tiene ID, no se puede editar');
+      showToast('❌ Error: El evento no tiene un identificador válido', 'error');
+      return;
+    }
+    
+    setEditingEvent(event);
+    setSelectedDateForEvent(event.date);
+    setShowAddEventModal(true);
+  };
+
+  // 🆕 Función para actualizar evento existente
+  const handleUpdateEvent = async (eventData) => {
+    if (!editingEvent?.id) {
+      console.error('❌ No hay evento para editar o falta el ID');
+      return;
+    }
+    
+    console.log('📝 Actualizando evento:', editingEvent.id);
+    console.log('📋 Datos a actualizar:', eventData);
+    
+    setSavingEvent(true);
+    
+    try {
+      const eventRef = doc(db, 'calendar_events', editingEvent.id);
+      
+      const updatedData = {
+        title: eventData.title,
+        description: eventData.description,
+        priority: eventData.priority,
+        subType: eventData.subType,
+        updatedBy: user?.uid,
+        updatedByName: user?.displayName || user?.email,
+        updatedAt: new Date()
+      };
+      
+      console.log('🔥 Enviando actualización a Firestore...');
+      await updateDoc(eventRef, updatedData);
+      console.log('✅ Firestore actualizado correctamente');
+      
+      // Actualizar estado local con la fecha correcta
+      setCustomEvents(prev => prev.map(evt => 
+        evt.id === editingEvent.id 
+          ? { 
+              ...evt, 
+              ...updatedData,
+              date: evt.date // Mantener la fecha original
+            } 
+          : evt
+      ));
+      
+      showToast('✅ Evento actualizado exitosamente', 'success');
+      setShowAddEventModal(false);
+      setEditingEvent(null);
+      
+      // 🔄 Forzar actualización del modal de detalles cerrándolo y reabriéndolo
+      if (showEventDetails && selectedDay) {
+        setShowEventDetails(false);
+        setTimeout(() => setShowEventDetails(true), 100);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error actualizando evento:', error);
+      console.error('❌ Detalles del error:', error.message);
+      showToast('❌ Error al actualizar evento: ' + error.message, 'error');
+    } finally {
+      setSavingEvent(false);
+    }
+  };
+
+  // 🆕 Función para eliminar evento personalizado
+  const handleDeleteEvent = async (event) => {
+    if (!event?.id) return;
+    
+    const confirmDelete = window.confirm(
+      `¿Estás seguro de eliminar el evento "${event.title}"?\n\nEsta acción no se puede deshacer.`
+    );
+    
+    if (!confirmDelete) return;
+    
+    try {
+      // Eliminar de Firestore
+      await deleteDoc(doc(db, 'calendar_events', event.id));
+      
+      // Actualizar estado local
+      setCustomEvents(prev => prev.filter(evt => evt.id !== event.id));
+      
+      showToast('✅ Evento eliminado exitosamente', 'success');
+      
+      // 🔄 Forzar actualización del modal de detalles
+      if (showEventDetails && selectedDay) {
+        const remainingEvents = getEventsForDay(selectedDay).filter(e => e.id !== event.id);
+        
+        // Si no quedan eventos, cerrar el modal
+        if (remainingEvents.length === 0) {
+          setShowEventDetails(false);
+        } else {
+          // Si quedan eventos, recargar el modal
+          setShowEventDetails(false);
+          setTimeout(() => setShowEventDetails(true), 100);
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Error eliminando evento:', error);
+      showToast('❌ Error al eliminar evento', 'error');
     }
   };
 
@@ -995,18 +1129,22 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
           selectedDate={selectedDay}
           events={getEventsForDay(selectedDay)}
           onClose={() => setShowEventDetails(false)}
+          onEditEvent={handleEditEvent}
+          onDeleteEvent={handleDeleteEvent}
         />
       )}
 
-      {/* 🆕 Modal para agregar eventos */}
+      {/* 🆕 Modal para agregar/editar eventos */}
       <AddEventModal
         open={showAddEventModal}
         onClose={() => {
           setShowAddEventModal(false);
           setSelectedDateForEvent(null);
+          setEditingEvent(null);
         }}
         selectedDate={selectedDateForEvent}
-        onSave={handleSaveEvent}
+        onSave={editingEvent ? handleUpdateEvent : handleSaveEvent}
+        editingEvent={editingEvent}
       />
     </Card>
   );
