@@ -17,8 +17,6 @@ import AdminOnlyRoute from './components/auth/AdminOnlyRoute';
 import BackgroundProvider from './components/layout/BackgroundProvider';
 import MainLayout from './components/layout/MainLayout';
 import PWAInstallPrompt from './components/common/PWAInstallPrompt';
-import AssistantButton from './components/assistant/AssistantButton';
-import AssistantDrawer from './components/assistant/AssistantDrawer';
 
 // Pages
 import WelcomeDashboardSimple from './components/dashboard/WelcomeDashboardSimple';
@@ -354,7 +352,6 @@ const DashboardLayout = () => {
 // Componente principal de la aplicación
 const AppContent = () => {
   const { currentUser, loading } = useAuth();
-  const [assistantOpen, setAssistantOpen] = React.useState(false);
 
   if (loading) {
     return (
@@ -383,20 +380,6 @@ const AppContent = () => {
         
         {/* Componente PWA Install Prompt */}
         <PWAInstallPrompt />
-        
-        {/* 🤖 Asistente Inteligente - Solo visible cuando el usuario está autenticado */}
-        {currentUser && (
-          <>
-            <AssistantButton 
-              onClick={() => setAssistantOpen(true)}
-              hasNewSuggestions={false}
-            />
-            <AssistantDrawer
-              open={assistantOpen}
-              onClose={() => setAssistantOpen(false)}
-            />
-          </>
-        )}
       </BackgroundProvider>
     </Router>
   );
