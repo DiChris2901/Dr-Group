@@ -956,11 +956,11 @@ const ReportsCompanyPage = () => {
 
       // Subtítulo
       detailSheet.mergeCells('A2:G2');
-      const subtitleCell = detailSheet.getCell('A2');
-      subtitleCell.value = `Período: ${timeRange} | Total empresas analizadas: ${filteredCompaniesWithRecalculatedStats.length}`;
-      subtitleCell.font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FF7B1FA2' } };
-      subtitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E5F5' } };
-      subtitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      const detailSubtitleCell = detailSheet.getCell('A2');
+      detailSubtitleCell.value = `Período: ${timeRange} | Total empresas analizadas: ${filteredCompaniesWithRecalculatedStats.length}`;
+      detailSubtitleCell.font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FF7B1FA2' } };
+      detailSubtitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E5F5' } };
+      detailSubtitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
       detailSheet.getRow(2).height = 22;
       
       // Encabezados de la tabla con formato premium
