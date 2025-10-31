@@ -823,40 +823,60 @@ const ReportsCompanyPage = () => {
       workbook.properties.title = "DR Group - Reporte de Empresas PREMIUM";
       workbook.properties.subject = "Análisis Detallado por Empresa";
       
-      // 📋 HOJA 1: DASHBOARD EJECUTIVO EMPRESAS
-      const summarySheet = workbook.addWorksheet('Dashboard Ejecutivo');
+      // 📋 HOJA 1: DASHBOARD EJECUTIVO EMPRESAS - FORMATO PYTHON PROFESIONAL
+      const summarySheet = workbook.addWorksheet('Dashboard Ejecutivo', {
+        views: [{ state: 'frozen', ySplit: 7 }] // ✅ FREEZE PANES en fila 7
+      });
       
-      // === HEADER CORPORATIVO PROFESIONAL ===
+      // === SISTEMA DE 7 FILAS - FORMATO PYTHON PROFESIONAL ===
+      // 🔹 FILA 1: Título Principal
       summarySheet.mergeCells('A1:H1');
       const titleCell = summarySheet.getCell('A1');
-      titleCell.value = '🏢 DR GROUP - ANÁLISIS EMPRESARIAL PREMIUM';
-      titleCell.font = { name: 'Arial', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
-      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1565C0' } };
+      titleCell.value = 'DR GROUP';
+      titleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0B3040' } };
       titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-      titleCell.border = {
-        top: { style: 'thick', color: { argb: 'FFFFFFFF' } },
-        bottom: { style: 'thick', color: { argb: 'FFFFFFFF' } },
-        left: { style: 'thick', color: { argb: 'FFFFFFFF' } },
-        right: { style: 'thick', color: { argb: 'FFFFFFFF' } }
-      };
-      summarySheet.getRow(1).height = 35;
+      summarySheet.getRow(1).height = 30;
       
-      // Información del reporte con formato empresarial
+      // 🔹 FILA 2: Subtítulo Descriptivo
       summarySheet.mergeCells('A2:H2');
-      const infoCell = summarySheet.getCell('A2');
-      infoCell.value = `Generado: ${new Date().toLocaleString('es-ES', { 
-        timeZone: 'America/Bogota',
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-      })} | Filtros: ${selectedCompanyNames} | Período: ${timeRange}`;
-      infoCell.font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FF1565C0' } };
-      infoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } };
-      infoCell.alignment = { horizontal: 'center', vertical: 'middle' };
-      summarySheet.getRow(2).height = 25;
+      const subtitleCell = summarySheet.getCell('A2');
+      subtitleCell.value = 'Análisis Empresarial - Dashboard Ejecutivo';
+      subtitleCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+      subtitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A5F7A' } };
+      subtitleCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      summarySheet.getRow(2).height = 22;
 
-      // === SECCIÓN KPIs PRINCIPALES ===
+      // 🔹 FILA 3: Métricas Consolidadas
+      summarySheet.mergeCells('A3:H3');
+      const metricsCell = summarySheet.getCell('A3');
+      metricsCell.value = `Empresas: ${filteredCompaniesWithRecalculatedStats.length} | Compromisos: ${globalStats.totalCommitments} | Completados: ${globalStats.completed} | Pendientes: ${globalStats.pending} | Vencidos: ${globalStats.overdue} | Monto Total: ${formatCurrency(globalStats.totalAmount)}`;
+      metricsCell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+      metricsCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF334155' } };
+      metricsCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      summarySheet.getRow(3).height = 22;
+      
+      // 🔹 FILA 4: Fecha de Generación
       summarySheet.mergeCells('A4:H4');
-      const kpiHeader = summarySheet.getCell('A4');
+      const dateCell = summarySheet.getCell('A4');
+      dateCell.value = `Generado: ${new Date().toLocaleString('es-CO', { 
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      })} | Filtros: ${selectedCompanyNames} | Período: ${timeRange}`;
+      dateCell.font = { name: 'Segoe UI', size: 10, bold: false, color: { argb: 'FFFFFFFF' } };
+      dateCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF475569' } };
+      dateCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      summarySheet.getRow(4).height = 18;
+      
+      // 🔹 FILA 5: Espaciador pequeño
+      summarySheet.getRow(5).height = 5;
+      
+      // 🔹 FILA 6: Espaciador mediano
+      summarySheet.getRow(6).height = 8;
+
+      // === DATOS COMIENZAN EN FILA 8+ ===
+      summarySheet.mergeCells('A8:H8');
+      const kpiHeader = summarySheet.getCell('A8');
       kpiHeader.value = '� INDICADORES CLAVE DE RENDIMIENTO';
       kpiHeader.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF1565C0' } };
       kpiHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } };
