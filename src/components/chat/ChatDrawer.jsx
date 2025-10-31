@@ -143,6 +143,9 @@ const ChatDrawer = ({ open, onClose }) => {
     </Box>
   );
 
+  // Espacio reservado para el Taskbar
+  const taskbarSpace = 96; // 80px de altura del taskbar + 16px de margen
+
   return (
     <Drawer
       anchor="right"
@@ -152,6 +155,9 @@ const ChatDrawer = ({ open, onClose }) => {
         sx: {
           width: { xs: '100%', sm: 420, md: 720 },
           maxWidth: '100vw',
+          height: `calc(100vh - ${taskbarSpace}px)`, // Restar espacio del Taskbar
+          bottom: taskbarSpace, // Posicionar encima del Taskbar
+          top: 'auto',
           border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
           boxShadow: theme.palette.mode === 'dark'
             ? '0 4px 20px rgba(0, 0, 0, 0.3)'

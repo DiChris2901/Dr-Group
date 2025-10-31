@@ -285,7 +285,7 @@ const CommitmentsList = ({
   shouldLoadData = true,
   showEmptyState = false
 }) => {
-  console.log('🧾 [LIST INIT] Filtros recibidos:', { companyFilter, statusFilter, searchTerm, dateRangeFilter, customStartDate, customEndDate, shouldLoadData });
+  // console.log('🧾 [LIST INIT] Filtros recibidos:', { companyFilter, statusFilter, searchTerm, dateRangeFilter, customStartDate, customEndDate, shouldLoadData });
 
   // Si no debemos cargar datos (filtros no aplicados), limpiar visualmente
   useEffect(() => {

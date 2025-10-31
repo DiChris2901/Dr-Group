@@ -154,7 +154,7 @@ export const ChatProvider = ({ children }) => {
         };
       });
       
-      console.log('👥 Presencia recibida:', presenceData);
+      // console.log('👥 Presencia recibida:', presenceData);
       setUsersPresence(presenceData);
     }, (error) => {
       console.error('❌ Error en listener de presencia:', error);
