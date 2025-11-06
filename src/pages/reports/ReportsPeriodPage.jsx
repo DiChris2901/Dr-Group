@@ -760,6 +760,20 @@ const ReportsPeriodPage = () => {
         exportFormat: 'Excel'
       });
 
+      // 🎨 BRAND_COLORS - FORMATO PYTHON PROFESIONAL
+      const BRAND_COLORS = {
+        titleBg: '0B3040',        // Azul oscuro corporativo
+        subtitleBg: '1A5F7A',     // Azul medio
+        metricsBg: '334155',      // Gris azulado
+        dateBg: '475569',         // Gris oscuro
+        headerBg: '0B3040',       // Headers de columnas
+        white: 'FFFFFF',          // Texto sobre fondos oscuros
+        textDark: '223344',       // Texto de contenido
+        borderLight: 'E2E8F0',    // Bordes sutiles
+        borderMedium: 'C0CCDA',   // Bordes medios
+        borderDark: '94A3B8'      // Bordes acentuados
+      };
+
       // 🔥 CREAR WORKBOOK DE EXCEL
       const workbook = new ExcelJS.Workbook();
       workbook.creator = 'DR Group Dashboard';
@@ -767,164 +781,90 @@ const ReportsPeriodPage = () => {
       workbook.created = new Date();
       workbook.modified = new Date();
 
+      // Calcular total de columnas para merge
+      const totalColumns = 8;
+
       // 📊 HOJA 1: RESUMEN EJECUTIVO TEMPORAL
-      const summarySheet = workbook.addWorksheet('Resumen Temporal');
+      const summarySheet = workbook.addWorksheet('Resumen Temporal', {
+        views: [{ state: 'frozen', ySplit: 7 }] // ✅ FREEZE PANES en fila 7
+      });
       
-      // Header principal
-      summarySheet.mergeCells('A1:H1');
+      // ========== ESTRUCTURA DE 7 FILAS OBLIGATORIA - FORMATO PYTHON ==========
+      
+      // FILA 1: Título principal
+      summarySheet.mergeCells(1, 1, 1, totalColumns);
       const titleCell = summarySheet.getCell('A1');
-      titleCell.value = '📈 DR GROUP - ANÁLISIS TEMPORAL DE COMPROMISOS';
-      titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1565C0' } };
+      titleCell.value = 'DR GROUP';
+      titleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.titleBg}` } };
       titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-      titleCell.border = {
-        top: { style: 'thick', color: { argb: 'FFFFFFFF' } },
-        bottom: { style: 'thick', color: { argb: 'FFFFFFFF' } },
-        left: { style: 'thick', color: { argb: 'FFFFFFFF' } },
-        right: { style: 'thick', color: { argb: 'FFFFFFFF' } }
-      };
-      summarySheet.getRow(1).height = 35;
+      summarySheet.getRow(1).height = 30;
       
-      // Información del reporte
-      summarySheet.mergeCells('A2:H2');
-      const infoCell = summarySheet.getCell('A2');
-      const reportInfo = [
-        `📅 Generado: ${new Date().toLocaleDateString('es-ES', { 
-          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-        })} a las ${new Date().toLocaleTimeString('es-ES', { 
-          hour: '2-digit', minute: '2-digit'
-        })}`,
-        `⏰ Período: ${periodType === 'monthly' ? 'Mensual' : periodType === 'weekly' ? 'Semanal' : 'Diario'}`,
-        `🔄 Modo: ${comparisonMode === 'previous' ? 'Comparación con período anterior' : 'Análisis absoluto'}`
+      // FILA 2: Subtítulo descriptivo
+      summarySheet.mergeCells(2, 1, 2, totalColumns);
+      const subtitleCell = summarySheet.getCell('A2');
+      subtitleCell.value = 'Análisis Temporal de Compromisos Financieros';
+      subtitleCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      subtitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.subtitleBg}` } };
+      subtitleCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      summarySheet.getRow(2).height = 22;
+
+      // FILA 3: Métricas consolidadas
+      summarySheet.mergeCells(3, 1, 3, totalColumns);
+      const metricsCell = summarySheet.getCell('A3');
+      const metricsText = [
+        `Período: ${periodType === 'monthly' ? 'Mensual' : periodType === 'weekly' ? 'Semanal' : 'Diario'}`,
+        `Total Compromisos: ${stats.totalCommitments}`,
+        `Completados: ${stats.totalCompleted}`,
+        `Pendientes: ${stats.totalPending}`,
+        `Vencidos: ${stats.totalOverdue}`,
+        `Monto Total: ${formatCurrency(stats.totalAmount)}`
       ].join(' | ');
-      
-      infoCell.value = reportInfo;
-      infoCell.font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FF1565C0' } };
-      infoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } };
-      infoCell.alignment = { horizontal: 'center', vertical: 'middle' };
-      summarySheet.getRow(2).height = 25;
+      metricsCell.value = metricsText;
+      metricsCell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      metricsCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.metricsBg}` } };
+      metricsCell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      summarySheet.getRow(3).height = 22;
 
-      // === KPIs PRINCIPALES ===
-      summarySheet.mergeCells('A4:H4');
-      const kpiHeader = summarySheet.getCell('A4');
-      kpiHeader.value = '📊 MÉTRICAS CONSOLIDADAS DEL PERÍODO';
-      kpiHeader.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FF1565C0' } };
-      kpiHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } };
-      kpiHeader.alignment = { horizontal: 'center', vertical: 'middle' };
-      kpiHeader.border = {
-        top: { style: 'medium', color: { argb: 'FF1565C0' } },
-        bottom: { style: 'medium', color: { argb: 'FF1565C0' } }
-      };
-      summarySheet.getRow(4).height = 30;
+      // FILA 4: Fecha de generación
+      summarySheet.mergeCells(4, 1, 4, totalColumns);
+      const dateCell = summarySheet.getCell('A4');
+      dateCell.value = `Generado: ${new Date().toLocaleString('es-CO', { 
+        year: 'numeric', month: '2-digit', day: '2-digit', 
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      })}`;
+      dateCell.font = { name: 'Segoe UI', size: 10, bold: false, color: { argb: `FF${BRAND_COLORS.white}` } };
+      dateCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.dateBg}` } };
+      dateCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      summarySheet.getRow(4).height = 18;
 
-      // Headers de métricas
-      const metricsHeaders = ['MÉTRICA', 'VALOR', 'FORMATO', 'MÉTRICA', 'VALOR', 'FORMATO'];
-      const metricsHeaderRow = summarySheet.getRow(6);
-      metricsHeaders.forEach((header, index) => {
-        const cell = metricsHeaderRow.getCell(index + 1);
+      // FILA 5: Espaciador pequeño
+      summarySheet.getRow(5).height = 5;
+
+      // FILA 6: Espaciador mediano
+      summarySheet.getRow(6).height = 8;
+
+      // FILA 7: Headers de columnas
+      const summaryHeaders = ['PERÍODO', 'MONTO TOTAL', 'COMPROMISOS', 'COMPLETADOS', 'PENDIENTES', 'VENCIDOS', 'TICKET PROM.', '% COMPLETADO'];
+      const summaryHeaderRow = summarySheet.getRow(7);
+      summaryHeaders.forEach((header, index) => {
+        const cell = summaryHeaderRow.getCell(index + 1);
         cell.value = header;
-        cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF424242' } };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.headerBg}` } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
         cell.border = {
-          top: { style: 'medium', color: { argb: 'FF424242' } },
-          bottom: { style: 'medium', color: { argb: 'FF424242' } }
+          top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          bottom: { style: 'thin', color: { argb: 'FF666666' } },
+          right: { style: 'thin', color: { argb: 'FFCCCCCC' } }
         };
       });
-      metricsHeaderRow.height = 25;
+      summaryHeaderRow.height = 28;
 
-      // Datos de métricas
-      const metricsData = [
-        ['Total Períodos', currentData.length, 'unidades', 'Monto Total Período', formatCurrency(stats.totalAmount), 'COP'],
-        ['Total Compromisos', stats.totalCommitments, 'unidades', 'Compromisos Completados', stats.totalCompleted, 'unidades'],
-        ['Compromisos Pendientes', stats.totalPending, 'unidades', 'Compromisos Vencidos', stats.totalOverdue, 'unidades'],
-        ['Tasa de Completado', `${Math.round((stats.totalCompleted / stats.totalCommitments) * 100)}%`, 'porcentaje', 'Ticket Promedio', formatCurrency(stats.totalAmount / stats.totalCommitments), 'COP'],
-        ['Período Analizado', `${periodType.charAt(0).toUpperCase() + periodType.slice(1)}`, 'texto', 'Períodos con Datos', currentData.length, 'unidades']
-      ];
-
-      metricsData.forEach((rowData, rowIndex) => {
-        const row = summarySheet.getRow(7 + rowIndex);
-        rowData.forEach((value, colIndex) => {
-          const cell = row.getCell(colIndex + 1);
-          cell.value = value;
-          
-          const bgColor = (rowIndex % 2 === 0) ? 'FFFAFAFA' : 'FFFFFFFF';
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
-          cell.font = { name: 'Arial', size: 10, color: { argb: 'FF424242' } };
-          
-          if (colIndex === 0 || colIndex === 3) {
-            cell.alignment = { horizontal: 'left', vertical: 'center' };
-            cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF1565C0' } };
-          } else if (colIndex === 1 || colIndex === 4) {
-            cell.alignment = { horizontal: 'right', vertical: 'center' };
-            if (typeof value === 'string' && value.includes('$')) {
-              cell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF2E7D32' } };
-            }
-          } else {
-            cell.alignment = { horizontal: 'center', vertical: 'center' };
-          }
-          
-          cell.border = {
-            top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
-          };
-        });
-        row.height = 20;
-      });
-
-      // Configurar anchos de columna para resumen
-      summarySheet.columns = [
-        { width: 25 }, { width: 20 }, { width: 15 }, { width: 25 }, { width: 20 }, { width: 15 }
-      ];
-
-      // 📈 HOJA 2: SERIE TEMPORAL DETALLADA
-      const timeSeriesSheet = workbook.addWorksheet('Serie Temporal');
-      
-      // Header
-      timeSeriesSheet.mergeCells('A1:H1');
-      const timeSeriesTitleCell = timeSeriesSheet.getCell('A1');
-      timeSeriesTitleCell.value = '📈 SERIE TEMPORAL - ANÁLISIS POR PERÍODO';
-      timeSeriesTitleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: 'FFFFFFFF' } };
-      timeSeriesTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF6F00' } };
-      timeSeriesTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-      timeSeriesSheet.getRow(1).height = 30;
-
-      // Subtítulo
-      timeSeriesSheet.mergeCells('A2:H2');
-      const timeSeriesSubtitleCell = timeSeriesSheet.getCell('A2');
-      timeSeriesSubtitleCell.value = `🕐 Análisis ${periodType} detallado | Total períodos: ${currentData.length} | Generado: ${new Date().toLocaleDateString('es-ES')}`;
-      timeSeriesSubtitleCell.font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FFFF6F00' } };
-      timeSeriesSubtitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3E0' } };
-      timeSeriesSubtitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-      timeSeriesSheet.getRow(2).height = 22;
-
-      // Headers detallados
-      const timeSeriesHeaders = [
-        'PERÍODO', 'MONTO TOTAL', 'COMPROMISOS', 'COMPLETADOS', 'PENDIENTES', 'VENCIDOS', 'TICKET PROMEDIO', '% COMPLETADO'
-      ];
-      
-      const timeSeriesHeaderRow = timeSeriesSheet.getRow(4);
-      timeSeriesHeaders.forEach((header, index) => {
-        const cell = timeSeriesHeaderRow.getCell(index + 1);
-        cell.value = header;
-        cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE65100' } };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        cell.border = {
-          top: { style: 'medium', color: { argb: 'FFE65100' } },
-          bottom: { style: 'medium', color: { argb: 'FFE65100' } }
-        };
-      });
-      timeSeriesHeaderRow.height = 25;
-
-      // Datos de serie temporal
-      let timeSeriesTotal = 0;
+      // FILA 8+: Datos de períodos
       currentData.forEach((period, index) => {
-        const row = timeSeriesSheet.getRow(5 + index);
-        timeSeriesTotal += period.amount;
-        
+        const row = summarySheet.getRow(8 + index);
         const completionRate = period.commitments > 0 ? ((period.completed / period.commitments) * 100).toFixed(1) : 0;
         
         const rowData = [
@@ -941,54 +881,272 @@ const ReportsPeriodPage = () => {
         rowData.forEach((value, colIndex) => {
           const cell = row.getCell(colIndex + 1);
           cell.value = value;
+          cell.font = { name: 'Segoe UI', size: 9, color: { argb: `FF${BRAND_COLORS.textDark}` } };
+          cell.alignment = { 
+            horizontal: colIndex === 0 ? 'center' : (colIndex === 1 || colIndex === 6) ? 'right' : 'center', 
+            vertical: 'middle' 
+          };
           
-          const bgColor = (index % 2 === 0) ? 'FFFFFBF0' : 'FFFFFFFF';
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
-          cell.font = { name: 'Arial', size: 9, color: { argb: 'FF424242' } };
-          
-          if (colIndex === 0) {
-            cell.alignment = { horizontal: 'center', vertical: 'center' };
-            cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FFFF6F00' } };
-          } else if (colIndex === 1 || colIndex === 6) {
-            cell.alignment = { horizontal: 'right', vertical: 'center' };
+          // Formato numérico para montos
+          if (colIndex === 1 || colIndex === 6) {
             cell.numFmt = '$#,##0';
-            cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF2E7D32' } };
           } else if (colIndex >= 2 && colIndex <= 5) {
-            cell.alignment = { horizontal: 'center', vertical: 'center' };
             cell.numFmt = '#,##0';
-            if (value > 0) {
-              cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: 'FF1565C0' } };
-            }
-          } else {
-            cell.alignment = { horizontal: 'center', vertical: 'center' };
           }
           
           cell.border = {
-            top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+            top: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderLight}` } },
+            bottom: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderMedium}` } },
+            left: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderLight}` } },
+            right: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderLight}` } }
           };
         });
         row.height = 18;
       });
 
-      // Fila de totales
-      const totalTimeSeriesRow = timeSeriesSheet.getRow(5 + currentData.length);
-      totalTimeSeriesRow.getCell(1).value = 'TOTAL PERÍODOS';
-      totalTimeSeriesRow.getCell(1).font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-      totalTimeSeriesRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF6F00' } };
-      totalTimeSeriesRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      // Fila de totales al final
+      const totalRow = summarySheet.getRow(8 + currentData.length);
+      totalRow.getCell(1).value = 'TOTAL';
+      totalRow.getCell(1).font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      totalRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.headerBg}` } };
+      totalRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
       
-      totalTimeSeriesRow.getCell(2).value = timeSeriesTotal;
-      totalTimeSeriesRow.getCell(2).font = { name: 'Arial', size: 12, bold: true, color: { argb: 'FFFFFFFF' } };
-      totalTimeSeriesRow.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFF6F00' } };
-      totalTimeSeriesRow.getCell(2).numFmt = '$#,##0';
-      totalTimeSeriesRow.getCell(2).alignment = { horizontal: 'right', vertical: 'middle' };
+      totalRow.getCell(2).value = stats.totalAmount;
+      totalRow.getCell(2).font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      totalRow.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.headerBg}` } };
+      totalRow.getCell(2).numFmt = '$#,##0';
+      totalRow.getCell(2).alignment = { horizontal: 'right', vertical: 'middle' };
+      
+      totalRow.getCell(3).value = stats.totalCommitments;
+      totalRow.getCell(3).font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      totalRow.getCell(3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.headerBg}` } };
+      totalRow.getCell(3).numFmt = '#,##0';
+      totalRow.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
 
-      // Configurar anchos de columna para serie temporal
-      timeSeriesSheet.columns = [
+      // Configurar anchos de columna para resumen
+      summarySheet.columns = [
         { width: 15 }, { width: 15 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 15 }, { width: 15 }
+      ];
+
+      // 📈 HOJA 2: SERIE TEMPORAL DETALLADA
+      const timeSeriesSheet = workbook.addWorksheet('Serie Temporal', {
+        views: [{ state: 'frozen', ySplit: 7 }] // ✅ FREEZE PANES en fila 7
+      });
+      
+      // ========== ESTRUCTURA DE 7 FILAS OBLIGATORIA - FORMATO PYTHON ==========
+      
+      // FILA 1: Título principal
+      timeSeriesSheet.mergeCells(1, 1, 1, totalColumns);
+      const tsTitle = timeSeriesSheet.getCell('A1');
+      tsTitle.value = 'DR GROUP';
+      tsTitle.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      tsTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.titleBg}` } };
+      tsTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+      timeSeriesSheet.getRow(1).height = 30;
+
+      // FILA 2: Subtítulo descriptivo
+      timeSeriesSheet.mergeCells(2, 1, 2, totalColumns);
+      const tsSubtitle = timeSeriesSheet.getCell('A2');
+      tsSubtitle.value = 'Serie Temporal Detallada - Análisis por Período';
+      tsSubtitle.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      tsSubtitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.subtitleBg}` } };
+      tsSubtitle.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      timeSeriesSheet.getRow(2).height = 22;
+
+      // FILA 3: Métricas consolidadas
+      timeSeriesSheet.mergeCells(3, 1, 3, totalColumns);
+      const tsMetrics = timeSeriesSheet.getCell('A3');
+      tsMetrics.value = `Análisis ${periodType} | Total Períodos: ${currentData.length} | Rango: ${startDate.toLocaleDateString('es-CO')} - ${endDate.toLocaleDateString('es-CO')}`;
+      tsMetrics.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      tsMetrics.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.metricsBg}` } };
+      tsMetrics.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      timeSeriesSheet.getRow(3).height = 22;
+
+      // FILA 4: Fecha de generación
+      timeSeriesSheet.mergeCells(4, 1, 4, totalColumns);
+      const tsDate = timeSeriesSheet.getCell('A4');
+      tsDate.value = `Generado: ${new Date().toLocaleString('es-CO', { 
+        year: 'numeric', month: '2-digit', day: '2-digit', 
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      })}`;
+      tsDate.font = { name: 'Segoe UI', size: 10, bold: false, color: { argb: `FF${BRAND_COLORS.white}` } };
+      tsDate.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.dateBg}` } };
+      tsDate.alignment = { horizontal: 'center', vertical: 'middle' };
+      timeSeriesSheet.getRow(4).height = 18;
+
+      // FILA 5: Espaciador pequeño
+      timeSeriesSheet.getRow(5).height = 5;
+
+      // FILA 6: Espaciador mediano
+      timeSeriesSheet.getRow(6).height = 8;
+
+      // FILA 7: Headers de columnas
+      const timeSeriesHeaders = [
+        'PERÍODO', 'MONTO TOTAL', 'COMPROMISOS', 'COMPLETADOS', 'PENDIENTES', 'VENCIDOS', 'TICKET PROM.', '% COMPLETADO'
+      ];
+      
+      const timeSeriesHeaderRow = timeSeriesSheet.getRow(7);
+      timeSeriesHeaders.forEach((header, index) => {
+        const cell = timeSeriesHeaderRow.getCell(index + 1);
+        cell.value = header;
+        cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.headerBg}` } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          bottom: { style: 'thin', color: { argb: 'FF666666' } },
+          right: { style: 'thin', color: { argb: 'FFCCCCCC' } }
+        };
+      });
+      timeSeriesHeaderRow.height = 28;
+
+      // FILA 8+: Agrupación por CONCEPTO con totales
+      const conceptHeaders = ['CONCEPTO', 'TOTAL MONTO', 'COMPROMISOS', 'COMPLETADOS', 'PENDIENTES', 'VENCIDOS', 'TICKET PROM.', '% COMPLETADO'];
+      
+      // Actualizar headers
+      timeSeriesHeaderRow.eachCell((cell, colNumber) => {
+        if (colNumber <= conceptHeaders.length) {
+          cell.value = conceptHeaders[colNumber - 1];
+        }
+      });
+
+      // Obtener compromisos filtrados
+      const filteredCommitments = getFilteredCommitments || [];
+      
+      // Agrupar por concepto
+      const conceptGroups = {};
+      filteredCommitments.forEach(commitment => {
+        const concept = commitment.concept || 'Sin Concepto';
+        if (!conceptGroups[concept]) {
+          conceptGroups[concept] = {
+            concept: concept,
+            totalAmount: 0,
+            count: 0,
+            completed: 0,
+            pending: 0,
+            overdue: 0,
+            commitments: []
+          };
+        }
+        
+        conceptGroups[concept].totalAmount += commitment.amount || 0;
+        conceptGroups[concept].count++;
+        conceptGroups[concept].commitments.push(commitment);
+        
+        // Determinar estado
+        const status = determineCommitmentStatus(commitment);
+        if (status === 'completed') conceptGroups[concept].completed++;
+        else if (status === 'overdue') conceptGroups[concept].overdue++;
+        else if (status === 'pending') conceptGroups[concept].pending++;
+      });
+
+      // Convertir a array y ordenar por monto total (mayor a menor)
+      const conceptsArray = Object.values(conceptGroups).sort((a, b) => b.totalAmount - a.totalAmount);
+
+      let grandTotal = 0;
+      let grandCount = 0;
+      let grandCompleted = 0;
+      let grandPending = 0;
+      let grandOverdue = 0;
+
+      conceptsArray.forEach((conceptData, index) => {
+        const row = timeSeriesSheet.getRow(8 + index);
+        grandTotal += conceptData.totalAmount;
+        grandCount += conceptData.count;
+        grandCompleted += conceptData.completed;
+        grandPending += conceptData.pending;
+        grandOverdue += conceptData.overdue;
+        
+        const avgTicket = conceptData.count > 0 ? conceptData.totalAmount / conceptData.count : 0;
+        const completionRate = conceptData.count > 0 ? ((conceptData.completed / conceptData.count) * 100).toFixed(1) : 0;
+        
+        const rowData = [
+          conceptData.concept,
+          conceptData.totalAmount,
+          conceptData.count,
+          conceptData.completed,
+          conceptData.pending,
+          conceptData.overdue,
+          avgTicket,
+          `${completionRate}%`
+        ];
+        
+        rowData.forEach((value, colIndex) => {
+          const cell = row.getCell(colIndex + 1);
+          cell.value = value;
+          cell.font = { name: 'Segoe UI', size: 9, color: { argb: `FF${BRAND_COLORS.textDark}` } };
+          
+          // Alineación según tipo de dato
+          if (colIndex === 0) { // Concepto
+            cell.alignment = { horizontal: 'left', vertical: 'middle' };
+            cell.font = { name: 'Segoe UI', size: 9, bold: true, color: { argb: `FF${BRAND_COLORS.textDark}` } };
+          } else if (colIndex === 1 || colIndex === 6) { // Montos
+            cell.alignment = { horizontal: 'right', vertical: 'middle' };
+            cell.numFmt = '$#,##0';
+          } else if (colIndex >= 2 && colIndex <= 5) { // Contadores
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell.numFmt = '#,##0';
+          } else { // Porcentaje
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          }
+          
+          cell.border = {
+            top: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderLight}` } },
+            bottom: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderMedium}` } },
+            left: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderLight}` } },
+            right: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderLight}` } }
+          };
+        });
+        row.height = 18;
+      });
+
+      // Fila de totales generales
+      const totalConceptRow = timeSeriesSheet.getRow(8 + conceptsArray.length);
+      const grandAvgTicket = grandCount > 0 ? grandTotal / grandCount : 0;
+      const grandCompletionRate = grandCount > 0 ? ((grandCompleted / grandCount) * 100).toFixed(1) : 0;
+      
+      const totalRowData = [
+        'TOTAL GENERAL',
+        grandTotal,
+        grandCount,
+        grandCompleted,
+        grandPending,
+        grandOverdue,
+        grandAvgTicket,
+        `${grandCompletionRate}%`
+      ];
+
+      totalRowData.forEach((value, colIndex) => {
+        const cell = totalConceptRow.getCell(colIndex + 1);
+        cell.value = value;
+        cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.headerBg}` } };
+        
+        if (colIndex === 0) {
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        } else if (colIndex === 1 || colIndex === 6) {
+          cell.alignment = { horizontal: 'right', vertical: 'middle' };
+          cell.numFmt = '$#,##0';
+        } else if (colIndex >= 2 && colIndex <= 5) {
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          cell.numFmt = '#,##0';
+        } else {
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        }
+      });
+      totalConceptRow.height = 22;
+
+      // Configurar anchos de columna para agrupación por concepto
+      timeSeriesSheet.columns = [
+        { width: 30 }, // Concepto
+        { width: 15 }, // Total Monto
+        { width: 12 }, // Compromisos
+        { width: 12 }, // Completados
+        { width: 12 }, // Pendientes
+        { width: 12 }, // Vencidos
+        { width: 15 }, // Ticket Prom.
+        { width: 15 }  // % Completado
       ];
 
       // 💾 GENERAR Y DESCARGAR ARCHIVO
