@@ -57,6 +57,9 @@ import LiquidacionesPage from './pages/LiquidacionesPage';
 import LiquidacionesHistorialPage from './pages/LiquidacionesHistorialPage';
 import LiquidacionesPorSalaPage from './pages/LiquidacionesPorSalaPage';
 
+// Módulo de Facturación
+import FacturacionPage from './pages/FacturacionPage';
+
 // Módulo de Salas
 import SalasPage from './pages/SalasPage';
 
@@ -211,6 +214,14 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Liquidaciones por Sala" breadcrumbs={['Facturación', 'Liquidaciones por Sala']}>
             <LiquidacionesPorSalaPage />
+          </MainLayout>
+        }
+      />
+      <Route 
+        path="/facturacion/cuentas-cobro" 
+        element={
+          <MainLayout title="Cuentas de Cobro" breadcrumbs={['Facturación', 'Cuentas de Cobro']}>
+            <FacturacionPage />
           </MainLayout>
         }
       />

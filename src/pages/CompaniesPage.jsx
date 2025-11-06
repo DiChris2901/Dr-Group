@@ -103,6 +103,7 @@ const CompaniesPage = () => {
     logoURL: '',
     bankAccount: '',
     bankName: '',
+    accountType: '',
     bankCertificationURL: '',
     platforms: {
       coljuegos: {
@@ -412,6 +413,7 @@ const CompaniesPage = () => {
       logoURL: '',
       bankAccount: '',
       bankName: '',
+      accountType: '',
       bankCertificationURL: '',
       platforms: {
         coljuegos: {
@@ -629,6 +631,7 @@ const CompaniesPage = () => {
       logoURL: company.logoURL || '',
       bankAccount: company.bankAccount || '',
       bankName: company.bankName || '',
+      accountType: company.accountType || '',
       bankCertificationURL: company.bankCertificationURL || '',
       platforms: {
         coljuegos: {
@@ -722,6 +725,7 @@ const CompaniesPage = () => {
           previousName: selectedCompany.name,
           bankAccount: formData.bankAccount || 'Sin cuenta bancaria',
           bankName: formData.bankName || 'Sin banco',
+          accountType: formData.accountType || 'Sin tipo de cuenta',
           hasLogo: !!formData.logoURL,
           changes: Object.keys(formData).filter(key => formData[key] !== selectedCompany[key])
         });
@@ -748,6 +752,7 @@ const CompaniesPage = () => {
           nit: formData.nit,
           bankAccount: formData.bankAccount || 'Sin cuenta bancaria',
           bankName: formData.bankName || 'Sin banco',
+          accountType: formData.accountType || 'Sin tipo de cuenta',
           hasLogo: !!formData.logoURL
         });
         
@@ -1708,6 +1713,26 @@ const CompaniesPage = () => {
                         />
                       </Grid>
                       
+                      <Grid item xs={12} sm={6}>
+                        <FormControl fullWidth variant="outlined">
+                          <InputLabel>Tipo de Cuenta</InputLabel>
+                          <Select
+                            value={formData.accountType}
+                            onChange={(e) => handleFormChange('accountType', e.target.value)}
+                            label="Tipo de Cuenta"
+                            sx={{
+                              borderRadius: 2
+                            }}
+                          >
+                            <MenuItem value="">
+                              <em>Seleccionar tipo</em>
+                            </MenuItem>
+                            <MenuItem value="Ahorros">Ahorros</MenuItem>
+                            <MenuItem value="Corriente">Corriente</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      
                       {/* Campo para certificación bancaria */}
                       <Grid item xs={12}>
                         <Box sx={{ mb: 2 }}>
@@ -2416,7 +2441,7 @@ const CompaniesPage = () => {
               </Grid>
 
               {/* Información Bancaria */}
-              {(selectedCompany.bankAccount || selectedCompany.bankName || selectedCompany.bankCertificationURL) && (
+              {(selectedCompany.bankAccount || selectedCompany.bankName || selectedCompany.accountType || selectedCompany.bankCertificationURL) && (
                 <>
                   <Typography variant="h6" sx={{ mb: 2, color: 'secondary.main', display: 'flex', alignItems: 'center', gap: 1 }}>
                     <AccountBalanceIcon />
@@ -2446,6 +2471,19 @@ const CompaniesPage = () => {
                           </Typography>
                           <Typography variant="body1" fontWeight="medium">
                             {selectedCompany.bankName}
+                          </Typography>
+                        </Card>
+                      </Grid>
+                    )}
+
+                    {selectedCompany.accountType && (
+                      <Grid item xs={12} md={6}>
+                        <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="subtitle2" color="secondary" gutterBottom>
+                            Tipo de Cuenta
+                          </Typography>
+                          <Typography variant="body1" fontWeight="medium">
+                            {selectedCompany.accountType}
                           </Typography>
                         </Card>
                       </Grid>

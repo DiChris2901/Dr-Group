@@ -263,6 +263,54 @@ class LiquidacionPersistenceService {
       // Procesar cada sala individualmente
       for (const sala of reporteBySala) {
         try {
+          // 🔍 BUSCAR EMPRESA CORRECTA DESDE FIRESTORE PARA ESTA SALA
+          let empresaSala = liquidacionCompleta.empresa; // Valor por defecto
+          
+          try {
+            // Buscar la sala en Firestore para obtener su companyId real
+            const normalizarNombre = (texto) => {
+              return texto
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .trim()
+                .replace(/\s+/g, ' ');
+            };
+            
+            const nombreSalaNormalizado = normalizarNombre(sala.establecimiento);
+            const salasSnapshot = await getDocs(collection(db, 'salas'));
+            
+            let salaEncontrada = null;
+            for (const salaDoc of salasSnapshot.docs) {
+              const salaData = salaDoc.data();
+              const nombreDB = normalizarNombre(salaData.nombre || salaData.name || '');
+              
+              if (nombreDB === nombreSalaNormalizado) {
+                salaEncontrada = { id: salaDoc.id, ...salaData };
+                break;
+              }
+            }
+            
+            // Si encontramos la sala, cargar su empresa real
+            if (salaEncontrada && salaEncontrada.companyId) {
+              const empresaDoc = await getDoc(doc(db, 'companies', salaEncontrada.companyId));
+              if (empresaDoc.exists()) {
+                const empresaData = empresaDoc.data();
+                empresaSala = {
+                  id: empresaDoc.id,
+                  nombre: empresaData.name || empresaData.nombre,
+                  normalizado: (empresaData.name || empresaData.nombre).replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
+                };
+                console.log(`✅ Empresa correcta cargada para ${sala.establecimiento}: ${empresaSala.nombre}`);
+              }
+            } else {
+              console.warn(`⚠️ No se encontró sala en Firestore: ${sala.establecimiento}, usando empresa por defecto`);
+            }
+          } catch (errorEmpresa) {
+            console.error(`❌ Error cargando empresa para sala ${sala.establecimiento}:`, errorEmpresa);
+            // Continuar con empresa por defecto
+          }
+          
           // Generar ID único para esta sala
           const salaId = this.generateLiquidacionSalaId(
             empresa, 
@@ -293,8 +341,8 @@ class LiquidacionPersistenceService {
             // Referencia a la liquidación original (CORREGIDO: era liquidacionOriginalId)
             liquidacionId: liquidacionOriginalId,
             
-            // Información de empresa y sala
-            empresa: liquidacionCompleta.empresa,
+            // Información de empresa y sala (CORREGIDO: usar empresa real de la sala)
+            empresa: empresaSala,
             sala: {
               nombre: sala.establecimiento,
               normalizado: sala.establecimiento.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()

@@ -275,6 +275,7 @@ const GlobalSearchPage = () => {
         { name: 'Liquidaciones', path: '/liquidaciones', keywords: ['liquidacion', 'calculo', 'sala'], icon: PageIcon },
         { name: 'Historial Liquidaciones', path: '/liquidaciones/historico', keywords: ['historial', 'liquidacion'], icon: PageIcon },
         { name: 'Liquidaciones por Sala', path: '/facturacion/liquidaciones-por-sala', keywords: ['sala', 'liquidacion', 'facturacion'], icon: PageIcon },
+        { name: 'Cuentas de Cobro', path: '/facturacion/cuentas-cobro', keywords: ['cuenta', 'cobro', 'factura', 'facturacion', 'pago'], icon: PageIcon },
         { name: 'Gestión de Salas', path: '/facturacion/salas', keywords: ['sala', 'gestion', 'facturacion'], icon: CompanyIcon },
         
         // Reportes

@@ -194,7 +194,8 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       color: '#2196f3',
       permission: 'facturacion',
       submenu: [
-        { title: 'Liquidaciones por Sala', icon: Business, path: '/facturacion/liquidaciones-por-sala', permission: 'facturacion.liquidaciones_por_sala' }
+        { title: 'Liquidaciones por Sala', icon: Business, path: '/facturacion/liquidaciones-por-sala', permission: 'facturacion.liquidaciones_por_sala' },
+        { title: 'Cuentas de Cobro', icon: Receipt, path: '/facturacion/cuentas-cobro', permission: 'facturacion.cuentas_cobro' }
       ]
     },
     {
