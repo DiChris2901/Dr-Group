@@ -138,24 +138,6 @@ const ReportsConceptPage = () => {
   
   const loading = commitmentsLoading || companiesLoading || allCommitmentsLoading;
 
-  // 🐛 DEBUG: Log de optimización Firebase
-  useEffect(() => {
-    if (dateRange) {
-      console.log('📊 [ReportsConceptPage] Cargando compromisos con filtros Firebase:', {
-        filtro: appliedFilters.dateRangeFilter,
-        desde: dateRange.startDate?.toLocaleDateString('es-ES'),
-        hasta: dateRange.endDate?.toLocaleDateString('es-ES'),
-        cantidad: commitments?.length || 0,
-        conceptosUnicos: [...new Set(commitments?.map(c => c.concept) || [])],
-        muestraDeCompromisos: commitments?.slice(0, 3).map(c => ({
-          id: c.id?.substring(0, 8),
-          concept: c.concept,
-          amount: c.amount
-        }))
-      });
-    }
-  }, [commitments, dateRange, appliedFilters.dateRangeFilter]);
-
   // ✅ YA NO ES NECESARIO FILTRAR POR FECHAS EN EL CLIENTE - Firebase lo hace
   // Esta función ahora solo devuelve los compromisos tal cual (ya vienen filtrados desde Firebase)
   const filterCommitmentsByDateRange = useMemo(() => {
@@ -332,19 +314,6 @@ const ReportsConceptPage = () => {
     return matchesSearch && matchesCategory;
   });
 
-  // 🐛 DEBUG: Ver qué está pasando con el filtrado
-  useEffect(() => {
-    console.log('🔍 [DEBUG ReportsConceptPage] Estado de filtros:', {
-      totalConceptsData: conceptsData.length,
-      conceptosDisponibles: conceptsData.map(c => c.name),
-      filteredConceptsCount: filteredConcepts.length,
-      conceptosFiltrados: filteredConcepts.map(c => c.name),
-      appliedFilters: appliedFilters,
-      searchTerm: appliedFilters.searchTerm,
-      selectedCategory: appliedFilters.selectedCategory
-    });
-  }, [conceptsData, filteredConcepts, appliedFilters]);
-
   // Limitar datos para mejor visualización - Solo mostrar top 8 conceptos más importantes
   const sortedConcepts = [...filteredConcepts].sort((a, b) => b.totalAmount - a.totalAmount);
   const topConcepts = sortedConcepts.slice(0, 8);
@@ -415,8 +384,6 @@ const ReportsConceptPage = () => {
   const stats = getTotalStats();
 
   const exportReport = async () => {
-    console.log('Exportando reporte por concepto...');
-    
     // ✅ VALIDAR QUE LOS DATOS ESTÉN DISPONIBLES
     if (!companiesData || companiesData.length === 0) {
       alert('Error: No se han cargado los datos de empresas. Inténtalo de nuevo en unos segundos.');
@@ -792,8 +759,6 @@ const ReportsConceptPage = () => {
       link.click();
       
       URL.revokeObjectURL(link.href);
-      
-      console.log('✅ Reporte de conceptos exportado exitosamente');
       
     } catch (error) {
       console.error('❌ Error al exportar reporte:', error);

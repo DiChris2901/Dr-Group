@@ -36,7 +36,6 @@ export const useChatNotifications = (isDrawerOpen) => {
       const stored = localStorage.getItem(storageKey);
       if (stored) {
         previousMessagesRef.current = JSON.parse(stored);
-        console.log(`📥 Cargados ${Object.keys(previousMessagesRef.current).length} mensajes ya notificados`);
       }
     } catch (error) {
       console.warn('Error cargando mensajes notificados:', error);
@@ -95,8 +94,6 @@ export const useChatNotifications = (isDrawerOpen) => {
             id => id !== currentUser.uid
           );
           const senderName = conversation.participantNames?.[otherUserId] || 'Usuario';
-
-          console.log(`🔔 Nueva notificación de chat: ${senderName}`);
 
           // 🎯 Mostrar notificación toast (si está habilitada)
           if (chatToastEnabled) {
