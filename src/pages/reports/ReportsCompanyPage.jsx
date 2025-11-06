@@ -1082,8 +1082,14 @@ const ReportsCompanyPage = () => {
         views: [{ state: 'frozen', ySplit: 7 }]
       });
       
+      // ✅ CALCULAR CANTIDAD DE COLUMNAS DINÁMICAMENTE (1 empresa + N meses)
+      const historicalData = getLast6MonthsData();
+      const monthHeaders = ['EMPRESA', ...historicalData[0]?.data?.map(d => d.month) || []];
+      const totalColumns = monthHeaders.length; // Ejemplo: 7 columnas (EMPRESA + 6 meses)
+      const lastColumnLetter = String.fromCharCode(64 + totalColumns); // Convertir a letra (A=1, B=2... G=7)
+      
       // 🔹 FILA 1
-      historicalSheet.mergeCells('A1:H1');
+      historicalSheet.mergeCells(`A1:${lastColumnLetter}1`);
       const histTitleCell = historicalSheet.getCell('A1');
       histTitleCell.value = 'DR GROUP';
       histTitleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -1092,7 +1098,7 @@ const ReportsCompanyPage = () => {
       historicalSheet.getRow(1).height = 30;
 
       // 🔹 FILA 2
-      historicalSheet.mergeCells('A2:H2');
+      historicalSheet.mergeCells(`A2:${lastColumnLetter}2`);
       const histSubtitle = historicalSheet.getCell('A2');
       histSubtitle.value = 'Evolución Histórica - Últimos 6 Meses';
       histSubtitle.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -1101,7 +1107,7 @@ const ReportsCompanyPage = () => {
       historicalSheet.getRow(2).height = 22;
 
       // 🔹 FILA 3
-      historicalSheet.mergeCells('A3:H3');
+      historicalSheet.mergeCells(`A3:${lastColumnLetter}3`);
       const histMetrics = historicalSheet.getCell('A3');
       histMetrics.value = `Empresas: ${filteredCompaniesWithRecalculatedStats.length} | Análisis temporal detallado`;
       histMetrics.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -1110,7 +1116,7 @@ const ReportsCompanyPage = () => {
       historicalSheet.getRow(3).height = 22;
       
       // 🔹 FILA 4
-      historicalSheet.mergeCells('A4:H4');
+      historicalSheet.mergeCells(`A4:${lastColumnLetter}4`);
       const histDate = historicalSheet.getCell('A4');
       histDate.value = `Generado: ${new Date().toLocaleString('es-CO')}`;
       histDate.font = { name: 'Segoe UI', size: 10, bold: false, color: { argb: 'FFFFFFFF' } };
@@ -1123,8 +1129,6 @@ const ReportsCompanyPage = () => {
       historicalSheet.getRow(6).height = 8;
 
       // 🔹 FILA 7: Headers
-      const historicalData = getLast6MonthsData();
-      const monthHeaders = ['EMPRESA', ...historicalData[0]?.data?.map(d => d.month) || []];
       const histHeaderRow = historicalSheet.getRow(7);
       
       monthHeaders.forEach((header, index) => {
@@ -1433,8 +1437,8 @@ const ReportsCompanyPage = () => {
           row.height = 18;
         });
 
-        // Fila de totales
-        const totalRow = completedSheet.getRow(5 + uniqueCompletedCommitments.length);
+        // Fila de totales (después de todos los datos: fila 8 + cantidad de compromisos)
+        const totalRow = completedSheet.getRow(8 + uniqueCompletedCommitments.length);
         totalRow.getCell(1).value = 'TOTAL COMPLETADOS';
         totalRow.getCell(1).font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
         totalRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2E7D32' } };

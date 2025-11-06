@@ -114,41 +114,56 @@ const ReportsConceptPage = () => {
     }
   };
 
-  // Conectar con Firebase para obtener compromisos y empresas reales
-  const { commitments, loading: commitmentsLoading } = useCommitments();
-  const { companies: companiesData, loading: companiesLoading } = useCompanies();
-  
-  const loading = commitmentsLoading || companiesLoading;
-
-  // Función para filtrar compromisos por rango de fechas usando DateRangeFilter estándar
-  const filterCommitmentsByDateRange = useMemo(() => {
-    return (commitmentsArray) => {
-      if (!commitmentsArray || commitmentsArray.length === 0) return [];
-      
-      if (appliedFilters.dateRangeFilter === 'all') return commitmentsArray;
-      
-      const range = getDateRangeFromFilter(
+  // ✅ CALCULAR FECHAS PARA FILTRAR EN FIREBASE
+  const dateRange = appliedFilters.dateRangeFilter !== 'all' && filtersApplied
+    ? getDateRangeFromFilter(
         appliedFilters.dateRangeFilter,
         appliedFilters.customStartDate,
         appliedFilters.customEndDate
-      );
-      
-      if (!range || !isValid(range.startDate) || !isValid(range.endDate)) {
-        return commitmentsArray;
-      }
-      
-      return commitmentsArray.filter(commitment => {
-        let commitmentDate;
-        if (commitment.dueDate?.toDate) commitmentDate = commitment.dueDate.toDate();
-        else if (commitment.dueDate) commitmentDate = new Date(commitment.dueDate);
-        else if (commitment.createdAt?.toDate) commitmentDate = commitment.createdAt.toDate();
-        else if (commitment.createdAt) commitmentDate = new Date(commitment.createdAt);
-        else return false;
-        
-        return isWithinInterval(commitmentDate, { start: range.startDate, end: range.endDate });
+      )
+    : null;
+
+  // ✅ CARGAR TODOS LOS COMPROMISOS (sin filtro) SOLO PARA OBTENER CONCEPTOS DISPONIBLES
+  const { commitments: allCommitments, loading: allCommitmentsLoading } = useCommitments({
+    shouldLoadData: true // Siempre cargar para obtener todos los conceptos
+  });
+
+  // ✅ CARGAR COMPROMISOS FILTRADOS PARA LOS DATOS/GRÁFICOS
+  const { commitments, loading: commitmentsLoading } = useCommitments({
+    startDate: dateRange?.startDate || null,
+    endDate: dateRange?.endDate || null,
+    shouldLoadData: filtersApplied // Solo cargar si hay filtros aplicados
+  });
+  const { companies: companiesData, loading: companiesLoading } = useCompanies();
+  
+  const loading = commitmentsLoading || companiesLoading || allCommitmentsLoading;
+
+  // 🐛 DEBUG: Log de optimización Firebase
+  useEffect(() => {
+    if (dateRange) {
+      console.log('📊 [ReportsConceptPage] Cargando compromisos con filtros Firebase:', {
+        filtro: appliedFilters.dateRangeFilter,
+        desde: dateRange.startDate?.toLocaleDateString('es-ES'),
+        hasta: dateRange.endDate?.toLocaleDateString('es-ES'),
+        cantidad: commitments?.length || 0,
+        conceptosUnicos: [...new Set(commitments?.map(c => c.concept) || [])],
+        muestraDeCompromisos: commitments?.slice(0, 3).map(c => ({
+          id: c.id?.substring(0, 8),
+          concept: c.concept,
+          amount: c.amount
+        }))
       });
+    }
+  }, [commitments, dateRange, appliedFilters.dateRangeFilter]);
+
+  // ✅ YA NO ES NECESARIO FILTRAR POR FECHAS EN EL CLIENTE - Firebase lo hace
+  // Esta función ahora solo devuelve los compromisos tal cual (ya vienen filtrados desde Firebase)
+  const filterCommitmentsByDateRange = useMemo(() => {
+    return (commitmentsArray) => {
+      if (!commitmentsArray || commitmentsArray.length === 0) return [];
+      return commitmentsArray; // Ya vienen filtrados desde Firebase
     };
-  }, [appliedFilters.dateRangeFilter, appliedFilters.customStartDate, appliedFilters.customEndDate]);
+  }, []);
 
   // Funciones para manejo de filtros
   const applyFilters = () => {
@@ -287,27 +302,48 @@ const ReportsConceptPage = () => {
     calculateConceptsWithCorrectStatus();
   }, [commitments, appliedFilters, filterCommitmentsByDateRange]);
 
-  // Generar categorías dinámicamente basándose en los conceptos reales
+  // ✅ Generar categorías dinámicamente basándose en TODOS los compromisos (sin filtro de fecha)
   const categories = useMemo(() => {
     const baseCategories = [{ id: 'all', name: 'Todos los Conceptos', icon: Category }];
     
-    if (!conceptsData || conceptsData.length === 0) return baseCategories;
+    if (!allCommitments || allCommitments.length === 0) return baseCategories;
     
-    // Extraer conceptos únicos y crear categorías
-    const uniqueConcepts = conceptsData.map(concept => ({
-      id: concept.id,
-      name: concept.name,
-      icon: () => concept.icon // Usar el emoji como función del icono
-    }));
+    // Extraer conceptos únicos de TODOS los compromisos
+    const conceptsSet = new Set();
+    allCommitments.forEach(commitment => {
+      if (commitment.concept) {
+        conceptsSet.add(commitment.concept);
+      }
+    });
+    
+    // Convertir a array y crear categorías
+    const uniqueConcepts = Array.from(conceptsSet).map(conceptName => ({
+      id: conceptName.replace(/\s+/g, '_').toLowerCase(),
+      name: conceptName,
+      icon: () => '📋' // Icono por defecto
+    })).sort((a, b) => a.name.localeCompare(b.name)); // Ordenar alfabéticamente
     
     return [...baseCategories, ...uniqueConcepts];
-  }, [conceptsData]);
+  }, [allCommitments]);
 
   const filteredConcepts = conceptsData.filter(concept => {
-    const matchesSearch = concept.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || concept.id === selectedCategory;
+    const matchesSearch = concept.name.toLowerCase().includes(appliedFilters.searchTerm.toLowerCase());
+    const matchesCategory = appliedFilters.selectedCategory === 'all' || concept.id === appliedFilters.selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  // 🐛 DEBUG: Ver qué está pasando con el filtrado
+  useEffect(() => {
+    console.log('🔍 [DEBUG ReportsConceptPage] Estado de filtros:', {
+      totalConceptsData: conceptsData.length,
+      conceptosDisponibles: conceptsData.map(c => c.name),
+      filteredConceptsCount: filteredConcepts.length,
+      conceptosFiltrados: filteredConcepts.map(c => c.name),
+      appliedFilters: appliedFilters,
+      searchTerm: appliedFilters.searchTerm,
+      selectedCategory: appliedFilters.selectedCategory
+    });
+  }, [conceptsData, filteredConcepts, appliedFilters]);
 
   // Limitar datos para mejor visualización - Solo mostrar top 8 conceptos más importantes
   const sortedConcepts = [...filteredConcepts].sort((a, b) => b.totalAmount - a.totalAmount);

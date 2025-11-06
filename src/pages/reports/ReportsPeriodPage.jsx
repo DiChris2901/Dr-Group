@@ -68,8 +68,18 @@ const ReportsPeriodPage = () => {
   });
   const [filtersApplied, setFiltersApplied] = useState(false);
   
-  const [startDate, setStartDate] = useState(new Date(2025, 0, 1)); // 1 enero 2025
-  const [endDate, setEndDate] = useState(new Date(2025, 6, 31)); // 31 julio 2025
+  // ✅ Fechas por defecto: Primer día del mes actual hasta hoy
+  const getDefaultStartDate = () => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1); // Primer día del mes actual
+  };
+  
+  const getDefaultEndDate = () => {
+    return new Date(); // Día actual
+  };
+  
+  const [startDate, setStartDate] = useState(getDefaultStartDate());
+  const [endDate, setEndDate] = useState(getDefaultEndDate());
   const [periodType, setPeriodType] = useState('monthly');
   const [comparisonMode, setComparisonMode] = useState('absolute'); // 'absolute' o 'previous'
   
@@ -204,42 +214,37 @@ const ReportsPeriodPage = () => {
     }
     
     console.log(`📊 Procesando ${filteredCommitments.length} compromisos filtrados para análisis mensual...`);
-    
-    // 🐛 DEBUG: Mostrar fechas de compromisos filtrados para entender el problema
-    console.log('🔍 FECHAS DE COMPROMISOS FILTRADOS (primeros 10):');
-    filteredCommitments.slice(0, 10).forEach((c, index) => {
-      const createdDate = c.createdAt?.toDate ? c.createdAt.toDate() : new Date(c.createdAt);
-      const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
-      console.log(`${index + 1}. ID: ${c.id?.slice(0, 8)}... - Creado: ${createdDate.toLocaleDateString('es-ES')} - Vence: ${dueDate.toLocaleDateString('es-ES')}`);
-    });
+    console.log(`� Rango de fechas: ${startDate.toLocaleDateString('es-ES')} - ${endDate.toLocaleDateString('es-ES')}`);
     
     const months = [];
     
-    // 📅 GENERAR 12 MESES DEL AÑO ACTUAL (enero - diciembre)
-    const currentYear = currentDate.getFullYear();
+    // 📅 GENERAR MESES DINÁMICAMENTE BASADOS EN startDate y endDate
+    const currentMonth = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    const lastMonth = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
     
-    for (let month = 0; month < 12; month++) {
-      const date = new Date(currentYear, month, 1);
-      const monthStart = new Date(currentYear, month, 1);
-      const monthEnd = new Date(currentYear, month + 1, 0);
+    while (currentMonth <= lastMonth) {
+      const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+      const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
       
-      console.log(`📅 Buscando compromisos para ${date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })} (${monthStart.toLocaleDateString('es-ES')} - ${monthEnd.toLocaleDateString('es-ES')})`);
+      // Ajustar fechas si es el primer o último mes
+      const rangeStart = currentMonth.getTime() === new Date(startDate.getFullYear(), startDate.getMonth(), 1).getTime() 
+        ? startDate 
+        : monthStart;
+      const rangeEnd = currentMonth.getTime() === lastMonth.getTime() 
+        ? endDate 
+        : monthEnd;
+      
+      console.log(`📅 Buscando compromisos para ${currentMonth.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })} (${rangeStart.toLocaleDateString('es-ES')} - ${rangeEnd.toLocaleDateString('es-ES')})`);
       
       // 🔄 USAR dueDate (fecha de vencimiento) para clasificar compromisos por período
       const monthCommitments = filteredCommitments.filter(c => {
         const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
         
-        // Verificar que la fecha de vencimiento esté en el rango del mes
-        const isInMonth = dueDate >= monthStart && dueDate <= monthEnd;
-        
-        if (isInMonth) {
-          console.log(`  ✅ Compromiso incluido: ${c.id?.slice(0, 8)}... - Vence: ${dueDate.toLocaleDateString('es-ES')}`);
-        }
-        
-        return isInMonth;
+        // Verificar que la fecha de vencimiento esté en el rango seleccionado
+        return dueDate >= rangeStart && dueDate <= rangeEnd;
       });
       
-      console.log(`� ${date.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })}: ${monthCommitments.length} compromisos encontrados`);
+      console.log(`✅ ${currentMonth.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' })}: ${monthCommitments.length} compromisos encontrados`);
       
       // Calcular monto total usando totalAmount o amount
       const totalAmount = monthCommitments.reduce((sum, c) => {
@@ -270,7 +275,7 @@ const ReportsPeriodPage = () => {
       });
       
       months.push({
-        period: date.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }),
+        period: currentMonth.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' }),
         amount: totalAmount,
         commitments: monthCommitments.length,
         completed,
@@ -278,12 +283,15 @@ const ReportsPeriodPage = () => {
         overdue,
         avgTicket: monthCommitments.length > 0 ? totalAmount / monthCommitments.length : 0
       });
+      
+      // Avanzar al siguiente mes
+      currentMonth.setMonth(currentMonth.getMonth() + 1);
     }
     
     console.log(`✅ Análisis mensual completado: ${months.length} períodos procesados`);
     console.log('📈 Resumen por mes:', months.map(m => `${m.period}: ${m.commitments} compromisos`));
     return months;
-  }, [getFilteredCommitments, currentDate]);
+  }, [getFilteredCommitments, startDate, endDate]);
 
   // 🔥 CALCULAR DATOS SEMANALES REALES DESDE FIREBASE CON FILTROS
   const weeklyData = useMemo(() => {
@@ -295,24 +303,34 @@ const ReportsPeriodPage = () => {
     }
     
     console.log(`📊 Procesando ${filteredCommitments.length} compromisos filtrados para análisis semanal...`);
+    console.log(`📅 Rango de fechas semanal: ${startDate.toLocaleDateString('es-ES')} - ${endDate.toLocaleDateString('es-ES')}`);
     const weeks = [];
     
-    // Generar últimas 8 semanas
-    for (let i = 7; i >= 0; i--) {
-      const weekEnd = new Date(currentDate);
-      weekEnd.setDate(currentDate.getDate() - (i * 7));
-      const weekStart = new Date(weekEnd);
-      weekStart.setDate(weekEnd.getDate() - 6);
+    // Generar semanas dinámicamente basadas en startDate y endDate
+    let currentWeekStart = new Date(startDate);
+    // Ajustar al inicio de la semana (lunes)
+    const dayOfWeek = currentWeekStart.getDay();
+    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    currentWeekStart.setDate(currentWeekStart.getDate() + daysToMonday);
+    
+    let weekNumber = 1;
+    
+    while (currentWeekStart <= endDate) {
+      const weekEnd = new Date(currentWeekStart);
+      weekEnd.setDate(currentWeekStart.getDate() + 6);
       
-      console.log(`📅 Buscando compromisos para semana ${8 - i} (${weekStart.toLocaleDateString('es-ES')} - ${weekEnd.toLocaleDateString('es-ES')})`);
+      // Ajustar si el final de semana excede endDate
+      const actualWeekEnd = weekEnd > endDate ? endDate : weekEnd;
+      
+      console.log(`📅 Semana ${weekNumber}: ${currentWeekStart.toLocaleDateString('es-ES')} - ${actualWeekEnd.toLocaleDateString('es-ES')}`);
       
       // 🔄 Usar dueDate (fecha de vencimiento) para consistencia con análisis mensual
       const weekCommitments = filteredCommitments.filter(c => {
         const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
-        return dueDate >= weekStart && dueDate <= weekEnd;
+        return dueDate >= currentWeekStart && dueDate <= actualWeekEnd;
       });
       
-      console.log(`📊 Semana ${8 - i}: ${weekCommitments.length} compromisos encontrados`);
+      console.log(`📊 Semana ${weekNumber}: ${weekCommitments.length} compromisos encontrados`);
       
       const totalAmount = weekCommitments.reduce((sum, c) => {
         const amount = parseFloat(c.totalAmount) || parseFloat(c.amount) || 0;
@@ -342,7 +360,7 @@ const ReportsPeriodPage = () => {
       });
       
       weeks.push({
-        period: `Sem ${8 - i} (${weekStart.getDate()}/${weekStart.getMonth() + 1})`,
+        period: `Sem ${weekNumber} (${currentWeekStart.getDate()}/${currentWeekStart.getMonth() + 1})`,
         amount: totalAmount,
         commitments: weekCommitments.length,
         completed,
@@ -350,12 +368,16 @@ const ReportsPeriodPage = () => {
         overdue,
         avgTicket: weekCommitments.length > 0 ? totalAmount / weekCommitments.length : 0
       });
+      
+      // Avanzar a la siguiente semana
+      currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+      weekNumber++;
     }
     
     console.log(`✅ Análisis semanal completado: ${weeks.length} períodos procesados`);
     console.log('📈 Resumen por semana:', weeks.map(w => `${w.period}: ${w.commitments} compromisos`));
     return weeks;
-  }, [getFilteredCommitments, currentDate]);
+  }, [getFilteredCommitments, startDate, endDate]);
 
   const currentData = periodType === 'weekly' ? weeklyData : monthlyData;
 
@@ -455,10 +477,11 @@ const ReportsPeriodPage = () => {
 
     const yAxisProps = {
       ...commonAxisProps,
+      width: 80, // ✅ Aumentar ancho para que los números no se corten
       tickFormatter: (value) => {
         if (value === 0) return '$0';
         if (value >= 1000000000) return `$${(value / 1000000000).toFixed(1)}B`;
-        if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+        if (value >= 1000000) return `$${(value / 1000000).toFixed(0)}M`; // Sin decimales para millones
         if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
         return `$${Math.round(value)}`;
       }
@@ -1018,7 +1041,17 @@ const ReportsPeriodPage = () => {
           <AreaChart {...commonProps} key={`area-${chartKey}`}>
             {showGridLines && <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />}
             <XAxis dataKey="period" stroke={theme.palette.text.secondary} fontSize={12} />
-            <YAxis stroke={theme.palette.text.secondary} fontSize={12} />
+            <YAxis 
+              stroke={theme.palette.text.secondary} 
+              fontSize={12}
+              width={80}
+              tickFormatter={(value) => {
+                if (value === 0) return '$0';
+                if (value >= 1000000) return `$${(value / 1000000).toFixed(0)}M`;
+                if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+                return `$${Math.round(value)}`;
+              }}
+            />
             <Tooltip 
               formatter={(value) => [formatCurrency(value), 'Monto']}
               contentStyle={{
@@ -1050,7 +1083,17 @@ const ReportsPeriodPage = () => {
           <BarChart {...commonProps} key={`bar-${chartKey}`}>
             {showGridLines && <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />}
             <XAxis dataKey="period" stroke={theme.palette.text.secondary} fontSize={12} />
-            <YAxis stroke={theme.palette.text.secondary} fontSize={12} />
+            <YAxis 
+              stroke={theme.palette.text.secondary} 
+              fontSize={12}
+              width={80}
+              tickFormatter={(value) => {
+                if (value === 0) return '$0';
+                if (value >= 1000000) return `$${(value / 1000000).toFixed(0)}M`;
+                if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+                return `$${Math.round(value)}`;
+              }}
+            />
             <Tooltip 
               formatter={(value) => [formatCurrency(value), 'Monto']}
               contentStyle={{
@@ -1074,7 +1117,17 @@ const ReportsPeriodPage = () => {
           <LineChart {...commonProps} key={`line-${chartKey}`}>
             {showGridLines && <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.5)} />}
             <XAxis dataKey="period" stroke={theme.palette.text.secondary} fontSize={12} />
-            <YAxis stroke={theme.palette.text.secondary} fontSize={12} />
+            <YAxis 
+              stroke={theme.palette.text.secondary} 
+              fontSize={12}
+              width={80}
+              tickFormatter={(value) => {
+                if (value === 0) return '$0';
+                if (value >= 1000000) return `$${(value / 1000000).toFixed(0)}M`;
+                if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
+                return `$${Math.round(value)}`;
+              }}
+            />
             <Tooltip 
               formatter={(value) => [formatCurrency(value), 'Monto']}
               contentStyle={{
@@ -1366,7 +1419,14 @@ const ReportsPeriodPage = () => {
               <TextField
                 label="Fecha Inicio"
                 type="date"
-                value="2025-01-01"
+                value={startDate.toISOString().split('T')[0]}
+                onChange={(e) => {
+                  const newDate = new Date(e.target.value);
+                  if (!isNaN(newDate.getTime())) {
+                    setStartDate(newDate);
+                    console.log('📅 Fecha inicio actualizada:', newDate.toLocaleDateString('es-ES'));
+                  }
+                }}
                 InputLabelProps={{
                   shrink: true,
                 }}
@@ -1381,7 +1441,14 @@ const ReportsPeriodPage = () => {
               <TextField
                 label="Fecha Fin"
                 type="date"
-                value="2025-07-31"
+                value={endDate.toISOString().split('T')[0]}
+                onChange={(e) => {
+                  const newDate = new Date(e.target.value);
+                  if (!isNaN(newDate.getTime())) {
+                    setEndDate(newDate);
+                    console.log('📅 Fecha fin actualizada:', newDate.toLocaleDateString('es-ES'));
+                  }
+                }}
                 InputLabelProps={{
                   shrink: true,
                 }}
@@ -1396,8 +1463,11 @@ const ReportsPeriodPage = () => {
               <Button
                 variant="contained"
                 onClick={() => {
-                  // Funcionalidad para aplicar filtros
-                  console.log('Aplicando filtros de fecha...');
+                  console.log('✅ Aplicando filtros de fecha:', {
+                    inicio: startDate.toLocaleDateString('es-ES'),
+                    fin: endDate.toLocaleDateString('es-ES')
+                  });
+                  // Los datos se actualizan automáticamente por los useMemo que dependen de startDate/endDate
                 }}
                 sx={{
                   borderRadius: 1,

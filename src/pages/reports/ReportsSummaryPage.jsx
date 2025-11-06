@@ -70,10 +70,27 @@ const ReportsSummaryPage = () => {
     customStartDate: null,
     customEndDate: null
   });
-  const [filtersApplied, setFiltersApplied] = useState(true);
+  const [filtersApplied, setFiltersApplied] = useState(false); // ✅ Cambiar a false - Requiere aplicar filtros
   
-  // Conectar con Firebase para obtener datos reales
-  const { commitments, loading: commitmentsLoading } = useCommitments();
+  // ✅ Calcular shouldLoadData y fechas para el hook
+  // Permitir cargar datos incluso con "all" si hay filtros de fecha
+  const shouldLoadData = filtersApplied;
+  
+  const dateRange = appliedFilters.dateRangeFilter !== 'all' 
+    ? getDateRangeFromFilter(
+        appliedFilters.dateRangeFilter,
+        appliedFilters.customStartDate,
+        appliedFilters.customEndDate
+      )
+    : null;
+  
+  // Conectar con Firebase para obtener datos reales CON FILTROS
+  const { commitments, loading: commitmentsLoading } = useCommitments({
+    company: shouldLoadData && appliedFilters.companyFilter !== 'all' ? appliedFilters.companyFilter : null,
+    startDate: shouldLoadData && dateRange ? dateRange.startDate : null,  // ✅ Corregido: .startDate
+    endDate: shouldLoadData && dateRange ? dateRange.endDate : null,      // ✅ Corregido: .endDate
+    shouldLoadData: shouldLoadData
+  });
   const { companies, loading: companiesLoading } = useCompanies();
   
   const loading = commitmentsLoading || companiesLoading;
@@ -90,11 +107,14 @@ const ReportsSummaryPage = () => {
   };
 
   const clearFilters = () => {
+    // Limpiar filtros en el UI
     setCompanyFilter('all');
     setStatusFilter('all');
     setDateRangeFilter('thisMonth');
     setCustomStartDate(null);
     setCustomEndDate(null);
+    
+    // ✅ Limpiar filtros aplicados y resetear tabla
     setAppliedFilters({ 
       companyFilter: 'all', 
       statusFilter: 'all', 
@@ -102,7 +122,7 @@ const ReportsSummaryPage = () => {
       customStartDate: null,
       customEndDate: null
     });
-    setFiltersApplied(true);
+    setFiltersApplied(false); // ✅ Cambiar a false para mostrar estado vacío
   };
 
   const hasFiltersChanged = () => {
@@ -254,14 +274,8 @@ const ReportsSummaryPage = () => {
   // Calcular top companies desde datos filtrados
   const topCompanies = useMemo(() => {
     if (!filteredCommitments || filteredCommitments.length === 0 || !companies || companies.length === 0) {
-      console.log('⚠️ topCompanies: No hay datos suficientes para calcular estadísticas');
       return [];
     }
-    
-    console.log('🏢 Calculando topCompanies:', {
-      commitments: filteredCommitments.length,
-      companies: companies.length
-    });
     
     const companyStats = companies.map(company => {
       // Intentar diferentes campos de empresa en los compromisos
@@ -885,23 +899,10 @@ const ReportsSummaryPage = () => {
   };
 
   // DEBUG: Información esencial sobre el estado de los datos
-  useEffect(() => {
-    if (!loading) {
-      console.log('� ReportsSummary Status:', { 
-        commitments: commitments?.length || 0, 
-        companies: companies?.length || 0
-      });
-      console.log('🎨 Chart Settings:', settings.dashboard.charts);
-      console.log('🎨 Color Scheme Selected:', settings.dashboard.charts.colorScheme);
-      console.log('📈 Status Chart Type:', settings.dashboard.charts?.statusChart?.type || settings.dashboard.charts?.defaultType || 'pie');
-      console.log('📊 Trend Chart Type:', settings.dashboard.charts?.trendChart?.type || settings.dashboard.charts?.defaultType || 'bar');
-    }
-  }, [commitments, companies, loading, settings]);
+  // Logs removidos para optimización
 
   // Función helper para obtener esquemas de colores mejorados
   const getColorScheme = (schemeName) => {
-    console.log('🎨 Getting color scheme for:', schemeName);
-    
     const schemes = {
       // Esquemas exactos del AdvancedSettingsDrawer.jsx con colores mejorados
       corporate: [
@@ -965,11 +966,7 @@ const ReportsSummaryPage = () => {
       ]
     };
     
-    const selectedColors = schemes[schemeName] || schemes.corporate;
-    console.log('🎨 Selected colors:', selectedColors);
-    console.log('🎨 Available schemes:', Object.keys(schemes));
-    
-    return selectedColors;
+    return schemes[schemeName] || schemes.corporate;
   };
 
   // Función para crear gradientes dinámicos
@@ -1950,6 +1947,43 @@ const ReportsSummaryPage = () => {
           </Button>
         </Box>
       </Paper>
+
+      {/* ✅ ESTADO VACÍO - No hay filtros aplicados */}
+      {!filtersApplied && (
+        <Paper sx={{ 
+          p: 6, 
+          textAlign: 'center',
+          borderRadius: 3,
+          border: `2px dashed ${alpha(theme.palette.primary.main, 0.3)}`,
+          backgroundColor: alpha(theme.palette.primary.main, 0.02)
+        }}>
+          <FilterList sx={{ 
+            fontSize: 80, 
+            color: alpha(theme.palette.primary.main, 0.3),
+            mb: 2
+          }} />
+          <Typography variant="h5" sx={{ fontWeight: 600, mb: 1, color: 'text.primary' }}>
+            Selecciona los filtros para ver el reporte
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+            Configura los filtros de <strong>período</strong> y <strong>empresa</strong>, luego haz clic en "Aplicar Filtros" para cargar el reporte.
+          </Typography>
+          <Box sx={{ 
+            display: 'inline-flex', 
+            gap: 1, 
+            px: 3, 
+            py: 1.5, 
+            borderRadius: 2,
+            backgroundColor: alpha(theme.palette.info.main, 0.1),
+            border: `1px solid ${alpha(theme.palette.info.main, 0.3)}`
+          }}>
+            <Business sx={{ color: theme.palette.info.main }} />
+            <Typography variant="body2" sx={{ color: theme.palette.info.main, fontWeight: 600 }}>
+              Esto optimiza el rendimiento cargando solo los datos que necesitas
+            </Typography>
+          </Box>
+        </Paper>
+      )}
 
       {/* KPI Cards sobrias */}
       {filtersApplied && (

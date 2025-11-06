@@ -20,19 +20,40 @@ export const useCommitments = (filters = {}) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // ✅ Si shouldLoadData es false, no cargar nada (para páginas con filtros obligatorios)
+    if (filters.shouldLoadData === false) {
+      setCommitments([]);
+      setLoading(false);
+      return;
+    }
+
     let q = collection(db, 'commitments');
+    const constraints = [];
     
-    // Aplicar filtros
+    // Aplicar filtros de empresa
     if (filters.company) {
-      q = query(q, where('company', '==', filters.company));
+      constraints.push(where('companyId', '==', filters.company));
     }
     
     if (filters.status) {
-      q = query(q, where('status', '==', filters.status));
+      constraints.push(where('status', '==', filters.status));
     }
 
-    // Ordenar por fecha de vencimiento
-    q = query(q, orderBy('dueDate', 'asc'));
+    // ✅ Aplicar filtros de fecha (startDate y endDate)
+    if (filters.startDate && filters.endDate) {
+      constraints.push(where('dueDate', '>=', filters.startDate));
+      constraints.push(where('dueDate', '<=', filters.endDate));
+    }
+
+    // ✅ Aplicar ordenamiento
+    constraints.push(orderBy('dueDate', 'asc'));
+
+    // Construir query con todos los constraints
+    if (constraints.length > 0) {
+      q = query(q, ...constraints);
+    } else {
+      q = query(q, orderBy('dueDate', 'asc'));
+    }
 
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
@@ -50,7 +71,7 @@ export const useCommitments = (filters = {}) => {
     );
 
     return unsubscribe;
-  }, [filters.company, filters.status]); // Solo dependencias específicas
+  }, [filters.company, filters.status, filters.startDate, filters.endDate, filters.shouldLoadData]);
 
   const addCommitment = async (commitmentData) => {
     try {
