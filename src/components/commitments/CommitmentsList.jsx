@@ -274,6 +274,8 @@ const TimeProgress = () => null;
 const CommitmentsList = ({
   companyFilter,
   statusFilter,
+  conceptFilter,
+  beneficiaryFilter,
   searchTerm,
   dateRangeFilter,
   customStartDate,
@@ -373,6 +375,8 @@ const CommitmentsList = ({
   const debouncedSearchTerm = searchTerm;
   const debouncedCompanyFilter = companyFilter;
   const debouncedStatusFilter = statusFilter;
+  const debouncedConceptFilter = conceptFilter;
+  const debouncedBeneficiaryFilter = beneficiaryFilter;
   const debouncedDateRangeFilter = dateRangeFilter;
   const debouncedCustomStartDate = customStartDate;
   const debouncedCustomEndDate = customEndDate;
@@ -498,6 +502,18 @@ const CommitmentsList = ({
           );
         }
 
+        if (debouncedConceptFilter && debouncedConceptFilter !== 'all') {
+          filteredCommitments = filteredCommitments.filter(commitment =>
+            commitment.concept && commitment.concept.toLowerCase() === debouncedConceptFilter.toLowerCase()
+          );
+        }
+
+        if (debouncedBeneficiaryFilter && debouncedBeneficiaryFilter !== 'all') {
+          filteredCommitments = filteredCommitments.filter(commitment =>
+            commitment.beneficiary && commitment.beneficiary.toLowerCase() === debouncedBeneficiaryFilter.toLowerCase()
+          );
+        }
+
         if (debouncedStatusFilter && debouncedStatusFilter !== 'all') {
           // Usar la nueva lógica de filtrado con estados de pago reales
           filteredCommitments = await filterCommitmentsByStatus(filteredCommitments, debouncedStatusFilter);
@@ -615,6 +631,20 @@ const CommitmentsList = ({
             (commitment.company && commitment.company.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
             (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
             (commitment.invoiceNumber && commitment.invoiceNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
+        );
+      }
+
+      // Filtro por concepto
+      if (debouncedConceptFilter && debouncedConceptFilter !== 'all') {
+        filteredCommitments = filteredCommitments.filter(commitment =>
+          commitment.concept && commitment.concept.toLowerCase() === debouncedConceptFilter.toLowerCase()
+        );
+      }
+
+      // Filtro por beneficiario
+      if (debouncedBeneficiaryFilter && debouncedBeneficiaryFilter !== 'all') {
+        filteredCommitments = filteredCommitments.filter(commitment =>
+          commitment.beneficiary && commitment.beneficiary.toLowerCase() === debouncedBeneficiaryFilter.toLowerCase()
         );
       }
 
@@ -795,6 +825,20 @@ const CommitmentsList = ({
             (commitment.company && commitment.company.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
             (commitment.beneficiary && commitment.beneficiary.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
             (commitment.invoiceNumber && commitment.invoiceNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase()))
+        );
+      }
+
+      // Filtro por concepto
+      if (debouncedConceptFilter && debouncedConceptFilter !== 'all') {
+        filteredCommitments = filteredCommitments.filter(commitment =>
+          commitment.concept && commitment.concept.toLowerCase() === debouncedConceptFilter.toLowerCase()
+        );
+      }
+
+      // Filtro por beneficiario
+      if (debouncedBeneficiaryFilter && debouncedBeneficiaryFilter !== 'all') {
+        filteredCommitments = filteredCommitments.filter(commitment =>
+          commitment.beneficiary && commitment.beneficiary.toLowerCase() === debouncedBeneficiaryFilter.toLowerCase()
         );
       }
 

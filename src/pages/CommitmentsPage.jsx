@@ -12,8 +12,10 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 // Eliminada animación de entrada (se removió framer-motion para el header)
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../config/firebase';
 import CommitmentsFilters from '../components/commitments/CommitmentsFilters';
 import CommitmentsList from '../components/commitments/CommitmentsList';
 import ExtendCommitmentsModal from '../components/commitments/ExtendCommitmentsModal';
@@ -36,6 +38,8 @@ const CommitmentsPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [companyFilter, setCompanyFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [conceptFilter, setConceptFilter] = useState('all');
+  const [beneficiaryFilter, setBeneficiaryFilter] = useState('all');
   const [dateRangeFilter, setDateRangeFilter] = useState('thisMonth');
   const [customStartDate, setCustomStartDate] = useState(null);
   const [customEndDate, setCustomEndDate] = useState(null);
@@ -48,13 +52,49 @@ const CommitmentsPage = () => {
     searchTerm: '',
     companyFilter: 'all',
     statusFilter: 'all',
+    conceptFilter: 'all',
+    beneficiaryFilter: 'all',
     dateRangeFilter: 'thisMonth',
     customStartDate: null,
     customEndDate: null
   });
   const [filtersApplied, setFiltersApplied] = useState(false);
 
-  // 🔍 Efecto para leer parámetros de búsqueda de la URL
+  // Estados para opciones de filtros (cargadas independientemente)
+  const [conceptOptions, setConceptOptions] = useState([]);
+  const [beneficiaryOptions, setBeneficiaryOptions] = useState([]);
+
+  // Cargar opciones de conceptos y beneficiarios al montar
+  useEffect(() => {
+    const loadFilterOptions = async () => {
+      try {
+        const commitmentsSnapshot = await getDocs(collection(db, 'commitments'));
+        const concepts = new Set();
+        const beneficiaries = new Set();
+
+        commitmentsSnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.concept && data.concept.trim() !== '') {
+            concepts.add(data.concept);
+          }
+          if (data.beneficiary && data.beneficiary.trim() !== '') {
+            beneficiaries.add(data.beneficiary);
+          }
+        });
+
+        setConceptOptions([...concepts].sort());
+        setBeneficiaryOptions([...beneficiaries].sort());
+      } catch (error) {
+        console.error('Error loading filter options:', error);
+      }
+    };
+
+    if (currentUser) {
+      loadFilterOptions();
+    }
+  }, [currentUser]);
+
+  // �🔍 Efecto para leer parámetros de búsqueda de la URL
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const searchFromUrl = searchParams.get('search');
@@ -73,6 +113,14 @@ const CommitmentsPage = () => {
 
   const handleStatusChange = (value) => {
     setStatusFilter(value);
+  };
+
+  const handleConceptChange = (value) => {
+    setConceptFilter(value);
+  };
+
+  const handleBeneficiaryChange = (value) => {
+    setBeneficiaryFilter(value);
   };
 
   const handleDateRangeChange = (value) => {
@@ -96,6 +144,8 @@ const CommitmentsPage = () => {
       searchTerm,
       companyFilter,
       statusFilter,
+      conceptFilter,
+      beneficiaryFilter,
       dateRangeFilter,
       customStartDate,
       customEndDate
@@ -108,6 +158,8 @@ const CommitmentsPage = () => {
     setSearchTerm('');
     setCompanyFilter('all');
     setStatusFilter('all');
+    setConceptFilter('all');
+    setBeneficiaryFilter('all');
     setDateRangeFilter('thisMonth');
     setCustomStartDate(null);
     setCustomEndDate(null);
@@ -117,6 +169,8 @@ const CommitmentsPage = () => {
       searchTerm: '',
       companyFilter: 'all',
       statusFilter: 'all',
+      conceptFilter: 'all',
+      beneficiaryFilter: 'all',
       dateRangeFilter: 'thisMonth',
       customStartDate: null,
       customEndDate: null
@@ -132,6 +186,8 @@ const CommitmentsPage = () => {
       appliedFilters.searchTerm !== searchTerm ||
       appliedFilters.companyFilter !== companyFilter ||
       appliedFilters.statusFilter !== statusFilter ||
+      appliedFilters.conceptFilter !== conceptFilter ||
+      appliedFilters.beneficiaryFilter !== beneficiaryFilter ||
       appliedFilters.dateRangeFilter !== dateRangeFilter ||
       appliedFilters.customStartDate !== customStartDate ||
       appliedFilters.customEndDate !== customEndDate
@@ -343,12 +399,18 @@ const CommitmentsPage = () => {
         searchTerm={searchTerm}
         companyFilter={companyFilter}
         statusFilter={statusFilter}
+        conceptFilter={conceptFilter}
+        beneficiaryFilter={beneficiaryFilter}
         dateRangeFilter={dateRangeFilter}
         customStartDate={customStartDate}
         customEndDate={customEndDate}
+        conceptOptions={conceptOptions}
+        beneficiaryOptions={beneficiaryOptions}
         onSearchChange={handleSearchChange}
         onCompanyChange={handleCompanyChange}
         onStatusChange={handleStatusChange}
+        onConceptChange={handleConceptChange}
+        onBeneficiaryChange={handleBeneficiaryChange}
         onDateRangeChange={handleDateRangeChange}
         onCustomDateRangeChange={handleCustomDateRangeChange}
         onApplyFilters={handleApplyFilters}
@@ -359,10 +421,12 @@ const CommitmentsPage = () => {
 
       {/* Lista de compromisos con control condicional */}
       <CommitmentsList
-        key={filtersApplied ? `${appliedFilters.searchTerm}|${appliedFilters.companyFilter}|${appliedFilters.statusFilter}|${appliedFilters.dateRangeFilter}|${appliedFilters.customStartDate?.getTime()}|${appliedFilters.customEndDate?.getTime()}` : 'pending-filters'}
+        key={filtersApplied ? `${appliedFilters.searchTerm}|${appliedFilters.companyFilter}|${appliedFilters.statusFilter}|${appliedFilters.conceptFilter}|${appliedFilters.beneficiaryFilter}|${appliedFilters.dateRangeFilter}|${appliedFilters.customStartDate?.getTime()}|${appliedFilters.customEndDate?.getTime()}` : 'pending-filters'}
         searchTerm={appliedFilters.searchTerm}
         companyFilter={appliedFilters.companyFilter}
         statusFilter={appliedFilters.statusFilter}
+        conceptFilter={appliedFilters.conceptFilter}
+        beneficiaryFilter={appliedFilters.beneficiaryFilter}
         dateRangeFilter={appliedFilters.dateRangeFilter}
         customStartDate={appliedFilters.customStartDate}
         customEndDate={appliedFilters.customEndDate}

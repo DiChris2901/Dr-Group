@@ -2,7 +2,9 @@ import {
   Business,
   CalendarToday,
   Clear,
+  Description,
   FilterList,
+  Person,
   Search,
   Today
 } from '@mui/icons-material';
@@ -36,6 +38,8 @@ const CommitmentsFilters = ({
   onSearchChange, 
   onCompanyChange, 
   onStatusChange,
+  onConceptChange,
+  onBeneficiaryChange,
   onDateRangeChange,
   onCustomDateRangeChange,
   onApplyFilters,
@@ -43,9 +47,13 @@ const CommitmentsFilters = ({
   searchTerm = '',
   companyFilter = 'all',
   statusFilter = 'all',
+  conceptFilter = 'all',
+  beneficiaryFilter = 'all',
   dateRangeFilter = 'all',
   customStartDate = null,
   customEndDate = null,
+  conceptOptions = [],
+  beneficiaryOptions = [],
   hasFiltersChanged = false,
   filtersApplied = false
 }) => {
@@ -105,6 +113,16 @@ const CommitmentsFilters = ({
     onStatusChange(value);
   };
 
+  const handleConceptAutoChange = (event, value) => {
+    const selectedValue = value || 'all';
+    onConceptChange(selectedValue);
+  };
+
+  const handleBeneficiaryAutoChange = (event, value) => {
+    const selectedValue = value || 'all';
+    onBeneficiaryChange(selectedValue);
+  };
+
   const handleDateRangeChange = (value) => {
     onDateRangeChange(value);
   };
@@ -127,6 +145,8 @@ const CommitmentsFilters = ({
     onSearchChange('');
     onCompanyChange('all');
     onStatusChange('all');
+    onConceptChange('all');
+    onBeneficiaryChange('all');
     onDateRangeChange('all');
     onCustomDateRangeChange(null, null);
     
@@ -147,7 +167,7 @@ const CommitmentsFilters = ({
     { value: 'paid', label: 'Pagados', color: 'success', icon: '✅' }
   ];
 
-  const hasActiveFilters = searchTerm || companyFilter !== 'all' || statusFilter !== 'all' || dateRangeFilter !== 'all';
+  const hasActiveFilters = searchTerm || companyFilter !== 'all' || statusFilter !== 'all' || conceptFilter !== 'all' || beneficiaryFilter !== 'all' || dateRangeFilter !== 'all';
 
   return (
     <motion.div
@@ -205,7 +225,7 @@ const CommitmentsFilters = ({
 
           <Grid container spacing={3}>
             {/* Campo de búsqueda */}
-            <Grid item xs={12} lg={2.4} md={4} sm={6}>
+            <Grid item xs={12} lg={2} md={4} sm={6}>
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -257,7 +277,7 @@ const CommitmentsFilters = ({
             </Grid>
 
             {/* Filtro por empresa con Autocomplete */}
-            <Grid item xs={12} lg={2.4} md={4} sm={6}>
+            <Grid item xs={12} lg={2} md={4} sm={6}>
               <motion.div
                 initial={{ opacity: 0, x: 0 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -354,7 +374,7 @@ const CommitmentsFilters = ({
             </Grid>
 
             {/* Filtro por estado (Autocomplete) */}
-            <Grid item xs={12} lg={2.4} md={4} sm={6}>
+            <Grid item xs={12} lg={2} md={4} sm={6}>
               <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}>
                 <Autocomplete
                   disablePortal
@@ -395,8 +415,92 @@ const CommitmentsFilters = ({
               </motion.div>
             </Grid>
 
+            {/* Filtro por concepto (Autocomplete) */}
+            <Grid item xs={12} lg={2} md={4} sm={6}>
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.55 }}>
+                <Autocomplete
+                  disablePortal
+                  options={['all', ...conceptOptions]}
+                  value={conceptFilter}
+                  onChange={handleConceptAutoChange}
+                  getOptionLabel={(option) => option === 'all' ? 'Todos los conceptos' : option}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Concepto"
+                      onKeyDown={handleKeyDownApply}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1,
+                          backgroundColor: theme.palette.background.paper,
+                          transition: 'all 0.3s ease',
+                          '&:hover': {
+                            transform: 'translateY(-1px)',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                          },
+                          '&.Mui-focused': {
+                            boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
+                          }
+                        }
+                      }}
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <Description color="primary" />
+                          </InputAdornment>
+                        )
+                      }}
+                    />
+                  )}
+                />
+              </motion.div>
+            </Grid>
+
+            {/* Filtro por beneficiario (Autocomplete) */}
+            <Grid item xs={12} lg={2} md={4} sm={6}>
+              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6 }}>
+                <Autocomplete
+                  disablePortal
+                  options={['all', ...beneficiaryOptions]}
+                  value={beneficiaryFilter}
+                  onChange={handleBeneficiaryAutoChange}
+                  getOptionLabel={(option) => option === 'all' ? 'Todos los beneficiarios' : option}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Beneficiario"
+                      onKeyDown={handleKeyDownApply}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          borderRadius: 1,
+                          backgroundColor: theme.palette.background.paper,
+                          transition: 'all 0.3s ease',
+                          '&:hover': {
+                            transform: 'translateY(-1px)',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                          },
+                          '&.Mui-focused': {
+                            boxShadow: `0 0 0 2px ${theme.palette.primary.main}40`
+                          }
+                        }
+                      }}
+                      InputProps={{
+                        ...params.InputProps,
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <Person color="primary" />
+                          </InputAdornment>
+                        )
+                      }}
+                    />
+                  )}
+                />
+              </motion.div>
+            </Grid>
+
             {/* Filtro por fechas */}
-            <Grid item xs={12} lg={2.4} md={6} sm={6}>
+            <Grid item xs={12} lg={2} md={6} sm={6}>
               <DateRangeFilter
                 value={dateRangeFilter}
                 customStartDate={customStartDate}
@@ -446,6 +550,26 @@ const CommitmentsFilters = ({
                       color="warning"
                       variant="outlined"
                       onDelete={() => onStatusChange('all')}
+                      sx={{ borderRadius: 2 }}
+                    />
+                  )}
+                  {conceptFilter !== 'all' && (
+                    <Chip
+                      label={`Concepto: ${conceptFilter}`}
+                      size="small"
+                      color="success"
+                      variant="outlined"
+                      onDelete={() => onConceptChange('all')}
+                      sx={{ borderRadius: 2 }}
+                    />
+                  )}
+                  {beneficiaryFilter !== 'all' && (
+                    <Chip
+                      label={`Beneficiario: ${beneficiaryFilter}`}
+                      size="small"
+                      color="error"
+                      variant="outlined"
+                      onDelete={() => onBeneficiaryChange('all')}
                       sx={{ borderRadius: 2 }}
                     />
                   )}
