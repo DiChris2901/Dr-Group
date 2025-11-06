@@ -1394,7 +1394,22 @@ const CommitmentsList = ({
   const confirmDelete = async () => {
     if (!commitmentToDelete) return;
 
+    // ✅ VALIDACIÓN CRÍTICA: Verificar que el compromiso tenga ID
+    if (!commitmentToDelete.id) {
+      console.error('❌ ERROR CRÍTICO: Compromiso sin ID', commitmentToDelete);
+      addNotification({
+        type: 'error',
+        title: '❌ Error al eliminar',
+        message: 'El compromiso no tiene un ID válido. No se puede eliminar.',
+        icon: '⚠️'
+      });
+      setDeleteDialogOpen(false);
+      setCommitmentToDelete(null);
+      return;
+    }
+
     console.group(`🗑️ ELIMINANDO COMPROMISO: ${commitmentToDelete.concept || commitmentToDelete.description || commitmentToDelete.id}`);
+    console.log('🔑 ID del compromiso:', commitmentToDelete.id);
     
     try {
       // 1. Análisis previo de archivos

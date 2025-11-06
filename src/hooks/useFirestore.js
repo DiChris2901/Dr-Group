@@ -57,11 +57,34 @@ export const useCommitments = (filters = {}) => {
 
     const unsubscribe = onSnapshot(q, 
       (snapshot) => {
-        const commitmentsData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setCommitments(commitmentsData);
+        const commitmentsData = snapshot.docs.map(doc => {
+          const data = doc.data();
+          const commitment = {
+            id: doc.id,
+            ...data
+          };
+          
+          // ✅ VALIDACIÓN: Verificar que el ID se haya extraído correctamente
+          if (!commitment.id) {
+            console.error('❌ COMPROMISO SIN ID DETECTADO:', {
+              docId: doc.id,
+              docExists: doc.exists,
+              data: data
+            });
+          }
+          
+          return commitment;
+        });
+        
+        // ✅ Filtrar compromisos sin ID (por si acaso)
+        const validCommitments = commitmentsData.filter(c => c.id);
+        const invalidCount = commitmentsData.length - validCommitments.length;
+        
+        if (invalidCount > 0) {
+          console.warn(`⚠️ Se encontraron ${invalidCount} compromisos sin ID válido`);
+        }
+        
+        setCommitments(validCommitments);
         setLoading(false);
       },
       (err) => {

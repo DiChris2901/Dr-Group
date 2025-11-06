@@ -222,6 +222,19 @@ export const saveRecurringCommitments = async (commitments) => {
     
     console.log(`✅ ${savedIds.length} compromisos recurrentes guardados exitosamente`);
 
+    // ✅ VALIDACIÓN FINAL: Verificar que todos los IDs se generaron correctamente
+    const invalidIds = savedIds.filter(id => !id || id === undefined || id === null);
+    if (invalidIds.length > 0) {
+      console.error('❌ ERROR CRÍTICO: Se detectaron IDs inválidos', {
+        total: savedIds.length,
+        invalid: invalidIds.length,
+        ids: savedIds
+      });
+      throw new Error(`${invalidIds.length} compromisos se guardaron sin ID válido`);
+    }
+
+    console.log('🔑 Todos los IDs validados correctamente:', savedIds);
+
     return {
       success: true,
       count: savedIds.length,
