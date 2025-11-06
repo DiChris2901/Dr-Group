@@ -111,6 +111,14 @@ const defaultSettings = {
     dailyDigest: false, // Resumen diario
     instantAlerts: true, // Alertas instantáneas
     batchNotifications: false, // Agrupar notificaciones
+    
+    // 💬 Configuraciones de Chat
+    chat: {
+      enabled: true, // Habilitar notificaciones de chat
+      sound: true, // Sonido al recibir mensajes
+      toast: true, // Mostrar notificación toast
+      vibrate: false, // Vibración en dispositivos móviles
+    }
   },
 
   // 🎨 Temas Predefinidos - Configuraciones completas aplicables con un clic

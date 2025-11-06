@@ -2,18 +2,30 @@ import { useEffect, useRef } from 'react';
 import { useChat } from '../context/ChatContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { useAuth } from '../context/AuthContext';
+import { useSettings } from '../context/SettingsContext';
 
 /**
  * Hook para notificar mensajes nuevos cuando el chat está cerrado
  * Implementa notificaciones toast y sonido opcional
  * Persiste mensajes notificados en localStorage para evitar duplicados
+ * Respeta configuraciones del usuario (sonido, toast, vibración)
  */
 export const useChatNotifications = (isDrawerOpen) => {
-  const { conversations } = useChat();
-  const { addNotification } = useNotifications();
-  const { currentUser } = useAuth();
+  // ✅ TODOS LOS HOOKS EN ORDEN FIJO - NUNCA CONDICIONALES
+  const chat = useChat();
+  const notifications = useNotifications();
+  const auth = useAuth();
+  const settingsContext = useSettings();
+  
+  // ✅ useRef SIEMPRE después de todos los useContext
   const previousMessagesRef = useRef({});
   const isInitializedRef = useRef(false);
+
+  // Extraer valores con fallbacks seguros
+  const conversations = chat?.conversations || [];
+  const addNotification = notifications?.addNotification;
+  const currentUser = auth?.currentUser;
+  const settings = settingsContext?.settings;
 
   // Cargar mensajes ya notificados desde localStorage al inicializar
   useEffect(() => {
@@ -52,6 +64,14 @@ export const useChatNotifications = (isDrawerOpen) => {
     // Solo notificar si el drawer está cerrado, el usuario está autenticado y ya se inicializó
     if (isDrawerOpen || !currentUser?.uid || !isInitializedRef.current) return;
 
+    // Verificar si las notificaciones de chat están habilitadas
+    const chatNotificationsEnabled = settings?.notifications?.chat?.enabled !== false;
+    const chatSoundEnabled = settings?.notifications?.chat?.sound !== false;
+    const chatToastEnabled = settings?.notifications?.chat?.toast !== false;
+    const chatVibrateEnabled = settings?.notifications?.chat?.vibrate === true;
+
+    if (!chatNotificationsEnabled) return;
+
     let hasNewNotifications = false;
 
     conversations.forEach(conversation => {
@@ -78,36 +98,59 @@ export const useChatNotifications = (isDrawerOpen) => {
 
           console.log(`🔔 Nueva notificación de chat: ${senderName}`);
 
-          // 🎯 Mostrar notificación toast
-          addNotification({
-            title: `💬 ${senderName}`,
-            message: `${lastMessage.text?.substring(0, 50)}${lastMessage.text?.length > 50 ? '...' : ''}`,
-            type: 'info',
-            source: 'chat', // Identificar que viene del chat
-            conversationId: conversation.id
-          });
+          // 🎯 Mostrar notificación toast (si está habilitada)
+          if (chatToastEnabled) {
+            addNotification({
+              title: `💬 ${senderName}`,
+              message: `${lastMessage.text?.substring(0, 50)}${lastMessage.text?.length > 50 ? '...' : ''}`,
+              type: 'info',
+              source: 'chat', // Identificar que viene del chat
+              conversationId: conversation.id
+            });
+          }
 
-          // 🔊 Reproducir sonido (opcional - solo si hay permisos)
-          try {
-            // Crear un tono simple con Web Audio API (más compatible que archivos de audio)
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
+          // 🔊 Reproducir sonido mejorado (solo si está habilitado)
+          if (chatSoundEnabled) {
+            try {
+              // Crear un tono de notificación más agradable con dos notas
+              const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+              
+              // Primera nota (más alta)
+              const oscillator1 = audioContext.createOscillator();
+              const gainNode1 = audioContext.createGain();
+              oscillator1.connect(gainNode1);
+              gainNode1.connect(audioContext.destination);
+              oscillator1.frequency.value = 1000; // Do alto
+              oscillator1.type = 'sine';
+              gainNode1.gain.setValueAtTime(0.2, audioContext.currentTime);
+              gainNode1.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+              oscillator1.start(audioContext.currentTime);
+              oscillator1.stop(audioContext.currentTime + 0.15);
 
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
+              // Segunda nota (más baja) - con pequeño delay
+              const oscillator2 = audioContext.createOscillator();
+              const gainNode2 = audioContext.createGain();
+              oscillator2.connect(gainNode2);
+              gainNode2.connect(audioContext.destination);
+              oscillator2.frequency.value = 800; // Sol
+              oscillator2.type = 'sine';
+              gainNode2.gain.setValueAtTime(0.2, audioContext.currentTime + 0.1);
+              gainNode2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+              oscillator2.start(audioContext.currentTime + 0.1);
+              oscillator2.stop(audioContext.currentTime + 0.3);
+            } catch (err) {
+              // Si falla el audio, no importa - la notificación toast sigue funcionando
+              console.debug('Audio notification not available');
+            }
+          }
 
-            oscillator.frequency.value = 800; // Frecuencia del tono
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
-
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.2);
-          } catch (err) {
-            // Si falla el audio, no importa - la notificación toast sigue funcionando
-            console.debug('Audio notification not available');
+          // 📳 Vibrar (solo en dispositivos móviles y si está habilitado)
+          if (chatVibrateEnabled && 'vibrate' in navigator) {
+            try {
+              navigator.vibrate([200, 100, 200]); // Patrón de vibración: vibrar-pausar-vibrar
+            } catch (err) {
+              console.debug('Vibration not available');
+            }
           }
         }
       }
@@ -128,5 +171,5 @@ export const useChatNotifications = (isDrawerOpen) => {
       });
       saveNotifiedMessages();
     }
-  }, [conversations, isDrawerOpen, currentUser?.uid, addNotification]);
+  }, [conversations, isDrawerOpen, currentUser?.uid, addNotification, settings]);
 };

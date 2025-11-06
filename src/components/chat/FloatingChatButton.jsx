@@ -13,17 +13,18 @@ import ChatDrawer from './ChatDrawer';
  * Usa colores dinámicos del tema (primary + secondary)
  */
 const FloatingChatButton = () => {
+  // ✅ TODOS LOS HOOKS AL INICIO - EN ORDEN FIJO
   const theme = useTheme();
   const { unreadCount } = useChat();
   const { settings } = useSettings();
   
-  // 💾 A. Persistencia del estado - Recuperar preferencia del localStorage
+  // 💾 Estado - Recuperar preferencia del localStorage
   const [drawerOpen, setDrawerOpen] = useState(() => {
     const saved = localStorage.getItem('drgroup_chatDrawerOpen');
     return saved === 'true';
   });
 
-  // 🔔 B. Notificaciones de mensajes nuevos cuando drawer está cerrado
+  // 🔔 Notificaciones de mensajes nuevos cuando drawer está cerrado
   useChatNotifications(drawerOpen);
 
   // 🎨 Gradiente dinámico con colores del tema
@@ -62,10 +63,23 @@ const FloatingChatButton = () => {
               background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
               color: 'white',
               boxShadow: `0 8px 25px ${primaryColor}40`,
+              // 🔔 Animación de pulso cuando hay mensajes no leídos
+              animation: unreadCount > 0 ? 'chatPulse 2s ease-in-out infinite' : 'none',
+              '@keyframes chatPulse': {
+                '0%, 100%': {
+                  boxShadow: `0 8px 25px ${primaryColor}40`,
+                  transform: 'scale(1)'
+                },
+                '50%': {
+                  boxShadow: `0 0 30px ${theme.palette.error.main}80, 0 8px 35px ${primaryColor}60`,
+                  transform: 'scale(1.05)'
+                }
+              },
               '&:hover': {
                 background: `linear-gradient(135deg, ${secondaryColor} 0%, ${primaryColor} 100%)`,
                 transform: 'scale(1.1)',
-                boxShadow: `0 12px 35px ${primaryColor}66`
+                boxShadow: `0 12px 35px ${primaryColor}66`,
+                animation: 'none' // Detener animación al hacer hover
               },
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' // Transición suave al cambiar posición
             }}
@@ -83,7 +97,13 @@ const FloatingChatButton = () => {
                   height: 20,
                   borderRadius: '10px',
                   border: '2px solid',
-                  borderColor: 'background.paper'
+                  borderColor: 'background.paper',
+                  // 🔔 Animación adicional en el badge
+                  animation: unreadCount > 0 ? 'badgeBounce 0.5s ease-in-out' : 'none',
+                  '@keyframes badgeBounce': {
+                    '0%, 100%': { transform: 'scale(1)' },
+                    '50%': { transform: 'scale(1.2)' }
+                  }
                 }
               }}
             >

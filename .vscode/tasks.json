@@ -148,6 +148,18 @@
 			"type": "shell",
 			"command": "npm run build",
 			"group": "build"
+		},
+		{
+			"label": "build",
+			"type": "shell",
+			"command": "npm run build",
+			"group": "build"
+		},
+		{
+			"label": "build",
+			"type": "shell",
+			"command": "npm run build",
+			"group": "build"
 		}
 	]
 }
