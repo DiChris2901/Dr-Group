@@ -124,6 +124,30 @@
 			"command": "npm run dev",
 			"isBackground": true,
 			"group": "build"
+		},
+		{
+			"label": "lint",
+			"type": "shell",
+			"command": "npm run lint",
+			"group": "test"
+		},
+		{
+			"label": "build",
+			"type": "shell",
+			"command": "npm run build",
+			"group": "build"
+		},
+		{
+			"label": "build",
+			"type": "shell",
+			"command": "npm run build",
+			"group": "build"
+		},
+		{
+			"label": "build",
+			"type": "shell",
+			"command": "npm run build",
+			"group": "build"
 		}
 	]
 }

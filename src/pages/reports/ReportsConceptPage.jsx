@@ -447,22 +447,26 @@ const ReportsConceptPage = () => {
       workbook.properties.title = "DR Group - Análisis por Concepto";
       workbook.properties.subject = "Reporte Detallado de Compromisos por Concepto";
 
-      // 🎨 PALETA DE COLORES CORPORATIVA PREMIUM (Siguiendo design system)
+      // 🎨 BRAND_COLORS - FORMATO PYTHON PROFESIONAL (OBLIGATORIO)
       const BRAND_COLORS = {
-        primary: '0D47A1',      // Azul corporativo profundo
-        primaryLight: '1976D2', // Azul corporativo claro
-        headerBg: '0D47A1',     // Azul profundo para headers
-        subHeaderBg: 'E3F2FD',  // Azul muy claro para sub-headers
-        success: '2E7D32',      // Verde corporativo
-        warning: 'E65100',      // Naranja ejecutivo
-        error: 'C62828',        // Rojo corporativo
-        white: 'FFFFFF',        // Blanco puro
-        tableStripe: 'F8F9FA',  // Gris para filas alternas
-        gold: 'FFD700'          // Dorado para elementos premium
+        titleBg: '0B3040',        // Azul oscuro corporativo
+        subtitleBg: '1A5F7A',     // Azul medio
+        metricsBg: '334155',      // Gris azulado
+        dateBg: '475569',         // Gris oscuro
+        headerBg: '0B3040',       // Headers de columnas
+        white: 'FFFFFF',          // Texto sobre fondos oscuros
+        textDark: '223344',       // Texto de contenido
+        borderLight: 'E2E8F0',    // Bordes sutiles
+        borderMedium: 'C0CCDA',   // Bordes medios
+        borderDark: '94A3B8'      // Bordes acentuados
       };
+
+  const totalColumns = 7; // Se elimina la columna de Ícono para cumplir diseño y evitar caracteres especiales
+      const lastColLetter = String.fromCharCode(64 + totalColumns); // -> 'G'
 
       // 📋 HOJA 1: RESUMEN POR CONCEPTOS
       const summarySheet = workbook.addWorksheet('Resumen por Conceptos', {
+        views: [{ state: 'frozen', ySplit: 7 }], // ✅ FREEZE PANES en fila 7
         pageSetup: { 
           paperSize: 9, // A4
           orientation: 'landscape',
@@ -471,95 +475,153 @@ const ReportsConceptPage = () => {
         }
       });
       
-      // Header principal según design system
-      summarySheet.mergeCells('A1:H1');
-      const titleCell = summarySheet.getCell('A1');
-      titleCell.value = '🏢 DR GROUP - ANÁLISIS POR CONCEPTO';
-      titleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
-      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.headerBg}` } };
-      titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-      titleCell.border = {
-        top: { style: 'thick', color: { argb: `FF${BRAND_COLORS.gold}` } },
-        bottom: { style: 'thick', color: { argb: `FF${BRAND_COLORS.gold}` } },
-        left: { style: 'thick', color: { argb: `FF${BRAND_COLORS.gold}` } },
-        right: { style: 'thick', color: { argb: `FF${BRAND_COLORS.gold}` } }
-      };
-      summarySheet.getRow(1).height = 35;
+      // ========== ESTRUCTURA DE 7 FILAS OBLIGATORIA - FORMATO PYTHON ==========
+      
+  // FILA 1: Título principal
+  summarySheet.mergeCells(`A1:${lastColLetter}1`);
+      const titleCell = summarySheet.getCell(1, 1);
+      titleCell.value = 'DR GROUP';
+      titleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.titleBg}` } };
+  titleCell.alignment = { horizontal: 'centerContinuous', vertical: 'middle', wrapText: false };
+      summarySheet.getRow(1).height = 30;
 
-      // Información del reporte (Header secundario)
-      summarySheet.mergeCells('A2:H2');
-      const infoCell = summarySheet.getCell('A2');
-      infoCell.value = `📅 Generado: ${new Date().toLocaleDateString('es-ES')} | 🏷️ Categoría: ${selectedCategory} | ⏰ Período: ${dateRangeFilter}`;
-      infoCell.font = { name: 'Arial', size: 12, bold: true, color: { argb: `FF${BRAND_COLORS.primary}` } };
-      infoCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.subHeaderBg}` } };
-      infoCell.alignment = { horizontal: 'center', vertical: 'middle' };
-      summarySheet.getRow(2).height = 25;
+  // FILA 2: Subtítulo descriptivo
+  summarySheet.mergeCells(`A2:${lastColLetter}2`);
+      const subtitleCell = summarySheet.getCell(2, 1);
+      subtitleCell.value = 'Análisis por Concepto';
+      subtitleCell.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      subtitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.subtitleBg}` } };
+  subtitleCell.alignment = { horizontal: 'centerContinuous', vertical: 'middle', wrapText: false };
+      summarySheet.getRow(2).height = 22;
 
-      // Headers de la tabla (SIN columna descripción)
-      const headers = ['CONCEPTO', 'MONTO TOTAL', 'COMPROMISOS', 'COMPLETADOS', 'PENDIENTES', 'VENCIDOS', 'PROMEDIO', 'ICONO'];
+  // FILA 3: Métricas consolidadas
+  summarySheet.mergeCells(`A3:${lastColLetter}3`);
+      const metricsCell = summarySheet.getCell(3, 1);
+      const totalConceptos = filteredConcepts.length;
+      const totalMonto = filteredConcepts.reduce((sum, c) => sum + c.totalAmount, 0);
+      const totalCompromisos = filteredConcepts.reduce((sum, c) => sum + c.commitments, 0);
+      metricsCell.value = `Conceptos: ${totalConceptos} | Compromisos: ${totalCompromisos} | Total: ${formatCurrency(totalMonto)}`;
+      metricsCell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      metricsCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.metricsBg}` } };
+  metricsCell.alignment = { horizontal: 'centerContinuous', vertical: 'middle', wrapText: false };
+      summarySheet.getRow(3).height = 22;
+
+  // FILA 4: Fecha de generación
+  summarySheet.mergeCells(`A4:${lastColLetter}4`);
+      const dateCell = summarySheet.getCell(4, 1);
+      dateCell.value = `Generado: ${new Date().toLocaleString('es-CO', { 
+        year: 'numeric', month: '2-digit', day: '2-digit', 
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      })}`;
+      dateCell.font = { name: 'Segoe UI', size: 10, bold: false, color: { argb: `FF${BRAND_COLORS.white}` } };
+      dateCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.dateBg}` } };
+  dateCell.alignment = { horizontal: 'centerContinuous', vertical: 'middle', wrapText: false };
+      summarySheet.getRow(4).height = 18;
+
+      // FILA 5: Espaciador pequeño
+      summarySheet.getRow(5).height = 5;
+
+      // FILA 6: Espaciador mediano
+      summarySheet.getRow(6).height = 8;
+
+      // FILA 7: Headers de columnas
+  const headers = ['CONCEPTO', 'MONTO TOTAL', 'COMPROMISOS', 'COMPLETADOS', 'PENDIENTES', 'VENCIDOS', 'PROMEDIO'];
+      const headerRow = summarySheet.getRow(7);
       headers.forEach((header, index) => {
-        const cell = summarySheet.getCell(4, index + 1);
+        const cell = headerRow.getCell(index + 1);
         cell.value = header;
-        cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.primaryLight}` } };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.headerBg}` } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
         cell.border = {
-          top: { style: 'medium', color: { argb: 'FF000000' } },
-          left: { style: 'medium', color: { argb: 'FF000000' } },
-          bottom: { style: 'medium', color: { argb: 'FF000000' } },
-          right: { style: 'medium', color: { argb: 'FF000000' } }
+          top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          bottom: { style: 'thin', color: { argb: 'FF666666' } },
+          right: { style: 'thin', color: { argb: 'FFCCCCCC' } }
         };
       });
-      summarySheet.getRow(4).height = 25;
+  headerRow.height = 28;
+  // Asegurar alineación centrada en filas combinadas
+  // Reafirmar centrado continuo sobre la fila completa (en celdas combinadas)
+  summarySheet.getRow(1).alignment = { horizontal: 'centerContinuous', vertical: 'middle' };
+  summarySheet.getRow(2).alignment = { horizontal: 'centerContinuous', vertical: 'middle' };
+  summarySheet.getRow(3).alignment = { horizontal: 'centerContinuous', vertical: 'middle' };
+  summarySheet.getRow(4).alignment = { horizontal: 'centerContinuous', vertical: 'middle' };
 
-      // Datos de conceptos (SIN columna descripción)
+      // FILA 8+: Datos de conceptos
       filteredConcepts.forEach((concept, index) => {
-        const row = index + 5;
-        summarySheet.getCell(row, 1).value = concept.name;
-        summarySheet.getCell(row, 2).value = concept.totalAmount;
-        summarySheet.getCell(row, 3).value = concept.commitments;
-        summarySheet.getCell(row, 4).value = concept.completed;
-        summarySheet.getCell(row, 5).value = concept.pending;
-        summarySheet.getCell(row, 6).value = concept.overdue;
-        summarySheet.getCell(row, 7).value = concept.avgAmount;
-        summarySheet.getCell(row, 8).value = concept.icon;
-
-        // Formatear montos como moneda (diseño system)
-        summarySheet.getCell(row, 2).numFmt = '"$"#,##0.00';
-        summarySheet.getCell(row, 7).numFmt = '"$"#,##0.00';
-
-        // Aplicar estilos según design system
-        const fillColor = index % 2 === 0 ? BRAND_COLORS.tableStripe : BRAND_COLORS.white;
-        for (let col = 1; col <= 8; col++) {
-          const cell = summarySheet.getCell(row, col);
-          cell.font = { name: 'Arial', size: 9, color: { argb: 'FF424242' } };
-          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${fillColor}` } };
+        const row = summarySheet.getRow(8 + index);
+        
+        const rowData = [
+          concept.name,
+          concept.totalAmount,
+          concept.commitments,
+          concept.completed,
+          concept.pending,
+          concept.overdue,
+          concept.avgAmount
+        ];
+        
+        rowData.forEach((value, colIndex) => {
+          const cell = row.getCell(colIndex + 1);
+          cell.value = value;
+          cell.font = { name: 'Segoe UI', size: 9, color: { argb: `FF${BRAND_COLORS.textDark}` } };
+          
+          // Alineación según tipo de dato
+          if (colIndex === 0) { // Concepto
+            cell.alignment = { horizontal: 'left', vertical: 'middle' };
+          } else if (colIndex === 1 || colIndex === 6) { // Montos (total y promedio)
+            cell.alignment = { horizontal: 'right', vertical: 'middle' };
+            cell.numFmt = '$#,##0';
+          } else { // Contadores
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            cell.numFmt = '#,##0';
+          }
+          
           cell.border = {
-            top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-            right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+            top: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderLight}` } },
+            bottom: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderMedium}` } },
+            left: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderLight}` } },
+            right: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderLight}` } }
           };
-          cell.alignment = { 
-            horizontal: col === 1 ? 'left' : col === 8 ? 'center' : 'right',
-            vertical: 'middle' 
-          };
-        }
-        summarySheet.getRow(row).height = 18;
+        });
+        row.height = 18;
       });
 
-      // Ajustar ancho de columnas según design system
-      summarySheet.getColumn(1).width = 25; // Concepto
-      summarySheet.getColumn(2).width = 15; // Monto Total  
-      summarySheet.getColumn(3).width = 12; // Compromisos
-      summarySheet.getColumn(4).width = 12; // Completados
-      summarySheet.getColumn(5).width = 12; // Pendientes
-      summarySheet.getColumn(6).width = 12; // Vencidos
-      summarySheet.getColumn(7).width = 15; // Promedio
-      summarySheet.getColumn(8).width = 8;  // Icono
+      // Fila de totales
+  const totalRow = summarySheet.getRow(8 + filteredConcepts.length);
+      totalRow.getCell(1).value = 'TOTAL GENERAL';
+      totalRow.getCell(1).font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      totalRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.headerBg}` } };
+      totalRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+      
+      totalRow.getCell(2).value = totalMonto;
+      totalRow.getCell(2).font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      totalRow.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.headerBg}` } };
+      totalRow.getCell(2).numFmt = '$#,##0';
+      totalRow.getCell(2).alignment = { horizontal: 'right', vertical: 'middle' };
+      
+      totalRow.getCell(3).value = totalCompromisos;
+      totalRow.getCell(3).font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      totalRow.getCell(3).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.headerBg}` } };
+      totalRow.getCell(3).numFmt = '#,##0';
+  totalRow.getCell(3).alignment = { horizontal: 'center', vertical: 'middle' };
+      totalRow.height = 22;
 
-      // 📋 HOJA 2: DETALLE DE COMPROMISOS CON ESTADOS CORRECTOS
+  // Ajustar ancho de columnas según design system
+  summarySheet.getColumn(1).width = 25; // Concepto
+  summarySheet.getColumn(2).width = 15; // Monto Total  
+  summarySheet.getColumn(3).width = 12; // Compromisos
+  summarySheet.getColumn(4).width = 12; // Completados
+  summarySheet.getColumn(5).width = 12; // Pendientes
+  summarySheet.getColumn(6).width = 12; // Vencidos
+  summarySheet.getColumn(7).width = 15; // Promedio
+
+      // 📋 HOJA 2: DETALLE DE COMPROMISOS
+      const detailColumns = 7;
       const detailSheet = workbook.addWorksheet('Detalle de Compromisos', {
+        views: [{ state: 'frozen', ySplit: 7 }], // ✅ FREEZE PANES en fila 7
         pageSetup: { 
           paperSize: 9,
           orientation: 'landscape',
@@ -567,40 +629,73 @@ const ReportsConceptPage = () => {
         }
       });
       
-      // Header de detalle según design system
+      // ========== ESTRUCTURA DE 7 FILAS OBLIGATORIA - FORMATO PYTHON ==========
+      
+      // FILA 1: Título principal
       detailSheet.mergeCells('A1:G1');
-      const detailTitleCell = detailSheet.getCell('A1');
-      detailTitleCell.value = '📊 DETALLE DE COMPROMISOS POR CONCEPTO';
-      detailTitleCell.font = { name: 'Arial', size: 16, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
-      detailTitleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.success}` } };
-      detailTitleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-      detailTitleCell.border = {
-        top: { style: 'thick', color: { argb: `FF${BRAND_COLORS.gold}` } },
-        bottom: { style: 'thick', color: { argb: `FF${BRAND_COLORS.gold}` } },
-        left: { style: 'thick', color: { argb: `FF${BRAND_COLORS.gold}` } },
-        right: { style: 'thick', color: { argb: `FF${BRAND_COLORS.gold}` } }
-      };
-      detailSheet.getRow(1).height = 35;
+      const detailTitle = detailSheet.getCell('A1');
+      detailTitle.value = 'DR GROUP';
+      detailTitle.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      detailTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.titleBg}` } };
+      detailTitle.alignment = { horizontal: 'center', vertical: 'middle' };
+      detailSheet.getRow(1).height = 30;
 
-      // Headers del detalle (SIN descripción del concepto, enfocado en compromiso)
-      const detailHeaders = ['CONCEPTO', 'MONTO', 'EMPRESA', 'ESTADO', 'FECHA CREACIÓN', 'FECHA VENCIMIENTO', 'BENEFICIARIO'];
+      // FILA 2: Subtítulo descriptivo
+      detailSheet.mergeCells('A2:G2');
+      const detailSubtitle = detailSheet.getCell('A2');
+      detailSubtitle.value = 'Detalle Completo de Compromisos';
+      detailSubtitle.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      detailSubtitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.subtitleBg}` } };
+      detailSubtitle.alignment = { horizontal: 'center', vertical: 'middle', wrapText: false };
+      detailSheet.getRow(2).height = 22;
+
+      // FILA 3: Métricas consolidadas
+      detailSheet.mergeCells('A3:G3');
+      const detailMetrics = detailSheet.getCell('A3');
+      detailMetrics.value = `Compromisos: ${totalCompromisos} | Monto: ${formatCurrency(totalMonto)}`;
+      detailMetrics.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+      detailMetrics.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.metricsBg}` } };
+      detailMetrics.alignment = { horizontal: 'center', vertical: 'middle', wrapText: false };
+      detailSheet.getRow(3).height = 22;
+
+      // FILA 4: Fecha de generación
+      detailSheet.mergeCells('A4:G4');
+      const detailDate = detailSheet.getCell('A4');
+      detailDate.value = `Generado: ${new Date().toLocaleString('es-CO', { 
+        year: 'numeric', month: '2-digit', day: '2-digit', 
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      })}`;
+      detailDate.font = { name: 'Segoe UI', size: 10, bold: false, color: { argb: `FF${BRAND_COLORS.white}` } };
+      detailDate.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.dateBg}` } };
+      detailDate.alignment = { horizontal: 'center', vertical: 'middle' };
+      detailSheet.getRow(4).height = 18;
+
+      // FILA 5: Espaciador pequeño
+      detailSheet.getRow(5).height = 5;
+
+      // FILA 6: Espaciador mediano
+      detailSheet.getRow(6).height = 8;
+
+      // FILA 7: Headers de columnas
+      const detailHeaders = ['CONCEPTO', 'MONTO', 'EMPRESA', 'ESTADO', 'F. CREACIÓN', 'F. VENCIMIENTO', 'BENEFICIARIO'];
+      const detailHeaderRow = detailSheet.getRow(7);
       detailHeaders.forEach((header, index) => {
-        const cell = detailSheet.getCell(3, index + 1);
+        const cell = detailHeaderRow.getCell(index + 1);
         cell.value = header;
-        cell.font = { name: 'Arial', size: 11, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.success}` } };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        cell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: `FF${BRAND_COLORS.white}` } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: `FF${BRAND_COLORS.headerBg}` } };
+        cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
         cell.border = {
-          top: { style: 'medium', color: { argb: 'FF000000' } },
-          left: { style: 'medium', color: { argb: 'FF000000' } },
-          bottom: { style: 'medium', color: { argb: 'FF000000' } },
-          right: { style: 'medium', color: { argb: 'FF000000' } }
+          top: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          left: { style: 'thin', color: { argb: 'FFCCCCCC' } },
+          bottom: { style: 'thin', color: { argb: 'FF666666' } },
+          right: { style: 'thin', color: { argb: 'FFCCCCCC' } }
         };
       });
-      detailSheet.getRow(3).height = 25;
+      detailHeaderRow.height = 28;
 
-      // Llenar detalle de compromisos con estados calculados correctamente
-      let detailRow = 4;
+      // FILA 8+: Llenar detalle de compromisos
+      let detailRow = 8;
       for (const concept of filteredConcepts) {
         // Buscar compromisos que pertenezcan a este concepto
         const conceptCommitments = commitments.filter(c => 
@@ -611,65 +706,64 @@ const ReportsConceptPage = () => {
         for (const commitment of conceptCommitments) {
           // ✅ USAR ESTADO CALCULADO CORRECTAMENTE
           const calculatedStatus = await determineCommitmentStatus(commitment);
-          let statusText, statusColor;
+          let statusText;
           
           switch (calculatedStatus) {
             case 'completed':
               statusText = 'Completado';
-              statusColor = 'FFE8F5E8'; // Verde claro
               break;
             case 'partial':
-              statusText = 'Pago Parcial (Pendiente)';
-              statusColor = 'FFFFF3E0'; // Amarillo claro
+              statusText = 'Pago Parcial';
               break;
             case 'pending':
               statusText = 'Pendiente';
-              statusColor = 'FFFFF3E0'; // Amarillo claro
               break;
             case 'overdue':
               statusText = 'Vencido';
-              statusColor = 'FFFFE8E8'; // Rojo claro
               break;
             default:
               statusText = 'Desconocido';
-              statusColor = 'FFF0F0F0'; // Gris claro
           }
 
-          // Llenar fila con datos
-          detailSheet.getCell(detailRow, 1).value = concept.name;
-          detailSheet.getCell(detailRow, 2).value = commitment.amount || 0;
-          
           // ✅ BUSCAR NOMBRE DE EMPRESA CORRECTAMENTE
           const company = companiesData?.find(comp => comp.id === commitment.companyId);
-          detailSheet.getCell(detailRow, 3).value = company?.name || commitment.companyName || commitment.company || 'N/A';
           
-          detailSheet.getCell(detailRow, 4).value = statusText;
-          detailSheet.getCell(detailRow, 5).value = commitment.createdAt ? 
-            new Date(commitment.createdAt.toDate ? commitment.createdAt.toDate() : commitment.createdAt).toLocaleDateString('es-ES') : 'N/A';
-          detailSheet.getCell(detailRow, 6).value = commitment.dueDate ? 
-            new Date(commitment.dueDate.toDate ? commitment.dueDate.toDate() : commitment.dueDate).toLocaleDateString('es-ES') : 'N/A';
-          detailSheet.getCell(detailRow, 7).value = commitment.beneficiary || 'N/A';
+          const rowData = [
+            concept.name,
+            commitment.amount || 0,
+            company?.name || commitment.companyName || commitment.company || 'N/A',
+            statusText,
+            commitment.createdAt ? 
+              new Date(commitment.createdAt.toDate ? commitment.createdAt.toDate() : commitment.createdAt).toLocaleDateString('es-ES') : 'N/A',
+            commitment.dueDate ? 
+              new Date(commitment.dueDate.toDate ? commitment.dueDate.toDate() : commitment.dueDate).toLocaleDateString('es-ES') : 'N/A',
+            commitment.beneficiary || 'N/A'
+          ];
 
-          // Formatear monto
-          detailSheet.getCell(detailRow, 2).numFmt = '"$"#,##0.00';
-
-          // Aplicar formato según design system
-          for (let col = 1; col <= 7; col++) {
-            const cell = detailSheet.getCell(detailRow, col);
-            cell.font = { name: 'Arial', size: 9, color: { argb: 'FF424242' } };
-            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: statusColor } };
+          const row = detailSheet.getRow(detailRow);
+          rowData.forEach((value, colIndex) => {
+            const cell = row.getCell(colIndex + 1);
+            cell.value = value;
+            cell.font = { name: 'Segoe UI', size: 9, color: { argb: `FF${BRAND_COLORS.textDark}` } };
+            
+            // Alineación según tipo de dato
+            if (colIndex === 0 || colIndex === 2 || colIndex === 6) { // Textos
+              cell.alignment = { horizontal: 'left', vertical: 'middle' };
+            } else if (colIndex === 1) { // Monto
+              cell.alignment = { horizontal: 'right', vertical: 'middle' };
+              cell.numFmt = '$#,##0';
+            } else { // Centro para estado y fechas
+              cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            }
+            
             cell.border = {
-              top: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-              left: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-              bottom: { style: 'thin', color: { argb: 'FFE0E0E0' } },
-              right: { style: 'thin', color: { argb: 'FFE0E0E0' } }
+              top: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderLight}` } },
+              bottom: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderMedium}` } },
+              left: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderLight}` } },
+              right: { style: 'thin', color: { argb: `FF${BRAND_COLORS.borderLight}` } }
             };
-            cell.alignment = { 
-              horizontal: col === 1 ? 'left' : col === 4 ? 'center' : 'right',
-              vertical: 'middle' 
-            };
-          }
-          detailSheet.getRow(detailRow).height = 18;
+          });
+          row.height = 18;
           detailRow++;
         }
       }
