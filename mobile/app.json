@@ -1,0 +1,41 @@
+﻿{
+  "expo": {
+    "name": "DR Group Asistencia",
+    "slug": "drgroup-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#667eea"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.drgroup.asistencia"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#667eea"
+      },
+      "package": "com.drgroup.asistencia",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "RECEIVE_BOOT_COMPLETED",
+        "POST_NOTIFICATIONS"
+      ],
+      "edgeToEdgeEnabled": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-location",
+      "expo-notifications"
+    ]
+  }
+}
