@@ -66,6 +66,9 @@ import SalasPage from './pages/SalasPage';
 // Centro de Alertas
 import AlertsCenterPage from './pages/AlertsCenterPage';
 
+// Módulo de Asistencias
+import AsistenciasPage from './pages/AsistenciasPage';
+
 // Hook de autenticación
 import { useAuth } from './context/AuthContext';
 
@@ -333,6 +336,14 @@ const DashboardLayout = () => {
         element={
           <MainLayout title="Limpieza de Storage" breadcrumbs={['Administración', 'Storage']}>
             <OrphanFilesPage />
+          </MainLayout>
+        }
+      />
+      <Route 
+        path="/asistencias" 
+        element={
+          <MainLayout title="Control de Asistencias" breadcrumbs={['Administración', 'Asistencias']}>
+            <AsistenciasPage />
           </MainLayout>
         }
       />

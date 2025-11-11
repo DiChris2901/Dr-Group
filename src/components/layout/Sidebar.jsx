@@ -1,4 +1,5 @@
 import {
+    AccessTime,
     AccountBalance,
     AddBox,
     Assessment,
@@ -221,6 +222,13 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       permission: 'usuarios'
     },
     {
+      title: 'Asistencias',
+      icon: AccessTime,
+      path: '/asistencias',
+      color: '#ff9800',
+      permission: 'asistencias'
+    },
+    {
       title: 'Auditoría del Sistema',
       icon: Assessment,
       path: '/admin/activity-logs',
@@ -243,33 +251,46 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       return false;
     }
 
-    // Si no tiene permisos definidos, denegar acceso (cambio importante)
-    if (!firestoreProfile.permissions || !Array.isArray(firestoreProfile.permissions)) {
+    // Si no tiene permisos definidos, denegar acceso
+    if (!firestoreProfile.permissions) {
       return false;
     }
     
-    // Si tiene el permiso "ALL", permitir todo
-    if (firestoreProfile.permissions.includes('ALL')) {
-      return true;
+    // Manejar permisos como objeto (nuevo formato)
+    if (typeof firestoreProfile.permissions === 'object' && !Array.isArray(firestoreProfile.permissions)) {
+      // Si tiene el permiso "ALL", permitir todo
+      if (firestoreProfile.permissions.ALL === true) {
+        return true;
+      }
+      
+      // Verificar si tiene el permiso específico
+      return firestoreProfile.permissions[permission] === true;
     }
     
-    // SOLO SISTEMA NUEVO: Verificar si tiene el permiso específico
-    const hasPermissionResult = firestoreProfile.permissions.includes(permission);
+    // Manejar permisos como array (formato antiguo - retrocompatibilidad)
+    if (Array.isArray(firestoreProfile.permissions)) {
+      // Si tiene el permiso "ALL", permitir todo
+      if (firestoreProfile.permissions.includes('ALL')) {
+        return true;
+      }
+      
+      // Verificar si tiene el permiso específico
+      return firestoreProfile.permissions.includes(permission);
+    }
     
-    return hasPermissionResult;
+    return false;
   };
 
   // Función para verificar permisos de submenú (granulares)
   const hasSubmenuPermission = (parentPermission, submenuPermission) => {
     if (!firestoreProfile) return false;
-    if (!firestoreProfile.permissions || !Array.isArray(firestoreProfile.permissions)) return false;
-    if (firestoreProfile.permissions.includes('ALL')) return true;
+    if (!firestoreProfile.permissions) return false;
     
     // Si tiene el permiso padre completo, tiene acceso a todo
-    if (firestoreProfile.permissions.includes(parentPermission)) return true;
+    if (hasPermission(parentPermission)) return true;
     
     // Si tiene el permiso específico del submenú
-    if (submenuPermission && firestoreProfile.permissions.includes(submenuPermission)) return true;
+    if (submenuPermission && hasPermission(submenuPermission)) return true;
     
     return false;
   };
