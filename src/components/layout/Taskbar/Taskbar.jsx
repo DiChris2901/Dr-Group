@@ -24,7 +24,8 @@ import {
   AddBox as AddBoxIcon,
   Timeline as TimelineIcon,
   DeleteSweep as DeleteSweepIcon,
-  AdminPanelSettings as AdminIcon
+  AdminPanelSettings as AdminIcon,
+  AccessTime
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -178,7 +179,8 @@ const Taskbar = () => {
       color: '#2196f3',
       permission: 'facturacion',
       submenu: [
-        { label: 'Liquidaciones por Sala', path: '/facturacion/liquidaciones-por-sala', icon: CompaniesIcon, permission: 'facturacion.liquidaciones_por_sala' }
+        { label: 'Liquidaciones por Sala', path: '/facturacion/liquidaciones-por-sala', icon: CompaniesIcon, permission: 'facturacion.liquidaciones_por_sala' },
+        { label: 'Cuentas de Cobro', path: '/facturacion/cuentas-cobro', icon: PaymentsIcon, permission: 'facturacion.cuentas_cobro' }
       ]
     },
     {
@@ -202,6 +204,7 @@ const Taskbar = () => {
       permission: 'administracion',
       submenu: [
         { label: 'Usuarios', path: '/users', icon: PeopleIcon, permission: 'usuarios' },
+        { label: 'Asistencias', path: '/asistencias', icon: AccessTime, permission: 'asistencias' },
         { label: 'Auditoría del Sistema', path: '/admin/activity-logs', icon: ReportsIcon, permission: 'auditoria' },
         { label: 'Limpieza de Storage', path: '/admin/orphan-files', icon: DeleteSweepIcon, permission: 'storage' }
       ]
@@ -218,32 +221,45 @@ const Taskbar = () => {
     }
 
     // Si no tiene permisos definidos, denegar acceso
-    if (!userProfile.permissions || !Array.isArray(userProfile.permissions)) {
+    if (!userProfile.permissions) {
       return false;
     }
     
-    // Si tiene el permiso "ALL", permitir todo
-    if (userProfile.permissions.includes('ALL')) {
-      return true;
+    // Manejar permisos como objeto (nuevo formato)
+    if (typeof userProfile.permissions === 'object' && !Array.isArray(userProfile.permissions)) {
+      // Si tiene el permiso "ALL", permitir todo
+      if (userProfile.permissions.ALL === true) {
+        return true;
+      }
+      
+      // Verificar si tiene el permiso específico
+      return userProfile.permissions[permission] === true;
     }
     
-    // Verificar si tiene el permiso específico
-    const hasPermissionResult = userProfile.permissions.includes(permission);
+    // Manejar permisos como array (formato antiguo - retrocompatibilidad)
+    if (Array.isArray(userProfile.permissions)) {
+      // Si tiene el permiso "ALL", permitir todo
+      if (userProfile.permissions.includes('ALL')) {
+        return true;
+      }
+      
+      // Verificar si tiene el permiso específico
+      return userProfile.permissions.includes(permission);
+    }
     
-    return hasPermissionResult;
+    return false;
   };
 
   // Función para verificar permisos de submenú (granulares)
   const hasSubmenuPermission = (parentPermission, submenuPermission) => {
     if (!userProfile) return false;
-    if (!userProfile.permissions || !Array.isArray(userProfile.permissions)) return false;
-    if (userProfile.permissions.includes('ALL')) return true;
+    if (!userProfile.permissions) return false;
     
     // Si tiene el permiso padre completo, tiene acceso a todo
-    if (userProfile.permissions.includes(parentPermission)) return true;
+    if (hasPermission(parentPermission)) return true;
     
     // Si tiene el permiso específico del submenú
-    if (submenuPermission && userProfile.permissions.includes(submenuPermission)) return true;
+    if (submenuPermission && hasPermission(submenuPermission)) return true;
     
     return false;
   };
