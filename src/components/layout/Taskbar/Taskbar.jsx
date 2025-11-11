@@ -31,6 +31,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../../context/AuthContext';
 import { useSettings } from '../../../context/SettingsContext';
+import { usePermissions } from '../../../hooks/usePermissions';
 import TaskbarMenu from './TaskbarMenu';
 
 // Animaciones para Taskbar - Spectacular Style
@@ -211,83 +212,11 @@ const Taskbar = () => {
     }
   ];
 
-  // ===== SISTEMA DE PERMISOS (IDÉNTICO A SIDEBAR) =====
-  
-  // Función para verificar si el usuario tiene un permiso específico
-  const hasPermission = (permission) => {
-    // Si no tiene perfil de Firestore, denegar acceso
-    if (!userProfile) {
-      return false;
-    }
-
-    // Si no tiene permisos definidos, denegar acceso
-    if (!userProfile.permissions) {
-      return false;
-    }
-    
-    // Manejar permisos como objeto (nuevo formato)
-    if (typeof userProfile.permissions === 'object' && !Array.isArray(userProfile.permissions)) {
-      // Si tiene el permiso "ALL", permitir todo
-      if (userProfile.permissions.ALL === true) {
-        return true;
-      }
-      
-      // Verificar si tiene el permiso específico
-      return userProfile.permissions[permission] === true;
-    }
-    
-    // Manejar permisos como array (formato antiguo - retrocompatibilidad)
-    if (Array.isArray(userProfile.permissions)) {
-      // Si tiene el permiso "ALL", permitir todo
-      if (userProfile.permissions.includes('ALL')) {
-        return true;
-      }
-      
-      // Verificar si tiene el permiso específico
-      return userProfile.permissions.includes(permission);
-    }
-    
-    return false;
-  };
-
-  // Función para verificar permisos de submenú (granulares)
-  const hasSubmenuPermission = (parentPermission, submenuPermission) => {
-    if (!userProfile) return false;
-    if (!userProfile.permissions) return false;
-    
-    // Si tiene el permiso padre completo, tiene acceso a todo
-    if (hasPermission(parentPermission)) return true;
-    
-    // Si tiene el permiso específico del submenú
-    if (submenuPermission && hasPermission(submenuPermission)) return true;
-    
-    return false;
-  };
-
-  // Función para verificar si el grupo debe mostrarse (si tiene al menos un submenú visible)
-  const hasAnySubmenuPermission = (parentPermission, submenu) => {
-    if (!submenu || submenu.length === 0) return false;
-    
-    // Si tiene el permiso padre completo, mostrar grupo
-    if (hasPermission(parentPermission)) return true;
-    
-    // Si tiene al menos un permiso de submenú, mostrar grupo
-    return submenu.some(subItem => 
-      subItem.permission && hasPermission(subItem.permission)
-    );
-  };
+  // ✅ Usar hook centralizado de permisos (elimina 70+ líneas duplicadas)
+  const { shouldShowMenuItem, hasSubmenuPermission } = usePermissions();
 
   // Filtrar elementos del taskbar según permisos
-  const filteredTaskbarItems = taskbarItems.filter(item => {
-    if (!item.permission) return true; // Si no tiene permiso definido, mostrar
-    
-    // Si el item tiene submenú, verificar si tiene al menos un submenú visible
-    if (item.submenu) {
-      return hasAnySubmenuPermission(item.permission, item.submenu);
-    }
-    
-    return hasPermission(item.permission);
-  });
+  const filteredTaskbarItems = taskbarItems.filter(shouldShowMenuItem);
 
   // Filtrar submenús según permisos
   const filterSubmenu = (submenu, parentPermission) => {

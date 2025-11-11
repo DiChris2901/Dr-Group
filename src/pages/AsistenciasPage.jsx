@@ -46,6 +46,7 @@ import { collection, query, orderBy, onSnapshot, where } from 'firebase/firestor
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { exportarAsistenciasExcel } from '../utils/asistenciasExcelExport';
 
 const AsistenciasPage = () => {
@@ -69,12 +70,13 @@ const AsistenciasPage = () => {
   // Exportando Excel
   const [exporting, setExporting] = useState(false);
 
-  // Permisos: Solo usuarios con permissions.asistencias = true (incluye ADMIN)
-  const hasPermission = userProfile?.permissions?.asistencias === true;
+  // ✅ Usar hook centralizado de permisos
+  const { hasPermission } = usePermissions();
+  const canViewAsistencias = hasPermission('asistencias');
 
   // ✅ REAL-TIME LISTENER - onSnapshot en collection asistencias
   useEffect(() => {
-    if (!hasPermission) {
+    if (!canViewAsistencias) {
       setLoading(false);
       setError('No tienes permisos para ver asistencias');
       return;
@@ -132,7 +134,7 @@ const AsistenciasPage = () => {
       setError(err.message);
       setLoading(false);
     }
-  }, [hasPermission]);
+  }, [canViewAsistencias]);
 
   // ✅ Reset de página si no hay datos
   useEffect(() => {
@@ -314,7 +316,7 @@ const AsistenciasPage = () => {
   };
 
   // ✅ SIN PERMISOS
-  if (!hasPermission) {
+  if (!canViewAsistencias) {
     return (
       <Box sx={{ p: 4 }}>
         <Alert severity="warning" sx={{ maxWidth: 600, mx: 'auto' }}>
