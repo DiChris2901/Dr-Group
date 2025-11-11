@@ -1,21 +1,35 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Box, Typography, Alert, Paper } from '@mui/material';
+import { usePermissions } from '../../hooks/usePermissions';
+import { Box, Typography, Alert, Paper, CircularProgress } from '@mui/material';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 
 /**
  * Componente de protección para rutas administrativas críticas
- * Solo permite acceso a daruedagu@gmail.com
+ * Usa sistema centralizado de permisos (requiere 'auditoria')
+ * 
+ * @deprecated Considera usar <ProtectedRoute requiredPermission="auditoria" /> en su lugar
  */
 const AdminOnlyRoute = ({ children }) => {
   const { currentUser, loading } = useAuth();
+  const { hasPermission } = usePermissions();
 
   // Mostrar loading mientras se autentica
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <Typography>Verificando permisos...</Typography>
+      <Box 
+        display="flex" 
+        flexDirection="column"
+        justifyContent="center" 
+        alignItems="center" 
+        minHeight="400px"
+        gap={2}
+      >
+        <CircularProgress size={48} />
+        <Typography variant="body1" color="text.secondary">
+          Verificando permisos de auditoría...
+        </Typography>
       </Box>
     );
   }
@@ -25,10 +39,10 @@ const AdminOnlyRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Verificar si es el administrador autorizado
-  const isAuthorizedAdmin = currentUser.email === 'daruedagu@gmail.com';
+  // ✅ Verificar permiso 'auditoria' usando sistema centralizado
+  const hasAuditoriaPermission = hasPermission('auditoria');
 
-  if (!isAuthorizedAdmin) {
+  if (!hasAuditoriaPermission) {
     return (
       <Box sx={{ p: 3, maxWidth: 600, mx: 'auto', mt: 5 }}>
         <Paper sx={{ p: 4, textAlign: 'center' }}>
@@ -37,20 +51,20 @@ const AdminOnlyRoute = ({ children }) => {
             Acceso Denegado
           </Typography>
           <Typography variant="h6" color="text.secondary" sx={{ mb: 3 }}>
-            Área Restringida - Solo Administrador Principal
+            Área Restringida - Auditoría del Sistema
           </Typography>
           <Alert severity="error" sx={{ textAlign: 'left' }}>
             <Typography variant="body1">
-              <strong>Esta página está restringida exclusivamente para:</strong>
+              <strong>Esta página requiere el permiso:</strong>
             </Typography>
-            <Typography variant="body2" sx={{ mt: 1, fontFamily: 'monospace' }}>
-              daruedagu@gmail.com
+            <Typography variant="body2" sx={{ mt: 1, fontFamily: 'monospace', fontWeight: 600 }}>
+              auditoria
             </Typography>
             <Typography variant="body2" sx={{ mt: 2 }}>
               Tu usuario: <strong>{currentUser.email}</strong>
             </Typography>
             <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-              No tienes permisos para acceder a esta sección administrativa.
+              Contacta al administrador del sistema para solicitar acceso a los logs de auditoría.
             </Typography>
           </Alert>
         </Paper>
@@ -58,7 +72,7 @@ const AdminOnlyRoute = ({ children }) => {
     );
   }
 
-  // Si es el administrador autorizado, mostrar el contenido
+  // Si tiene el permiso 'auditoria', mostrar el contenido
   return children;
 };
 

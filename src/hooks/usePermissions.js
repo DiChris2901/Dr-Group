@@ -57,7 +57,20 @@ export const usePermissions = () => {
       }
       
       // Verificar permiso específico
-      return userProfile.permissions[permission] === true;
+      if (userProfile.permissions[permission] === true) {
+        return true;
+      }
+      
+      // ✅ SOPORTE JERÁRQUICO: Si tiene "facturacion", permitir "facturacion.cuentas_cobro"
+      // Dividir el permiso por punto y verificar el padre
+      if (permission.includes('.')) {
+        const parentPermission = permission.split('.')[0];
+        if (userProfile.permissions[parentPermission] === true) {
+          return true;
+        }
+      }
+      
+      return false;
     }
     
     // ===== FORMATO ARRAY (legacy - retrocompatibilidad) =====
@@ -68,7 +81,19 @@ export const usePermissions = () => {
       }
       
       // Verificar permiso específico
-      return userProfile.permissions.includes(permission);
+      if (userProfile.permissions.includes(permission)) {
+        return true;
+      }
+      
+      // ✅ SOPORTE JERÁRQUICO: Si tiene "facturacion", permitir "facturacion.cuentas_cobro"
+      if (permission.includes('.')) {
+        const parentPermission = permission.split('.')[0];
+        if (userProfile.permissions.includes(parentPermission)) {
+          return true;
+        }
+      }
+      
+      return false;
     }
     
     return false;
