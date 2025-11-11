@@ -192,6 +192,407 @@ Tu objetivo es ser el programador más confiable y sistemático, donde cada lín
 
 ---
 
+## 📄 PROTOCOLO OBLIGATORIO: CREACIÓN DE NUEVAS PÁGINAS
+
+### 🚨 **CHECKLIST COMPLETO AL CREAR UNA PÁGINA NUEVA**
+
+Cuando el usuario solicite crear una nueva página/vista, **OBLIGATORIAMENTE** seguir estos pasos en orden:
+
+#### **PASO 1: CREAR LA PÁGINA** ✅
+```bash
+# Ubicación estándar
+src/pages/[NombrePage].jsx
+
+# Ejemplo:
+src/pages/AsistenciasPage.jsx
+src/pages/CuentasCobroPage.jsx
+```
+
+**Requisitos mínimos:**
+- ✅ Header gradient sobrio con descripción
+- ✅ Estadísticas resumidas si aplica
+- ✅ Loading states y error boundaries
+- ✅ Responsive design (mobile-first)
+- ✅ Seguir diseño sobrio empresarial
+- ✅ Usar theme.palette (NO colores hardcodeados)
+
+---
+
+#### **PASO 2: DEFINIR PERMISO EN SISTEMA** ✅
+
+**2.1 - Identificar el permiso necesario:**
+
+```javascript
+// Formato de permisos jerárquicos:
+'seccion_principal'                    // Acceso completo a la sección
+'seccion_principal.sub_accion'         // Acceso específico a sub-acción
+
+// Ejemplos reales:
+'asistencias'                          // Acceso completo a asistencias
+'facturacion.cuentas_cobro'            // Solo cuentas de cobro en facturación
+'gestion_empresarial.empresas'         // Solo empresas en gestión empresarial
+```
+
+**2.2 - Definir estructura del permiso:**
+
+| Campo | Valor Ejemplo | Descripción |
+|-------|---------------|-------------|
+| **key** | `'asistencias'` | Identificador único del permiso |
+| **label** | `'Asistencias'` | Nombre mostrado en UI |
+| **icon** | `<AccessTime />` | Ícono de Material-UI |
+| **color** | `theme.palette.primary.main` | Color del tema (NO hardcodear) |
+| **section** | `'admin'` o `'main'` | Sección del menú donde aparece |
+
+---
+
+#### **PASO 3: ACTUALIZAR MODAL DE PERMISOS** ✅
+
+**Ubicación:** `src/pages/UserManagementPage.jsx`
+
+**3.1 - Agregar permiso a la lista `newSystemPermissions`:**
+
+```javascript
+// Líneas ~198 y ~425 (aparece 2 veces en el archivo)
+const newSystemPermissions = [
+  'dashboard', 
+  'compromisos', 
+  'compromisos.ver_todos',
+  // ... otros permisos existentes
+  'asistencias',              // ✅ AGREGAR AQUÍ
+  'facturacion.cuentas_cobro', // ✅ AGREGAR AQUÍ
+  'auditoria', 
+  'storage'
+];
+```
+
+**3.2 - Agregar al array de permisos del ROL ADMIN:**
+
+```javascript
+// Línea ~322 - función handleRoleChange
+if (newRole === 'ADMIN') {
+  newPermissions = [
+    'dashboard',
+    'compromisos',
+    // ... otros permisos
+    'asistencias',              // ✅ AGREGAR AQUÍ
+    'facturacion.cuentas_cobro', // ✅ AGREGAR AQUÍ
+    'usuarios',
+    'auditoria',
+    'storage'
+  ];
+}
+```
+
+**3.3 - Agregar card visual en el modal:**
+
+```javascript
+// Línea ~1080 - Array de cards de permisos
+{[
+  { key: 'dashboard', label: 'Dashboard', icon: <Dashboard />, color: theme.palette.primary.main },
+  // ... otros permisos existentes
+  
+  // ✅ AGREGAR NUEVA CARD
+  { 
+    key: 'asistencias', 
+    label: 'Asistencias', 
+    icon: <AccessTime />, 
+    color: '#ff9800',
+    // Si tiene sub-permisos:
+    subPermissions: [
+      { key: 'asistencias.ver', label: 'Ver Registros' },
+      { key: 'asistencias.exportar', label: 'Exportar Excel' }
+    ]
+  },
+  
+  { key: 'auditoria', label: 'Auditoría del Sistema', icon: <SecurityIcon />, color: '#9c27b0' }
+].map((permission) => (
+  // ... renderizado de la card
+))}
+```
+
+---
+
+#### **PASO 4: ACTUALIZAR SIDEBAR** ✅
+
+**Ubicación:** `src/components/layout/Sidebar.jsx`
+
+**4.1 - Determinar si es menú principal o admin:**
+
+```javascript
+// MENÚ PRINCIPAL (línea ~130): Dashboard, Compromisos, Pagos, Ingresos, etc.
+const menuItems = [
+  // ... items existentes
+];
+
+// MENÚ ADMIN (línea ~215): Usuarios, Asistencias, Auditoría, Storage
+const adminMenuItems = [
+  // ... items existentes
+];
+```
+
+**4.2 - Agregar item al array correspondiente:**
+
+```javascript
+// Ejemplo: Agregar a menú admin
+const adminMenuItems = [
+  {
+    title: 'Usuarios',
+    icon: People,
+    path: '/users',
+    color: primaryColor,
+    permission: 'usuarios'
+  },
+  // ✅ AGREGAR NUEVO ITEM
+  {
+    title: 'Asistencias',
+    icon: AccessTime,
+    path: '/asistencias',
+    color: '#ff9800',
+    permission: 'asistencias'
+  },
+  {
+    title: 'Auditoría del Sistema',
+    icon: Assessment,
+    path: '/admin/activity-logs',
+    color: '#9c27b0',
+    permission: 'auditoria'
+  }
+];
+```
+
+**4.3 - Si tiene submenú, agregar al menú principal:**
+
+```javascript
+const menuItems = [
+  // ... items existentes
+  {
+    title: 'Facturación',
+    icon: AttachMoney,
+    color: '#2196f3',
+    permission: 'facturacion',
+    submenu: [
+      { 
+        title: 'Liquidaciones por Sala', 
+        icon: Business, 
+        path: '/facturacion/liquidaciones-por-sala', 
+        permission: 'facturacion.liquidaciones_por_sala' 
+      },
+      // ✅ AGREGAR NUEVO SUB-ITEM
+      { 
+        title: 'Cuentas de Cobro', 
+        icon: Receipt, 
+        path: '/facturacion/cuentas-cobro', 
+        permission: 'facturacion.cuentas_cobro' 
+      }
+    ]
+  }
+];
+```
+
+---
+
+#### **PASO 5: ACTUALIZAR TASKBAR** ✅ **[CRÍTICO - NO OMITIR]**
+
+**Ubicación:** `src/components/layout/Taskbar/Taskbar.jsx`
+
+**5.1 - Agregar ícono al array de navegación rápida:**
+
+```javascript
+// Línea ~100 - Array de quickAccessItems
+const quickAccessItems = [
+  { 
+    label: 'Dashboard', 
+    icon: DashboardIcon, 
+    path: '/dashboard',
+    permission: 'dashboard',
+    color: theme.palette.primary.main 
+  },
+  { 
+    label: 'Compromisos', 
+    icon: CommitmentsIcon, 
+    path: '/commitments',
+    permission: 'compromisos',
+    color: theme.palette.secondary.main 
+  },
+  // ... otros items
+  
+  // ✅ AGREGAR NUEVO ITEM
+  { 
+    label: 'Asistencias', 
+    icon: AccessTime, 
+    path: '/asistencias',
+    permission: 'asistencias',
+    color: '#ff9800' 
+  },
+  { 
+    label: 'Cuentas de Cobro', 
+    icon: Receipt, 
+    path: '/facturacion/cuentas-cobro',
+    permission: 'facturacion.cuentas_cobro',
+    color: '#2196f3' 
+  }
+];
+```
+
+**5.2 - Verificar que tiene validación de permisos:**
+
+```javascript
+// El Taskbar debe filtrar items según permisos
+const visibleItems = quickAccessItems.filter(item => 
+  hasPermission(item.permission)
+);
+```
+
+---
+
+#### **PASO 6: AGREGAR RUTA EN APP.JSX** ✅
+
+**Ubicación:** `src/App.jsx` o archivo de rutas principal
+
+```javascript
+import AsistenciasPage from './pages/AsistenciasPage';
+import CuentasCobroPage from './pages/CuentasCobroPage';
+
+// En las rutas:
+<Routes>
+  <Route path="/dashboard" element={<DashboardPage />} />
+  <Route path="/commitments" element={<CommitmentsPage />} />
+  
+  {/* ✅ AGREGAR NUEVAS RUTAS */}
+  <Route path="/asistencias" element={<AsistenciasPage />} />
+  <Route path="/facturacion/cuentas-cobro" element={<CuentasCobroPage />} />
+  
+  <Route path="/users" element={<UserManagementPage />} />
+</Routes>
+```
+
+**IMPORTANTE:** Verificar que la ruta coincida exactamente con el `path` definido en Sidebar y Taskbar.
+
+---
+
+#### **PASO 7: VALIDACIÓN Y TESTING** ✅
+
+**7.1 - Verificar en Modal de Usuarios:**
+- ✅ El nuevo permiso aparece como card
+- ✅ Se puede activar/desactivar con el switch
+- ✅ Aparece en el resumen de permisos seleccionados
+- ✅ Se guarda correctamente en Firestore
+
+**7.2 - Verificar en Sidebar:**
+- ✅ Aparece el nuevo item de menú (si tiene permiso)
+- ✅ NO aparece si el usuario no tiene el permiso
+- ✅ El ícono y color son correctos
+- ✅ La navegación funciona al hacer clic
+
+**7.3 - Verificar en Taskbar:**
+- ✅ Aparece el ícono de acceso rápido (si tiene permiso)
+- ✅ NO aparece si el usuario no tiene el permiso
+- ✅ La navegación funciona al hacer clic
+- ✅ El color y tooltip son correctos
+
+**7.4 - Verificar en Firestore:**
+```javascript
+// Verificar que el permiso se guardó correctamente
+users/{uid}/permissions: {
+  "dashboard": true,
+  "asistencias": true,              // ✅ Nuevo permiso
+  "facturacion.cuentas_cobro": true // ✅ Nuevo permiso
+}
+```
+
+---
+
+### 📋 **CHECKLIST RÁPIDO DE VERIFICACIÓN**
+
+Antes de dar por completada la tarea, confirmar:
+
+- [ ] **Página creada** en `src/pages/`
+- [ ] **Permiso definido** claramente (key, label, icon, color)
+- [ ] **Modal de permisos actualizado** (3 ubicaciones en UserManagementPage.jsx)
+  - [ ] Array `newSystemPermissions` (líneas ~198 y ~425)
+  - [ ] Permisos de ROL ADMIN (línea ~322)
+  - [ ] Card visual en el modal (línea ~1080)
+- [ ] **Sidebar actualizado** (menuItems o adminMenuItems)
+- [ ] **Taskbar actualizado** (quickAccessItems) **← CRÍTICO**
+- [ ] **Ruta agregada** en App.jsx
+- [ ] **Testing completo** (modal, sidebar, taskbar, navegación)
+- [ ] **Firestore validado** (permiso se guarda correctamente)
+
+---
+
+### 🚨 **ERRORES COMUNES A EVITAR**
+
+1. ❌ **Olvidar actualizar el Taskbar** → El ícono de acceso rápido no aparece
+2. ❌ **No agregar a ambas ubicaciones de `newSystemPermissions`** → El permiso no se filtra correctamente
+3. ❌ **No agregar a permisos de ADMIN** → Los administradores no tienen acceso por defecto
+4. ❌ **Rutas inconsistentes** → Sidebar dice `/asistencias` pero la ruta es `/admin/asistencias`
+5. ❌ **Hardcodear colores** → Usar `'#ff9800'` en lugar de `theme.palette.warning.main`
+6. ❌ **No validar permisos en la página** → Cualquiera puede acceder por URL directa
+
+---
+
+### ✅ **EJEMPLO COMPLETO: CREAR PÁGINA "ASISTENCIAS"**
+
+```javascript
+// 1. CREAR PÁGINA
+src/pages/AsistenciasPage.jsx
+
+// 2. DEFINIR PERMISO
+Permission: 'asistencias'
+Label: 'Asistencias'
+Icon: <AccessTime />
+Section: 'admin'
+
+// 3. ACTUALIZAR UserManagementPage.jsx (3 ubicaciones)
+newSystemPermissions: [..., 'asistencias', ...]
+ADMIN permissions: [..., 'asistencias', ...]
+Card: { key: 'asistencias', label: 'Asistencias', icon: <AccessTime />, color: '#ff9800' }
+
+// 4. ACTUALIZAR Sidebar.jsx
+adminMenuItems.push({
+  title: 'Asistencias',
+  icon: AccessTime,
+  path: '/asistencias',
+  color: '#ff9800',
+  permission: 'asistencias'
+})
+
+// 5. ACTUALIZAR Taskbar.jsx ← OBLIGATORIO
+quickAccessItems.push({
+  label: 'Asistencias',
+  icon: AccessTime,
+  path: '/asistencias',
+  permission: 'asistencias',
+  color: '#ff9800'
+})
+
+// 6. AGREGAR RUTA App.jsx
+<Route path="/asistencias" element={<AsistenciasPage />} />
+
+// 7. VALIDAR
+✅ Modal de usuarios muestra el permiso
+✅ Sidebar muestra el item
+✅ Taskbar muestra el ícono
+✅ Navegación funciona
+✅ Firestore guarda el permiso
+```
+
+---
+
+### 🎯 **COMPROMISO DEL ARQUITECTO SENIOR**
+
+Como Arquitecto Senior, **ME COMPROMETO** a:
+
+1. ✅ **NUNCA olvidar actualizar el Taskbar** al crear una página nueva
+2. ✅ **SIEMPRE seguir los 7 pasos** del protocolo completo
+3. ✅ **VALIDAR exhaustivamente** antes de dar por completada la tarea
+4. ✅ **INFORMAR al usuario** si falta algún paso por completar
+5. ✅ **OFRECER corregir** páginas anteriores que no cumplan el protocolo
+
+**Si olvido algún paso, el usuario debe recordarme este protocolo y yo INMEDIATAMENTE lo corregiré.**
+
+---
+
 ## Descripción del Proyecto
 Este es un dashboard para control de compromisos financieros empresariales desarrollado para DR Group. El sistema permite gestionar compromisos fijos mensuales, pagos, comprobantes y generar reportes con control de acceso basado en roles.
 
