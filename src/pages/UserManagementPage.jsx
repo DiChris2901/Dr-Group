@@ -135,7 +135,10 @@ const UserManagementPage = () => {
     isActive: true,
     department: '',
     notes: '',
-    temporalPassword: '' // Nueva contraseña temporal
+    temporalPassword: '', // Nueva contraseña temporal
+    position: '', // Cargo/Posición
+    hireDate: '', // Fecha de ingreso
+    photoURL: '' // URL de foto de perfil
   });
 
   // Estado para detectar cambios en el formulario
@@ -221,7 +224,10 @@ const UserManagementPage = () => {
           companies: user.companies || [],
           isActive: user.isActive !== false,
           department: user.department || '',
-          notes: user.notes || ''
+          notes: user.notes || '',
+          position: user.position || '',
+          hireDate: user.hireDate || '',
+          photoURL: user.photoURL || ''
         };
         
         setFormData(userData);
@@ -242,7 +248,10 @@ const UserManagementPage = () => {
           isActive: true,
           department: '',
           notes: '',
-          temporalPassword: 'DRGroup2025!'
+          temporalPassword: 'DRGroup2025!',
+          position: '',
+          hireDate: '',
+          photoURL: ''
         };
         
         console.log('📋 Datos del nuevo usuario:', newUserData);
@@ -1462,6 +1471,114 @@ const UserManagementPage = () => {
                   </FormControl>
                 </Grid>
 
+                {/* FILA 2: Información Adicional */}
+                
+                {/* Cargo/Posición */}
+                <Grid item xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    label="Cargo/Posición"
+                    value={formData.position}
+                    onChange={(e) => updateFormData({ position: e.target.value })}
+                    size="small"
+                    placeholder="Ej: Contador Senior"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1,
+                        backgroundColor: alpha(theme.palette.info.main, 0.05),
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.info.main, 0.08)
+                        }
+                      }
+                    }}
+                  />
+                </Grid>
+
+                {/* Fecha de Ingreso */}
+                <Grid item xs={12} md={2.5}>
+                  <TextField
+                    fullWidth
+                    label="Fecha de Ingreso"
+                    type="date"
+                    value={formData.hireDate}
+                    onChange={(e) => updateFormData({ hireDate: e.target.value })}
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1,
+                        backgroundColor: alpha(theme.palette.success.main, 0.05),
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.success.main, 0.08)
+                        }
+                      }
+                    }}
+                  />
+                </Grid>
+
+                {/* Empresas Asignadas */}
+                <Grid item xs={12} md={4}>
+                  <FormControl 
+                    fullWidth 
+                    size="small"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1,
+                        backgroundColor: alpha(theme.palette.secondary.main, 0.05),
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.secondary.main, 0.08)
+                        }
+                      }
+                    }}
+                  >
+                    <InputLabel>Empresas Asignadas</InputLabel>
+                    <Select
+                      multiple
+                      value={formData.companies}
+                      onChange={(e) => updateFormData({ companies: e.target.value })}
+                      label="Empresas Asignadas"
+                      renderValue={(selected) => (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {selected.map((value) => (
+                            <Chip key={value} label={value} size="small" />
+                          ))}
+                        </Box>
+                      )}
+                    >
+                      <MenuItem value="DR Group">DR Group</MenuItem>
+                      <MenuItem value="Consultores Asociados">Consultores Asociados</MenuItem>
+                      <MenuItem value="Inversiones del Caribe">Inversiones del Caribe</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {/* URL Foto de Perfil */}
+                <Grid item xs={12} md={2.5}>
+                  <TextField
+                    fullWidth
+                    label="URL Foto"
+                    value={formData.photoURL}
+                    onChange={(e) => updateFormData({ photoURL: e.target.value })}
+                    size="small"
+                    placeholder="https://..."
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1,
+                        backgroundColor: alpha(theme.palette.warning.main, 0.05),
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.warning.main, 0.08)
+                        }
+                      }
+                    }}
+                  />
+                </Grid>
+
+                {/* FILA 3: Notas y Estado */}
+
                 {/* Notas */}
                 <Grid item xs={12} md={10}>
                   <TextField
@@ -1885,6 +2002,22 @@ const UserManagementPage = () => {
                             {formData.department || '—'}
                           </Typography>
                         </Box>
+                        <Box>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                            Cargo/Posición
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {formData.position || '—'}
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                            Fecha de Ingreso
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {formData.hireDate ? new Date(formData.hireDate).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}
+                          </Typography>
+                        </Box>
                       </Box>
                     </Paper>
                   </Grid>
@@ -1928,6 +2061,28 @@ const UserManagementPage = () => {
                           <Typography variant="h6" sx={{ fontWeight: 600, color: 'success.main', mt: 0.5 }}>
                             {formData.permissions.length} permisos
                           </Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                            Empresas Asignadas
+                          </Typography>
+                          <Box sx={{ mt: 0.5, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {formData.companies.length > 0 ? (
+                              formData.companies.map((company) => (
+                                <Chip 
+                                  key={company} 
+                                  label={company} 
+                                  size="small" 
+                                  variant="outlined"
+                                  color="secondary"
+                                />
+                              ))
+                            ) : (
+                              <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.secondary' }}>
+                                Ninguna empresa asignada
+                              </Typography>
+                            )}
+                          </Box>
                         </Box>
                       </Box>
                     </Paper>
