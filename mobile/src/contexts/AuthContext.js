@@ -7,7 +7,7 @@ import {
 import { doc, getDoc, setDoc, updateDoc, collection, addDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import * as Location from 'expo-location';
-import * as Device from 'expo-device';
+import { Platform } from 'react-native';
 
 const AuthContext = createContext({});
 
@@ -72,13 +72,13 @@ export const AuthProvider = ({ children }) => {
         console.warn('No se pudo obtener ubicación:', locError);
       }
 
-      // 4. Obtener información del dispositivo
+      // 4. Obtener información del dispositivo (React Native Platform API)
       const deviceInfo = {
-        brand: Device.brand,
-        manufacturer: Device.manufacturer,
-        modelName: Device.modelName,
-        osName: Device.osName,
-        osVersion: Device.osVersion
+        brand: 'Android',
+        manufacturer: 'Unknown',
+        modelName: Platform.constants?.Model || 'Unknown',
+        osName: Platform.OS,
+        osVersion: Platform.Version?.toString() || 'Unknown'
       };
 
       // 5. Registrar entrada en asistencias

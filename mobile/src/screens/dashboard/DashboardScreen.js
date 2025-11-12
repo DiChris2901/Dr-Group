@@ -30,8 +30,7 @@ export default function DashboardScreen() {
   const [tiempoDescanso, setTiempoDescanso] = useState('00:00:00'); // ✅ Contador de break/almuerzo
   const [loading, setLoading] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
-  const [workSessionNotificationId, setWorkSessionNotificationId] = useState(null);
-  const notificationIntervalRef = React.useRef(null); // ✅ Ref para el interval de notificación
+  const WORK_SESSION_NOTIFICATION_ID = 'work-session-notification'; // ✅ ID fijo para sobreescribir
 
   // ✅ CONTADOR DE TIEMPO TRABAJADO (se pausa durante break/almuerzo)
   useEffect(() => {
@@ -115,76 +114,94 @@ export default function DashboardScreen() {
     return () => clearInterval(interval);
   }, [activeSession, finalizando]);
 
-  // ✅ PASO 3.4: Notificación persistente de jornada laboral (OPTIMIZADO - NO recrea interval)
+  // ✅ Función helper para actualizar notificación de jornada
+  const updateWorkSessionNotification = async (estadoActual, tiempoActual) => {
+    try {
+      if (!activeSession) return;
+
+      // Formatear hora de entrada
+      const entradaDate = activeSession.entrada.hora.toDate 
+        ? activeSession.entrada.hora.toDate() 
+        : new Date(activeSession.entrada.hora);
+      const horaEntrada = entradaDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+
+      // Determinar mensaje según estado
+      let titulo = '🕐 Jornada Laboral Activa';
+      let cuerpo = '';
+
+      switch (estadoActual) {
+        case 'trabajando':
+          cuerpo = `Entrada: ${horaEntrada}\nTiempo trabajado: ${tiempoActual}\nEstado: Trabajando 💼`;
+          break;
+        case 'break':
+          const breakActual = activeSession.breaks?.[activeSession.breaks.length - 1];
+          const inicioBreak = breakActual?.inicio?.toDate 
+            ? breakActual.inicio.toDate() 
+            : new Date(breakActual?.inicio || Date.now());
+          const horaBreak = inicioBreak.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+          cuerpo = `Break iniciado: ${horaBreak}\nTiempo trabajado: ${tiempoActual}\nEstado: En Break ☕`;
+          break;
+        case 'almuerzo':
+          const inicioAlmuerzo = activeSession.almuerzo?.inicio?.toDate 
+            ? activeSession.almuerzo.inicio.toDate() 
+            : new Date(activeSession.almuerzo?.inicio || Date.now());
+          const horaAlmuerzo = inicioAlmuerzo.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+          cuerpo = `Almuerzo iniciado: ${horaAlmuerzo}\nTiempo trabajado: ${tiempoActual}\nEstado: Almorzando 🍽️`;
+          break;
+        default:
+          cuerpo = `Entrada: ${horaEntrada}\nTiempo trabajado: ${tiempoActual}`;
+      }
+
+      // ✅ Crear/actualizar notificación con ID fijo (sobreescribe automáticamente)
+      await Notifications.scheduleNotificationAsync({
+        identifier: WORK_SESSION_NOTIFICATION_ID, // ID fijo - sobreescribe
+        content: {
+          title: titulo,
+          body: cuerpo,
+          data: { type: 'work-session' },
+          sound: false,
+          sticky: true,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+        },
+        trigger: null, // Inmediato
+      });
+
+      console.log(`✅ Notificación actualizada: ${estadoActual}`);
+    } catch (error) {
+      console.error('❌ Error actualizando notificación:', error);
+    }
+  };
+
+  // ✅ Actualizar notificación cuando cambia el estado de la sesión
   useEffect(() => {
     if (!activeSession || activeSession.estadoActual === 'finalizado' || finalizando) {
-      // Limpiar interval si existe
-      if (notificationIntervalRef.current) {
-        clearInterval(notificationIntervalRef.current);
-        notificationIntervalRef.current = null;
-      }
       // Cancelar notificación si no hay sesión activa
-      if (workSessionNotificationId) {
-        Notifications.dismissNotificationAsync(workSessionNotificationId);
-        setWorkSessionNotificationId(null);
-      }
+      Notifications.cancelScheduledNotificationAsync(WORK_SESSION_NOTIFICATION_ID).catch(() => {});
+      Notifications.dismissNotificationAsync(WORK_SESSION_NOTIFICATION_ID).catch(() => {});
       return;
     }
 
-    // ✅ Función para crear/actualizar UNA SOLA notificación persistente
-    const updateWorkSessionNotification = async () => {
-      try {
-        // ✅ CRÍTICO: Cancelar TODAS las notificaciones anteriores primero
-        await Notifications.dismissAllNotificationsAsync();
+    // Actualizar notificación inmediatamente al cambiar estado
+    updateWorkSessionNotification(activeSession.estadoActual, tiempoTrabajado);
 
-        // Formatear hora de entrada
-        const entradaDate = activeSession.entrada.hora.toDate ? activeSession.entrada.hora.toDate() : new Date(activeSession.entrada.hora);
-        const horaEntrada = entradaDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-
-        // Obtener estado actual
-        let estado = 'Trabajando 💼';
-        if (activeSession.estadoActual === 'break') estado = 'En Break ☕';
-        if (activeSession.estadoActual === 'almuerzo') estado = 'Almorzando 🍽️';
-
-        // ✅ Crear notificación actualizada (reemplaza la anterior)
-        const notificationId = await Notifications.scheduleNotificationAsync({
-          content: {
-            title: '🕐 Jornada Laboral Activa',
-            body: `Entrada: ${horaEntrada}\nTiempo trabajado: ${tiempoTrabajado}\nEstado: ${estado}`,
-            data: { type: 'work-session' },
-            sound: false, // Sin sonido para actualización
-            sticky: true, // Notificación persistente
-            priority: Notifications.AndroidNotificationPriority.HIGH,
-          },
-          trigger: null, // Inmediato
-        });
-
-        setWorkSessionNotificationId(notificationId);
-      } catch (error) {
-        console.error('❌ Error actualizando notificación de jornada:', error);
-      }
-    };
-
-    // ✅ Solo crear interval si no existe
-    if (!notificationIntervalRef.current) {
-      updateWorkSessionNotification(); // Primera ejecución inmediata
-      notificationIntervalRef.current = setInterval(updateWorkSessionNotification, 10000); // 10 segundos
-      console.log('✅ Interval de notificación creado');
-    }
-
+    // Cleanup al desmontar
     return () => {
-      // Limpiar interval al desmontar
-      if (notificationIntervalRef.current) {
-        clearInterval(notificationIntervalRef.current);
-        notificationIntervalRef.current = null;
-        console.log('🔚 Interval de notificación limpiado');
-      }
-      // Cancelar notificación
-      if (workSessionNotificationId) {
-        Notifications.dismissNotificationAsync(workSessionNotificationId);
+      if (activeSession?.estadoActual === 'finalizado') {
+        Notifications.dismissNotificationAsync(WORK_SESSION_NOTIFICATION_ID).catch(() => {});
       }
     };
-  }, [activeSession, finalizando]); // ✅ YA NO depende de tiempoTrabajado
+  }, [activeSession?.estadoActual]); // ✅ Solo cuando cambia el estado (trabajando, break, almuerzo)
+
+  // ✅ Actualizar notificación periódicamente con el tiempo trabajado (cada 30 segundos)
+  useEffect(() => {
+    if (!activeSession || activeSession.estadoActual === 'finalizado' || finalizando) return;
+
+    const interval = setInterval(() => {
+      updateWorkSessionNotification(activeSession.estadoActual, tiempoTrabajado);
+    }, 30000); // 30 segundos - balance entre actualización y performance
+
+    return () => clearInterval(interval);
+  }, [activeSession, tiempoTrabajado, finalizando]); // ✅ Se actualiza cuando cambia el tiempo
 
   const handleBreak = async () => {
     if (!activeSession) return;
@@ -245,6 +262,19 @@ export default function DashboardScreen() {
                 await new Promise(resolve => setTimeout(resolve, 500));
                 // Ahora finalizar jornada
                 await finalizarJornada();
+                
+                // ✅ Mostrar notificación final con resumen
+                await Notifications.scheduleNotificationAsync({
+                  content: {
+                    title: '✅ Jornada Finalizada',
+                    body: `Total trabajado: ${tiempoTrabajado}\n¡Buen trabajo! 🎉`,
+                    data: { type: 'work-session-complete' },
+                    sound: true,
+                    priority: Notifications.AndroidNotificationPriority.HIGH,
+                  },
+                  trigger: null,
+                });
+                
                 // Ya no necesitamos Alert ni setLoading(false) porque signOut() cierra la sesión automáticamente
               } catch (error) {
                 console.error('Error finalizando jornada:', error);
@@ -272,6 +302,19 @@ export default function DashboardScreen() {
             setLoading(true);
             try {
               await finalizarJornada();
+              
+              // ✅ Mostrar notificación final con resumen
+              await Notifications.scheduleNotificationAsync({
+                content: {
+                  title: '✅ Jornada Finalizada',
+                  body: `Total trabajado: ${tiempoTrabajado}\n¡Buen trabajo! 🎉`,
+                  data: { type: 'work-session-complete' },
+                  sound: true,
+                  priority: Notifications.AndroidNotificationPriority.HIGH,
+                },
+                trigger: null,
+              });
+              
               // Ya no necesitamos Alert.alert porque signOut() cierra la app automáticamente
             } catch (error) {
               console.error('Error finalizando jornada:', error);
