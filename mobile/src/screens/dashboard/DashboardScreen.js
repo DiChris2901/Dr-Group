@@ -7,7 +7,8 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Image
+  Image,
+  RefreshControl
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
@@ -27,6 +28,7 @@ export default function DashboardScreen() {
   const [tiempoTrabajado, setTiempoTrabajado] = useState('00:00:00');
   const [tiempoDescanso, setTiempoDescanso] = useState('00:00:00'); // ✅ Contador de break/almuerzo
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const WORK_SESSION_NOTIFICATION_ID = 'work-session-notification'; // ✅ ID fijo para sobreescribir
 
@@ -352,6 +354,13 @@ export default function DashboardScreen() {
     );
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    // Simular refresh - en realidad AuthContext ya maneja el estado en tiempo real
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setRefreshing(false);
+  };
+
   const formatHora = (timestamp) => {
     if (!timestamp) return '--:--';
     // ✅ Manejar Firestore Timestamp o ISO string
@@ -416,7 +425,17 @@ export default function DashboardScreen() {
         </View>
       </LinearGradient>
 
-      <ScrollView style={styles.content}>
+      <ScrollView 
+        style={styles.content}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            colors={[getPrimaryColor()]}
+            tintColor={getPrimaryColor()}
+          />
+        }
+      >
         {/* ✅ VISTA PARA ADMIN/SUPER_ADMIN - Solo panel administrativo */}
         {(userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') ? (
           <>
