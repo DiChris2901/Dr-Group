@@ -1287,199 +1287,142 @@ const UserManagementPage = () => {
         </DialogTitle>
         
         <DialogContent sx={{ 
-          p: 3,
-          pt: 3
+          p: 0
         }}>
-          <Box>
-            <Grid container spacing={2}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            
+            {/* SECCIÓN 1: INFORMACIÓN GENERAL (HORIZONTAL) */}
+            <Paper sx={{ 
+              p: 3,
+              borderRadius: 0,
+              borderBottom: `1px solid ${theme.palette.divider}`,
+              background: alpha(theme.palette.primary.main, 0.02)
+            }}>
+              <Typography variant="overline" sx={{
+                fontWeight: 600,
+                color: 'primary.main',
+                letterSpacing: 0.8,
+                fontSize: '0.75rem',
+                mb: 2,
+                display: 'block'
+              }}>
+                <PersonAddIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
+                Información General
+              </Typography>
               
-              {/* COLUMNA 1 - INFORMACIÓN GENERAL (COMPACTA) */}
-              <Grid item xs={12} md={5}>
-                <Paper sx={{
-                  p: 3,
-                  borderRadius: 2,
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                  background: theme.palette.background.paper,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                }}>
-                  <Typography variant="overline" sx={{
-                    fontWeight: 600,
-                    color: 'primary.main',
-                    letterSpacing: 0.8,
-                    fontSize: '0.75rem'
-                  }}>
-                    <PersonAddIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
-                    Información General
-                  </Typography>
-                  
-                  <Grid container spacing={3} sx={{ mt: 1 }}>
-                    {/* Información básica */}
-                    <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        label="Email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => updateFormData({ email: e.target.value })}
-                        disabled={!!editingUser}
-                        required
-                      />
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        label="Nombre completo"
-                        value={formData.displayName}
-                        onChange={(e) => updateFormData({ displayName: e.target.value })}
-                        required
-                      />
-                    </Grid>
-                    <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        label="Teléfono"
-                        value={formData.phone}
-                        onChange={(e) => updateFormData({ phone: e.target.value })}
-                      />
-                    </Grid>
-                    
-                    {/* Campo de contraseña temporal - Solo para usuarios nuevos */}
-                    {!editingUser && (
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          fullWidth
-                          label="Contraseña Temporal"
-                          type={showPassword ? 'text' : 'password'}
-                          value={formData.temporalPassword}
-                          onChange={(e) => updateFormData({ temporalPassword: e.target.value })}
-                          helperText="Se enviará email para cambiar contraseña"
-                          InputProps={{
-                            endAdornment: (
-                              <IconButton
-                                onClick={() => setShowPassword(!showPassword)}
-                                edge="end"
-                              >
-                                {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                              </IconButton>
-                            )
-                          }}
-                        />
-                      </Grid>
-                    )}
-                    
-                    <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        label="Departamento"
-                        value={formData.department}
-                        onChange={(e) => updateFormData({ department: e.target.value })}
-                      />
-                    </Grid>
+              <Grid container spacing={2}>
+                {/* Email */}
+                <Grid item xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    label="Email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => updateFormData({ email: e.target.value })}
+                    disabled={!!editingUser}
+                    required
+                    size="small"
+                  />
+                </Grid>
 
-                    {/* Rol */}
-                    <Grid item xs={12} md={6}>
-                      <FormControl fullWidth required>
-                        <InputLabel>Rol</InputLabel>
-                        <Select
-                          value={formData.role}
-                          onChange={(e) => handleRoleChange(e.target.value)}
-                          label="Rol"
-                        >
-                          <MenuItem value="ADMIN">
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <AdminIcon />
-                              Administrador
-                            </Box>
-                          </MenuItem>
-                          <MenuItem value="USER">
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <SecurityIcon />
-                              Usuario
-                            </Box>
-                          </MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Grid>
+                {/* Nombre */}
+                <Grid item xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    label="Nombre completo"
+                    value={formData.displayName}
+                    onChange={(e) => updateFormData({ displayName: e.target.value })}
+                    required
+                    size="small"
+                  />
+                </Grid>
 
-                    {/* Estado activo */}
-                    <Grid item xs={12} md={6}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={formData.isActive}
-                            onChange={(e) => updateFormData({ isActive: e.target.checked })}
-                          />
-                        }
-                        label="Usuario activo"
+                {/* Teléfono */}
+                <Grid item xs={12} md={2}>
+                  <TextField
+                    fullWidth
+                    label="Teléfono"
+                    value={formData.phone}
+                    onChange={(e) => updateFormData({ phone: e.target.value })}
+                    size="small"
+                  />
+                </Grid>
+
+                {/* Departamento */}
+                <Grid item xs={12} md={2}>
+                  <TextField
+                    fullWidth
+                    label="Departamento"
+                    value={formData.department}
+                    onChange={(e) => updateFormData({ department: e.target.value })}
+                    size="small"
+                  />
+                </Grid>
+
+                {/* Rol */}
+                <Grid item xs={12} md={2}>
+                  <FormControl fullWidth required size="small">
+                    <InputLabel>Rol</InputLabel>
+                    <Select
+                      value={formData.role}
+                      onChange={(e) => handleRoleChange(e.target.value)}
+                      label="Rol"
+                    >
+                      <MenuItem value="ADMIN">Administrador</MenuItem>
+                      <MenuItem value="USER">Usuario</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {/* Notas */}
+                <Grid item xs={12} md={10}>
+                  <TextField
+                    fullWidth
+                    label="Notas adicionales"
+                    multiline
+                    rows={2}
+                    value={formData.notes}
+                    onChange={(e) => updateFormData({ notes: e.target.value })}
+                    size="small"
+                  />
+                </Grid>
+
+                {/* Estado activo */}
+                <Grid item xs={12} md={2}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={formData.isActive}
+                        onChange={(e) => updateFormData({ isActive: e.target.checked })}
                       />
-                    </Grid>
-
-                    {/* Notas */}
-                    <Grid item xs={12}>
-                      <TextField
-                        fullWidth
-                        label="Notas adicionales"
-                        multiline
-                        rows={3}
-                        value={formData.notes}
-                        onChange={(e) => updateFormData({ notes: e.target.value })}
-                      />
-                    </Grid>
-                  </Grid>
-                </Paper>
-              </Grid>
-
-              {/* COLUMNA 2 - PERMISOS DEL SISTEMA (CENTRO) */}
-              <Grid item xs={12} md={4}>
-                <Paper sx={{
-                  p: 2,
-                  borderRadius: 2,
-                  border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
-                  background: theme.palette.background.paper,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                }}>
-                  <Typography variant="overline" sx={{
-                    fontWeight: 600,
-                    color: 'secondary.main',
-                    letterSpacing: 0.8,
-                    fontSize: '0.75rem'
-                  }}>
-                    <SecurityIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
-                    Permisos de Acceso
-                  </Typography>
-                  
-                  <Typography variant="body2" sx={{ 
-                    mt: 0.5, 
-                    mb: 2, 
-                    color: 'text.secondary',
-                    fontSize: '0.875rem'
-                  }}>
-                    Selecciona las secciones del sistema a las que el usuario tendrá acceso
-                  </Typography>
-
-                  {/* Contenedor con scroll para lista de permisos */}
-                  <Box sx={{ 
-                    maxHeight: '65vh', 
-                    overflowY: 'auto',
-                    pr: 1,
-                    '&::-webkit-scrollbar': {
-                      width: '6px'
-                    },
-                    '&::-webkit-scrollbar-track': {
-                      background: alpha(theme.palette.divider, 0.1),
-                      borderRadius: '3px'
-                    },
-                    '&::-webkit-scrollbar-thumb': {
-                      background: alpha(theme.palette.secondary.main, 0.3),
-                      borderRadius: '3px',
-                      '&:hover': {
-                        background: alpha(theme.palette.secondary.main, 0.5)
-                      }
                     }
-                  }}>
-                    <Grid container spacing={2} sx={{ alignItems: 'flex-start' }}>
-                        {(() => {
-                        // Array completo de permisos
+                    label="Usuario activo"
+                  />
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* SECCIÓN 2: PERMISOS DEL SISTEMA (GRID 3 COLUMNAS) */}
+            <Box sx={{ 
+              flexGrow: 1, 
+              p: 3,
+              background: theme.palette.background.default
+            }}>
+              <Typography variant="overline" sx={{
+                fontWeight: 600,
+                color: 'secondary.main',
+                letterSpacing: 0.8,
+                fontSize: '0.75rem',
+                mb: 2,
+                display: 'block'
+              }}>
+                <SecurityIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
+                Permisos de Acceso
+              </Typography>
+              
+              <Grid container spacing={2}>
+                {(() => {
+                  // Array completo de permisos
                         const allPermissions = [
                       { key: 'dashboard', label: 'Dashboard', icon: <Dashboard />, color: theme.palette.primary.main },
                       { 
@@ -1564,8 +1507,8 @@ const UserManagementPage = () => {
                       ];
                       
                       return allPermissions;
-                    })().map((permission) => (
-                      <Grid item xs={12} key={permission.key} sx={{ mb: 0.5 }}>
+                })().map((permission) => (
+                  <Grid item xs={12} sm={6} md={4} key={permission.key}>
                         <Card sx={{
                           border: formData.permissions.includes(permission.key) 
                             ? `2px solid ${permission.color}` 
@@ -1800,58 +1743,36 @@ const UserManagementPage = () => {
                           </CardContent>
                         </Card>
                       </Grid>
-                    ))}
-                  </Grid>
-                  </Box>
-                </Paper>
+                ))}
               </Grid>
+            </Box>
 
-              {/* COLUMNA 3 - RESUMEN STICKY (DERECHA) */}
-              <Grid item xs={12} md={3}>
-                <Box sx={{ 
-                  position: 'sticky', 
-                  top: 0,
-                  maxHeight: '65vh',
-                  overflowY: 'auto',
-                  '&::-webkit-scrollbar': {
-                    width: '6px'
-                  },
-                  '&::-webkit-scrollbar-track': {
-                    background: alpha(theme.palette.divider, 0.1),
-                    borderRadius: '3px'
-                  },
-                  '&::-webkit-scrollbar-thumb': {
-                    background: alpha(theme.palette.primary.main, 0.3),
-                    borderRadius: '3px',
-                    '&:hover': {
-                      background: alpha(theme.palette.primary.main, 0.5)
-                    }
-                  }
+            {/* SECCIÓN 3: RESUMEN DE PERMISOS ACTIVOS */}
+            <Paper sx={{ 
+              p: 2,
+              borderRadius: 0,
+              borderTop: `1px solid ${theme.palette.divider}`,
+              background: alpha(theme.palette.success.main, 0.02)
+            }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                <Typography variant="overline" sx={{ 
+                  fontWeight: 600, 
+                  color: 'success.main',
+                  letterSpacing: 0.8,
+                  fontSize: '0.75rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5
                 }}>
-                  <Paper sx={{ 
-                    p: 2, 
-                    bgcolor: 'background.default', 
-                    borderRadius: 2,
-                    border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                  }}>
-                    <Typography variant="overline" sx={{ 
-                      fontWeight: 600, 
-                      color: 'success.main',
-                      letterSpacing: 0.8,
-                      fontSize: '0.75rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.5,
-                      mb: 1.5
-                    }}>
-                      <CheckCircleIcon sx={{ fontSize: 14 }} />
-                      Permisos Activos ({formData.permissions.length})
-                    </Typography>
-                    
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                      {formData.permissions.length > 0 ? (
-                        (() => {
+                  <CheckCircleIcon sx={{ fontSize: 14 }} />
+                  Permisos Seleccionados ({formData.permissions.length})
+                </Typography>
+                
+                <Divider orientation="vertical" flexItem />
+                
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, flex: 1 }}>
+                  {formData.permissions.length > 0 ? (
+                    (() => {
                           // Definir todos los permisos con sus sub-opciones
                           const permissionGroups = {
                             'compromisos': ['Ver Todos', 'Agregar Nuevo', 'Próximos A Vencer'],
@@ -1895,16 +1816,7 @@ const UserManagementPage = () => {
                                     label={`${parentLabel.charAt(0).toUpperCase() + parentLabel.slice(1)} (${childrenText})`}
                                     size="small"
                                     color="success"
-                                    variant="outlined"
-                                    sx={{ 
-                                      fontSize: '0.75rem',
-                                      height: 'auto',
-                                      py: 0.5,
-                                      '& .MuiChip-label': {
-                                        whiteSpace: 'normal',
-                                        textAlign: 'left'
-                                      }
-                                    }}
+                                    sx={{ fontSize: '0.7rem' }}
                                   />
                                 );
                               })}
@@ -1918,8 +1830,7 @@ const UserManagementPage = () => {
                                     label={label.charAt(0).toUpperCase() + label.slice(1)}
                                     size="small"
                                     color="success"
-                                    variant="outlined"
-                                    sx={{ fontSize: '0.75rem' }}
+                                    sx={{ fontSize: '0.7rem' }}
                                   />
                                 );
                               })}
@@ -1929,18 +1840,14 @@ const UserManagementPage = () => {
                       ) : (
                         <Typography variant="caption" sx={{ 
                           color: 'text.disabled', 
-                          fontStyle: 'italic',
-                          textAlign: 'center',
-                          py: 2
+                          fontStyle: 'italic'
                         }}>
-                          No hay permisos seleccionados
+                          Ningún permiso seleccionado
                         </Typography>
                       )}
-                    </Box>
-                  </Paper>
                 </Box>
-              </Grid>
-            </Grid>
+              </Box>
+            </Paper>
           </Box>
         </DialogContent>
 
