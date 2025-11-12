@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { AppState } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { 
   collection, 
   query, 
@@ -30,8 +32,47 @@ export const ChatProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  
+  // ✅ PASO 3.5: Estado de la app para controlar notificaciones
+  const appState = useRef(AppState.currentState);
+  const [isInChatScreen, setIsInChatScreen] = useState(false);
+  const lastMessageId = useRef(null);
 
-  // 🔥 LISTENER: Mensajes del chat general
+  // Listener de estado de la app
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, []);
+
+  // ✅ Función para mostrar notificación de chat
+  const showChatNotification = async (message) => {
+    try {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `💬 ${message.userName || 'Nuevo mensaje'}`,
+          body: message.text || '[Archivo adjunto]',
+          sound: true,
+          priority: Notifications.AndroidNotificationPriority.HIGH,
+          data: { 
+            type: 'chat',
+            screen: 'Chat',
+            messageId: message.id 
+          }
+        },
+        trigger: null // Inmediato
+      });
+      console.log('✅ Notificación de chat enviada');
+    } catch (error) {
+      console.error('❌ Error enviando notificación de chat:', error);
+    }
+  };
+
+  // 🔥 LISTENER: Mensajes del chat general con notificaciones
   useEffect(() => {
     if (!user) {
       setMessages([]);
@@ -62,6 +103,37 @@ export const ChatProvider = ({ children }) => {
             };
           });
 
+          // ✅ Detectar nuevos mensajes para notificaciones
+          snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+              const message = {
+                id: change.doc.id,
+                ...change.doc.data()
+              };
+
+              // No notificar si es mensaje propio
+              if (message.uid === user.uid) return;
+
+              // No notificar si es el primer mensaje al cargar
+              if (lastMessageId.current === null) return;
+
+              // No notificar si app está en foreground y en ChatScreen
+              const isAppActive = appState.current === 'active';
+              if (isAppActive && isInChatScreen) {
+                console.log('⏭️ No notificar: usuario en ChatScreen');
+                return;
+              }
+
+              // Mostrar notificación
+              showChatNotification(message);
+            }
+          });
+
+          // Actualizar último mensaje ID
+          if (messagesData.length > 0) {
+            lastMessageId.current = messagesData[messagesData.length - 1].id;
+          }
+
           // Invertir para mostrar del más antiguo al más reciente
           setMessages(messagesData.reverse());
           setLoading(false);
@@ -82,7 +154,7 @@ export const ChatProvider = ({ children }) => {
       console.error('❌ Error configurando listener:', error);
       setLoading(false);
     }
-  }, [user]);
+  }, [user, isInChatScreen]);
 
   // ✅ FUNCIÓN: Enviar mensaje de texto
   const sendMessage = useCallback(async (text) => {
@@ -215,7 +287,8 @@ export const ChatProvider = ({ children }) => {
     unreadCount,
     sendMessage,
     sendImage,
-    sendFile
+    sendFile,
+    setIsInChatScreen // ✅ Exponer función para controlar estado de pantalla
   };
 
   return (

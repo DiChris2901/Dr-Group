@@ -15,7 +15,7 @@ import ChatScreen from '../screens/chat/ChatScreen';
 
 const Stack = createNativeStackNavigator();
 
-export default function AppNavigator() {
+const AppNavigator = React.forwardRef((props, ref) => {
   const { user, userProfile, loading } = useAuth();
 
   if (loading) {
@@ -30,7 +30,7 @@ export default function AppNavigator() {
   const userRole = userProfile?.role || 'USER';
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={ref}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <>
@@ -53,4 +53,6 @@ export default function AppNavigator() {
       </Stack.Navigator>
     </NavigationContainer>
   );
-}
+});
+
+export default AppNavigator;

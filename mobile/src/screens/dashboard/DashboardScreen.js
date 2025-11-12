@@ -10,9 +10,11 @@ import {
   Image
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import * as Notifications from 'expo-notifications';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useChat } from '../../contexts/ChatContext';
+import { useNotifications } from '../../contexts/NotificationsContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import SobrioCard from '../../components/SobrioCard';
 import DetailRow from '../../components/DetailRow';
@@ -23,10 +25,12 @@ export default function DashboardScreen() {
   const { user, userProfile, activeSession, signOut, registrarBreak, finalizarBreak, registrarAlmuerzo, finalizarAlmuerzo, finalizarJornada } = useAuth();
   const { getGradient, getPrimaryColor, getSecondaryColor } = useTheme();
   const { unreadCount } = useChat();
+  const { scheduleNotification, cancelNotification } = useNotifications();
   const [tiempoTrabajado, setTiempoTrabajado] = useState('00:00:00');
   const [tiempoDescanso, setTiempoDescanso] = useState('00:00:00'); // ✅ Contador de break/almuerzo
   const [loading, setLoading] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
+  const [workSessionNotificationId, setWorkSessionNotificationId] = useState(null);
 
   // ✅ CONTADOR DE TIEMPO TRABAJADO (se pausa durante break/almuerzo)
   useEffect(() => {
@@ -109,6 +113,63 @@ export default function DashboardScreen() {
 
     return () => clearInterval(interval);
   }, [activeSession, finalizando]);
+
+  // ✅ PASO 3.4: Notificación persistente de jornada laboral
+  useEffect(() => {
+    if (!activeSession || activeSession.estadoActual === 'finalizado' || finalizando) {
+      // Cancelar notificación si no hay sesión activa
+      if (workSessionNotificationId) {
+        Notifications.dismissNotificationAsync(workSessionNotificationId);
+        setWorkSessionNotificationId(null);
+      }
+      return;
+    }
+
+    // Función para crear/actualizar la notificación persistente
+    const updateWorkSessionNotification = async () => {
+      try {
+        // Formatear hora de entrada
+        const entradaDate = activeSession.entrada.hora.toDate ? activeSession.entrada.hora.toDate() : new Date(activeSession.entrada.hora);
+        const horaEntrada = entradaDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+
+        // Obtener estado actual
+        let estado = 'Trabajando';
+        if (activeSession.estadoActual === 'break') estado = 'En Break';
+        if (activeSession.estadoActual === 'almuerzo') estado = 'Almorzando';
+
+        // Programar notificación
+        const notificationId = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: '🕐 Jornada Laboral Activa',
+            body: `Entrada: ${horaEntrada}\nTiempo trabajado: ${tiempoTrabajado}\nEstado: ${estado}`,
+            data: { type: 'work-session' },
+            sound: false, // Sin sonido para notificación persistente
+            sticky: true, // Intentar hacer la notificación persistente
+            priority: Notifications.AndroidNotificationPriority.HIGH,
+          },
+          trigger: null, // Inmediato
+        });
+
+        // Guardar el ID para poder actualizarla
+        if (!workSessionNotificationId) {
+          setWorkSessionNotificationId(notificationId);
+        }
+      } catch (error) {
+        console.error('❌ Error actualizando notificación de jornada:', error);
+      }
+    };
+
+    // Crear/actualizar notificación cada 60 segundos
+    updateWorkSessionNotification();
+    const interval = setInterval(updateWorkSessionNotification, 60000);
+
+    return () => {
+      clearInterval(interval);
+      if (workSessionNotificationId) {
+        Notifications.dismissNotificationAsync(workSessionNotificationId);
+      }
+    };
+  }, [activeSession, tiempoTrabajado, finalizando, workSessionNotificationId]);
 
   const handleBreak = async () => {
     if (!activeSession) return;

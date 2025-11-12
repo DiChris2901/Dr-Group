@@ -19,7 +19,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import ChatMessage from './ChatMessage';
 
 const ChatScreen = ({ navigation }) => {
-  const { messages, loading, sending, sendMessage, sendImage, sendFile } = useChat();
+  const { messages, loading, sending, sendMessage, sendImage, sendFile, setIsInChatScreen } = useChat();
   const { user } = useAuth();
   const { getPrimaryColor } = useTheme();
   
@@ -27,6 +27,17 @@ const ChatScreen = ({ navigation }) => {
   const flatListRef = useRef(null);
   
   const primaryColor = getPrimaryColor();
+
+  // ✅ PASO 3.5: Informar cuando usuario está en ChatScreen
+  useEffect(() => {
+    setIsInChatScreen(true);
+    console.log('🟢 Usuario entró a ChatScreen');
+
+    return () => {
+      setIsInChatScreen(false);
+      console.log('🔴 Usuario salió de ChatScreen');
+    };
+  }, []);
 
   // Auto-scroll al final cuando llegan nuevos mensajes
   useEffect(() => {
