@@ -1239,7 +1239,7 @@ const UserManagementPage = () => {
         open={openModal}
         onClose={handleCloseModal}
         fullWidth
-        maxWidth="xl"
+        maxWidth="lg"
         PaperProps={{
           sx: {
             borderRadius: 2,
@@ -1248,7 +1248,7 @@ const UserManagementPage = () => {
               ? '0 4px 20px rgba(0, 0, 0, 0.3)'
               : '0 4px 20px rgba(0, 0, 0, 0.08)',
             border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-            maxWidth: '1400px'
+            maxWidth: '1000px'
           }
         }}
       >
