@@ -1,292 +1,474 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
-  Alert
+  Image,
+  Modal
 } from 'react-native';
-import { collection, query, orderBy, getDocs, where } from 'firebase/firestore';
+import { MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { SobrioCard, DetailRow, OverlineText, EmptyState, LoadingState } from '../../components';
 import ProtectedScreen from '../../components/ProtectedScreen';
-import SobrioCard from '../../components/SobrioCard';
-import DetailRow from '../../components/DetailRow';
-import OverlineText from '../../components/OverlineText';
+import { format, startOfMonth, endOfMonth, subDays, addDays } from 'date-fns';
+import { es } from 'date-fns/locale';
 
-const AsistenciasScreen = () => {
-  const { getPrimaryColor, getSecondaryColor } = useTheme();
+/**
+ * AsistenciasScreen - Historial de asistencias con filtros avanzados
+ * 
+ * Mejoras FASE 0.5:
+ * - ✅ Filtro de rango de fechas (desde/hasta)
+ * - ✅ Filtro de empleado (solo ADMIN)
+ * - ✅ Navegación al detalle completo
+ * - ✅ Performance mejorada (carga usuarios una sola vez)
+ * - ✅ Integración con EmptyState/LoadingState
+ */
+function AsistenciasScreenContent({ navigation }) {
   const { userProfile } = useAuth();
+  const { getGradient, getPrimaryColor, getSecondaryColor } = useTheme();
+  
+  // Estados
   const [asistencias, setAsistencias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [error, setError] = useState(null);
+  
+  // Filtros
+  const [fechaDesde, setFechaDesde] = useState(startOfMonth(new Date()));
+  const [fechaHasta, setFechaHasta] = useState(new Date());
+  const [empleadoSeleccionado, setEmpleadoSeleccionado] = useState(null);
+  const [showEmpleadoPicker, setShowEmpleadoPicker] = useState(false);
+  
+  // Cache de usuarios
+  const [usersMap, setUsersMap] = useState({});
+  const [empleados, setEmpleados] = useState([]);
+  
+  // Verificar si es ADMIN
+  const isAdmin = userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN';
 
+  // Cargar todos los usuarios una sola vez (fix N+1 problem)
+  useEffect(() => {
+    cargarUsuarios();
+  }, []);
+
+  // Cargar asistencias cuando cambian los filtros
   useEffect(() => {
     cargarAsistencias();
-  }, [selectedDate]);
+  }, [fechaDesde, fechaHasta, empleadoSeleccionado]);
+
+  const cargarUsuarios = async () => {
+    try {
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const userMap = {};
+      const empleadosList = [];
+      
+      usersSnapshot.forEach(doc => {
+        const userData = doc.data();
+        userMap[doc.id] = {
+          uid: doc.id,
+          name: userData.name || userData.displayName || userData.email,
+          email: userData.email,
+          photoURL: userData.photoURL
+        };
+        
+        // Lista para el picker (solo ADMIN)
+        empleadosList.push({
+          uid: doc.id,
+          name: userData.name || userData.displayName || userData.email
+        });
+      });
+      
+      setUsersMap(userMap);
+      setEmpleados(empleadosList.sort((a, b) => a.name.localeCompare(b.name)));
+    } catch (error) {
+      console.error('Error cargando usuarios:', error);
+    }
+  };
 
   const cargarAsistencias = async () => {
     try {
       setLoading(true);
+      setError(null);
       
-      // Formato de fecha: YYYY-MM-DD
-      const fechaStr = selectedDate.toISOString().split('T')[0];
+      // Formatear fechas para query
+      const fechaDesdeStr = format(fechaDesde, 'yyyy-MM-dd');
+      const fechaHastaStr = format(fechaHasta, 'yyyy-MM-dd');
       
-      // ✅ Query simple sin orderBy (no requiere índice compuesto)
-      const asistenciasRef = collection(db, 'asistencias');
-      const q = query(
-        asistenciasRef,
-        where('fecha', '==', fechaStr)
+      // Construir query con rango de fechas
+      let q = query(
+        collection(db, 'asistencias'),
+        where('fecha', '>=', fechaDesdeStr),
+        where('fecha', '<=', fechaHastaStr),
+        orderBy('fecha', 'desc')
       );
       
-      const querySnapshot = await getDocs(q);
-      const asistenciasData = [];
-      
-      for (const doc of querySnapshot.docs) {
-        const data = doc.data();
-        
-        // Obtener datos del usuario
-        const userDoc = await getDocs(query(collection(db, 'users'), where('__name__', '==', data.uid)));
-        let userName = 'Usuario desconocido';
-        let userPhoto = null;
-        
-        if (!userDoc.empty) {
-          const userData = userDoc.docs[0].data();
-          userName = userData.name || userData.displayName || userData.email;
-          userPhoto = userData.photoURL;
-        }
-        
-        asistenciasData.push({
-          id: doc.id,
-          ...data,
-          userName,
-          userPhoto
-        });
+      // Si es ADMIN y seleccionó un empleado, filtrar por uid
+      if (isAdmin && empleadoSeleccionado) {
+        q = query(
+          collection(db, 'asistencias'),
+          where('uid', '==', empleadoSeleccionado),
+          where('fecha', '>=', fechaDesdeStr),
+          where('fecha', '<=', fechaHastaStr),
+          orderBy('fecha', 'desc')
+        );
       }
       
-      // ✅ Ordenar en memoria después de obtener todos los datos (más reciente primero)
-      asistenciasData.sort((a, b) => {
-        const horaA = a.entrada?.hora?.toDate ? a.entrada.hora.toDate() : new Date(a.entrada?.hora || 0);
-        const horaB = b.entrada?.hora?.toDate ? b.entrada.hora.toDate() : new Date(b.entrada?.hora || 0);
-        return horaB - horaA; // Descendente (más reciente primero)
+      const querySnapshot = await getDocs(q);
+      const asistenciasData = querySnapshot.docs.map(doc => {
+        const data = doc.data();
+        const userData = usersMap[data.uid] || {};
+        
+        return {
+          id: doc.id,
+          ...data,
+          userName: userData.name || 'Usuario',
+          userEmail: userData.email || '',
+          userPhoto: userData.photoURL || null
+        };
       });
       
       setAsistencias(asistenciasData);
-    } catch (error) {
-      console.error('Error al cargar asistencias:', error);
-      Alert.alert('Error', 'No se pudieron cargar las asistencias');
+    } catch (err) {
+      console.error('Error cargando asistencias:', err);
+      setError('Error al cargar asistencias');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = () => {
     setRefreshing(true);
-    await cargarAsistencias();
-    setRefreshing(false);
+    cargarAsistencias();
   };
 
-  const formatearHora = (timestamp) => {
-    if (!timestamp) return '--:--';
-    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  const handleFiltroRapido = (tipo) => {
+    const hoy = new Date();
+    switch (tipo) {
+      case 'hoy':
+        setFechaDesde(hoy);
+        setFechaHasta(hoy);
+        break;
+      case 'semana':
+        setFechaDesde(subDays(hoy, 7));
+        setFechaHasta(hoy);
+        break;
+      case 'mes':
+        setFechaDesde(startOfMonth(hoy));
+        setFechaHasta(endOfMonth(hoy));
+        break;
+    }
   };
 
-  const formatearDuracion = (duracion) => {
-    if (!duracion) return '00:00:00';
-    return duracion;
+  const getEstadoColor = (estado) => {
+    switch (estado) {
+      case 'trabajando': return '#4caf50';
+      case 'break': return '#ff9800';
+      case 'almuerzo': return '#2196f3';
+      case 'finalizado': return '#9e9e9e';
+      default: return '#9e9e9e';
+    }
   };
 
-  const cambiarDia = (dias) => {
-    const nuevaFecha = new Date(selectedDate);
-    nuevaFecha.setDate(nuevaFecha.getDate() + dias);
-    setSelectedDate(nuevaFecha);
+  const getEstadoLabel = (estado) => {
+    switch (estado) {
+      case 'trabajando': return 'Trabajando';
+      case 'break': return 'En Break';
+      case 'almuerzo': return 'Almorzando';
+      case 'finalizado': return 'Finalizado';
+      default: return 'Desconocido';
+    }
   };
 
-  const renderAsistenciaItem = ({ item }) => (
-    <SobrioCard style={styles.asistenciaCard}>
-      {/* Header con usuario */}
-      <View style={styles.cardHeader}>
-        <View style={styles.userInfo}>
-          {item.userPhoto ? (
-            <View style={styles.avatar}>
-              <Text style={styles.avatarEmoji}>👤</Text>
+  // Calcular estadísticas
+  const stats = useMemo(() => {
+    const total = asistencias.length;
+    const finalizadas = asistencias.filter(a => a.estadoActual === 'finalizado').length;
+    const activas = asistencias.filter(a => a.estadoActual !== 'finalizado').length;
+    
+    return { total, finalizadas, activas };
+  }, [asistencias]);
+
+  const renderAsistenciaItem = (asistencia) => {
+    const estadoColor = getEstadoColor(asistencia.estadoActual);
+    
+    return (
+      <TouchableOpacity
+        key={asistencia.id}
+        onPress={() => navigation.navigate('AsistenciaDetail', { asistencia })}
+        activeOpacity={0.7}
+      >
+        <SobrioCard style={styles.asistenciaCard}>
+          {/* Header con usuario */}
+          <View style={styles.cardHeader}>
+            <View style={styles.userInfo}>
+              {asistencia.userPhoto ? (
+                <Image source={{ uri: asistencia.userPhoto }} style={styles.userAvatar} />
+              ) : (
+                <View style={[styles.userAvatarPlaceholder, { backgroundColor: getPrimaryColor() + '20' }]}>
+                  <MaterialIcons name="person" size={24} color={getPrimaryColor()} />
+                </View>
+              )}
+              <View style={styles.userDetails}>
+                <Text style={styles.userName}>{asistencia.userName}</Text>
+                <Text style={styles.userDate}>{format(new Date(asistencia.fecha), "d 'de' MMMM, yyyy", { locale: es })}</Text>
+              </View>
             </View>
-          ) : (
-            <View style={styles.avatar}>
-              <Text style={styles.avatarEmoji}>👤</Text>
+            
+            {/* Estado badge */}
+            <View style={[styles.estadoBadge, { backgroundColor: estadoColor + '26' }]}>
+              <Text style={[styles.estadoText, { color: estadoColor }]}>
+                {getEstadoLabel(asistencia.estadoActual)}
+              </Text>
             </View>
-          )}
-          <View style={styles.userDetails}>
-            <Text style={styles.userName}>{item.userName}</Text>
-            <Text style={styles.userFecha}>{item.fecha}</Text>
           </View>
-        </View>
-        
-        {/* Estado badge */}
-        <View style={[
-          styles.estadoBadge,
-          { backgroundColor: item.estadoActual === 'finalizado' ? '#e8f5e9' : '#fff3e0' }
-        ]}>
-          <Text style={[
-            styles.estadoText,
-            { color: item.estadoActual === 'finalizado' ? '#2e7d32' : '#ef6c00' }
-          ]}>
-            {item.estadoActual === 'finalizado' ? '✅ Finalizado' : '⏳ Activo'}
-          </Text>
-        </View>
+
+          {/* Información detallada */}
+          <View style={styles.cardDetails}>
+            <DetailRow
+              icon="login"
+              label="Entrada"
+              value={asistencia.entrada?.hora ? format(asistencia.entrada.hora.toDate(), 'HH:mm:ss') : '--:--'}
+              iconColor={getPrimaryColor()}
+            />
+            
+            {asistencia.salida?.hora && (
+              <DetailRow
+                icon="logout"
+                label="Salida"
+                value={format(asistencia.salida.hora.toDate(), 'HH:mm:ss')}
+                iconColor={getSecondaryColor()}
+              />
+            )}
+            
+            <DetailRow
+              icon="access-time"
+              label="Horas Trabajadas"
+              value={asistencia.horasTrabajadas || '00:00:00'}
+              iconColor="#4caf50"
+              highlight={asistencia.estadoActual === 'finalizado'}
+            />
+            
+            {asistencia.breaks && asistencia.breaks.length > 0 && (
+              <DetailRow
+                icon="free-breakfast"
+                label="Breaks"
+                value={`${asistencia.breaks.length} break(s)`}
+                iconColor="#ff9800"
+              />
+            )}
+          </View>
+
+          {/* Flecha de navegación */}
+          <View style={styles.cardFooter}>
+            <Text style={styles.verDetalleText}>Ver detalle completo</Text>
+            <MaterialIcons name="chevron-right" size={24} color={getPrimaryColor()} />
+          </View>
+        </SobrioCard>
+      </TouchableOpacity>
+    );
+  };
+
+  if (loading && !refreshing) {
+    return <LoadingState message="Cargando asistencias..." />;
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <EmptyState
+          icon="error-outline"
+          message={error}
+          iconColor="#f44336"
+        />
+        <TouchableOpacity style={styles.retryButton} onPress={cargarAsistencias}>
+          <Text style={styles.retryButtonText}>Reintentar</Text>
+        </TouchableOpacity>
       </View>
-
-      {/* Divider */}
-      <View style={styles.divider} />
-
-      {/* Detalles */}
-      <View style={styles.detalles}>
-        <DetailRow
-          icon="🕐"
-          label="Hora de Entrada"
-          value={formatearHora(item.entrada?.hora)}
-          iconColor={getPrimaryColor()}
-        />
-        
-        <DetailRow
-          icon="🕐"
-          label="Hora de Salida"
-          value={item.salida?.hora ? formatearHora(item.salida.hora) : 'Sin registrar'}
-          iconColor={getSecondaryColor()}
-        />
-        
-        <DetailRow
-          icon="⏱️"
-          label="Horas Trabajadas"
-          value={formatearDuracion(item.horasTrabajadas)}
-          iconColor="#4caf50"
-          highlight
-        />
-        
-        {item.breaks && item.breaks.length > 0 && (
-          <DetailRow
-            icon="☕"
-            label="Breaks"
-            value={`${item.breaks.length} break(s)`}
-            iconColor="#ff9800"
-          />
-        )}
-        
-        {item.almuerzo && item.almuerzo.inicio && (
-          <DetailRow
-            icon="🍽️"
-            label="Almuerzo"
-            value={formatearDuracion(item.almuerzo.duracion)}
-            iconColor="#2196f3"
-          />
-        )}
-      </View>
-    </SobrioCard>
-  );
-
-  const fechaTexto = selectedDate.toLocaleDateString('es-CO', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+    );
+  }
 
   return (
-    <ProtectedScreen requiredPermission="asistencias.ver_todos">
-      <View style={styles.container}>
-        {/* Header con gradiente */}
-        <View style={[styles.header, { backgroundColor: getPrimaryColor() }]}>
-          <OverlineText style={styles.headerOverline}>ADMINISTRACIÓN</OverlineText>
-          <Text style={styles.headerTitle}>Asistencias</Text>
-          <Text style={styles.headerSubtitle}>Control de jornadas laborales</Text>
-        </View>
+    <View style={styles.container}>
+      {/* Header con gradiente */}
+      <LinearGradient
+        colors={getGradient()}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <OverlineText style={styles.headerOverline}>HISTORIAL DE ASISTENCIAS</OverlineText>
+        <Text style={styles.headerTitle}>Control de Jornadas</Text>
+        <Text style={styles.headerSubtitle}>
+          Consulta el historial completo de asistencias
+        </Text>
+      </LinearGradient>
 
-        {/* Selector de fecha */}
-        <View style={styles.dateSelector}>
+      <ScrollView
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[getPrimaryColor()]} />
+        }
+      >
+        {/* Filtros rápidos */}
+        <View style={styles.filtrosRapidos}>
           <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => cambiarDia(-1)}
+            style={[styles.filtroChip, { borderColor: getPrimaryColor() }]}
+            onPress={() => handleFiltroRapido('hoy')}
           >
-            <Text style={styles.dateButtonText}>← Día Anterior</Text>
+            <MaterialIcons name="today" size={16} color={getPrimaryColor()} />
+            <Text style={[styles.filtroChipText, { color: getPrimaryColor() }]}>Hoy</Text>
           </TouchableOpacity>
           
-          <View style={styles.dateTextContainer}>
-            <Text style={styles.dateText}>{fechaTexto}</Text>
+          <TouchableOpacity
+            style={[styles.filtroChip, { borderColor: getPrimaryColor() }]}
+            onPress={() => handleFiltroRapido('semana')}
+          >
+            <MaterialIcons name="date-range" size={16} color={getPrimaryColor()} />
+            <Text style={[styles.filtroChipText, { color: getPrimaryColor() }]}>Semana</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.filtroChip, { borderColor: getPrimaryColor() }]}
+            onPress={() => handleFiltroRapido('mes')}
+          >
+            <MaterialIcons name="calendar-today" size={16} color={getPrimaryColor()} />
+            <Text style={[styles.filtroChipText, { color: getPrimaryColor() }]}>Mes</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Rango de fechas */}
+        <View style={styles.rangoFechas}>
+          <Text style={styles.rangoFechasLabel}>Periodo seleccionado:</Text>
+          <Text style={styles.rangoFechasValue}>
+            {format(fechaDesde, "d MMM", { locale: es })} - {format(fechaHasta, "d MMM yyyy", { locale: es })}
+          </Text>
+        </View>
+
+        {/* Filtro de empleado (solo ADMIN) */}
+        {isAdmin && (
+          <TouchableOpacity
+            style={styles.empleadoSelector}
+            onPress={() => setShowEmpleadoPicker(true)}
+          >
+            <View style={styles.empleadoSelectorContent}>
+              <MaterialIcons name="filter-list" size={20} color={getPrimaryColor()} />
+              <Text style={styles.empleadoSelectorText}>
+                {empleadoSeleccionado
+                  ? usersMap[empleadoSeleccionado]?.name || 'Empleado'
+                  : 'Todos los empleados'}
+              </Text>
+            </View>
+            <MaterialIcons name="arrow-drop-down" size={24} color="#666" />
+          </TouchableOpacity>
+        )}
+
+        {/* Estadísticas */}
+        <View style={styles.statsContainer}>
+          <View style={[styles.statCard, { backgroundColor: getPrimaryColor() + '15' }]}>
+            <Text style={styles.statValue}>{stats.total}</Text>
+            <Text style={[styles.statLabel, { color: getPrimaryColor() }]}>TOTAL</Text>
           </View>
           
-          <TouchableOpacity
-            style={styles.dateButton}
-            onPress={() => cambiarDia(1)}
-            disabled={selectedDate >= new Date()}
-          >
-            <Text style={[
-              styles.dateButtonText,
-              selectedDate >= new Date() && styles.dateButtonDisabled
-            ]}>
-              Día Siguiente →
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Estadísticas rápidas */}
-        <View style={styles.statsContainer}>
-          <SobrioCard style={styles.statCard}>
-            <Text style={styles.statNumber}>{asistencias.length}</Text>
-            <Text style={styles.statLabel}>Asistencias</Text>
-          </SobrioCard>
+          <View style={[styles.statCard, { backgroundColor: '#4caf50' + '15' }]}>
+            <Text style={styles.statValue}>{stats.finalizadas}</Text>
+            <Text style={[styles.statLabel, { color: '#4caf50' }]}>FINALIZADAS</Text>
+          </View>
           
-          <SobrioCard style={styles.statCard}>
-            <Text style={styles.statNumber}>
-              {asistencias.filter(a => a.estadoActual === 'finalizado').length}
-            </Text>
-            <Text style={styles.statLabel}>Finalizadas</Text>
-          </SobrioCard>
-          
-          <SobrioCard style={styles.statCard}>
-            <Text style={styles.statNumber}>
-              {asistencias.filter(a => a.estadoActual !== 'finalizado').length}
-            </Text>
-            <Text style={styles.statLabel}>Activas</Text>
-          </SobrioCard>
+          <View style={[styles.statCard, { backgroundColor: '#ff9800' + '15' }]}>
+            <Text style={styles.statValue}>{stats.activas}</Text>
+            <Text style={[styles.statLabel, { color: '#ff9800' }]}>ACTIVAS</Text>
+          </View>
         </View>
 
         {/* Lista de asistencias */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={getPrimaryColor()} />
-            <Text style={styles.loadingText}>Cargando asistencias...</Text>
+        <View style={styles.listContainer}>
+          <OverlineText style={styles.listTitle}>Registros ({asistencias.length})</OverlineText>
+          
+          {asistencias.length === 0 ? (
+            <EmptyState
+              icon="event-busy"
+              message="No hay asistencias en el periodo seleccionado"
+              iconColor="#9e9e9e"
+            />
+          ) : (
+            asistencias.map(renderAsistenciaItem)
+          )}
+        </View>
+
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+
+      {/* Modal picker de empleado */}
+      <Modal
+        visible={showEmpleadoPicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowEmpleadoPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Seleccionar Empleado</Text>
+              <TouchableOpacity onPress={() => setShowEmpleadoPicker(false)}>
+                <MaterialIcons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.empleadoList}>
+              {/* Opción "Todos" */}
+              <TouchableOpacity
+                style={[
+                  styles.empleadoItem,
+                  !empleadoSeleccionado && { backgroundColor: getPrimaryColor() + '15' }
+                ]}
+                onPress={() => {
+                  setEmpleadoSeleccionado(null);
+                  setShowEmpleadoPicker(false);
+                }}
+              >
+                <MaterialIcons name="people" size={20} color={getPrimaryColor()} />
+                <Text style={styles.empleadoItemText}>Todos los empleados</Text>
+                {!empleadoSeleccionado && (
+                  <MaterialIcons name="check" size={20} color={getPrimaryColor()} />
+                )}
+              </TouchableOpacity>
+              
+              {/* Lista de empleados */}
+              {empleados.map(emp => (
+                <TouchableOpacity
+                  key={emp.uid}
+                  style={[
+                    styles.empleadoItem,
+                    empleadoSeleccionado === emp.uid && { backgroundColor: getPrimaryColor() + '15' }
+                  ]}
+                  onPress={() => {
+                    setEmpleadoSeleccionado(emp.uid);
+                    setShowEmpleadoPicker(false);
+                  }}
+                >
+                  <MaterialIcons name="person" size={20} color={getPrimaryColor()} />
+                  <Text style={styles.empleadoItemText}>{emp.name}</Text>
+                  {empleadoSeleccionado === emp.uid && (
+                    <MaterialIcons name="check" size={20} color={getPrimaryColor()} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
-        ) : (
-          <FlatList
-            data={asistencias}
-            renderItem={renderAsistenciaItem}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContent}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={[getPrimaryColor()]}
-              />
-            }
-            ListEmptyComponent={() => (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyEmoji}>📭</Text>
-                <Text style={styles.emptyText}>No hay asistencias para esta fecha</Text>
-              </View>
-            )}
-          />
-        )}
-      </View>
-    </ProtectedScreen>
+        </View>
+      </Modal>
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -294,180 +476,285 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5'
   },
   header: {
-    paddingTop: 52, // 🎨 Material 3 generous spacing (↑ de 48)
-    paddingHorizontal: 28, // 🎨 Material 3 horizontal padding (↑ de 24)
-    paddingBottom: 28, // 🎨 Material 3 (↑ de 24)
-    borderBottomLeftRadius: 32, // 🎨 Material 3 Extra Large (↑ de 24)
-    borderBottomRightRadius: 32 // 🎨 Material 3 Extra Large (↑ de 24)
+    paddingTop: 56,
+    paddingBottom: 28,
+    paddingHorizontal: 24,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 5,
   },
   headerOverline: {
     color: 'rgba(255,255,255,0.8)',
-    marginBottom: 6 // 🎨 Material 3 spacing (↑ de 4)
+    marginBottom: 8
   },
   headerTitle: {
-    fontSize: 30, // 🎨 Material 3 Headline Medium (↑ de 28)
+    fontSize: 30,
     fontWeight: '700',
     color: '#fff',
-    marginBottom: 6, // 🎨 Material 3 spacing (↑ de 4)
-    letterSpacing: 0.3 // 🎨 Material 3 tracking (nuevo)
+    marginBottom: 6,
+    letterSpacing: 0.3,
   },
   headerSubtitle: {
-    fontSize: 15, // 🎨 Material 3 Body Medium (↑ de 14)
+    fontSize: 15,
     color: 'rgba(255,255,255,0.9)',
-    lineHeight: 22 // 🎨 Material 3 line-height (nuevo)
+    lineHeight: 22,
   },
-  dateSelector: {
+  content: {
+    flex: 1
+  },
+  filtrosRapidos: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8
+  },
+  filtroChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20, // 🎨 Material 3 padding (↑ de 16)
-    paddingVertical: 16, // 🎨 Material 3 padding (↑ de 12)
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    backgroundColor: '#fff'
+  },
+  filtroChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.3
+  },
+  rangoFechas: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: '#fff',
-    marginHorizontal: 20, // 🎨 Material 3 margin (↑ de 16)
-    marginTop: 20, // 🎨 Material 3 margin (↑ de 16)
-    borderRadius: 24, // 🎨 Material 3 Large (↑ de 16)
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 }, // 🎨 Material 3 elevation (↑ de 2)
-    shadowOpacity: 0.12, // 🎨 Material 3 shadow (↑ de 0.06)
-    shadowRadius: 16, // 🎨 Material 3 blur (↑ de 8)
-    elevation: 4 // 🎨 Material 3 (↑ de 2)
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2
   },
-  dateButton: {
-    padding: 8
-  },
-  dateButtonText: {
-    fontSize: 13,
+  rangoFechasLabel: {
+    fontSize: 11,
     fontWeight: '600',
-    color: '#667eea'
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    color: '#64748b',
+    marginBottom: 4
   },
-  dateButtonDisabled: {
-    color: '#ccc'
-  },
-  dateTextContainer: {
-    flex: 1,
-    alignItems: 'center'
-  },
-  dateText: {
-    fontSize: 13,
+  rangoFechasValue: {
+    fontSize: 15,
     fontWeight: '600',
-    color: '#333',
-    textTransform: 'capitalize',
-    textAlign: 'center'
+    color: '#333'
+  },
+  empleadoSelector: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 12,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2
+  },
+  empleadoSelectorContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10
+  },
+  empleadoSelectorText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333'
   },
   statsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20, // 🎨 Material 3 padding (↑ de 16)
-    paddingVertical: 16, // 🎨 Material 3 padding (↑ de 12)
-    gap: 16 // 🎨 Material 3 gap (↑ de 12)
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16
   },
   statCard: {
     flex: 1,
-    padding: 20, // 🎨 Material 3 padding (↑ de 16)
+    padding: 16,
+    borderRadius: 16,
     alignItems: 'center'
   },
-  statNumber: {
-    fontSize: 28, // 🎨 Material 3 Display Small (↑ de 24)
-    fontWeight: '700',
+  statValue: {
+    fontSize: 28,
+    fontWeight: '800',
     color: '#333',
-    marginBottom: 6, // 🎨 Material 3 spacing (↑ de 4)
-    letterSpacing: 0.2 // 🎨 Material 3 tracking (nuevo)
+    marginBottom: 4
   },
   statLabel: {
-    fontSize: 12, // 🎨 Material 3 Label Medium (↑ de 11)
-    fontWeight: '600',
-    color: '#666',
-    textTransform: 'uppercase',
-    letterSpacing: 1.0 // 🎨 Material 3 tracking (↑ de 0.5)
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8
   },
-  listContent: {
-    padding: 20, // 🎨 Material 3 padding (↑ de 16)
-    paddingBottom: 40 // 🎨 Material 3 bottom padding (↑ de 32)
+  listContainer: {
+    paddingHorizontal: 16
+  },
+  listTitle: {
+    marginBottom: 12,
+    color: '#64748b'
   },
   asistenciaCard: {
-    marginBottom: 16 // 🎨 Material 3 spacing (↑ de 12)
+    marginBottom: 12
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.06)'
   },
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
     flex: 1
   },
-  avatar: {
-    width: 44, // 🎨 Material 3 avatar size (↑ de 40)
-    height: 44, // 🎨 Material 3 avatar size (↑ de 40)
-    borderRadius: 22, // 🎨 Material 3 circular (↑ de 20)
-    backgroundColor: '#e3f2fd',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16 // 🎨 Material 3 spacing (↑ de 12)
+  userAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22
   },
-  avatarEmoji: {
-    fontSize: 22 // 🎨 Material 3 icon size (↑ de 20)
+  userAvatarPlaceholder: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   userDetails: {
     flex: 1
   },
   userName: {
-    fontSize: 16, // 🎨 Material 3 Title Small (↑ de 15)
+    fontSize: 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 4, // 🎨 Material 3 spacing (↑ de 2)
-    letterSpacing: 0.1 // 🎨 Material 3 tracking (nuevo)
+    marginBottom: 2
   },
-  userFecha: {
-    fontSize: 13, // 🎨 Material 3 Body Small (↑ de 12)
-    color: '#666',
-    lineHeight: 18 // 🎨 Material 3 line-height (nuevo)
+  userDate: {
+    fontSize: 13,
+    color: '#64748b'
   },
   estadoBadge: {
-    paddingHorizontal: 16, // 🎨 Material 3 padding (↑ de 12)
-    paddingVertical: 8, // 🎨 Material 3 padding (↑ de 6)
-    borderRadius: 20 // 🎨 Material 3 Full (↑ de 16)
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12
   },
   estadoText: {
     fontSize: 11,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase'
   },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(0,0,0,0.06)',
-    marginBottom: 12
-  },
-  detalles: {
+  cardDetails: {
     gap: 8
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.06)'
+  },
+  verDetalleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b'
+  },
+  retryButton: {
+    margin: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    backgroundColor: '#667eea',
+    borderRadius: 12,
     alignItems: 'center'
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#666'
+  retryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff'
   },
-  emptyContainer: {
+  modalOverlay: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end'
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    maxHeight: '70%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 48
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.06)'
   },
-  emptyEmoji: {
-    fontSize: 64,
-    marginBottom: 16
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333'
   },
-  emptyText: {
+  empleadoList: {
+    paddingHorizontal: 16
+  },
+  empleadoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginVertical: 4
+  },
+  empleadoItemText: {
+    flex: 1,
     fontSize: 14,
-    color: '#666',
-    textAlign: 'center'
+    fontWeight: '500',
+    color: '#333'
+  },
+  bottomSpacer: {
+    height: 40
   }
 });
 
-export default AsistenciasScreen;
+// Wrap con ProtectedScreen
+export default function AsistenciasScreen({ navigation }) {
+  return (
+    <ProtectedScreen requiredPermission="asistencias.ver_todos">
+      <AsistenciasScreenContent navigation={navigation} />
+    </ProtectedScreen>
+  );
+}

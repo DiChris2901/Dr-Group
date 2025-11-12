@@ -7,6 +7,7 @@ import { ActivityIndicator, View } from 'react-native';
 // Screens
 import LoginScreen from '../screens/auth/LoginScreen';
 import BottomTabNavigator from './BottomTabNavigator'; // ✅ FASE 0.3: Bottom Tab Navigator
+import AsistenciaDetailScreen from '../screens/asistencias/AsistenciaDetailScreen'; // ✅ FASE 0.5: Detalle de asistencia
 
 const Stack = createNativeStackNavigator();
 
@@ -29,8 +30,11 @@ function AppNavigator({ navigation }, ref) {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <>
-            {/* ✅ FASE 0.3: Bottom Tab Navigator con 3 tabs (Jornada, Reportes, Historial) */}
+            {/* ✅ FASE 0.3: Bottom Tab Navigator con 4 tabs (Inicio, Calendario, Reportes, Asistencias) */}
             <Stack.Screen name="Main" component={BottomTabNavigator} />
+            
+            {/* ✅ FASE 0.5: Pantalla de detalle de asistencia */}
+            <Stack.Screen name="AsistenciaDetail" component={AsistenciaDetailScreen} />
           </>
         ) : (
           // Usuario no autenticado
