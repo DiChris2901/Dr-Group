@@ -4,7 +4,7 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged 
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, collection, addDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, addDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import * as Location from 'expo-location';
 import * as Device from 'expo-device';
@@ -43,7 +43,21 @@ export const AuthProvider = ({ children }) => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 2. Obtener ubicación
+      // 2. ✅ Cargar perfil del usuario PRIMERO (para obtener nombre correcto)
+      let nombreEmpleado = user.email; // Fallback por defecto
+      try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const profileData = userDoc.data();
+          // ✅ Usar 'name' como campo principal (según instrucciones), fallback a displayName → email
+          nombreEmpleado = profileData.name || profileData.displayName || user.email;
+          setUserProfile(profileData);
+        }
+      } catch (profileError) {
+        console.warn('No se pudo cargar perfil del usuario:', profileError);
+      }
+
+      // 3. Obtener ubicación
       let location = null;
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -58,7 +72,7 @@ export const AuthProvider = ({ children }) => {
         console.warn('No se pudo obtener ubicación:', locError);
       }
 
-      // 3. Obtener información del dispositivo
+      // 4. Obtener información del dispositivo
       const deviceInfo = {
         brand: Device.brand,
         manufacturer: Device.manufacturer,
@@ -67,15 +81,17 @@ export const AuthProvider = ({ children }) => {
         osVersion: Device.osVersion
       };
 
-      // 4. Registrar entrada en asistencias
-      const today = new Date().toISOString().split('T')[0];
+      // 5. Registrar entrada en asistencias
+      // ✅ Usar fecha local en lugar de UTC para evitar desajustes de zona horaria
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const asistenciaData = {
-        empleadoId: user.uid,
+        uid: user.uid, // ✅ Cambiar empleadoId por uid (consistencia con dashboard)
         empleadoEmail: user.email,
-        empleadoNombre: userProfile?.displayName || user.email,
+        empleadoNombre: nombreEmpleado, // ✅ Ahora tiene el nombre correcto
         fecha: today,
         entrada: {
-          hora: new Date().toISOString(),
+          hora: Timestamp.now(), // ✅ Usar Timestamp de Firestore (maneja zona horaria correctamente)
           ubicacion: location,
           dispositivo: `${deviceInfo.brand} ${deviceInfo.modelName}`
         },
@@ -83,8 +99,8 @@ export const AuthProvider = ({ children }) => {
         almuerzo: null,
         salida: null,
         estadoActual: 'trabajando',
-        createdAt: new Date(),
-        updatedAt: new Date()
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
       };
 
       const asistenciaRef = await addDoc(collection(db, 'asistencias'), asistenciaData);
@@ -106,10 +122,10 @@ export const AuthProvider = ({ children }) => {
       if (activeSession && !activeSession.salida) {
         await updateDoc(doc(db, 'asistencias', activeSession.id), {
           salida: {
-            hora: new Date().toISOString()
+            hora: Timestamp.now() // ✅ Usar Timestamp de Firestore
           },
           estadoActual: 'finalizado',
-          updatedAt: new Date()
+          updatedAt: Timestamp.now()
         });
       }
       
@@ -125,7 +141,7 @@ export const AuthProvider = ({ children }) => {
     if (!activeSession) return;
     
     try {
-      const breakInicio = new Date().toISOString();
+      const breakInicio = Timestamp.now(); // ✅ Usar Timestamp de Firestore
       const updatedBreaks = [
         ...activeSession.breaks,
         {
@@ -138,7 +154,7 @@ export const AuthProvider = ({ children }) => {
       await updateDoc(doc(db, 'asistencias', activeSession.id), {
         breaks: updatedBreaks,
         estadoActual: 'break',
-        updatedAt: new Date()
+        updatedAt: Timestamp.now()
       });
 
       setActiveSession({
@@ -159,9 +175,11 @@ export const AuthProvider = ({ children }) => {
       const breakActual = activeSession.breaks[activeSession.breaks.length - 1];
       if (breakActual.fin) return; // Ya está finalizado
 
-      const fin = new Date();
-      const inicio = new Date(breakActual.inicio);
-      const diffMs = fin - inicio;
+      const fin = Timestamp.now(); // ✅ Usar Timestamp de Firestore
+      // ✅ El inicio ya es Timestamp, convertir a Date para cálculos
+      const inicioDate = breakActual.inicio.toDate ? breakActual.inicio.toDate() : new Date(breakActual.inicio);
+      const finDate = fin.toDate();
+      const diffMs = finDate - inicioDate;
       
       // Calcular HH:MM:SS
       const horas = Math.floor(diffMs / 1000 / 60 / 60);
@@ -172,14 +190,14 @@ export const AuthProvider = ({ children }) => {
       const updatedBreaks = [...activeSession.breaks];
       updatedBreaks[updatedBreaks.length - 1] = {
         ...breakActual,
-        fin: fin.toISOString(),
+        fin: fin,
         duracion: duracionHMS
       };
 
       await updateDoc(doc(db, 'asistencias', activeSession.id), {
         breaks: updatedBreaks,
         estadoActual: 'trabajando',
-        updatedAt: new Date()
+        updatedAt: Timestamp.now()
       });
 
       setActiveSession({
@@ -197,7 +215,7 @@ export const AuthProvider = ({ children }) => {
     if (!activeSession) return;
 
     try {
-      const almuerzoInicio = new Date().toISOString();
+      const almuerzoInicio = Timestamp.now(); // ✅ Usar Timestamp de Firestore
 
       await updateDoc(doc(db, 'asistencias', activeSession.id), {
         almuerzo: {
@@ -206,7 +224,7 @@ export const AuthProvider = ({ children }) => {
           duracion: null
         },
         estadoActual: 'almuerzo',
-        updatedAt: new Date()
+        updatedAt: Timestamp.now()
       });
 
       setActiveSession({
@@ -228,9 +246,11 @@ export const AuthProvider = ({ children }) => {
     if (!activeSession || !activeSession.almuerzo) return;
 
     try {
-      const fin = new Date();
-      const inicio = new Date(activeSession.almuerzo.inicio);
-      const diffMs = fin - inicio;
+      const fin = Timestamp.now(); // ✅ Usar Timestamp de Firestore
+      // ✅ El inicio ya es Timestamp, convertir a Date para cálculos
+      const inicioDate = activeSession.almuerzo.inicio.toDate ? activeSession.almuerzo.inicio.toDate() : new Date(activeSession.almuerzo.inicio);
+      const finDate = fin.toDate();
+      const diffMs = finDate - inicioDate;
       
       // Calcular HH:MM:SS
       const horas = Math.floor(diffMs / 1000 / 60 / 60);
@@ -241,18 +261,18 @@ export const AuthProvider = ({ children }) => {
       await updateDoc(doc(db, 'asistencias', activeSession.id), {
         almuerzo: {
           ...activeSession.almuerzo,
-          fin: fin.toISOString(),
+          fin: fin,
           duracion: duracionHMS
         },
         estadoActual: 'trabajando',
-        updatedAt: new Date()
+        updatedAt: Timestamp.now()
       });
 
       setActiveSession({
         ...activeSession,
         almuerzo: {
           ...activeSession.almuerzo,
-          fin: fin.toISOString(),
+          fin: fin,
           duracion: duracionHMS
         },
         estadoActual: 'trabajando'
@@ -282,11 +302,13 @@ export const AuthProvider = ({ children }) => {
       }
 
       // Calcular horas trabajadas en formato HH:MM:SS
-      const entrada = new Date(activeSession.entrada.hora);
-      const salida = new Date();
+      // ✅ Convertir Timestamp a Date para cálculos
+      const entradaDate = activeSession.entrada.hora.toDate ? activeSession.entrada.hora.toDate() : new Date(activeSession.entrada.hora);
+      const salidaTimestamp = Timestamp.now();
+      const salidaDate = salidaTimestamp.toDate();
       
-      // Calcular tiempo total trabajado (sin descantos aún)
-      const diffMs = salida - entrada;
+      // Calcular tiempo total trabajado (sin descansos aún)
+      const diffMs = salidaDate - entradaDate;
       
       // Convertir duraciones HH:MM:SS a milisegundos y sumar
       let tiempoDescansoMs = 0;
@@ -314,12 +336,12 @@ export const AuthProvider = ({ children }) => {
 
       await updateDoc(doc(db, 'asistencias', activeSession.id), {
         salida: {
-          hora: salida.toISOString(),
+          hora: salidaTimestamp, // ✅ Usar Timestamp de Firestore
           ubicacion: location
         },
         horasTrabajadas: horasTrabajadas,
         estadoActual: 'finalizado',
-        updatedAt: new Date()
+        updatedAt: Timestamp.now()
       });
 
       setActiveSession(null);

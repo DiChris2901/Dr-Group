@@ -32,7 +32,8 @@ export default function DashboardScreen() {
     if (activeSession.estadoActual !== 'trabajando') return;
 
     const interval = setInterval(() => {
-      const entrada = new Date(activeSession.entrada.hora);
+      // ✅ Convertir Timestamp a Date
+      const entrada = activeSession.entrada.hora.toDate ? activeSession.entrada.hora.toDate() : new Date(activeSession.entrada.hora);
       const ahora = new Date();
       let tiempoTotalMs = ahora - entrada;
       
@@ -40,8 +41,8 @@ export default function DashboardScreen() {
       if (activeSession.breaks && activeSession.breaks.length > 0) {
         activeSession.breaks.forEach(b => {
           if (b.fin) { // Solo restar breaks finalizados
-            const inicioBreak = new Date(b.inicio);
-            const finBreak = new Date(b.fin);
+            const inicioBreak = b.inicio.toDate ? b.inicio.toDate() : new Date(b.inicio);
+            const finBreak = b.fin.toDate ? b.fin.toDate() : new Date(b.fin);
             const duracionBreakMs = finBreak - inicioBreak;
             tiempoTotalMs -= duracionBreakMs;
           }
@@ -50,8 +51,8 @@ export default function DashboardScreen() {
       
       // ✅ RESTAR ALMUERZO FINALIZADO - Calcular desde timestamps
       if (activeSession.almuerzo?.fin) { // Solo restar si el almuerzo finalizó
-        const inicioAlmuerzo = new Date(activeSession.almuerzo.inicio);
-        const finAlmuerzo = new Date(activeSession.almuerzo.fin);
+        const inicioAlmuerzo = activeSession.almuerzo.inicio.toDate ? activeSession.almuerzo.inicio.toDate() : new Date(activeSession.almuerzo.inicio);
+        const finAlmuerzo = activeSession.almuerzo.fin.toDate ? activeSession.almuerzo.fin.toDate() : new Date(activeSession.almuerzo.fin);
         const duracionAlmuerzoMs = finAlmuerzo - inicioAlmuerzo;
         tiempoTotalMs -= duracionAlmuerzoMs;
       }
@@ -83,9 +84,11 @@ export default function DashboardScreen() {
       
       if (activeSession.estadoActual === 'break') {
         const breakActual = activeSession.breaks[activeSession.breaks.length - 1];
-        inicioDescanso = new Date(breakActual.inicio);
+        // ✅ Convertir Timestamp a Date
+        inicioDescanso = breakActual.inicio.toDate ? breakActual.inicio.toDate() : new Date(breakActual.inicio);
       } else if (activeSession.estadoActual === 'almuerzo') {
-        inicioDescanso = new Date(activeSession.almuerzo.inicio);
+        // ✅ Convertir Timestamp a Date
+        inicioDescanso = activeSession.almuerzo.inicio.toDate ? activeSession.almuerzo.inicio.toDate() : new Date(activeSession.almuerzo.inicio);
       }
       
       const ahora = new Date();
@@ -228,9 +231,11 @@ export default function DashboardScreen() {
     );
   };
 
-  const formatHora = (isoString) => {
-    if (!isoString) return '--:--';
-    const date = new Date(isoString);
+  const formatHora = (timestamp) => {
+    if (!timestamp) return '--:--';
+    // ✅ Manejar Firestore Timestamp o ISO string
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    if (isNaN(date.getTime())) return 'Invalid Date';
     return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
   };
 
@@ -349,40 +354,59 @@ export default function DashboardScreen() {
 
           {activeSession && activeSession.estadoActual !== 'finalizado' && (
             <View style={styles.actions}>
+              {/* Botón Break */}
               <TouchableOpacity
                 style={[
                   styles.actionButton, 
                   { backgroundColor: getPrimaryColor() },
-                  activeSession.estadoActual === 'break' && styles.actionButtonActive
+                  activeSession.estadoActual === 'break' && styles.actionButtonActive,
+                  (loading || activeSession.estadoActual === 'almuerzo') && styles.actionButtonDisabled
                 ]}
                 onPress={handleBreak}
                 disabled={Boolean(loading || activeSession.estadoActual === 'almuerzo')}
               >
-                <Text style={styles.actionButtonText}>
+                <Text style={[
+                  styles.actionButtonText,
+                  (loading || activeSession.estadoActual === 'almuerzo') && styles.actionButtonTextDisabled
+                ]}>
                   {activeSession.estadoActual === 'break' ? '✅ Finalizar Break' : '☕ Tomar Break'}
                 </Text>
               </TouchableOpacity>
 
+              {/* Botón Almuerzo */}
               <TouchableOpacity
                 style={[
                   styles.actionButton,
                   { backgroundColor: getSecondaryColor() },
-                  activeSession.estadoActual === 'almuerzo' && styles.actionButtonActive
+                  activeSession.estadoActual === 'almuerzo' && styles.actionButtonActive,
+                  (loading || activeSession.estadoActual === 'break' || activeSession.almuerzo?.fin) && styles.actionButtonDisabled
                 ]}
                 onPress={handleAlmuerzo}
                 disabled={Boolean(loading || activeSession.estadoActual === 'break' || activeSession.almuerzo?.fin)}
               >
-                <Text style={styles.actionButtonText}>
+                <Text style={[
+                  styles.actionButtonText,
+                  (loading || activeSession.estadoActual === 'break' || activeSession.almuerzo?.fin) && styles.actionButtonTextDisabled
+                ]}>
                   {activeSession.estadoActual === 'almuerzo' ? '✅ Finalizar Almuerzo' : '🍽️ Ir a Almuerzo'}
                 </Text>
               </TouchableOpacity>
 
+              {/* Botón Finalizar Jornada */}
               <TouchableOpacity
-                style={[styles.actionButton, styles.finalizarButton]}
+                style={[
+                  styles.actionButton, 
+                  styles.finalizarButton,
+                  (loading || activeSession.estadoActual === 'break' || activeSession.estadoActual === 'almuerzo') && styles.actionButtonDisabled
+                ]}
                 onPress={handleFinalizarJornada}
-                disabled={Boolean(loading)}
+                disabled={Boolean(loading || activeSession.estadoActual === 'break' || activeSession.estadoActual === 'almuerzo')}
               >
-                <Text style={[styles.actionButtonText, styles.finalizarButtonText]}>
+                <Text style={[
+                  styles.actionButtonText, 
+                  styles.finalizarButtonText,
+                  (loading || activeSession.estadoActual === 'break' || activeSession.estadoActual === 'almuerzo') && styles.actionButtonTextDisabled
+                ]}>
                   🏠 Finalizar Jornada
                 </Text>
               </TouchableOpacity>
@@ -581,10 +605,17 @@ const styles = StyleSheet.create({
   actionButtonActive: {
     backgroundColor: '#ffa502', // Mantener para override en estados activos
   },
+  actionButtonDisabled: {
+    backgroundColor: '#ccc', // ✅ Gris para botones deshabilitados
+    opacity: 0.5,
+  },
   actionButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  actionButtonTextDisabled: {
+    color: '#999', // ✅ Texto gris para deshabilitados
   },
   finalizarButton: {
     backgroundColor: '#ff4757',

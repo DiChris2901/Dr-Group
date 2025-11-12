@@ -37,7 +37,8 @@ import {
   Refresh as RefreshIcon,
   GetApp as DownloadIcon,
   CalendarToday as CalendarIcon,
-  Timer as TimerIcon
+  Timer as TimerIcon,
+  LocationOn as LocationOnIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
@@ -63,7 +64,7 @@ const AsistenciasPage = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   
   // Filtros
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [selectedDate, setSelectedDate] = useState(''); // ✅ Vacío = mostrar todas las fechas por defecto
   const [searchTerm, setSearchTerm] = useState('');
   const [filterByEmpleado, setFilterByEmpleado] = useState('all');
   
@@ -96,26 +97,43 @@ const AsistenciasPage = () => {
           snapshot.forEach((doc) => {
             const data = doc.data();
             
+            // ✅ Helper para convertir Timestamp o ISO string a Date
+            const toDate = (value) => {
+              if (!value) return null;
+              if (value.toDate) return value.toDate(); // Firestore Timestamp
+              return new Date(value); // ISO string
+            };
+
             // ✅ Formato de APP MÓVIL: UN documento con entrada/breaks/almuerzo/salida
             asistenciasData.push({
               id: doc.id,
-              empleadoId: data.empleadoId,
+              uid: data.uid || data.empleadoId, // ✅ Soportar ambos campos por compatibilidad
               empleadoEmail: data.empleadoEmail,
               empleadoNombre: data.empleadoNombre || data.empleadoEmail,
               fecha: data.fecha,
-              entrada: data.entrada?.hora ? new Date(data.entrada.hora) : null,
-              breaks: data.breaks || [],
+              entrada: {
+                hora: toDate(data.entrada?.hora),
+                ubicacion: data.entrada?.ubicacion || null, // ✅ Ubicación GPS
+                dispositivo: data.entrada?.dispositivo || null // ✅ Dispositivo móvil
+              },
+              breaks: (data.breaks || []).map(br => ({
+                inicio: toDate(br.inicio),
+                fin: toDate(br.fin),
+                duracion: br.duracion
+              })),
               almuerzo: data.almuerzo || null,
-              almuerzoInicio: data.almuerzo?.inicio ? new Date(data.almuerzo.inicio) : null,
-              almuerzoFin: data.almuerzo?.fin ? new Date(data.almuerzo.fin) : null,
+              almuerzoInicio: toDate(data.almuerzo?.inicio),
+              almuerzoFin: toDate(data.almuerzo?.fin),
               almuerzoDuracion: data.almuerzo?.duracion || null,
-              salida: data.salida?.hora ? new Date(data.salida.hora) : null,
+              salida: toDate(data.salida?.hora),
               estadoActual: data.estadoActual,
               horasTrabajadas: data.horasTrabajadas || null,
-              createdAt: data.createdAt?.toDate?.() || null,
-              updatedAt: data.updatedAt?.toDate?.() || null
+              createdAt: toDate(data.createdAt),
+              updatedAt: toDate(data.updatedAt)
             });
           });
+          
+          console.log('📊 Asistencias cargadas desde Firestore:', asistenciasData.length);
           
           setAsistencias(asistenciasData);
           setLoading(false);
@@ -149,9 +167,9 @@ const AsistenciasPage = () => {
       let horasTrabajadas = asistencia.horasTrabajadas;
       
       // 🔄 SIEMPRE recalcular desde timestamps si existen entrada y salida
-      if (asistencia.entrada && asistencia.salida) {
+      if (asistencia.entrada?.hora && asistencia.salida) {
         // Tiempo total: salida - entrada
-        const diffMs = asistencia.salida.getTime() - asistencia.entrada.getTime();
+        const diffMs = asistencia.salida.getTime() - asistencia.entrada.hora.getTime();
         
         // Calcular tiempo de descansos (breaks + almuerzo) en milisegundos
         let tiempoDescansoMs = 0;
@@ -333,43 +351,65 @@ const AsistenciasPage = () => {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 } }}>
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+      {/* Header Sobrio con Gradiente Simplificado */}
+      <Paper
+        elevation={0}
+        sx={{
+          mb: 3,
+          background: theme.palette.mode === 'dark'
+            ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+            : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          borderRadius: 1,
+          overflow: 'hidden',
+          boxShadow: theme.palette.mode === 'dark'
+            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+            : '0 4px 20px rgba(0, 0, 0, 0.08)'
+        }}
       >
-        <Paper
-          elevation={0}
-          sx={{
-            mb: 3,
-            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+        <Box sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+          <Typography variant="overline" sx={{
+            fontWeight: 600,
+            fontSize: '0.7rem',
+            color: 'rgba(255, 255, 255, 0.8)',
+            letterSpacing: 1.2
+          }}>
+            CONTROL DE PERSONAL • ASISTENCIAS
+          </Typography>
+          <Typography variant="h4" sx={{
+            fontWeight: 700,
+            mt: 0.5,
+            mb: 0.5,
             color: 'white',
-            p: 3,
-            borderRadius: 2
-          }}
-        >
-          <Box display="flex" alignItems="center" gap={2}>
-            <AccessTimeIcon sx={{ fontSize: 40 }} />
-            <Box flex={1}>
-              <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-                📋 Asistencias del Personal
-              </Typography>
-              <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                Control de entrada, breaks, almuerzo y salida registrados vía Telegram Bot
-              </Typography>
-            </Box>
-          </Box>
-        </Paper>
-      </motion.div>
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1
+          }}>
+            <AccessTimeIcon sx={{ fontSize: 32 }} />
+            Asistencias del Personal
+          </Typography>
+          <Typography variant="body1" sx={{
+            color: 'rgba(255, 255, 255, 0.9)'
+          }}>
+            Registro completo de entrada, breaks, almuerzo y salida del personal
+          </Typography>
+        </Box>
+      </Paper>
 
       {/* Filtros */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
+      <Card
+        elevation={0}
+        sx={{
+          mb: 3,
+          borderRadius: 2,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          transition: 'all 0.2s ease',
+          '&:hover': {
+            borderColor: alpha(theme.palette.primary.main, 0.8),
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+          }
+        }}
       >
-        <Card elevation={0} sx={{ mb: 3, borderRadius: 2 }}>
           <CardContent>
             <Grid container spacing={2} alignItems="center">
               {/* Fecha */}
@@ -446,16 +486,23 @@ const AsistenciasPage = () => {
                   </Tooltip>
                   <Button
                     fullWidth
-                    variant="contained"
-                    startIcon={exporting ? <CircularProgress size={16} color="inherit" /> : <DownloadIcon />}
+                    variant="outlined"
+                    startIcon={exporting ? <CircularProgress size={16} /> : <DownloadIcon />}
                     onClick={handleExportExcel}
                     disabled={asistenciasFiltradas.length === 0 || exporting}
                     sx={{
-                      background: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.dark} 100%)`,
-                      fontWeight: 600
+                      borderRadius: 1,
+                      fontWeight: 600,
+                      textTransform: 'none',
+                      borderColor: alpha(theme.palette.primary.main, 0.6),
+                      color: theme.palette.primary.main,
+                      '&:hover': {
+                        borderColor: alpha(theme.palette.primary.main, 0.8),
+                        backgroundColor: alpha(theme.palette.primary.main, 0.05)
+                      }
                     }}
                   >
-                    {exporting ? 'Exportando...' : 'Excel'}
+                    {exporting ? 'Exportando...' : 'Exportar'}
                   </Button>
                 </Box>
               </Grid>
@@ -478,15 +525,21 @@ const AsistenciasPage = () => {
             </Box>
           </CardContent>
         </Card>
-      </motion.div>
 
       {/* Tabla */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        <Card elevation={0} sx={{ borderRadius: 2 }}>
+        <Card
+          elevation={0}
+          sx={{
+            borderRadius: 2,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              borderColor: alpha(theme.palette.primary.main, 0.8),
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            }
+          }}
+        >
           {loading ? (
             <Box display="flex" justifyContent="center" alignItems="center" minHeight={400}>
               <CircularProgress />
@@ -502,20 +555,41 @@ const AsistenciasPage = () => {
           ) : (
             <>
               <TableContainer>
-                <Table>
+                <Table sx={{
+                  '& .MuiTableCell-root': {
+                    borderColor: theme.palette.divider,
+                    borderBottom: `1px solid ${theme.palette.divider}`
+                  },
+                  '& .MuiTableHead-root .MuiTableRow-root': {
+                    backgroundColor: theme.palette.mode === 'dark' ? 'grey.900' : 'grey.50',
+                    '& .MuiTableCell-root': {
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                      paddingY: 2,
+                      borderColor: theme.palette.divider
+                    }
+                  },
+                  '& .MuiTableBody-root .MuiTableRow-root': {
+                    '&:hover': {
+                      backgroundColor: theme.palette.action.hover
+                    },
+                    '&:last-child .MuiTableCell-root': {
+                      borderBottom: 'none'
+                    },
+                    '& .MuiTableCell-root': {
+                      paddingY: 1.8,
+                      fontSize: '0.85rem',
+                      borderColor: theme.palette.divider
+                    }
+                  }
+                }}>
                   <TableHead>
-                    <TableRow
-                      sx={{
-                        backgroundColor: alpha(theme.palette.primary.main, 0.08),
-                        '& th': {
-                          fontWeight: 700,
-                          color: theme.palette.text.primary
-                        }
-                      }}
-                    >
+                    <TableRow>
                       <TableCell>Empleado</TableCell>
                       <TableCell align="center">Fecha</TableCell>
                       <TableCell align="center">Entrada</TableCell>
+                      <TableCell align="center">Ubicación</TableCell>
+                      <TableCell align="center">Dispositivo</TableCell>
                       <TableCell align="center">Breaks</TableCell>
                       <TableCell align="center">Almuerzo</TableCell>
                       <TableCell align="center">Salida</TableCell>
@@ -545,14 +619,9 @@ const AsistenciasPage = () => {
                             >
                               {(asistencia.empleadoNombre || 'U')[0].toUpperCase()}
                             </Avatar>
-                            <Box>
-                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                {asistencia.empleadoNombre || 'Sin nombre'}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {asistencia.empleadoEmail}
-                              </Typography>
-                            </Box>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {asistencia.empleadoNombre || 'Sin nombre'}
+                            </Typography>
                           </Box>
                         </TableCell>
 
@@ -566,12 +635,63 @@ const AsistenciasPage = () => {
                         {/* Entrada */}
                         <TableCell align="center">
                           <Chip
-                            icon={<AccessTimeIcon />}
-                            label={formatTime(asistencia.entrada)}
+                            icon={<AccessTimeIcon sx={{ fontSize: 14 }} />}
+                            label={formatTime(asistencia.entrada?.hora) || '-'}
                             size="small"
-                            color={asistencia.entrada ? 'success' : 'default'}
-                            variant={asistencia.entrada ? 'filled' : 'outlined'}
+                            variant="outlined"
+                            sx={{
+                              borderColor: alpha(theme.palette.success.main, 0.5),
+                              color: theme.palette.success.main,
+                              fontSize: '0.75rem',
+                              '& .MuiChip-icon': {
+                                color: theme.palette.success.main
+                              }
+                            }}
                           />
+                        </TableCell>
+
+                        {/* Ubicación */}
+                        <TableCell align="center">
+                          {asistencia.entrada?.ubicacion ? (
+                            <Tooltip title="Abrir en Google Maps">
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  const lat = asistencia.entrada.ubicacion.lat;
+                                  const lon = asistencia.entrada.ubicacion.lon;
+                                  window.open(`https://www.google.com/maps?q=${lat},${lon}`, '_blank');
+                                }}
+                                sx={{
+                                  color: theme.palette.info.main,
+                                  '&:hover': {
+                                    backgroundColor: alpha(theme.palette.info.main, 0.1)
+                                  }
+                                }}
+                              >
+                                <LocationOnIcon />
+                              </IconButton>
+                            </Tooltip>
+                          ) : (
+                            <Typography variant="caption" color="text.secondary">-</Typography>
+                          )}
+                        </TableCell>
+
+                        {/* Dispositivo */}
+                        <TableCell align="center">
+                          {asistencia.entrada?.dispositivo ? (
+                            <Chip
+                              label={asistencia.entrada.dispositivo}
+                              size="small"
+                              variant="outlined"
+                              sx={{ 
+                                fontSize: '0.75rem',
+                                borderColor: alpha(theme.palette.divider, 0.6),
+                                color: 'text.secondary'
+                              }}
+                            />
+                          ) : (
+                            <Typography variant="caption" color="text.secondary">-</Typography>
+                          )}
                         </TableCell>
 
                         {/* Breaks */}
@@ -579,7 +699,7 @@ const AsistenciasPage = () => {
                           {asistencia.breaks && asistencia.breaks.length > 0 ? (
                             <Box display="flex" flexDirection="column" gap={0.5} alignItems="center">
                               {asistencia.breaks.map((br, idx) => {
-                                const horaInicio = formatTime(br.inicio ? new Date(br.inicio) : null);
+                                const horaInicio = formatTime(br.inicio); // Ya viene como Date
                                 let duracion = 'En curso';
                                 
                                 // Si tiene duracion como string HH:MM:SS, usarla
@@ -602,14 +722,25 @@ const AsistenciasPage = () => {
                                 }
                                 
                                 return (
-                                  <Chip
-                                    key={idx}
-                                    icon={<BreakIcon />}
-                                    label={`${horaInicio} (${duracion})`}
-                                    size="small"
-                                    color="info"
-                                    variant="outlined"
-                                  />
+                                  <Box key={idx} display="flex" flexDirection="column" alignItems="center" gap={0.3}>
+                                    <Chip
+                                      icon={<BreakIcon sx={{ fontSize: 14 }} />}
+                                      label={horaInicio}
+                                      size="small"
+                                      variant="outlined"
+                                      sx={{
+                                        borderColor: alpha(theme.palette.info.main, 0.5),
+                                        color: theme.palette.info.main,
+                                        fontSize: '0.75rem',
+                                        '& .MuiChip-icon': {
+                                          color: theme.palette.info.main
+                                        }
+                                      }}
+                                    />
+                                    <Typography variant="caption" sx={{ color: theme.palette.info.main, fontWeight: 500 }}>
+                                      {duracion}
+                                    </Typography>
+                                  </Box>
                                 );
                               })}
                             </Box>
@@ -646,13 +777,25 @@ const AsistenciasPage = () => {
                                 }
                                 
                                 return (
-                                  <Chip
-                                    icon={<LunchIcon />}
-                                    label={`${horaInicio} (${duracion})`}
-                                    size="small"
-                                    color="warning"
-                                    variant="outlined"
-                                  />
+                                  <Box display="flex" flexDirection="column" alignItems="center" gap={0.3}>
+                                    <Chip
+                                      icon={<LunchIcon sx={{ fontSize: 14 }} />}
+                                      label={horaInicio}
+                                      size="small"
+                                      variant="outlined"
+                                      sx={{
+                                        borderColor: alpha(theme.palette.warning.main, 0.5),
+                                        color: theme.palette.warning.main,
+                                        fontSize: '0.75rem',
+                                        '& .MuiChip-icon': {
+                                          color: theme.palette.warning.main
+                                        }
+                                      }}
+                                    />
+                                    <Typography variant="caption" sx={{ color: theme.palette.warning.main, fontWeight: 500 }}>
+                                      {duracion}
+                                    </Typography>
+                                  </Box>
                                 );
                               })()}
                             </Box>
@@ -664,31 +807,44 @@ const AsistenciasPage = () => {
                         {/* Salida */}
                         <TableCell align="center">
                           <Chip
-                            icon={<ExitIcon />}
-                            label={formatTime(asistencia.salida)}
+                            icon={<ExitIcon sx={{ fontSize: 14 }} />}
+                            label={formatTime(asistencia.salida) || '-'}
                             size="small"
-                            color={asistencia.salida ? 'error' : 'default'}
-                            variant={asistencia.salida ? 'filled' : 'outlined'}
+                            variant="outlined"
+                            sx={{
+                              borderColor: asistencia.salida 
+                                ? alpha(theme.palette.error.main, 0.5) 
+                                : alpha(theme.palette.divider, 0.6),
+                              color: asistencia.salida 
+                                ? theme.palette.error.main 
+                                : 'text.secondary',
+                              fontSize: '0.75rem',
+                              '& .MuiChip-icon': {
+                                color: asistencia.salida 
+                                  ? theme.palette.error.main 
+                                  : 'text.secondary'
+                              }
+                            }}
                           />
                         </TableCell>
 
                         {/* Horas Trabajadas */}
                         <TableCell align="center">
                           {asistencia.horasTrabajadas ? (
-                            <Chip
-                              icon={<TimerIcon />}
-                              label={
-                                typeof asistencia.horasTrabajadas === 'string' && asistencia.horasTrabajadas.includes(':')
-                                  ? asistencia.horasTrabajadas // Ya está en formato HH:MM:SS
-                                  : `${asistencia.horasTrabajadas}h` // Formato antiguo (decimal)
-                              }
-                              size="small"
-                              sx={{
-                                fontWeight: 700,
-                                background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.2)} 0%, ${alpha(theme.palette.success.dark, 0.3)} 100%)`,
-                                color: theme.palette.success.dark
-                              }}
-                            />
+                            <Box display="flex" alignItems="center" justifyContent="center" gap={0.5}>
+                              <TimerIcon sx={{ fontSize: 16, color: theme.palette.primary.main }} />
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  fontWeight: 600,
+                                  color: theme.palette.primary.main
+                                }}
+                              >
+                                {typeof asistencia.horasTrabajadas === 'string' && asistencia.horasTrabajadas.includes(':')
+                                  ? asistencia.horasTrabajadas
+                                  : `${asistencia.horasTrabajadas}h`}
+                              </Typography>
+                            </Box>
                           ) : (
                             <Typography variant="caption" color="text.secondary">En curso</Typography>
                           )}
@@ -720,7 +876,6 @@ const AsistenciasPage = () => {
             </>
           )}
         </Card>
-      </motion.div>
     </Box>
   );
 };
