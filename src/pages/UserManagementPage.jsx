@@ -33,7 +33,10 @@ import {
   Switch,
   Divider,
   useTheme,
-  alpha
+  alpha,
+  Tabs,
+  Tab,
+  Badge
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -115,6 +118,7 @@ const UserManagementPage = () => {
   const [editingUser, setEditingUser] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState(0); // 0: Info, 1: Permisos, 2: Resumen
   
   // Estados del modal de notificaciones
   const [openNotificationsModal, setOpenNotificationsModal] = useState(false);
@@ -249,6 +253,7 @@ const UserManagementPage = () => {
       
       console.log('✅ Abriendo modal...');
       setOpenModal(true);
+      setActiveTab(0); // Resetear a primera pestaña
       
     } catch (error) {
       console.error('❌ Error abriendo modal:', error);
@@ -265,6 +270,7 @@ const UserManagementPage = () => {
     setOpenModal(false);
     setEditingUser(null);
     setShowPassword(false);
+    setActiveTab(0); // Resetear tabs
     setHasUnsavedChanges(false);
   };
 
@@ -1286,29 +1292,58 @@ const UserManagementPage = () => {
           )}
         </DialogTitle>
         
-        <DialogContent sx={{ 
-          p: 0
-        }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <DialogContent sx={{ p: 0 }}>
+          {/* TABS NAVIGATION */}
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', background: alpha(theme.palette.primary.main, 0.02) }}>
+            <Tabs 
+              value={activeTab} 
+              onChange={(e, newValue) => setActiveTab(newValue)}
+              variant="fullWidth"
+              sx={{
+                '& .MuiTab-root': {
+                  minHeight: 64,
+                  fontSize: '0.9rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  transition: 'all 0.2s ease',
+                  '&.Mui-selected': {
+                    fontWeight: 600  // Sobrio: máximo 600
+                  }
+                }
+              }}
+            >
+              <Tab 
+                icon={<PersonAddIcon />} 
+                iconPosition="start"
+                label="Información General" 
+              />
+              <Tab 
+                icon={
+                  <Badge 
+                    badgeContent={formData.permissions.length} 
+                    color="primary"
+                    sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem', height: 18, minWidth: 18 } }}
+                  >
+                    <SecurityIcon />
+                  </Badge>
+                } 
+                iconPosition="start"
+                label="Permisos de Acceso" 
+              />
+              <Tab 
+                icon={<CheckCircleIcon />} 
+                iconPosition="start"
+                label="Resumen" 
+              />
+            </Tabs>
+          </Box>
+
+          {/* TAB PANELS */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100% - 64px)' }}>
             
-            {/* SECCIÓN 1: INFORMACIÓN GENERAL (HORIZONTAL) */}
-            <Paper sx={{ 
-              p: 3,
-              borderRadius: 0,
-              borderBottom: `1px solid ${theme.palette.divider}`,
-              background: alpha(theme.palette.primary.main, 0.02)
-            }}>
-              <Typography variant="overline" sx={{
-                fontWeight: 600,
-                color: 'primary.main',
-                letterSpacing: 0.8,
-                fontSize: '0.75rem',
-                mb: 2,
-                display: 'block'
-              }}>
-                <PersonAddIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
-                Información General
-              </Typography>
+            {/* TAB 1: INFORMACIÓN GENERAL */}
+            {activeTab === 0 && (
+              <Box sx={{ p: 3 }}>
               
               <Grid container spacing={2}>
                 {/* Email */}
@@ -1322,6 +1357,15 @@ const UserManagementPage = () => {
                     disabled={!!editingUser}
                     required
                     size="small"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1,  // Sobrio: borderRadius consistente
+                        backgroundColor: !!editingUser 
+                          ? 'transparent'
+                          : alpha(theme.palette.primary.main, 0.05),
+                        transition: 'all 0.2s ease'
+                      }
+                    }}
                   />
                 </Grid>
 
@@ -1334,6 +1378,16 @@ const UserManagementPage = () => {
                     onChange={(e) => updateFormData({ displayName: e.target.value })}
                     required
                     size="small"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1,
+                        backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.primary.main, 0.08)
+                        }
+                      }
+                    }}
                   />
                 </Grid>
 
@@ -1345,6 +1399,16 @@ const UserManagementPage = () => {
                     value={formData.phone}
                     onChange={(e) => updateFormData({ phone: e.target.value })}
                     size="small"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1,
+                        backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.primary.main, 0.08)
+                        }
+                      }
+                    }}
                   />
                 </Grid>
 
@@ -1356,12 +1420,36 @@ const UserManagementPage = () => {
                     value={formData.department}
                     onChange={(e) => updateFormData({ department: e.target.value })}
                     size="small"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1,
+                        backgroundColor: alpha(theme.palette.primary.main, 0.05),
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.primary.main, 0.08)
+                        }
+                      }
+                    }}
                   />
                 </Grid>
 
                 {/* Rol */}
                 <Grid item xs={12} md={2}>
-                  <FormControl fullWidth required size="small">
+                  <FormControl 
+                    fullWidth 
+                    required 
+                    size="small"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1,
+                        backgroundColor: alpha(theme.palette.secondary.main, 0.05),
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.secondary.main, 0.08)
+                        }
+                      }
+                    }}
+                  >
                     <InputLabel>Rol</InputLabel>
                     <Select
                       value={formData.role}
@@ -1384,6 +1472,16 @@ const UserManagementPage = () => {
                     value={formData.notes}
                     onChange={(e) => updateFormData({ notes: e.target.value })}
                     size="small"
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 1,
+                        backgroundColor: alpha(theme.palette.warning.main, 0.05),
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          backgroundColor: alpha(theme.palette.warning.main, 0.08)
+                        }
+                      }
+                    }}
                   />
                 </Grid>
 
@@ -1400,25 +1498,12 @@ const UserManagementPage = () => {
                   />
                 </Grid>
               </Grid>
-            </Paper>
+              </Box>
+            )}
 
-            {/* SECCIÓN 2: PERMISOS DEL SISTEMA (GRID 3 COLUMNAS) */}
-            <Box sx={{ 
-              flexGrow: 1, 
-              p: 3,
-              background: theme.palette.background.default
-            }}>
-              <Typography variant="overline" sx={{
-                fontWeight: 600,
-                color: 'secondary.main',
-                letterSpacing: 0.8,
-                fontSize: '0.75rem',
-                mb: 2,
-                display: 'block'
-              }}>
-                <SecurityIcon sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
-                Permisos de Acceso
-              </Typography>
+            {/* TAB 2: PERMISOS DE ACCESO */}
+            {activeTab === 1 && (
+              <Box sx={{ p: 3, overflowY: 'auto', flexGrow: 1 }}>
               
               <Grid container spacing={2}>
                 {(() => {
@@ -1745,109 +1830,156 @@ const UserManagementPage = () => {
                       </Grid>
                 ))}
               </Grid>
-            </Box>
-
-            {/* SECCIÓN 3: RESUMEN DE PERMISOS ACTIVOS */}
-            <Paper sx={{ 
-              p: 2,
-              borderRadius: 0,
-              borderTop: `1px solid ${theme.palette.divider}`,
-              background: alpha(theme.palette.success.main, 0.02)
-            }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                <Typography variant="overline" sx={{ 
-                  fontWeight: 600, 
-                  color: 'success.main',
-                  letterSpacing: 0.8,
-                  fontSize: '0.75rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.5
-                }}>
-                  <CheckCircleIcon sx={{ fontSize: 14 }} />
-                  Permisos Seleccionados ({formData.permissions.length})
-                </Typography>
-                
-                <Divider orientation="vertical" flexItem />
-                
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, flex: 1 }}>
-                  {formData.permissions.length > 0 ? (
-                    (() => {
-                          // Definir todos los permisos con sus sub-opciones
-                          const permissionGroups = {
-                            'compromisos': ['Ver Todos', 'Agregar Nuevo', 'Próximos A Vencer'],
-                            'pagos': ['Historial', 'Nuevo Pago'],
-                            'ingresos': ['Registrar', 'Historial', 'Cuentas'],
-                            'gestion_empresarial': ['Empresas', 'Salas', 'Clientes'],
-                            'liquidaciones': ['Liquidaciones', 'Historico'],
-                            'facturacion': ['Liquidaciones Por Sala', 'Cuentas De Cobro'],
-                            'reportes': ['Resumen', 'Por Empresa', 'Por Periodo', 'Por Concepto']
-                          };
-                          
-                          const grouped = {};
-                          const standalone = [];
-                          
-                          formData.permissions.forEach(perm => {
-                            if (perm.includes('.')) {
-                              // Es un sub-permiso
-                              const [parent, child] = perm.split('.');
-                              if (!grouped[parent]) grouped[parent] = [];
-                              const label = child.replace(/_/g, ' ');
-                              grouped[parent].push(label.charAt(0).toUpperCase() + label.slice(1));
-                            } else if (permissionGroups[perm]) {
-                              // Es un permiso padre con sub-opciones definidas (acceso completo)
-                              grouped[perm] = permissionGroups[perm];
-                            } else {
-                              // Es un permiso standalone (dashboard, usuarios, etc.)
-                              standalone.push(perm);
-                            }
-                          });
-                          
-                          return (
-                            <>
-                              {/* Permisos agrupados con sus hijos */}
-                              {Object.entries(grouped).map(([parent, children]) => {
-                                const parentLabel = parent.replace(/_/g, ' ');
-                                const childrenText = children.join(', ');
-                                
-                                return (
-                                  <Chip
-                                    key={parent}
-                                    label={`${parentLabel.charAt(0).toUpperCase() + parentLabel.slice(1)} (${childrenText})`}
-                                    size="small"
-                                    color="success"
-                                    sx={{ fontSize: '0.7rem' }}
-                                  />
-                                );
-                              })}
-                              
-                              {/* Permisos standalone sin hijos */}
-                              {standalone.map(perm => {
-                                const label = perm.replace(/_/g, ' ');
-                                return (
-                                  <Chip
-                                    key={perm}
-                                    label={label.charAt(0).toUpperCase() + label.slice(1)}
-                                    size="small"
-                                    color="success"
-                                    sx={{ fontSize: '0.7rem' }}
-                                  />
-                                );
-                              })}
-                            </>
-                          );
-                        })()
-                      ) : (
-                        <Typography variant="caption" sx={{ 
-                          color: 'text.disabled', 
-                          fontStyle: 'italic'
-                        }}>
-                          Ningún permiso seleccionado
-                        </Typography>
-                      )}
-                </Box>
               </Box>
-            </Paper>
+            )}
+
+            {/* TAB 3: RESUMEN */}
+            {activeTab === 2 && (
+              <Box sx={{ p: 3 }}>
+                <Alert severity="info" sx={{ mb: 3 }}>
+                  <Typography variant="body2" fontWeight={600} gutterBottom>
+                    📋 Revisa los datos antes de guardar
+                  </Typography>
+                  <Typography variant="caption">
+                    Verifica que toda la información sea correcta antes de confirmar los cambios.
+                  </Typography>
+                </Alert>
+
+                <Grid container spacing={3}>
+                  {/* Información Personal */}
+                  <Grid item xs={12} md={6}>
+                    <Paper sx={{ p: 2, borderRadius: 2, background: alpha(theme.palette.primary.main, 0.02) }}>
+                      <Typography variant="overline" sx={{ fontWeight: 600, color: 'primary.main', display: 'block', mb: 2 }}>
+                        👤 Información Personal
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                        <Box>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                            Email
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {formData.email || '—'}
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                            Nombre Completo
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {formData.displayName || '—'}
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                            Teléfono
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {formData.phone || '—'}
+                          </Typography>
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                            Departamento
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {formData.department || '—'}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Paper>
+                  </Grid>
+
+                  {/* Rol y Estado */}
+                  <Grid item xs={12} md={6}>
+                    <Paper sx={{ p: 2, borderRadius: 2, background: alpha(theme.palette.secondary.main, 0.02) }}>
+                      <Typography variant="overline" sx={{ fontWeight: 600, color: 'secondary.main', display: 'block', mb: 2 }}>
+                        🔐 Rol y Acceso
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                        <Box>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                            Rol del Sistema
+                          </Typography>
+                          <Chip 
+                            label={formData.role === 'ADMIN' ? 'Administrador' : 'Usuario'} 
+                            color={formData.role === 'ADMIN' ? 'error' : 'default'}
+                            size="small"
+                            variant="outlined"
+                            sx={{ mt: 0.5, fontWeight: 500 }}
+                          />
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                            Estado
+                          </Typography>
+                          <Chip 
+                            label={formData.isActive ? 'Activo' : 'Inactivo'} 
+                            color={formData.isActive ? 'success' : 'default'}
+                            size="small"
+                            variant="outlined"
+                            icon={formData.isActive ? <CheckCircleIcon /> : <CancelIcon />}
+                            sx={{ mt: 0.5, fontWeight: 500 }}
+                          />
+                        </Box>
+                        <Box>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                            Permisos Asignados
+                          </Typography>
+                          <Typography variant="h6" sx={{ fontWeight: 600, color: 'success.main', mt: 0.5 }}>
+                            {formData.permissions.length} permisos
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Paper>
+                  </Grid>
+
+                  {/* Lista de Permisos */}
+                  <Grid item xs={12}>
+                    <Paper sx={{ p: 2, borderRadius: 2, background: alpha(theme.palette.success.main, 0.02) }}>
+                      <Typography variant="overline" sx={{ fontWeight: 600, color: 'success.main', display: 'block', mb: 2 }}>
+                        ✅ Permisos Detallados
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        {formData.permissions.length > 0 ? (
+                          formData.permissions.map((perm) => {
+                            const label = perm.replace(/_/g, ' ').replace(/\./g, ' › ');
+                            return (
+                              <Chip
+                                key={perm}
+                                label={label.charAt(0).toUpperCase() + label.slice(1)}
+                                size="small"
+                                color="success"
+                                variant="outlined"
+                                sx={{ fontSize: '0.75rem' }}
+                              />
+                            );
+                          })
+                        ) : (
+                          <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                            No hay permisos asignados
+                          </Typography>
+                        )}
+                      </Box>
+                    </Paper>
+                  </Grid>
+
+                  {/* Notas */}
+                  {formData.notes && (
+                    <Grid item xs={12}>
+                      <Paper sx={{ p: 2, borderRadius: 2, background: alpha(theme.palette.warning.main, 0.02) }}>
+                        <Typography variant="overline" sx={{ fontWeight: 600, color: 'warning.main', display: 'block', mb: 1 }}>
+                          📝 Notas Adicionales
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                          {formData.notes}
+                        </Typography>
+                      </Paper>
+                    </Grid>
+                  )}
+                </Grid>
+              </Box>
+            )}
+
           </Box>
         </DialogContent>
 
@@ -1857,37 +1989,77 @@ const UserManagementPage = () => {
           borderTop: `1px solid ${theme.palette.divider}`,
           background: theme.palette.mode === 'dark' 
             ? theme.palette.grey[900]
-            : theme.palette.grey[50]
+            : theme.palette.grey[50],
+          display: 'flex',
+          justifyContent: 'space-between'
         }}>
-          <Button 
-            onClick={handleCloseModal}
-            sx={{ 
-              borderRadius: 1,
-              px: 3,
-              py: 1,
-              textTransform: 'none',
-              fontWeight: 500
-            }}
-          >
-            Cancelar
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleSaveUser}
-            disabled={
-              !formData.email || 
-              !formData.displayName || 
-              (editingUser && !hasUnsavedChanges) || 
-              modalLoading
-            }
-            sx={{
-              borderRadius: 1,
-              px: 3,
-              py: 1,
-              textTransform: 'none',
-              fontWeight: 600,
-              background: theme.palette.primary.main,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+          {/* Botones de navegación entre tabs */}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button 
+              onClick={handleCloseModal}
+              sx={{ 
+                borderRadius: 1,
+                px: 3,
+                py: 1,
+                textTransform: 'none',
+                fontWeight: 500
+              }}
+            >
+              Cancelar
+            </Button>
+            
+            {activeTab > 0 && (
+              <Button
+                onClick={() => setActiveTab(activeTab - 1)}
+                sx={{ 
+                  borderRadius: 1,
+                  px: 3,
+                  py: 1,
+                  textTransform: 'none',
+                  fontWeight: 500
+                }}
+              >
+                ← Anterior
+              </Button>
+            )}
+          </Box>
+
+          {/* Botones de acción */}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {activeTab < 2 && (
+              <Button
+                variant="outlined"
+                onClick={() => setActiveTab(activeTab + 1)}
+                sx={{ 
+                  borderRadius: 1,
+                  px: 3,
+                  py: 1,
+                  textTransform: 'none',
+                  fontWeight: 600
+                }}
+              >
+                Siguiente →
+              </Button>
+            )}
+            
+            {activeTab === 2 && (
+              <Button
+                variant="contained"
+                onClick={handleSaveUser}
+                disabled={
+                  !formData.email || 
+                  !formData.displayName || 
+                  (editingUser && !hasUnsavedChanges) || 
+                  modalLoading
+                }
+                sx={{
+                  borderRadius: 1,
+                  px: 3,
+                  py: 1,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  background: theme.palette.primary.main,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
               '&:hover': {
                 background: theme.palette.primary.dark,
                 boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
@@ -1898,10 +2070,12 @@ const UserManagementPage = () => {
                 color: 'rgba(0, 0, 0, 0.26)'
               }
             }}
-            startIcon={modalLoading ? <CircularProgress size={16} color="inherit" /> : null}
-          >
-            {modalLoading ? 'Guardando...' : `${editingUser ? 'Actualizar' : 'Crear'} Usuario`}
-          </Button>
+                startIcon={modalLoading ? <CircularProgress size={16} color="inherit" /> : null}
+              >
+                {modalLoading ? 'Guardando...' : `${editingUser ? 'Actualizar' : 'Crear'} Usuario`}
+              </Button>
+            )}
+          </Box>
         </DialogActions>
       </Dialog>
 
