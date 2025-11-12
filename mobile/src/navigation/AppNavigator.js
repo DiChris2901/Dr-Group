@@ -7,11 +7,16 @@ import { ActivityIndicator, View } from 'react-native';
 // Screens
 import LoginScreen from '../screens/auth/LoginScreen';
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
+// Chat screens (se crearán en FASE 2)
+// import ChatScreen from '../screens/chat/ChatScreen';
+// Admin screens (se crearán en FASE 5)
+// import AsistenciasScreen from '../screens/asistencias/AsistenciasScreen';
+// import ReportesScreen from '../screens/reportes/ReportesScreen';
 
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
-  const { user, loading } = useAuth();
+  const { user, userProfile, loading } = useAuth();
 
   if (loading) {
     return (
@@ -21,12 +26,26 @@ export default function AppNavigator() {
     );
   }
 
+  // ✅ PASO 1.3: Determinar rol del usuario
+  const userRole = userProfile?.role || 'USER';
+
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
-          // Usuario autenticado
-          <Stack.Screen name="Dashboard" component={DashboardScreen} />
+          <>
+            {/* 📱 Pantallas para TODOS los usuarios */}
+            <Stack.Screen name="Dashboard" component={DashboardScreen} />
+            {/* <Stack.Screen name="Chat" component={ChatScreen} /> */}
+            
+            {/* 👨‍💼 Pantallas solo para ADMIN y SUPER_ADMIN */}
+            {(userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') && (
+              <>
+                {/* <Stack.Screen name="Asistencias" component={AsistenciasScreen} /> */}
+                {/* <Stack.Screen name="Reportes" component={ReportesScreen} /> */}
+              </>
+            )}
+          </>
         ) : (
           // Usuario no autenticado
           <Stack.Screen name="Login" component={LoginScreen} />

@@ -354,6 +354,33 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // ✅ PASO 1.1: Sistema de permisos basado en roles
+  const hasPermission = (permission) => {
+    if (!userProfile) return false;
+    
+    // SUPER_ADMIN tiene todos los permisos
+    if (userProfile.role === 'SUPER_ADMIN') return true;
+    
+    // ADMIN tiene permisos específicos
+    if (userProfile.role === 'ADMIN') {
+      const adminPermissions = [
+        'asistencias.ver_todos',
+        'reportes.generar',
+        'usuarios.ver',
+        'chat'
+      ];
+      return adminPermissions.includes(permission);
+    }
+    
+    // USER solo tiene permisos básicos
+    if (userProfile.role === 'USER') {
+      const userPermissions = ['chat', 'asistencia.propia'];
+      return userPermissions.includes(permission);
+    }
+    
+    return false;
+  };
+
   const value = {
     user,
     userProfile,
@@ -365,7 +392,8 @@ export const AuthProvider = ({ children }) => {
     finalizarBreak,
     registrarAlmuerzo,
     finalizarAlmuerzo,
-    finalizarJornada
+    finalizarJornada,
+    hasPermission
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
