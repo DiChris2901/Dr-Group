@@ -417,192 +417,248 @@ export default function DashboardScreen() {
       </LinearGradient>
 
       <ScrollView style={styles.content}>
-        {/* Card de Jornada Activa - Diseño Sobrio */}
-        <SobrioCard borderColor={getPrimaryColor()}>
-          <OverlineText color={getPrimaryColor()}>
-            JORNADA LABORAL ACTIVA
-          </OverlineText>
+        {/* ✅ VISTA PARA ADMIN/SUPER_ADMIN - Solo panel administrativo */}
+        {(userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') ? (
+          <>
+            {/* Panel de Administración */}
+            <SobrioCard borderColor={getSecondaryColor()}>
+              <OverlineText color={getSecondaryColor()}>
+                PANEL DE ADMINISTRACIÓN
+              </OverlineText>
+              <Text style={styles.welcomeTitle}>Bienvenido, Administrador</Text>
+              <Text style={styles.welcomeText}>
+                Como administrador, tienes acceso completo al sistema de gestión de asistencias y reportes.
+              </Text>
 
-          <View style={[styles.statusBadge, { backgroundColor: getEstadoColor() }]}>
-            <Text style={styles.statusText}>{getEstadoTexto()}</Text>
-          </View>
+              <View style={styles.adminInfo}>
+                <DetailRow
+                  icon="👤"
+                  label="Rol"
+                  value={userProfile?.role || 'N/A'}
+                  iconColor={getPrimaryColor()}
+                  highlight
+                />
+                <DetailRow
+                  icon="📧"
+                  label="Email"
+                  value={user?.email || 'N/A'}
+                  iconColor={getSecondaryColor()}
+                />
+                <DetailRow
+                  icon="📅"
+                  label="Fecha"
+                  value={new Date().toLocaleDateString('es-CO', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                  iconColor="#4caf50"
+                />
+              </View>
+            </SobrioCard>
 
-          <View style={styles.timerContainer}>
-            {activeSession?.estadoActual === 'trabajando' && (
-              <>
-                <Text style={styles.timerLabel}>⚡ Tiempo Trabajado</Text>
-                <Text style={styles.timerText}>{tiempoTrabajado}</Text>
-              </>
-            )}
-            {activeSession?.estadoActual === 'break' && (
-              <>
-                <Text style={styles.timerLabel}>☕ Tiempo en Break</Text>
-                <Text style={styles.timerText}>{tiempoDescanso}</Text>
-                <Text style={styles.timerSubtext}>Trabajado: {tiempoTrabajado}</Text>
-              </>
-            )}
-            {activeSession?.estadoActual === 'almuerzo' && (
-              <>
-                <Text style={styles.timerLabel}>🍽️ Tiempo en Almuerzo</Text>
-                <Text style={styles.timerText}>{tiempoDescanso}</Text>
-                <Text style={styles.timerSubtext}>Trabajado: {tiempoTrabajado}</Text>
-              </>
-            )}
-            {!activeSession && (
-              <>
-                <Text style={styles.timerLabel}>⏱️ Sin Sesión Activa</Text>
-                <Text style={styles.timerText}>00:00:00</Text>
-              </>
-            )}
-          </View>
+            {/* Accesos Rápidos Administrativos */}
+            <SobrioCard style={{ marginTop: 16 }}>
+              <OverlineText color={getPrimaryColor()}>
+                ACCESOS RÁPIDOS
+              </OverlineText>
+              <Text style={styles.cardTitle}>Gestión del Sistema</Text>
+              
+              <View style={styles.actions}>
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: '#2196f3' }]}
+                  onPress={() => navigation.navigate('Asistencias')}
+                >
+                  <Text style={styles.actionButtonText}>👥 Ver Todas las Asistencias</Text>
+                </TouchableOpacity>
 
-          <View style={styles.infoGrid}>
-            <DetailRow
-              icon="🕐"
-              label="Hora de Entrada"
-              value={formatHora(activeSession?.entrada?.hora)}
-              iconColor={getPrimaryColor()}
-            />
-            {activeSession?.salida && (
-              <DetailRow
-                icon="🏠"
-                label="Hora de Salida"
-                value={formatHora(activeSession.salida.hora)}
-                iconColor={getPrimaryColor()}
-              />
-            )}
-          </View>
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: '#4caf50' }]}
+                  onPress={() => navigation.navigate('Reportes')}
+                >
+                  <Text style={styles.actionButtonText}>📊 Ver Reportes y Estadísticas</Text>
+                </TouchableOpacity>
+              </View>
+            </SobrioCard>
 
-          {activeSession && activeSession.estadoActual !== 'finalizado' && (
-            <View style={styles.actions}>
-              {/* Botón Break */}
-              <TouchableOpacity
-                style={[
-                  styles.actionButton, 
-                  { backgroundColor: getPrimaryColor() },
-                  activeSession.estadoActual === 'break' && styles.actionButtonActive,
-                  (loading || activeSession.estadoActual === 'almuerzo') && styles.actionButtonDisabled
-                ]}
-                onPress={handleBreak}
-                disabled={Boolean(loading || activeSession.estadoActual === 'almuerzo')}
-              >
-                <Text style={[
-                  styles.actionButtonText,
-                  (loading || activeSession.estadoActual === 'almuerzo') && styles.actionButtonTextDisabled
-                ]}>
-                  {activeSession.estadoActual === 'break' ? '✅ Finalizar Break' : '☕ Tomar Break'}
-                </Text>
-              </TouchableOpacity>
+            {/* Información adicional */}
+            <SobrioCard style={{ marginTop: 16 }}>
+              <OverlineText color="#ff9800">
+                INFORMACIÓN
+              </OverlineText>
+              <Text style={styles.infoTitle}>ℹ️ Nota Importante</Text>
+              <Text style={styles.infoText}>
+                Los administradores no requieren registrar jornadas laborales. 
+                Tu función principal es supervisar y gestionar las asistencias del equipo.
+              </Text>
+            </SobrioCard>
+          </>
+        ) : (
+          <>
+            {/* ✅ VISTA PARA USER - Control de jornada laboral completo */}
+            <SobrioCard borderColor={getPrimaryColor()}>
+              <OverlineText color={getPrimaryColor()}>
+                JORNADA LABORAL ACTIVA
+              </OverlineText>
 
-              {/* Botón Almuerzo */}
-              <TouchableOpacity
-                style={[
-                  styles.actionButton,
-                  { backgroundColor: getSecondaryColor() },
-                  activeSession.estadoActual === 'almuerzo' && styles.actionButtonActive,
-                  (loading || activeSession.estadoActual === 'break' || activeSession.almuerzo?.fin) && styles.actionButtonDisabled
-                ]}
-                onPress={handleAlmuerzo}
-                disabled={Boolean(loading || activeSession.estadoActual === 'break' || activeSession.almuerzo?.fin)}
-              >
-                <Text style={[
-                  styles.actionButtonText,
-                  (loading || activeSession.estadoActual === 'break' || activeSession.almuerzo?.fin) && styles.actionButtonTextDisabled
-                ]}>
-                  {activeSession.estadoActual === 'almuerzo' ? '✅ Finalizar Almuerzo' : '🍽️ Ir a Almuerzo'}
-                </Text>
-              </TouchableOpacity>
+              <View style={[styles.statusBadge, { backgroundColor: getEstadoColor() }]}>
+                <Text style={styles.statusText}>{getEstadoTexto()}</Text>
+              </View>
 
-              {/* Botón Finalizar Jornada */}
-              <TouchableOpacity
-                style={[
-                  styles.actionButton, 
-                  styles.finalizarButton,
-                  (loading || activeSession.estadoActual === 'break' || activeSession.estadoActual === 'almuerzo') && styles.actionButtonDisabled
-                ]}
-                onPress={handleFinalizarJornada}
-                disabled={Boolean(loading || activeSession.estadoActual === 'break' || activeSession.estadoActual === 'almuerzo')}
-              >
-                <Text style={[
-                  styles.actionButtonText, 
-                  styles.finalizarButtonText,
-                  (loading || activeSession.estadoActual === 'break' || activeSession.estadoActual === 'almuerzo') && styles.actionButtonTextDisabled
-                ]}>
-                  🏠 Finalizar Jornada
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </SobrioCard>
+              <View style={styles.timerContainer}>
+                {activeSession?.estadoActual === 'trabajando' && (
+                  <>
+                    <Text style={styles.timerLabel}>⚡ Tiempo Trabajado</Text>
+                    <Text style={styles.timerText}>{tiempoTrabajado}</Text>
+                  </>
+                )}
+                {activeSession?.estadoActual === 'break' && (
+                  <>
+                    <Text style={styles.timerLabel}>☕ Tiempo en Break</Text>
+                    <Text style={styles.timerText}>{tiempoDescanso}</Text>
+                    <Text style={styles.timerSubtext}>Trabajado: {tiempoTrabajado}</Text>
+                  </>
+                )}
+                {activeSession?.estadoActual === 'almuerzo' && (
+                  <>
+                    <Text style={styles.timerLabel}>🍽️ Tiempo en Almuerzo</Text>
+                    <Text style={styles.timerText}>{tiempoDescanso}</Text>
+                    <Text style={styles.timerSubtext}>Trabajado: {tiempoTrabajado}</Text>
+                  </>
+                )}
+                {!activeSession && (
+                  <>
+                    <Text style={styles.timerLabel}>⏱️ Sin Sesión Activa</Text>
+                    <Text style={styles.timerText}>00:00:00</Text>
+                  </>
+                )}
+              </View>
 
-        {/* Registro del Día - Diseño Sobrio */}
-        <SobrioCard borderColor={getPrimaryColor()} style={{ marginTop: 16 }}>
-          <OverlineText color={getPrimaryColor()}>
-            📋 MI REGISTRO HOY
-          </OverlineText>
-          
-          <View style={styles.registroItem}>
-            <Text style={styles.registroLabel}>✅ Entrada</Text>
-            <Text style={styles.registroValue}>{formatHora(activeSession?.entrada?.hora)}</Text>
-          </View>
+              <View style={styles.infoGrid}>
+                <DetailRow
+                  icon="🕐"
+                  label="Hora de Entrada"
+                  value={formatHora(activeSession?.entrada?.hora)}
+                  iconColor={getPrimaryColor()}
+                />
+                {activeSession?.salida && (
+                  <DetailRow
+                    icon="🏠"
+                    label="Hora de Salida"
+                    value={formatHora(activeSession.salida.hora)}
+                    iconColor={getPrimaryColor()}
+                  />
+                )}
+              </View>
 
-          {activeSession?.breaks && activeSession.breaks.length > 0 && (
-            <>
-              {activeSession.breaks.map((breakItem, index) => (
-                <View key={index} style={styles.registroItem}>
-                  <Text style={styles.registroLabel}>☕ Break {index + 1}</Text>
+              {activeSession && activeSession.estadoActual !== 'finalizado' && (
+                <View style={styles.actions}>
+                  {/* Botón Break */}
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton, 
+                      { backgroundColor: getPrimaryColor() },
+                      activeSession.estadoActual === 'break' && styles.actionButtonActive,
+                      (loading || activeSession.estadoActual === 'almuerzo') && styles.actionButtonDisabled
+                    ]}
+                    onPress={handleBreak}
+                    disabled={Boolean(loading || activeSession.estadoActual === 'almuerzo')}
+                  >
+                    <Text style={[
+                      styles.actionButtonText,
+                      (loading || activeSession.estadoActual === 'almuerzo') && styles.actionButtonTextDisabled
+                    ]}>
+                      {activeSession.estadoActual === 'break' ? '✅ Finalizar Break' : '☕ Tomar Break'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Botón Almuerzo */}
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton,
+                      { backgroundColor: getSecondaryColor() },
+                      activeSession.estadoActual === 'almuerzo' && styles.actionButtonActive,
+                      (loading || activeSession.estadoActual === 'break' || activeSession.almuerzo?.fin) && styles.actionButtonDisabled
+                    ]}
+                    onPress={handleAlmuerzo}
+                    disabled={Boolean(loading || activeSession.estadoActual === 'break' || activeSession.almuerzo?.fin)}
+                  >
+                    <Text style={[
+                      styles.actionButtonText,
+                      (loading || activeSession.estadoActual === 'break' || activeSession.almuerzo?.fin) && styles.actionButtonTextDisabled
+                    ]}>
+                      {activeSession.estadoActual === 'almuerzo' ? '✅ Finalizar Almuerzo' : '🍽️ Ir a Almuerzo'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Botón Finalizar Jornada */}
+                  <TouchableOpacity
+                    style={[
+                      styles.actionButton, 
+                      styles.finalizarButton,
+                      (loading || activeSession.estadoActual === 'break' || activeSession.estadoActual === 'almuerzo') && styles.actionButtonDisabled
+                    ]}
+                    onPress={handleFinalizarJornada}
+                    disabled={Boolean(loading || activeSession.estadoActual === 'break' || activeSession.estadoActual === 'almuerzo')}
+                  >
+                    <Text style={[
+                      styles.actionButtonText, 
+                      styles.finalizarButtonText,
+                      (loading || activeSession.estadoActual === 'break' || activeSession.estadoActual === 'almuerzo') && styles.actionButtonTextDisabled
+                    ]}>
+                      🏠 Finalizar Jornada
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </SobrioCard>
+
+            {/* Registro del Día - Diseño Sobrio */}
+            <SobrioCard borderColor={getPrimaryColor()} style={{ marginTop: 16 }}>
+              <OverlineText color={getPrimaryColor()}>
+                📋 MI REGISTRO HOY
+              </OverlineText>
+              
+              <View style={styles.registroItem}>
+                <Text style={styles.registroLabel}>✅ Entrada</Text>
+                <Text style={styles.registroValue}>{formatHora(activeSession?.entrada?.hora)}</Text>
+              </View>
+
+              {activeSession?.breaks && activeSession.breaks.length > 0 && (
+                <>
+                  {activeSession.breaks.map((breakItem, index) => (
+                    <View key={index} style={styles.registroItem}>
+                      <Text style={styles.registroLabel}>☕ Break {index + 1}</Text>
+                      <Text style={styles.registroValue}>
+                        {formatHora(breakItem.inicio)} - {breakItem.fin ? formatHora(breakItem.fin) : 'Activo'}
+                        {breakItem.duracion && ` (${breakItem.duracion} min)`}
+                      </Text>
+                    </View>
+                  ))}
+                </>
+              )}
+
+              {activeSession?.almuerzo && (
+                <View style={styles.registroItem}>
+                  <Text style={styles.registroLabel}>🍽️ Almuerzo</Text>
                   <Text style={styles.registroValue}>
-                    {formatHora(breakItem.inicio)} - {breakItem.fin ? formatHora(breakItem.fin) : 'Activo'}
-                    {breakItem.duracion && ` (${breakItem.duracion} min)`}
+                    {formatHora(activeSession.almuerzo.inicio)} - {activeSession.almuerzo.fin ? formatHora(activeSession.almuerzo.fin) : 'Activo'}
+                    {activeSession.almuerzo.duracion && ` (${activeSession.almuerzo.duracion} min)`}
                   </Text>
                 </View>
-              ))}
-            </>
-          )}
+              )}
 
-          {activeSession?.almuerzo && (
-            <View style={styles.registroItem}>
-              <Text style={styles.registroLabel}>🍽️ Almuerzo</Text>
-              <Text style={styles.registroValue}>
-                {formatHora(activeSession.almuerzo.inicio)} - {activeSession.almuerzo.fin ? formatHora(activeSession.almuerzo.fin) : 'Activo'}
-                {activeSession.almuerzo.duracion && ` (${activeSession.almuerzo.duracion} min)`}
-              </Text>
-            </View>
-          )}
-
-          {activeSession?.salida && (
-            <View style={styles.registroItem}>
-              <Text style={styles.registroLabel}>🏠 Salida</Text>
-              <Text style={styles.registroValue}>{formatHora(activeSession.salida.hora)}</Text>
-            </View>
-          )}
-        </SobrioCard>
-
-        {/* ✅ SECCIÓN ADMINISTRACIÓN - Solo para ADMIN/SUPER_ADMIN */}
-        {(userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') && (
-          <SobrioCard style={{ marginTop: 16 }}>
-            <OverlineText color={getSecondaryColor()}>
-              ADMINISTRACIÓN
-            </OverlineText>
-            <Text style={styles.cardTitle}>Panel de Control</Text>
-            
-            <View style={styles.actions}>
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: '#2196f3' }]}
-                onPress={() => navigation.navigate('Asistencias')}
-              >
-                <Text style={styles.actionButtonText}>👥 Ver Todas las Asistencias</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: '#4caf50' }]}
-                onPress={() => navigation.navigate('Reportes')}
-              >
-                <Text style={styles.actionButtonText}>📊 Ver Reportes y Estadísticas</Text>
-              </TouchableOpacity>
-            </View>
-          </SobrioCard>
+              {activeSession?.salida && (
+                <View style={styles.registroItem}>
+                  <Text style={styles.registroLabel}>🏠 Salida</Text>
+                  <Text style={styles.registroValue}>{formatHora(activeSession.salida.hora)}</Text>
+                </View>
+              )}
+            </SobrioCard>
+          </>
         )}
+        {/* ✅ FIN: Renderizado condicional según rol */}
 
         {loading && (
           <View style={styles.loadingOverlay}>
@@ -803,5 +859,33 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  // ✅ PASO 2.5: Botón flotante de chat
+  // ✅ Estilos para vista de administrador
+  welcomeTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#333',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  welcomeText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  adminInfo: {
+    gap: 12,
+    marginTop: 8,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
 });

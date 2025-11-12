@@ -43,21 +43,29 @@ export const AuthProvider = ({ children }) => {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // 2. ✅ Cargar perfil del usuario PRIMERO (para obtener nombre correcto)
+      // 2. ✅ Cargar perfil del usuario PRIMERO (para obtener nombre correcto y rol)
       let nombreEmpleado = user.email; // Fallback por defecto
+      let userRole = 'USER'; // ✅ Por defecto USER
       try {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
         if (userDoc.exists()) {
           const profileData = userDoc.data();
           // ✅ Usar 'name' como campo principal (según instrucciones), fallback a displayName → email
           nombreEmpleado = profileData.name || profileData.displayName || user.email;
+          userRole = profileData.role || 'USER'; // ✅ Obtener rol del usuario
           setUserProfile(profileData);
         }
       } catch (profileError) {
         console.warn('No se pudo cargar perfil del usuario:', profileError);
       }
 
-      // 3. Obtener ubicación
+      // ✅ ADMIN y SUPER_ADMIN no registran jornadas laborales
+      if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') {
+        console.log('Usuario administrador - No se registra jornada laboral');
+        return { success: true, user };
+      }
+
+      // 3. Obtener ubicación (solo para usuarios normales)
       let location = null;
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
