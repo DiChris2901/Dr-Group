@@ -311,7 +311,7 @@ const UserManagementPage = () => {
     setFormData(newFormData);
     checkForChanges(newFormData);
   };
-
+  
   const handleRoleChange = (newRole) => {
     console.log('🔧 Cambiando rol a:', newRole);
     
@@ -1287,13 +1287,15 @@ const UserManagementPage = () => {
         
         <DialogContent sx={{ 
           p: 3,
-          pt: 5
+          pt: 5,
+          maxHeight: '80vh',
+          overflowY: 'auto'
         }}>
           <Box sx={{ mt: 3 }}>
             <Grid container spacing={3}>
               
-              {/* INFORMACIÓN PRINCIPAL */}
-              <Grid item xs={12} md={12}>
+              {/* COLUMNA IZQUIERDA - INFORMACIÓN PRINCIPAL */}
+              <Grid item xs={12} md={5}>
                 <Paper sx={{
                   p: 3,
                   borderRadius: 2,
@@ -1426,12 +1428,108 @@ const UserManagementPage = () => {
                     </Grid>
                   </Grid>
                 </Paper>
+
+                {/* Resumen de permisos seleccionados */}
+                <Paper sx={{ 
+                  mt: 2,
+                  p: 2, 
+                  bgcolor: 'background.default', 
+                  borderRadius: 2,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                }}>
+                  <Typography variant="overline" sx={{ 
+                    fontWeight: 600, 
+                    color: 'primary.main',
+                    letterSpacing: 0.8,
+                    fontSize: '0.75rem',
+                    display: 'block',
+                    mb: 1
+                  }}>
+                    Permisos seleccionados ({formData.permissions.length})
+                  </Typography>
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                    {formData.permissions.length > 0 ? (
+                      (() => {
+                        // Definir todos los permisos con sus sub-opciones
+                        const permissionGroups = {
+                          'compromisos': ['Ver Todos', 'Agregar Nuevo', 'Próximos A Vencer'],
+                          'pagos': ['Historial', 'Nuevo Pago'],
+                          'ingresos': ['Registrar', 'Historial', 'Cuentas'],
+                          'gestion_empresarial': ['Empresas', 'Salas', 'Clientes'],
+                          'liquidaciones': ['Liquidaciones', 'Historico'],
+                          'facturacion': ['Liquidaciones Por Sala', 'Cuentas De Cobro'],
+                          'reportes': ['Resumen', 'Por Empresa', 'Por Periodo', 'Por Concepto']
+                        };
+                        
+                        const grouped = {};
+                        const standalone = [];
+                        
+                        formData.permissions.forEach(perm => {
+                          if (perm.includes('.')) {
+                            // Es un sub-permiso
+                            const [parent, child] = perm.split('.');
+                            if (!grouped[parent]) grouped[parent] = [];
+                            const label = child.replace(/_/g, ' ');
+                            grouped[parent].push(label.charAt(0).toUpperCase() + label.slice(1));
+                          } else if (permissionGroups[perm]) {
+                            // Es un permiso padre con sub-opciones definidas (acceso completo)
+                            grouped[perm] = permissionGroups[perm];
+                          } else {
+                            // Es un permiso standalone (dashboard, usuarios, etc.)
+                            standalone.push(perm);
+                          }
+                        });
+                        
+                        return (
+                          <>
+                            {/* Permisos agrupados con sus hijos */}
+                            {Object.entries(grouped).map(([parent, children]) => {
+                              const parentLabel = parent.replace(/_/g, ' ');
+                              const childrenText = children.join(', ');
+                              
+                              return (
+                                <Chip
+                                  key={parent}
+                                  label={`${parentLabel.charAt(0).toUpperCase() + parentLabel.slice(1)} (${childrenText})`}
+                                  size="small"
+                                  color="primary"
+                                  variant="outlined"
+                                  sx={{ fontSize: '0.75rem' }}
+                                />
+                              );
+                            })}
+                            
+                            {/* Permisos standalone sin hijos */}
+                            {standalone.map(perm => {
+                              const label = perm.replace(/_/g, ' ');
+                              return (
+                                <Chip
+                                  key={perm}
+                                  label={label.charAt(0).toUpperCase() + label.slice(1)}
+                                  size="small"
+                                  color="primary"
+                                  variant="outlined"
+                                  sx={{ fontSize: '0.75rem' }}
+                                />
+                              );
+                            })}
+                          </>
+                        );
+                      })()
+                    ) : (
+                      <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
+                        No se han seleccionado permisos
+                      </Typography>
+                    )}
+                  </Box>
+                </Paper>
               </Grid>
 
-              {/* PERMISOS DEL SISTEMA */}
-              <Grid item xs={12} md={12}>
+              {/* COLUMNA DERECHA - PERMISOS DEL SISTEMA */}
+              <Grid item xs={12} md={7}>
                 <Paper sx={{
-                  p: 3,
+                  p: 2,
                   borderRadius: 2,
                   border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
                   background: theme.palette.background.paper,
@@ -1448,15 +1546,18 @@ const UserManagementPage = () => {
                   </Typography>
                   
                   <Typography variant="body2" sx={{ 
-                    mt: 1, 
-                    mb: 3, 
-                    color: 'text.secondary' 
+                    mt: 0.5, 
+                    mb: 2, 
+                    color: 'text.secondary',
+                    fontSize: '0.875rem'
                   }}>
                     Selecciona las secciones del sistema a las que el usuario tendrá acceso
                   </Typography>
 
                   <Grid container spacing={2} sx={{ alignItems: 'flex-start' }}>
-                    {[
+                      {(() => {
+                        // Array completo de permisos
+                        const allPermissions = [
                       { key: 'dashboard', label: 'Dashboard', icon: <Dashboard />, color: theme.palette.primary.main },
                       { 
                         key: 'compromisos', 
@@ -1537,21 +1638,23 @@ const UserManagementPage = () => {
                       { key: 'asistencias', label: 'Asistencias', icon: <AccessTime />, color: '#ff9800' },
                       { key: 'auditoria', label: 'Auditoría del Sistema', icon: <SecurityIcon />, color: '#9c27b0' },
                       { key: 'storage', label: 'Limpieza de Storage', icon: <DeleteIcon />, color: '#f44336' }
-                    ].map((permission) => (
-                      <Grid item xs={12} sm={6} md={4} key={permission.key}>
+                      ];
+                      
+                      return allPermissions;
+                    })().map((permission) => (
+                      <Grid item xs={12} key={permission.key} sx={{ mb: 0.5 }}>
                         <Card sx={{
                           border: formData.permissions.includes(permission.key) 
                             ? `2px solid ${permission.color}` 
                             : `1px solid ${theme.palette.divider}`,
                           background: formData.permissions.includes(permission.key)
-                            ? alpha(permission.color, 0.08)
+                            ? alpha(permission.color, 0.05)
                             : theme.palette.background.paper,
                           cursor: permission.subPermissions ? 'default' : 'pointer',
-                          transition: 'all 0.3s ease',
+                          transition: 'all 0.2s ease',
                           width: '100%',
                           '&:hover': {
-                            transform: 'translateY(-2px)',
-                            boxShadow: `0 4px 12px ${alpha(permission.color, 0.2)}`
+                            boxShadow: `0 2px 8px ${alpha(permission.color, 0.15)}`
                           }
                         }}
                         onClick={!permission.subPermissions ? () => {
@@ -1562,8 +1665,8 @@ const UserManagementPage = () => {
                         } : undefined}
                         >
                           <CardContent sx={{ 
-                            p: 2, 
-                            '&:last-child': { pb: 2 }
+                            p: 1.5, 
+                            '&:last-child': { pb: 1.5 }
                           }}>
                             {/* Permiso Principal */}
                             <Box sx={{ 
@@ -1609,7 +1712,7 @@ const UserManagementPage = () => {
                                     {permission.label}
                                   </Typography>
                                   {permission.subPermissions && (() => {
-                                    const activeCount = permission.subPermissions.filter(sp => 
+                                    const activeCount = permission.subPermissions.filter(sp =>
                                       formData.permissions.includes(sp.key)
                                     ).length;
                                     const totalCount = permission.subPermissions.length;
@@ -1619,6 +1722,7 @@ const UserManagementPage = () => {
                                       <Chip 
                                         label={allActive ? `${totalCount} de ${totalCount}` : `${activeCount} de ${totalCount}`}
                                         size="small"
+                                        icon={allActive || activeCount === totalCount ? <CheckCircleIcon sx={{ fontSize: 12 }} /> : undefined}
                                         sx={{ 
                                           height: 18,
                                           fontSize: '0.65rem',
@@ -1626,41 +1730,86 @@ const UserManagementPage = () => {
                                           bgcolor: allActive || activeCount === totalCount 
                                             ? alpha(permission.color, 0.25) 
                                             : activeCount > 0 
-                                              ? alpha(permission.color, 0.15) 
-                                              : alpha(theme.palette.divider, 0.3),
-                                          color: allActive || activeCount > 0 ? permission.color : 'text.secondary',
-                                          '& .MuiChip-label': {
-                                            px: 0.75
-                                          }
-                                        }}
-                                      />
+                                              ? alpha(permission.color, 0.15)
+                                                : alpha(theme.palette.divider, 0.3),
+                                            color: allActive || activeCount > 0 ? permission.color : 'text.secondary',
+                                            '& .MuiChip-label': {
+                                              px: 0.75
+                                            },
+                                            '& .MuiChip-icon': {
+                                              ml: 0.5,
+                                              mr: -0.25
+                                            }
+                                          }}
+                                        />
                                     );
                                   })()}
                                 </Box>
                               </Box>
                               
-                              <Switch
-                                checked={formData.permissions.includes(permission.key)}
-                                size="small"
-                                onClick={(e) => permission.subPermissions && e.stopPropagation()}
-                                sx={{
-                                  '& .MuiSwitch-switchBase.Mui-checked': {
-                                    color: permission.color,
-                                  },
-                                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                                    backgroundColor: permission.color,
-                                  },
-                                }}
-                              />
+                              <Tooltip 
+                                title={
+                                  <Box>
+                                    <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+                                      {formData.permissions.includes(permission.key) 
+                                        ? `Acceso Completo a ${permission.label}` 
+                                        : `Activar ${permission.label}`}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ display: 'block', opacity: 0.9, fontSize: '0.7rem' }}>
+                                      {formData.permissions.includes(permission.key)
+                                        ? `El usuario tiene acceso a TODAS las páginas de ${permission.label}`
+                                        : `Al activar, el usuario tendrá acceso completo a ${permission.label}`}
+                                    </Typography>
+                                    {permission.subPermissions && !formData.permissions.includes(permission.key) && (
+                                      <Typography variant="caption" sx={{ display: 'block', mt: 0.5, fontStyle: 'italic', fontSize: '0.65rem' }}>
+                                        💡 O activa solo las páginas específicas que necesite
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                }
+                                arrow
+                                placement="top"
+                              >
+                                <Switch
+                                  checked={formData.permissions.includes(permission.key)}
+                                  size="small"
+                                  onClick={(e) => permission.subPermissions && e.stopPropagation()}
+                                  sx={{
+                                    '& .MuiSwitch-switchBase.Mui-checked': {
+                                      color: permission.color,
+                                    },
+                                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                      backgroundColor: permission.color,
+                                    },
+                                  }}
+                                />
+                              </Tooltip>
                             </Box>
 
-                            {/* Sub-permisos */}
-                            {permission.subPermissions && !formData.permissions.includes(permission.key) && (
-                              <Box sx={{ mt: 2, pl: 2, borderLeft: `2px solid ${alpha(permission.color, 0.3)}` }}>
-                                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
-                                  Permisos específicos:
-                                </Typography>
-                                {permission.subPermissions.map((subPerm) => (
+                            {/* Sub-permisos - SIEMPRE VISIBLES */}
+                            {permission.subPermissions && (
+                              <Box sx={{ 
+                                mt: 2, 
+                                pl: 2, 
+                                borderLeft: `2px solid ${alpha(permission.color, 0.3)}`,
+                                opacity: formData.permissions.includes(permission.key) ? 0.6 : 1,
+                                pointerEvents: formData.permissions.includes(permission.key) ? 'none' : 'auto'
+                              }}>
+                                {formData.permissions.includes(permission.key) ? (
+                                  // Cuando el padre está activo - mostrar mensaje
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
+                                    <CheckCircleIcon sx={{ fontSize: 16, color: permission.color }} />
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
+                                      Acceso completo a todas las páginas de {permission.label}
+                                    </Typography>
+                                  </Box>
+                                ) : (
+                                  // Cuando el padre está inactivo - sub-permisos editables
+                                  <>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
+                                      Seleccionar páginas específicas:
+                                    </Typography>
+                                    {permission.subPermissions.map((subPerm) => (
                                   <Box 
                                     key={subPerm.key}
                                     sx={{ 
@@ -1700,21 +1849,29 @@ const UserManagementPage = () => {
                                     }}>
                                       {subPerm.label}
                                     </Typography>
-                                    <Switch
-                                      checked={formData.permissions.includes(subPerm.key)}
-                                      size="small"
-                                      onClick={(e) => e.stopPropagation()}
-                                      sx={{
-                                        '& .MuiSwitch-switchBase.Mui-checked': {
-                                          color: permission.color,
-                                        },
-                                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                                          backgroundColor: permission.color,
-                                        },
-                                      }}
-                                    />
+                                    <Tooltip
+                                      title={`Acceso solo a: ${subPerm.label}`}
+                                      arrow
+                                      placement="left"
+                                    >
+                                      <Switch
+                                        checked={formData.permissions.includes(subPerm.key)}
+                                        size="small"
+                                        onClick={(e) => e.stopPropagation()}
+                                        sx={{
+                                          '& .MuiSwitch-switchBase.Mui-checked': {
+                                            color: permission.color,
+                                          },
+                                          '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                            backgroundColor: permission.color,
+                                          },
+                                        }}
+                                      />
+                                    </Tooltip>
                                   </Box>
                                 ))}
+                                  </>
+                                )}
                               </Box>
                             )}
                           </CardContent>
@@ -1722,93 +1879,8 @@ const UserManagementPage = () => {
                       </Grid>
                     ))}
                   </Grid>
-
-                  {/* Resumen de permisos seleccionados */}
-                  <Box sx={{ mt: 3, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary' }}>
-                      Permisos seleccionados ({formData.permissions.length}):
-                    </Typography>
-                    <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      {formData.permissions.length > 0 ? (
-                        (() => {
-                          // Definir todos los permisos con sus sub-opciones
-                          const permissionGroups = {
-                            'compromisos': ['Ver Todos', 'Agregar Nuevo', 'Próximos A Vencer'],
-                            'pagos': ['Historial', 'Nuevo Pago'],
-                            'ingresos': ['Registrar', 'Historial', 'Cuentas'],
-                            'gestion_empresarial': ['Empresas', 'Salas', 'Clientes'],
-                            'liquidaciones': ['Liquidaciones', 'Historico'],
-                            'facturacion': ['Liquidaciones Por Sala'],
-                            'reportes': ['Resumen', 'Por Empresa', 'Por Periodo', 'Por Concepto']
-                          };
-                          
-                          const grouped = {};
-                          const standalone = [];
-                          
-                          formData.permissions.forEach(perm => {
-                            if (perm.includes('.')) {
-                              // Es un sub-permiso
-                              const [parent, child] = perm.split('.');
-                              if (!grouped[parent]) grouped[parent] = [];
-                              const label = child.replace(/_/g, ' ');
-                              grouped[parent].push(label.charAt(0).toUpperCase() + label.slice(1));
-                            } else if (permissionGroups[perm]) {
-                              // Es un permiso padre con sub-opciones definidas (acceso completo)
-                              grouped[perm] = permissionGroups[perm];
-                            } else {
-                              // Es un permiso standalone (dashboard, usuarios, etc.)
-                              standalone.push(perm);
-                            }
-                          });
-                          
-                          return (
-                            <>
-                              {/* Permisos agrupados con sus hijos */}
-                              {Object.entries(grouped).map(([parent, children]) => {
-                                const parentLabel = parent.replace(/_/g, ' ');
-                                const childrenText = children.join(', ');
-                                
-                                return (
-                                  <Chip
-                                    key={parent}
-                                    label={`${parentLabel.charAt(0).toUpperCase() + parentLabel.slice(1)} (${childrenText})`}
-                                    size="small"
-                                    color="primary"
-                                    variant="outlined"
-                                    sx={{ fontSize: '0.75rem' }}
-                                  />
-                                );
-                              })}
-                              
-                              {/* Permisos standalone sin hijos */}
-                              {standalone.map(perm => {
-                                const label = perm.replace(/_/g, ' ');
-                                return (
-                                  <Chip
-                                    key={perm}
-                                    label={label.charAt(0).toUpperCase() + label.slice(1)}
-                                    size="small"
-                                    color="primary"
-                                    variant="outlined"
-                                    sx={{ fontSize: '0.75rem' }}
-                                  />
-                                );
-                              })}
-                            </>
-                          );
-                        })()
-                      ) : (
-                        <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
-                          No se han seleccionado permisos
-                        </Typography>
-                      )}
-                    </Box>
-                  </Box>
                 </Paper>
               </Grid>
-
-
-              
             </Grid>
           </Box>
         </DialogContent>
