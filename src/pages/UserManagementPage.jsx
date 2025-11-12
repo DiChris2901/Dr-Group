@@ -1233,7 +1233,7 @@ const UserManagementPage = () => {
         open={openModal}
         onClose={handleCloseModal}
         fullWidth
-        maxWidth="md"
+        maxWidth="xl"
         PaperProps={{
           sx: {
             borderRadius: 2,
@@ -1241,7 +1241,8 @@ const UserManagementPage = () => {
             boxShadow: theme.palette.mode === 'dark'
               ? '0 4px 20px rgba(0, 0, 0, 0.3)'
               : '0 4px 20px rgba(0, 0, 0, 0.08)',
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+            maxWidth: '1400px'
           }
         }}
       >
@@ -1287,14 +1288,12 @@ const UserManagementPage = () => {
         
         <DialogContent sx={{ 
           p: 3,
-          pt: 5,
-          maxHeight: '80vh',
-          overflowY: 'auto'
+          pt: 3
         }}>
-          <Box sx={{ mt: 3 }}>
-            <Grid container spacing={3}>
+          <Box>
+            <Grid container spacing={2}>
               
-              {/* COLUMNA IZQUIERDA - INFORMACIÓN PRINCIPAL */}
+              {/* COLUMNA 1 - INFORMACIÓN GENERAL (COMPACTA) */}
               <Grid item xs={12} md={5}>
                 <Paper sx={{
                   p: 3,
@@ -1428,106 +1427,10 @@ const UserManagementPage = () => {
                     </Grid>
                   </Grid>
                 </Paper>
-
-                {/* Resumen de permisos seleccionados */}
-                <Paper sx={{ 
-                  mt: 2,
-                  p: 2, 
-                  bgcolor: 'background.default', 
-                  borderRadius: 2,
-                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                }}>
-                  <Typography variant="overline" sx={{ 
-                    fontWeight: 600, 
-                    color: 'primary.main',
-                    letterSpacing: 0.8,
-                    fontSize: '0.75rem',
-                    display: 'block',
-                    mb: 1
-                  }}>
-                    Permisos seleccionados ({formData.permissions.length})
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {formData.permissions.length > 0 ? (
-                      (() => {
-                        // Definir todos los permisos con sus sub-opciones
-                        const permissionGroups = {
-                          'compromisos': ['Ver Todos', 'Agregar Nuevo', 'Próximos A Vencer'],
-                          'pagos': ['Historial', 'Nuevo Pago'],
-                          'ingresos': ['Registrar', 'Historial', 'Cuentas'],
-                          'gestion_empresarial': ['Empresas', 'Salas', 'Clientes'],
-                          'liquidaciones': ['Liquidaciones', 'Historico'],
-                          'facturacion': ['Liquidaciones Por Sala', 'Cuentas De Cobro'],
-                          'reportes': ['Resumen', 'Por Empresa', 'Por Periodo', 'Por Concepto']
-                        };
-                        
-                        const grouped = {};
-                        const standalone = [];
-                        
-                        formData.permissions.forEach(perm => {
-                          if (perm.includes('.')) {
-                            // Es un sub-permiso
-                            const [parent, child] = perm.split('.');
-                            if (!grouped[parent]) grouped[parent] = [];
-                            const label = child.replace(/_/g, ' ');
-                            grouped[parent].push(label.charAt(0).toUpperCase() + label.slice(1));
-                          } else if (permissionGroups[perm]) {
-                            // Es un permiso padre con sub-opciones definidas (acceso completo)
-                            grouped[perm] = permissionGroups[perm];
-                          } else {
-                            // Es un permiso standalone (dashboard, usuarios, etc.)
-                            standalone.push(perm);
-                          }
-                        });
-                        
-                        return (
-                          <>
-                            {/* Permisos agrupados con sus hijos */}
-                            {Object.entries(grouped).map(([parent, children]) => {
-                              const parentLabel = parent.replace(/_/g, ' ');
-                              const childrenText = children.join(', ');
-                              
-                              return (
-                                <Chip
-                                  key={parent}
-                                  label={`${parentLabel.charAt(0).toUpperCase() + parentLabel.slice(1)} (${childrenText})`}
-                                  size="small"
-                                  color="primary"
-                                  variant="outlined"
-                                  sx={{ fontSize: '0.75rem' }}
-                                />
-                              );
-                            })}
-                            
-                            {/* Permisos standalone sin hijos */}
-                            {standalone.map(perm => {
-                              const label = perm.replace(/_/g, ' ');
-                              return (
-                                <Chip
-                                  key={perm}
-                                  label={label.charAt(0).toUpperCase() + label.slice(1)}
-                                  size="small"
-                                  color="primary"
-                                  variant="outlined"
-                                  sx={{ fontSize: '0.75rem' }}
-                                />
-                              );
-                            })}
-                          </>
-                        );
-                      })()
-                    ) : (
-                      <Typography variant="caption" sx={{ color: 'text.disabled', fontStyle: 'italic' }}>
-                        No se han seleccionado permisos
-                      </Typography>
-                    )}
-                  </Box>
-                </Paper>
               </Grid>
 
-              {/* COLUMNA DERECHA - PERMISOS DEL SISTEMA */}
-              <Grid item xs={12} md={7}>
+              {/* COLUMNA 2 - PERMISOS DEL SISTEMA (CENTRO) */}
+              <Grid item xs={12} md={4}>
                 <Paper sx={{
                   p: 2,
                   borderRadius: 2,
@@ -1554,8 +1457,28 @@ const UserManagementPage = () => {
                     Selecciona las secciones del sistema a las que el usuario tendrá acceso
                   </Typography>
 
-                  <Grid container spacing={2} sx={{ alignItems: 'flex-start' }}>
-                      {(() => {
+                  {/* Contenedor con scroll para lista de permisos */}
+                  <Box sx={{ 
+                    maxHeight: '65vh', 
+                    overflowY: 'auto',
+                    pr: 1,
+                    '&::-webkit-scrollbar': {
+                      width: '6px'
+                    },
+                    '&::-webkit-scrollbar-track': {
+                      background: alpha(theme.palette.divider, 0.1),
+                      borderRadius: '3px'
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                      background: alpha(theme.palette.secondary.main, 0.3),
+                      borderRadius: '3px',
+                      '&:hover': {
+                        background: alpha(theme.palette.secondary.main, 0.5)
+                      }
+                    }
+                  }}>
+                    <Grid container spacing={2} sx={{ alignItems: 'flex-start' }}>
+                        {(() => {
                         // Array completo de permisos
                         const allPermissions = [
                       { key: 'dashboard', label: 'Dashboard', icon: <Dashboard />, color: theme.palette.primary.main },
@@ -1879,7 +1802,143 @@ const UserManagementPage = () => {
                       </Grid>
                     ))}
                   </Grid>
+                  </Box>
                 </Paper>
+              </Grid>
+
+              {/* COLUMNA 3 - RESUMEN STICKY (DERECHA) */}
+              <Grid item xs={12} md={3}>
+                <Box sx={{ 
+                  position: 'sticky', 
+                  top: 0,
+                  maxHeight: '65vh',
+                  overflowY: 'auto',
+                  '&::-webkit-scrollbar': {
+                    width: '6px'
+                  },
+                  '&::-webkit-scrollbar-track': {
+                    background: alpha(theme.palette.divider, 0.1),
+                    borderRadius: '3px'
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    background: alpha(theme.palette.primary.main, 0.3),
+                    borderRadius: '3px',
+                    '&:hover': {
+                      background: alpha(theme.palette.primary.main, 0.5)
+                    }
+                  }
+                }}>
+                  <Paper sx={{ 
+                    p: 2, 
+                    bgcolor: 'background.default', 
+                    borderRadius: 2,
+                    border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                  }}>
+                    <Typography variant="overline" sx={{ 
+                      fontWeight: 600, 
+                      color: 'success.main',
+                      letterSpacing: 0.8,
+                      fontSize: '0.75rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                      mb: 1.5
+                    }}>
+                      <CheckCircleIcon sx={{ fontSize: 14 }} />
+                      Permisos Activos ({formData.permissions.length})
+                    </Typography>
+                    
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {formData.permissions.length > 0 ? (
+                        (() => {
+                          // Definir todos los permisos con sus sub-opciones
+                          const permissionGroups = {
+                            'compromisos': ['Ver Todos', 'Agregar Nuevo', 'Próximos A Vencer'],
+                            'pagos': ['Historial', 'Nuevo Pago'],
+                            'ingresos': ['Registrar', 'Historial', 'Cuentas'],
+                            'gestion_empresarial': ['Empresas', 'Salas', 'Clientes'],
+                            'liquidaciones': ['Liquidaciones', 'Historico'],
+                            'facturacion': ['Liquidaciones Por Sala', 'Cuentas De Cobro'],
+                            'reportes': ['Resumen', 'Por Empresa', 'Por Periodo', 'Por Concepto']
+                          };
+                          
+                          const grouped = {};
+                          const standalone = [];
+                          
+                          formData.permissions.forEach(perm => {
+                            if (perm.includes('.')) {
+                              // Es un sub-permiso
+                              const [parent, child] = perm.split('.');
+                              if (!grouped[parent]) grouped[parent] = [];
+                              const label = child.replace(/_/g, ' ');
+                              grouped[parent].push(label.charAt(0).toUpperCase() + label.slice(1));
+                            } else if (permissionGroups[perm]) {
+                              // Es un permiso padre con sub-opciones definidas (acceso completo)
+                              grouped[perm] = permissionGroups[perm];
+                            } else {
+                              // Es un permiso standalone (dashboard, usuarios, etc.)
+                              standalone.push(perm);
+                            }
+                          });
+                          
+                          return (
+                            <>
+                              {/* Permisos agrupados con sus hijos */}
+                              {Object.entries(grouped).map(([parent, children]) => {
+                                const parentLabel = parent.replace(/_/g, ' ');
+                                const childrenText = children.join(', ');
+                                
+                                return (
+                                  <Chip
+                                    key={parent}
+                                    label={`${parentLabel.charAt(0).toUpperCase() + parentLabel.slice(1)} (${childrenText})`}
+                                    size="small"
+                                    color="success"
+                                    variant="outlined"
+                                    sx={{ 
+                                      fontSize: '0.75rem',
+                                      height: 'auto',
+                                      py: 0.5,
+                                      '& .MuiChip-label': {
+                                        whiteSpace: 'normal',
+                                        textAlign: 'left'
+                                      }
+                                    }}
+                                  />
+                                );
+                              })}
+                              
+                              {/* Permisos standalone sin hijos */}
+                              {standalone.map(perm => {
+                                const label = perm.replace(/_/g, ' ');
+                                return (
+                                  <Chip
+                                    key={perm}
+                                    label={label.charAt(0).toUpperCase() + label.slice(1)}
+                                    size="small"
+                                    color="success"
+                                    variant="outlined"
+                                    sx={{ fontSize: '0.75rem' }}
+                                  />
+                                );
+                              })}
+                            </>
+                          );
+                        })()
+                      ) : (
+                        <Typography variant="caption" sx={{ 
+                          color: 'text.disabled', 
+                          fontStyle: 'italic',
+                          textAlign: 'center',
+                          py: 2
+                        }}>
+                          No hay permisos seleccionados
+                        </Typography>
+                      )}
+                    </Box>
+                  </Paper>
+                </Box>
               </Grid>
             </Grid>
           </Box>
