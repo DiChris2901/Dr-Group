@@ -3,7 +3,6 @@ import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { AuthProvider } from './src/contexts/AuthContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
-import { ChatProvider } from './src/contexts/ChatContext';
 import { NotificationsProvider } from './src/contexts/NotificationsContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
@@ -17,8 +16,8 @@ export default function App() {
       console.log('🔔 Usuario tocó notificación:', data);
 
       // Navegar según el tipo de notificación
-      if (data.screen === 'Chat') {
-        navigationRef.current?.navigate('Chat');
+      if (data.screen === 'Dashboard') {
+        navigationRef.current?.navigate('Dashboard');
       }
       // Agregar más navegaciones según sea necesario
     });
@@ -30,10 +29,8 @@ export default function App() {
     <AuthProvider>
       <ThemeProvider>
         <NotificationsProvider>
-          <ChatProvider>
-            <StatusBar style="light" />
-            <AppNavigator ref={navigationRef} />
-          </ChatProvider>
+          <StatusBar style="light" />
+          <AppNavigator ref={navigationRef} />
         </NotificationsProvider>
       </ThemeProvider>
     </AuthProvider>

@@ -13,7 +13,6 @@ import { useNavigation } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useChat } from '../../contexts/ChatContext';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import SobrioCard from '../../components/SobrioCard';
@@ -24,7 +23,6 @@ export default function DashboardScreen() {
   const navigation = useNavigation();
   const { user, userProfile, activeSession, signOut, registrarBreak, finalizarBreak, registrarAlmuerzo, finalizarAlmuerzo, finalizarJornada } = useAuth();
   const { getGradient, getPrimaryColor, getSecondaryColor } = useTheme();
-  const { unreadCount } = useChat();
   const { scheduleNotification, cancelNotification } = useNotifications();
   const [tiempoTrabajado, setTiempoTrabajado] = useState('00:00:00');
   const [tiempoDescanso, setTiempoDescanso] = useState('00:00:00'); // ✅ Contador de break/almuerzo
@@ -587,19 +585,6 @@ export default function DashboardScreen() {
         )}
       </ScrollView>
 
-      {/* 💬 Botón flotante de Chat */}
-      <TouchableOpacity 
-        style={[styles.chatButton, { backgroundColor: getPrimaryColor() }]}
-        onPress={() => navigation.navigate('Chat')}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.chatIcon}>💬</Text>
-        {unreadCount > 0 && (
-          <View style={styles.chatBadge}>
-            <Text style={styles.chatBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-          </View>
-        )}
-      </TouchableOpacity>
     </View>
   );
 }
@@ -793,41 +778,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   // ✅ PASO 2.5: Botón flotante de chat
-  chatButton: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  chatIcon: {
-    fontSize: 28,
-  },
-  chatBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    backgroundColor: '#ff4757',
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  chatBadgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
 });

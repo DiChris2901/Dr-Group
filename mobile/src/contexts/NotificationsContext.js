@@ -30,6 +30,20 @@ export const NotificationsProvider = ({ children }) => {
   const responseListener = useRef();
 
   useEffect(() => {
+    // ✅ Suprimir warning de Expo Go sobre push notifications (usamos solo locales)
+    const originalWarn = console.warn;
+    console.warn = (...args) => {
+      if (
+        typeof args[0] === 'string' && 
+        args[0].includes('expo-notifications') &&
+        args[0].includes('Expo Go')
+      ) {
+        // Ignorar este warning específico
+        return;
+      }
+      originalWarn(...args);
+    };
+
     // ✅ Pedir permisos para notificaciones locales
     requestNotificationPermissions();
 
@@ -51,6 +65,9 @@ export const NotificationsProvider = ({ children }) => {
     });
 
     return () => {
+      // ✅ Restaurar console.warn original
+      console.warn = originalWarn;
+      
       // ✅ Usar .remove() en lugar de removeNotificationSubscription
       if (notificationListener.current) {
         notificationListener.current.remove();
@@ -95,15 +112,6 @@ export const NotificationsProvider = ({ children }) => {
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#667eea',
         lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-        sound: 'default',
-      });
-
-      // Canal para chat (prioridad alta)
-      await Notifications.setNotificationChannelAsync('chat', {
-        name: 'Mensajes de Chat',
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#764ba2',
         sound: 'default',
       });
 

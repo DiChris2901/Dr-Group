@@ -7,9 +7,7 @@ import { ActivityIndicator, View } from 'react-native';
 // Screens
 import LoginScreen from '../screens/auth/LoginScreen';
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
-// Chat screens
-import ChatScreen from '../screens/chat/ChatScreen';
-// Admin screens (se crearán en FASE 5)
+// Admin screens (se crearán en FASE 5 - opcional)
 // import AsistenciasScreen from '../screens/asistencias/AsistenciasScreen';
 // import ReportesScreen from '../screens/reportes/ReportesScreen';
 
@@ -34,11 +32,10 @@ function AppNavigator({ navigation }, ref) {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <>
-            {/* 📱 Pantallas para TODOS los usuarios */}
+            {/* 📱 Pantalla principal */}
             <Stack.Screen name="Dashboard" component={DashboardScreen} />
-            <Stack.Screen name="Chat" component={ChatScreen} />
             
-            {/* 👨‍💼 Pantallas solo para ADMIN y SUPER_ADMIN */}
+            {/* 👨‍💼 Pantallas solo para ADMIN y SUPER_ADMIN (FASE 5 - opcional) */}
             {(userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') && (
               <>
                 {/* <Stack.Screen name="Asistencias" component={AsistenciasScreen} /> */}

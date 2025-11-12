@@ -172,6 +172,13 @@
 			"type": "shell",
 			"command": "npm run build",
 			"group": "build"
+		},
+		{
+			"label": "Expo Dev Server",
+			"type": "shell",
+			"command": "cd mobile && npx expo start",
+			"isBackground": true,
+			"problemMatcher": []
 		}
 	]
 }
