@@ -7,9 +7,9 @@ import { ActivityIndicator, View } from 'react-native';
 // Screens
 import LoginScreen from '../screens/auth/LoginScreen';
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
-// Admin screens (se crearán en FASE 5 - opcional)
-// import AsistenciasScreen from '../screens/asistencias/AsistenciasScreen';
-// import ReportesScreen from '../screens/reportes/ReportesScreen';
+// Admin screens (FASE 5 completada)
+import AsistenciasScreen from '../screens/asistencias/AsistenciasScreen';
+import ReportesScreen from '../screens/reportes/ReportesScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -35,11 +35,25 @@ function AppNavigator({ navigation }, ref) {
             {/* 📱 Pantalla principal */}
             <Stack.Screen name="Dashboard" component={DashboardScreen} />
             
-            {/* 👨‍💼 Pantallas solo para ADMIN y SUPER_ADMIN (FASE 5 - opcional) */}
+            {/* 👨‍💼 Pantallas solo para ADMIN y SUPER_ADMIN (FASE 5 completada) */}
             {(userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') && (
               <>
-                {/* <Stack.Screen name="Asistencias" component={AsistenciasScreen} /> */}
-                {/* <Stack.Screen name="Reportes" component={ReportesScreen} /> */}
+                <Stack.Screen 
+                  name="Asistencias" 
+                  component={AsistenciasScreen}
+                  options={{ 
+                    title: 'Asistencias',
+                    headerShown: false 
+                  }}
+                />
+                <Stack.Screen 
+                  name="Reportes" 
+                  component={ReportesScreen}
+                  options={{ 
+                    title: 'Reportes',
+                    headerShown: false 
+                  }}
+                />
               </>
             )}
           </>

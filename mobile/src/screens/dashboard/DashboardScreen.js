@@ -578,6 +578,32 @@ export default function DashboardScreen() {
           )}
         </SobrioCard>
 
+        {/* ✅ SECCIÓN ADMINISTRACIÓN - Solo para ADMIN/SUPER_ADMIN */}
+        {(userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN') && (
+          <SobrioCard style={{ marginTop: 16 }}>
+            <OverlineText color={getSecondaryColor()}>
+              ADMINISTRACIÓN
+            </OverlineText>
+            <Text style={styles.cardTitle}>Panel de Control</Text>
+            
+            <View style={styles.actions}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#2196f3' }]}
+                onPress={() => navigation.navigate('Asistencias')}
+              >
+                <Text style={styles.actionButtonText}>👥 Ver Todas las Asistencias</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#4caf50' }]}
+                onPress={() => navigation.navigate('Reportes')}
+              >
+                <Text style={styles.actionButtonText}>📊 Ver Reportes y Estadísticas</Text>
+              </TouchableOpacity>
+            </View>
+          </SobrioCard>
+        )}
+
         {loading && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color={getPrimaryColor()} />
