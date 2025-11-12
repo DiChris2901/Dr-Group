@@ -36,7 +36,8 @@ import {
   alpha,
   Tabs,
   Tab,
-  Badge
+  Badge,
+  LinearProgress
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -60,7 +61,11 @@ import {
   TrendingUp,
   Assessment,
   AttachMoney,
-  AccessTime
+  AccessTime,
+  CloudUpload as CloudUploadIcon,
+  AttachFile as AttachFileIcon,
+  InsertDriveFile as FileIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -85,7 +90,13 @@ import {
   signInWithEmailAndPassword,
   signOut
 } from 'firebase/auth';
-import { db, auth } from '../config/firebase';
+import { 
+  ref, 
+  uploadBytes, 
+  getDownloadURL, 
+  deleteObject 
+} from 'firebase/storage';
+import { db, auth, storage } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
 import NotificationSettingsModal from '../components/notifications/NotificationSettingsModal';
@@ -123,6 +134,12 @@ const UserManagementPage = () => {
   // Estados del modal de notificaciones
   const [openNotificationsModal, setOpenNotificationsModal] = useState(false);
   const [selectedUserForNotifications, setSelectedUserForNotifications] = useState(null);
+
+  // Estados para empresas y archivos
+  const [companies, setCompanies] = useState([]);
+  const [uploadingContract, setUploadingContract] = useState(false);
+  const [contractFile, setContractFile] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   
   // Estados del formulario
   const [formData, setFormData] = useState({
@@ -138,7 +155,8 @@ const UserManagementPage = () => {
     temporalPassword: '', // Nueva contraseña temporal
     position: '', // Cargo/Posición
     hireDate: '', // Fecha de ingreso
-    photoURL: '' // URL de foto de perfil
+    photoURL: '', // URL de foto de perfil
+    contractURL: '' // URL del contrato
   });
 
   // Estado para detectar cambios en el formulario
@@ -148,7 +166,23 @@ const UserManagementPage = () => {
   // Cargar usuarios al montar el componente
   useEffect(() => {
     loadUsers();
+    loadCompanies();
   }, []);
+
+  // Cargar empresas desde Firestore
+  const loadCompanies = async () => {
+    try {
+      const companiesCollection = collection(db, 'companies');
+      const snapshot = await getDocs(companiesCollection);
+      const companiesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name || doc.data().businessName
+      }));
+      setCompanies(companiesData);
+    } catch (err) {
+      console.error('Error loading companies:', err);
+    }
+  };
 
   // Cargar perfil del usuario actual
   useEffect(() => {
@@ -227,8 +261,18 @@ const UserManagementPage = () => {
           notes: user.notes || '',
           position: user.position || '',
           hireDate: user.hireDate || '',
-          photoURL: user.photoURL || ''
+          photoURL: user.photoURL || '',
+          contractURL: user.contractURL || ''
         };
+        
+        // Cargar contrato si existe
+        if (user.contractURL) {
+          setContractFile({
+            url: user.contractURL,
+            name: 'Contrato.pdf',
+            uploadedAt: user.contractUploadedAt || null
+          });
+        }
         
         setFormData(userData);
         setOriginalFormData(JSON.parse(JSON.stringify(userData)));
@@ -251,7 +295,8 @@ const UserManagementPage = () => {
           temporalPassword: 'DRGroup2025!',
           position: '',
           hireDate: '',
-          photoURL: ''
+          photoURL: '',
+          contractURL: ''
         };
         
         console.log('📋 Datos del nuevo usuario:', newUserData);
@@ -389,7 +434,144 @@ const UserManagementPage = () => {
     });
   };
 
-  // 🔄 Función para sincronizar usuarios con Authentication
+  // � Subir foto de perfil
+  const handlePhotoUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+      addNotification({
+        type: 'error',
+        title: 'Archivo Inválido',
+        message: 'Solo se permiten imágenes'
+      });
+      return;
+    }
+
+    // Validar tamaño (máximo 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      addNotification({
+        type: 'error',
+        title: 'Archivo muy grande',
+        message: 'La imagen no debe superar 2MB'
+      });
+      return;
+    }
+
+    try {
+      setUploadingPhoto(true);
+      const userId = editingUser?.id || formData.email.replace(/[^a-zA-Z0-9]/g, '_');
+      const photoRef = ref(storage, `users/${userId}/profile_photo.jpg`);
+      
+      await uploadBytes(photoRef, file);
+      const photoURL = await getDownloadURL(photoRef);
+      
+      updateFormData({ photoURL });
+      
+      addNotification({
+        type: 'success',
+        title: 'Foto Subida',
+        message: 'Foto de perfil actualizada correctamente'
+      });
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error al Subir Foto',
+        message: error.message
+      });
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  // 📄 Subir contrato
+  const handleContractUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validar tipo de archivo
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type)) {
+      addNotification({
+        type: 'error',
+        title: 'Archivo Inválido',
+        message: 'Solo se permiten archivos PDF o Word'
+      });
+      return;
+    }
+
+    // Validar tamaño (máximo 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      addNotification({
+        type: 'error',
+        title: 'Archivo muy grande',
+        message: 'El contrato no debe superar 5MB'
+      });
+      return;
+    }
+
+    try {
+      setUploadingContract(true);
+      const userId = editingUser?.id || formData.email.replace(/[^a-zA-Z0-9]/g, '_');
+      const contractRef = ref(storage, `users/${userId}/contrato_${Date.now()}.pdf`);
+      
+      await uploadBytes(contractRef, file);
+      const contractURL = await getDownloadURL(contractRef);
+      
+      setContractFile({
+        url: contractURL,
+        name: file.name,
+        uploadedAt: new Date()
+      });
+      
+      updateFormData({ contractURL });
+      
+      addNotification({
+        type: 'success',
+        title: 'Contrato Subido',
+        message: 'Contrato cargado correctamente'
+      });
+    } catch (error) {
+      console.error('Error uploading contract:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error al Subir Contrato',
+        message: error.message
+      });
+    } finally {
+      setUploadingContract(false);
+    }
+  };
+
+  // 🗑️ Eliminar contrato
+  const handleDeleteContract = async () => {
+    if (!formData.contractURL) return;
+
+    try {
+      const contractRef = ref(storage, formData.contractURL);
+      await deleteObject(contractRef);
+      
+      setContractFile(null);
+      updateFormData({ contractURL: '' });
+      
+      addNotification({
+        type: 'success',
+        title: 'Contrato Eliminado',
+        message: 'El contrato ha sido eliminado correctamente'
+      });
+    } catch (error) {
+      console.error('Error deleting contract:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error al Eliminar',
+        message: error.message
+      });
+    }
+  };
+
+  // �🔄 Función para sincronizar usuarios con Authentication
   const syncUserWithAuth = async (user) => {
     try {
       console.log('🔄 Sincronizando usuario con Authentication...', user.email);
@@ -1273,8 +1455,16 @@ const UserManagementPage = () => {
           color: 'text.primary'
         }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
-              {editingUser ? <EditIcon /> : <PersonAddIcon />}
+            <Avatar 
+              src={formData.photoURL} 
+              sx={{ 
+                bgcolor: 'primary.main', 
+                color: 'primary.contrastText',
+                width: 48,
+                height: 48
+              }}
+            >
+              {!formData.photoURL && (editingUser ? <EditIcon /> : <PersonAddIcon />)}
             </Avatar>
             <Box>
               <Typography variant="h6" sx={{ 
@@ -1548,36 +1738,112 @@ const UserManagementPage = () => {
                         </Box>
                       )}
                     >
-                      <MenuItem value="DR Group">DR Group</MenuItem>
-                      <MenuItem value="Consultores Asociados">Consultores Asociados</MenuItem>
-                      <MenuItem value="Inversiones del Caribe">Inversiones del Caribe</MenuItem>
+                      {companies.map((company) => (
+                        <MenuItem key={company.id} value={company.name}>
+                          {company.name}
+                        </MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
                 </Grid>
 
-                {/* URL Foto de Perfil */}
+                {/* Botón Subir Foto de Perfil */}
                 <Grid item xs={12} md={2.5}>
-                  <TextField
-                    fullWidth
-                    label="URL Foto"
-                    value={formData.photoURL}
-                    onChange={(e) => updateFormData({ photoURL: e.target.value })}
-                    size="small"
-                    placeholder="https://..."
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1,
-                        backgroundColor: alpha(theme.palette.warning.main, 0.05),
-                        transition: 'all 0.2s ease',
-                        '&:hover': {
-                          backgroundColor: alpha(theme.palette.warning.main, 0.08)
-                        }
-                      }
-                    }}
-                  />
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block', fontSize: '0.75rem' }}>
+                      Foto de Perfil
+                    </Typography>
+                    <Button
+                      variant={formData.photoURL ? 'outlined' : 'contained'}
+                      component="label"
+                      size="small"
+                      startIcon={uploadingPhoto ? <CircularProgress size={16} /> : <CloudUploadIcon />}
+                      fullWidth
+                      disabled={uploadingPhoto}
+                      sx={{ 
+                        borderRadius: 1, 
+                        textTransform: 'none',
+                        mt: 0.3,
+                        height: 40
+                      }}
+                    >
+                      {formData.photoURL ? 'Cambiar Foto' : 'Subir Foto'}
+                      <input 
+                        type="file" 
+                        hidden 
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                      />
+                    </Button>
+                  </Box>
                 </Grid>
 
-                {/* FILA 3: Notas y Estado */}
+                {/* FILA 3: Contrato */}
+                
+                {/* Botón Subir Contrato */}
+                <Grid item xs={12} md={contractFile || formData.contractURL ? 8 : 12}>
+                  <Box>
+                    <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block', fontSize: '0.75rem' }}>
+                      Contrato Laboral
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      component="label"
+                      size="small"
+                      startIcon={uploadingContract ? <CircularProgress size={16} /> : <AttachFileIcon />}
+                      fullWidth
+                      disabled={uploadingContract}
+                      sx={{ 
+                        borderRadius: 1, 
+                        textTransform: 'none',
+                        mt: 0.3,
+                        height: 40
+                      }}
+                    >
+                      {contractFile || formData.contractURL ? 'Cambiar Contrato' : 'Subir Contrato (PDF/Word)'}
+                      <input 
+                        type="file" 
+                        hidden 
+                        accept=".pdf,.doc,.docx"
+                        onChange={handleContractUpload}
+                      />
+                    </Button>
+                  </Box>
+                </Grid>
+
+                {/* Botones de Acción del Contrato */}
+                {(contractFile || formData.contractURL) && (
+                  <Grid item xs={12} md={4}>
+                    <Box>
+                      <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block', fontSize: '0.75rem' }}>
+                        Acciones
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1, mt: 0.3 }}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          startIcon={<FileIcon />}
+                          onClick={() => window.open(formData.contractURL || contractFile?.url, '_blank')}
+                          sx={{ borderRadius: 1, textTransform: 'none', flex: 1 }}
+                        >
+                          Ver
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          size="small"
+                          startIcon={<CloseIcon />}
+                          onClick={handleDeleteContract}
+                          sx={{ borderRadius: 1, textTransform: 'none', flex: 1 }}
+                        >
+                          Eliminar
+                        </Button>
+                      </Box>
+                    </Box>
+                  </Grid>
+                )}
+
+                {/* FILA 4: Notas y Estado */}
 
                 {/* Notas */}
                 <Grid item xs={12} md={10}>
