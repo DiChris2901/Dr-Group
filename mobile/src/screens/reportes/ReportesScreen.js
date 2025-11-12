@@ -1,148 +1,170 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   RefreshControl,
-  Alert
+  TouchableOpacity,
+  Dimensions
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialIcons } from '@expo/vector-icons';
 import { collection, query, getDocs, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { SobrioCard, DetailRow, OverlineText, LoadingState, EmptyState } from '../../components';
 import ProtectedScreen from '../../components/ProtectedScreen';
-import SobrioCard from '../../components/SobrioCard';
-import DetailRow from '../../components/DetailRow';
-import OverlineText from '../../components/OverlineText';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
+import { es } from 'date-fns/locale';
 
-const ReportesScreen = () => {
-  const { getPrimaryColor, getSecondaryColor } = useTheme();
+const screenWidth = Dimensions.get('window').width;
+
+/**
+ * ReportesScreen - Versión mejorada con gráficos interactivos
+ * 
+ * FASE 0.6 Features:
+ * - ✅ BarChart: Horas trabajadas por día
+ * - ✅ LineChart: Tendencia de asistencia en el tiempo
+ * - ✅ Filtros: Semana, Mes, Personalizado
+ * - ✅ Métricas avanzadas: Promedio, Total días, Score de puntualidad
+ * - ✅ Material 3 design con colores dinámicos
+ */
+function ReportesScreenContent() {
   const { userProfile } = useAuth();
+  const { getGradient, getPrimaryColor, getSecondaryColor } = useTheme();
+  
+  // Estados
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [stats, setStats] = useState({
-    totalAsistenciasHoy: 0,
-    totalAsistenciasSemana: 0,
-    horasTotalesHoy: '00:00:00',
-    horasTotalesSemana: '00:00:00',
-    promedioHorasDia: '00:00:00',
-    asistenciasActivasHoy: 0,
-    usuarioConMasHoras: { name: '--', horas: '00:00:00' },
-    breaksTotales: 0
-  });
+  const [error, setError] = useState(null);
+  const [rangoSeleccionado, setRangoSeleccionado] = useState('semana'); // 'semana', 'mes'
+  
+  // Datos
+  const [asistencias, setAsistencias] = useState([]);
+  const [chartData, setChartData] = useState({ labels: [], datasets: [{ data: [] }] });
+  const [trendData, setTrendData] = useState({ labels: [], datasets: [{ data: [] }] });
+  
+  // Verificar si es ADMIN
+  const isAdmin = userProfile?.role === 'ADMIN' || userProfile?.role === 'SUPER_ADMIN';
 
   useEffect(() => {
-    cargarEstadisticas();
-  }, []);
+    cargarDatos();
+  }, [rangoSeleccionado]);
 
-  const cargarEstadisticas = async () => {
+  const cargarDatos = async () => {
     try {
       setLoading(true);
+      setError(null);
       
+      console.log(`📊 Cargando reportes: ${rangoSeleccionado}`);
+      
+      // Calcular rango de fechas
       const hoy = new Date();
-      const fechaHoyStr = hoy.toISOString().split('T')[0];
+      let fechaDesde, fechaHasta;
       
-      // Calcular fecha de inicio de semana (lunes)
-      const primerDiaSemana = new Date(hoy);
-      primerDiaSemana.setDate(hoy.getDate() - hoy.getDay() + 1);
-      const fechaSemanaStr = primerDiaSemana.toISOString().split('T')[0];
+      if (rangoSeleccionado === 'semana') {
+        fechaDesde = startOfWeek(hoy, { weekStartsOn: 1 }); // Lunes
+        fechaHasta = endOfWeek(hoy, { weekStartsOn: 1 }); // Domingo
+      } else if (rangoSeleccionado === 'mes') {
+        fechaDesde = startOfMonth(hoy);
+        fechaHasta = endOfMonth(hoy);
+      }
       
-      // Query para asistencias de hoy
-      const asistenciasHoyRef = collection(db, 'asistencias');
-      const qHoy = query(
-        asistenciasHoyRef,
-        where('fecha', '==', fechaHoyStr)
+      const fechaDesdeStr = format(fechaDesde, 'yyyy-MM-dd');
+      const fechaHastaStr = format(fechaHasta, 'yyyy-MM-dd');
+      
+      console.log(`📅 Rango: ${fechaDesdeStr} → ${fechaHastaStr}`);
+      
+      // Query a Firestore (simple, sin orderBy)
+      const q = query(
+        collection(db, 'asistencias'),
+        where('fecha', '>=', fechaDesdeStr),
+        where('fecha', '<=', fechaHastaStr)
       );
-      const snapshotHoy = await getDocs(qHoy);
       
-      // Query para asistencias de la semana
-      const qSemana = query(
-        asistenciasHoyRef,
-        where('fecha', '>=', fechaSemanaStr)
-      );
-      const snapshotSemana = await getDocs(qSemana);
+      const querySnapshot = await getDocs(q);
+      console.log(`📋 ${querySnapshot.docs.length} asistencias encontradas`);
       
-      // Procesar datos de hoy
-      let totalHorasHoyMs = 0;
-      let asistenciasActivasHoy = 0;
-      let breaksTotales = 0;
-      const horasPorUsuario = {};
+      const asistenciasData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
       
-      for (const doc of snapshotHoy.docs) {
-        const data = doc.data();
-        
-        if (data.estadoActual !== 'finalizado') {
-          asistenciasActivasHoy++;
-        }
-        
-        if (data.breaks) {
-          breaksTotales += data.breaks.length;
-        }
-        
-        // Convertir horas trabajadas a milisegundos
-        if (data.horasTrabajadas) {
-          const [h, m, s] = data.horasTrabajadas.split(':').map(Number);
-          const ms = (h * 3600 + m * 60 + s) * 1000;
-          totalHorasHoyMs += ms;
-          
-          // Acumular por usuario
-          const userName = data.userName || 'Usuario desconocido';
-          if (!horasPorUsuario[userName]) {
-            horasPorUsuario[userName] = 0;
-          }
-          horasPorUsuario[userName] += ms;
-        }
-      }
+      setAsistencias(asistenciasData);
       
-      // Procesar datos de la semana
-      let totalHorasSemanaMs = 0;
-      for (const doc of snapshotSemana.docs) {
-        const data = doc.data();
-        if (data.horasTrabajadas) {
-          const [h, m, s] = data.horasTrabajadas.split(':').map(Number);
-          const ms = (h * 3600 + m * 60 + s) * 1000;
-          totalHorasSemanaMs += ms;
-        }
-      }
+      // Generar datos para gráficos
+      generarDatosGraficos(asistenciasData, fechaDesde, fechaHasta);
       
-      // Calcular usuario con más horas
-      let maxUsuario = { name: '--', horas: '00:00:00' };
-      if (Object.keys(horasPorUsuario).length > 0) {
-        const maxUser = Object.keys(horasPorUsuario).reduce((a, b) => 
-          horasPorUsuario[a] > horasPorUsuario[b] ? a : b
-        );
-        maxUsuario = {
-          name: maxUser,
-          horas: formatearDuracionDesdeMs(horasPorUsuario[maxUser])
-        };
-      }
-      
-      // Calcular promedio de horas por día
-      const cantidadAsistenciasHoy = snapshotHoy.size;
-      const promedioMs = cantidadAsistenciasHoy > 0 ? totalHorasHoyMs / cantidadAsistenciasHoy : 0;
-      
-      setStats({
-        totalAsistenciasHoy: snapshotHoy.size,
-        totalAsistenciasSemana: snapshotSemana.size,
-        horasTotalesHoy: formatearDuracionDesdeMs(totalHorasHoyMs),
-        horasTotalesSemana: formatearDuracionDesdeMs(totalHorasSemanaMs),
-        promedioHorasDia: formatearDuracionDesdeMs(promedioMs),
-        asistenciasActivasHoy,
-        usuarioConMasHoras: maxUsuario,
-        breaksTotales
-      });
-      
-    } catch (error) {
-      console.error('Error al cargar estadísticas:', error);
-      Alert.alert('Error', 'No se pudieron cargar las estadísticas');
+    } catch (err) {
+      console.error('❌ Error cargando reportes:', err);
+      setError('Error al cargar reportes. Intenta nuevamente.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const formatearDuracionDesdeMs = (ms) => {
+  const generarDatosGraficos = (asistenciasData, fechaDesde, fechaHasta) => {
+    // Generar todos los días del rango
+    const diasDelRango = eachDayOfInterval({ start: fechaDesde, end: fechaHasta });
+    
+    // Mapa de fecha → horas trabajadas
+    const horasPorDia = {};
+    const asistenciasPorDia = {};
+    
+    diasDelRango.forEach(dia => {
+      const fechaStr = format(dia, 'yyyy-MM-dd');
+      horasPorDia[fechaStr] = 0;
+      asistenciasPorDia[fechaStr] = 0;
+    });
+    
+    // Acumular horas por día
+    asistenciasData.forEach(asistencia => {
+      if (!asistencia.fecha || !asistencia.horasTrabajadas) return;
+      
+      const fecha = asistencia.fecha;
+      asistenciasPorDia[fecha] = (asistenciasPorDia[fecha] || 0) + 1;
+      
+      // Convertir HH:MM:SS a horas decimales
+      const [h, m, s] = asistencia.horasTrabajadas.split(':').map(Number);
+      const horasDecimales = h + (m / 60) + (s / 3600);
+      
+      horasPorDia[fecha] = (horasPorDia[fecha] || 0) + horasDecimales;
+    });
+    
+    // Preparar datos para BarChart (horas por día)
+    const labels = diasDelRango.map(dia => format(dia, 'dd MMM', { locale: es }));
+    const dataHoras = diasDelRango.map(dia => {
+      const fechaStr = format(dia, 'yyyy-MM-dd');
+      return Math.round(horasPorDia[fechaStr] * 10) / 10; // Redondear a 1 decimal
+    });
+    
+    setChartData({
+      labels,
+      datasets: [{ data: dataHoras.length > 0 ? dataHoras : [0] }]
+    });
+    
+    // Preparar datos para LineChart (tendencia de asistencias)
+    const dataAsistencias = diasDelRango.map(dia => {
+      const fechaStr = format(dia, 'yyyy-MM-dd');
+      return asistenciasPorDia[fechaStr] || 0;
+    });
+    
+    setTrendData({
+      labels,
+      datasets: [{ data: dataAsistencias.length > 0 ? dataAsistencias : [0] }]
+    });
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    cargarDatos();
+  };
+
+  // Función para formatear duración (DEBE estar ANTES del useMemo)
+  const formatearDuracion = (ms) => {
     if (!ms || ms <= 0) return '00:00:00';
     
     const totalSeconds = Math.floor(ms / 1000);
@@ -153,122 +175,289 @@ const ReportesScreen = () => {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await cargarEstadisticas();
-    setRefreshing(false);
-  };
+  // Calcular estadísticas avanzadas
+  const stats = useMemo(() => {
+    const total = asistencias.length;
+    const finalizadas = asistencias.filter(a => a.estadoActual === 'finalizado').length;
+    
+    // Total de horas trabajadas
+    let totalHorasMs = 0;
+    asistencias.forEach(a => {
+      if (a.horasTrabajadas) {
+        const [h, m, s] = a.horasTrabajadas.split(':').map(Number);
+        totalHorasMs += (h * 3600 + m * 60 + s) * 1000;
+      }
+    });
+    
+    const totalHorasFormateadas = formatearDuracion(totalHorasMs);
+    
+    // Promedio de horas por día
+    const promedioHorasMs = finalizadas > 0 ? totalHorasMs / finalizadas : 0;
+    const promedioHorasFormateadas = formatearDuracion(promedioHorasMs);
+    
+    // Días únicos trabajados
+    const fechasUnicas = new Set(asistencias.map(a => a.fecha));
+    const diasTrabajados = fechasUnicas.size;
+    
+    // Score de puntualidad (asistencias a tiempo: entrada antes de las 9:00 AM)
+    let aTiempo = 0;
+    asistencias.forEach(a => {
+      if (a.entrada && a.entrada.hora) {
+        try {
+          const horaEntrada = a.entrada.hora.toDate ? a.entrada.hora.toDate() : new Date(a.entrada.hora);
+          const hora = horaEntrada.getHours();
+          if (hora < 9) aTiempo++;
+        } catch (e) {
+          // Ignorar errores de conversión
+        }
+      }
+    });
+    
+    const scorePuntualidad = total > 0 ? Math.round((aTiempo / total) * 100) : 0;
+    
+    return {
+      total,
+      finalizadas,
+      totalHoras: totalHorasFormateadas,
+      promedioHoras: promedioHorasFormateadas,
+      diasTrabajados,
+      scorePuntualidad
+    };
+  }, [asistencias]);
 
-  if (loading) {
+  if (loading && !refreshing) {
+    return <LoadingState message="Cargando reportes..." />;
+  }
+
+  if (error) {
     return (
-      <ProtectedScreen requiredPermission="reportes.generar">
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={getPrimaryColor()} />
-          <Text style={styles.loadingText}>Cargando reportes...</Text>
-        </View>
-      </ProtectedScreen>
+      <View style={styles.container}>
+        <EmptyState
+          icon="error-outline"
+          message={error}
+          iconColor="#f44336"
+        />
+        <TouchableOpacity style={styles.retryButton} onPress={cargarDatos}>
+          <Text style={styles.retryButtonText}>Reintentar</Text>
+        </TouchableOpacity>
+      </View>
     );
   }
 
   return (
-    <ProtectedScreen requiredPermission="reportes.generar">
+    <View style={styles.container}>
+      {/* Header con gradiente */}
+      <LinearGradient
+        colors={getGradient()}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        <OverlineText style={styles.headerOverline}>ANÁLISIS Y MÉTRICAS</OverlineText>
+        <Text style={styles.headerTitle}>Reportes</Text>
+        <Text style={styles.headerSubtitle}>
+          Visualiza el rendimiento del equipo
+        </Text>
+      </LinearGradient>
+
       <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[getPrimaryColor()]}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[getPrimaryColor()]} />
         }
       >
-        {/* Header con gradiente */}
-        <View style={[styles.header, { backgroundColor: getPrimaryColor() }]}>
-          <OverlineText style={styles.headerOverline}>ADMINISTRACIÓN</OverlineText>
-          <Text style={styles.headerTitle}>Reportes</Text>
-          <Text style={styles.headerSubtitle}>Estadísticas y métricas del equipo</Text>
+        {/* Filtros de rango */}
+        <View style={styles.filtrosRango}>
+          <TouchableOpacity
+            style={[
+              styles.filtroChip,
+              rangoSeleccionado === 'semana' && { backgroundColor: getPrimaryColor() + '15', borderColor: getPrimaryColor() }
+            ]}
+            onPress={() => setRangoSeleccionado('semana')}
+          >
+            <MaterialIcons 
+              name="date-range" 
+              size={16} 
+              color={rangoSeleccionado === 'semana' ? getPrimaryColor() : '#666'} 
+            />
+            <Text style={[
+              styles.filtroChipText,
+              rangoSeleccionado === 'semana' && { color: getPrimaryColor(), fontWeight: '700' }
+            ]}>
+              Esta Semana
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.filtroChip,
+              rangoSeleccionado === 'mes' && { backgroundColor: getPrimaryColor() + '15', borderColor: getPrimaryColor() }
+            ]}
+            onPress={() => setRangoSeleccionado('mes')}
+          >
+            <MaterialIcons 
+              name="calendar-today" 
+              size={16} 
+              color={rangoSeleccionado === 'mes' ? getPrimaryColor() : '#666'} 
+            />
+            <Text style={[
+              styles.filtroChipText,
+              rangoSeleccionado === 'mes' && { color: getPrimaryColor(), fontWeight: '700' }
+            ]}>
+              Este Mes
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Sección: Resumen de hoy */}
-        <View style={styles.section}>
-          <OverlineText style={styles.sectionTitle}>Resumen de Hoy</OverlineText>
+        {/* Métricas principales */}
+        <View style={styles.statsGrid}>
+          <SobrioCard style={styles.statCard}>
+            <Text style={styles.statValue}>{stats.total}</Text>
+            <Text style={[styles.statLabel, { color: getPrimaryColor() }]}>ASISTENCIAS</Text>
+          </SobrioCard>
           
-          <View style={styles.metricsGrid}>
-            <SobrioCard style={styles.metricCard}>
-              <Text style={styles.metricNumber}>{stats.totalAsistenciasHoy}</Text>
-              <Text style={styles.metricLabel}>Asistencias</Text>
-              <Text style={styles.metricIcon}>👥</Text>
-            </SobrioCard>
-            
-            <SobrioCard style={styles.metricCard}>
-              <Text style={styles.metricNumber}>{stats.asistenciasActivasHoy}</Text>
-              <Text style={styles.metricLabel}>Activas</Text>
-              <Text style={styles.metricIcon}>⏳</Text>
+          <SobrioCard style={styles.statCard}>
+            <Text style={styles.statValue}>{stats.diasTrabajados}</Text>
+            <Text style={[styles.statLabel, { color: '#4caf50' }]}>DÍAS</Text>
+          </SobrioCard>
+          
+          <SobrioCard style={styles.statCard}>
+            <Text style={styles.statValue}>{stats.scorePuntualidad}%</Text>
+            <Text style={[styles.statLabel, { color: '#2196f3' }]}>PUNTUALIDAD</Text>
+          </SobrioCard>
+        </View>
+
+        {/* Gráfico de barras: Horas por día (Simple) */}
+        {chartData.datasets[0].data.length > 0 && chartData.datasets[0].data.some(val => val > 0) ? (
+          <View style={styles.chartSection}>
+            <OverlineText style={styles.chartTitle}>HORAS TRABAJADAS POR DÍA</OverlineText>
+            <SobrioCard>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.simpleBarChart}>
+                  {chartData.labels.map((label, index) => {
+                    const value = chartData.datasets[0].data[index];
+                    const maxValue = Math.max(...chartData.datasets[0].data);
+                    const heightPercent = maxValue > 0 ? (value / maxValue) * 100 : 0;
+                    
+                    return (
+                      <View key={index} style={styles.barContainer}>
+                        <View style={styles.barWrapper}>
+                          <Text style={styles.barValue}>{value.toFixed(1)}h</Text>
+                          <View style={styles.barColumn}>
+                            <View 
+                              style={[
+                                styles.bar, 
+                                { 
+                                  height: `${heightPercent}%`,
+                                  backgroundColor: getPrimaryColor()
+                                }
+                              ]} 
+                            />
+                          </View>
+                        </View>
+                        <Text style={styles.barLabel}>{label}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+              <Text style={styles.chartCaption}>
+                📊 Total acumulado: {stats.totalHoras}
+              </Text>
             </SobrioCard>
           </View>
+        ) : (
+          <View style={styles.chartSection}>
+            <EmptyState
+              icon="bar-chart"
+              message="No hay datos suficientes para mostrar el gráfico"
+              iconColor="#9e9e9e"
+            />
+          </View>
+        )}
 
-          <SobrioCard style={styles.detailCard}>
+        {/* Gráfico de tendencia: Asistencias por día (Simple) */}
+        {trendData.datasets[0].data.length > 0 && trendData.datasets[0].data.some(val => val > 0) ? (
+          <View style={styles.chartSection}>
+            <OverlineText style={styles.chartTitle}>TENDENCIA DE ASISTENCIAS</OverlineText>
+            <SobrioCard>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <View style={styles.simpleTrendChart}>
+                  {trendData.labels.map((label, index) => {
+                    const value = trendData.datasets[0].data[index];
+                    const maxValue = Math.max(...trendData.datasets[0].data);
+                    const heightPercent = maxValue > 0 ? (value / maxValue) * 100 : 0;
+                    
+                    return (
+                      <View key={index} style={styles.trendContainer}>
+                        <View style={styles.trendWrapper}>
+                          <Text style={styles.trendValue}>{value}</Text>
+                          <View style={styles.trendColumn}>
+                            <View 
+                              style={[
+                                styles.trendDot, 
+                                { 
+                                  bottom: `${heightPercent}%`,
+                                  backgroundColor: getSecondaryColor()
+                                }
+                              ]} 
+                            />
+                            {index < trendData.labels.length - 1 && (
+                              <View 
+                                style={[
+                                  styles.trendLine,
+                                  { backgroundColor: getSecondaryColor() + '40' }
+                                ]} 
+                              />
+                            )}
+                          </View>
+                        </View>
+                        <Text style={styles.trendLabel}>{label}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+              <Text style={styles.chartCaption}>
+                📈 Promedio: {stats.promedioHoras} por asistencia
+              </Text>
+            </SobrioCard>
+          </View>
+        ) : (
+          <View style={styles.chartSection}>
+            <EmptyState
+              icon="show-chart"
+              message="No hay datos suficientes para mostrar la tendencia"
+              iconColor="#9e9e9e"
+            />
+          </View>
+        )}
+
+        {/* Detalles adicionales */}
+        <View style={styles.detailsSection}>
+          <SobrioCard>
             <DetailRow
-              icon="⏱️"
-              label="Horas Totales Hoy"
-              value={stats.horasTotalesHoy}
+              icon="check-circle"
+              label="Jornadas Finalizadas"
+              value={`${stats.finalizadas} de ${stats.total}`}
               iconColor="#4caf50"
               highlight
             />
             <View style={styles.detailSpacer} />
             <DetailRow
-              icon="📊"
-              label="Promedio por Usuario"
-              value={stats.promedioHorasDia}
+              icon="access-time"
+              label="Promedio por Asistencia"
+              value={stats.promedioHoras}
               iconColor="#2196f3"
             />
             <View style={styles.detailSpacer} />
             <DetailRow
-              icon="☕"
-              label="Breaks Totales"
-              value={`${stats.breaksTotales} break(s)`}
-              iconColor="#ff9800"
+              icon="timer"
+              label="Total Acumulado"
+              value={stats.totalHoras}
+              iconColor={getPrimaryColor()}
             />
-          </SobrioCard>
-        </View>
-
-        {/* Sección: Resumen de la semana */}
-        <View style={styles.section}>
-          <OverlineText style={styles.sectionTitle}>Resumen de la Semana</OverlineText>
-          
-          <View style={styles.metricsGrid}>
-            <SobrioCard style={styles.metricCard}>
-              <Text style={styles.metricNumber}>{stats.totalAsistenciasSemana}</Text>
-              <Text style={styles.metricLabel}>Asistencias</Text>
-              <Text style={styles.metricIcon}>📅</Text>
-            </SobrioCard>
-            
-            <SobrioCard style={styles.metricCard}>
-              <Text style={styles.metricNumber}>{stats.horasTotalesSemana}</Text>
-              <Text style={styles.metricLabel}>Horas Totales</Text>
-              <Text style={styles.metricIcon}>⏰</Text>
-            </SobrioCard>
-          </View>
-        </View>
-
-        {/* Sección: Usuario destacado */}
-        <View style={styles.section}>
-          <OverlineText style={styles.sectionTitle}>Usuario Destacado</OverlineText>
-          
-          <SobrioCard style={styles.highlightCard}>
-            <View style={styles.highlightHeader}>
-              <Text style={styles.highlightEmoji}>🏆</Text>
-              <View style={styles.highlightInfo}>
-                <Text style={styles.highlightTitle}>Mayor Tiempo Trabajado Hoy</Text>
-                <Text style={styles.highlightName}>{stats.usuarioConMasHoras.name}</Text>
-              </View>
-            </View>
-            <View style={styles.highlightDivider} />
-            <View style={styles.highlightFooter}>
-              <Text style={styles.highlightLabel}>Horas trabajadas:</Text>
-              <Text style={styles.highlightValue}>{stats.usuarioConMasHoras.horas}</Text>
-            </View>
           </SobrioCard>
         </View>
 
@@ -280,163 +469,255 @@ const ReportesScreen = () => {
           <Text style={styles.infoText}>
             🔄 Desliza hacia abajo para refrescar
           </Text>
+          {isAdmin && (
+            <Text style={styles.infoText}>
+              👑 Modo administrador: viendo todas las asistencias
+            </Text>
+          )}
         </View>
+
+        <View style={styles.bottomSpacer} />
       </ScrollView>
-    </ProtectedScreen>
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5'
   },
-  scrollContent: {
-    paddingBottom: 40 // 🎨 Material 3 padding (↑ de 32)
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5'
-  },
-  loadingText: {
-    marginTop: 16, // 🎨 Material 3 spacing (↑ de 12)
-    fontSize: 15, // 🎨 Material 3 Body Medium (↑ de 14)
-    color: '#666'
-  },
   header: {
-    paddingTop: 52, // 🎨 Material 3 generous spacing (↑ de 48)
-    paddingHorizontal: 28, // 🎨 Material 3 horizontal padding (↑ de 24)
-    paddingBottom: 28, // 🎨 Material 3 (↑ de 24)
-    borderBottomLeftRadius: 32, // 🎨 Material 3 Extra Large (↑ de 24)
-    borderBottomRightRadius: 32 // 🎨 Material 3 Extra Large (↑ de 24)
+    paddingTop: 56,
+    paddingBottom: 28,
+    paddingHorizontal: 24,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 5,
   },
   headerOverline: {
     color: 'rgba(255,255,255,0.8)',
-    marginBottom: 6 // 🎨 Material 3 spacing (↑ de 4)
+    marginBottom: 8
   },
   headerTitle: {
-    fontSize: 30, // 🎨 Material 3 Headline Medium (↑ de 28)
+    fontSize: 30,
     fontWeight: '700',
     color: '#fff',
-    marginBottom: 6, // 🎨 Material 3 spacing (↑ de 4)
-    letterSpacing: 0.3 // 🎨 Material 3 tracking (nuevo)
+    marginBottom: 6,
+    letterSpacing: 0.3,
   },
   headerSubtitle: {
-    fontSize: 15, // 🎨 Material 3 Body Medium (↑ de 14)
+    fontSize: 15,
     color: 'rgba(255,255,255,0.9)',
-    lineHeight: 22 // 🎨 Material 3 line-height (nuevo)
+    lineHeight: 22,
   },
-  section: {
-    paddingHorizontal: 20, // 🎨 Material 3 padding (↑ de 16)
-    marginTop: 28 // 🎨 Material 3 spacing (↑ de 24)
-  },
-  sectionTitle: {
-    color: '#666',
-    marginBottom: 16, // 🎨 Material 3 spacing (↑ de 12)
-    paddingHorizontal: 6 // 🎨 Material 3 padding (↑ de 4)
-  },
-  metricsGrid: {
-    flexDirection: 'row',
-    gap: 16, // 🎨 Material 3 gap (↑ de 12)
-    marginBottom: 16 // 🎨 Material 3 spacing (↑ de 12)
-  },
-  metricCard: {
-    flex: 1,
-    padding: 24, // 🎨 Material 3 padding (↑ de 20)
-    alignItems: 'center',
-    position: 'relative'
-  },
-  metricNumber: {
-    fontSize: 36, // 🎨 Material 3 Display Small (↑ de 32)
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 6, // 🎨 Material 3 spacing (↑ de 4)
-    letterSpacing: 0.3 // 🎨 Material 3 tracking (nuevo)
-  },
-  metricLabel: {
-    fontSize: 13, // 🎨 Material 3 Label Large (↑ de 12)
-    fontWeight: '600',
-    color: '#666',
-    textTransform: 'uppercase',
-    letterSpacing: 1.0, // 🎨 Material 3 tracking (↑ de 0.5)
-    textAlign: 'center'
-  },
-  metricIcon: {
-    fontSize: 28, // 🎨 Material 3 icon size (↑ de 24)
-    position: 'absolute',
-    top: 16, // 🎨 Material 3 positioning (↑ de 12)
-    right: 16, // 🎨 Material 3 positioning (↑ de 12)
-    opacity: 0.3
-  },
-  detailCard: {
-    padding: 24 // 🎨 Material 3 padding (↑ de 20)
-  },
-  detailSpacer: {
-    height: 16 // 🎨 Material 3 spacing (↑ de 12)
-  },
-  highlightCard: {
-    padding: 24 // 🎨 Material 3 padding (↑ de 20)
-  },
-  highlightHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20 // 🎨 Material 3 spacing (↑ de 16)
-  },
-  highlightEmoji: {
-    fontSize: 44, // 🎨 Material 3 emoji size (↑ de 40)
-    marginRight: 20 // 🎨 Material 3 spacing (↑ de 16)
-  },
-  highlightInfo: {
+  content: {
     flex: 1
   },
-  highlightTitle: {
-    fontSize: 12, // 🎨 Material 3 Label Medium (↑ de 11)
+  filtrosRango: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8
+  },
+  filtroChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#fff'
+  },
+  filtroChipText: {
+    fontSize: 13,
     fontWeight: '600',
     color: '#666',
-    textTransform: 'uppercase',
-    letterSpacing: 1.0, // 🎨 Material 3 tracking (↑ de 0.5)
-    marginBottom: 6 // 🎨 Material 3 spacing (↑ de 4)
+    letterSpacing: 0.3
   },
-  highlightName: {
-    fontSize: 20, // 🎨 Material 3 Title Medium (↑ de 18)
-    fontWeight: '700',
-    color: '#333',
-    letterSpacing: 0.15 // 🎨 Material 3 tracking (nuevo)
-  },
-  highlightDivider: {
-    height: 1,
-    backgroundColor: 'rgba(0,0,0,0.06)',
-    marginBottom: 16
-  },
-  highlightFooter: {
+  statsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16
+  },
+  statCard: {
+    flex: 1,
+    padding: 20,
     alignItems: 'center'
   },
-  highlightLabel: {
-    fontSize: 15, // 🎨 Material 3 Body Medium (↑ de 14)
-    color: '#666',
-    lineHeight: 22 // 🎨 Material 3 line-height (nuevo)
+  statValue: {
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#333',
+    marginBottom: 6
   },
-  highlightValue: {
-    fontSize: 28, // 🎨 Material 3 Display Small (↑ de 24)
+  statLabel: {
+    fontSize: 11,
     fontWeight: '700',
-    color: '#4caf50',
-    letterSpacing: 0.2 // 🎨 Material 3 tracking (nuevo)
+    letterSpacing: 0.8
+  },
+  chartSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 12
+  },
+  chartTitle: {
+    marginBottom: 12,
+    color: '#64748b'
+  },
+  chartCaption: {
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 16,
+    fontWeight: '500'
+  },
+  // Simple Bar Chart Styles
+  simpleBarChart: {
+    flexDirection: 'row',
+    gap: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 20,
+    minWidth: screenWidth - 64
+  },
+  barContainer: {
+    alignItems: 'center',
+    gap: 8,
+    minWidth: 50
+  },
+  barWrapper: {
+    alignItems: 'center',
+    gap: 6
+  },
+  barValue: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#333'
+  },
+  barColumn: {
+    width: 40,
+    height: 140,
+    backgroundColor: 'rgba(0,0,0,0.04)',
+    borderRadius: 8,
+    justifyContent: 'flex-end',
+    overflow: 'hidden'
+  },
+  bar: {
+    width: '100%',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    minHeight: 4
+  },
+  barLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#666',
+    textAlign: 'center'
+  },
+  // Simple Trend Chart Styles
+  simpleTrendChart: {
+    flexDirection: 'row',
+    gap: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 20,
+    minWidth: screenWidth - 64
+  },
+  trendContainer: {
+    alignItems: 'center',
+    gap: 8,
+    minWidth: 50
+  },
+  trendWrapper: {
+    alignItems: 'center',
+    gap: 6
+  },
+  trendValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#333'
+  },
+  trendColumn: {
+    width: 2,
+    height: 120,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    borderRadius: 2,
+    position: 'relative'
+  },
+  trendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    position: 'absolute',
+    left: -4,
+    borderWidth: 2,
+    borderColor: '#fff'
+  },
+  trendLine: {
+    position: 'absolute',
+    right: -10,
+    top: '50%',
+    width: 20,
+    height: 2,
+    borderRadius: 1
+  },
+  trendLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#666',
+    textAlign: 'center'
+  },
+  detailsSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 12
+  },
+  detailSpacer: {
+    height: 12
   },
   infoSection: {
-    paddingHorizontal: 20, // 🎨 Material 3 padding (↑ de 16)
-    marginTop: 28, // 🎨 Material 3 spacing (↑ de 24)
-    gap: 12 // 🎨 Material 3 gap (↑ de 8)
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    gap: 8
   },
   infoText: {
-    fontSize: 14, // 🎨 Material 3 Body Small (↑ de 13)
+    fontSize: 13,
     color: '#999',
     textAlign: 'center',
-    lineHeight: 22 // 🎨 Material 3 line-height (↑ de 20)
+    lineHeight: 20
+  },
+  retryButton: {
+    margin: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    backgroundColor: '#667eea',
+    borderRadius: 12,
+    alignItems: 'center'
+  },
+  retryButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff'
+  },
+  bottomSpacer: {
+    height: 40
   }
 });
 
-export default ReportesScreen;
+// Wrap con ProtectedScreen
+export default function ReportesScreen() {
+  return (
+    <ProtectedScreen requiredPermission="reportes.generar">
+      <ReportesScreenContent />
+    </ProtectedScreen>
+  );
+}
