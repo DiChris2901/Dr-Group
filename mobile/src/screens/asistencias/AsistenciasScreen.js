@@ -37,12 +37,11 @@ const AsistenciasScreen = () => {
       // Formato de fecha: YYYY-MM-DD
       const fechaStr = selectedDate.toISOString().split('T')[0];
       
-      // Query para obtener todas las asistencias del día
+      // ✅ Query simple sin orderBy (no requiere índice compuesto)
       const asistenciasRef = collection(db, 'asistencias');
       const q = query(
         asistenciasRef,
-        where('fecha', '==', fechaStr),
-        orderBy('entrada.hora', 'desc')
+        where('fecha', '==', fechaStr)
       );
       
       const querySnapshot = await getDocs(q);
@@ -69,6 +68,13 @@ const AsistenciasScreen = () => {
           userPhoto
         });
       }
+      
+      // ✅ Ordenar en memoria después de obtener todos los datos (más reciente primero)
+      asistenciasData.sort((a, b) => {
+        const horaA = a.entrada?.hora?.toDate ? a.entrada.hora.toDate() : new Date(a.entrada?.hora || 0);
+        const horaB = b.entrada?.hora?.toDate ? b.entrada.hora.toDate() : new Date(b.entrada?.hora || 0);
+        return horaB - horaA; // Descendente (más reciente primero)
+      });
       
       setAsistencias(asistenciasData);
     } catch (error) {
