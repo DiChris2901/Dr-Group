@@ -1,7 +1,7 @@
-import React, { useContext } from 'react';
+import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
-import { ThemeContext } from '../contexts/ThemeContext';
+import { useTheme } from '../contexts/ThemeContext'; // ✅ FIX: Usar custom hook
 
 // Screens
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
@@ -27,7 +27,7 @@ const Tab = createBottomTabNavigator();
  * - Spacing generoso
  */
 export default function BottomTabNavigator() {
-  const { getPrimaryColor, getSecondaryColor } = useContext(ThemeContext);
+  const { getPrimaryColor, getSecondaryColor } = useTheme(); // ✅ FIX: Usar custom hook
 
   return (
     <Tab.Navigator

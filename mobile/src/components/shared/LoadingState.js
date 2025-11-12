@@ -1,6 +1,6 @@
-import React, { useContext } from 'react';
+import React from 'react';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
-import { ThemeContext } from '../../contexts/ThemeContext';
+import { useTheme } from '../../contexts/ThemeContext'; // ✅ FIX: Usar custom hook
 
 /**
  * LoadingState - Estado de carga elegante con Material 3 Expressive Design
@@ -8,7 +8,7 @@ import { ThemeContext } from '../../contexts/ThemeContext';
  * @param {string} message - Mensaje de carga (opcional)
  */
 export default function LoadingState({ message }) {
-  const { getPrimaryColor } = useContext(ThemeContext);
+  const { getPrimaryColor } = useTheme(); // ✅ FIX: Usar custom hook
 
   return (
     <View style={styles.container}>

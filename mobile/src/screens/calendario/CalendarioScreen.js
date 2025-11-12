@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { onSnapshot, query, collection, orderBy } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { ThemeContext } from '../../contexts/ThemeContext';
+import { useTheme } from '../../contexts/ThemeContext'; // ✅ FIX: Usar custom hook
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { SobrioCard, EmptyState, ErrorState, LoadingState } from '../../components';
@@ -19,7 +19,7 @@ import { SobrioCard, EmptyState, ErrorState, LoadingState } from '../../componen
  * Material 3 Expressive Design aplicado
  */
 export default function CalendarioScreen({ navigation }) {
-  const { getGradient, getPrimaryColor } = useContext(ThemeContext);
+  const { getGradient, getPrimaryColor } = useTheme(); // ✅ FIX: Usar custom hook
   const [eventos, setEventos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
