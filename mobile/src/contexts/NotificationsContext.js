@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import { Platform } from 'react-native';
-import Constants from 'expo-constants';
 
 const NotificationsContext = createContext();
 
@@ -14,72 +12,58 @@ export const useNotifications = () => {
   return context;
 };
 
-// Configurar cómo se manejan las notificaciones cuando la app está en foreground
+// ✅ Configurar cómo se manejan las notificaciones locales cuando la app está en foreground
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowAlert: true, // Deprecated pero aún funciona
     shouldPlaySound: true,
     shouldSetBadge: true,
+    // ✅ Nueva API recomendada:
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
 export const NotificationsProvider = ({ children }) => {
-  const [expoPushToken, setExpoPushToken] = useState('');
   const [notification, setNotification] = useState(false);
   const notificationListener = useRef();
   const responseListener = useRef();
 
   useEffect(() => {
-    // Registrar para notificaciones push
-    registerForPushNotificationsAsync().then(token => {
-      if (token) {
-        setExpoPushToken(token);
-        console.log('📱 Push Token:', token);
-      }
-    });
+    // ✅ Pedir permisos para notificaciones locales
+    requestNotificationPermissions();
 
-    // Configurar canales de notificación para Android
+    // ✅ Configurar canales de notificación para Android
     if (Platform.OS === 'android') {
       setupNotificationChannels();
     }
 
-    // Listener para notificaciones recibidas mientras la app está en foreground
+    // ✅ Listener para notificaciones recibidas mientras la app está en foreground
     notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
       console.log('🔔 Notificación recibida:', notification);
       setNotification(notification);
     });
 
-    // Listener para cuando el usuario toca una notificación
+    // ✅ Listener para cuando el usuario toca una notificación
     responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
       console.log('👆 Notificación tocada:', response);
       // La navegación se manejará en App.js
     });
 
     return () => {
+      // ✅ Usar .remove() en lugar de removeNotificationSubscription
       if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
+        notificationListener.current.remove();
       }
       if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
+        responseListener.current.remove();
       }
     };
   }, []);
 
-  // Función para registrar el dispositivo para notificaciones push
-  async function registerForPushNotificationsAsync() {
-    let token;
-
-    if (Platform.OS === 'android') {
-      // Android requiere configuración de canal de notificaciones
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF231F7C',
-      });
-    }
-
-    if (Device.isDevice) {
+  // ✅ Función para pedir permisos de notificaciones locales
+  async function requestNotificationPermissions() {
+    try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
       
@@ -90,26 +74,15 @@ export const NotificationsProvider = ({ children }) => {
       
       if (finalStatus !== 'granted') {
         console.warn('⚠️ Permiso de notificaciones denegado');
-        return null;
+        return false;
       }
       
-      try {
-        const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
-        if (!projectId) {
-          console.warn('⚠️ Project ID no encontrado');
-        }
-        
-        token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
-        console.log('✅ Push token obtenido:', token);
-      } catch (e) {
-        console.error('❌ Error obteniendo push token:', e);
-        token = null;
-      }
-    } else {
-      console.warn('⚠️ Debe usar un dispositivo físico para push notifications');
+      console.log('✅ Permisos de notificaciones concedidos');
+      return true;
+    } catch (error) {
+      console.error('❌ Error pidiendo permisos:', error);
+      return false;
     }
-
-    return token;
   }
 
   // Configurar canales de notificación para Android
@@ -189,7 +162,6 @@ export const NotificationsProvider = ({ children }) => {
   }
 
   const value = {
-    expoPushToken,
     notification,
     scheduleNotification,
     cancelNotification,
