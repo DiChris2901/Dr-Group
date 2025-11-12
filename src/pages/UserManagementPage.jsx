@@ -642,6 +642,10 @@ const UserManagementPage = () => {
         isActive: formData.isActive,
         department: formData.department,
         notes: formData.notes,
+        position: formData.position || '',           // ✅ Cargo/Posición
+        hireDate: formData.hireDate || '',           // ✅ Fecha de ingreso
+        photoURL: formData.photoURL || '',           // ✅ URL de foto de perfil
+        contractURL: formData.contractURL || '',     // ✅ URL del contrato
         updatedAt: new Date(),
         ...(editingUser ? {} : { 
           createdAt: new Date(),
@@ -697,7 +701,10 @@ const UserManagementPage = () => {
             companies: formData.companies,
             isActive: true,
             department: formData.department || 'Administración',
-            position: formData.role === 'ADMIN' ? 'Administrador' : 'Usuario',
+            position: formData.position || (formData.role === 'ADMIN' ? 'Administrador' : 'Usuario'),  // ✅ Usar el cargo del formulario
+            hireDate: formData.hireDate || '',           // ✅ Fecha de ingreso
+            photoURL: formData.photoURL || '',           // ✅ URL de foto de perfil
+            contractURL: formData.contractURL || '',     // ✅ URL del contrato
             authUid: userCredential.user.uid,
             status: 'ACTIVE',
             createdAt: new Date(),
@@ -1439,7 +1446,8 @@ const UserManagementPage = () => {
               ? '0 4px 20px rgba(0, 0, 0, 0.3)'
               : '0 4px 20px rgba(0, 0, 0, 0.08)',
             border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-            maxWidth: '1000px'
+            maxWidth: '1000px',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
           }
         }}
       >
@@ -1709,7 +1717,7 @@ const UserManagementPage = () => {
                 </Grid>
 
                 {/* Empresas Asignadas */}
-                <Grid item xs={12} md={4}>
+                <Grid item xs={12} md={6.5}>
                   <FormControl 
                     fullWidth 
                     size="small"
@@ -1728,18 +1736,54 @@ const UserManagementPage = () => {
                     <Select
                       multiple
                       value={formData.companies}
-                      onChange={(e) => updateFormData({ companies: e.target.value })}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Si selecciona "Todas las empresas"
+                        if (value.includes('__all__')) {
+                          if (formData.companies.length === companies.length) {
+                            // Si ya estaban todas, deseleccionar todas
+                            updateFormData({ companies: [] });
+                          } else {
+                            // Seleccionar todas
+                            updateFormData({ companies: companies.map(c => c.name) });
+                          }
+                        } else {
+                          updateFormData({ companies: value });
+                        }
+                      }}
                       label="Empresas Asignadas"
-                      renderValue={(selected) => (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                          {selected.map((value) => (
-                            <Chip key={value} label={value} size="small" />
-                          ))}
-                        </Box>
-                      )}
+                      renderValue={(selected) => {
+                        if (selected.length === 0) {
+                          return <em style={{ color: '#999' }}>Ninguna empresa seleccionada</em>;
+                        }
+                        if (selected.length === companies.length) {
+                          return <Chip label="Todas las empresas" size="small" color="secondary" />;
+                        }
+                        return (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                            {selected.map((value) => (
+                              <Chip key={value} label={value} size="small" />
+                            ))}
+                          </Box>
+                        );
+                      }}
                     >
+                      {/* Opción "Seleccionar todas" */}
+                      <MenuItem value="__all__">
+                        <Checkbox 
+                          checked={formData.companies.length === companies.length && companies.length > 0}
+                          indeterminate={formData.companies.length > 0 && formData.companies.length < companies.length}
+                        />
+                        <Typography sx={{ fontWeight: 600 }}>
+                          Todas las empresas ({companies.length})
+                        </Typography>
+                      </MenuItem>
+                      <Divider />
+                      
+                      {/* Lista de empresas individuales */}
                       {companies.map((company) => (
                         <MenuItem key={company.id} value={company.name}>
+                          <Checkbox checked={formData.companies.includes(company.name)} />
                           {company.name}
                         </MenuItem>
                       ))}
@@ -1747,36 +1791,6 @@ const UserManagementPage = () => {
                   </FormControl>
                 </Grid>
 
-                {/* Botón Subir Foto de Perfil */}
-                <Grid item xs={12} md={2.5}>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block', fontSize: '0.75rem' }}>
-                      Foto de Perfil
-                    </Typography>
-                    <Button
-                      variant={formData.photoURL ? 'outlined' : 'contained'}
-                      component="label"
-                      size="small"
-                      startIcon={uploadingPhoto ? <CircularProgress size={16} /> : <CloudUploadIcon />}
-                      fullWidth
-                      disabled={uploadingPhoto}
-                      sx={{ 
-                        borderRadius: 1, 
-                        textTransform: 'none',
-                        mt: 0.3,
-                        height: 40
-                      }}
-                    >
-                      {formData.photoURL ? 'Cambiar Foto' : 'Subir Foto'}
-                      <input 
-                        type="file" 
-                        hidden 
-                        accept="image/*"
-                        onChange={handlePhotoUpload}
-                      />
-                    </Button>
-                  </Box>
-                </Grid>
 
                 {/* FILA 3: Contrato */}
                 
@@ -2463,39 +2477,38 @@ const UserManagementPage = () => {
               </Button>
             )}
             
-            {activeTab === 2 && (
-              <Button
-                variant="contained"
-                onClick={handleSaveUser}
-                disabled={
-                  !formData.email || 
-                  !formData.displayName || 
-                  (editingUser && !hasUnsavedChanges) || 
-                  modalLoading
-                }
-                sx={{
-                  borderRadius: 1,
-                  px: 3,
-                  py: 1,
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  background: theme.palette.primary.main,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              '&:hover': {
-                background: theme.palette.primary.dark,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                transition: 'all 0.2s ease'
-              },
-              '&:disabled': {
-                background: alpha(theme.palette.primary.main, 0.3),
-                color: 'rgba(0, 0, 0, 0.26)'
+            {/* Botón Guardar/Actualizar - Siempre visible en todas las pestañas */}
+            <Button
+              variant="contained"
+              onClick={handleSaveUser}
+              disabled={
+                !formData.email || 
+                !formData.displayName || 
+                (editingUser && !hasUnsavedChanges) || 
+                modalLoading
               }
-            }}
-                startIcon={modalLoading ? <CircularProgress size={16} color="inherit" /> : null}
-              >
-                {modalLoading ? 'Guardando...' : `${editingUser ? 'Actualizar' : 'Crear'} Usuario`}
-              </Button>
-            )}
+              sx={{
+                borderRadius: 1,
+                px: 3,
+                py: 1,
+                textTransform: 'none',
+                fontWeight: 600,
+                background: theme.palette.primary.main,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                '&:hover': {
+                  background: theme.palette.primary.dark,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                  transition: 'all 0.2s ease'
+                },
+                '&:disabled': {
+                  background: alpha(theme.palette.primary.main, 0.3),
+                  color: 'rgba(0, 0, 0, 0.26)'
+                }
+              }}
+              startIcon={modalLoading ? <CircularProgress size={16} color="inherit" /> : null}
+            >
+              {modalLoading ? 'Guardando...' : `${editingUser ? 'Actualizar' : 'Crear'} Usuario`}
+            </Button>
           </Box>
         </DialogActions>
       </Dialog>
