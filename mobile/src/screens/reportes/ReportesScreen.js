@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5'
   },
   scrollContent: {
-    paddingBottom: 32
+    paddingBottom: 40 // 🎨 Material 3 padding (↑ de 32)
   },
   loadingContainer: {
     flex: 1,
@@ -301,105 +301,109 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5'
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 14,
+    marginTop: 16, // 🎨 Material 3 spacing (↑ de 12)
+    fontSize: 15, // 🎨 Material 3 Body Medium (↑ de 14)
     color: '#666'
   },
   header: {
-    paddingTop: 48,
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24
+    paddingTop: 52, // 🎨 Material 3 generous spacing (↑ de 48)
+    paddingHorizontal: 28, // 🎨 Material 3 horizontal padding (↑ de 24)
+    paddingBottom: 28, // 🎨 Material 3 (↑ de 24)
+    borderBottomLeftRadius: 32, // 🎨 Material 3 Extra Large (↑ de 24)
+    borderBottomRightRadius: 32 // 🎨 Material 3 Extra Large (↑ de 24)
   },
   headerOverline: {
     color: 'rgba(255,255,255,0.8)',
-    marginBottom: 4
+    marginBottom: 6 // 🎨 Material 3 spacing (↑ de 4)
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 30, // 🎨 Material 3 Headline Medium (↑ de 28)
     fontWeight: '700',
     color: '#fff',
-    marginBottom: 4
+    marginBottom: 6, // 🎨 Material 3 spacing (↑ de 4)
+    letterSpacing: 0.3 // 🎨 Material 3 tracking (nuevo)
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)'
+    fontSize: 15, // 🎨 Material 3 Body Medium (↑ de 14)
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: 22 // 🎨 Material 3 line-height (nuevo)
   },
   section: {
-    paddingHorizontal: 16,
-    marginTop: 24
+    paddingHorizontal: 20, // 🎨 Material 3 padding (↑ de 16)
+    marginTop: 28 // 🎨 Material 3 spacing (↑ de 24)
   },
   sectionTitle: {
     color: '#666',
-    marginBottom: 12,
-    paddingHorizontal: 4
+    marginBottom: 16, // 🎨 Material 3 spacing (↑ de 12)
+    paddingHorizontal: 6 // 🎨 Material 3 padding (↑ de 4)
   },
   metricsGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12
+    gap: 16, // 🎨 Material 3 gap (↑ de 12)
+    marginBottom: 16 // 🎨 Material 3 spacing (↑ de 12)
   },
   metricCard: {
     flex: 1,
-    padding: 20,
+    padding: 24, // 🎨 Material 3 padding (↑ de 20)
     alignItems: 'center',
     position: 'relative'
   },
   metricNumber: {
-    fontSize: 32,
+    fontSize: 36, // 🎨 Material 3 Display Small (↑ de 32)
     fontWeight: '700',
     color: '#333',
-    marginBottom: 4
+    marginBottom: 6, // 🎨 Material 3 spacing (↑ de 4)
+    letterSpacing: 0.3 // 🎨 Material 3 tracking (nuevo)
   },
   metricLabel: {
-    fontSize: 12,
+    fontSize: 13, // 🎨 Material 3 Label Large (↑ de 12)
     fontWeight: '600',
     color: '#666',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1.0, // 🎨 Material 3 tracking (↑ de 0.5)
     textAlign: 'center'
   },
   metricIcon: {
-    fontSize: 24,
+    fontSize: 28, // 🎨 Material 3 icon size (↑ de 24)
     position: 'absolute',
-    top: 12,
-    right: 12,
+    top: 16, // 🎨 Material 3 positioning (↑ de 12)
+    right: 16, // 🎨 Material 3 positioning (↑ de 12)
     opacity: 0.3
   },
   detailCard: {
-    padding: 20
+    padding: 24 // 🎨 Material 3 padding (↑ de 20)
   },
   detailSpacer: {
-    height: 12
+    height: 16 // 🎨 Material 3 spacing (↑ de 12)
   },
   highlightCard: {
-    padding: 20
+    padding: 24 // 🎨 Material 3 padding (↑ de 20)
   },
   highlightHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16
+    marginBottom: 20 // 🎨 Material 3 spacing (↑ de 16)
   },
   highlightEmoji: {
-    fontSize: 40,
-    marginRight: 16
+    fontSize: 44, // 🎨 Material 3 emoji size (↑ de 40)
+    marginRight: 20 // 🎨 Material 3 spacing (↑ de 16)
   },
   highlightInfo: {
     flex: 1
   },
   highlightTitle: {
-    fontSize: 11,
+    fontSize: 12, // 🎨 Material 3 Label Medium (↑ de 11)
     fontWeight: '600',
     color: '#666',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 4
+    letterSpacing: 1.0, // 🎨 Material 3 tracking (↑ de 0.5)
+    marginBottom: 6 // 🎨 Material 3 spacing (↑ de 4)
   },
   highlightName: {
-    fontSize: 18,
+    fontSize: 20, // 🎨 Material 3 Title Medium (↑ de 18)
     fontWeight: '700',
-    color: '#333'
+    color: '#333',
+    letterSpacing: 0.15 // 🎨 Material 3 tracking (nuevo)
   },
   highlightDivider: {
     height: 1,
@@ -412,24 +416,26 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   highlightLabel: {
-    fontSize: 14,
-    color: '#666'
+    fontSize: 15, // 🎨 Material 3 Body Medium (↑ de 14)
+    color: '#666',
+    lineHeight: 22 // 🎨 Material 3 line-height (nuevo)
   },
   highlightValue: {
-    fontSize: 24,
+    fontSize: 28, // 🎨 Material 3 Display Small (↑ de 24)
     fontWeight: '700',
-    color: '#4caf50'
+    color: '#4caf50',
+    letterSpacing: 0.2 // 🎨 Material 3 tracking (nuevo)
   },
   infoSection: {
-    paddingHorizontal: 16,
-    marginTop: 24,
-    gap: 8
+    paddingHorizontal: 20, // 🎨 Material 3 padding (↑ de 16)
+    marginTop: 28, // 🎨 Material 3 spacing (↑ de 24)
+    gap: 12 // 🎨 Material 3 gap (↑ de 8)
   },
   infoText: {
-    fontSize: 13,
+    fontSize: 14, // 🎨 Material 3 Body Small (↑ de 13)
     color: '#999',
     textAlign: 'center',
-    lineHeight: 20
+    lineHeight: 22 // 🎨 Material 3 line-height (↑ de 20)
   }
 });
 

@@ -2,14 +2,14 @@ import React from 'react';
 import { Text, StyleSheet } from 'react-native';
 
 /**
- * OverlineText - Typography overline siguiendo DISENO_SOBRIO_NOTAS
+ * OverlineText - Typography overline con Material 3 Expressive Design
  * 
- * Características:
- * - fontWeight: 600
- * - fontSize: 0.75rem (~12px)
- * - letterSpacing: 0.8
- * - textTransform: uppercase
- * - Color del tema (primary/secondary)
+ * Material 3 Mejoras:
+ * - Font size: 13px (Material 3 Label Large)
+ * - Letter-spacing: 1.2 (más expresivo)
+ * - Font weight: 700 (más bold)
+ * - Margin bottom: 12px (spacing generoso)
+ * - Color dinámico del tema (preservado 100%)
  */
 export default function OverlineText({ 
   children, 
@@ -32,10 +32,10 @@ export default function OverlineText({
 
 const styles = StyleSheet.create({
   overline: {
-    fontSize: 12, // ✅ 0.75rem -> ~12px
-    fontWeight: '600',
-    letterSpacing: 0.8,
+    fontSize: 13, // 🎨 Material 3 Label Large (↑ de 12px)
+    fontWeight: '700', // 🎨 Material 3 bold emphasis (↑ de 600)
+    letterSpacing: 1.2, // 🎨 Material 3 expressive spacing (↑ de 0.8)
     textTransform: 'uppercase',
-    marginBottom: 8,
+    marginBottom: 12, // 🎨 Material 3 generous spacing (↑ de 8px)
   },
 });

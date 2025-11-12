@@ -294,41 +294,43 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5'
   },
   header: {
-    paddingTop: 48,
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24
+    paddingTop: 52, // 🎨 Material 3 generous spacing (↑ de 48)
+    paddingHorizontal: 28, // 🎨 Material 3 horizontal padding (↑ de 24)
+    paddingBottom: 28, // 🎨 Material 3 (↑ de 24)
+    borderBottomLeftRadius: 32, // 🎨 Material 3 Extra Large (↑ de 24)
+    borderBottomRightRadius: 32 // 🎨 Material 3 Extra Large (↑ de 24)
   },
   headerOverline: {
     color: 'rgba(255,255,255,0.8)',
-    marginBottom: 4
+    marginBottom: 6 // 🎨 Material 3 spacing (↑ de 4)
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 30, // 🎨 Material 3 Headline Medium (↑ de 28)
     fontWeight: '700',
     color: '#fff',
-    marginBottom: 4
+    marginBottom: 6, // 🎨 Material 3 spacing (↑ de 4)
+    letterSpacing: 0.3 // 🎨 Material 3 tracking (nuevo)
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.9)'
+    fontSize: 15, // 🎨 Material 3 Body Medium (↑ de 14)
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: 22 // 🎨 Material 3 line-height (nuevo)
   },
   dateSelector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 20, // 🎨 Material 3 padding (↑ de 16)
+    paddingVertical: 16, // 🎨 Material 3 padding (↑ de 12)
     backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 16,
+    marginHorizontal: 20, // 🎨 Material 3 margin (↑ de 16)
+    marginTop: 20, // 🎨 Material 3 margin (↑ de 16)
+    borderRadius: 24, // 🎨 Material 3 Large (↑ de 16)
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2
+    shadowOffset: { width: 0, height: 4 }, // 🎨 Material 3 elevation (↑ de 2)
+    shadowOpacity: 0.12, // 🎨 Material 3 shadow (↑ de 0.06)
+    shadowRadius: 16, // 🎨 Material 3 blur (↑ de 8)
+    elevation: 4 // 🎨 Material 3 (↑ de 2)
   },
   dateButton: {
     padding: 8
@@ -354,34 +356,35 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12
+    paddingHorizontal: 20, // 🎨 Material 3 padding (↑ de 16)
+    paddingVertical: 16, // 🎨 Material 3 padding (↑ de 12)
+    gap: 16 // 🎨 Material 3 gap (↑ de 12)
   },
   statCard: {
     flex: 1,
-    padding: 16,
+    padding: 20, // 🎨 Material 3 padding (↑ de 16)
     alignItems: 'center'
   },
   statNumber: {
-    fontSize: 24,
+    fontSize: 28, // 🎨 Material 3 Display Small (↑ de 24)
     fontWeight: '700',
     color: '#333',
-    marginBottom: 4
+    marginBottom: 6, // 🎨 Material 3 spacing (↑ de 4)
+    letterSpacing: 0.2 // 🎨 Material 3 tracking (nuevo)
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: 12, // 🎨 Material 3 Label Medium (↑ de 11)
     fontWeight: '600',
     color: '#666',
     textTransform: 'uppercase',
-    letterSpacing: 0.5
+    letterSpacing: 1.0 // 🎨 Material 3 tracking (↑ de 0.5)
   },
   listContent: {
-    padding: 16,
-    paddingBottom: 32
+    padding: 20, // 🎨 Material 3 padding (↑ de 16)
+    paddingBottom: 40 // 🎨 Material 3 bottom padding (↑ de 32)
   },
   asistenciaCard: {
-    marginBottom: 12
+    marginBottom: 16 // 🎨 Material 3 spacing (↑ de 12)
   },
   cardHeader: {
     flexDirection: 'row',
@@ -395,34 +398,36 @@ const styles = StyleSheet.create({
     flex: 1
   },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44, // 🎨 Material 3 avatar size (↑ de 40)
+    height: 44, // 🎨 Material 3 avatar size (↑ de 40)
+    borderRadius: 22, // 🎨 Material 3 circular (↑ de 20)
     backgroundColor: '#e3f2fd',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12
+    marginRight: 16 // 🎨 Material 3 spacing (↑ de 12)
   },
   avatarEmoji: {
-    fontSize: 20
+    fontSize: 22 // 🎨 Material 3 icon size (↑ de 20)
   },
   userDetails: {
     flex: 1
   },
   userName: {
-    fontSize: 15,
+    fontSize: 16, // 🎨 Material 3 Title Small (↑ de 15)
     fontWeight: '600',
     color: '#333',
-    marginBottom: 2
+    marginBottom: 4, // 🎨 Material 3 spacing (↑ de 2)
+    letterSpacing: 0.1 // 🎨 Material 3 tracking (nuevo)
   },
   userFecha: {
-    fontSize: 12,
-    color: '#666'
+    fontSize: 13, // 🎨 Material 3 Body Small (↑ de 12)
+    color: '#666',
+    lineHeight: 18 // 🎨 Material 3 line-height (nuevo)
   },
   estadoBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16
+    paddingHorizontal: 16, // 🎨 Material 3 padding (↑ de 12)
+    paddingVertical: 8, // 🎨 Material 3 padding (↑ de 6)
+    borderRadius: 20 // 🎨 Material 3 Full (↑ de 16)
   },
   estadoText: {
     fontSize: 11,

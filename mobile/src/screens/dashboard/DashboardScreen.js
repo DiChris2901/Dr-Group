@@ -793,18 +793,18 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     // backgroundColor removido - se aplica dinámicamente desde theme
-    paddingVertical: 16,
-    borderRadius: 8, // ✅ Diseño sobrio - borderRadius: 1 (8px)
+    paddingVertical: 18, // 🎨 Material 3 padding (↑ de 16px)
+    borderRadius: 28, // 🎨 Material 3 Extra Large (↑ de 8px)
     alignItems: 'center',
-    // ✅ Sombras sobrias - Nivel 2
+    // 🎨 Material 3 Elevation Level 2
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 6, // ↑ de 4
     },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
+    shadowOpacity: 0.14, // ↑ de 0.08
+    shadowRadius: 16, // ↑ de 12px
+    elevation: 5, // ↑ de 3
   },
   actionButtonActive: {
     backgroundColor: '#ffa502', // Mantener para override en estados activos
@@ -828,10 +828,10 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: 20, // 🎨 Material 3 Title Medium (↑ de 18px)
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 16,
+    marginBottom: 20, // 🎨 Material 3 spacing (↑ de 16px)
   },
   registroItem: {
     flexDirection: 'row',
@@ -861,17 +861,18 @@ const styles = StyleSheet.create({
   },
   // ✅ Estilos para vista de administrador
   welcomeTitle: {
-    fontSize: 22,
+    fontSize: 24, // 🎨 Material 3 Headline Small (↑ de 22px)
     fontWeight: '700',
     color: '#333',
-    marginTop: 12,
-    marginBottom: 8,
+    marginTop: 16, // 🎨 Material 3 spacing (↑ de 12px)
+    marginBottom: 12, // 🎨 Material 3 spacing (↑ de 8px)
+    letterSpacing: 0.3, // 🎨 Material 3 tracking (nuevo)
   },
   welcomeText: {
-    fontSize: 14,
+    fontSize: 15, // 🎨 Material 3 Body Medium (↑ de 14px)
     color: '#666',
-    lineHeight: 20,
-    marginBottom: 16,
+    lineHeight: 22, // 🎨 Material 3 line-height (↑ de 20)
+    marginBottom: 20, // 🎨 Material 3 spacing (↑ de 16px)
   },
   adminInfo: {
     gap: 12,

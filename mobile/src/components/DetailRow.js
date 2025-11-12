@@ -2,14 +2,14 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
 /**
- * DetailRow - Componente para mostrar información siguiendo MODAL_DESIGN_SYSTEM
+ * DetailRow - Componente para mostrar información con Material 3 Expressive Design
  * 
- * Características:
- * - Display flex con gap
- * - Label en uppercase con letterSpacing
- * - Background con alpha(theme, 0.04)
- * - Borde sutil con alpha(theme, 0.2)
- * - Padding: 12px (p: 1.5)
+ * Material 3 Mejoras:
+ * - Spacing generoso: 16px padding (antes 12px)
+ * - Icon sizing estándar: 24px (Material 3)
+ * - Typography scale: Material 3 standards
+ * - Border radius: 12px (Medium)
+ * - Gap entre elementos: 16px consistente
  */
 export default function DetailRow({ 
   icon, 
@@ -60,32 +60,35 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16, // ✅ gap: 2 (16px)
-    padding: 12, // ✅ p: 1.5 (12px)
-    borderRadius: 8, // ✅ borderRadius: 1 (8px)
+    gap: 16, // 🎨 Material 3 spacing (mantiene 16px, ya era correcto)
+    padding: 16, // 🎨 Material 3 generous spacing (↑ de 12px)
+    borderRadius: 12, // 🎨 Material 3 Medium (↑ de 8px)
     borderWidth: 1,
   },
   iconContainer: {
     justifyContent: 'center',
     alignItems: 'center',
+    width: 24, // 🎨 Material 3 icon grid (nuevo)
+    height: 24, // 🎨 Material 3 icon grid (nuevo)
   },
   icon: {
-    fontSize: 20,
+    fontSize: 24, // 🎨 Material 3 standard icon size (↑ de 20px)
   },
   content: {
     flex: 1,
   },
   label: {
-    fontSize: 11, // ✅ 0.7rem -> ~11px
+    fontSize: 12, // 🎨 Material 3 label size (↑ de 11px)
     fontWeight: '600',
     color: '#64748b', // text.secondary
     textTransform: 'uppercase',
-    letterSpacing: 0.8, // ✅ letterSpacing: 0.5
-    marginBottom: 4,
+    letterSpacing: 1.0, // 🎨 Material 3 letter-spacing (↑ de 0.8)
+    marginBottom: 6, // 🎨 Material 3 spacing (↑ de 4px)
   },
   value: {
-    fontSize: 14, // ✅ 0.875rem -> ~14px
+    fontSize: 15, // 🎨 Material 3 body size (↑ de 14px)
     fontWeight: '500',
     color: '#1e293b', // text.primary
+    lineHeight: 22, // 🎨 Material 3 line-height (nuevo)
   },
 });
