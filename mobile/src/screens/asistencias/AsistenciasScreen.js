@@ -58,13 +58,17 @@ function AsistenciasScreenContent({ navigation }) {
     cargarUsuarios();
   }, []);
 
-  // Cargar asistencias cuando cambian los filtros
+  // Cargar asistencias cuando cambian los filtros Y cuando usersMap está listo
   useEffect(() => {
-    cargarAsistencias();
-  }, [fechaDesde, fechaHasta, empleadoSeleccionado]);
+    // ✅ Solo cargar si ya tenemos usuarios cargados
+    if (Object.keys(usersMap).length > 0) {
+      cargarAsistencias();
+    }
+  }, [fechaDesde, fechaHasta, empleadoSeleccionado, usersMap]);
 
   const cargarUsuarios = async () => {
     try {
+      console.log('📥 Cargando usuarios desde Firestore...');
       const usersSnapshot = await getDocs(collection(db, 'users'));
       const userMap = {};
       const empleadosList = [];
@@ -85,10 +89,12 @@ function AsistenciasScreenContent({ navigation }) {
         });
       });
       
+      console.log(`✅ ${Object.keys(userMap).length} usuarios cargados`);
       setUsersMap(userMap);
       setEmpleados(empleadosList.sort((a, b) => a.name.localeCompare(b.name)));
     } catch (error) {
-      console.error('Error cargando usuarios:', error);
+      console.error('❌ Error cargando usuarios:', error);
+      setError('Error al cargar usuarios. Verifica tu conexión.');
     }
   };
 
@@ -97,33 +103,34 @@ function AsistenciasScreenContent({ navigation }) {
       setLoading(true);
       setError(null);
       
+      console.log('📊 Cargando asistencias...');
+      console.log('👥 Usuarios en caché:', Object.keys(usersMap).length);
+      
       // Formatear fechas para query
       const fechaDesdeStr = format(fechaDesde, 'yyyy-MM-dd');
       const fechaHastaStr = format(fechaHasta, 'yyyy-MM-dd');
       
-      // Construir query con rango de fechas
+      console.log(`📅 Rango: ${fechaDesdeStr} → ${fechaHastaStr}`);
+      
+      // ✅ Query simplificada (sin orderBy para evitar índice compuesto)
+      // Solo filtro de rango de fechas, el resto se hace client-side
       let q = query(
         collection(db, 'asistencias'),
         where('fecha', '>=', fechaDesdeStr),
-        where('fecha', '<=', fechaHastaStr),
-        orderBy('fecha', 'desc')
+        where('fecha', '<=', fechaHastaStr)
       );
       
-      // Si es ADMIN y seleccionó un empleado, filtrar por uid
-      if (isAdmin && empleadoSeleccionado) {
-        q = query(
-          collection(db, 'asistencias'),
-          where('uid', '==', empleadoSeleccionado),
-          where('fecha', '>=', fechaDesdeStr),
-          where('fecha', '<=', fechaHastaStr),
-          orderBy('fecha', 'desc')
-        );
-      }
-      
       const querySnapshot = await getDocs(q);
-      const asistenciasData = querySnapshot.docs.map(doc => {
+      console.log(`📋 ${querySnapshot.docs.length} asistencias encontradas`);
+      
+      let asistenciasData = querySnapshot.docs.map(doc => {
         const data = doc.data();
         const userData = usersMap[data.uid] || {};
+        
+        // Debug: Verificar si encontró usuario
+        if (!userData.name) {
+          console.warn(`⚠️ Usuario no encontrado: ${data.uid}`);
+        }
         
         return {
           id: doc.id,
@@ -134,10 +141,25 @@ function AsistenciasScreenContent({ navigation }) {
         };
       });
       
+      // ✅ Filtro de empleado client-side (evita índice compuesto)
+      if (isAdmin && empleadoSeleccionado) {
+        console.log(`🔍 Filtrando por empleado: ${empleadoSeleccionado}`);
+        asistenciasData = asistenciasData.filter(a => a.uid === empleadoSeleccionado);
+        console.log(`✅ ${asistenciasData.length} asistencias después del filtro`);
+      }
+      
+      // ✅ Ordenamiento client-side (más reciente primero)
+      asistenciasData.sort((a, b) => {
+        if (a.fecha > b.fecha) return -1;
+        if (a.fecha < b.fecha) return 1;
+        return 0;
+      });
+      
+      console.log(`✅ ${asistenciasData.length} asistencias cargadas y ordenadas`);
       setAsistencias(asistenciasData);
     } catch (err) {
-      console.error('Error cargando asistencias:', err);
-      setError('Error al cargar asistencias');
+      console.error('❌ Error cargando asistencias:', err);
+      setError('Error al cargar asistencias. Intenta nuevamente.');
     } finally {
       setLoading(false);
       setRefreshing(false);
