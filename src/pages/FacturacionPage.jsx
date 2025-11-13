@@ -91,6 +91,17 @@ const FacturacionPage = () => {
   const { addNotification } = useNotifications();
   const theme = useTheme();
 
+  // ✅ SISTEMA DE PERMISOS
+  const hasPermission = (permission) => {
+    if (!userProfile) return false;
+    if (!userProfile.permissions || !Array.isArray(userProfile.permissions)) return false;
+    if (userProfile.permissions.includes('ALL')) return true;
+    return userProfile.permissions.includes(permission);
+  };
+
+  // Verificar acceso a la página
+  const hasPageAccess = hasPermission('facturacion.cuentas_cobro') || hasPermission('facturacion');
+
   // Listener en tiempo real para liquidaciones aprobadas
   useEffect(() => {
     if (!currentUser?.uid) return;
@@ -1595,6 +1606,23 @@ const FacturacionPage = () => {
     return (
       <Box p={3}>
         <Alert severity="error">{error}</Alert>
+      </Box>
+    );
+  }
+
+  // ✅ Validar acceso a la página
+  if (!hasPageAccess) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error" sx={{ mt: 2 }}>
+          <Typography variant="h6">⛔ Acceso Denegado</Typography>
+          <Typography sx={{ mt: 1 }}>
+            No tienes permisos para acceder a Cuentas de Cobro.
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+            Contacta al administrador si necesitas acceso a esta sección.
+          </Typography>
+        </Alert>
       </Box>
     );
   }
