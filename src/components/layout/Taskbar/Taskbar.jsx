@@ -24,12 +24,14 @@ import {
   AddBox as AddBoxIcon,
   Timeline as TimelineIcon,
   DeleteSweep as DeleteSweepIcon,
-  AdminPanelSettings as AdminIcon
+  AdminPanelSettings as AdminIcon,
+  AccessTime
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../../context/AuthContext';
 import { useSettings } from '../../../context/SettingsContext';
+import { usePermissions } from '../../../hooks/usePermissions';
 import TaskbarMenu from './TaskbarMenu';
 
 // Animaciones para Taskbar - Spectacular Style
@@ -178,7 +180,8 @@ const Taskbar = () => {
       color: '#2196f3',
       permission: 'facturacion',
       submenu: [
-        { label: 'Liquidaciones por Sala', path: '/facturacion/liquidaciones-por-sala', icon: CompaniesIcon, permission: 'facturacion.liquidaciones_por_sala' }
+        { label: 'Liquidaciones por Sala', path: '/facturacion/liquidaciones-por-sala', icon: CompaniesIcon, permission: 'facturacion.liquidaciones_por_sala' },
+        { label: 'Cuentas de Cobro', path: '/facturacion/cuentas-cobro', icon: PaymentsIcon, permission: 'facturacion.cuentas_cobro' }
       ]
     },
     {
@@ -202,76 +205,18 @@ const Taskbar = () => {
       permission: 'administracion',
       submenu: [
         { label: 'Usuarios', path: '/users', icon: PeopleIcon, permission: 'usuarios' },
+        { label: 'Asistencias', path: '/asistencias', icon: AccessTime, permission: 'asistencias' },
         { label: 'Auditoría del Sistema', path: '/admin/activity-logs', icon: ReportsIcon, permission: 'auditoria' },
         { label: 'Limpieza de Storage', path: '/admin/orphan-files', icon: DeleteSweepIcon, permission: 'storage' }
       ]
     }
   ];
 
-  // ===== SISTEMA DE PERMISOS (IDÉNTICO A SIDEBAR) =====
-  
-  // Función para verificar si el usuario tiene un permiso específico
-  const hasPermission = (permission) => {
-    // Si no tiene perfil de Firestore, denegar acceso
-    if (!userProfile) {
-      return false;
-    }
-
-    // Si no tiene permisos definidos, denegar acceso
-    if (!userProfile.permissions || !Array.isArray(userProfile.permissions)) {
-      return false;
-    }
-    
-    // Si tiene el permiso "ALL", permitir todo
-    if (userProfile.permissions.includes('ALL')) {
-      return true;
-    }
-    
-    // Verificar si tiene el permiso específico
-    const hasPermissionResult = userProfile.permissions.includes(permission);
-    
-    return hasPermissionResult;
-  };
-
-  // Función para verificar permisos de submenú (granulares)
-  const hasSubmenuPermission = (parentPermission, submenuPermission) => {
-    if (!userProfile) return false;
-    if (!userProfile.permissions || !Array.isArray(userProfile.permissions)) return false;
-    if (userProfile.permissions.includes('ALL')) return true;
-    
-    // Si tiene el permiso padre completo, tiene acceso a todo
-    if (userProfile.permissions.includes(parentPermission)) return true;
-    
-    // Si tiene el permiso específico del submenú
-    if (submenuPermission && userProfile.permissions.includes(submenuPermission)) return true;
-    
-    return false;
-  };
-
-  // Función para verificar si el grupo debe mostrarse (si tiene al menos un submenú visible)
-  const hasAnySubmenuPermission = (parentPermission, submenu) => {
-    if (!submenu || submenu.length === 0) return false;
-    
-    // Si tiene el permiso padre completo, mostrar grupo
-    if (hasPermission(parentPermission)) return true;
-    
-    // Si tiene al menos un permiso de submenú, mostrar grupo
-    return submenu.some(subItem => 
-      subItem.permission && hasPermission(subItem.permission)
-    );
-  };
+  // ✅ Usar hook centralizado de permisos (elimina 70+ líneas duplicadas)
+  const { shouldShowMenuItem, hasSubmenuPermission } = usePermissions();
 
   // Filtrar elementos del taskbar según permisos
-  const filteredTaskbarItems = taskbarItems.filter(item => {
-    if (!item.permission) return true; // Si no tiene permiso definido, mostrar
-    
-    // Si el item tiene submenú, verificar si tiene al menos un submenú visible
-    if (item.submenu) {
-      return hasAnySubmenuPermission(item.permission, item.submenu);
-    }
-    
-    return hasPermission(item.permission);
-  });
+  const filteredTaskbarItems = taskbarItems.filter(shouldShowMenuItem);
 
   // Filtrar submenús según permisos
   const filterSubmenu = (submenu, parentPermission) => {

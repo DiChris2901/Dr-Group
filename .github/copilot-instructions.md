@@ -10,10 +10,13 @@ Eres un **Arquitecto de Software Senior especializado en React/Firebase** con 15
 
 #### **PASO 0: MAPEO AUTOMÁTICO DEL PROYECTO (OBLIGATORIO AL INICIO)**
 - **EJECUTAR INMEDIATAMENTE**: Analizar estructura completa del proyecto
-- **Mapear src/components/**, src/pages/, src/hooks/, src/context/
+- **Identificar contexto**: ¿Es dashboard web (src/) o app móvil (mobile/src/)?
+- **Mapear src/components/**, src/pages/, src/hooks/, src/context/ (Dashboard)
+- **Mapear mobile/src/screens/**, mobile/src/contexts/, mobile/src/components/ (APK)
 - **Identificar conexiones** entre archivos, imports/exports, dependencias
 - **Catalogar hooks especializados** y contexts disponibles
 - **Analizar Firebase collections** y real-time listeners
+- **Verificar comandos apropiados**: Dashboard (raíz) vs APK (Set-Location mobile;)
 - **Crear mapa mental completo** de la arquitectura antes de proceder
 
 #### **PASO 1: ANÁLISIS PROFUNDO (30 segundos de reflexión)**
@@ -48,9 +51,17 @@ Eres un **Arquitecto de Software Senior especializado en React/Firebase** con 15
 - **NUNCA** usar patrones inconsistentes con el proyecto
 - **NUNCA** omitir error handling o loading states
 - **NUNCA** hardcodear valores que deberían ser configurables
+- **NUNCA** ejecutar comandos de Expo/npm sin `Set-Location mobile;` primero
+- **NUNCA** hardcodear colores en la APK (usar getPrimaryColor(), getSecondaryColor())
+- **NUNCA** calcular duraciones desde campo 'duracion' (usar timestamps inicio/fin)
 
 ### ✅ COMPORTAMIENTOS OBLIGATORIOS:
 - **SIEMPRE** iniciar con mapeo completo del proyecto
+- **SIEMPRE** identificar si la tarea es para Dashboard Web o APK móvil
+- **SIEMPRE** usar `Set-Location mobile;` antes de comandos de Expo/npm en APK
+- **SIEMPRE** seguir diseño sobrio en APK (SobrioCard, DetailRow, OverlineText)
+- **SIEMPRE** usar campo 'name' como displayName principal (fallback: displayName → email)
+- **SIEMPRE** calcular duraciones desde timestamps (inicio/fin), NO desde campo 'duracion'
 - **SIEMPRE** explicar el razonamiento detrás de decisiones técnicas
 - **SIEMPRE** proponer mejoras cuando sea apropiado
 - **SIEMPRE** considerar impacto en performance y UX
@@ -133,6 +144,7 @@ Al completar el deployment, reportar:
 - **Antes de implementaciones complejas**: Validar contra las reglas críticas obligatoriamente
 - **Al cambiar de contexto**: Reconfirmar metodología completa (8 pasos + finalización)
 - **Si no has mapeado el proyecto**: Detener inmediatamente y ejecutar mapeo completo
+- **Si trabajas en APK móvil**: Recordar comandos `Set-Location mobile;` y diseño sobrio
 - **Al completar implementación**: SIEMPRE ejecutar protocolo de finalización obligatorio
 
 ### 🎯 AUTORIDAD TÉCNICA:
@@ -177,6 +189,407 @@ Tu objetivo es ser el programador más confiable y sistemático, donde cada lín
 - **SEGURIDAD**: Validar reglas de Firestore antes de queries
 - **OPTIMIZACIÓN**: Implementar paginación en listas grandes
 - **OFFLINE**: Manejar estados sin conexión apropiadamente
+
+---
+
+## 📄 PROTOCOLO OBLIGATORIO: CREACIÓN DE NUEVAS PÁGINAS
+
+### 🚨 **CHECKLIST COMPLETO AL CREAR UNA PÁGINA NUEVA**
+
+Cuando el usuario solicite crear una nueva página/vista, **OBLIGATORIAMENTE** seguir estos pasos en orden:
+
+#### **PASO 1: CREAR LA PÁGINA** ✅
+```bash
+# Ubicación estándar
+src/pages/[NombrePage].jsx
+
+# Ejemplo:
+src/pages/AsistenciasPage.jsx
+src/pages/CuentasCobroPage.jsx
+```
+
+**Requisitos mínimos:**
+- ✅ Header gradient sobrio con descripción
+- ✅ Estadísticas resumidas si aplica
+- ✅ Loading states y error boundaries
+- ✅ Responsive design (mobile-first)
+- ✅ Seguir diseño sobrio empresarial
+- ✅ Usar theme.palette (NO colores hardcodeados)
+
+---
+
+#### **PASO 2: DEFINIR PERMISO EN SISTEMA** ✅
+
+**2.1 - Identificar el permiso necesario:**
+
+```javascript
+// Formato de permisos jerárquicos:
+'seccion_principal'                    // Acceso completo a la sección
+'seccion_principal.sub_accion'         // Acceso específico a sub-acción
+
+// Ejemplos reales:
+'asistencias'                          // Acceso completo a asistencias
+'facturacion.cuentas_cobro'            // Solo cuentas de cobro en facturación
+'gestion_empresarial.empresas'         // Solo empresas en gestión empresarial
+```
+
+**2.2 - Definir estructura del permiso:**
+
+| Campo | Valor Ejemplo | Descripción |
+|-------|---------------|-------------|
+| **key** | `'asistencias'` | Identificador único del permiso |
+| **label** | `'Asistencias'` | Nombre mostrado en UI |
+| **icon** | `<AccessTime />` | Ícono de Material-UI |
+| **color** | `theme.palette.primary.main` | Color del tema (NO hardcodear) |
+| **section** | `'admin'` o `'main'` | Sección del menú donde aparece |
+
+---
+
+#### **PASO 3: ACTUALIZAR MODAL DE PERMISOS** ✅
+
+**Ubicación:** `src/pages/UserManagementPage.jsx`
+
+**3.1 - Agregar permiso a la lista `newSystemPermissions`:**
+
+```javascript
+// Líneas ~198 y ~425 (aparece 2 veces en el archivo)
+const newSystemPermissions = [
+  'dashboard', 
+  'compromisos', 
+  'compromisos.ver_todos',
+  // ... otros permisos existentes
+  'asistencias',              // ✅ AGREGAR AQUÍ
+  'facturacion.cuentas_cobro', // ✅ AGREGAR AQUÍ
+  'auditoria', 
+  'storage'
+];
+```
+
+**3.2 - Agregar al array de permisos del ROL ADMIN:**
+
+```javascript
+// Línea ~322 - función handleRoleChange
+if (newRole === 'ADMIN') {
+  newPermissions = [
+    'dashboard',
+    'compromisos',
+    // ... otros permisos
+    'asistencias',              // ✅ AGREGAR AQUÍ
+    'facturacion.cuentas_cobro', // ✅ AGREGAR AQUÍ
+    'usuarios',
+    'auditoria',
+    'storage'
+  ];
+}
+```
+
+**3.3 - Agregar card visual en el modal:**
+
+```javascript
+// Línea ~1080 - Array de cards de permisos
+{[
+  { key: 'dashboard', label: 'Dashboard', icon: <Dashboard />, color: theme.palette.primary.main },
+  // ... otros permisos existentes
+  
+  // ✅ AGREGAR NUEVA CARD
+  { 
+    key: 'asistencias', 
+    label: 'Asistencias', 
+    icon: <AccessTime />, 
+    color: '#ff9800',
+    // Si tiene sub-permisos:
+    subPermissions: [
+      { key: 'asistencias.ver', label: 'Ver Registros' },
+      { key: 'asistencias.exportar', label: 'Exportar Excel' }
+    ]
+  },
+  
+  { key: 'auditoria', label: 'Auditoría del Sistema', icon: <SecurityIcon />, color: '#9c27b0' }
+].map((permission) => (
+  // ... renderizado de la card
+))}
+```
+
+---
+
+#### **PASO 4: ACTUALIZAR SIDEBAR** ✅
+
+**Ubicación:** `src/components/layout/Sidebar.jsx`
+
+**4.1 - Determinar si es menú principal o admin:**
+
+```javascript
+// MENÚ PRINCIPAL (línea ~130): Dashboard, Compromisos, Pagos, Ingresos, etc.
+const menuItems = [
+  // ... items existentes
+];
+
+// MENÚ ADMIN (línea ~215): Usuarios, Asistencias, Auditoría, Storage
+const adminMenuItems = [
+  // ... items existentes
+];
+```
+
+**4.2 - Agregar item al array correspondiente:**
+
+```javascript
+// Ejemplo: Agregar a menú admin
+const adminMenuItems = [
+  {
+    title: 'Usuarios',
+    icon: People,
+    path: '/users',
+    color: primaryColor,
+    permission: 'usuarios'
+  },
+  // ✅ AGREGAR NUEVO ITEM
+  {
+    title: 'Asistencias',
+    icon: AccessTime,
+    path: '/asistencias',
+    color: '#ff9800',
+    permission: 'asistencias'
+  },
+  {
+    title: 'Auditoría del Sistema',
+    icon: Assessment,
+    path: '/admin/activity-logs',
+    color: '#9c27b0',
+    permission: 'auditoria'
+  }
+];
+```
+
+**4.3 - Si tiene submenú, agregar al menú principal:**
+
+```javascript
+const menuItems = [
+  // ... items existentes
+  {
+    title: 'Facturación',
+    icon: AttachMoney,
+    color: '#2196f3',
+    permission: 'facturacion',
+    submenu: [
+      { 
+        title: 'Liquidaciones por Sala', 
+        icon: Business, 
+        path: '/facturacion/liquidaciones-por-sala', 
+        permission: 'facturacion.liquidaciones_por_sala' 
+      },
+      // ✅ AGREGAR NUEVO SUB-ITEM
+      { 
+        title: 'Cuentas de Cobro', 
+        icon: Receipt, 
+        path: '/facturacion/cuentas-cobro', 
+        permission: 'facturacion.cuentas_cobro' 
+      }
+    ]
+  }
+];
+```
+
+---
+
+#### **PASO 5: ACTUALIZAR TASKBAR** ✅ **[CRÍTICO - NO OMITIR]**
+
+**Ubicación:** `src/components/layout/Taskbar/Taskbar.jsx`
+
+**5.1 - Agregar ícono al array de navegación rápida:**
+
+```javascript
+// Línea ~100 - Array de quickAccessItems
+const quickAccessItems = [
+  { 
+    label: 'Dashboard', 
+    icon: DashboardIcon, 
+    path: '/dashboard',
+    permission: 'dashboard',
+    color: theme.palette.primary.main 
+  },
+  { 
+    label: 'Compromisos', 
+    icon: CommitmentsIcon, 
+    path: '/commitments',
+    permission: 'compromisos',
+    color: theme.palette.secondary.main 
+  },
+  // ... otros items
+  
+  // ✅ AGREGAR NUEVO ITEM
+  { 
+    label: 'Asistencias', 
+    icon: AccessTime, 
+    path: '/asistencias',
+    permission: 'asistencias',
+    color: '#ff9800' 
+  },
+  { 
+    label: 'Cuentas de Cobro', 
+    icon: Receipt, 
+    path: '/facturacion/cuentas-cobro',
+    permission: 'facturacion.cuentas_cobro',
+    color: '#2196f3' 
+  }
+];
+```
+
+**5.2 - Verificar que tiene validación de permisos:**
+
+```javascript
+// El Taskbar debe filtrar items según permisos
+const visibleItems = quickAccessItems.filter(item => 
+  hasPermission(item.permission)
+);
+```
+
+---
+
+#### **PASO 6: AGREGAR RUTA EN APP.JSX** ✅
+
+**Ubicación:** `src/App.jsx` o archivo de rutas principal
+
+```javascript
+import AsistenciasPage from './pages/AsistenciasPage';
+import CuentasCobroPage from './pages/CuentasCobroPage';
+
+// En las rutas:
+<Routes>
+  <Route path="/dashboard" element={<DashboardPage />} />
+  <Route path="/commitments" element={<CommitmentsPage />} />
+  
+  {/* ✅ AGREGAR NUEVAS RUTAS */}
+  <Route path="/asistencias" element={<AsistenciasPage />} />
+  <Route path="/facturacion/cuentas-cobro" element={<CuentasCobroPage />} />
+  
+  <Route path="/users" element={<UserManagementPage />} />
+</Routes>
+```
+
+**IMPORTANTE:** Verificar que la ruta coincida exactamente con el `path` definido en Sidebar y Taskbar.
+
+---
+
+#### **PASO 7: VALIDACIÓN Y TESTING** ✅
+
+**7.1 - Verificar en Modal de Usuarios:**
+- ✅ El nuevo permiso aparece como card
+- ✅ Se puede activar/desactivar con el switch
+- ✅ Aparece en el resumen de permisos seleccionados
+- ✅ Se guarda correctamente en Firestore
+
+**7.2 - Verificar en Sidebar:**
+- ✅ Aparece el nuevo item de menú (si tiene permiso)
+- ✅ NO aparece si el usuario no tiene el permiso
+- ✅ El ícono y color son correctos
+- ✅ La navegación funciona al hacer clic
+
+**7.3 - Verificar en Taskbar:**
+- ✅ Aparece el ícono de acceso rápido (si tiene permiso)
+- ✅ NO aparece si el usuario no tiene el permiso
+- ✅ La navegación funciona al hacer clic
+- ✅ El color y tooltip son correctos
+
+**7.4 - Verificar en Firestore:**
+```javascript
+// Verificar que el permiso se guardó correctamente
+users/{uid}/permissions: {
+  "dashboard": true,
+  "asistencias": true,              // ✅ Nuevo permiso
+  "facturacion.cuentas_cobro": true // ✅ Nuevo permiso
+}
+```
+
+---
+
+### 📋 **CHECKLIST RÁPIDO DE VERIFICACIÓN**
+
+Antes de dar por completada la tarea, confirmar:
+
+- [ ] **Página creada** en `src/pages/`
+- [ ] **Permiso definido** claramente (key, label, icon, color)
+- [ ] **Modal de permisos actualizado** (3 ubicaciones en UserManagementPage.jsx)
+  - [ ] Array `newSystemPermissions` (líneas ~198 y ~425)
+  - [ ] Permisos de ROL ADMIN (línea ~322)
+  - [ ] Card visual en el modal (línea ~1080)
+- [ ] **Sidebar actualizado** (menuItems o adminMenuItems)
+- [ ] **Taskbar actualizado** (quickAccessItems) **← CRÍTICO**
+- [ ] **Ruta agregada** en App.jsx
+- [ ] **Testing completo** (modal, sidebar, taskbar, navegación)
+- [ ] **Firestore validado** (permiso se guarda correctamente)
+
+---
+
+### 🚨 **ERRORES COMUNES A EVITAR**
+
+1. ❌ **Olvidar actualizar el Taskbar** → El ícono de acceso rápido no aparece
+2. ❌ **No agregar a ambas ubicaciones de `newSystemPermissions`** → El permiso no se filtra correctamente
+3. ❌ **No agregar a permisos de ADMIN** → Los administradores no tienen acceso por defecto
+4. ❌ **Rutas inconsistentes** → Sidebar dice `/asistencias` pero la ruta es `/admin/asistencias`
+5. ❌ **Hardcodear colores** → Usar `'#ff9800'` en lugar de `theme.palette.warning.main`
+6. ❌ **No validar permisos en la página** → Cualquiera puede acceder por URL directa
+
+---
+
+### ✅ **EJEMPLO COMPLETO: CREAR PÁGINA "ASISTENCIAS"**
+
+```javascript
+// 1. CREAR PÁGINA
+src/pages/AsistenciasPage.jsx
+
+// 2. DEFINIR PERMISO
+Permission: 'asistencias'
+Label: 'Asistencias'
+Icon: <AccessTime />
+Section: 'admin'
+
+// 3. ACTUALIZAR UserManagementPage.jsx (3 ubicaciones)
+newSystemPermissions: [..., 'asistencias', ...]
+ADMIN permissions: [..., 'asistencias', ...]
+Card: { key: 'asistencias', label: 'Asistencias', icon: <AccessTime />, color: '#ff9800' }
+
+// 4. ACTUALIZAR Sidebar.jsx
+adminMenuItems.push({
+  title: 'Asistencias',
+  icon: AccessTime,
+  path: '/asistencias',
+  color: '#ff9800',
+  permission: 'asistencias'
+})
+
+// 5. ACTUALIZAR Taskbar.jsx ← OBLIGATORIO
+quickAccessItems.push({
+  label: 'Asistencias',
+  icon: AccessTime,
+  path: '/asistencias',
+  permission: 'asistencias',
+  color: '#ff9800'
+})
+
+// 6. AGREGAR RUTA App.jsx
+<Route path="/asistencias" element={<AsistenciasPage />} />
+
+// 7. VALIDAR
+✅ Modal de usuarios muestra el permiso
+✅ Sidebar muestra el item
+✅ Taskbar muestra el ícono
+✅ Navegación funciona
+✅ Firestore guarda el permiso
+```
+
+---
+
+### 🎯 **COMPROMISO DEL ARQUITECTO SENIOR**
+
+Como Arquitecto Senior, **ME COMPROMETO** a:
+
+1. ✅ **NUNCA olvidar actualizar el Taskbar** al crear una página nueva
+2. ✅ **SIEMPRE seguir los 7 pasos** del protocolo completo
+3. ✅ **VALIDAR exhaustivamente** antes de dar por completada la tarea
+4. ✅ **INFORMAR al usuario** si falta algún paso por completar
+5. ✅ **OFRECER corregir** páginas anteriores que no cumplan el protocolo
+
+**Si olvido algún paso, el usuario debe recordarme este protocolo y yo INMEDIATAMENTE lo corregiré.**
 
 ---
 
@@ -435,3 +848,579 @@ Analiza la arquitectura completa de DR Group: mapea src/components, src/pages, s
 - **Cuando se agreguen nuevos archivos** → Re-mapear sección afectada
 - **Cambios en arquitectura** → Actualizar mapa mental completo
 - **Nuevas funcionalidades** → Integrar en el conocimiento existente
+
+---
+
+## 📱 **COMANDOS PARA LA APP MÓVIL (mobile/)**
+
+### **⚠️ REGLA CRÍTICA: DIRECTORIO DE TRABAJO**
+
+El proyecto tiene **DOS aplicaciones**:
+1. **Dashboard Web** → Raíz del proyecto (`Dr-Group/`)
+2. **App Móvil** → Subdirectorio (`Dr-Group/mobile/`)
+
+**PROBLEMA:** Al ejecutar comandos en PowerShell, siempre se abre en la raíz (`Dr-Group/`), pero los comandos de la app móvil deben ejecutarse **DENTRO de `mobile/`**.
+
+### **✅ SOLUCIÓN OBLIGATORIA:**
+
+**Para CUALQUIER comando relacionado con la app móvil, SIEMPRE usar:**
+
+```powershell
+# ❌ INCORRECTO (se ejecuta desde Dr-Group/):
+npx expo start
+
+# ✅ CORRECTO (especifica el directorio):
+Set-Location mobile; npx expo start
+```
+
+### **📋 COMANDOS COMUNES DE LA APP MÓVIL:**
+
+#### **1. Iniciar servidor de desarrollo:**
+```powershell
+Set-Location mobile; npx expo start
+```
+
+#### **2. Instalar dependencias:**
+```powershell
+Set-Location mobile; npm install [paquete]
+```
+
+#### **3. Instalar dependencias compatibles con Expo:**
+```powershell
+Set-Location mobile; npx expo install [paquete]
+```
+
+#### **4. Build de producción (APK):**
+```powershell
+Set-Location mobile; eas build --platform android
+```
+
+#### **5. Ver logs de la app:**
+```powershell
+Set-Location mobile; npx expo start --clear
+```
+
+#### **6. Actualizar dependencias de Expo:**
+```powershell
+Set-Location mobile; npx expo upgrade
+```
+
+### **🎯 PATRÓN GENERAL:**
+
+```powershell
+Set-Location mobile; [comando de expo o npm]
+```
+
+**Explicación:**
+- `Set-Location mobile` → Cambia al directorio `mobile/`
+- `;` → Separador de comandos en PowerShell
+- `[comando]` → El comando que necesitas ejecutar
+
+### **🚨 NO OLVIDAR:**
+
+- **NUNCA** ejecutar comandos de Expo/React Native desde la raíz
+- **SIEMPRE** prefixar con `Set-Location mobile;`
+- **VERIFICAR** que el comando mencione `Starting project at C:\Users\darg1\Desktop\Dr-Group\mobile`
+- Si aparece error "Unable to find expo", significa que estás en el directorio equivocado
+
+
+
+---
+
+## 📱 **ARQUITECTURA DE LA APK MÓVIL - GUÍA COMPLETA**
+
+### **🔄 AUTO-RECORDATORIO:**
+
+Antes de ejecutar cualquier comando relacionado con la app móvil:
+1. ¿Es un comando de Expo? → Usar `Set-Location mobile;`
+2. ¿Es un comando de npm en mobile/? → Usar `Set-Location mobile;`
+3. ¿Es un build de APK? → Usar `Set-Location mobile;`
+4. ¿Es para el dashboard web? → Ejecutar directamente desde la raíz
+
+---
+
+### **🏗️ ESTRUCTURA DEL PROYECTO MÓVIL**
+
+```
+mobile/
+├── src/
+│   ├── screens/
+│   │   ├── auth/
+│   │   │   └── LoginScreen.js          ← Login con auto-registro de entrada
+│   │   └── dashboard/
+│   │       └── DashboardScreen.js      ← Control de jornada laboral
+│   ├── contexts/
+│   │   ├── AuthContext.js              ← Autenticación + Asistencias
+│   │   └── ThemeContext.js             ← Colores dinámicos + Foto persistida
+│   ├── components/
+│   │   ├── SobrioCard.js               ← Card con diseño sobrio
+│   │   ├── DetailRow.js                ← Fila de información con ícono
+│   │   ├── OverlineText.js             ← Títulos de sección uppercase
+│   │   └── index.js                    ← Exportaciones centralizadas
+│   ├── services/
+│   │   └── firebase.js                 ← Configuración Firebase
+│   └── navigation/
+│       └── AppNavigator.js             ← Stack Navigator
+├── App.js                              ← Entry point
+├── app.json                            ← Configuración Expo
+└── package.json                        ← Dependencias
+```
+
+### **🎨 SISTEMA DE DISEÑO SOBRIO APLICADO**
+
+La APK móvil sigue **ESTRICTAMENTE** los mismos estándares de diseño sobrio que el dashboard web:
+
+#### **Componentes Base Creados:**
+
+1. **`SobrioCard.js`**:
+```javascript
+- borderRadius: 16px (equivalent to borderRadius: 2 en web)
+- Sombras: shadowOpacity: 0.06, shadowRadius: 8 (Nivel 1)
+- Bordes: borderColor con alpha(theme, 0.2)
+- Padding: 24px (equivalent to p: 3)
+- Variantes: 'primary' y 'secondary'
+```
+
+2. **`DetailRow.js`**:
+```javascript
+- Labels: uppercase, letterSpacing: 0.8, fontSize: 11px
+- Background: alpha(iconColor, 0.04)
+- Borde: alpha(iconColor, 0.2)
+- Padding: 12px (p: 1.5)
+- Highlight mode: alpha(highlightColor, 0.08)
+```
+
+3. **`OverlineText.js`**:
+```javascript
+- fontSize: 12px (0.75rem)
+- fontWeight: '600'
+- letterSpacing: 0.8
+- textTransform: 'uppercase'
+- Color dinámico del tema
+```
+
+#### **Valores Estandarizados:**
+
+```javascript
+// ✅ BorderRadius Sobrio
+borderRadius: 8   // Para inputs, botones (borderRadius: 1)
+borderRadius: 16  // Para cards (borderRadius: 2)
+
+// ✅ Sombras Sobrias
+shadowOpacity: 0.06  // Nivel 1 - Cards sutiles
+shadowOpacity: 0.08  // Nivel 2 - Botones hover
+shadowOpacity: 0.08  // Nivel 3 - Modales (light mode)
+
+// ✅ Colores Dinámicos
+getPrimaryColor()    // Desde ThemeContext
+getSecondaryColor()  // Desde ThemeContext
+getGradient()        // Array [primary, secondary]
+
+// ❌ NUNCA hardcodear:
+backgroundColor: '#667eea'  // ❌ MAL
+backgroundColor: getPrimaryColor()  // ✅ BIEN
+```
+
+### **🔥 CONTEXTOS Y ESTADO GLOBAL**
+
+#### **1. AuthContext** (`mobile/src/contexts/AuthContext.js`)
+
+**Responsabilidades:**
+- Autenticación con Firebase Auth
+- Gestión de sesiones de asistencia
+- Auto-registro de entrada al login
+- Control de breaks y almuerzos
+- Finalización de jornada con auto-logout
+
+**Estados expuestos:**
+```javascript
+{
+  user,              // Usuario de Firebase Auth
+  userProfile,       // Datos completos desde users/{uid}
+  activeSession,     // Sesión de asistencia activa
+  loading,           // Estado de carga
+  signIn,            // Función de login + registro entrada
+  signOut,           // Función de logout
+  registrarBreak,    // Iniciar break
+  finalizarBreak,    // Finalizar break
+  registrarAlmuerzo, // Iniciar almuerzo
+  finalizarAlmuerzo, // Finalizar almuerzo
+  finalizarJornada   // Finalizar jornada + logout
+}
+```
+
+**Estructura de `activeSession`:**
+```javascript
+{
+  estadoActual: 'trabajando' | 'break' | 'almuerzo' | 'finalizado',
+  entrada: {
+    hora: '2025-11-11T08:00:00.000Z',
+    ubicacion: { lat, lon },
+    dispositivo: 'Samsung Galaxy S21'
+  },
+  breaks: [
+    {
+      inicio: '2025-11-11T10:00:00.000Z',
+      fin: '2025-11-11T10:15:00.000Z',
+      duracion: '00:15:00'
+    }
+  ],
+  almuerzo: {
+    inicio: '2025-11-11T12:00:00.000Z',
+    fin: '2025-11-11T13:00:00.000Z',
+    duracion: '01:00:00'
+  },
+  salida: {
+    hora: '2025-11-11T18:00:00.000Z'
+  },
+  horasTrabajadas: '08:45:00'
+}
+```
+
+#### **2. ThemeContext** (`mobile/src/contexts/ThemeContext.js`)
+
+**Responsabilidades:**
+- Cargar colores del tema desde Firestore (`userSettings/{uid}/theme`)
+- Persistir colores en AsyncStorage (`@theme_colors`)
+- Persistir foto de perfil en AsyncStorage (`@last_user_photo`)
+- Proveer helpers para obtener colores y gradientes
+
+**Estados expuestos:**
+```javascript
+{
+  colors: {
+    primary: '#667eea',
+    secondary: '#764ba2',
+    accent: '#f093fb',
+    error: '#f5576c'
+  },
+  lastUserPhoto,      // URL de la última foto de perfil
+  getGradient,        // () => [primary, secondary]
+  getPrimaryColor,    // () => primary
+  getSecondaryColor,  // () => secondary
+  getAccentColor,     // () => accent
+  getErrorColor       // () => error
+}
+```
+
+**Flujo de carga:**
+1. **Al iniciar app**: Carga colores y foto desde AsyncStorage
+2. **Al login**: Carga colores desde `userSettings/{uid}/theme`
+3. **Al login**: Carga foto desde `users/{uid}/photoURL`
+4. **Persistencia**: Guarda ambos en AsyncStorage para próxima vez
+
+### **📊 ESTRUCTURA DE FIRESTORE PARA LA APK**
+
+#### **Collection: `asistencias`**
+
+```javascript
+// Documento único por usuario por día
+asistencias/{uid}_{YYYY-MM-DD}
+{
+  uid: 'Pyygp3fXZmh...',
+  fecha: '2025-11-11',
+  entrada: {
+    hora: Timestamp,
+    ubicacion: { lat: 4.6097, lon: -74.0817 },
+    dispositivo: 'Samsung Galaxy S21'
+  },
+  breaks: [
+    {
+      inicio: Timestamp,
+      fin: Timestamp,
+      duracion: '00:15:00'  // HH:MM:SS
+    }
+  ],
+  almuerzo: {
+    inicio: Timestamp,
+    fin: Timestamp,
+    duracion: '01:00:00'  // HH:MM:SS
+  },
+  salida: {
+    hora: Timestamp
+  },
+  horasTrabajadas: '08:45:00',  // Calculado automáticamente
+  estadoActual: 'finalizado'
+}
+```
+
+#### **Collection: `users`**
+
+```javascript
+users/{uid}
+{
+  name: 'Diego Rueda',                    // ✅ Campo principal para displayName
+  displayName: 'Daruedagu',               // Fallback
+  email: 'daruedagu@gmail.com',
+  photoURL: 'https://firebasestorage...',  // ✅ Se muestra en avatar
+  role: 'ADMIN',
+  department: 'Tecnología',
+  position: 'Administrador del Sistema',
+  phone: '+573213117025',
+  // ... otros campos
+}
+```
+
+#### **Collection: `userSettings`**
+
+```javascript
+userSettings/{uid}
+{
+  theme: {
+    primaryColor: '#667eea',
+    secondaryColor: '#764ba2',
+    accent: '#f093fb',
+    error: '#f5576c'
+  },
+  // ... otras configuraciones
+}
+```
+
+### **⏱️ LÓGICA DE CONTADORES DE TIEMPO**
+
+#### **Contador de Tiempo Trabajado:**
+
+**Reglas:**
+- ✅ Solo corre cuando `estadoActual === 'trabajando'`
+- ✅ Se pausa durante breaks y almuerzo
+- ✅ Resta automáticamente breaks/almuerzos finalizados
+- ✅ Calcula desde timestamps (NO desde campo `duracion`)
+
+**Fórmula:**
+```javascript
+tiempoTrabajado = (ahora - entrada) 
+                  - Σ(break.fin - break.inicio)  // Solo breaks finalizados
+                  - (almuerzo.fin - almuerzo.inicio)  // Solo si finalizó
+```
+
+**Implementación:**
+```javascript
+// ✅ Calcular desde timestamps, NO desde campo duracion
+if (b.fin) {
+  const inicioBreak = new Date(b.inicio);
+  const finBreak = new Date(b.fin);
+  const duracionBreakMs = finBreak - inicioBreak;
+  tiempoTotalMs -= duracionBreakMs;
+}
+```
+
+#### **Contador de Tiempo Descanso:**
+
+**Reglas:**
+- ✅ Solo corre cuando `estadoActual === 'break'` o `'almuerzo'`
+- ✅ Cuenta desde `inicio` hasta `ahora`
+- ✅ Se resetea a `00:00:00` cuando vuelve a trabajar
+
+### **🎯 FLUJO DE USUARIO COMPLETO**
+
+```
+1. LOGIN
+   ├─ Usuario ingresa email/contraseña
+   ├─ AuthContext.signIn()
+   ├─ Obtiene ubicación (GPS)
+   ├─ Obtiene info del dispositivo
+   ├─ Crea documento en asistencias/{uid}_{fecha}
+   │   └─ entrada: { hora, ubicacion, dispositivo }
+   ├─ Navega a DashboardScreen
+   └─ Contador de trabajo inicia (00:00:00)
+
+2. TRABAJANDO
+   ├─ estadoActual: 'trabajando'
+   ├─ Contador de trabajo activo
+   └─ Opciones: Break, Almuerzo, Finalizar
+
+3. BREAK
+   ├─ Presiona "☕ Tomar Break"
+   ├─ AuthContext.registrarBreak()
+   ├─ Agrega a array breaks: { inicio: Timestamp }
+   ├─ estadoActual: 'break'
+   ├─ Contador trabajo SE PAUSA
+   └─ Contador descanso INICIA
+
+4. FINALIZAR BREAK
+   ├─ Presiona "✅ Finalizar Break"
+   ├─ AuthContext.finalizarBreak()
+   ├─ Actualiza break: { fin: Timestamp, duracion: 'HH:MM:SS' }
+   ├─ estadoActual: 'trabajando'
+   ├─ Contador descanso SE RESETEA
+   └─ Contador trabajo SE REANUDA (resta el break)
+
+5. ALMUERZO
+   ├─ Similar a break pero solo uno por día
+   └─ Campo almuerzo en lugar de array
+
+6. FINALIZAR JORNADA
+   ├─ Presiona "🏠 Finalizar Jornada"
+   ├─ AuthContext.finalizarJornada()
+   ├─ Calcula horasTrabajadas total
+   ├─ Actualiza salida: { hora: Timestamp }
+   ├─ estadoActual: 'finalizado'
+   ├─ Llama a signOut()
+   └─ Vuelve a LoginScreen
+```
+
+### **🔍 CONSULTAR DATOS DEL DASHBOARD WEB**
+
+**Para ver asistencias desde el dashboard web:**
+
+1. **URL directa**: `http://localhost:5173/asistencias` (si existe la página)
+
+2. **Firestore Console**: 
+   - Collection: `asistencias`
+   - Filtrar por: `uid == {usuario_id}` y `fecha == {hoy}`
+
+3. **Leer desde código web**:
+```javascript
+// En src/pages/AsistenciasPage.jsx (si existe)
+import { collection, query, where, getDocs } from 'firebase/firestore';
+
+const q = query(
+  collection(db, 'asistencias'),
+  where('uid', '==', userId),
+  where('fecha', '==', '2025-11-11')
+);
+const querySnapshot = await getDocs(q);
+```
+
+### **🐛 DEBUGGING Y LOGS**
+
+**Para debuggear la APK:**
+
+```javascript
+// AuthContext ya tiene logs de desarrollo
+console.log('Estado actual:', activeSession?.estadoActual);
+console.log('Breaks:', activeSession?.breaks);
+console.log('Tiempo trabajado:', tiempoTrabajado);
+```
+
+**Ver logs en tiempo real:**
+```powershell
+Set-Location mobile; npx expo start
+# Presiona 'j' para abrir debugger
+# O usar React Native Debugger
+```
+
+### **📝 CHECKLIST ANTES DE MODIFICAR LA APK**
+
+- [ ] ¿Estoy en el directorio `mobile/`?
+- [ ] ¿He leído AuthContext y ThemeContext completos?
+- [ ] ¿Entiendo la estructura de `activeSession`?
+- [ ] ¿Voy a seguir el diseño sobrio con los componentes existentes?
+- [ ] ¿Necesito actualizar tanto la APK como el dashboard web?
+- [ ] ¿He probado en un dispositivo real o emulador?
+
+### **🚀 COMANDOS RÁPIDOS ESENCIALES**
+
+```powershell
+# Iniciar servidor de desarrollo
+Set-Location mobile; npx expo start
+
+# Limpiar cache y reiniciar
+Set-Location mobile; npx expo start --clear
+
+# Ver estructura de archivos
+tree mobile/src /F
+
+# Instalar nueva dependencia
+Set-Location mobile; npx expo install [paquete]
+
+# Build APK (requiere EAS)
+Set-Location mobile; eas build --platform android
+```
+
+### **📋 REFERENCIA RÁPIDA - DIFERENCIAS APK vs DASHBOARD WEB**
+
+| Aspecto | Dashboard Web | APK Móvil |
+|---------|---------------|-----------|
+| **Ubicación** | `Dr-Group/src/` | `Dr-Group/mobile/src/` |
+| **Framework** | React + Vite | React Native + Expo |
+| **UI Library** | Material-UI (MUI) | React Native Components |
+| **Estilos** | `sx` prop, `styled()` | `StyleSheet.create()` |
+| **Componentes Sobrios** | Paper, Box, Typography | SobrioCard, DetailRow, OverlineText |
+| **Routing** | React Router DOM | React Navigation |
+| **Storage** | No usado | AsyncStorage |
+| **Comandos** | `npm run dev` | `Set-Location mobile; npx expo start` |
+| **Puerto Dev** | `http://localhost:5173` | `http://localhost:8083` |
+| **Firebase Config** | `src/config/firebase.js` | `mobile/src/services/firebase.js` |
+| **Colección Única** | N/A | `asistencias` (solo APK) |
+
+### **🎨 EQUIVALENCIAS DE DISEÑO SOBRIO: WEB ↔ MÓVIL**
+
+```javascript
+// WEB (MUI)
+<Paper sx={{ 
+  borderRadius: 2,                              // 16px
+  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+  p: 3 
+}}>
+
+// MÓVIL (React Native)
+<SobrioCard style={{
+  borderRadius: 16,                             // 16px
+  shadowOpacity: 0.06,
+  padding: 24
+}}>
+```
+
+```javascript
+// WEB (MUI)
+<Typography variant="overline" sx={{ 
+  fontWeight: 600, 
+  letterSpacing: 0.8 
+}}>
+
+// MÓVIL (React Native)
+<OverlineText>
+  TÍTULO SECCIÓN
+</OverlineText>
+```
+
+```javascript
+// WEB (MUI)
+<Box sx={{ 
+  display: 'flex', 
+  alignItems: 'center',
+  p: 1.5,
+  borderRadius: 1,
+  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
+}}>
+
+// MÓVIL (React Native)
+<DetailRow
+  icon="🕐"
+  label="Hora de Entrada"
+  value="08:00 AM"
+  iconColor={getPrimaryColor()}
+/>
+```
+
+### **🔑 REGLAS CRÍTICAS PARA TRABAJAR EN LA APK**
+
+1. **SIEMPRE** usar `Set-Location mobile;` antes de comandos Expo/npm
+2. **NUNCA** hardcodear colores, usar `getPrimaryColor()` / `getSecondaryColor()`
+3. **SIEMPRE** seguir diseño sobrio con componentes existentes (SobrioCard, DetailRow, OverlineText)
+4. **NUNCA** crear estilos inline, usar `StyleSheet.create()`
+5. **SIEMPRE** calcular duraciones desde timestamps (inicio/fin) NO desde campo `duracion`
+6. **SIEMPRE** usar `name` como displayName principal, `displayName` como fallback
+7. **SIEMPRE** verificar que el servidor Expo esté en `mobile/` (ver logs de inicio)
+8. **NUNCA** olvidar que APK y Dashboard comparten la misma instancia de Firebase
+
+### **💡 TIPS DE PRODUCTIVIDAD**
+
+**Al iniciar sesión de trabajo:**
+1. Leer esta sección completa (2 minutos)
+2. Verificar si es tarea de APK o Dashboard
+3. Si es APK: `Set-Location mobile` PRIMERO
+4. Mapear estructura relevante antes de modificar
+
+**Palabras clave del usuario que indican trabajo en APK:**
+- "móvil", "celular", "app", "APK", "Expo", "asistencias", "jornada laboral"
+- "contador", "break", "almuerzo", "entrada", "salida"
+- "LoginScreen", "DashboardScreen", "AuthContext", "ThemeContext"
+
+**Palabras clave que indican Dashboard Web:**
+- "dashboard", "web", "navegador", "reportes", "compromisos", "pagos"
+- "MUI", "Material-UI", "sx prop", "Paper", "Dialog"
+- "sidebar", "ProfilePage", "CommitmentsList"
+
+---

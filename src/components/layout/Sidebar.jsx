@@ -1,4 +1,5 @@
 import {
+    AccessTime,
     AccountBalance,
     AddBox,
     Assessment,
@@ -37,6 +38,7 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
+import { usePermissions } from '../../hooks/usePermissions';
 import ProfileAvatar from '../common/ProfileAvatar';
 
 // Animación pulse para el indicador de sistema activo
@@ -221,6 +223,13 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       permission: 'usuarios'
     },
     {
+      title: 'Asistencias',
+      icon: AccessTime,
+      path: '/asistencias',
+      color: '#ff9800',
+      permission: 'asistencias'
+    },
+    {
       title: 'Auditoría del Sistema',
       icon: Assessment,
       path: '/admin/activity-logs',
@@ -236,73 +245,17 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
     }
   ];
 
-  // Función para verificar si el usuario tiene un permiso específico
-  const hasPermission = (permission) => {
-    // Si no tiene perfil de Firestore, denegar acceso
-    if (!firestoreProfile) {
-      return false;
-    }
+  // ✅ Usar hook centralizado de permisos (reemplaza 60+ líneas de código duplicado)
+  const { 
+    hasPermission, 
+    hasSubmenuPermission, 
+    hasAnySubmenuVisible,
+    shouldShowMenuItem 
+  } = usePermissions();
 
-    // Si no tiene permisos definidos, denegar acceso (cambio importante)
-    if (!firestoreProfile.permissions || !Array.isArray(firestoreProfile.permissions)) {
-      return false;
-    }
-    
-    // Si tiene el permiso "ALL", permitir todo
-    if (firestoreProfile.permissions.includes('ALL')) {
-      return true;
-    }
-    
-    // SOLO SISTEMA NUEVO: Verificar si tiene el permiso específico
-    const hasPermissionResult = firestoreProfile.permissions.includes(permission);
-    
-    return hasPermissionResult;
-  };
-
-  // Función para verificar permisos de submenú (granulares)
-  const hasSubmenuPermission = (parentPermission, submenuPermission) => {
-    if (!firestoreProfile) return false;
-    if (!firestoreProfile.permissions || !Array.isArray(firestoreProfile.permissions)) return false;
-    if (firestoreProfile.permissions.includes('ALL')) return true;
-    
-    // Si tiene el permiso padre completo, tiene acceso a todo
-    if (firestoreProfile.permissions.includes(parentPermission)) return true;
-    
-    // Si tiene el permiso específico del submenú
-    if (submenuPermission && firestoreProfile.permissions.includes(submenuPermission)) return true;
-    
-    return false;
-  };
-
-  // Función para verificar si el grupo debe mostrarse (si tiene al menos un submenú visible)
-  const hasAnySubmenuPermission = (parentPermission, submenu) => {
-    if (!submenu || submenu.length === 0) return false;
-    
-    // Si tiene el permiso padre completo, mostrar grupo
-    if (hasPermission(parentPermission)) return true;
-    
-    // Si tiene al menos un permiso de submenú, mostrar grupo
-    return submenu.some(subItem => 
-      subItem.permission && hasPermission(subItem.permission)
-    );
-  };
-
-  // Filtrar elementos del menú según permisos
-  const filteredMenuItems = menuItems.filter(item => {
-    if (!item.permission) return true; // Si no tiene permiso definido, mostrar
-    
-    // Si el item tiene submenú, verificar si tiene al menos un submenú visible
-    if (item.submenu) {
-      return hasAnySubmenuPermission(item.permission, item.submenu);
-    }
-    
-    return hasPermission(item.permission);
-  });
-
-  const filteredAdminMenuItems = adminMenuItems.filter(item => {
-    if (!item.permission) return true; // Si no tiene permiso definido, mostrar
-    return hasPermission(item.permission);
-  });
+  // Filtrar elementos del menú según permisos (usa shouldShowMenuItem del hook)
+  const filteredMenuItems = menuItems.filter(shouldShowMenuItem);
+  const filteredAdminMenuItems = adminMenuItems.filter(shouldShowMenuItem);
 
   const sidebarContent = (
     <>

@@ -43,6 +43,7 @@ import { motion } from 'framer-motion';
 import { useTheme, alpha } from '@mui/material/styles';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { useOrphanFileDetector } from '../hooks/useOrphanFileDetector';
 
 const OrphanFilesPage = () => {
@@ -73,8 +74,9 @@ const OrphanFilesPage = () => {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Verificar permisos de usuario
-  const hasPermission = user?.email === 'daruedagu@gmail.com';
+  // ✅ Verificar permisos: Solo usuarios con permiso 'storage' (reemplaza email hardcodeado)
+  const { hasPermission } = usePermissions();
+  const canAccessStorage = hasPermission('storage');
 
   // Función para manejar inicio de escaneo con notificaciones
   const handleFullScan = useCallback(async () => {
@@ -170,12 +172,13 @@ const OrphanFilesPage = () => {
     }
   };
 
-  if (!hasPermission) {
+  // ✅ Validación con sistema centralizado de permisos
+  if (!canAccessStorage) {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error" sx={{ mt: 2 }}>
           <Typography variant="h6">Acceso Denegado</Typography>
-          <Typography>Esta página es solo accesible para administradores autorizados.</Typography>
+          <Typography>Necesitas el permiso "storage" para acceder a esta página de administración.</Typography>
         </Alert>
       </Box>
     );

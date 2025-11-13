@@ -247,7 +247,7 @@ const WelcomeDashboardSimple = () => {
                   fontSize: { xs: '1.4rem', sm: '1.6rem', md: '1.75rem' }
                 }}
               >
-                📊 {getGreeting()}, {userProfile?.displayName || currentUser?.email?.split('@')[0] || 'Usuario'}
+                📊 {getGreeting()}, {userProfile?.name || userProfile?.displayName || currentUser?.email?.split('@')[0] || 'Usuario'}
               </Typography>
               <Typography 
                 variant="body1" 

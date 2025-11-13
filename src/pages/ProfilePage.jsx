@@ -26,7 +26,9 @@ import {
   DialogActions,
   DialogContentText,
   Tooltip,
-  useTheme
+  useTheme,
+  Tabs,
+  Tab
 } from '@mui/material';
 
 import {
@@ -51,7 +53,8 @@ import {
   AccessTime,
   AdminPanelSettings,
   Key,
-  Lock
+  Lock,
+  VpnKey as KeyIcon
 } from '@mui/icons-material';
 
 import { useAuth } from '../context/AuthContext';
@@ -81,13 +84,6 @@ import {
 
 const ProfilePage = () => {
   const { user, userProfile, updateUserProfile } = useAuth();
-  console.log('🏁 ProfilePage - Contexto inicial:', {
-    hasUser: !!user,
-    userUid: user?.uid,
-    userEmail: user?.email,
-    hasUserProfile: !!userProfile,
-    hasUpdateFunction: typeof updateUserProfile === 'function'
-  });
   const { settings, updateSettings } = useSettings();
   const theme = useTheme();
   const isDarkMode = theme.palette.mode === 'dark';
@@ -109,6 +105,7 @@ const ProfilePage = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
   const [showAutoSaveNotice, setShowAutoSaveNotice] = useState(false);
+  const [activeTab, setActiveTab] = useState(0); // Estado para las pestañas
   const fileInputRef = useRef(null);
 
   // Estados de seguridad
@@ -690,15 +687,16 @@ const ProfilePage = () => {
           {/* Card de Perfil Personal - Diseño sobrio */}
           <Card sx={{ 
             borderRadius: 2,
-            border: `1px solid ${theme.palette.divider}`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             mb: 3,
             minHeight: 600,
             display: 'flex',
             flexDirection: 'column',
-            transition: 'box-shadow 0.2s ease',
+            transition: 'all 0.2s ease',
             '&:hover': {
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              borderColor: alpha(theme.palette.primary.main, 0.8)
             }
           }}>
             {/* Header sobrio */}
@@ -837,16 +835,18 @@ const ProfilePage = () => {
                   {formData.email}
                 </Typography>
                 
-                {/* Badge de rol sobrio */}
-                <Box display="flex" justifyContent="center" mb={3}>
-                  <Chip
-                    icon={(userProfile?.role === 'admin' || userProfile?.role === 'ADMIN') ? <AdminPanelSettings /> : <Person />}
-                    label={(userProfile?.role === 'admin' || userProfile?.role === 'ADMIN') ? 'Administrador' : 'Usuario'}
-                    color={(userProfile?.role === 'admin' || userProfile?.role === 'ADMIN') ? 'primary' : 'secondary'}
-                    variant="filled"
-                    sx={{ fontWeight: 600 }}
-                  />
-                </Box>
+                {/* Badge de departamento sobrio */}
+                {userProfile?.department && (
+                  <Box display="flex" justifyContent="center" mb={3}>
+                    <Chip
+                      icon={<Business />}
+                      label={userProfile.department}
+                      color={(userProfile?.role === 'admin' || userProfile?.role === 'ADMIN') ? 'primary' : 'secondary'}
+                      variant="filled"
+                      sx={{ fontWeight: 600 }}
+                    />
+                  </Box>
+                )}
 
                 {/* Información adicional */}
                 {formData.position && (
@@ -925,42 +925,77 @@ const ProfilePage = () => {
         <Grid item xs={12} lg={8}>
           <Card sx={{ 
             borderRadius: 2,
-            border: `1px solid ${theme.palette.divider}`,
+            border: `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             minHeight: 600,
             display: 'flex',
             flexDirection: 'column',
-            transition: 'box-shadow 0.2s ease',
+            transition: 'all 0.2s ease',
             '&:hover': {
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              borderColor: alpha(theme.palette.secondary.main, 0.8)
             }
           }}>
-            {/* Header sobrio - Información Personal */}
+            {/* Header sobrio con pestañas */}
             <Box sx={{
-              p: 3,
               background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 2
+              color: 'white'
             }}>
-              <Person sx={{ fontSize: 24 }} />
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Información Personal
-                </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                  Datos personales y profesionales
-                </Typography>
+              <Box sx={{ 
+                p: 3, 
+                pb: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2
+              }}>
+                <Person sx={{ fontSize: 24 }} />
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    Mi Perfil
+                  </Typography>
+                  <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                    Información personal y permisos
+                  </Typography>
+                </Box>
               </Box>
-            </Box>            <CardContent sx={{ 
+              
+              {/* Tabs */}
+              <Tabs 
+                value={activeTab} 
+                onChange={(e, newValue) => setActiveTab(newValue)}
+                sx={{
+                  px: 3,
+                  '& .MuiTab-root': {
+                    color: 'rgba(255, 255, 255, 0.7)',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    fontSize: '0.9rem',
+                    minHeight: 48,
+                    '&.Mui-selected': {
+                      color: 'white'
+                    }
+                  },
+                  '& .MuiTabs-indicator': {
+                    backgroundColor: 'white',
+                    height: 3
+                  }
+                }}
+              >
+                <Tab label="Información Personal" />
+                <Tab label="Empresas y Permisos" />
+              </Tabs>
+            </Box>
+
+            <CardContent sx={{ 
               p: 4,
               flex: 1, 
               display: 'flex', 
               flexDirection: 'column'
             }}>
 
-              <Grid container spacing={3}>
+              {/* Tab 1: Información Personal */}
+              {activeTab === 0 && (
+                <Grid container spacing={3}>
                 {/* Nombre */}
                 <Grid item xs={12} sm={6}>
                   <Box sx={{ position: 'relative' }}>
@@ -1151,7 +1186,7 @@ const ProfilePage = () => {
                 </Grid>
 
                 {/* Ubicación */}
-                <Grid item xs={12}>
+                <Grid item xs={12} sm={6}>
                   <Box sx={{ position: 'relative' }}>
                     <Typography 
                       variant="body2" 
@@ -1193,6 +1228,44 @@ const ProfilePage = () => {
                           fontSize: '1rem',
                           fontWeight: editing ? 500 : 400,
                           color: editing ? 'text.primary' : 'text.secondary'
+                        }
+                      }}
+                    />
+                  </Box>
+                </Grid>
+
+                {/* Fecha de Ingreso */}
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ position: 'relative' }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        mb: 1.5, 
+                        fontWeight: 500,
+                        color: 'text.secondary',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1
+                      }}
+                    >
+                      <AccessTime sx={{ fontSize: 16, color: theme.palette.success.main }} />
+                      Fecha de Ingreso
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      value={userProfile?.hireDate || 'No especificada'}
+                      disabled={true}
+                      variant="outlined"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          backgroundColor: alpha(theme.palette.success.main, 0.05),
+                          borderRadius: 1
+                        },
+                        '& .MuiInputBase-input': {
+                          padding: '12px 16px',
+                          fontSize: '1rem',
+                          color: 'text.secondary',
+                          fontWeight: 500
                         }
                       }}
                     />
@@ -1253,7 +1326,7 @@ const ProfilePage = () => {
                       <Box sx={{ display: 'flex', justifyContent: 'center' }}>
                         <Button
                           variant="outlined"
-                          startIcon={<Key />}
+                          startIcon={<KeyIcon />}
                           onClick={() => setShowPasswordDialog(true)}
                           sx={{
                             borderRadius: 1,
@@ -1268,6 +1341,125 @@ const ProfilePage = () => {
                   </Grid>
                 )}
               </Grid>
+              )}
+
+              {/* Tab 2: Empresas y Permisos */}
+              {activeTab === 1 && (
+                <Grid container spacing={3}>
+                  
+                {/* Empresas Asignadas */}
+                <Grid item xs={12}>
+                  <Box sx={{ position: 'relative' }}>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        mb: 1.5, 
+                        fontWeight: 500,
+                        color: 'text.secondary',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1
+                      }}
+                    >
+                      <Business sx={{ fontSize: 16, color: theme.palette.warning.main }} />
+                      Empresas Asignadas
+                    </Typography>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      flexWrap: 'wrap', 
+                      gap: 1,
+                      p: 2,
+                      borderRadius: 1,
+                      backgroundColor: alpha(theme.palette.warning.main, 0.05),
+                      border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                      minHeight: 60,
+                      alignItems: 'center'
+                    }}>
+                      {userProfile?.companies && userProfile.companies.length > 0 ? (
+                        userProfile.companies.map((company, index) => (
+                          <Chip
+                            key={index}
+                            label={company}
+                            variant="outlined"
+                            size="small"
+                            color="warning"
+                            sx={{ fontWeight: 500 }}
+                          />
+                        ))
+                      ) : (
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: 'text.secondary',
+                            fontStyle: 'italic',
+                            width: '100%',
+                            textAlign: 'center'
+                          }}
+                        >
+                          Sin empresas asignadas
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Grid>
+
+                {/* Permisos Asignados */}
+                {userProfile?.permissions && Object.keys(userProfile.permissions).length > 0 && (
+                  <Grid item xs={12}>
+                    <Box sx={{ position: 'relative' }}>
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          mb: 1.5, 
+                          fontWeight: 500,
+                          color: 'text.secondary',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1
+                        }}
+                      >
+                        <VpnKey sx={{ fontSize: 16, color: theme.palette.info.main }} />
+                        Permisos de Acceso
+                      </Typography>
+                      <Box sx={{ 
+                        display: 'flex', 
+                        flexWrap: 'wrap', 
+                        gap: 1,
+                        p: 2,
+                        borderRadius: 1,
+                        backgroundColor: alpha(theme.palette.info.main, 0.05),
+                        border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                        maxHeight: 300,
+                        overflowY: 'auto'
+                      }}>
+                        {Object.keys(userProfile.permissions)
+                          .filter(perm => userProfile.permissions[perm] === true)
+                          .map((permission, index) => {
+                            const label = permission
+                              .replace(/_/g, ' ')
+                              .replace(/\./g, ' › ')
+                              .split(' ')
+                              .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                              .join(' ');
+                            
+                            return (
+                              <Chip
+                                key={index}
+                                label={label}
+                                variant="outlined"
+                                size="small"
+                                color="info"
+                                sx={{ fontWeight: 500 }}
+                              />
+                            );
+                          })
+                        }
+                      </Box>
+                    </Box>
+                  </Grid>
+                )}
+              </Grid>
+              )}
             </CardContent>
           </Card>
         </Grid>
