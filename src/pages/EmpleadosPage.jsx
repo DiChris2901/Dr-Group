@@ -268,26 +268,34 @@ const EmpleadosPage = () => {
     }
   };
 
-  // Calcular fecha fin de contrato según tipo de vigencia
+  // Calcular fecha fin de contrato según tipo de vigencia (con renovación automática)
   const calcularFechaFinContrato = (fechaInicio, tipoVigencia) => {
     if (!fechaInicio || tipoVigencia === 'Indefinido') return '';
     
     // Parsear fecha como local (no UTC) para evitar problemas de zona horaria
     const [year, month, day] = fechaInicio.split('-').map(Number);
     const fecha = new Date(year, month - 1, day);
+    const hoy = new Date();
     
+    // Determinar meses a sumar según vigencia
+    let mesesVigencia = 0;
     switch (tipoVigencia) {
       case 'Trimestral':
-        fecha.setMonth(fecha.getMonth() + 3);
+        mesesVigencia = 3;
         break;
       case 'Semestral':
-        fecha.setMonth(fecha.getMonth() + 6);
+        mesesVigencia = 6;
         break;
       case 'Anual':
-        fecha.setFullYear(fecha.getFullYear() + 1);
+        mesesVigencia = 12;
         break;
       default:
         return '';
+    }
+    
+    // Sumar períodos hasta que la fecha sea futura
+    while (fecha <= hoy) {
+      fecha.setMonth(fecha.getMonth() + mesesVigencia);
     }
     
     // Formatear como YYYY-MM-DD para input type="date"
@@ -295,6 +303,42 @@ const EmpleadosPage = () => {
     const monthFin = String(fecha.getMonth() + 1).padStart(2, '0');
     const dayFin = String(fecha.getDate()).padStart(2, '0');
     return `${yearFin}-${monthFin}-${dayFin}`;
+  };
+
+  // Calcular siguiente renovación (un período después de la fecha fin)
+  const calcularSiguienteRenovacion = (fechaInicio, tipoVigencia) => {
+    if (!fechaInicio || tipoVigencia === 'Indefinido') return '';
+    
+    const fechaFin = calcularFechaFinContrato(fechaInicio, tipoVigencia);
+    if (!fechaFin) return '';
+    
+    const [year, month, day] = fechaFin.split('-').map(Number);
+    const fecha = new Date(year, month - 1, day);
+    
+    // Determinar meses a sumar según vigencia
+    let mesesVigencia = 0;
+    switch (tipoVigencia) {
+      case 'Trimestral':
+        mesesVigencia = 3;
+        break;
+      case 'Semestral':
+        mesesVigencia = 6;
+        break;
+      case 'Anual':
+        mesesVigencia = 12;
+        break;
+      default:
+        return '';
+    }
+    
+    // Sumar un período más
+    fecha.setMonth(fecha.getMonth() + mesesVigencia);
+    
+    // Formatear como YYYY-MM-DD
+    const yearRen = fecha.getFullYear();
+    const monthRen = String(fecha.getMonth() + 1).padStart(2, '0');
+    const dayRen = String(fecha.getDate()).padStart(2, '0');
+    return `${yearRen}-${monthRen}-${dayRen}`;
   };
 
   // Formatear número con puntos de miles
@@ -1337,7 +1381,7 @@ const EmpleadosPage = () => {
                   fullWidth
                   label="Fecha Fin Contrato"
                   type="date"
-                  value={formData.fechaFinContrato}
+                  value={formData.fechaInicioContrato && formData.tipoVigencia ? calcularFechaFinContrato(formData.fechaInicioContrato, formData.tipoVigencia) : ''}
                   disabled
                   InputLabelProps={{ shrink: true }}
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
@@ -1941,7 +1985,7 @@ const EmpleadosPage = () => {
                   fullWidth
                   label="Fecha Fin Contrato"
                   type="date"
-                  value={formData.fechaFinContrato}
+                  value={formData.fechaInicioContrato && formData.tipoVigencia ? calcularFechaFinContrato(formData.fechaInicioContrato, formData.tipoVigencia) : ''}
                   disabled
                   InputLabelProps={{ shrink: true }}
                   sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
@@ -2548,10 +2592,22 @@ const EmpleadosPage = () => {
                       <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
                         <Typography variant="subtitle2" color="info" gutterBottom>
                           <CalendarIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                          Fecha Fin
+                          Fecha Fin Actual
                         </Typography>
                         <Typography variant="body1" fontWeight="medium">
-                          {formatDate(selectedEmpleado.fechaFinContrato)}
+                          {formatDate(calcularFechaFinContrato(selectedEmpleado.fechaInicioContrato, selectedEmpleado.tipoVigencia))}
+                        </Typography>
+                      </Card>
+                    </Grid>
+
+                    <Grid item xs={12} md={4}>
+                      <Card variant="outlined" sx={{ p: 2, height: '100%', bgcolor: alpha(theme.palette.success.main, 0.05) }}>
+                        <Typography variant="subtitle2" color="success" gutterBottom>
+                          <CalendarIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                          Siguiente Renovación
+                        </Typography>
+                        <Typography variant="body1" fontWeight="medium">
+                          {formatDate(calcularSiguienteRenovacion(selectedEmpleado.fechaInicioContrato, selectedEmpleado.tipoVigencia))}
                         </Typography>
                       </Card>
                     </Grid>
