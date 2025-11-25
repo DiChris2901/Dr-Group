@@ -2274,22 +2274,25 @@ const NewPaymentPage = () => {
                                   <Box sx={{ 
                                     mt: 1.5,
                                     p: 1.5,
-                                    bgcolor: alpha(theme.palette.info.main, 0.05),
-                                    borderLeft: `3px solid ${theme.palette.info.main}`,
-                                    borderRadius: 1
+                                    bgcolor: 'transparent',
+                                    borderLeft: `2px solid ${alpha(theme.palette.divider, 0.3)}`,
+                                    borderRadius: 0
                                   }}>
-                                    <Typography variant="caption" color="info.main" sx={{ 
+                                    <Typography variant="caption" sx={{ 
+                                      color: 'text.secondary',
                                       fontWeight: 600,
                                       textTransform: 'uppercase',
                                       letterSpacing: 0.5,
+                                      fontSize: '0.65rem',
                                       display: 'block',
                                       mb: 0.5
                                     }}>
-                                      💬 Observaciones
+                                      Observaciones
                                     </Typography>
-                                    <Typography variant="body2" color="text.primary" sx={{ 
+                                    <Typography variant="body2" color="text.secondary" sx={{ 
                                       whiteSpace: 'pre-wrap',
-                                      lineHeight: 1.6
+                                      lineHeight: 1.6,
+                                      fontSize: '0.8rem'
                                     }}>
                                       {selectedCommitment.observations}
                                     </Typography>
