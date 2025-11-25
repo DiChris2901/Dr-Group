@@ -2607,12 +2607,12 @@ const NewPaymentPage = () => {
                             sx={{
                               p: 2,
                               borderRadius: 2,
-                              bgcolor: alpha(theme.palette.warning.main, 0.05),
-                              border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                              bgcolor: alpha(theme.palette.info.main, 0.05),
+                              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
                               mt: 1
                             }}
                           >
-                            <Typography variant="body2" color="warning.main" sx={{ 
+                            <Typography variant="body2" color="text.secondary" sx={{ 
                               display: 'flex', 
                               alignItems: 'center', 
                               gap: 1,
