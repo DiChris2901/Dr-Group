@@ -307,16 +307,15 @@ const NewPaymentPage = () => {
     if (selectedCommitment && formData.date) {
       const needsInterests = requiresInterests(selectedCommitment, formData.date);
       
-      if (!needsInterests) {
-        // Limpiar todos los tipos de intereses si no se requieren
-        // 💰 Usar saldo pendiente si hay pagos parciales, sino el monto original
-        const baseAmount = selectedCommitment.remainingBalance || prev.originalAmount;
+      // Solo limpiar si cambia de "requiere intereses" a "no requiere"
+      // Y si actualmente hay intereses ingresados
+      if (!needsInterests && (formData.interests > 0 || formData.interesesDerechosExplotacion > 0 || formData.interesesGastosAdministracion > 0)) {
         setFormData(prev => ({
           ...prev,
           interests: 0,
           interesesDerechosExplotacion: 0,
-          interesesGastosAdministracion: 0,
-          finalAmount: baseAmount
+          interesesGastosAdministracion: 0
+          // NO resetear finalAmount, partialPaymentAmount ni otros valores
         }));
       }
     }
@@ -1884,7 +1883,7 @@ const NewPaymentPage = () => {
                   <Grid item xs={12}>
                     <Autocomplete
                       options={pendingCommitments}
-                      getOptionLabel={(option) => `${option.displayName || ''} [${option.id.slice(-6)}]`}
+                      getOptionLabel={(option) => option.displayName || ''}
                       isOptionEqualToValue={(option, value) => option.id === value.id}
                       loading={loadingCommitments}
                       value={selectedCommitment}
@@ -2188,6 +2187,35 @@ const NewPaymentPage = () => {
                                   <Typography variant="body2" color="primary.main" sx={{ fontWeight: 600 }}>
                                     <strong>Monto Total:</strong> {selectedCommitment.formattedAmount}
                                   </Typography>
+                                </Grid>
+                              )}
+                              
+                              {/* 💬 Observaciones del Compromiso */}
+                              {selectedCommitment.observations && (
+                                <Grid item xs={12}>
+                                  <Box sx={{ 
+                                    mt: 1.5,
+                                    p: 1.5,
+                                    bgcolor: alpha(theme.palette.info.main, 0.05),
+                                    borderLeft: `3px solid ${theme.palette.info.main}`,
+                                    borderRadius: 1
+                                  }}>
+                                    <Typography variant="caption" color="info.main" sx={{ 
+                                      fontWeight: 600,
+                                      textTransform: 'uppercase',
+                                      letterSpacing: 0.5,
+                                      display: 'block',
+                                      mb: 0.5
+                                    }}>
+                                      💬 Observaciones
+                                    </Typography>
+                                    <Typography variant="body2" color="text.primary" sx={{ 
+                                      whiteSpace: 'pre-wrap',
+                                      lineHeight: 1.6
+                                    }}>
+                                      {selectedCommitment.observations}
+                                    </Typography>
+                                  </Box>
                                 </Grid>
                               )}
                             
@@ -2607,12 +2635,12 @@ const NewPaymentPage = () => {
                             sx={{
                               p: 2,
                               borderRadius: 2,
-                              bgcolor: alpha(theme.palette.info.main, 0.05),
-                              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                              bgcolor: alpha(theme.palette.warning.main, 0.05),
+                              border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
                               mt: 1
                             }}
                           >
-                            <Typography variant="body2" color="primary.main" sx={{ 
+                            <Typography variant="body2" color="warning.main" sx={{ 
                               display: 'flex', 
                               alignItems: 'center', 
                               gap: 1,
