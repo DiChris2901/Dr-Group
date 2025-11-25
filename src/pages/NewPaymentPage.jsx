@@ -2106,48 +2106,90 @@ const NewPaymentPage = () => {
                     <>
                       <Grid item xs={12}>
                         <Paper 
+                          elevation={0}
                           sx={{ 
                             mt: 2,
-                            p: 2,
-                            borderRadius: 2,
-                            background: theme.palette.background.paper,
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                            border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+                            p: 2.5,
+                            borderRadius: 1,
+                            background: theme.palette.mode === 'dark' 
+                              ? alpha(theme.palette.background.paper, 0.4)
+                              : alpha(theme.palette.grey[50], 0.5),
+                            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                            transition: 'all 0.2s ease'
                           }}
                         >
-                          <Box sx={{ mb: 1.5 }}>
-                            <Typography variant="overline" sx={{ 
-                              fontWeight: 600,
-                              color: 'info.main',
-                              letterSpacing: 0.8,
-                              fontSize: '0.75rem'
-                            }}>
-                              Datos del Compromiso
-                            </Typography>
-                          </Box>
-                          
                           <Box sx={{ 
                             display: 'flex',
                             alignItems: 'center',
-                            gap: 1,
-                            mb: 2,
-                            pb: 1.5,
-                            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                            gap: 1.5,
+                            mb: 2
                           }}>
-                            <CompanyIcon color="primary" fontSize="medium" />
-                            <Typography variant="subtitle1" sx={{ 
-                              fontWeight: 600,
-                              color: 'text.primary'
+                            <Box sx={{
+                              width: 32,
+                              height: 32,
+                              borderRadius: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: alpha(theme.palette.primary.main, 0.08),
+                              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
                             }}>
-                              {selectedCommitment.companyName}
-                            </Typography>
+                              <CompanyIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                            </Box>
+                            <Box>
+                              <Typography variant="caption" sx={{ 
+                                color: 'text.secondary',
+                                fontSize: '0.7rem',
+                                textTransform: 'uppercase',
+                                letterSpacing: 0.5,
+                                fontWeight: 600,
+                                display: 'block'
+                              }}>
+                                Compromiso Seleccionado
+                              </Typography>
+                              <Typography variant="body2" sx={{ 
+                                fontWeight: 600,
+                                color: 'text.primary',
+                                mt: 0.25
+                              }}>
+                                {selectedCommitment.companyName}
+                              </Typography>
+                            </Box>
                           </Box>
+                          
+                          <Box sx={{ 
+                            pt: 1.5,
+                            borderTop: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+                          }}>
                             
-                            <Grid container spacing={3}>
+                            <Grid container spacing={1.5}>
                               <Grid item xs={12} md={6}>
-                                <Typography variant="body2" color="text.secondary">
-                                  <strong>Concepto:</strong> {selectedCommitment.concept}
-                                </Typography>
+                                <Box sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 1,
+                                  p: 1,
+                                  borderRadius: 1,
+                                  background: theme.palette.mode === 'dark'
+                                    ? alpha(theme.palette.background.default, 0.3)
+                                    : 'transparent'
+                                }}>
+                                  <Description sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                  <Box>
+                                    <Typography variant="caption" sx={{ 
+                                      color: 'text.secondary',
+                                      fontSize: '0.65rem',
+                                      textTransform: 'uppercase',
+                                      letterSpacing: 0.5,
+                                      display: 'block'
+                                    }}>
+                                      Concepto
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
+                                      {selectedCommitment.concept}
+                                    </Typography>
+                                  </Box>
+                                </Box>
                               </Grid>
                               
                               {selectedCommitment.beneficiary && (
@@ -2289,32 +2331,28 @@ const NewPaymentPage = () => {
                         />
                       </Grid>
 
-                      {/* Alerta de pago tardío al lado del valor original */}
+                      {/* Alerta de pago tardío - Diseño sobrio */}
                       {requiresInterests(selectedCommitment, formData.date) && (
-                        <Grid item xs={12} sm={8}>
-                          <Box sx={{ 
-                            p: 1.5,
-                            bgcolor: theme.palette.mode === 'dark' 
-                              ? alpha(theme.palette.background.paper, 0.8)
-                              : 'grey.50',
-                            border: '1px solid',
-                            borderColor: theme.palette.mode === 'dark'
-                              ? alpha(theme.palette.divider, 0.3)
-                              : 'grey.300',
-                            borderRadius: 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1.5,
-                            height: '56px' // Mismo alto que el TextField
-                          }}>
-                            <InterestIcon color="action" fontSize="small" />
-                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                        <Grid item xs={12}>
+                          <Alert 
+                            severity="info"
+                            icon={<InterestIcon />}
+                            sx={{ 
+                              mt: 1,
+                              backgroundColor: alpha(theme.palette.info.main, 0.04),
+                              border: `1px solid ${alpha(theme.palette.info.main, 0.15)}`,
+                              '& .MuiAlert-icon': { 
+                                color: alpha(theme.palette.info.main, 0.7)
+                              }
+                            }}
+                          >
+                            <Typography variant="body2" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
                               {isColjuegosCommitment(selectedCommitment) 
-                                ? "Pago posterior al vencimiento - Calcular intereses específicos de Coljuegos"
-                                : "Pago posterior al vencimiento - Calcular intereses por mora"
+                                ? "Pago tardío: Calcular intereses de Coljuegos"
+                                : "Pago tardío: Calcular intereses por mora"
                               }
                             </Typography>
-                          </Box>
+                          </Alert>
                         </Grid>
                       )}
 
