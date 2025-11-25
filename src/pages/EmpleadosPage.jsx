@@ -58,7 +58,8 @@ import {
   Badge as BadgeIcon,
   CalendarToday as CalendarIcon,
   Work as WorkIcon,
-  CreditCard as CardIcon
+  CreditCard as CardIcon,
+  AccessTime as AccessTimeIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -114,6 +115,7 @@ const EmpleadosPage = () => {
   const isAdmin = isAdminUser(currentUser, userProfile);
   
   const [empleados, setEmpleados] = useState([]);
+  const [empresas, setEmpresas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -134,6 +136,7 @@ const EmpleadosPage = () => {
     telefono: '',
     edad: '',
     fechaNacimiento: '',
+    empresaContratante: '',
     contratoURL: '',
     fechaInicioContrato: '',
     tipoVigencia: 'Trimestral',
@@ -152,6 +155,11 @@ const EmpleadosPage = () => {
   const [uploadingCertificado, setUploadingCertificado] = useState(false);
   const [documentoIdentidadFile, setDocumentoIdentidadFile] = useState(null);
   const [uploadingDocumentoIdentidad, setUploadingDocumentoIdentidad] = useState(false);
+
+  // Estados para Drag & Drop
+  const [dragOverDocumento, setDragOverDocumento] = useState(false);
+  const [dragOverContrato, setDragOverContrato] = useState(false);
+  const [dragOverCertificado, setDragOverCertificado] = useState(false);
 
   // Estados para Modal PDF Viewer
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
@@ -190,6 +198,36 @@ const EmpleadosPage = () => {
     return () => unsubscribe();
   }, [currentUser, addNotification]);
 
+  // Cargar empresas desde Firestore
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const q = query(
+      collection(db, 'companies'),
+      orderBy('name', 'asc')
+    );
+
+    const unsubscribe = onSnapshot(q, 
+      (snapshot) => {
+        const empresasData = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          empresasData.push({
+            id: doc.id,
+            name: data.name,
+            logoURL: data.logoURL || ''
+          });
+        });
+        setEmpresas(empresasData);
+      },
+      (error) => {
+        console.error('Error al cargar empresas:', error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentUser]);
+
   // Calcular edad desde fecha de nacimiento
   const calcularEdad = (fechaNacimiento) => {
     if (!fechaNacimiento) return '';
@@ -207,7 +245,9 @@ const EmpleadosPage = () => {
   const calcularFechaFinContrato = (fechaInicio, tipoVigencia) => {
     if (!fechaInicio || tipoVigencia === 'Indefinido') return '';
     
-    const fecha = new Date(fechaInicio);
+    // Parsear fecha como local (no UTC) para evitar problemas de zona horaria
+    const [year, month, day] = fechaInicio.split('-').map(Number);
+    const fecha = new Date(year, month - 1, day);
     
     switch (tipoVigencia) {
       case 'Trimestral':
@@ -224,10 +264,10 @@ const EmpleadosPage = () => {
     }
     
     // Formatear como YYYY-MM-DD para input type="date"
-    const year = fecha.getFullYear();
-    const month = String(fecha.getMonth() + 1).padStart(2, '0');
-    const day = String(fecha.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    const yearFin = fecha.getFullYear();
+    const monthFin = String(fecha.getMonth() + 1).padStart(2, '0');
+    const dayFin = String(fecha.getDate()).padStart(2, '0');
+    return `${yearFin}-${monthFin}-${dayFin}`;
   };
 
   // Formatear número con puntos de miles
@@ -293,6 +333,54 @@ const EmpleadosPage = () => {
     }
   };
 
+  // Funciones para Drag & Drop
+  const handleDragOver = (e, type) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (type === 'documento') setDragOverDocumento(true);
+    if (type === 'contrato') setDragOverContrato(true);
+    if (type === 'certificado') setDragOverCertificado(true);
+  };
+
+  const handleDragLeave = (e, type) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (type === 'documento') setDragOverDocumento(false);
+    if (type === 'contrato') setDragOverContrato(false);
+    if (type === 'certificado') setDragOverCertificado(false);
+  };
+
+  const handleDrop = (e, type, acceptedTypes) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (type === 'documento') setDragOverDocumento(false);
+    if (type === 'contrato') setDragOverContrato(false);
+    if (type === 'certificado') setDragOverCertificado(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      
+      // Validar tipo de archivo
+      const isValidType = acceptedTypes.some(type => {
+        if (type === 'application/pdf') return file.type === 'application/pdf';
+        if (type === 'image/*') return file.type.startsWith('image/');
+        return false;
+      });
+
+      if (!isValidType) {
+        alert('Tipo de archivo no permitido. Por favor, selecciona un archivo válido.');
+        return;
+      }
+
+      // Asignar archivo según el tipo
+      if (type === 'documento') setDocumentoIdentidadFile(file);
+      if (type === 'contrato') setContratoFile(file);
+      if (type === 'certificado') setCertificadoFile(file);
+    }
+  };
+
   // Resetear formulario
   const resetForm = () => {
     setFormData({
@@ -332,6 +420,26 @@ const EmpleadosPage = () => {
     } catch (error) {
       console.error('Error al subir archivo:', error);
       throw error;
+    }
+  };
+
+  // Eliminar archivo de Firebase Storage
+  const deleteFileFromStorage = async (fileURL) => {
+    try {
+      if (!fileURL) return;
+      
+      // Crear referencia desde la URL
+      const fileRef = ref(storage, fileURL);
+      await deleteObject(fileRef);
+      console.log('Archivo eliminado de Storage:', fileURL);
+    } catch (error) {
+      // Si el archivo no existe (404), no es un error crítico
+      if (error.code === 'storage/object-not-found') {
+        console.log('El archivo ya no existe en Storage');
+      } else {
+        console.error('Error al eliminar archivo de Storage:', error);
+        throw error;
+      }
     }
   };
 
@@ -425,19 +533,31 @@ const EmpleadosPage = () => {
       let certificadoURL = formData.certificadoBancarioURL;
       let documentoIdentidadURL = formData.documentoIdentidadURL;
 
-      // Subir nuevos archivos si se seleccionaron
+      // Subir nuevos archivos si se seleccionaron (eliminando el anterior primero)
       if (contratoFile) {
         setUploadingContrato(true);
+        // Eliminar archivo anterior si existe
+        if (selectedEmpleado.contratoURL) {
+          await deleteFileFromStorage(selectedEmpleado.contratoURL);
+        }
         contratoURL = await uploadFile(contratoFile, 'contratos', selectedEmpleado.id);
       }
 
       if (certificadoFile) {
         setUploadingCertificado(true);
+        // Eliminar archivo anterior si existe
+        if (selectedEmpleado.certificadoBancarioURL) {
+          await deleteFileFromStorage(selectedEmpleado.certificadoBancarioURL);
+        }
         certificadoURL = await uploadFile(certificadoFile, 'certificados', selectedEmpleado.id);
       }
 
       if (documentoIdentidadFile) {
         setUploadingDocumentoIdentidad(true);
+        // Eliminar archivo anterior si existe
+        if (selectedEmpleado.documentoIdentidadURL) {
+          await deleteFileFromStorage(selectedEmpleado.documentoIdentidadURL);
+        }
         documentoIdentidadURL = await uploadFile(documentoIdentidadFile, 'documentos-identidad', selectedEmpleado.id);
       }
 
@@ -488,6 +608,19 @@ const EmpleadosPage = () => {
 
       setSaving(true);
 
+      // Eliminar archivos adjuntos de Storage
+      const filesToDelete = [
+        selectedEmpleado.documentoIdentidadURL,
+        selectedEmpleado.contratoURL,
+        selectedEmpleado.certificadoBancarioURL
+      ];
+
+      for (const fileURL of filesToDelete) {
+        if (fileURL) {
+          await deleteFileFromStorage(fileURL);
+        }
+      }
+
       // Log de auditoría antes de eliminar
       await logActivity(
         'delete',
@@ -499,7 +632,7 @@ const EmpleadosPage = () => {
         currentUser.email
       );
 
-      // Eliminar documento
+      // Eliminar documento de Firestore
       await deleteDoc(doc(db, 'empleados', selectedEmpleado.id));
 
       addNotification('Empleado eliminado exitosamente', 'success');
@@ -538,6 +671,7 @@ const EmpleadosPage = () => {
       telefono: empleado.telefono || '',
       edad: empleado.edad || '',
       fechaNacimiento: empleado.fechaNacimiento || '',
+      empresaContratante: empleado.empresaContratante || '',
       contratoURL: empleado.contratoURL || '',
       fechaInicioContrato: empleado.fechaInicioContrato || '',
       tipoVigencia: empleado.tipoVigencia || 'Trimestral',
@@ -575,7 +709,10 @@ const EmpleadosPage = () => {
   const formatDate = (dateString) => {
     if (!dateString) return 'No especificada';
     try {
-      return format(new Date(dateString), 'dd/MM/yyyy', { locale: es });
+      // Parsear fecha como local (no UTC) para evitar problemas de zona horaria
+      const [year, month, day] = dateString.split('-').map(Number);
+      const fecha = new Date(year, month - 1, day);
+      return format(fecha, 'dd/MM/yyyy', { locale: es });
     } catch (error) {
       return dateString;
     }
@@ -852,23 +989,6 @@ const EmpleadosPage = () => {
         </Grid>
       )}
 
-      {/* FAB para agregar empleado */}
-      {isAdmin && (
-        <Fab
-          color="primary"
-          aria-label="agregar empleado"
-          onClick={handleOpenAddDialog}
-          sx={{
-            position: 'fixed',
-            bottom: 32,
-            right: 32,
-            boxShadow: `0 8px 24px ${alpha(theme.palette.primary.main, 0.3)}`
-          }}
-        >
-          <AddIcon />
-        </Fab>
-      )}
-
       {/* Modal Agregar Empleado */}
       <Dialog
         open={addDialogOpen}
@@ -890,23 +1010,24 @@ const EmpleadosPage = () => {
           gap: 1.5
         }}>
           <PersonIcon />
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+          <Box component="span" sx={{ fontWeight: 600, fontSize: '1.25rem' }}>
             Agregar Nuevo Empleado
-          </Typography>
+          </Box>
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
-          <Grid container spacing={2.5}>
+          <Grid container spacing={2}>
             {/* Información Personal */}
             <Grid item xs={12}>
-              <Typography variant="overline" sx={{ 
-                fontWeight: 600, 
-                color: 'text.secondary',
-                letterSpacing: 0.8,
-                fontSize: '0.7rem'
+              <Typography variant="h6" sx={{ 
+                mb: 2, 
+                color: 'primary.main', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1 
               }}>
+                <BadgeIcon />
                 Información Personal
               </Typography>
-              <Divider sx={{ mt: 0.5, mb: 2 }} />
             </Grid>
 
             <Grid item xs={12} sm={6}>
@@ -1020,11 +1141,18 @@ const EmpleadosPage = () => {
             <Grid item xs={12}>
               <Paper
                 variant="outlined"
+                onDragOver={(e) => handleDragOver(e, 'documento')}
+                onDragLeave={(e) => handleDragLeave(e, 'documento')}
+                onDrop={(e) => handleDrop(e, 'documento', ['application/pdf', 'image/*'])}
                 sx={{
                   p: 2,
                   borderRadius: 2,
                   border: `2px dashed ${alpha(theme.palette.divider, 0.3)}`,
-                  bgcolor: alpha(theme.palette.info.main, 0.02)
+                  bgcolor: dragOverDocumento 
+                    ? alpha(theme.palette.info.main, 0.08)
+                    : alpha(theme.palette.info.main, 0.02),
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
                 }}
               >
                 <input
@@ -1034,7 +1162,7 @@ const EmpleadosPage = () => {
                   id="documento-identidad-upload"
                   onChange={(e) => setDocumentoIdentidadFile(e.target.files[0])}
                 />
-                <label htmlFor="documento-identidad-upload">
+                <label htmlFor="documento-identidad-upload" style={{ cursor: 'pointer', width: '100%', display: 'block' }}>
                   <Button
                     component="span"
                     variant="outlined"
@@ -1045,6 +1173,20 @@ const EmpleadosPage = () => {
                   >
                     {documentoIdentidadFile ? documentoIdentidadFile.name : 'Adjuntar Documento de Identidad (PDF o Imagen)'}
                   </Button>
+                  {!documentoIdentidadFile && (
+                    <Typography 
+                      variant="caption" 
+                      color="text.secondary" 
+                      sx={{ 
+                        display: 'block', 
+                        textAlign: 'center', 
+                        mt: 1,
+                        fontStyle: 'italic' 
+                      }}
+                    >
+                      o arrastra el archivo aquí
+                    </Typography>
+                  )}
                 </label>
                 {uploadingDocumentoIdentidad && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
@@ -1057,18 +1199,63 @@ const EmpleadosPage = () => {
 
             {/* Información Laboral */}
             <Grid item xs={12} sx={{ mt: 2 }}>
-              <Typography variant="overline" sx={{ 
-                fontWeight: 600, 
-                color: 'text.secondary',
-                letterSpacing: 0.8,
-                fontSize: '0.7rem'
+              <Typography variant="h6" sx={{ 
+                mb: 2, 
+                color: 'info.main', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1 
               }}>
+                <WorkIcon />
                 Información Laboral
               </Typography>
-              <Divider sx={{ mt: 0.5, mb: 2 }} />
             </Grid>
 
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={formData.tipoVigencia === 'Indefinido' ? 4 : 3}>
+              <FormControl fullWidth>
+                <InputLabel>Empresa Contratante</InputLabel>
+                <Select
+                  value={formData.empresaContratante || ''}
+                  onChange={(e) => handleFormChange('empresaContratante', e.target.value)}
+                  label="Empresa Contratante"                  displayEmpty
+                  sx={{ borderRadius: 2 }}
+                  renderValue={(selected) => {
+                    const empresa = empresas.find(e => e.name === selected);
+                    if (!empresa) return <em>Seleccionar empresa</em>;
+                    return (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Avatar
+                          src={empresa.logoURL}
+                          sx={{ width: 24, height: 24 }}
+                        >
+                          {empresa.name.charAt(0)}
+                        </Avatar>
+                        {empresa.name}
+                      </Box>
+                    );
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>Seleccionar empresa</em>
+                  </MenuItem>
+                  {empresas.map((empresa) => (
+                    <MenuItem key={empresa.id} value={empresa.name}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Avatar
+                          src={empresa.logoURL}
+                          sx={{ width: 24, height: 24 }}
+                        >
+                          {empresa.name.charAt(0)}
+                        </Avatar>
+                        {empresa.name}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12} sm={formData.tipoVigencia === 'Indefinido' ? 4 : 3}>
               <TextField
                 fullWidth
                 label="Fecha Inicio Contrato"
@@ -1080,7 +1267,7 @@ const EmpleadosPage = () => {
               />
             </Grid>
 
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={formData.tipoVigencia === 'Indefinido' ? 4 : 3}>
               <FormControl fullWidth>
                 <InputLabel>Tipo de Vigencia</InputLabel>
                 <Select
@@ -1098,7 +1285,7 @@ const EmpleadosPage = () => {
             </Grid>
 
             {formData.tipoVigencia !== 'Indefinido' && (
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12} sm={3}>
                 <TextField
                   fullWidth
                   label="Fecha Fin Contrato"
@@ -1120,28 +1307,40 @@ const EmpleadosPage = () => {
                     p: 2,
                     borderRadius: 2,
                     border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
-                    bgcolor: alpha(theme.palette.info.main, 0.02)
+                    bgcolor: formData.seRenueva 
+                      ? alpha(theme.palette.success.main, 0.05)
+                      : alpha(theme.palette.grey[500], 0.05),
+                    transition: 'all 0.2s ease'
                   }}
                 >
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formData.seRenueva}
-                        onChange={(e) => handleFormChange('seRenueva', e.target.checked)}
-                        color="primary"
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    {formData.seRenueva && (
+                      <Chip
+                        label="Renovación Automática"
+                        color="success"
+                        size="small"
                       />
-                    }
-                    label={
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          ¿El contrato se renueva automáticamente?
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Indica si este contrato {formData.tipoVigencia?.toLowerCase()} se renovará al finalizar el período
-                        </Typography>
-                      </Box>
-                    }
-                  />
+                    )}
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formData.seRenueva}
+                          onChange={(e) => handleFormChange('seRenueva', e.target.checked)}
+                          color="success"
+                        />
+                      }
+                      label={
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            ¿El contrato se renueva automáticamente?
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Indica si este contrato {formData.tipoVigencia?.toLowerCase()} se renovará al finalizar el período
+                          </Typography>
+                        </Box>
+                      }
+                    />
+                  </Box>
                 </Paper>
               </Grid>
             )}
@@ -1149,11 +1348,18 @@ const EmpleadosPage = () => {
             <Grid item xs={12}>
               <Paper
                 variant="outlined"
+                onDragOver={(e) => handleDragOver(e, 'contrato')}
+                onDragLeave={(e) => handleDragLeave(e, 'contrato')}
+                onDrop={(e) => handleDrop(e, 'contrato', ['application/pdf'])}
                 sx={{
                   p: 2,
                   borderRadius: 2,
                   border: `2px dashed ${alpha(theme.palette.divider, 0.3)}`,
-                  bgcolor: alpha(theme.palette.primary.main, 0.02)
+                  bgcolor: dragOverContrato
+                    ? alpha(theme.palette.primary.main, 0.08)
+                    : alpha(theme.palette.primary.main, 0.02),
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
                 }}
               >
                 <input
@@ -1163,7 +1369,7 @@ const EmpleadosPage = () => {
                   id="contrato-upload"
                   onChange={(e) => setContratoFile(e.target.files[0])}
                 />
-                <label htmlFor="contrato-upload">
+                <label htmlFor="contrato-upload" style={{ cursor: 'pointer', width: '100%', display: 'block' }}>
                   <Button
                     component="span"
                     variant="outlined"
@@ -1173,6 +1379,20 @@ const EmpleadosPage = () => {
                   >
                     {contratoFile ? contratoFile.name : 'Subir Contrato Laboral (PDF)'}
                   </Button>
+                  {!contratoFile && (
+                    <Typography 
+                      variant="caption" 
+                      color="text.secondary" 
+                      sx={{ 
+                        display: 'block', 
+                        textAlign: 'center', 
+                        mt: 1,
+                        fontStyle: 'italic' 
+                      }}
+                    >
+                      o arrastra el archivo aquí
+                    </Typography>
+                  )}
                 </label>
                 {uploadingContrato && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
@@ -1185,15 +1405,16 @@ const EmpleadosPage = () => {
 
             {/* Información Bancaria */}
             <Grid item xs={12} sx={{ mt: 2 }}>
-              <Typography variant="overline" sx={{ 
-                fontWeight: 600, 
-                color: 'text.secondary',
-                letterSpacing: 0.8,
-                fontSize: '0.7rem'
+              <Typography variant="h6" sx={{ 
+                mb: 2, 
+                color: 'secondary.main', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1 
               }}>
+                <AccountBalanceIcon />
                 Información Bancaria
               </Typography>
-              <Divider sx={{ mt: 0.5, mb: 2 }} />
             </Grid>
 
             <Grid item xs={12} sm={6}>
@@ -1246,11 +1467,18 @@ const EmpleadosPage = () => {
             <Grid item xs={12}>
               <Paper
                 variant="outlined"
+                onDragOver={(e) => handleDragOver(e, 'certificado')}
+                onDragLeave={(e) => handleDragLeave(e, 'certificado')}
+                onDrop={(e) => handleDrop(e, 'certificado', ['application/pdf'])}
                 sx={{
                   p: 2,
                   borderRadius: 2,
                   border: `2px dashed ${alpha(theme.palette.divider, 0.3)}`,
-                  bgcolor: alpha(theme.palette.success.main, 0.02)
+                  bgcolor: dragOverCertificado
+                    ? alpha(theme.palette.success.main, 0.08)
+                    : alpha(theme.palette.success.main, 0.02),
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
                 }}
               >
                 <input
@@ -1260,7 +1488,7 @@ const EmpleadosPage = () => {
                   id="certificado-upload"
                   onChange={(e) => setCertificadoFile(e.target.files[0])}
                 />
-                <label htmlFor="certificado-upload">
+                <label htmlFor="certificado-upload" style={{ cursor: 'pointer', width: '100%', display: 'block' }}>
                   <Button
                     component="span"
                     variant="outlined"
@@ -1271,6 +1499,20 @@ const EmpleadosPage = () => {
                   >
                     {certificadoFile ? certificadoFile.name : 'Subir Certificado Bancario (PDF)'}
                   </Button>
+                  {!certificadoFile && (
+                    <Typography 
+                      variant="caption" 
+                      color="text.secondary" 
+                      sx={{ 
+                        display: 'block', 
+                        textAlign: 'center', 
+                        mt: 1,
+                        fontStyle: 'italic' 
+                      }}
+                    >
+                      o arrastra el archivo aquí
+                    </Typography>
+                  )}
                 </label>
                 {uploadingCertificado && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
@@ -1317,31 +1559,32 @@ const EmpleadosPage = () => {
         }}
       >
         <DialogTitle sx={{
-          background: `linear-gradient(135deg, ${theme.palette.warning.main}, ${theme.palette.error.main})`,
+          background: `linear-gradient(135deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
           color: 'white',
           display: 'flex',
           alignItems: 'center',
           gap: 1.5
         }}>
           <EditIcon />
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+          <Box component="span" sx={{ fontWeight: 600, fontSize: '1.25rem' }}>
             Editar Empleado
-          </Typography>
+          </Box>
         </DialogTitle>
         <DialogContent sx={{ pt: 3 }}>
           {/* Mismo contenido que el modal de agregar */}
-          <Grid container spacing={2.5}>
+          <Grid container spacing={2}>
             {/* Copiar estructura del modal de agregar */}
             <Grid item xs={12}>
-              <Typography variant="overline" sx={{ 
-                fontWeight: 600, 
-                color: 'text.secondary',
-                letterSpacing: 0.8,
-                fontSize: '0.7rem'
+              <Typography variant="h6" sx={{ 
+                mb: 2, 
+                color: 'primary.main', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1 
               }}>
+                <BadgeIcon />
                 Información Personal
               </Typography>
-              <Divider sx={{ mt: 0.5, mb: 2 }} />
             </Grid>
 
             <Grid item xs={12} sm={6}>
@@ -1455,11 +1698,18 @@ const EmpleadosPage = () => {
             <Grid item xs={12}>
               <Paper
                 variant="outlined"
+                onDragOver={(e) => handleDragOver(e, 'documento')}
+                onDragLeave={(e) => handleDragLeave(e, 'documento')}
+                onDrop={(e) => handleDrop(e, 'documento', ['application/pdf', 'image/*'])}
                 sx={{
                   p: 2,
                   borderRadius: 2,
                   border: `2px dashed ${alpha(theme.palette.divider, 0.3)}`,
-                  bgcolor: alpha(theme.palette.info.main, 0.02)
+                  bgcolor: dragOverDocumento 
+                    ? alpha(theme.palette.info.main, 0.08)
+                    : alpha(theme.palette.info.main, 0.02),
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
                 }}
               >
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -1470,7 +1720,7 @@ const EmpleadosPage = () => {
                     id="documento-identidad-upload-edit"
                     onChange={(e) => setDocumentoIdentidadFile(e.target.files[0])}
                   />
-                  <label htmlFor="documento-identidad-upload-edit">
+                  <label htmlFor="documento-identidad-upload-edit" style={{ cursor: 'pointer', width: '100%' }}>
                     <Button
                       component="span"
                       variant="outlined"
@@ -1481,6 +1731,20 @@ const EmpleadosPage = () => {
                     >
                       {documentoIdentidadFile ? documentoIdentidadFile.name : selectedEmpleado?.documentoIdentidadURL ? 'Cambiar Documento de Identidad' : 'Adjuntar Documento de Identidad'}
                     </Button>
+                    {!documentoIdentidadFile && !selectedEmpleado?.documentoIdentidadURL && (
+                      <Typography 
+                        variant="caption" 
+                        color="text.secondary" 
+                        sx={{ 
+                          display: 'block', 
+                          textAlign: 'center', 
+                          mt: 1,
+                          fontStyle: 'italic' 
+                        }}
+                      >
+                        o arrastra el archivo aquí
+                      </Typography>
+                    )}
                   </label>
                   {selectedEmpleado?.documentoIdentidadURL && (
                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
@@ -1505,9 +1769,14 @@ const EmpleadosPage = () => {
                         onClick={async () => {
                           if (window.confirm('¿Estás seguro de que deseas eliminar el documento de identidad?')) {
                             try {
+                              // Eliminar archivo de Storage
+                              await deleteFileFromStorage(selectedEmpleado.documentoIdentidadURL);
+                              
+                              // Actualizar Firestore
                               await updateDoc(doc(db, 'empleados', selectedEmpleado.id), {
                                 documentoIdentidadURL: ''
                               });
+                              
                               setSelectedEmpleado({ ...selectedEmpleado, documentoIdentidadURL: '' });
                               addNotification('Documento eliminado exitosamente', 'success');
                             } catch (error) {
@@ -1534,18 +1803,63 @@ const EmpleadosPage = () => {
 
             {/* Información Laboral */}
             <Grid item xs={12} sx={{ mt: 2 }}>
-              <Typography variant="overline" sx={{ 
-                fontWeight: 600, 
-                color: 'text.secondary',
-                letterSpacing: 0.8,
-                fontSize: '0.7rem'
+              <Typography variant="h6" sx={{ 
+                mb: 2, 
+                color: 'info.main', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1 
               }}>
+                <WorkIcon />
                 Información Laboral
               </Typography>
-              <Divider sx={{ mt: 0.5, mb: 2 }} />
             </Grid>
 
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={formData.tipoVigencia === 'Indefinido' ? 4 : 3}>
+              <FormControl fullWidth>
+                <InputLabel>Empresa Contratante</InputLabel>
+                <Select
+                  value={formData.empresaContratante || ''}
+                  onChange={(e) => handleFormChange('empresaContratante', e.target.value)}
+                  label="Empresa Contratante"                  displayEmpty
+                  sx={{ borderRadius: 2 }}
+                  renderValue={(selected) => {
+                    const empresa = empresas.find(e => e.name === selected);
+                    if (!empresa) return <em>Seleccionar empresa</em>;
+                    return (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Avatar
+                          src={empresa.logoURL}
+                          sx={{ width: 24, height: 24 }}
+                        >
+                          {empresa.name.charAt(0)}
+                        </Avatar>
+                        {empresa.name}
+                      </Box>
+                    );
+                  }}
+                >
+                  <MenuItem value="">
+                    <em>Seleccionar empresa</em>
+                  </MenuItem>
+                  {empresas.map((empresa) => (
+                    <MenuItem key={empresa.id} value={empresa.name}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Avatar
+                          src={empresa.logoURL}
+                          sx={{ width: 24, height: 24 }}
+                        >
+                          {empresa.name.charAt(0)}
+                        </Avatar>
+                        {empresa.name}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12} sm={formData.tipoVigencia === 'Indefinido' ? 4 : 3}>
               <TextField
                 fullWidth
                 label="Fecha Inicio Contrato"
@@ -1557,7 +1871,7 @@ const EmpleadosPage = () => {
               />
             </Grid>
 
-            <Grid item xs={12} sm={4}>
+            <Grid item xs={12} sm={formData.tipoVigencia === 'Indefinido' ? 4 : 3}>
               <FormControl fullWidth>
                 <InputLabel>Tipo de Vigencia</InputLabel>
                 <Select
@@ -1575,7 +1889,7 @@ const EmpleadosPage = () => {
             </Grid>
 
             {formData.tipoVigencia !== 'Indefinido' && (
-              <Grid item xs={12} sm={4}>
+              <Grid item xs={12} sm={3}>
                 <TextField
                   fullWidth
                   label="Fecha Fin Contrato"
@@ -1597,28 +1911,42 @@ const EmpleadosPage = () => {
                     p: 2,
                     borderRadius: 2,
                     border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
-                    bgcolor: alpha(theme.palette.info.main, 0.02)
+                    bgcolor: formData.seRenueva 
+                      ? alpha(theme.palette.success.main, 0.05)
+                      : alpha(theme.palette.grey[500], 0.02),
+                    transition: 'all 0.3s ease'
                   }}
                 >
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formData.seRenueva}
-                        onChange={(e) => handleFormChange('seRenueva', e.target.checked)}
-                        color="primary"
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formData.seRenueva}
+                          onChange={(e) => handleFormChange('seRenueva', e.target.checked)}
+                          color="success"
+                        />
+                      }
+                      label={
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            ¿El contrato se renueva automáticamente?
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Indica si este contrato {formData.tipoVigencia?.toLowerCase()} se renovará al finalizar el período
+                          </Typography>
+                        </Box>
+                      }
+                      sx={{ flex: 1 }}
+                    />
+                    {formData.seRenueva && (
+                      <Chip 
+                        label="Renovación Automática" 
+                        size="small" 
+                        color="success" 
+                        sx={{ fontWeight: 600 }}
                       />
-                    }
-                    label={
-                      <Box>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          ¿El contrato se renueva automáticamente?
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Indica si este contrato {formData.tipoVigencia?.toLowerCase()} se renovará al finalizar el período
-                        </Typography>
-                      </Box>
-                    }
-                  />
+                    )}
+                  </Box>
                 </Paper>
               </Grid>
             )}
@@ -1626,11 +1954,18 @@ const EmpleadosPage = () => {
             <Grid item xs={12}>
               <Paper
                 variant="outlined"
+                onDragOver={(e) => handleDragOver(e, 'contrato')}
+                onDragLeave={(e) => handleDragLeave(e, 'contrato')}
+                onDrop={(e) => handleDrop(e, 'contrato', ['application/pdf'])}
                 sx={{
                   p: 2,
                   borderRadius: 2,
                   border: `2px dashed ${alpha(theme.palette.divider, 0.3)}`,
-                  bgcolor: alpha(theme.palette.primary.main, 0.02)
+                  bgcolor: dragOverContrato
+                    ? alpha(theme.palette.primary.main, 0.08)
+                    : alpha(theme.palette.primary.main, 0.02),
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
                 }}
               >
                 <input
@@ -1640,7 +1975,7 @@ const EmpleadosPage = () => {
                   id="contrato-upload-edit"
                   onChange={(e) => setContratoFile(e.target.files[0])}
                 />
-                <label htmlFor="contrato-upload-edit">
+                <label htmlFor="contrato-upload-edit" style={{ cursor: 'pointer', width: '100%', display: 'block' }}>
                   <Button
                     component="span"
                     variant="outlined"
@@ -1650,6 +1985,20 @@ const EmpleadosPage = () => {
                   >
                     {contratoFile ? contratoFile.name : selectedEmpleado?.contratoURL ? 'Cambiar Contrato' : 'Subir Contrato'}
                   </Button>
+                  {!contratoFile && !selectedEmpleado?.contratoURL && (
+                    <Typography 
+                      variant="caption" 
+                      color="text.secondary" 
+                      sx={{ 
+                        display: 'block', 
+                        textAlign: 'center', 
+                        mt: 1,
+                        fontStyle: 'italic' 
+                      }}
+                    >
+                      o arrastra el archivo aquí
+                    </Typography>
+                  )}
                 </label>
                 {selectedEmpleado?.contratoURL && !contratoFile && (
                   <Box sx={{ display: 'flex', gap: 1, mt: 1, justifyContent: 'center' }}>
@@ -1668,9 +2017,14 @@ const EmpleadosPage = () => {
                       onClick={async () => {
                         if (window.confirm('¿Estás seguro de que deseas eliminar el contrato?')) {
                           try {
+                            // Eliminar archivo de Storage
+                            await deleteFileFromStorage(selectedEmpleado.contratoURL);
+                            
+                            // Actualizar Firestore
                             await updateDoc(doc(db, 'empleados', selectedEmpleado.id), {
                               contratoURL: ''
                             });
+                            
                             setSelectedEmpleado({ ...selectedEmpleado, contratoURL: '' });
                             addNotification('Contrato eliminado exitosamente', 'success');
                           } catch (error) {
@@ -1690,15 +2044,16 @@ const EmpleadosPage = () => {
 
             {/* Información Bancaria */}
             <Grid item xs={12} sx={{ mt: 2 }}>
-              <Typography variant="overline" sx={{ 
-                fontWeight: 600, 
-                color: 'text.secondary',
-                letterSpacing: 0.8,
-                fontSize: '0.7rem'
+              <Typography variant="h6" sx={{ 
+                mb: 2, 
+                color: 'secondary.main', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1 
               }}>
+                <AccountBalanceIcon />
                 Información Bancaria
               </Typography>
-              <Divider sx={{ mt: 0.5, mb: 2 }} />
             </Grid>
 
             <Grid item xs={12} sm={6}>
@@ -1751,11 +2106,18 @@ const EmpleadosPage = () => {
             <Grid item xs={12}>
               <Paper
                 variant="outlined"
+                onDragOver={(e) => handleDragOver(e, 'certificado')}
+                onDragLeave={(e) => handleDragLeave(e, 'certificado')}
+                onDrop={(e) => handleDrop(e, 'certificado', ['application/pdf'])}
                 sx={{
                   p: 2,
                   borderRadius: 2,
                   border: `2px dashed ${alpha(theme.palette.divider, 0.3)}`,
-                  bgcolor: alpha(theme.palette.success.main, 0.02)
+                  bgcolor: dragOverCertificado
+                    ? alpha(theme.palette.success.main, 0.08)
+                    : alpha(theme.palette.success.main, 0.02),
+                  transition: 'all 0.2s ease',
+                  cursor: 'pointer'
                 }}
               >
                 <input
@@ -1765,7 +2127,7 @@ const EmpleadosPage = () => {
                   id="certificado-upload-edit"
                   onChange={(e) => setCertificadoFile(e.target.files[0])}
                 />
-                <label htmlFor="certificado-upload-edit">
+                <label htmlFor="certificado-upload-edit" style={{ cursor: 'pointer', width: '100%', display: 'block' }}>
                   <Button
                     component="span"
                     variant="outlined"
@@ -1776,6 +2138,20 @@ const EmpleadosPage = () => {
                   >
                     {certificadoFile ? certificadoFile.name : selectedEmpleado?.certificadoBancarioURL ? 'Cambiar Certificado' : 'Subir Certificado'}
                   </Button>
+                  {!certificadoFile && !selectedEmpleado?.certificadoBancarioURL && (
+                    <Typography 
+                      variant="caption" 
+                      color="text.secondary" 
+                      sx={{ 
+                        display: 'block', 
+                        textAlign: 'center', 
+                        mt: 1,
+                        fontStyle: 'italic' 
+                      }}
+                    >
+                      o arrastra el archivo aquí
+                    </Typography>
+                  )}
                 </label>
                 {selectedEmpleado?.certificadoBancarioURL && !certificadoFile && (
                   <Box sx={{ display: 'flex', gap: 1, mt: 1, justifyContent: 'center' }}>
@@ -1794,9 +2170,14 @@ const EmpleadosPage = () => {
                       onClick={async () => {
                         if (window.confirm('¿Estás seguro de que deseas eliminar el certificado bancario?')) {
                           try {
+                            // Eliminar archivo de Storage
+                            await deleteFileFromStorage(selectedEmpleado.certificadoBancarioURL);
+                            
+                            // Actualizar Firestore
                             await updateDoc(doc(db, 'empleados', selectedEmpleado.id), {
                               certificadoBancarioURL: ''
                             });
+                            
                             setSelectedEmpleado({ ...selectedEmpleado, certificadoBancarioURL: '' });
                             addNotification('Certificado eliminado exitosamente', 'success');
                           } catch (error) {
@@ -1872,7 +2253,7 @@ const EmpleadosPage = () => {
               
               <Grid container spacing={2} sx={{ mb: 3 }}>
                 {/* Primera fila */}
-                <Grid item xs={12} md={8}>
+                <Grid item xs={12} md={6}>
                   <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
                     <Typography variant="subtitle2" color="primary" gutterBottom>
                       Nombre Completo
@@ -1883,7 +2264,7 @@ const EmpleadosPage = () => {
                   </Card>
                 </Grid>
 
-                <Grid item xs={12} md={4}>
+                <Grid item xs={12} md={6}>
                   <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
                     <Typography variant="subtitle2" color="primary" gutterBottom>
                       Nacionalidad
@@ -1898,10 +2279,10 @@ const EmpleadosPage = () => {
                 <Grid item xs={12} md={4}>
                   <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
                     <Typography variant="subtitle2" color="primary" gutterBottom>
-                      Tipo Documento
+                      Tipo y N° Documento
                     </Typography>
-                    <Typography variant="body1">
-                      {selectedEmpleado.tipoDocumento}
+                    <Typography variant="body1" fontWeight="medium">
+                      {selectedEmpleado.tipoDocumento} {formatearNumeroDocumento(selectedEmpleado.numeroDocumento || '')}
                     </Typography>
                   </Card>
                 </Grid>
@@ -1909,10 +2290,11 @@ const EmpleadosPage = () => {
                 <Grid item xs={12} md={4}>
                   <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
                     <Typography variant="subtitle2" color="primary" gutterBottom>
-                      N° Documento
+                      <CalendarIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                      Fecha de Nacimiento
                     </Typography>
-                    <Typography variant="body1" fontWeight="medium">
-                      {formatearNumeroDocumento(selectedEmpleado.numeroDocumento || '')}
+                    <Typography variant="body1">
+                      {formatDate(selectedEmpleado.fechaNacimiento)}
                     </Typography>
                   </Card>
                 </Grid>
@@ -1929,8 +2311,39 @@ const EmpleadosPage = () => {
                 </Grid>
 
                 {/* Tercera fila */}
+                {selectedEmpleado.empresaContratante && (
+                  <Grid item xs={12} md={4}>
+                    <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                      <Typography variant="subtitle2" color="primary" gutterBottom>
+                        <WorkIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                        Empresa Contratante
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {(() => {
+                          const empresa = empresas.find(e => e.name === selectedEmpleado.empresaContratante);
+                          return (
+                            <>
+                              {empresa?.logoURL && (
+                                <Avatar
+                                  src={empresa.logoURL}
+                                  sx={{ width: 32, height: 32 }}
+                                >
+                                  {selectedEmpleado.empresaContratante.charAt(0)}
+                                </Avatar>
+                              )}
+                              <Typography variant="body1" fontWeight="medium">
+                                {selectedEmpleado.empresaContratante}
+                              </Typography>
+                            </>
+                          );
+                        })()}
+                      </Box>
+                    </Card>
+                  </Grid>
+                )}
+
                 {selectedEmpleado.emailCorporativo && (
-                  <Grid item xs={12} md={6}>
+                  <Grid item xs={12} md={selectedEmpleado.empresaContratante ? 4 : 6}>
                     <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
                       <Typography variant="subtitle2" color="primary" gutterBottom>
                         <EmailIcon sx={{ fontSize: 16, mr: 0.5 }} />
@@ -1944,7 +2357,7 @@ const EmpleadosPage = () => {
                 )}
 
                 {selectedEmpleado.telefono && (
-                  <Grid item xs={12} md={6}>
+                  <Grid item xs={12} md={selectedEmpleado.empresaContratante ? 4 : 6}>
                     <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
                       <Typography variant="subtitle2" color="primary" gutterBottom>
                         <PhoneIcon sx={{ fontSize: 16, mr: 0.5 }} />
@@ -1973,18 +2386,6 @@ const EmpleadosPage = () => {
                     </Card>
                   </Grid>
                 )}
-
-                <Grid item xs={12} md={selectedEmpleado.emailCorporativo || selectedEmpleado.telefono ? 12 : 4}>
-                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="primary" gutterBottom>
-                      <CalendarIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                      Fecha de Nacimiento
-                    </Typography>
-                    <Typography variant="body1">
-                      {formatDate(selectedEmpleado.fechaNacimiento)}
-                    </Typography>
-                  </Card>
-                </Grid>
               </Grid>
 
               {/* Documento de Identidad */}
@@ -2053,6 +2454,43 @@ const EmpleadosPage = () => {
                     </Typography>
                     <Typography variant="body1" fontWeight="medium">
                       {selectedEmpleado.tipoVigencia || 'No especificado'}
+                    </Typography>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle2" color="info" gutterBottom>
+                      <AccessTimeIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                      Tiempo en la Empresa
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium">
+                      {(() => {
+                        if (!selectedEmpleado.fechaInicioContrato) return 'No disponible';
+                        
+                        // Parsear fecha como local (no UTC) para evitar problemas de zona horaria
+                        const [year, month, day] = selectedEmpleado.fechaInicioContrato.split('-').map(Number);
+                        const fechaInicio = new Date(year, month - 1, day);
+                        const hoy = new Date();
+                        
+                        let años = hoy.getFullYear() - fechaInicio.getFullYear();
+                        let meses = hoy.getMonth() - fechaInicio.getMonth();
+                        
+                        if (meses < 0) {
+                          años--;
+                          meses += 12;
+                        }
+                        
+                        if (años > 0 && meses > 0) {
+                          return `${años} año${años > 1 ? 's' : ''} y ${meses} mes${meses > 1 ? 'es' : ''}`;
+                        } else if (años > 0) {
+                          return `${años} año${años > 1 ? 's' : ''}`;
+                        } else if (meses > 0) {
+                          return `${meses} mes${meses > 1 ? 'es' : ''}`;
+                        } else {
+                          return 'Menos de 1 mes';
+                        }
+                      })()}
                     </Typography>
                   </Card>
                 </Grid>

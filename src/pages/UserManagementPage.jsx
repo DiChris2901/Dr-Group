@@ -138,8 +138,6 @@ const UserManagementPage = () => {
 
   // Estados para empresas y archivos
   const [companies, setCompanies] = useState([]);
-  const [uploadingContract, setUploadingContract] = useState(false);
-  const [contractFile, setContractFile] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   
   // Estados del formulario
@@ -155,9 +153,7 @@ const UserManagementPage = () => {
     notes: '',
     temporalPassword: '', // Nueva contraseña temporal
     position: '', // Cargo/Posición
-    hireDate: '', // Fecha de ingreso
-    photoURL: '', // URL de foto de perfil
-    contractURL: '' // URL del contrato
+    photoURL: '' // URL de foto de perfil
   });
 
   // Estado para detectar cambios en el formulario
@@ -261,19 +257,8 @@ const UserManagementPage = () => {
           department: user.department || '',
           notes: user.notes || '',
           position: user.position || '',
-          hireDate: user.hireDate || '',
-          photoURL: user.photoURL || '',
-          contractURL: user.contractURL || ''
+          photoURL: user.photoURL || ''
         };
-        
-        // Cargar contrato si existe
-        if (user.contractURL) {
-          setContractFile({
-            url: user.contractURL,
-            name: 'Contrato.pdf',
-            uploadedAt: user.contractUploadedAt || null
-          });
-        }
         
         setFormData(userData);
         setOriginalFormData(JSON.parse(JSON.stringify(userData)));
@@ -295,9 +280,7 @@ const UserManagementPage = () => {
           notes: '',
           temporalPassword: 'DRGroup2025!',
           position: '',
-          hireDate: '',
-          photoURL: '',
-          contractURL: ''
+          photoURL: ''
         };
         
         console.log('📋 Datos del nuevo usuario:', newUserData);
@@ -488,92 +471,7 @@ const UserManagementPage = () => {
     }
   };
 
-  // 📄 Subir contrato
-  const handleContractUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // Validar tipo de archivo
-    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowedTypes.includes(file.type)) {
-      addNotification({
-        type: 'error',
-        title: 'Archivo Inválido',
-        message: 'Solo se permiten archivos PDF o Word'
-      });
-      return;
-    }
-
-    // Validar tamaño (máximo 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      addNotification({
-        type: 'error',
-        title: 'Archivo muy grande',
-        message: 'El contrato no debe superar 5MB'
-      });
-      return;
-    }
-
-    try {
-      setUploadingContract(true);
-      const userId = editingUser?.id || formData.email.replace(/[^a-zA-Z0-9]/g, '_');
-      const contractRef = ref(storage, `users/${userId}/contrato_${Date.now()}.pdf`);
-      
-      await uploadBytes(contractRef, file);
-      const contractURL = await getDownloadURL(contractRef);
-      
-      setContractFile({
-        url: contractURL,
-        name: file.name,
-        uploadedAt: new Date()
-      });
-      
-      updateFormData({ contractURL });
-      
-      addNotification({
-        type: 'success',
-        title: 'Contrato Subido',
-        message: 'Contrato cargado correctamente'
-      });
-    } catch (error) {
-      console.error('Error uploading contract:', error);
-      addNotification({
-        type: 'error',
-        title: 'Error al Subir Contrato',
-        message: error.message
-      });
-    } finally {
-      setUploadingContract(false);
-    }
-  };
-
-  // 🗑️ Eliminar contrato
-  const handleDeleteContract = async () => {
-    if (!formData.contractURL) return;
-
-    try {
-      const contractRef = ref(storage, formData.contractURL);
-      await deleteObject(contractRef);
-      
-      setContractFile(null);
-      updateFormData({ contractURL: '' });
-      
-      addNotification({
-        type: 'success',
-        title: 'Contrato Eliminado',
-        message: 'El contrato ha sido eliminado correctamente'
-      });
-    } catch (error) {
-      console.error('Error deleting contract:', error);
-      addNotification({
-        type: 'error',
-        title: 'Error al Eliminar',
-        message: error.message
-      });
-    }
-  };
-
-  // �🔄 Función para sincronizar usuarios con Authentication
+  // 🔄 Función para sincronizar usuarios con Authentication
   const syncUserWithAuth = async (user) => {
     try {
       console.log('🔄 Sincronizando usuario con Authentication...', user.email);
@@ -645,9 +543,7 @@ const UserManagementPage = () => {
         department: formData.department,
         notes: formData.notes,
         position: formData.position || '',           // ✅ Cargo/Posición
-        hireDate: formData.hireDate || '',           // ✅ Fecha de ingreso
         photoURL: formData.photoURL || '',           // ✅ URL de foto de perfil
-        contractURL: formData.contractURL || '',     // ✅ URL del contrato
         updatedAt: new Date(),
         ...(editingUser ? {} : { 
           createdAt: new Date(),
@@ -704,9 +600,7 @@ const UserManagementPage = () => {
             isActive: true,
             department: formData.department || 'Administración',
             position: formData.position || (formData.role === 'ADMIN' ? 'Administrador' : 'Usuario'),  // ✅ Usar el cargo del formulario
-            hireDate: formData.hireDate || '',           // ✅ Fecha de ingreso
             photoURL: formData.photoURL || '',           // ✅ URL de foto de perfil
-            contractURL: formData.contractURL || '',     // ✅ URL del contrato
             authUid: userCredential.user.uid,
             status: 'ACTIVE',
             createdAt: new Date(),
@@ -1477,13 +1371,15 @@ const UserManagementPage = () => {
               {!formData.photoURL && (editingUser ? <EditIcon /> : <PersonAddIcon />)}
             </Avatar>
             <Box>
-              <Typography variant="h6" sx={{ 
+              <Box component="span" sx={{ 
                 fontWeight: 700,
+                fontSize: '1.25rem',
                 mb: 0,
-                color: 'text.primary' 
+                color: 'text.primary',
+                display: 'block'
               }}>
                 {editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
-              </Typography>
+              </Box>
               {editingUser && (
                 <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                   {formData.email}
@@ -1674,7 +1570,7 @@ const UserManagementPage = () => {
                 {/* FILA 2: Información Adicional */}
                 
                 {/* Cargo/Posición */}
-                <Grid item xs={12} md={3}>
+                <Grid item xs={12} md={4}>
                   <TextField
                     fullWidth
                     label="Cargo/Posición"
@@ -1695,31 +1591,8 @@ const UserManagementPage = () => {
                   />
                 </Grid>
 
-                {/* Fecha de Ingreso */}
-                <Grid item xs={12} md={2.5}>
-                  <TextField
-                    fullWidth
-                    label="Fecha de Ingreso"
-                    type="date"
-                    value={formData.hireDate}
-                    onChange={(e) => updateFormData({ hireDate: e.target.value })}
-                    size="small"
-                    InputLabelProps={{ shrink: true }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 1,
-                        backgroundColor: alpha(theme.palette.success.main, 0.05),
-                        transition: 'all 0.2s ease',
-                        '&:hover': {
-                          backgroundColor: alpha(theme.palette.success.main, 0.08)
-                        }
-                      }
-                    }}
-                  />
-                </Grid>
-
                 {/* Empresas Asignadas */}
-                <Grid item xs={12} md={6.5}>
+                <Grid item xs={12} md={8}>
                   <FormControl 
                     fullWidth 
                     size="small"
@@ -1794,72 +1667,7 @@ const UserManagementPage = () => {
                 </Grid>
 
 
-                {/* FILA 3: Contrato */}
-                
-                {/* Botón Subir Contrato */}
-                <Grid item xs={12} md={contractFile || formData.contractURL ? 8 : 12}>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block', fontSize: '0.75rem' }}>
-                      Contrato Laboral
-                    </Typography>
-                    <Button
-                      variant="outlined"
-                      component="label"
-                      size="small"
-                      startIcon={uploadingContract ? <CircularProgress size={16} /> : <AttachFileIcon />}
-                      fullWidth
-                      disabled={uploadingContract}
-                      sx={{ 
-                        borderRadius: 1, 
-                        textTransform: 'none',
-                        mt: 0.3,
-                        height: 40
-                      }}
-                    >
-                      {contractFile || formData.contractURL ? 'Cambiar Contrato' : 'Subir Contrato (PDF/Word)'}
-                      <input 
-                        type="file" 
-                        hidden 
-                        accept=".pdf,.doc,.docx"
-                        onChange={handleContractUpload}
-                      />
-                    </Button>
-                  </Box>
-                </Grid>
-
-                {/* Botones de Acción del Contrato */}
-                {(contractFile || formData.contractURL) && (
-                  <Grid item xs={12} md={4}>
-                    <Box>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', mb: 0.5, display: 'block', fontSize: '0.75rem' }}>
-                        Acciones
-                      </Typography>
-                      <Box sx={{ display: 'flex', gap: 1, mt: 0.3 }}>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          startIcon={<FileIcon />}
-                          onClick={() => window.open(formData.contractURL || contractFile?.url, '_blank')}
-                          sx={{ borderRadius: 1, textTransform: 'none', flex: 1 }}
-                        >
-                          Ver
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          color="error"
-                          size="small"
-                          startIcon={<CloseIcon />}
-                          onClick={handleDeleteContract}
-                          sx={{ borderRadius: 1, textTransform: 'none', flex: 1 }}
-                        >
-                          Eliminar
-                        </Button>
-                      </Box>
-                    </Box>
-                  </Grid>
-                )}
-
-                {/* FILA 4: Notas y Estado */}
+                {/* FILA 3: Notas y Estado */}
 
                 {/* Notas */}
                 <Grid item xs={12} md={10}>
@@ -2291,14 +2099,6 @@ const UserManagementPage = () => {
                           </Typography>
                           <Typography variant="body2" sx={{ fontWeight: 500 }}>
                             {formData.position || '—'}
-                          </Typography>
-                        </Box>
-                        <Box>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase', fontSize: '0.65rem' }}>
-                            Fecha de Ingreso
-                          </Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {formData.hireDate ? new Date(formData.hireDate).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}
                           </Typography>
                         </Box>
                       </Box>
