@@ -3583,7 +3583,7 @@ const NewPaymentPage = () => {
               ? 'linear-gradient(135deg, rgba(30, 30, 40, 0.98) 0%, rgba(20, 20, 30, 0.98) 100%)'
               : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 250, 252, 0.98) 100%)',
             backdropFilter: 'blur(20px)',
-            border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
             boxShadow: theme.palette.mode === 'dark'
               ? '0 20px 60px rgba(0, 0, 0, 0.5)'
               : '0 20px 60px rgba(0, 0, 0, 0.1)',
@@ -3600,11 +3600,11 @@ const NewPaymentPage = () => {
             width: 48,
             height: 48,
             borderRadius: 2,
-            background: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.dark} 100%)`,
+            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: `0 4px 20px ${alpha(theme.palette.success.main, 0.3)}`
+            boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.3)}`
           }}>
             <SaveIcon sx={{ color: 'white', fontSize: 28 }} />
           </Box>
@@ -3736,15 +3736,15 @@ const NewPaymentPage = () => {
                 <Box sx={{ 
                   p: 2, 
                   borderRadius: 2, 
-                  background: alpha(theme.palette.success.main, 0.1),
-                  border: `2px solid ${theme.palette.success.main}`
+                  background: alpha(theme.palette.primary.main, 0.05),
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
                 }}>
-                  <Typography variant="caption" color="success.main" fontWeight="700" sx={{ mb: 0.5, display: 'block' }}>
+                  <Typography variant="caption" color="primary.main" fontWeight="700" sx={{ mb: 0.5, display: 'block' }}>
                     MONTO TOTAL A PAGAR
                   </Typography>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <MoneyIcon color="success" sx={{ fontSize: 28 }} />
-                    <Typography variant="h5" fontWeight="700" color="success.main">
+                    <MoneyIcon color="primary" sx={{ fontSize: 28 }} />
+                    <Typography variant="h5" fontWeight="700" color="primary.main">
                       ${parseFloat(formData.finalAmount || 0).toLocaleString('es-CO')}
                     </Typography>
                   </Box>
@@ -3864,10 +3864,10 @@ const NewPaymentPage = () => {
               textTransform: 'none',
               px: 3,
               fontWeight: 600,
-              background: `linear-gradient(135deg, ${theme.palette.success.main} 0%, ${theme.palette.success.dark} 100%)`,
-              boxShadow: `0 4px 20px ${alpha(theme.palette.success.main, 0.3)}`,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)`,
+              boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.3)}`,
               '&:hover': {
-                boxShadow: `0 6px 25px ${alpha(theme.palette.success.main, 0.4)}`,
+                boxShadow: `0 6px 25px ${alpha(theme.palette.primary.main, 0.4)}`,
                 transform: 'translateY(-2px)',
                 transition: 'all 0.3s ease'
               }
