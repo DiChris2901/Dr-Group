@@ -43,6 +43,7 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  Person as PersonIcon,
   PersonAdd as PersonAddIcon,
   AdminPanelSettings as AdminIcon,
   Security as SecurityIcon,
@@ -236,7 +237,7 @@ const UserManagementPage = () => {
         setEditingUser(user);
         
         // Filtrar solo permisos del nuevo sistema
-        const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'usuarios', 'asistencias', 'auditoria', 'storage'];
+        const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'usuarios', 'empleados', 'asistencias', 'auditoria', 'storage'];
         
         // Convertir permissions de objeto a array si es necesario
         let userPermissions = user.permissions || [];
@@ -408,6 +409,7 @@ const UserManagementPage = () => {
         'reportes.por_periodo',
         'reportes.por_concepto',
         'usuarios',
+        'empleados',
         'asistencias',
         'auditoria',
         'storage'
@@ -621,7 +623,7 @@ const UserManagementPage = () => {
       setError(null);
       
       // Filtrar permisos para asegurar que solo se guarden los del nuevo sistema
-      const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'usuarios', 'asistencias', 'auditoria', 'storage'];
+      const newSystemPermissions = ['dashboard', 'compromisos', 'compromisos.ver_todos', 'compromisos.agregar_nuevo', 'compromisos.proximos_vencer', 'pagos', 'pagos.historial', 'pagos.nuevo_pago', 'ingresos', 'ingresos.registrar', 'ingresos.historial', 'ingresos.cuentas', 'gestion_empresarial', 'gestion_empresarial.empresas', 'gestion_empresarial.salas', 'gestion_empresarial.clientes', 'liquidaciones', 'liquidaciones.liquidaciones', 'liquidaciones.historico', 'facturacion', 'facturacion.liquidaciones_por_sala', 'facturacion.cuentas_cobro', 'reportes', 'reportes.resumen', 'reportes.por_empresa', 'reportes.por_periodo', 'reportes.por_concepto', 'usuarios', 'empleados', 'asistencias', 'auditoria', 'storage'];
       const filteredPermissions = formData.permissions.filter(permission => 
         newSystemPermissions.includes(permission)
       );
@@ -1983,6 +1985,7 @@ const UserManagementPage = () => {
                         ]
                       },
                       { key: 'usuarios', label: 'Usuarios', icon: <PersonAddIcon />, color: '#ff9800' },
+                      { key: 'empleados', label: 'Empleados', icon: <PersonIcon />, color: '#4caf50' },
                       { key: 'asistencias', label: 'Asistencias', icon: <AccessTime />, color: '#ff9800' },
                       { key: 'auditoria', label: 'Auditoría del Sistema', icon: <SecurityIcon />, color: '#9c27b0' },
                       { key: 'storage', label: 'Limpieza de Storage', icon: <DeleteIcon />, color: '#f44336' }

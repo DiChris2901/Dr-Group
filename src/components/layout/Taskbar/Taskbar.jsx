@@ -19,6 +19,7 @@ import {
   MeetingRoom as SalasIcon,
   AttachMoney as FacturacionIcon,
   People as PeopleIcon,
+  Person as PersonIcon,
   Assignment as AssignmentIcon,
   Notifications as NotificationsIcon,
   AddBox as AddBoxIcon,
@@ -205,6 +206,7 @@ const Taskbar = () => {
       permission: 'administracion',
       submenu: [
         { label: 'Usuarios', path: '/users', icon: PeopleIcon, permission: 'usuarios' },
+        { label: 'Empleados', path: '/empleados', icon: PersonIcon, permission: 'empleados' },
         { label: 'Asistencias', path: '/asistencias', icon: AccessTime, permission: 'asistencias' },
         { label: 'Auditoría del Sistema', path: '/admin/activity-logs', icon: ReportsIcon, permission: 'auditoria' },
         { label: 'Limpieza de Storage', path: '/admin/orphan-files', icon: DeleteSweepIcon, permission: 'storage' }

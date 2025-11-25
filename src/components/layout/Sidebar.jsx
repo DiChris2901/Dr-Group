@@ -13,6 +13,7 @@ import {
     MeetingRoom,
     Notifications,
     People,
+    Person,
     Receipt,
     Timeline,
     TrendingUp
@@ -221,6 +222,13 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
       path: '/users',
       color: primaryColor,
       permission: 'usuarios'
+    },
+    {
+      title: 'Empleados',
+      icon: Person,
+      path: '/empleados',
+      color: '#4caf50',
+      permission: 'empleados'
     },
     {
       title: 'Asistencias',

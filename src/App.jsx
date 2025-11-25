@@ -37,6 +37,7 @@ import ReportsConceptPage from './pages/reports/ReportsConceptPage';
 import ReportsPeriodPage from './pages/reports/ReportsPeriodPage';
 import ReportsSummaryPage from './pages/reports/ReportsSummaryPage';
 import UserManagementPage from './pages/UserManagementPage';
+import EmpleadosPage from './pages/EmpleadosPage';
 
 // Módulo de Ingresos
 import IncomePage from './pages/IncomePage';
@@ -360,6 +361,16 @@ const DashboardLayout = () => {
           <ProtectedRoute requiredPermission="usuarios">
             <MainLayout title="Gestión de Usuarios" breadcrumbs={['Administración', 'Usuarios']}>
               <UserManagementPage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route 
+        path="/empleados" 
+        element={
+          <ProtectedRoute requiredPermission="empleados">
+            <MainLayout title="Gestión de Empleados" breadcrumbs={['Administración', 'Empleados']}>
+              <EmpleadosPage />
             </MainLayout>
           </ProtectedRoute>
         }
