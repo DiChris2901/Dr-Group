@@ -2402,39 +2402,8 @@ const EmpleadosPage = () => {
                 </Grid>
 
                 {/* Tercera fila */}
-                {selectedEmpleado.empresaContratante && (
-                  <Grid item xs={12} md={4}>
-                    <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                      <Typography variant="subtitle2" color="primary" gutterBottom>
-                        <WorkIcon sx={{ fontSize: 16, mr: 0.5 }} />
-                        Empresa Contratante
-                      </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {(() => {
-                          const empresa = empresas.find(e => e.name === selectedEmpleado.empresaContratante);
-                          return (
-                            <>
-                              {empresa?.logoURL && (
-                                <Avatar
-                                  src={empresa.logoURL}
-                                  sx={{ width: 32, height: 32 }}
-                                >
-                                  {selectedEmpleado.empresaContratante.charAt(0)}
-                                </Avatar>
-                              )}
-                              <Typography variant="body1" fontWeight="medium">
-                                {selectedEmpleado.empresaContratante}
-                              </Typography>
-                            </>
-                          );
-                        })()}
-                      </Box>
-                    </Card>
-                  </Grid>
-                )}
-
                 {selectedEmpleado.emailCorporativo && (
-                  <Grid item xs={12} md={selectedEmpleado.empresaContratante ? 4 : 6}>
+                  <Grid item xs={12} md={6}>
                     <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
                       <Typography variant="subtitle2" color="primary" gutterBottom>
                         <EmailIcon sx={{ fontSize: 16, mr: 0.5 }} />
@@ -2448,7 +2417,7 @@ const EmpleadosPage = () => {
                 )}
 
                 {selectedEmpleado.telefono && (
-                  <Grid item xs={12} md={selectedEmpleado.empresaContratante ? 4 : 6}>
+                  <Grid item xs={12} md={6}>
                     <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
                       <Typography variant="subtitle2" color="primary" gutterBottom>
                         <PhoneIcon sx={{ fontSize: 16, mr: 0.5 }} />
@@ -2526,7 +2495,51 @@ const EmpleadosPage = () => {
               </Typography>
               
               <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={12} md={4}>
+                {/* Primera fila: Empresa Contratante y Tipo de Vigencia */}
+                {selectedEmpleado.empresaContratante && (
+                  <Grid item xs={12} md={6}>
+                    <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                      <Typography variant="subtitle2" color="info" gutterBottom>
+                        <WorkIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                        Empresa Contratante
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {(() => {
+                          const empresa = empresas.find(e => e.name === selectedEmpleado.empresaContratante);
+                          return (
+                            <>
+                              {empresa?.logoURL && (
+                                <Avatar
+                                  src={empresa.logoURL}
+                                  sx={{ width: 32, height: 32 }}
+                                >
+                                  {selectedEmpleado.empresaContratante.charAt(0)}
+                                </Avatar>
+                              )}
+                              <Typography variant="body1" fontWeight="medium">
+                                {selectedEmpleado.empresaContratante}
+                              </Typography>
+                            </>
+                          );
+                        })()}
+                      </Box>
+                    </Card>
+                  </Grid>
+                )}
+
+                <Grid item xs={12} md={selectedEmpleado.empresaContratante ? 6 : 12}>
+                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                    <Typography variant="subtitle2" color="info" gutterBottom>
+                      Tipo de Vigencia
+                    </Typography>
+                    <Typography variant="body1" fontWeight="medium">
+                      {selectedEmpleado.tipoVigencia || 'No especificado'}
+                    </Typography>
+                  </Card>
+                </Grid>
+
+                {/* Segunda fila: Fecha Inicio y Tiempo en la Empresa */}
+                <Grid item xs={12} md={6}>
                   <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
                     <Typography variant="subtitle2" color="info" gutterBottom>
                       <CalendarIcon sx={{ fontSize: 16, mr: 0.5 }} />
@@ -2538,18 +2551,7 @@ const EmpleadosPage = () => {
                   </Card>
                 </Grid>
 
-                <Grid item xs={12} md={4}>
-                  <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
-                    <Typography variant="subtitle2" color="info" gutterBottom>
-                      Tipo de Vigencia
-                    </Typography>
-                    <Typography variant="body1" fontWeight="medium">
-                      {selectedEmpleado.tipoVigencia || 'No especificado'}
-                    </Typography>
-                  </Card>
-                </Grid>
-
-                <Grid item xs={12} md={4}>
+                <Grid item xs={12} md={6}>
                   <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
                     <Typography variant="subtitle2" color="info" gutterBottom>
                       <AccessTimeIcon sx={{ fontSize: 16, mr: 0.5 }} />
