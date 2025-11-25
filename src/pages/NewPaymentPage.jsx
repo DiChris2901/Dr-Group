@@ -1870,15 +1870,17 @@ const NewPaymentPage = () => {
             <Paper sx={{
               p: 3,
               borderRadius: 2,
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+              border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
               background: theme.palette.background.paper,
               boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
             }}>
               <Typography variant="overline" sx={{
                 fontWeight: 600,
-                color: 'primary.main',
+                color: 'text.secondary',
                 letterSpacing: 0.8,
-                fontSize: '0.75rem'
+                fontSize: '0.75rem',
+                display: 'block',
+                mb: 2
               }}>
                 Información del Compromiso
               </Typography>
@@ -1893,6 +1895,20 @@ const NewPaymentPage = () => {
                       loading={loadingCommitments}
                       value={selectedCommitment}
                       onChange={(event, newValue) => handleCommitmentSelect(newValue)}
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          '& fieldset': {
+                            borderColor: alpha(theme.palette.divider, 0.3)
+                          },
+                          '&:hover fieldset': {
+                            borderColor: alpha(theme.palette.primary.main, 0.4)
+                          },
+                          '&.Mui-focused fieldset': {
+                            borderColor: 'primary.main',
+                            borderWidth: 1
+                          }
+                        }
+                      }}
                       filterOptions={(options, { inputValue }) => {
                         if (!inputValue) return options;
                         
@@ -2110,11 +2126,11 @@ const NewPaymentPage = () => {
                           sx={{ 
                             mt: 2,
                             p: 2.5,
-                            borderRadius: 1,
+                            borderRadius: 2,
                             background: theme.palette.mode === 'dark' 
-                              ? alpha(theme.palette.background.paper, 0.4)
-                              : alpha(theme.palette.grey[50], 0.5),
-                            border: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+                              ? alpha(theme.palette.background.paper, 0.3)
+                              : alpha(theme.palette.grey[50], 0.3),
+                            border: `1px solid ${alpha(theme.palette.divider, 0.15)}`,
                             transition: 'all 0.2s ease'
                           }}
                         >
@@ -2174,7 +2190,7 @@ const NewPaymentPage = () => {
                                     ? alpha(theme.palette.background.default, 0.3)
                                     : 'transparent'
                                 }}>
-                                  <Description sx={{ fontSize: 16, color: 'text.secondary' }} />
+                                  <PdfIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
                                   <Box>
                                     <Typography variant="caption" sx={{ 
                                       color: 'text.secondary',
@@ -2304,6 +2320,7 @@ const NewPaymentPage = () => {
                               </Grid>
                             )}
                           </Grid>
+                          </Box>
                         </Paper>
                       </Grid>
 
@@ -2437,11 +2454,11 @@ const NewPaymentPage = () => {
                                       <InputAdornment position="start">
                                         <InterestIcon 
                                           sx={{ 
-                                            color: 'error.main',
-                                            transition: 'color 0.2s ease'
+                                            color: alpha(theme.palette.error.main, 0.7),
+                                            fontSize: 20
                                           }} 
                                         />
-                                        <Typography sx={{ ml: 0.5, color: 'text.secondary', fontWeight: 600 }}>
+                                        <Typography sx={{ ml: 0.5, color: 'text.secondary', fontWeight: 500 }}>
                                           $
                                         </Typography>
                                       </InputAdornment>
@@ -2695,8 +2712,8 @@ const NewPaymentPage = () => {
                             sx={{
                               p: 2,
                               borderRadius: 2,
-                              bgcolor: alpha(theme.palette.warning.main, 0.05),
-                              border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+                              bgcolor: alpha(theme.palette.warning.main, 0.03),
+                              border: `1px solid ${alpha(theme.palette.warning.main, 0.12)}`,
                               mt: 1
                             }}
                           >
@@ -3124,13 +3141,14 @@ const NewPaymentPage = () => {
 
                       {/* Sección de carga de archivos */}
                       <Grid item xs={12}>
-                        <Typography variant="overline" sx={{ 
+                        <Typography variant="overline" sx={{
                           fontWeight: 600, 
-                          color: 'primary.main',
+                          color: 'text.secondary',
                           letterSpacing: 0.8,
                           fontSize: '0.75rem',
                           display: 'block',
-                          mt: 2
+                          mt: 2,
+                          mb: 1
                         }}>
                           Comprobantes de Pago
                         </Typography>
@@ -3140,17 +3158,19 @@ const NewPaymentPage = () => {
                         {/* Zona de drag & drop */}
                         <Paper 
                           sx={{ 
-                            border: dragActive ? `2px dashed ${theme.palette.primary.main}` : `2px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
-                            backgroundColor: dragActive ? 'action.hover' : 'background.paper',
+                            border: dragActive 
+                              ? `2px dashed ${alpha(theme.palette.primary.main, 0.5)}` 
+                              : `2px dashed ${alpha(theme.palette.divider, 0.3)}`,
+                            backgroundColor: dragActive ? alpha(theme.palette.primary.main, 0.02) : 'transparent',
                             cursor: 'pointer',
                             transition: 'all 0.3s ease',
                             borderRadius: 2,
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            boxShadow: 'none',
                             p: 4,
                             textAlign: 'center',
                             '&:hover': {
-                              backgroundColor: 'action.hover',
-                              borderColor: theme.palette.primary.main
+                              backgroundColor: alpha(theme.palette.action.hover, 0.03),
+                              borderColor: alpha(theme.palette.primary.main, 0.4)
                             }
                           }}
                           onDragEnter={handleDrag}
@@ -3251,16 +3271,18 @@ const NewPaymentPage = () => {
                 top: 20,
                 p: 3.5,
                 borderRadius: 2,
-                border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                 background: theme.palette.background.paper,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
               }}
             >
               <Typography variant="overline" sx={{
                 fontWeight: 600,
-                color: 'secondary.main',
+                color: 'text.secondary',
                 letterSpacing: 0.8,
-                fontSize: '0.75rem'
+                fontSize: '0.75rem',
+                display: 'block',
+                mb: 0.5
               }}>
                 Resumen de Pago
               </Typography>
