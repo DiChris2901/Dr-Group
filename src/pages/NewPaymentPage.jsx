@@ -1866,19 +1866,24 @@ const NewPaymentPage = () => {
       <form onSubmit={handleSubmit}>
         <Grid container spacing={3}>
           {/* Información Principal */}
-          <Grid item xs={12} lg={8}>
-            <Card sx={{
+          <Grid item xs={12} lg={7}>
+            <Paper sx={{
+              p: 3,
               borderRadius: 2,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-              border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+              background: theme.palette.background.paper,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
             }}>
-              <CardContent>
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <ScheduleIcon color="primary" />
-                  Seleccionar Compromiso Pendiente
-                </Typography>
-                
-                <Grid container spacing={3}>
+              <Typography variant="overline" sx={{
+                fontWeight: 600,
+                color: 'primary.main',
+                letterSpacing: 0.8,
+                fontSize: '0.75rem'
+              }}>
+                Información del Compromiso
+              </Typography>
+              
+              <Grid container spacing={3} sx={{ mt: 1 }}>
                   {/* Selector de Compromiso Pendiente */}
                   <Grid item xs={12}>
                     <Autocomplete
@@ -2100,30 +2105,45 @@ const NewPaymentPage = () => {
                   {selectedCommitment && (
                     <>
                       <Grid item xs={12}>
-                        <Card 
-                          variant="outlined"
+                        <Paper 
                           sx={{ 
                             mt: 2,
-                            bgcolor: 'background.paper',
+                            p: 2,
                             borderRadius: 2,
+                            background: theme.palette.background.paper,
                             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+                            border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
                           }}
                         >
-                          <CardContent sx={{ py: 2 }}>
+                          <Box sx={{ mb: 1.5 }}>
+                            <Typography variant="overline" sx={{ 
+                              fontWeight: 600,
+                              color: 'info.main',
+                              letterSpacing: 0.8,
+                              fontSize: '0.75rem'
+                            }}>
+                              Datos del Compromiso
+                            </Typography>
+                          </Box>
+                          
+                          <Box sx={{ 
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            mb: 2,
+                            pb: 1.5,
+                            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`
+                          }}>
+                            <CompanyIcon color="primary" fontSize="medium" />
                             <Typography variant="subtitle1" sx={{ 
                               fontWeight: 600,
-                              color: 'text.primary',
-                              mb: 1.5,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 1
+                              color: 'text.primary'
                             }}>
-                              <CompanyIcon color="action" fontSize="small" />
                               {selectedCommitment.companyName}
                             </Typography>
+                          </Box>
                             
-                            <Grid container spacing={2}>
+                            <Grid container spacing={3}>
                               <Grid item xs={12} md={6}>
                                 <Typography variant="body2" color="text.secondary">
                                   <strong>Concepto:</strong> {selectedCommitment.concept}
@@ -2242,8 +2262,7 @@ const NewPaymentPage = () => {
                               </Grid>
                             )}
                           </Grid>
-                          </CardContent>
-                        </Card>
+                        </Paper>
                       </Grid>
 
                       <Grid item xs={12} sm={4}>
@@ -2547,14 +2566,15 @@ const NewPaymentPage = () => {
                             </Typography>
 
                             {/* Información del compromiso */}
-                            <Grid container spacing={2} sx={{ ml: 4, mb: 2 }}>
+                            <Grid container spacing={3} sx={{ ml: 4, mb: 2 }}>
                               <Grid item xs={12} sm={4}>
                                 <Box sx={{ 
                                   p: 1.5, 
                                   bgcolor: theme.palette.mode === 'dark' 
                                     ? alpha(theme.palette.background.paper, 0.8)
                                     : 'grey.50', 
-                                  borderRadius: 1 
+                                  borderRadius: 1,
+                                  border: `1px solid ${alpha(theme.palette.divider, 0.1)}`
                                 }}>
                                   <Typography variant="caption" color="text.secondary">
                                     Monto Original
@@ -2572,7 +2592,8 @@ const NewPaymentPage = () => {
                                     bgcolor: theme.palette.mode === 'dark' 
                                       ? alpha(theme.palette.success.main, 0.1)
                                       : 'success.50', 
-                                    borderRadius: 1 
+                                    borderRadius: 1,
+                                    border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`
                                   }}>
                                     <Typography variant="caption" color="text.secondary">
                                       Total Pagado
@@ -2590,7 +2611,8 @@ const NewPaymentPage = () => {
                                   bgcolor: theme.palette.mode === 'dark' 
                                     ? alpha(theme.palette.warning.main, 0.1)
                                     : 'warning.50', 
-                                  borderRadius: 1 
+                                  borderRadius: 1,
+                                  border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`
                                 }}>
                                   <Typography variant="caption" color="text.secondary">
                                     Saldo Pendiente
@@ -3064,9 +3086,12 @@ const NewPaymentPage = () => {
 
                       {/* Sección de carga de archivos */}
                       <Grid item xs={12}>
-                        <Typography variant="body1" gutterBottom sx={{ 
+                        <Typography variant="overline" sx={{ 
                           fontWeight: 600, 
-                          color: 'text.primary',
+                          color: 'primary.main',
+                          letterSpacing: 0.8,
+                          fontSize: '0.75rem',
+                          display: 'block',
                           mt: 2
                         }}>
                           Comprobantes de Pago
@@ -3075,17 +3100,19 @@ const NewPaymentPage = () => {
 
                       <Grid item xs={12}>
                         {/* Zona de drag & drop */}
-                        <Card 
+                        <Paper 
                           sx={{ 
-                            border: dragActive ? `2px dashed ${theme.palette.primary.main}` : `2px dashed ${alpha(theme.palette.primary.main, 0.6)}`,
+                            border: dragActive ? `2px dashed ${theme.palette.primary.main}` : `2px dashed ${alpha(theme.palette.primary.main, 0.2)}`,
                             backgroundColor: dragActive ? 'action.hover' : 'background.paper',
                             cursor: 'pointer',
                             transition: 'all 0.3s ease',
                             borderRadius: 2,
                             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            p: 4,
+                            textAlign: 'center',
                             '&:hover': {
                               backgroundColor: 'action.hover',
-                              borderColor: alpha(theme.palette.primary.main, 0.8)
+                              borderColor: theme.palette.primary.main
                             }
                           }}
                           onDragEnter={handleDrag}
@@ -3093,7 +3120,6 @@ const NewPaymentPage = () => {
                           onDragOver={handleDrag}
                           onDrop={handleDrop}
                         >
-                          <CardContent sx={{ textAlign: 'center', py: 4 }}>
                             <input
                               type="file"
                               multiple
@@ -3118,8 +3144,7 @@ const NewPaymentPage = () => {
                                 Examinar Archivos
                               </Button>
                             </label>
-                          </CardContent>
-                        </Card>
+                        </Paper>
                       </Grid>
 
                       {/* Lista de archivos seleccionados */}
@@ -3177,33 +3202,32 @@ const NewPaymentPage = () => {
                     </>
                   )}
                 </Grid>
-              </CardContent>
-            </Card>
+              </Paper>
           </Grid>
 
           {/* Panel de Resumen */}
-          <Grid item xs={12} lg={4}>
-            <Card 
+          <Grid item xs={12} lg={5}>
+            <Paper 
               sx={{ 
                 position: 'sticky', 
                 top: 20,
-                bgcolor: 'background.paper',
+                p: 3.5,
                 borderRadius: 2,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                border: `1px solid ${alpha(theme.palette.secondary.main, 0.6)}`
+                border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                background: theme.palette.background.paper,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
               }}
             >
-              <CardContent sx={{ pb: 2 }}>
-                <Typography variant="h6" gutterBottom sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 1,
-                  color: 'text.primary',
-                  fontWeight: 600
-                }}>
-                  <ReceiptIcon color="primary" />
-                  Resumen de Pago
-                </Typography>
+              <Typography variant="overline" sx={{
+                fontWeight: 600,
+                color: 'secondary.main',
+                letterSpacing: 0.8,
+                fontSize: '0.75rem'
+              }}>
+                Resumen de Pago
+              </Typography>
+              
+              <Box sx={{ mt: 2 }}>
                 
                 {selectedCommitment ? (
                   <Box>
@@ -3345,8 +3369,8 @@ const NewPaymentPage = () => {
                     </Typography>
                   </Box>
                 )}
-              </CardContent>
-            </Card>
+              </Box>
+            </Paper>
           </Grid>
         </Grid>
 
