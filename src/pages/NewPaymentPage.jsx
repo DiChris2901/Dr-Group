@@ -2612,7 +2612,7 @@ const NewPaymentPage = () => {
                               mt: 1
                             }}
                           >
-                            <Typography variant="body2" color="text.secondary" sx={{ 
+                            <Typography variant="body2" color="primary.main" sx={{ 
                               display: 'flex', 
                               alignItems: 'center', 
                               gap: 1,
