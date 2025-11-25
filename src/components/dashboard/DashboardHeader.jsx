@@ -646,49 +646,20 @@ const DashboardHeader = ({ onOpenSettings }) => {
                 width: '100%',
                 '& .MuiOutlinedInput-root': {
                   height: '48px',
-                  borderRadius: '16px',
-                  backgroundColor: theme.palette.mode === 'dark' 
-                    ? alpha(theme.palette.background.paper, 0.95)
-                    : '#ffffff',
-                  transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: `0 4px 20px ${alpha(theme.palette.primary.main, 0.1)}`,
-                  position: 'relative',
-                  overflow: 'hidden',
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: '-50%',
-                    left: '-50%',
-                    width: '200%',
-                    height: '200%',
-                    background: `linear-gradient(45deg, transparent 30%, ${alpha(theme.palette.primary.main, 0.1)} 50%, transparent 70%)`,
-                    animation: 'shimmer 3s infinite',
-                    pointerEvents: 'none',
-                  },
+                  borderRadius: 2,
+                  backgroundColor: theme.palette.background.paper,
+                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
                   '& fieldset': {
-                    border: `2px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                    borderRadius: '16px',
-                    transition: 'all 0.3s ease',
+                    border: 'none',
                   },
                   '&:hover': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`,
-                    '& fieldset': {
-                      borderColor: alpha(theme.palette.primary.main, 0.5),
-                      borderWidth: '2px',
-                    },
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                    backgroundColor: alpha(theme.palette.primary.main, 0.02),
                   },
                   '&.Mui-focused': {
-                    transform: 'translateY(-2px)',
-                    boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`,
-                    '& fieldset': {
-                      borderColor: theme.palette.primary.main,
-                      borderWidth: '2px',
-                    },
-                  },
-                  '@keyframes shimmer': {
-                    '0%': { transform: 'translate(-50%, -50%) rotate(0deg)' },
-                    '100%': { transform: 'translate(-50%, -50%) rotate(360deg)' },
+                    border: `1px solid ${theme.palette.primary.main}`,
+                    backgroundColor: theme.palette.background.paper,
                   },
                 },
                 '& .MuiInputBase-input': {
@@ -737,90 +708,13 @@ const DashboardHeader = ({ onOpenSettings }) => {
           >
             <IconButton
             onClick={handleNotificationsOpen}
-            sx={{
-              ...topbarButtonStyle,
-              animation: (unreadCount + alertsCount) > 0 ? 'iconGlow 2s ease-in-out infinite' : 'none',
-              '&:hover': {
-                color: alertsCount > 0 
-                  ? theme.palette.error.main 
-                  : unreadCount > 0 
-                  ? theme.palette.warning.main 
-                  : theme.palette.info.main,
-                background: alpha(
-                  alertsCount > 0 
-                    ? theme.palette.error.main 
-                    : unreadCount > 0 
-                    ? theme.palette.warning.main 
-                    : theme.palette.info.main,
-                  0.08
-                ),
-                transform: 'translateY(-2px)',
-                boxShadow: `0 4px 12px ${alpha(
-                  alertsCount > 0 
-                    ? theme.palette.error.main 
-                    : unreadCount > 0 
-                    ? theme.palette.warning.main 
-                    : theme.palette.info.main,
-                  0.15
-                )}`,
-                border: `1px solid ${alpha(
-                  alertsCount > 0 
-                    ? theme.palette.error.main 
-                    : unreadCount > 0 
-                    ? theme.palette.warning.main 
-                    : theme.palette.info.main,
-                  0.2
-                )}`,
-              },
-              '& .MuiSvgIcon-root': {
-                fontSize: '26px',
-                color: alertsCount > 0 
-                  ? theme.palette.error.main 
-                  : unreadCount > 0 
-                  ? theme.palette.warning.main 
-                  : theme.palette.info.main,
-              }
-            }}
+            sx={topbarButtonStyle}
           >
             <Badge 
               badgeContent={unreadCount + alertsCount} 
               color={alertsCount > 0 ? "error" : unreadCount > 0 ? "warning" : "info"}
               max={99}
               overlap="circular"
-              sx={{
-                '& .MuiBadge-badge': {
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  minWidth: 22,
-                  height: 22,
-                  padding: '0 7px',
-                  borderRadius: '11px',
-                  background: alertsCount > 0 
-                    ? `linear-gradient(135deg, ${theme.palette.error.main}, ${theme.palette.error.dark})` 
-                    : unreadCount > 0 
-                    ? `linear-gradient(135deg, ${theme.palette.warning.main}, ${theme.palette.warning.dark})` 
-                    : `linear-gradient(135deg, ${theme.palette.info.main}, ${theme.palette.info.dark})`,
-                  color: '#fff',
-                  border: `2.5px solid ${theme.palette.background.paper}`,
-                  boxShadow: `0 4px 12px ${alpha(
-                    alertsCount > 0 
-                      ? theme.palette.error.main 
-                      : unreadCount > 0 
-                      ? theme.palette.warning.main 
-                      : theme.palette.info.main, 
-                    0.5
-                  )}, 0 0 20px ${alpha(
-                    alertsCount > 0 
-                      ? theme.palette.error.main 
-                      : unreadCount > 0 
-                      ? theme.palette.warning.main 
-                      : theme.palette.info.main, 
-                    0.3
-                  )}`,
-                  textShadow: '0 1px 2px rgba(0,0,0,0.3)',
-                  animation: alertsCount > 0 ? 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite, glowPulse 2s ease-in-out infinite' : unreadCount > 0 ? 'glowPulse 3s ease-in-out infinite' : 'none',
-                },
-              }}
             >
               <NotificationsIcon />
             </Badge>

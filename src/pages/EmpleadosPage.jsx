@@ -50,6 +50,7 @@ import {
   Close as CloseIcon,
   Fullscreen as FullscreenIcon,
   FullscreenExit as FullscreenExitIcon,
+  WhatsApp as WhatsAppIcon,
   Info as InfoIcon,
   PictureAsPdf as PdfIcon,
   GetApp as DownloadIcon,
@@ -130,6 +131,7 @@ const EmpleadosPage = () => {
     tipoDocumento: 'CC',
     numeroDocumento: '',
     emailCorporativo: '',
+    telefono: '',
     edad: '',
     fechaNacimiento: '',
     contratoURL: '',
@@ -299,6 +301,8 @@ const EmpleadosPage = () => {
       nacionalidad: 'Colombiana',
       tipoDocumento: 'CC',
       numeroDocumento: '',
+      emailCorporativo: '',
+      telefono: '',
       edad: '',
       fechaNacimiento: '',
       contratoURL: '',
@@ -391,7 +395,9 @@ const EmpleadosPage = () => {
         'empleado',
         docRef.id,
         { nombres: formData.nombres, apellidos: formData.apellidos, numeroDocumento: formData.numeroDocumento },
-        null
+        currentUser.uid,
+        userProfile?.name || userProfile?.displayName || 'Usuario desconocido',
+        currentUser.email
       );
 
       addNotification('Empleado agregado exitosamente', 'success');
@@ -454,8 +460,10 @@ const EmpleadosPage = () => {
         'update',
         'empleado',
         selectedEmpleado.id,
-        formData,
-        selectedEmpleado
+        { ...formData, numeroDocumento: numeroDocumentoSinPuntos },
+        currentUser.uid,
+        userProfile?.name || userProfile?.displayName || 'Usuario desconocido',
+        currentUser.email
       );
 
       addNotification('Empleado actualizado exitosamente', 'success');
@@ -485,8 +493,10 @@ const EmpleadosPage = () => {
         'delete',
         'empleado',
         selectedEmpleado.id,
-        null,
-        selectedEmpleado
+        { nombres: selectedEmpleado.nombres, apellidos: selectedEmpleado.apellidos },
+        currentUser.uid,
+        userProfile?.name || userProfile?.displayName || 'Usuario desconocido',
+        currentUser.email
       );
 
       // Eliminar documento
@@ -524,6 +534,8 @@ const EmpleadosPage = () => {
       nacionalidad: empleado.nacionalidad || 'Colombiana',
       tipoDocumento: empleado.tipoDocumento || 'CC',
       numeroDocumento: numeroFormateado,
+      emailCorporativo: empleado.emailCorporativo || '',
+      telefono: empleado.telefono || '',
       edad: empleado.edad || '',
       fechaNacimiento: empleado.fechaNacimiento || '',
       contratoURL: empleado.contratoURL || '',
@@ -777,60 +789,59 @@ const EmpleadosPage = () => {
                     <Box display="flex" alignItems="center" mb={2}>
                       <Avatar 
                         sx={{ 
-                          width: 50, 
-                          height: 50, 
+                          width: 56, 
+                          height: 56, 
                           mr: 2, 
                           bgcolor: 'primary.main',
-                          fontSize: 18,
+                          fontSize: 20,
                           fontWeight: 'bold'
                         }}
                       >
                         {empleado.nombres?.charAt(0)}{empleado.apellidos?.charAt(0)}
                       </Avatar>
-                      <Box>
-                        <Typography variant="h6" gutterBottom sx={{ mb: 0 }}>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="h6" gutterBottom sx={{ mb: 0.5, fontWeight: 600 }}>
                           {empleado.nombres} {empleado.apellidos}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {empleado.tipoDocumento}: {formatearNumeroDocumento(empleado.numeroDocumento || '')}
+                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                          CC: {formatearNumeroDocumento(empleado.numeroDocumento || '')}
                         </Typography>
                       </Box>
                     </Box>
 
-                    {/* Información principal con íconos inline */}
+                    {/* Información básica */}
                     {empleado.emailCorporativo && (
-                      <Box display="flex" alignItems="center" mb={1}>
-                        <EmailIcon sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                        <Typography variant="body2" color="text.secondary" noWrap>
+                      <Box display="flex" alignItems="center" mb={1.5}>
+                        <EmailIcon sx={{ fontSize: 18, mr: 1.5, color: 'primary.main' }} />
+                        <Typography variant="body2" color="text.primary" sx={{ fontSize: '0.875rem' }}>
                           {empleado.emailCorporativo}
                         </Typography>
                       </Box>
                     )}
 
-                    {empleado.nacionalidad && (
-                      <Box display="flex" alignItems="center" mb={1}>
-                        <BadgeIcon sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                        <Typography variant="body2" color="text.secondary" noWrap>
-                          {empleado.nacionalidad}
-                        </Typography>
-                      </Box>
-                    )}
-
-                    {empleado.banco && (
-                      <Box display="flex" alignItems="center" mb={1}>
-                        <AccountBalanceIcon sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                        <Typography variant="body2" color="text.secondary" noWrap>
-                          {empleado.banco}
-                        </Typography>
-                      </Box>
-                    )}
-
-                    {empleado.tipoVigencia && (
-                      <Box display="flex" alignItems="center">
-                        <WorkIcon sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                        <Typography variant="body2" color="text.secondary">
-                          {empleado.tipoVigencia}
-                        </Typography>
+                    {empleado.telefono && (
+                      <Box display="flex" alignItems="center" justifyContent="space-between">
+                        <Box display="flex" alignItems="center" sx={{ flex: 1 }}>
+                          <PhoneIcon sx={{ fontSize: 18, mr: 1.5, color: 'primary.main' }} />
+                          <Typography variant="body2" color="text.primary" sx={{ fontSize: '0.875rem' }}>
+                            {empleado.telefono}
+                          </Typography>
+                        </Box>
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            const phoneNumber = empleado.telefono.replace(/[^0-9]/g, '');
+                            window.open(`https://wa.me/${phoneNumber}`, '_blank');
+                          }}
+                          sx={{
+                            color: '#25D366',
+                            '&:hover': {
+                              backgroundColor: alpha('#25D366', 0.1)
+                            }
+                          }}
+                        >
+                          <WhatsAppIcon sx={{ fontSize: 20 }} />
+                        </IconButton>
                       </Box>
                     )}
                   </CardContent>
@@ -958,7 +969,7 @@ const EmpleadosPage = () => {
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Email Corporativo"
@@ -966,6 +977,18 @@ const EmpleadosPage = () => {
                 value={formData.emailCorporativo}
                 onChange={(e) => handleFormChange('emailCorporativo', e.target.value)}
                 placeholder="ejemplo@drgroup.com"
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Teléfono"
+                type="tel"
+                value={formData.telefono}
+                onChange={(e) => handleFormChange('telefono', e.target.value)}
+                placeholder="+57 300 123 4567"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
             </Grid>
@@ -1381,7 +1404,7 @@ const EmpleadosPage = () => {
               />
             </Grid>
 
-            <Grid item xs={12}>
+            <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
                 label="Email Corporativo"
@@ -1389,6 +1412,18 @@ const EmpleadosPage = () => {
                 value={formData.emailCorporativo}
                 onChange={(e) => handleFormChange('emailCorporativo', e.target.value)}
                 placeholder="ejemplo@drgroup.com"
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Teléfono"
+                type="tel"
+                value={formData.telefono}
+                onChange={(e) => handleFormChange('telefono', e.target.value)}
+                placeholder="+57 300 123 4567"
                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
               />
             </Grid>
@@ -1448,19 +1483,44 @@ const EmpleadosPage = () => {
                     </Button>
                   </label>
                   {selectedEmpleado?.documentoIdentidadURL && (
-                    <Button
-                      size="small"
-                      variant="text"
-                      startIcon={<VisibilityIcon />}
-                      onClick={() => {
-                        setPdfViewerUrl(selectedEmpleado.documentoIdentidadURL);
-                        setPdfViewerTitle('Documento de Identidad');
-                        setPdfViewerOpen(true);
-                      }}
-                      sx={{ borderRadius: 2 }}
-                    >
-                      Ver documento actual
-                    </Button>
+                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
+                      <Button
+                        size="small"
+                        variant="text"
+                        startIcon={<VisibilityIcon />}
+                        onClick={() => {
+                          setPdfViewerUrl(selectedEmpleado.documentoIdentidadURL);
+                          setPdfViewerTitle('Documento de Identidad');
+                          setPdfViewerOpen(true);
+                        }}
+                        sx={{ borderRadius: 2, flex: 1 }}
+                      >
+                        Ver documento actual
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="text"
+                        color="error"
+                        startIcon={<DeleteIcon />}
+                        onClick={async () => {
+                          if (window.confirm('¿Estás seguro de que deseas eliminar el documento de identidad?')) {
+                            try {
+                              await updateDoc(doc(db, 'empleados', selectedEmpleado.id), {
+                                documentoIdentidadURL: ''
+                              });
+                              setSelectedEmpleado({ ...selectedEmpleado, documentoIdentidadURL: '' });
+                              addNotification('Documento eliminado exitosamente', 'success');
+                            } catch (error) {
+                              console.error('Error al eliminar documento:', error);
+                              addNotification('Error al eliminar documento', 'error');
+                            }
+                          }
+                        }}
+                        sx={{ borderRadius: 2, flex: 1 }}
+                      >
+                        Eliminar
+                      </Button>
+                    </Box>
                   )}
                   {uploadingDocumentoIdentidad && (
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1592,14 +1652,38 @@ const EmpleadosPage = () => {
                   </Button>
                 </label>
                 {selectedEmpleado?.contratoURL && !contratoFile && (
-                  <Button
-                    size="small"
-                    startIcon={<VisibilityIcon />}
-                    onClick={() => handleOpenPdfViewer(selectedEmpleado.contratoURL, 'Contrato Laboral')}
-                    sx={{ mt: 1 }}
-                  >
-                    Ver contrato actual
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 1, mt: 1, justifyContent: 'center' }}>
+                    <Button
+                      size="small"
+                      startIcon={<VisibilityIcon />}
+                      onClick={() => handleOpenPdfViewer(selectedEmpleado.contratoURL, 'Contrato Laboral')}
+                      sx={{ flex: 1 }}
+                    >
+                      Ver contrato actual
+                    </Button>
+                    <Button
+                      size="small"
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={async () => {
+                        if (window.confirm('¿Estás seguro de que deseas eliminar el contrato?')) {
+                          try {
+                            await updateDoc(doc(db, 'empleados', selectedEmpleado.id), {
+                              contratoURL: ''
+                            });
+                            setSelectedEmpleado({ ...selectedEmpleado, contratoURL: '' });
+                            addNotification('Contrato eliminado exitosamente', 'success');
+                          } catch (error) {
+                            console.error('Error al eliminar contrato:', error);
+                            addNotification('Error al eliminar contrato', 'error');
+                          }
+                        }
+                      }}
+                      sx={{ borderRadius: 2, flex: 1 }}
+                    >
+                      Eliminar
+                    </Button>
+                  </Box>
                 )}
               </Paper>
             </Grid>
@@ -1694,14 +1778,38 @@ const EmpleadosPage = () => {
                   </Button>
                 </label>
                 {selectedEmpleado?.certificadoBancarioURL && !certificadoFile && (
-                  <Button
-                    size="small"
-                    startIcon={<VisibilityIcon />}
-                    onClick={() => handleOpenPdfViewer(selectedEmpleado.certificadoBancarioURL, 'Certificado Bancario')}
-                    sx={{ mt: 1 }}
-                  >
-                    Ver certificado actual
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 1, mt: 1, justifyContent: 'center' }}>
+                    <Button
+                      size="small"
+                      startIcon={<VisibilityIcon />}
+                      onClick={() => handleOpenPdfViewer(selectedEmpleado.certificadoBancarioURL, 'Certificado Bancario')}
+                      sx={{ flex: 1 }}
+                    >
+                      Ver certificado actual
+                    </Button>
+                    <Button
+                      size="small"
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={async () => {
+                        if (window.confirm('¿Estás seguro de que deseas eliminar el certificado bancario?')) {
+                          try {
+                            await updateDoc(doc(db, 'empleados', selectedEmpleado.id), {
+                              certificadoBancarioURL: ''
+                            });
+                            setSelectedEmpleado({ ...selectedEmpleado, certificadoBancarioURL: '' });
+                            addNotification('Certificado eliminado exitosamente', 'success');
+                          } catch (error) {
+                            console.error('Error al eliminar certificado:', error);
+                            addNotification('Error al eliminar certificado', 'error');
+                          }
+                        }
+                      }}
+                      sx={{ borderRadius: 2, flex: 1 }}
+                    >
+                      Eliminar
+                    </Button>
+                  </Box>
                 )}
               </Paper>
             </Grid>
@@ -1835,7 +1943,38 @@ const EmpleadosPage = () => {
                   </Grid>
                 )}
 
-                <Grid item xs={12} md={selectedEmpleado.emailCorporativo ? 6 : 4}>
+                {selectedEmpleado.telefono && (
+                  <Grid item xs={12} md={6}>
+                    <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
+                      <Typography variant="subtitle2" color="primary" gutterBottom>
+                        <PhoneIcon sx={{ fontSize: 16, mr: 0.5 }} />
+                        Teléfono
+                      </Typography>
+                      <Box display="flex" alignItems="center" justifyContent="space-between">
+                        <Typography variant="body1" fontWeight="medium">
+                          {selectedEmpleado.telefono}
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            const phoneNumber = selectedEmpleado.telefono.replace(/[^0-9]/g, '');
+                            window.open(`https://wa.me/${phoneNumber}`, '_blank');
+                          }}
+                          sx={{
+                            color: '#25D366',
+                            '&:hover': {
+                              backgroundColor: alpha('#25D366', 0.1)
+                            }
+                          }}
+                        >
+                          <WhatsAppIcon sx={{ fontSize: 22 }} />
+                        </IconButton>
+                      </Box>
+                    </Card>
+                  </Grid>
+                )}
+
+                <Grid item xs={12} md={selectedEmpleado.emailCorporativo || selectedEmpleado.telefono ? 12 : 4}>
                   <Card variant="outlined" sx={{ p: 2, height: '100%' }}>
                     <Typography variant="subtitle2" color="primary" gutterBottom>
                       <CalendarIcon sx={{ fontSize: 16, mr: 0.5 }} />
