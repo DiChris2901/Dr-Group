@@ -241,6 +241,33 @@ const EmpleadosPage = () => {
     return edad;
   };
 
+  // Calcular tiempo en la empresa
+  const calcularTiempoEnEmpresa = (fechaInicioContrato) => {
+    if (!fechaInicioContrato) return 'No disponible';
+    
+    const [year, month, day] = fechaInicioContrato.split('-').map(Number);
+    const fechaInicio = new Date(year, month - 1, day);
+    const hoy = new Date();
+    
+    let años = hoy.getFullYear() - fechaInicio.getFullYear();
+    let meses = hoy.getMonth() - fechaInicio.getMonth();
+    
+    if (meses < 0) {
+      años--;
+      meses += 12;
+    }
+    
+    if (años > 0 && meses > 0) {
+      return `${años} año${años > 1 ? 's' : ''} y ${meses} mes${meses > 1 ? 'es' : ''}`;
+    } else if (años > 0) {
+      return `${años} año${años > 1 ? 's' : ''}`;
+    } else if (meses > 0) {
+      return `${meses} mes${meses > 1 ? 'es' : ''}`;
+    } else {
+      return 'Menos de 1 mes';
+    }
+  };
+
   // Calcular fecha fin de contrato según tipo de vigencia
   const calcularFechaFinContrato = (fechaInicio, tipoVigencia) => {
     if (!fechaInicio || tipoVigencia === 'Indefinido') return '';
@@ -957,7 +984,7 @@ const EmpleadosPage = () => {
                     )}
 
                     {empleado.telefono && (
-                      <Box display="flex" alignItems="center" justifyContent="space-between">
+                      <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
                         <Box display="flex" alignItems="center" sx={{ flex: 1 }}>
                           <PhoneIcon sx={{ fontSize: 18, mr: 1.5, color: 'primary.main' }} />
                           <Typography variant="body2" color="text.primary" sx={{ fontSize: '0.875rem' }}>
@@ -979,6 +1006,26 @@ const EmpleadosPage = () => {
                         >
                           <WhatsAppIcon sx={{ fontSize: 20 }} />
                         </IconButton>
+                      </Box>
+                    )}
+
+                    {/* Empresa Contratante */}
+                    {empleado.empresaContratante && (
+                      <Box display="flex" alignItems="center" mb={1.5}>
+                        <WorkIcon sx={{ fontSize: 18, mr: 1.5, color: 'info.main' }} />
+                        <Typography variant="body2" color="text.primary" sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                          {empleado.empresaContratante}
+                        </Typography>
+                      </Box>
+                    )}
+
+                    {/* Tiempo en la Empresa */}
+                    {empleado.fechaInicioContrato && (
+                      <Box display="flex" alignItems="center">
+                        <AccessTimeIcon sx={{ fontSize: 18, mr: 1.5, color: 'success.main' }} />
+                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem' }}>
+                          {calcularTiempoEnEmpresa(empleado.fechaInicioContrato)}
+                        </Typography>
                       </Box>
                     )}
                   </CardContent>
