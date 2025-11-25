@@ -2108,7 +2108,7 @@ const NewPaymentPage = () => {
                             bgcolor: 'background.paper',
                             borderRadius: 2,
                             boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                            border: `1px solid ${alpha(theme.palette.success.main, 0.6)}`
+                            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
                           }}
                         >
                           <CardContent sx={{ py: 2 }}>
