@@ -52,7 +52,6 @@ import {
   Receipt as ReceiptIcon,
   Image as ImageIcon
 } from '@mui/icons-material';
-import { motion, AnimatePresence } from 'framer-motion';
 import { collection, query, getDocs, limit, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { format } from 'date-fns';
@@ -525,21 +524,16 @@ const GlobalSearchPage = () => {
     if (data.length === 0) return null;
 
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
+      <Card 
+        elevation={0}
+        sx={{ 
+          mb: 4,
+          border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+          background: theme.palette.mode === 'dark' 
+            ? alpha(theme.palette.background.paper, 0.6)
+            : alpha(theme.palette.background.paper, 0.9)
+        }}
       >
-        <Card 
-          elevation={0}
-          sx={{ 
-            mb: 4,
-            border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-            background: theme.palette.mode === 'dark' 
-              ? alpha(theme.palette.background.paper, 0.6)
-              : alpha(theme.palette.background.paper, 0.9)
-          }}
-        >
           <CardContent sx={{ p: 0 }}>
             {/* Header */}
             <Box sx={{ 
@@ -627,104 +621,62 @@ const GlobalSearchPage = () => {
             )}
           </CardContent>
         </Card>
-      </motion.div>
     );
   };
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
+      {/* Header Sobrio Empresarial */}
+      <Paper 
+        elevation={0}
+        sx={{ 
+          p: 3, 
+          mb: 3, 
+          borderRadius: 2,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+        }}
       >
-        <Paper
-          sx={{
-            background: theme.palette.mode === 'dark' 
-              ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
-              : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
-            color: 'white',
-            p: 3,
-            borderRadius: 2,
-            mb: 4,
-            boxShadow: theme.palette.mode === 'dark'
-              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
-              : '0 4px 20px rgba(0, 0, 0, 0.08)',
-            overflow: 'hidden'
-          }}
-        >
-          <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <SearchIcon sx={{ fontSize: 32, mr: 2 }} />
-              
-              <Box>
-                <Typography 
-                  variant="overline"
-                  sx={{
-                    fontWeight: 600,
-                    fontSize: '0.7rem',
-                    color: 'rgba(255, 255, 255, 0.8)',
-                    letterSpacing: 1.2
-                  }}
-                >
-                  BÚSQUEDA GLOBAL
-                </Typography>
-                <Typography 
-                  variant="h4" 
-                  sx={{ 
-                    fontWeight: 700,
-                    color: 'white',
-                    mb: 0.5
-                  }}
-                >
-                  Resultados de Búsqueda
-                </Typography>
-                <Typography 
-                  variant="body1" 
-                  sx={{ 
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    fontWeight: 400
-                  }}
-                >
-                  {searchTerm ? (
-                    <>Mostrando resultados para: <strong>"{searchTerm}"</strong></>
-                  ) : (
-                    'Ingresa un término de búsqueda'
-                  )}
-                </Typography>
-              </Box>
-            </Box>
-
-            {searchTerm && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mt: 2 }}>
-                <Chip 
-                  label={`${totalResults} resultado${totalResults !== 1 ? 's' : ''} encontrado${totalResults !== 1 ? 's' : ''}`}
-                  sx={{
-                    backgroundColor: alpha(theme.palette.background.paper, 0.2),
-                    color: 'white',
-                    fontWeight: 600,
-                    border: `1px solid ${alpha(theme.palette.background.paper, 0.3)}`
-                  }}
-                />
-                {loading && (
-                  <CircularProgress 
-                    size={20} 
-                    sx={{ color: 'rgba(255, 255, 255, 0.9)' }} 
-                  />
-                )}
-              </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+          <SearchIcon sx={{ fontSize: 32, color: 'primary.main' }} />
+          <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary' }}>
+            Búsqueda Global
+          </Typography>
+        </Box>
+        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
+          {searchTerm ? (
+            <>Resultados para: <strong>"{searchTerm}"</strong></>
+          ) : (
+            'Ingresa un término de búsqueda'
+          )}
+        </Typography>
+        {searchTerm && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1.5 }}>
+            <Chip 
+              label={`${totalResults} resultado${totalResults !== 1 ? 's' : ''} encontrado${totalResults !== 1 ? 's' : ''}`}
+              size="small"
+              sx={{
+                backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                color: 'primary.main',
+                fontWeight: 600
+              }}
+            />
+            {loading && (
+              <CircularProgress 
+                size={20} 
+                sx={{ color: 'primary.main' }} 
+              />
             )}
           </Box>
-        </Paper>
-      </motion.div>
+        )}
+      </Paper>
 
-      <AnimatePresence>
-        {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-            <CircularProgress size={40} />
-          </Box>
-        ) : totalResults > 0 ? (
-          <Box>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+          <CircularProgress size={40} />
+        </Box>
+      ) : totalResults > 0 ? (
+        <Box>
             {/* Tabla de Compromisos */}
             <ResultTable
               title="Compromisos Financieros"
@@ -1344,50 +1296,263 @@ const GlobalSearchPage = () => {
             />
           </Box>
         ) : searchTerm && !loading ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
+          <Paper 
+            elevation={0}
+            sx={{ 
+              p: 8, 
+              textAlign: 'center',
+              borderRadius: 2,
+              border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            }}
           >
-            <Paper sx={{ p: 8, textAlign: 'center' }}>
-              <SearchIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-              <Typography variant="h6" gutterBottom>
-                No se encontraron resultados
-              </Typography>
-              <Typography color="text.secondary">
-                Intenta con otros términos de búsqueda
-              </Typography>
-            </Paper>
-          </motion.div>
+            <SearchIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+            <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+              No se encontraron resultados
+            </Typography>
+            <Typography color="text.secondary">
+              Intenta con otros términos de búsqueda
+            </Typography>
+          </Paper>
         ) : null}
-      </AnimatePresence>
 
       {/* Modal de vista de empresa */}
       <Dialog
         open={companyViewDialogOpen}
         onClose={handleCloseCompanyViewDialog}
-        maxWidth="lg"
+        maxWidth="md"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            background: theme.palette.background.paper,
+            boxShadow: theme.palette.mode === 'dark'
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+          }
+        }}
       >
         {selectedCompany && (
           <>
-            <DialogTitle>
+            <DialogTitle sx={{ 
+              pb: 2,
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              background: theme.palette.mode === 'dark' 
+                ? theme.palette.grey[900]
+                : theme.palette.grey[50],
+              borderBottom: `1px solid ${theme.palette.divider}`,
+              color: 'text.primary'
+            }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                <BusinessIcon sx={{ color: theme.palette.secondary.main }} />
-                <Typography variant="h6">{selectedCompany.name || 'Empresa'}</Typography>
+                <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+                  <BusinessIcon />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6" sx={{ 
+                    fontWeight: 700,
+                    mb: 0,
+                    color: 'text.primary' 
+                  }}>
+                    Detalle de Empresa
+                  </Typography>
+                  <Typography variant="caption" sx={{ 
+                    color: 'text.secondary',
+                    display: 'block'
+                  }}>
+                    Información completa
+                  </Typography>
+                </Box>
               </Box>
               <IconButton 
-                onClick={handleCloseCompanyViewDialog}
-                sx={{ position: 'absolute', right: 8, top: 8 }}
+                onClick={handleCloseCompanyViewDialog} 
+                size="small"
+                sx={{
+                  color: 'text.secondary',
+                  '&:hover': {
+                    backgroundColor: alpha(theme.palette.primary.main, 0.04),
+                    color: 'primary.main'
+                  }
+                }}
               >
                 <CloseIcon />
               </IconButton>
             </DialogTitle>
-            <DialogContent>
-              <Typography>Información de la empresa: {selectedCompany.name}</Typography>
+
+            <DialogContent sx={{ p: 3 }}>
+              <Grid container spacing={3}>
+                {/* Información principal */}
+                <Grid item xs={12}>
+                  <Paper sx={{ 
+                    p: 2.5, 
+                    borderRadius: 1,
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                  }}>
+                    <Typography variant="subtitle1" sx={{ 
+                      fontWeight: 700, 
+                      mb: 2,
+                      color: 'text.primary'
+                    }}>
+                      Información General
+                    </Typography>
+                    
+                    <Stack spacing={2}>
+                      <Box>
+                        <Typography variant="overline" sx={{ 
+                          color: 'text.secondary',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          letterSpacing: '0.1em'
+                        }}>
+                          Nombre de la Empresa
+                        </Typography>
+                        <Typography variant="h6" sx={{ 
+                          color: 'primary.main',
+                          fontWeight: 600,
+                          mt: 0.5
+                        }}>
+                          {selectedCompany.name}
+                        </Typography>
+                      </Box>
+
+                      {selectedCompany.nit && (
+                        <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                          <Box sx={{ flex: 1, minWidth: '200px' }}>
+                            <Typography variant="overline" sx={{ 
+                              color: 'text.secondary',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              letterSpacing: '0.1em'
+                            }}>
+                              NIT
+                            </Typography>
+                            <Typography variant="body1" sx={{ 
+                              color: 'text.primary',
+                              mt: 0.5,
+                              fontFamily: 'monospace'
+                            }}>
+                              {selectedCompany.nit}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )}
+
+                      {(selectedCompany.contact || selectedCompany.email || selectedCompany.phone) && (
+                        <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                          {selectedCompany.contact && (
+                            <Box sx={{ flex: 1, minWidth: '200px' }}>
+                              <Typography variant="overline" sx={{ 
+                                color: 'text.secondary',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                letterSpacing: '0.1em'
+                              }}>
+                                Contacto
+                              </Typography>
+                              <Typography variant="body1" sx={{ 
+                                color: 'text.primary',
+                                mt: 0.5
+                              }}>
+                                {selectedCompany.contact}
+                              </Typography>
+                            </Box>
+                          )}
+
+                          {selectedCompany.email && (
+                            <Box sx={{ flex: 1, minWidth: '200px' }}>
+                              <Typography variant="overline" sx={{ 
+                                color: 'text.secondary',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                letterSpacing: '0.1em'
+                              }}>
+                                Email
+                              </Typography>
+                              <Typography variant="body1" sx={{ 
+                                color: 'text.primary',
+                                mt: 0.5
+                              }}>
+                                {selectedCompany.email}
+                              </Typography>
+                            </Box>
+                          )}
+
+                          {selectedCompany.phone && (
+                            <Box sx={{ flex: 1, minWidth: '200px' }}>
+                              <Typography variant="overline" sx={{ 
+                                color: 'text.secondary',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                letterSpacing: '0.1em'
+                              }}>
+                                Teléfono
+                              </Typography>
+                              <Typography variant="body1" sx={{ 
+                                color: 'text.primary',
+                                mt: 0.5
+                              }}>
+                                {selectedCompany.phone}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Box>
+                      )}
+                    </Stack>
+                  </Paper>
+                </Grid>
+
+                {/* Acciones rápidas */}
+                <Grid item xs={12}>
+                  <Paper sx={{ 
+                    p: 2.5, 
+                    borderRadius: 1,
+                    border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                  }}>
+                    <Typography variant="subtitle1" sx={{ 
+                      fontWeight: 700, 
+                      mb: 2,
+                      color: 'text.primary'
+                    }}>
+                      Acciones
+                    </Typography>
+                    <Button 
+                      onClick={() => handleResultClick('company', selectedCompany)}
+                      variant="contained"
+                      startIcon={<LaunchIcon />}
+                      fullWidth
+                      sx={{ 
+                        borderRadius: 1,
+                        textTransform: 'none',
+                        fontWeight: 600
+                      }}
+                    >
+                      Ver en Empresas
+                    </Button>
+                  </Paper>
+                </Grid>
+              </Grid>
             </DialogContent>
-            <DialogActions>
-              <Button onClick={handleCloseCompanyViewDialog}>Cerrar</Button>
+
+            <DialogActions sx={{ 
+              p: 3, 
+              borderTop: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+              gap: 2,
+              justifyContent: 'flex-end'
+            }}>
+              <Button 
+                onClick={handleCloseCompanyViewDialog} 
+                variant="outlined"
+                sx={{ 
+                  borderRadius: 1,
+                  textTransform: 'none'
+                }}
+              >
+                Cerrar
+              </Button>
             </DialogActions>
           </>
         )}
