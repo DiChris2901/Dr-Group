@@ -9,7 +9,6 @@ import {
     Person as PersonIcon,
     Settings as SettingsIcon,
     Storage as StorageIcon,
-    Search as SearchIcon,
     StickyNote2 as NotesIcon,
     Task as TaskIcon,
     MoreVert as MoreVertIcon
@@ -24,18 +23,13 @@ import {
     ListItemText,
     Menu,
     MenuItem,
-    TextField,
     Tooltip,
     Typography,
-    alpha,
-    Autocomplete,
-    Paper
+    alpha
 } from '@mui/material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, query, limit, getDocs, where } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationsContext';
 import { useSettings } from '../../context/SettingsContext';
@@ -119,10 +113,6 @@ const DashboardHeader = ({ onOpenSettings }) => {
   const [notesAnchor, setNotesAnchor] = useState(null);
   const [tasksAnchor, setTasksAnchor] = useState(null);
   const [moreMenuAnchor, setMoreMenuAnchor] = useState(null);
-  const [searchValue, setSearchValue] = useState('');
-  const [searchSuggestions, setSearchSuggestions] = useState([]);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   // User profile data from Firebase Auth y Firestore
   const userProfile = {
@@ -201,20 +191,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
     setProfileMenuAnchor(null);
   };
 
-  // 🔍 Handler para búsqueda global
-  const handleSearchSubmit = (event) => {
-    if (event.key === 'Enter' && searchValue.trim()) {
-      performGlobalSearch(searchValue.trim());
-    }
-  };
 
-  // 🔍 Función para realizar búsqueda global inteligente
-  const performGlobalSearch = (searchTerm) => {
-    // Navegar a la página de búsqueda global
-    navigate(`/search?q=${encodeURIComponent(searchTerm)}`);
-    setSearchOpen(false);
-    setSearchValue('');
-  };
 
   // 🔍 Función para obtener sugerencias de búsqueda global
   const fetchSearchSuggestions = async (searchTerm) => {
@@ -371,21 +348,6 @@ const DashboardHeader = ({ onOpenSettings }) => {
     }
   };
 
-  // 🔍 useEffect para obtener sugerencias con debounce
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (searchValue.trim()) {
-        fetchSearchSuggestions(searchValue.trim());
-        setSearchOpen(true);
-      } else {
-        setSearchSuggestions([]);
-        setSearchOpen(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchValue]);
-
   const handleNotificationsOpen = (event) => {
     // 🔊 Sonido condicional en notificaciones
     if (notificationSoundEnabled) {
@@ -519,168 +481,7 @@ const DashboardHeader = ({ onOpenSettings }) => {
         {/* Espacio vacío para balancear la búsqueda en el centro */}
       </Box>
 
-      {/* Área central para barra de búsqueda */}
-      <Box sx={{ 
-        flex: '0 0 auto',
-        display: 'flex', 
-        justifyContent: 'center',
-        minWidth: { xs: 200, sm: 260, md: 320 }, // Responsive: móvil → tablet → desktop
-        maxWidth: { xs: 240, sm: 300, md: 380 },
-        position: 'relative',
-      }}>
-        <Autocomplete
-          freeSolo
-          open={searchOpen && searchSuggestions.length > 0}
-          onOpen={() => {
-            if (searchSuggestions.length > 0) {
-              setSearchOpen(true);
-            }
-          }}
-          onClose={() => setSearchOpen(false)}
-          inputValue={searchValue}
-          onInputChange={(event, newValue, reason) => {
-            if (reason === 'input') {
-              setSearchValue(newValue);
-            }
-          }}
-          onChange={(event, newValue) => {
-            if (newValue) {
-              // Manejar navegación basada en el tipo de resultado
-              if (typeof newValue === 'object' && newValue.path) {
-                if (newValue.type === 'page') {
-                  navigate(newValue.path);
-                } else {
-                  navigate(`/search?q=${encodeURIComponent(newValue.label.replace(/^[📋👤🏢💰👥📧📄]\s/, ''))}`);
-                }
-              } else {
-                // Fallback para búsqueda general
-                navigate(`/search?q=${encodeURIComponent(newValue)}`);
-              }
-              setSearchOpen(false);
-              setSearchValue('');
-            }
-          }}
-          options={searchSuggestions}
-          loading={loadingSuggestions}
-          getOptionLabel={(option) => typeof option === 'object' ? option.label : option}
-          renderOption={(props, option) => {
-            const { key, ...otherProps } = props;
-            return (
-              <Box 
-                component="li" 
-                key={key}
-                {...otherProps}
-                sx={{ 
-                  px: 2, 
-                  py: 1.5,
-                  borderBottom: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
-                  '&:last-child': {
-                    borderBottom: 'none'
-                  },
-                  '&:hover': {
-                    backgroundColor: alpha(theme.palette.primary.main, 0.05),
-                  }
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                  <Typography variant="body2" sx={{ 
-                    flex: 1,
-                    fontSize: '0.875rem',
-                    color: theme.palette.text.primary
-                  }}>
-                    {typeof option === 'object' ? option.label : option}
-                  </Typography>
-                  {typeof option === 'object' && (
-                    <Typography variant="caption" sx={{ 
-                      color: theme.palette.text.secondary,
-                      ml: 1,
-                      fontSize: '0.75rem',
-                      textTransform: 'capitalize'
-                    }}>
-                      {option.type === 'commitment' && 'Compromiso'}
-                      {option.type === 'company' && 'Empresa'}
-                      {option.type === 'payment' && 'Pago'}
-                      {option.type === 'user' && 'Usuario'}
-                      {option.type === 'page' && 'Página'}
-                    </Typography>
-                  )}
-                </Box>
-              </Box>
-            );
-          }}
-          noOptionsText={loadingSuggestions ? "Buscando..." : "No hay sugerencias"}
-          loadingText="Buscando..."
-          PaperComponent={({ children, ...other }) => (
-            <Paper
-              {...other}
-              sx={{
-                borderRadius: '12px',
-                border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-                boxShadow: theme.palette.mode === 'dark'
-                  ? '0 8px 32px rgba(0,0,0,0.3)'
-                  : '0 8px 32px rgba(0,0,0,0.1)',
-                mt: 1,
-              }}
-            >
-              {children}
-            </Paper>
-          )}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              size="small"
-              placeholder="Buscar compromisos, pagos..."
-              onKeyDown={handleSearchSubmit}
-              InputProps={{
-                ...params.InputProps,
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon sx={{ 
-                      color: theme.palette.text.secondary,
-                      fontSize: 20 
-                    }} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{
-                width: '100%',
-                '& .MuiOutlinedInput-root': {
-                  height: '48px',
-                  borderRadius: 2,
-                  backgroundColor: theme.palette.background.paper,
-                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                  border: `1px solid ${alpha(theme.palette.divider, 0.2)}`,
-                  '& fieldset': {
-                    border: 'none',
-                  },
-                  '&:hover': {
-                    border: `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
-                    backgroundColor: alpha(theme.palette.primary.main, 0.02),
-                  },
-                  '&.Mui-focused': {
-                    border: `1px solid ${theme.palette.primary.main}`,
-                    backgroundColor: theme.palette.background.paper,
-                  },
-                },
-                '& .MuiInputBase-input': {
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  padding: '10px 4px',
-                  '&::placeholder': {
-                    color: theme.palette.text.secondary,
-                    opacity: 0.8,
-                    fontWeight: 500,
-                  },
-                },
-                '& .MuiInputAdornment-root': {
-                  marginRight: '8px',
-                },
-              }}
-            />
-          )}
-          sx={{ width: '100%' }}
-        />
-      </Box>
+
 
       {/* Área derecha - controles de usuario */}
       <Box sx={{ 
