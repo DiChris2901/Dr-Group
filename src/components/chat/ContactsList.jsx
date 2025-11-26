@@ -20,7 +20,8 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  Badge as MuiBadge
+  Badge as MuiBadge,
+  useTheme
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -30,7 +31,8 @@ import {
   Badge as BadgeIcon,
   Close as CloseIcon,
   Phone as PhoneIcon,
-  WhatsApp as WhatsAppIcon
+  WhatsApp as WhatsAppIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import Fuse from 'fuse.js';
@@ -46,8 +48,9 @@ const ContactsList = ({
   onSelectUser,
   loading = false 
 }) => {
+  const theme = useTheme();
   const { currentUser } = useAuth();
-  const { usersPresence, unreadByUser, conversations, setActiveConversationId } = useChat();
+  const { usersPresence, unreadByUser, conversations, setActiveConversationId, deleteGroup } = useChat();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUserInfo, setSelectedUserInfo] = useState(null);
   const [userInfoDialogOpen, setUserInfoDialogOpen] = useState(false);
@@ -85,6 +88,22 @@ const ContactsList = ({
   const handleCloseUserInfo = () => {
     setUserInfoDialogOpen(false);
     setSelectedUserInfo(null);
+  };
+
+  const handleDeleteGroup = async (event, groupId, groupName) => {
+    event.stopPropagation();
+    
+    if (!window.confirm(`¿Estás seguro de eliminar el grupo "${groupName}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    try {
+      await deleteGroup(groupId);
+      console.log('✅ Grupo eliminado:', groupId);
+    } catch (error) {
+      console.error('❌ Error al eliminar grupo:', error);
+      alert('Error al eliminar el grupo. Intenta de nuevo.');
+    }
   };
 
   // 🔍 D. Configurar Fuse.js para búsqueda fuzzy optimizada
@@ -176,8 +195,9 @@ const ContactsList = ({
         sx={{
           p: 2.5,
           borderBottom: 1,
-          borderColor: 'divider',
-          bgcolor: alpha(useAuth().currentUser ? '#667eea' : '#f5f5f5', 0.04)
+          borderColor: alpha('#000', 0.08),
+          bgcolor: 'background.paper',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.04)'
         }}
       >
         <Typography 
@@ -347,6 +367,20 @@ const ContactsList = ({
                                   sx: { fontSize: '0.8rem' }
                                 }}
                               />
+                              <IconButton
+                                size="small"
+                                onClick={(e) => handleDeleteGroup(e, group.id, groupName)}
+                                sx={{
+                                  ml: 1,
+                                  color: 'text.secondary',
+                                  '&:hover': {
+                                    color: 'error.main',
+                                    bgcolor: alpha('#f44336', 0.08)
+                                  }
+                                }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
                             </ListItemButton>
                           </ListItem>
                         </motion.div>
@@ -411,18 +445,26 @@ const ContactsList = ({
                         sx={{
                           py: 1.5,
                           px: 2.5,
-                          bgcolor: isSelected ? alpha('#667eea', 0.08) : 'transparent',
+                          mx: 1,
+                          my: 0.5,
+                          borderRadius: 2,
+                          background: isSelected 
+                            ? `linear-gradient(135deg, ${alpha('#667eea', 0.12)} 0%, ${alpha('#764ba2', 0.08)} 100%)`
+                            : 'transparent',
                           borderLeft: isSelected ? 3 : 0,
                           borderColor: 'primary.main',
                           transition: 'all 0.3s ease',
                           '&:hover': {
-                            bgcolor: isSelected ? alpha('#667eea', 0.12) : alpha('#000', 0.04),
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                            background: isSelected 
+                              ? `linear-gradient(135deg, ${alpha('#667eea', 0.18)} 0%, ${alpha('#764ba2', 0.12)} 100%)`
+                              : alpha('#667eea', 0.06),
+                            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.15)',
+                            transform: 'translateX(4px)'
                           },
                           '&.Mui-selected': {
-                            bgcolor: alpha('#667eea', 0.08),
+                            background: `linear-gradient(135deg, ${alpha('#667eea', 0.12)} 0%, ${alpha('#764ba2', 0.08)} 100%)`,
                             '&:hover': {
-                              bgcolor: alpha('#667eea', 0.12)
+                              background: `linear-gradient(135deg, ${alpha('#667eea', 0.18)} 0%, ${alpha('#764ba2', 0.12)} 100%)`
                             }
                           }
                         }}
@@ -432,11 +474,7 @@ const ContactsList = ({
                             overlap="circular"
                             anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                             variant="dot"
-                            invisible={
-                              isMe(user) ||
-                              !usersPresence[user.id] ||
-                              !(usersPresence[user.id]?.online === true || usersPresence[user.id]?.state === 'online')
-                            }
+                            invisible={true}
                             sx={{
                               '& .MuiBadge-badge': {
                                 backgroundColor: '#44b700',
@@ -456,14 +494,22 @@ const ContactsList = ({
                               sx={{
                                 width: 44,
                                 height: 44,
-                                border: isSelected ? 2 : 0,
-                                borderColor: 'primary.main',
-                                boxShadow: isSelected ? '0 4px 12px rgba(0,0,0,0.15)' : '0 2px 8px rgba(0,0,0,0.06)',
+                                border: 2,
+                                borderColor: isSelected 
+                                  ? 'primary.main'
+                                  : alpha('#667eea', 0.2),
+                                background: !userPhoto 
+                                  ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
+                                  : undefined,
+                                boxShadow: isSelected 
+                                  ? '0 4px 16px rgba(102, 126, 234, 0.3)' 
+                                  : '0 2px 8px rgba(102, 126, 234, 0.15)',
                                 transition: 'all 0.3s ease',
                                 cursor: 'pointer',
                                 '&:hover': {
-                                  transform: 'scale(1.1)',
-                                  boxShadow: '0 4px 16px rgba(0,0,0,0.2)'
+                                  transform: 'scale(1.15) rotate(5deg)',
+                                  borderColor: 'primary.main',
+                                  boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)'
                                 }
                               }}
                             >

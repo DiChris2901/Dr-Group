@@ -13,7 +13,8 @@ import {
   addDoc,
   arrayUnion,
   arrayRemove,
-  deleteField
+  deleteField,
+  deleteDoc
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from './AuthContext';
@@ -619,6 +620,36 @@ export const ChatProvider = ({ children }) => {
     }));
   }, [conversationsCache]);
 
+  // Función para eliminar un grupo
+  const deleteGroup = async (groupId) => {
+    if (!currentUser?.uid) {
+      throw new Error('Usuario no autenticado');
+    }
+
+    try {
+      // 1. Eliminar conversación
+      const conversationRef = doc(db, 'conversations', groupId);
+      await deleteDoc(conversationRef);
+
+      // 2. Opcional: Eliminar mensajes asociados
+      // (Puedes comentar esto si quieres conservar historial)
+      const messagesQuery = query(
+        collection(db, 'messages'),
+        where('conversationId', '==', groupId)
+      );
+      const messagesSnapshot = await getDocs(messagesQuery);
+      const deletePromises = messagesSnapshot.docs.map(msgDoc => 
+        deleteDoc(doc(db, 'messages', msgDoc.id))
+      );
+      await Promise.all(deletePromises);
+
+      console.log(`✅ Grupo ${groupId} eliminado correctamente`);
+    } catch (error) {
+      console.error('❌ Error al eliminar grupo:', error);
+      throw error;
+    }
+  };
+
   const value = {
     // Estados
     conversations,
@@ -646,7 +677,8 @@ export const ChatProvider = ({ children }) => {
     removeGroupMember,
     updateGroupInfo,
     isGroupAdmin,
-    getGroupMembers
+    getGroupMembers,
+    deleteGroup
   };
 
   return (

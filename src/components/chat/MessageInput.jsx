@@ -253,10 +253,12 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
     <Box
       sx={{
         borderTop: 1,
-        borderColor: alpha(theme.palette.divider, 0.6),
-        bgcolor: 'background.paper',
+        borderColor: alpha(theme.palette.primary.main, 0.15),
+        background: theme.palette.mode === 'dark'
+          ? 'background.paper'
+          : `linear-gradient(135deg, ${alpha('#667eea', 0.02)} 0%, ${alpha('#764ba2', 0.02)} 100%)`,
         p: 2.5,
-        boxShadow: '0 -2px 8px rgba(0,0,0,0.04)'
+        boxShadow: '0 -2px 12px rgba(102, 126, 234, 0.08)'
       }}
     >
       {/* Indicador de respuesta */}

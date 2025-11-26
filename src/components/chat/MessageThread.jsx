@@ -171,10 +171,13 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
           alignItems: 'center',
           p: 2.5,
           borderBottom: 1,
-          borderColor: alpha(theme.palette.divider, 0.6),
-          bgcolor: alpha('#667eea', 0.04),
+          borderColor: alpha(theme.palette.primary.main, 0.15),
+          background: theme.palette.mode === 'dark'
+            ? 'background.paper'
+            : `linear-gradient(135deg, ${alpha('#667eea', 0.03)} 0%, ${alpha('#764ba2', 0.02)} 100%)`,
           gap: 2,
-          borderRadius: 0
+          borderRadius: 0,
+          boxShadow: '0 2px 12px rgba(102, 126, 234, 0.08)'
         }}
       >
         {/* Botón volver (móvil) */}
@@ -200,13 +203,18 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
           sx={{ 
             width: 44, 
             height: 44, 
-            bgcolor: 'primary.main',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+            border: 2,
+            borderColor: alpha('#667eea', 0.3),
+            background: !otherParticipantPhoto
+              ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
+              : undefined,
+            boxShadow: '0 2px 12px rgba(102, 126, 234, 0.2)',
             cursor: 'pointer',
             transition: 'all 0.3s ease',
             '&:hover': {
-              transform: 'scale(1.1)',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.2)'
+              transform: 'scale(1.15) rotate(-5deg)',
+              borderColor: 'primary.main',
+              boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)'
             }
           }}
         >
@@ -223,7 +231,7 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
         </Box>
       </Paper>
 
-      {/* Área de mensajes Sobrio */}
+      {/* Área de mensajes Sobrio con gradiente */}
       <Box
         ref={messagesContainerRef}
         onScroll={handleScroll}
@@ -234,7 +242,9 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
           display: 'flex',
           flexDirection: 'column',
           gap: 1.5,
-          bgcolor: alpha('#f5f5f5', theme.palette.mode === 'dark' ? 0.02 : 0.3)
+          background: theme.palette.mode === 'dark'
+            ? `linear-gradient(180deg, ${alpha('#667eea', 0.02)} 0%, ${alpha('#764ba2', 0.02)} 100%)`
+            : `linear-gradient(180deg, ${alpha('#667eea', 0.03)} 0%, ${alpha('#f5f5f5', 0.8)} 50%, ${alpha('#764ba2', 0.03)} 100%)`
         }}
       >
         {loading && messages.length === 0 ? (

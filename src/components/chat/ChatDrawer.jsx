@@ -117,28 +117,73 @@ const ChatDrawer = ({ open, onClose }) => {
       justifyContent="center"
       height="100%"
       sx={{
-        background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)'
+        background: `linear-gradient(135deg, ${alpha('#667eea', 0.08)} 0%, ${alpha('#764ba2', 0.08)} 100%)`,
+        position: 'relative',
+        overflow: 'hidden',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: '-50%',
+          right: '-50%',
+          width: '100%',
+          height: '100%',
+          background: `radial-gradient(circle, ${alpha('#667eea', 0.15)} 0%, transparent 70%)`,
+          animation: 'pulse 4s ease-in-out infinite'
+        },
+        '@keyframes pulse': {
+          '0%, 100%': { opacity: 0.5, transform: 'scale(1)' },
+          '50%': { opacity: 0.8, transform: 'scale(1.1)' }
+        }
       }}
     >
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.5 }}
+        style={{ position: 'relative', zIndex: 1 }}
       >
-        <ChatIcon
+        <Box
           sx={{
-            fontSize: 80,
-            color: 'text.disabled',
-            mb: 2,
-            opacity: 0.3
+            p: 3,
+            borderRadius: '50%',
+            background: `linear-gradient(135deg, ${alpha('#667eea', 0.15)} 0%, ${alpha('#764ba2', 0.15)} 100%)`,
+            boxShadow: '0 8px 32px rgba(102, 126, 234, 0.2)',
+            mb: 3
           }}
-        />
+        >
+          <ChatIcon
+            sx={{
+              fontSize: 64,
+              color: 'primary.main',
+              opacity: 0.8
+            }}
+          />
+        </Box>
       </motion.div>
-      <Typography variant="h6" color="text.secondary" fontWeight={600} gutterBottom>
+      <Typography 
+        variant="h5" 
+        sx={{
+          background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+          backgroundClip: 'text',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          fontWeight: 700,
+          mb: 1,
+          position: 'relative',
+          zIndex: 1
+        }}
+      >
         💬 Mensajería Interna
       </Typography>
-      <Typography variant="body2" color="text.secondary" textAlign="center" maxWidth={300} px={2}>
-        Selecciona un contacto para iniciar una conversación
+      <Typography 
+        variant="body2" 
+        color="text.secondary" 
+        textAlign="center" 
+        maxWidth={300} 
+        px={2}
+        sx={{ position: 'relative', zIndex: 1 }}
+      >
+        Selecciona un contacto o grupo para iniciar una conversación
       </Typography>
     </Box>
   );
@@ -165,7 +210,7 @@ const ChatDrawer = ({ open, onClose }) => {
         }
       }}
     >
-      {/* Header del Drawer - Diseño Sobrio */}
+      {/* Header del Drawer - Diseño Spectacular */}
       <Paper
         elevation={0}
         sx={{
@@ -174,9 +219,7 @@ const ChatDrawer = ({ open, onClose }) => {
             : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
           borderRadius: 0,
           overflow: 'hidden',
-          boxShadow: theme.palette.mode === 'dark'
-            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
-            : '0 4px 20px rgba(0, 0, 0, 0.08)'
+          boxShadow: '0 8px 32px rgba(31, 38, 135, 0.37)'
         }}
       >
         <Box
@@ -315,7 +358,7 @@ const ChatDrawer = ({ open, onClose }) => {
                 >
                   <CircularProgress />
                 </Box>
-              ) : selectedUserId && activeConversationId ? (
+              ) : activeConversationId ? (
                 <MessageThread
                   conversationId={activeConversationId}
                   selectedUser={selectedUserInfo}

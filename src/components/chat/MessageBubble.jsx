@@ -260,7 +260,21 @@ const MessageBubble = ({
         <Avatar
           src={message.senderPhoto}
           alt={message.senderName}
-          sx={{ width: 32, height: 32, mr: 1, mt: 'auto' }}
+          sx={{ 
+            width: 32, 
+            height: 32, 
+            mr: 1, 
+            mt: 'auto',
+            border: 2,
+            borderColor: alpha('#667eea', 0.3),
+            boxShadow: '0 2px 8px rgba(102, 126, 234, 0.2)',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              transform: 'scale(1.1)',
+              borderColor: alpha('#667eea', 0.6),
+              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)'
+            }
+          }}
         >
           {message.senderName?.charAt(0)}
         </Avatar>
@@ -330,8 +344,8 @@ const MessageBubble = ({
           elevation={0}
           sx={{
             p: 1.5,
-            bgcolor: isOwnMessage
-              ? alpha('#667eea', 0.12)
+            background: isOwnMessage
+              ? `linear-gradient(135deg, ${alpha('#667eea', 0.15)} 0%, ${alpha('#764ba2', 0.12)} 100%)`
               : 'background.paper',
             color: isOwnMessage ? 'primary.dark' : 'text.primary',
             borderRadius: 2,
@@ -339,12 +353,17 @@ const MessageBubble = ({
             borderTopLeftRadius: isOwnMessage ? 16 : 4,
             border: 1,
             borderColor: isOwnMessage 
-              ? alpha('#667eea', 0.3) 
-              : alpha('#000', 0.08),
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              ? alpha('#667eea', 0.4) 
+              : alpha('#000', 0.1),
+            boxShadow: isOwnMessage
+              ? '0 2px 12px rgba(102, 126, 234, 0.15)'
+              : '0 2px 8px rgba(0,0,0,0.08)',
             transition: 'all 0.3s ease',
             '&:hover': {
-              boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+              boxShadow: isOwnMessage
+                ? '0 4px 16px rgba(102, 126, 234, 0.25)'
+                : '0 4px 12px rgba(0,0,0,0.12)',
+              transform: 'translateY(-1px)'
             }
           }}
         >
