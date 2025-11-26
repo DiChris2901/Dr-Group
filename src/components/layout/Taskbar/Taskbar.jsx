@@ -267,6 +267,16 @@ const Taskbar = () => {
       <style>{taskbarAnimations}</style>
       
       {/* Taskbar Container - Diseño TopBar Style */}
+      <motion.div
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ 
+          duration: 0.6, 
+          type: 'spring', 
+          stiffness: 100,
+          delay: 0.2 
+        }}
+      >
       <Box
         sx={{
           position: 'fixed',
@@ -279,20 +289,21 @@ const Taskbar = () => {
             : '32px',  // Margen aumentado para equilibrar con el left
           height: isMobile ? 64 : 80,
           backgroundColor: theme.palette.background.paper,
-          borderRadius: 2,
+          borderRadius: 2.5,
           border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-          boxShadow: `${theme.shadows[1]}, 0 0 0 1px ${alpha(theme.palette.primary.main, 0.1)}`,
+          boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.12)}, 0 2px 8px ${alpha(theme.palette.common.black, 0.08)}, 0 0 0 1px ${alpha(theme.palette.primary.main, 0.1)}`,
           zIndex: 1300,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           px: isMobile ? 2 : 3,
-          transition: theme.transitions.create(['box-shadow', 'background-color', 'left', 'right', 'border'], {
-            easing: theme.transitions.easing.easeInOut,
-            duration: theme.transitions.duration.leavingScreen,
+          transition: theme.transitions.create(['box-shadow', 'transform', 'left', 'right', 'border'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.shorter,
           }),
           '&:hover': {
-            boxShadow: `${theme.shadows[2]}, 0 0 0 1px ${alpha(theme.palette.primary.main, 0.3)}`,
+            boxShadow: `0 12px 40px ${alpha(theme.palette.primary.main, 0.18)}, 0 4px 12px ${alpha(theme.palette.common.black, 0.12)}, 0 0 0 1px ${alpha(theme.palette.primary.main, 0.3)}`,
+            transform: 'translateY(-2px)',
             border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
           }
         }}
@@ -302,90 +313,196 @@ const Taskbar = () => {
           display: 'flex', 
           gap: isMobile ? 0.5 : 0.75,
           alignItems: 'center',
-          justifyContent: 'center'
+          justifyContent: 'flex-start',
+          flex: 1,
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          px: 1,
+          mx: -1,
+          '&::-webkit-scrollbar': {
+            height: '4px'
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'transparent'
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: alpha(theme.palette.primary.main, 0.2),
+            borderRadius: '10px',
+            '&:hover': {
+              background: alpha(theme.palette.primary.main, 0.4)
+            }
+          },
+          // Fade effect en los bordes para indicar scroll
+          maskImage: 'linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent)',
+          WebkitMaskImage: 'linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent)',
         }}>
           {filteredTaskbarItems.map((item, index) => (
             <React.Fragment key={item.id}>
               {/* Etiquetas de Categoría */}
               {index === 0 && !isMobile && (
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontSize: '0.65rem',
-                    fontWeight: 600,
-                    letterSpacing: 0.8,
-                    color: alpha(theme.palette.text.secondary, 0.7),
-                    textTransform: 'uppercase',
-                    mr: 1,
-                    userSelect: 'none'
-                  }}
-                >
-                  Inicio
-                </Typography>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  gap: 1,
+                  px: 2,
+                  py: 0.75,
+                  borderRadius: 2,
+                  bgcolor: alpha(theme.palette.primary.main, 0.06),
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+                  mr: 2
+                }}>
+                  <Box sx={{
+                    width: 3,
+                    height: 12,
+                    bgcolor: theme.palette.primary.main,
+                    borderRadius: 1
+                  }} />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      letterSpacing: 1.2,
+                      color: theme.palette.primary.main,
+                      textTransform: 'uppercase',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Inicio
+                  </Typography>
+                </Box>
               )}
               {index === 1 && !isMobile && (
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontSize: '0.65rem',
-                    fontWeight: 600,
-                    letterSpacing: 0.8,
-                    color: alpha(theme.palette.text.secondary, 0.7),
-                    textTransform: 'uppercase',
-                    mr: 1,
-                    userSelect: 'none'
-                  }}
-                >
-                  Operaciones
-                </Typography>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  gap: 1,
+                  px: 2,
+                  py: 0.75,
+                  borderRadius: 2,
+                  bgcolor: alpha(theme.palette.secondary.main, 0.06),
+                  border: `1px solid ${alpha(theme.palette.secondary.main, 0.15)}`,
+                  mr: 2
+                }}>
+                  <Box sx={{
+                    width: 3,
+                    height: 12,
+                    bgcolor: theme.palette.secondary.main,
+                    borderRadius: 1
+                  }} />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      letterSpacing: 1.2,
+                      color: theme.palette.secondary.main,
+                      textTransform: 'uppercase',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Operaciones
+                  </Typography>
+                </Box>
               )}
               {item.id === 'gestion' && !isMobile && (
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontSize: '0.65rem',
-                    fontWeight: 600,
-                    letterSpacing: 0.8,
-                    color: alpha(theme.palette.text.secondary, 0.7),
-                    textTransform: 'uppercase',
-                    mr: 1,
-                    userSelect: 'none'
-                  }}
-                >
-                  Gestión
-                </Typography>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  gap: 1,
+                  px: 2,
+                  py: 0.75,
+                  borderRadius: 2,
+                  bgcolor: alpha(theme.palette.secondary.main, 0.06),
+                  border: `1px solid ${alpha(theme.palette.secondary.main, 0.15)}`,
+                  mr: 2
+                }}>
+                  <Box sx={{
+                    width: 3,
+                    height: 12,
+                    bgcolor: theme.palette.secondary.main,
+                    borderRadius: 1
+                  }} />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      letterSpacing: 1.2,
+                      color: theme.palette.secondary.main,
+                      textTransform: 'uppercase',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Gestión
+                  </Typography>
+                </Box>
               )}
               {item.id === 'reports' && !isMobile && (
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontSize: '0.65rem',
-                    fontWeight: 600,
-                    letterSpacing: 0.8,
-                    color: alpha(theme.palette.text.secondary, 0.7),
-                    textTransform: 'uppercase',
-                    mr: 1,
-                    userSelect: 'none'
-                  }}
-                >
-                  Reportes
-                </Typography>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  gap: 1,
+                  px: 2,
+                  py: 0.75,
+                  borderRadius: 2,
+                  bgcolor: alpha(theme.palette.primary.main, 0.06),
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+                  mr: 2
+                }}>
+                  <Box sx={{
+                    width: 3,
+                    height: 12,
+                    bgcolor: theme.palette.primary.main,
+                    borderRadius: 1
+                  }} />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      letterSpacing: 1.2,
+                      color: theme.palette.primary.main,
+                      textTransform: 'uppercase',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Reportes
+                  </Typography>
+                </Box>
               )}
               {item.id === 'admin' && !isMobile && (
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontSize: '0.65rem',
-                    fontWeight: 600,
-                    letterSpacing: 0.8,
-                    color: alpha(theme.palette.text.secondary, 0.7),
-                    textTransform: 'uppercase',
-                    mr: 1,
-                    userSelect: 'none'
-                  }}
-                >
-                  Admin
-                </Typography>
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  gap: 1,
+                  px: 2,
+                  py: 0.75,
+                  borderRadius: 2,
+                  bgcolor: alpha('#9c27b0', 0.06),
+                  border: `1px solid ${alpha('#9c27b0', 0.15)}`,
+                  mr: 2
+                }}>
+                  <Box sx={{
+                    width: 3,
+                    height: 12,
+                    bgcolor: '#9c27b0',
+                    borderRadius: 1
+                  }} />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      letterSpacing: 1.2,
+                      color: '#9c27b0',
+                      textTransform: 'uppercase',
+                      userSelect: 'none'
+                    }}
+                  >
+                    Admin
+                  </Typography>
+                </Box>
               )}
 
               {/* Contenedor minimalista de ícono + label */}
@@ -397,20 +514,31 @@ const Taskbar = () => {
                   alignItems: 'center',
                   gap: 0.75,
                   cursor: 'pointer',
-                  padding: isMobile ? '6px' : '8px',
-                  borderRadius: 2,
-                  transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                  padding: isMobile ? '8px 10px' : '10px 12px',
+                  borderRadius: 2.5,
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   position: 'relative',
+                  border: isActive(item) 
+                    ? `2px solid ${alpha(item.color, 0.3)}`
+                    : '2px solid transparent',
+                  bgcolor: isActive(item)
+                    ? alpha(item.color, 0.08)
+                    : 'transparent',
                   '&:hover': {
-                    background: alpha(item.color, 0.04),
+                    background: `linear-gradient(135deg, ${alpha(item.color, 0.06)} 0%, ${alpha(item.color, 0.12)} 100%)`,
+                    border: `2px solid ${alpha(item.color, 0.2)}`,
+                    boxShadow: `0 6px 16px ${alpha(item.color, 0.2)}`,
                     '& .taskbar-icon': {
                       color: item.color,
-                      transform: 'scale(1.05)',
+                      transform: 'scale(1.1)',
                     },
                     '& .taskbar-label': {
                       color: item.color,
-                      fontWeight: 600,
+                      fontWeight: 700,
                     }
+                  },
+                  '&:active': {
+                    transform: 'scale(0.98)',
                   }
                 }}
               >
@@ -454,17 +582,19 @@ const Taskbar = () => {
                   {item.label}
                 </Typography>
 
-                {/* Indicador de activo - dot sutil arriba del ícono */}
+                {/* Indicador de activo - barra inferior estilo macOS Dock */}
                 {isActive(item) && (
                   <Box
                     sx={{
                       position: 'absolute',
-                      top: 2,
-                      width: 4,
-                      height: 4,
-                      borderRadius: '50%',
+                      bottom: -2,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      width: '70%',
+                      height: 3,
+                      borderRadius: '3px 3px 0 0',
                       bgcolor: item.color,
-                      boxShadow: `0 0 6px ${alpha(item.color, 0.6)}`,
+                      boxShadow: `0 -2px 8px ${alpha(item.color, 0.5)}`,
                     }}
                   />
                 )}
@@ -475,9 +605,26 @@ const Taskbar = () => {
                 <Box
                   sx={{
                     width: '1px',
-                    height: isMobile ? 32 : 40,
-                    mx: isMobile ? 0.5 : 1,
-                    background: `linear-gradient(180deg, transparent, ${alpha(theme.palette.divider, 0.3)}, transparent)`,
+                    height: isMobile ? 40 : 48,
+                    mx: isMobile ? 1 : 1.5,
+                    position: 'relative',
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      inset: 0,
+                      background: `linear-gradient(180deg, transparent 0%, ${alpha(theme.palette.primary.main, 0.3)} 50%, transparent 100%)`,
+                    },
+                    '&::after': {
+                      content: '""',
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: 4,
+                      height: 4,
+                      borderRadius: '50%',
+                      bgcolor: alpha(theme.palette.primary.main, 0.4),
+                    }
                   }}
                 />
               )}
@@ -499,30 +646,36 @@ const Taskbar = () => {
               display: 'flex', 
               flexDirection: 'column',
               alignItems: 'flex-end',
-              px: 2,
-              py: 1,
-              borderRadius: 2,
-              border: `1px solid ${theme.palette.divider}`,
-              bgcolor: alpha(theme.palette.background.default, 0.3),
+              px: 2.5,
+              py: 1.5,
+              borderRadius: 2.5,
+              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(theme.palette.secondary.main, 0.08)} 100%)`,
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+              boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.08)}`,
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               '&:hover': {
-                bgcolor: theme.palette.action.hover,
-                borderColor: theme.palette.primary.main,
+                transform: 'scale(1.02)',
+                boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.15)}`,
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
               }
             }}>
               <Typography variant="caption" sx={{ 
-                fontWeight: 600,
-                fontSize: '0.8rem',
-                color: theme.palette.text.primary,
-                lineHeight: 1.3
+                fontWeight: 700,
+                fontSize: '0.9rem',
+                background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                lineHeight: 1.3,
+                letterSpacing: 0.5
               }}>
                 {formatTime(currentTime)}
               </Typography>
               <Typography variant="caption" sx={{ 
                 fontSize: '0.7rem',
                 color: theme.palette.text.secondary,
-                fontWeight: 500,
-                textTransform: 'capitalize'
+                fontWeight: 600,
+                textTransform: 'capitalize',
+                letterSpacing: 0.3
               }}>
                 {formatDate(currentTime)}
               </Typography>
@@ -534,63 +687,67 @@ const Taskbar = () => {
                 display: 'flex', 
                 alignItems: 'center',
                 gap: 1.5,
-                px: 2,
-                py: 1,
-                borderRadius: 2,
-                border: `1px solid ${theme.palette.divider}`,
-                bgcolor: alpha(theme.palette.background.default, 0.3),
+                px: 2.5,
+                py: 1.5,
+                borderRadius: 2.5,
+                background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(theme.palette.secondary.main, 0.08)} 100%)`,
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.08)}`,
                 cursor: 'pointer',
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 '&:hover': {
-                  bgcolor: theme.palette.action.hover,
-                  borderColor: theme.palette.primary.main,
-                  transform: 'translateY(-1px)',
+                  transform: 'scale(1.02)',
+                  boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.15)}`,
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.4)}`,
+                  '& .user-avatar': {
+                    transform: 'scale(1.1)',
+                  }
                 }
               }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                   <Typography variant="caption" sx={{ 
-                    fontWeight: 600,
-                    fontSize: '0.8rem',
-                    color: theme.palette.text.primary,
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
                     lineHeight: 1.3
                   }}>
                     {userProfile?.name?.split(' ')[0] || 'Usuario'}
                   </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                     <Box
                       sx={{
-                        width: 6,
-                        height: 6,
+                        width: 7,
+                        height: 7,
                         borderRadius: '50%',
                         bgcolor: theme.palette.success.main,
-                        boxShadow: `0 0 4px ${theme.palette.success.main}`,
+                        boxShadow: `0 0 8px ${theme.palette.success.main}, 0 0 16px ${alpha(theme.palette.success.main, 0.5)}`,
                         animation: 'taskbar-pulse 2s infinite'
                       }}
                     />
                     <Typography variant="caption" sx={{ 
                       fontSize: '0.7rem',
-                      color: theme.palette.text.secondary,
-                      fontWeight: 500
+                      color: theme.palette.success.main,
+                      fontWeight: 700,
+                      letterSpacing: 0.5
                     }}>
-                      Conectado
+                      ONLINE
                     </Typography>
                   </Box>
                 </Box>
                 
                 {/* Avatar del Usuario */}
                 <Avatar
+                  className="user-avatar"
                   src={userProfile?.photoURL}
                   alt={userProfile?.name || 'Usuario'}
                   sx={{
-                    width: 42,
-                    height: 42,
-                    border: `2px solid ${theme.palette.primary.main}`,
-                    boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.1)}`,
+                    width: 48,
+                    height: 48,
+                    border: `3px solid ${theme.palette.primary.main}`,
+                    boxShadow: `0 0 0 4px ${alpha(theme.palette.primary.main, 0.15)}, 0 4px 12px ${alpha(theme.palette.common.black, 0.2)}`,
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                    '&:hover': {
-                      transform: 'scale(1.1)',
-                      boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.2)}`,
-                    }
                   }}
                 >
                   {!userProfile?.photoURL && (userProfile?.name?.charAt(0) || 'U')}
@@ -600,6 +757,7 @@ const Taskbar = () => {
           </Box>
         )}
       </Box>
+      </motion.div>
 
       {/* Submenu Popup */}
       <TaskbarMenu
