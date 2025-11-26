@@ -243,9 +243,10 @@ const MessageBubble = ({
       
       if (lastReadTimestamp && message.createdAt) {
         // Convertir timestamps para comparar
+        // ✅ MICRO-OPTIMIZACIÓN: Manejar createdAt: null (optimistic UI con new Date())
         const messageTime = message.createdAt instanceof Date 
           ? message.createdAt.getTime() 
-          : message.createdAt.toMillis?.() || 0;
+          : (message.createdAt?.toMillis ? message.createdAt.toMillis() : Date.now());
         const readTime = lastReadTimestamp instanceof Date 
           ? lastReadTimestamp.getTime() 
           : lastReadTimestamp.toMillis?.() || 0;

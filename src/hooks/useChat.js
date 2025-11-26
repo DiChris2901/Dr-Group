@@ -192,7 +192,8 @@ export const useChatMessages = (conversationId, messagesPerPage = 50) => {
           readBy: [],
           readAt: null
         },
-        createdAt: serverTimestamp(),
+        // ✅ MICRO-OPTIMIZACIÓN: Usar Date() para Optimistic UI (serverTimestamp() causa createdAt: null)
+        createdAt: new Date(),
         metadata: {
           editedAt: null,
           deletedAt: null,

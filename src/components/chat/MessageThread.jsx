@@ -120,7 +120,7 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
 
   // ✅ OPTIMIZACIÓN: Marcar como leídos usando cursor (1 escritura en lugar de N)
   useEffect(() => {
-    if (!messages.length || !currentUser?.uid || !updateReadCursor) return;
+    if (!messages.length || !currentUser?.uid || !updateReadCursor || !conversation) return;
 
     // Encontrar el último mensaje del otro usuario
     const lastOtherUserMessage = [...messages]
@@ -128,10 +128,21 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
       .find(msg => msg.senderId !== currentUser.uid);
 
     if (lastOtherUserMessage?.createdAt) {
-      // 1 escritura para marcar todos como leídos
-      updateReadCursor(lastOtherUserMessage.createdAt);
+      // ✅ MICRO-OPTIMIZACIÓN: Comparar antes de escribir para evitar escrituras redundantes
+      const myLastRead = conversation[`lastRead_${currentUser.uid}`];
+      const messageTime = lastOtherUserMessage.createdAt instanceof Date 
+        ? lastOtherUserMessage.createdAt.getTime() 
+        : lastOtherUserMessage.createdAt.toMillis?.() || 0;
+      const lastReadTime = myLastRead instanceof Date 
+        ? myLastRead.getTime() 
+        : myLastRead?.toMillis?.() || 0;
+
+      // Solo actualizar si el mensaje es más nuevo que lo último leído
+      if (messageTime > lastReadTime) {
+        updateReadCursor(lastOtherUserMessage.createdAt);
+      }
     }
-  }, [messages, currentUser?.uid, updateReadCursor]);
+  }, [messages, currentUser?.uid, updateReadCursor, conversation]);
 
   // Detectar scroll para mostrar botón "ir al final"
   const handleScroll = () => {
