@@ -48,7 +48,8 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
     hasMore,
     loadMoreMessages,
     sendMessage,
-    markMessageAsRead,
+    markMessageAsRead, // Legacy - mantener por compatibilidad
+    updateReadCursor, // Nueva función optimizada
     deleteMessage,
     editMessage,
     forwardMessage
@@ -117,14 +118,20 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
     }
   }, [messages.length]);
 
-  // Marcar mensajes como leídos cuando se visualizan
+  // ✅ OPTIMIZACIÓN: Marcar como leídos usando cursor (1 escritura en lugar de N)
   useEffect(() => {
-    messages.forEach(message => {
-      if (message.senderId !== currentUser?.uid && !message.status?.readBy?.includes(currentUser?.uid)) {
-        markMessageAsRead(message.id);
-      }
-    });
-  }, [messages, currentUser?.uid, markMessageAsRead]);
+    if (!messages.length || !currentUser?.uid || !updateReadCursor) return;
+
+    // Encontrar el último mensaje del otro usuario
+    const lastOtherUserMessage = [...messages]
+      .reverse()
+      .find(msg => msg.senderId !== currentUser.uid);
+
+    if (lastOtherUserMessage?.createdAt) {
+      // 1 escritura para marcar todos como leídos
+      updateReadCursor(lastOtherUserMessage.createdAt);
+    }
+  }, [messages, currentUser?.uid, updateReadCursor]);
 
   // Detectar scroll para mostrar botón "ir al final"
   const handleScroll = () => {
@@ -311,6 +318,7 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
                   <MessageBubble
                     message={message}
                     isOwnMessage={isOwnMessage}
+                    conversation={conversation}
                     onDelete={deleteMessage}
                     onEdit={editMessage}
                     onReply={setReplyingTo}

@@ -232,32 +232,45 @@ export const useChatMessages = (conversationId, messagesPerPage = 50) => {
     }
   }, [conversationId, currentUser?.uid, addNotification]);
 
-  // ✅ FUNCIÓN: Marcar mensaje como leído
-  const markMessageAsRead = useCallback(async (messageId) => {
-    if (!currentUser?.uid || !messageId) return;
+  // ✅ FUNCIÓN OPTIMIZADA: Actualizar cursor de lectura (1 escritura en lugar de N)
+  const updateReadCursor = useCallback(async (conversationId, lastMessageTimestamp) => {
+    if (!currentUser?.uid || !conversationId || !lastMessageTimestamp) return;
 
     try {
-      const messageRef = doc(db, 'messages', messageId);
-      const messageSnap = await getDoc(messageRef);
-
-      if (!messageSnap.exists()) return;
-
-      const messageData = messageSnap.data();
-
-      // Solo marcar si no soy el remitente
-      if (messageData.senderId === currentUser.uid) return;
-
-      // Ya leído por este usuario
-      if (messageData.status?.readBy?.includes(currentUser.uid)) return;
-
-      await updateDoc(messageRef, {
-        'status.read': true,
-        'status.readBy': [...(messageData.status?.readBy || []), currentUser.uid],
-        'status.readAt': serverTimestamp()
+      const conversationRef = doc(db, 'conversations', conversationId);
+      
+      // Solo actualizar si el nuevo timestamp es más reciente
+      const conversationSnap = await getDoc(conversationRef);
+      if (!conversationSnap.exists()) return;
+      
+      const currentReadTimestamp = conversationSnap.data()[`lastRead_${currentUser.uid}`];
+      
+      // Convertir timestamps para comparar
+      const newTimestamp = lastMessageTimestamp instanceof Date 
+        ? lastMessageTimestamp.getTime() 
+        : lastMessageTimestamp;
+      const oldTimestamp = currentReadTimestamp instanceof Date 
+        ? currentReadTimestamp.getTime() 
+        : currentReadTimestamp?.toMillis?.() || 0;
+      
+      if (newTimestamp <= oldTimestamp) return; // Ya leído más adelante
+      
+      await updateDoc(conversationRef, {
+        [`lastRead_${currentUser.uid}`]: lastMessageTimestamp,
+        [`unreadCount.${currentUser.uid}`]: 0 // Resetear contador
       });
+      
+      console.log('✅ Cursor de lectura actualizado');
     } catch (err) {
-      console.error('❌ Error marcando mensaje como leído:', err);
+      console.error('❌ Error actualizando cursor de lectura:', err);
     }
+  }, [currentUser?.uid]);
+
+  // ✅ FUNCIÓN LEGACY: Marcar mensaje individual (solo para compatibilidad)
+  const markMessageAsRead = useCallback(async (messageId) => {
+    if (!currentUser?.uid || !messageId) return;
+    // Esta función ya no hace nada - usamos cursor de lectura
+    // Se mantiene para no romper código existente
   }, [currentUser?.uid]);
 
   // ✅ FUNCIÓN: Eliminar mensaje (eliminación física de Firestore)
@@ -398,6 +411,40 @@ export const useChatMessages = (conversationId, messagesPerPage = 50) => {
     }
   }, [currentUser?.uid, addNotification]);
 
+  // ✅ FUNCIÓN OPTIMIZADA: Actualizar cursor de lectura (1 escritura en lugar de N)
+  const updateReadCursor = useCallback(async (lastMessageTimestamp) => {
+    if (!currentUser?.uid || !conversationId || !lastMessageTimestamp) return;
+
+    try {
+      const conversationRef = doc(db, 'conversations', conversationId);
+      
+      // Solo actualizar si el nuevo timestamp es más reciente
+      const conversationSnap = await getDoc(conversationRef);
+      if (!conversationSnap.exists()) return;
+      
+      const currentReadTimestamp = conversationSnap.data()[`lastRead_${currentUser.uid}`];
+      
+      // Convertir timestamps para comparar
+      const newTimestamp = lastMessageTimestamp instanceof Date 
+        ? lastMessageTimestamp.getTime() 
+        : lastMessageTimestamp;
+      const oldTimestamp = currentReadTimestamp instanceof Date 
+        ? currentReadTimestamp.getTime() 
+        : currentReadTimestamp?.toMillis?.() || 0;
+      
+      if (newTimestamp <= oldTimestamp) return; // Ya leído más adelante
+      
+      await updateDoc(conversationRef, {
+        [`lastRead_${currentUser.uid}`]: lastMessageTimestamp,
+        [`unreadCount.${currentUser.uid}`]: 0 // Resetear contador
+      });
+      
+      console.log('✅ Cursor de lectura actualizado');
+    } catch (err) {
+      console.error('❌ Error actualizando cursor de lectura:', err);
+    }
+  }, [currentUser?.uid, conversationId]);
+
   return {
     messages,
     loading,
@@ -405,7 +452,8 @@ export const useChatMessages = (conversationId, messagesPerPage = 50) => {
     hasMore,
     loadMoreMessages,
     sendMessage,
-    markMessageAsRead,
+    markMessageAsRead, // Legacy - mantener para compatibilidad
+    updateReadCursor, // Nueva función optimizada
     deleteMessage,
     editMessage,
     forwardMessage

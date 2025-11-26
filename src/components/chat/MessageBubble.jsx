@@ -109,7 +109,8 @@ const renderTextWithMentions = (text, theme, isMentionedUser) => {
  */
 const MessageBubble = ({ 
   message, 
-  isOwnMessage, 
+  isOwnMessage,
+  conversation, // Conversación para verificar cursor de lectura
   onDelete, 
   onEdit, 
   onReply,
@@ -230,9 +231,33 @@ const MessageBubble = ({
     }
   };
 
+  // ✅ OPTIMIZACIÓN: Verificar lectura usando cursor en lugar de status.read
   const getStatusIcon = () => {
     if (!isOwnMessage) return null;
 
+    // Obtener ID del otro usuario
+    const otherUserId = conversation?.participantIds?.find(id => id !== currentUser?.uid);
+    
+    if (otherUserId && conversation) {
+      const lastReadTimestamp = conversation[`lastRead_${otherUserId}`];
+      
+      if (lastReadTimestamp && message.createdAt) {
+        // Convertir timestamps para comparar
+        const messageTime = message.createdAt instanceof Date 
+          ? message.createdAt.getTime() 
+          : message.createdAt.toMillis?.() || 0;
+        const readTime = lastReadTimestamp instanceof Date 
+          ? lastReadTimestamp.getTime() 
+          : lastReadTimestamp.toMillis?.() || 0;
+        
+        // Si el cursor de lectura es >= al timestamp del mensaje, fue leído
+        if (readTime >= messageTime) {
+          return <DoneAllIcon sx={{ fontSize: 16, color: 'primary.main' }} />;
+        }
+      }
+    }
+    
+    // Fallback al sistema legacy
     if (message.status?.read) {
       return <DoneAllIcon sx={{ fontSize: 16, color: 'primary.main' }} />;
     } else if (message.status?.delivered) {
