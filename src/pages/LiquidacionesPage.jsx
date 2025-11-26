@@ -2745,7 +2745,7 @@ const LiquidacionesPage = () => {
             alignItems: 'center',
             gap: 1
           }}>
-            🏢 Procesador de Liquidaciones
+            Procesador de Liquidaciones
             {liquidacionGuardadaId && (
               <Chip 
                 label="Sincronizado" 

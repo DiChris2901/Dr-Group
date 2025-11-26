@@ -546,7 +546,7 @@ const BankAccountsPage = () => {
             alignItems: 'center',
             gap: 1
           }}>
-            🏦 Cuentas Bancarias
+            Cuentas Bancarias
           </Typography>
           <Typography variant="body1" sx={{ 
             color: 'rgba(255, 255, 255, 0.9)'

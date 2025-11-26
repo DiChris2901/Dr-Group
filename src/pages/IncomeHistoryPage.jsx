@@ -751,7 +751,7 @@ const IncomeHistoryPage = () => {
               alignItems: 'center',
               gap: 1
             }}>
-              📈 Histórico de Consignaciones
+              Histórico de Consignaciones
             </Typography>
             <Typography variant="body1" sx={{ 
               color: 'rgba(255, 255, 255, 0.9)'

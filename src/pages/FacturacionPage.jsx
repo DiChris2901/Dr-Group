@@ -53,6 +53,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationsContext';
+import { usePermissions } from '../hooks/usePermissions';
 import { collection, query, where, onSnapshot, doc, getDoc, getDocs, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import jsPDF from 'jspdf';
@@ -91,16 +92,21 @@ const FacturacionPage = () => {
   const { addNotification } = useNotifications();
   const theme = useTheme();
 
-  // ✅ SISTEMA DE PERMISOS
-  const hasPermission = (permission) => {
-    if (!userProfile) return false;
-    if (!userProfile.permissions || !Array.isArray(userProfile.permissions)) return false;
-    if (userProfile.permissions.includes('ALL')) return true;
-    return userProfile.permissions.includes(permission);
-  };
+  // ✅ SISTEMA DE PERMISOS CENTRALIZADO (con soporte jerárquico)
+  const { hasPermission, hasAnyPermission } = usePermissions();
 
-  // Verificar acceso a la página
-  const hasPageAccess = hasPermission('facturacion.cuentas_cobro') || hasPermission('facturacion');
+  // Verificar acceso a la página (soporta jerarquía: 'facturacion' incluye 'facturacion.cuentas_cobro')
+  const hasPageAccess = hasAnyPermission(['facturacion.cuentas_cobro', 'facturacion']);
+
+  // 🐛 DEBUG: Log de permisos (temporal)
+  useEffect(() => {
+    console.log('🔍 [FacturacionPage] Debug de Permisos:');
+    console.log('  - userProfile:', userProfile);
+    console.log('  - permissions:', userProfile?.permissions);
+    console.log('  - hasPermission("facturacion"):', hasPermission('facturacion'));
+    console.log('  - hasPermission("facturacion.cuentas_cobro"):', hasPermission('facturacion.cuentas_cobro'));
+    console.log('  - hasPageAccess:', hasPageAccess);
+  }, [userProfile, hasPermission, hasPageAccess]);
 
   // Listener en tiempo real para liquidaciones aprobadas
   useEffect(() => {

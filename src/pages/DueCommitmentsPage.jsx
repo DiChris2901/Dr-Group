@@ -954,7 +954,7 @@ const DueCommitmentsPage = () => {
                 fontSize: { xs: '1.4rem', sm: '1.6rem', md: '1.75rem' }
               }}
             >
-              ⚠️ Compromisos Próximos a Vencer
+              Compromisos Próximos a Vencer
             </Typography>
             <Typography 
               variant="body1" 

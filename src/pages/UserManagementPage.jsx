@@ -1015,7 +1015,7 @@ const UserManagementPage = () => {
               alignItems: 'center',
               gap: 1
             }}>
-              👥 Gestión de Usuarios
+              Gestión de Usuarios
             </Typography>
             <Typography variant="body1" sx={{ 
               color: 'rgba(255, 255, 255, 0.9)'

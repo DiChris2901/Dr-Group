@@ -934,6 +934,317 @@ El modal ahora presenta:
 
 ---
 
+## 📄 **HEADERS DE PÁGINA - ESTÁNDAR EMPRESARIAL OFICIAL**
+
+### 🎯 Modelo de Referencia: NewPaymentPage
+**URL:** `http://localhost:5173/payments/new`  
+**Archivo:** `src/pages/NewPaymentPage.jsx`  
+**Fecha de Estandarización:** Noviembre 2025
+
+### 📋 Estructura Completa del Header Estándar
+
+```jsx
+<Paper sx={{ 
+  background: theme.palette.mode === 'dark'
+    ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+    : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+  borderRadius: 1,
+  overflow: 'hidden',
+  boxShadow: theme.palette.mode === 'dark'
+    ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+    : '0 4px 20px rgba(0, 0, 0, 0.08)',
+  mb: 3
+}}>
+  <Box sx={{ 
+    p: 3, 
+    display: 'flex', 
+    justifyContent: 'space-between', 
+    alignItems: 'flex-start' 
+  }}>
+    {/* LEFT SECTION - Información */}
+    <Box sx={{ flex: 1 }}>
+      {/* Breadcrumb superior */}
+      <Typography variant="overline" sx={{ 
+        fontWeight: 600, 
+        fontSize: '0.7rem', 
+        color: 'rgba(255, 255, 255, 0.8)',
+        letterSpacing: 1.2
+      }}>
+        FINANZAS • NUEVO PAGO
+      </Typography>
+      
+      {/* Título principal - SIN EMOJI */}
+      <Typography variant="h4" sx={{ 
+        fontWeight: 700, 
+        mt: 0.5, 
+        mb: 0.5,
+        color: 'white'
+      }}>
+        Registrar Pago de Compromiso
+      </Typography>
+      
+      {/* Descripción */}
+      <Typography variant="body1" sx={{ 
+        color: 'rgba(255, 255, 255, 0.9)'
+      }}>
+        Complete la información del pago realizado
+      </Typography>
+    </Box>
+
+    {/* RIGHT SECTION - Acciones */}
+    <Box sx={{ display: 'flex', gap: 1, ml: 2 }}>
+      {/* Botón refresh opcional */}
+      <IconButton
+        onClick={handleRefresh}
+        disabled={loading}
+        sx={{
+          color: 'rgba(255, 255, 255, 0.9)',
+          bgcolor: 'rgba(255, 255, 255, 0.1)',
+          backdropFilter: 'blur(10px)',
+          '&:hover': {
+            bgcolor: 'rgba(255, 255, 255, 0.2)',
+          },
+        }}
+      >
+        {loading ? <CircularProgress size={24} sx={{ color: 'white' }} /> : <RefreshIcon />}
+      </IconButton>
+      
+      {/* Botón volver */}
+      <Button
+        variant="outlined"
+        startIcon={<ArrowBackIcon />}
+        onClick={() => navigate('/payments')}
+        sx={{
+          color: 'white',
+          borderColor: 'rgba(255, 255, 255, 0.3)',
+          '&:hover': {
+            borderColor: 'rgba(255, 255, 255, 0.5)',
+            bgcolor: 'rgba(255, 255, 255, 0.1)',
+          },
+        }}
+      >
+        Volver
+      </Button>
+    </Box>
+  </Box>
+</Paper>
+```
+
+### ✅ Elementos OBLIGATORIOS del Header
+
+| Elemento | Especificación | Notas |
+|----------|---------------|-------|
+| **Paper Container** | `borderRadius: 1`, gradient background | Adaptable a dark/light mode |
+| **Overline Breadcrumb** | `fontSize: 0.7rem`, `letterSpacing: 1.2`, uppercase | Contexto de navegación |
+| **Título Principal** | `variant="h4"`, `fontWeight: 700`, **SIN EMOJI** | Máximo protagonismo |
+| **Descripción** | `variant="body1"`, `rgba(255,255,255,0.9)` | Explicación breve de la página |
+| **Flex Layout** | `display: flex`, `justifyContent: space-between` | Separa info de acciones |
+
+### 🚫 Elementos PROHIBIDOS en Headers
+
+- ❌ **Emojis en el título**: Usar solo texto limpio
+- ❌ **Iconos decorativos innecesarios**: Solo íconos funcionales en botones
+- ❌ **Chips informativos**: Mantener header simple y enfocado
+- ❌ **Múltiples gradientes**: Solo uno por header
+- ❌ **Animaciones complejas**: Solo transiciones CSS sutiles
+- ❌ **Glassmorphism excesivo**: Backdrop-filter solo en botones específicos
+
+### 🎨 Variaciones de Color Permitidas
+
+```jsx
+// SECCIÓN FINANCIERA (Verde/Azul)
+gradient: primary.main → secondary.main
+
+// SECCIÓN ADMINISTRATIVA (Rojo/Púrpura)
+gradient: error.main → secondary.dark
+
+// SECCIÓN REPORTES (Azul/Índigo)
+gradient: info.main → primary.dark
+
+// SECCIÓN EMPRESAS (Naranja/Amarillo)
+gradient: warning.main → warning.dark
+```
+
+### 📐 Dimensiones y Espaciado
+
+```jsx
+// Padding interior
+p: 3                    // 24px en todos los lados
+
+// Margen inferior
+mb: 3                   // 24px de separación con contenido
+
+// Gap entre elementos
+gap: 1                  // 8px entre botones
+ml: 2                   // 16px separación left section → right section
+
+// BorderRadius
+borderRadius: 1         // 8px - Consistencia sobria
+```
+
+### 🔤 Tipografía Estándar
+
+```jsx
+// OVERLINE (Breadcrumb)
+fontWeight: 600
+fontSize: '0.7rem'      // 11.2px
+letterSpacing: 1.2
+textTransform: uppercase (implícito en variant)
+color: rgba(255,255,255,0.8)
+
+// TÍTULO (h4)
+fontWeight: 700
+fontSize: 2.125rem      // 34px por defecto MUI
+color: white
+
+// DESCRIPCIÓN (body1)
+fontWeight: 400         // Regular
+fontSize: 1rem          // 16px
+color: rgba(255,255,255,0.9)
+```
+
+### 🎯 Botones de Acción
+
+#### Botón Refresh (Opcional)
+```jsx
+<IconButton sx={{
+  color: 'rgba(255, 255, 255, 0.9)',
+  bgcolor: 'rgba(255, 255, 255, 0.1)',
+  backdropFilter: 'blur(10px)',
+  '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.2)' }
+}}>
+```
+
+#### Botón Volver (Recomendado)
+```jsx
+<Button variant="outlined" sx={{
+  color: 'white',
+  borderColor: 'rgba(255, 255, 255, 0.3)',
+  '&:hover': {
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    bgcolor: 'rgba(255, 255, 255, 0.1)'
+  }
+}}>
+```
+
+### 📋 Checklist de Implementación
+
+Antes de aprobar un header, verificar:
+
+- [ ] **Gradient dinámico** adaptable a dark/light mode
+- [ ] **Overline breadcrumb** con uppercase y letterSpacing 1.2
+- [ ] **Título sin emojis** con fontWeight 700
+- [ ] **Descripción clara** que explica la función de la página
+- [ ] **Layout flex** con space-between para separar info y acciones
+- [ ] **Botón volver** funcional con navegación apropiada
+- [ ] **BorderRadius: 1** consistente con sistema sobrio
+- [ ] **BoxShadow adaptable** según modo de tema
+- [ ] **Sin glassmorphism** excepto en botones específicos
+- [ ] **Sin animaciones complejas** - solo transiciones CSS
+
+### 🚀 Plantilla Rápida para Copiar
+
+```jsx
+// Importaciones necesarias
+import { Paper, Box, Typography, Button, IconButton } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import { useNavigate } from 'react-router-dom';
+
+// En el componente
+const theme = useTheme();
+const navigate = useNavigate();
+
+// JSX del header
+<Paper sx={{ 
+  background: theme.palette.mode === 'dark'
+    ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+    : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+  borderRadius: 1,
+  overflow: 'hidden',
+  boxShadow: theme.palette.mode === 'dark'
+    ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+    : '0 4px 20px rgba(0, 0, 0, 0.08)',
+  mb: 3
+}}>
+  <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+    <Box sx={{ flex: 1 }}>
+      <Typography variant="overline" sx={{ fontWeight: 600, fontSize: '0.7rem', color: 'rgba(255, 255, 255, 0.8)', letterSpacing: 1.2 }}>
+        SECCIÓN • CONTEXTO
+      </Typography>
+      <Typography variant="h4" sx={{ fontWeight: 700, mt: 0.5, mb: 0.5, color: 'white' }}>
+        Título de la Página
+      </Typography>
+      <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.9)' }}>
+        Descripción breve de la funcionalidad
+      </Typography>
+    </Box>
+    <Box sx={{ display: 'flex', gap: 1, ml: 2 }}>
+      <Button
+        variant="outlined"
+        startIcon={<ArrowBackIcon />}
+        onClick={() => navigate('/ruta-anterior')}
+        sx={{
+          color: 'white',
+          borderColor: 'rgba(255, 255, 255, 0.3)',
+          '&:hover': { borderColor: 'rgba(255, 255, 255, 0.5)', bgcolor: 'rgba(255, 255, 255, 0.1)' }
+        }}
+      >
+        Volver
+      </Button>
+    </Box>
+  </Box>
+</Paper>
+```
+
+### 📊 Páginas con Header Implementado Correctamente
+
+| Página | URL | Estado | Observaciones |
+|--------|-----|--------|---------------|
+| NewPaymentPage | `/payments/new` | ✅ **MODELO OFICIAL** | Implementación perfecta |
+| PaymentsPage | `/payments` | ✅ Implementado | Sigue el estándar |
+| UserManagementPage | `/users` | ✅ Implementado | Header sobrio completo |
+| CompaniesPage | `/companies` | ✅ Implementado | Adaptación correcta |
+| IncomePage | `/income` | ✅ Implementado | Sin emojis |
+| IncomeHistoryPage | `/income/history` | ✅ Implementado | Diseño limpio |
+| BankAccountsPage | `/income/accounts` | ✅ Implementado | Estándar aplicado |
+| ReportsSummaryPage | `/reports/summary` | ✅ Implementado | Header ejecutivo |
+| ReportsCompanyPage | `/reports/company` | ✅ Implementado | Filtros integrados |
+| ReportsPeriodPage | `/reports/period` | ✅ Implementado | Temporal claro |
+| ReportsConceptPage | `/reports/concept` | ✅ Implementado | Análisis conceptual |
+
+### 🎓 Filosofía del Header Sobrio
+
+> **"Un header debe comunicar dónde estás, qué puedes hacer, y cómo volver. Nada más, nada menos."**
+
+**Principios fundamentales:**
+
+1. **Claridad Visual**: El título debe ser lo primero que se lea
+2. **Contexto Inmediato**: El breadcrumb orienta al usuario sin pensar
+3. **Acciones Obvias**: Los botones están donde se esperan (arriba derecha)
+4. **Elegancia Sobria**: Gradiente controlado, sin efectos excesivos
+5. **Consistencia Total**: Mismo patrón en todas las páginas
+
+### 🔄 Mantenimiento del Estándar
+
+**Al crear una nueva página:**
+1. Copiar plantilla rápida completa
+2. Cambiar breadcrumb según sección
+3. Cambiar título según funcionalidad
+4. Adaptar descripción al caso de uso
+5. Configurar navegación del botón volver
+6. **VERIFICAR** que no tenga emojis en el título
+
+**Al revisar páginas existentes:**
+1. ¿Tiene emoji en el título? → Remover inmediatamente
+2. ¿Tiene chips informativos? → Considerar eliminar o mover al body
+3. ¿Tiene múltiples botones refresh? → Dejar máximo uno
+4. ¿Sigue estructura flex con space-between? → Si no, corregir
+5. ¿Usa gradient adaptable? → Verificar dark/light mode
+
+---
+
 ## 🆕 ACTUALIZACIONES RECIENTES - Agosto 2025
 
 ### 🎨 Bordes Dinámicos con Color del Tema

@@ -222,7 +222,7 @@ const OrphanFilesPage = () => {
               gap: 1,
               mb: 1
             }}>
-              🗂️ Archivos Huérfanos
+              Archivos Huérfanos
             </Typography>
             <Typography variant="body1" sx={{ 
               color: 'rgba(255, 255, 255, 0.9)'

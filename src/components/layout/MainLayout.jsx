@@ -1,32 +1,28 @@
-import React, { useState } from 'react';
 import {
-  Box,
-  AppBar,
-  Toolbar,
-  Typography,
-  IconButton,
-  Breadcrumbs,
-  Link,
-  useMediaQuery,
-  Container,
-  alpha
-} from '@mui/material';
-import {
-  Menu as MenuIcon,
-  HomeRounded as HomeIcon,
-  BusinessRounded as BusinessIcon,
-  DashboardCustomizeRounded as DashboardIcon,
-  TrendingUpRounded as TrendingIcon
+    BusinessRounded as BusinessIcon,
+    HomeRounded as HomeIcon,
+    Menu as MenuIcon
 } from '@mui/icons-material';
+import {
+    Box,
+    Breadcrumbs,
+    Container,
+    IconButton,
+    Link,
+    Typography,
+    alpha,
+    useMediaQuery
+} from '@mui/material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../../context/SettingsContext';
 import { useNotificationSystem } from '../../hooks/useNotificationSystem';
-import Sidebar from './Sidebar';
+import FloatingChatButton from '../chat/FloatingChatButton';
 import DashboardHeader from '../dashboard/DashboardHeader';
 import { AdvancedSettingsDrawer } from '../settings';
-import FloatingChatButton from '../chat/FloatingChatButton';
+import Sidebar from './Sidebar';
 import { Taskbar } from './Taskbar';
 
 const MainLayout = ({ children, title = "Dashboard", breadcrumbs = [] }) => {

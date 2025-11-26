@@ -801,7 +801,7 @@ const IncomePage = () => {
               alignItems: 'center',
               gap: 1
             }}>
-              💰 Gestión de Ingresos
+              Gestión de Ingresos
             </Typography>
             <Typography variant="body1" sx={{ 
               color: 'rgba(255, 255, 255, 0.9)'

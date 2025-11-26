@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   IconButton,
@@ -29,7 +29,6 @@ import {
   AccessTime
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { useAuth } from '../../../context/AuthContext';
 import { useSettings } from '../../../context/SettingsContext';
 import { usePermissions } from '../../../hooks/usePermissions';
@@ -58,7 +57,8 @@ const taskbarAnimations = `
   }
 `;
 
-const Taskbar = () => {
+// ✅ OPTIMIZACIÓN: Memoizar componente para evitar re-renders innecesarios
+const Taskbar = React.memo(() => {
   const theme = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -79,22 +79,22 @@ const Taskbar = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Formatear hora y fecha
-  const formatTime = (date) => {
+  // ✅ OPTIMIZACIÓN: Cachear funciones de formateo con useCallback
+  const formatTime = useCallback((date) => {
     return date.toLocaleTimeString('es-CO', { 
       hour: '2-digit', 
       minute: '2-digit',
       hour12: true 
     });
-  };
+  }, []);
 
-  const formatDate = (date) => {
+  const formatDate = useCallback((date) => {
     return date.toLocaleDateString('es-CO', { 
       weekday: 'short',
       day: 'numeric',
       month: 'short'
     });
-  };
+  }, []);
 
   // Calcular márgenes considerando el Sidebar (solo cuando modo sidebar está activo)
   const navigationMode = settings?.navigation?.mode || 'sidebar';
@@ -106,8 +106,8 @@ const Taskbar = () => {
   // Ancho actual del sidebar (solo aplica si sidebar está visible)
   const currentSidebarWidth = isCompactMode ? 80 : sidebarWidth;
 
-  // Definir items principales del taskbar (coinciden exactamente con Sidebar)
-  const taskbarItems = [
+  // ✅ OPTIMIZACIÓN: Cachear items del taskbar con useMemo
+  const taskbarItems = useMemo(() => [
     {
       id: 'dashboard',
       icon: DashboardIcon,
@@ -212,23 +212,27 @@ const Taskbar = () => {
         { label: 'Limpieza de Storage', path: '/admin/orphan-files', icon: DeleteSweepIcon, permission: 'storage' }
       ]
     }
-  ];
+  ], [theme.palette.primary.main, theme.palette.secondary.main]); // Solo recalcular si cambian los colores del tema
 
   // ✅ Usar hook centralizado de permisos (elimina 70+ líneas duplicadas)
   const { shouldShowMenuItem, hasSubmenuPermission } = usePermissions();
 
-  // Filtrar elementos del taskbar según permisos
-  const filteredTaskbarItems = taskbarItems.filter(shouldShowMenuItem);
+  // ✅ OPTIMIZACIÓN: Cachear filtrado de permisos con useMemo
+  const filteredTaskbarItems = useMemo(() => {
+    return taskbarItems.filter(shouldShowMenuItem);
+  }, [taskbarItems, shouldShowMenuItem]);
 
-  // Filtrar submenús según permisos
-  const filterSubmenu = (submenu, parentPermission) => {
-    if (!submenu) return [];
-    
-    return submenu.filter(subItem => {
-      if (!subItem.permission) return true;
-      return hasSubmenuPermission(parentPermission, subItem.permission);
-    });
-  };
+  // ✅ OPTIMIZACIÓN: Cachear función de filtrado de submenús
+  const filterSubmenu = useMemo(() => {
+    return (submenu, parentPermission) => {
+      if (!submenu) return [];
+      
+      return submenu.filter(subItem => {
+        if (!subItem.permission) return true;
+        return hasSubmenuPermission(parentPermission, subItem.permission);
+      });
+    };
+  }, [hasSubmenuPermission]);
 
   // ===== FIN SISTEMA DE PERMISOS =====
 
@@ -247,12 +251,13 @@ const Taskbar = () => {
     setAnchorEl(null);
   };
 
-  const handleMenuItemClick = (path) => {
+  const handleMenuItemClick = useCallback((path) => {
     navigate(path);
     handleMenuClose();
-  };
+  }, [navigate]);
 
-  const isActive = (item) => {
+  // ✅ OPTIMIZACIÓN: Cachear función isActive con useCallback
+  const isActive = useCallback((item) => {
     if (item.path) {
       return location.pathname === item.path;
     }
@@ -260,23 +265,13 @@ const Taskbar = () => {
       return item.submenu.some(subItem => location.pathname === subItem.path);
     }
     return false;
-  };
+  }, [location.pathname]);
 
   return (
     <>
       <style>{taskbarAnimations}</style>
       
-      {/* Taskbar Container - Diseño TopBar Style */}
-      <motion.div
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ 
-          duration: 0.6, 
-          type: 'spring', 
-          stiffness: 100,
-          delay: 0.2 
-        }}
-      >
+      {/* Taskbar Container - Diseño TopBar Style - SIN animación de entrada */}
       <Box
         sx={{
           position: 'fixed',
@@ -757,30 +752,28 @@ const Taskbar = () => {
           </Box>
         )}
       </Box>
-      </motion.div>
 
       {/* Submenu Popup */}
       <TaskbarMenu
         open={openMenu !== null}
         anchorEl={anchorEl}
         onClose={handleMenuClose}
-        items={
-          (() => {
-            const currentItem = filteredTaskbarItems.find(item => item.id === openMenu);
-            if (!currentItem || !currentItem.submenu) return [];
-            return filterSubmenu(currentItem.submenu, currentItem.permission);
-          })()
-        }
-        categoryColor={
-          (() => {
-            const currentItem = filteredTaskbarItems.find(item => item.id === openMenu);
-            return currentItem?.color || theme.palette.primary.main;
-          })()
-        }
+        items={useMemo(() => {
+          const currentItem = filteredTaskbarItems.find(item => item.id === openMenu);
+          if (!currentItem || !currentItem.submenu) return [];
+          return filterSubmenu(currentItem.submenu, currentItem.permission);
+        }, [openMenu, filteredTaskbarItems, filterSubmenu])}
+        categoryColor={useMemo(() => {
+          const currentItem = filteredTaskbarItems.find(item => item.id === openMenu);
+          return currentItem?.color || theme.palette.primary.main;
+        }, [openMenu, filteredTaskbarItems, theme.palette.primary.main])}
         onItemClick={handleMenuItemClick}
       />
     </>
   );
-};
+}); // Fin de React.memo
+
+// Nombre de display para debugging
+Taskbar.displayName = 'Taskbar';
 
 export default Taskbar;

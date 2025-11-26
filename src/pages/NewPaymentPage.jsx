@@ -1780,7 +1780,7 @@ const NewPaymentPage = () => {
               alignItems: 'center',
               gap: 1
             }}>
-              💳 Registrar Pago de Compromiso
+              Registrar Pago de Compromiso
             </Typography>
             <Typography variant="body1" sx={{ 
               color: 'rgba(255, 255, 255, 0.9)'
