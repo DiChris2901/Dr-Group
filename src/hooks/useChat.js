@@ -405,6 +405,40 @@ export const useChatMessages = (conversationId, messagesPerPage = 50) => {
     }
   }, [currentUser?.uid, conversationId]);
 
+  // ✅ FUNCIÓN: Agregar/quitar reacción a un mensaje
+  const toggleReaction = useCallback(async (messageId, emoji) => {
+    if (!currentUser?.uid || !messageId || !emoji) return;
+
+    try {
+      const messageRef = doc(db, 'messages', messageId);
+      const messageSnap = await getDoc(messageRef);
+
+      if (!messageSnap.exists()) {
+        throw new Error('Mensaje no encontrado');
+      }
+
+      const messageData = messageSnap.data();
+      const reactions = messageData.reactions || {};
+      
+      // Si el usuario ya reaccionó con este emoji, quitarlo
+      if (reactions[currentUser.uid] === emoji) {
+        await updateDoc(messageRef, {
+          [`reactions.${currentUser.uid}`]: null
+        });
+        console.log('✅ Reacción eliminada');
+      } else {
+        // Agregar o cambiar reacción
+        await updateDoc(messageRef, {
+          [`reactions.${currentUser.uid}`]: emoji
+        });
+        console.log('✅ Reacción agregada:', emoji);
+      }
+    } catch (err) {
+      console.error('❌ Error actualizando reacción:', err);
+      addNotification('Error al agregar reacción', 'error');
+    }
+  }, [currentUser?.uid, addNotification]);
+
   return {
     messages,
     loading,
@@ -416,7 +450,8 @@ export const useChatMessages = (conversationId, messagesPerPage = 50) => {
     updateReadCursor, // Nueva función optimizada
     deleteMessage,
     editMessage,
-    forwardMessage
+    forwardMessage,
+    toggleReaction // Nueva función de reacciones
   };
 };
 

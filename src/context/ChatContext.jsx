@@ -650,6 +650,41 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  // 📌 Fijar/desfijar mensaje
+  const togglePinMessage = async (conversationId, messageId) => {
+    if (!conversationId || !currentUser?.uid) return;
+
+    try {
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationSnap = await getDoc(conversationRef);
+
+      if (!conversationSnap.exists()) {
+        throw new Error('Conversación no encontrada');
+      }
+
+      const currentPinnedId = conversationSnap.data().pinnedMessageId;
+
+      // Si el mensaje ya está fijado, desfijarlo
+      if (currentPinnedId === messageId) {
+        await updateDoc(conversationRef, {
+          pinnedMessageId: deleteField()
+        });
+        addNotification('Mensaje desfijado', 'info');
+        console.log('✅ Mensaje desfijado');
+      } else {
+        // Fijar nuevo mensaje
+        await updateDoc(conversationRef, {
+          pinnedMessageId: messageId
+        });
+        addNotification('Mensaje fijado', 'success');
+        console.log('✅ Mensaje fijado:', messageId);
+      }
+    } catch (err) {
+      console.error('❌ Error al fijar/desfijar mensaje:', err);
+      addNotification('Error al fijar mensaje', 'error');
+    }
+  };
+
   const value = {
     // Estados
     conversations,
@@ -678,7 +713,10 @@ export const ChatProvider = ({ children }) => {
     updateGroupInfo,
     isGroupAdmin,
     getGroupMembers,
-    deleteGroup
+    deleteGroup,
+
+    // Funciones de mensajes fijados
+    togglePinMessage
   };
 
   return (

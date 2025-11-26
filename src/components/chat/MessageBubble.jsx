@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Box,
   Paper,
@@ -37,7 +37,9 @@ import {
   Forward as ForwardIcon,
   Close as CloseIcon,
   Image as ImageIcon,
-  PictureAsPdf as PdfIcon
+  PictureAsPdf as PdfIcon,
+  AddReaction as AddReactionIcon,
+  PushPin as PushPinIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
@@ -115,6 +117,8 @@ const MessageBubble = ({
   onEdit, 
   onReply,
   onForward,
+  onReact,
+  onPin,
   replyToMessage 
 }) => {
   const theme = useTheme();
@@ -126,6 +130,7 @@ const MessageBubble = ({
   const [forwardDialogOpen, setForwardDialogOpen] = useState(false);
   const [editedText, setEditedText] = useState(message.text || '');
   const [selectedConversation, setSelectedConversation] = useState(null);
+  const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
   const menuOpen = Boolean(anchorEl);
 
   // Verificar si el usuario actual fue mencionado
@@ -211,6 +216,38 @@ const MessageBubble = ({
     onForward(message, conversationId);
     setForwardDialogOpen(false);
   };
+
+  // 📌 Handler de fijar mensaje
+  const handlePinClick = () => {
+    handleMenuClose();
+    onPin(message.id);
+  };
+
+  // 👍 Handlers de reacciones
+  const handleReactionClick = (emoji) => {
+    onReact(message.id, emoji);
+    setReactionPickerOpen(false);
+  };
+
+  const handleAddReactionClick = () => {
+    setReactionPickerOpen(!reactionPickerOpen);
+  };
+
+  // Agrupar reacciones por emoji
+  const groupedReactions = useMemo(() => {
+    if (!message.reactions) return {};
+    
+    const grouped = {};
+    Object.entries(message.reactions).forEach(([userId, emoji]) => {
+      if (emoji) {
+        if (!grouped[emoji]) {
+          grouped[emoji] = [];
+        }
+        grouped[emoji].push(userId);
+      }
+    });
+    return grouped;
+  }, [message.reactions]);
 
   const formatTime = (date) => {
     if (!date) return '';
@@ -542,6 +579,102 @@ const MessageBubble = ({
             </Tooltip>
           </Box>
         </Paper>
+
+        {/* 👍 Reacciones */}
+        {(Object.keys(groupedReactions).length > 0 || reactionPickerOpen) && (
+          <Box
+            sx={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 0.5,
+              mt: 0.5,
+              alignItems: 'center'
+            }}
+          >
+            {/* Mostrar reacciones agrupadas */}
+            {Object.entries(groupedReactions).map(([emoji, userIds]) => (
+              <Chip
+                key={emoji}
+                label={`${emoji} ${userIds.length}`}
+                size="small"
+                onClick={() => handleReactionClick(emoji)}
+                sx={{
+                  height: 24,
+                  fontSize: '0.75rem',
+                  borderRadius: 1,
+                  bgcolor: userIds.includes(currentUser?.uid) 
+                    ? alpha(theme.palette.primary.main, 0.15) 
+                    : alpha('#000', 0.04),
+                  border: 1,
+                  borderColor: userIds.includes(currentUser?.uid)
+                    ? alpha(theme.palette.primary.main, 0.3)
+                    : alpha('#000', 0.08),
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.primary.main, 0.2),
+                    borderColor: alpha(theme.palette.primary.main, 0.4),
+                    transform: 'scale(1.05)'
+                  }
+                }}
+              />
+            ))}
+
+            {/* Selector de reacciones */}
+            {reactionPickerOpen && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 0.5,
+                  p: 0.5,
+                  borderRadius: 1,
+                  bgcolor: alpha('#000', 0.04),
+                  border: 1,
+                  borderColor: alpha('#000', 0.1)
+                }}
+              >
+                {['👍', '❤️', '😂', '😮', '😢', '🔥'].map((emoji) => (
+                  <IconButton
+                    key={emoji}
+                    size="small"
+                    onClick={() => handleReactionClick(emoji)}
+                    sx={{
+                      fontSize: '1.2rem',
+                      width: 32,
+                      height: 32,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        transform: 'scale(1.2)',
+                        bgcolor: alpha(theme.palette.primary.main, 0.1)
+                      }
+                    }}
+                  >
+                    {emoji}
+                  </IconButton>
+                ))}
+              </Box>
+            )}
+
+            {/* Botón para agregar reacción */}
+            <Tooltip title="Agregar reacción">
+              <IconButton
+                size="small"
+                onClick={handleAddReactionClick}
+                sx={{
+                  width: 24,
+                  height: 24,
+                  opacity: 0.6,
+                  '&:hover': {
+                    opacity: 1,
+                    bgcolor: alpha(theme.palette.primary.main, 0.1)
+                  }
+                }}
+              >
+                <AddReactionIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
       </Box>
 
       {/* Menú contextual de acciones */}
@@ -569,6 +702,15 @@ const MessageBubble = ({
           }
         }}
       >
+        <MenuItem onClick={handlePinClick}>
+          <ListItemIcon>
+            <PushPinIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            {conversation?.pinnedMessageId === message.id ? 'Desfijar' : 'Fijar mensaje'}
+          </ListItemText>
+        </MenuItem>
+
         <MenuItem onClick={handleReplyClick}>
           <ListItemIcon>
             <ReplyIcon fontSize="small" />

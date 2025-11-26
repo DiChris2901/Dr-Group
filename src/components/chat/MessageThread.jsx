@@ -24,7 +24,8 @@ import {
   Email as EmailIcon,
   Badge as BadgeIcon,
   Phone as PhoneIcon,
-  WhatsApp as WhatsAppIcon
+  WhatsApp as WhatsAppIcon,
+  PushPin as PushPinIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { onSnapshot, doc } from 'firebase/firestore';
@@ -40,7 +41,7 @@ import MessageInput from './MessageInput';
  */
 const MessageThread = ({ conversationId, selectedUser, onBack }) => {
   const { currentUser } = useAuth();
-  const { getConversation, setActiveConversationId } = useChat();
+  const { getConversation, setActiveConversationId, togglePinMessage } = useChat();
   const {
     messages,
     loading,
@@ -52,7 +53,8 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
     updateReadCursor, // Nueva función optimizada
     deleteMessage,
     editMessage,
-    forwardMessage
+    forwardMessage,
+    toggleReaction
   } = useChatMessages(conversationId);
 
   const messagesEndRef = useRef(null);
@@ -83,6 +85,9 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
   // Usar info del usuario seleccionado si está disponible
   const displayName = selectedUser?.displayName || selectedUser?.name || 'Usuario';
   const displayPhoto = selectedUser?.photoURL || selectedUser?.photo || null;
+
+  // 📌 Mensaje fijado
+  const pinnedMessage = messages.find(m => m.id === conversation?.pinnedMessageId);
 
   // ⌨️ C. Listener para detectar cuando el otro usuario está escribiendo
   useEffect(() => {
@@ -249,6 +254,56 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
         </Box>
       </Paper>
 
+      {/* 📌 Banner de mensaje fijado */}
+      {pinnedMessage && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 1.5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            borderBottom: 1,
+            borderColor: alpha('#667eea', 0.2),
+            background: `linear-gradient(90deg, ${alpha('#667eea', 0.08)} 0%, ${alpha('#764ba2', 0.08)} 100%)`,
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              background: `linear-gradient(90deg, ${alpha('#667eea', 0.12)} 0%, ${alpha('#764ba2', 0.12)} 100%)`
+            }
+          }}
+          onClick={() => {
+            const element = document.getElementById(`message-${pinnedMessage.id}`);
+            element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }}
+        >
+          <PushPinIcon 
+            sx={{ 
+              color: 'primary.main',
+              transform: 'rotate(45deg)'
+            }} 
+          />
+          <Box flexGrow={1}>
+            <Typography variant="caption" color="primary" fontWeight={600} sx={{ mb: 0.25, display: 'block' }}>
+              Mensaje fijado
+            </Typography>
+            <Typography variant="body2" color="text.secondary" noWrap>
+              {pinnedMessage.text || '📎 Archivo adjunto'}
+            </Typography>
+          </Box>
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              togglePinMessage(conversationId, pinnedMessage.id);
+            }}
+            sx={{ opacity: 0.6, '&:hover': { opacity: 1 } }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Paper>
+      )}
+
       {/* Área de mensajes Sobrio con gradiente */}
       <Box
         ref={messagesContainerRef}
@@ -326,20 +381,24 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
                     </Divider>
                   )}
 
-                  <MessageBubble
-                    message={message}
-                    isOwnMessage={isOwnMessage}
-                    conversation={conversation}
-                    onDelete={deleteMessage}
+                  <Box id={`message-${message.id}`}>
+                    <MessageBubble
+                      message={message}
+                      isOwnMessage={isOwnMessage}
+                      conversation={conversation}
+                      onDelete={deleteMessage}
                     onEdit={editMessage}
                     onReply={setReplyingTo}
                     onForward={forwardMessage}
+                    onReact={toggleReaction}
+                    onPin={(messageId) => togglePinMessage(conversationId, messageId)}
                     replyToMessage={
                       message.metadata?.replyTo 
                         ? messages.find(m => m.id === message.metadata.replyTo)
                         : null
                     }
-                  />
+                    />
+                  </Box>
                 </React.Fragment>
               );
             })}
