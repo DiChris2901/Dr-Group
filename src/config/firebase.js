@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 import { getDatabase, connectDatabaseEmulator } from 'firebase/database';
@@ -48,6 +48,16 @@ let db;
 try {
   db = getFirestore(app);
   console.log('✅ Firestore initialized successfully');
+  
+  // ✅ Habilitar persistencia IndexedDB (cache automático de Firebase)
+  enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('⚠️ Persistencia no disponible: múltiples pestañas abiertas');
+    } else if (err.code === 'unimplemented') {
+      console.warn('⚠️ Persistencia no soportada en este navegador');
+    }
+  });
+  console.log('✅ IndexedDB persistence enabled');
 } catch (error) {
   console.error('🚨 Error initializing Firestore:', error);
   throw error;
