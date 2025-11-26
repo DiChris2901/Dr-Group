@@ -232,47 +232,6 @@ export const useChatMessages = (conversationId, messagesPerPage = 50) => {
     }
   }, [conversationId, currentUser?.uid, addNotification]);
 
-  // ✅ FUNCIÓN OPTIMIZADA: Actualizar cursor de lectura (1 escritura en lugar de N)
-  const updateReadCursor = useCallback(async (conversationId, lastMessageTimestamp) => {
-    if (!currentUser?.uid || !conversationId || !lastMessageTimestamp) return;
-
-    try {
-      const conversationRef = doc(db, 'conversations', conversationId);
-      
-      // Solo actualizar si el nuevo timestamp es más reciente
-      const conversationSnap = await getDoc(conversationRef);
-      if (!conversationSnap.exists()) return;
-      
-      const currentReadTimestamp = conversationSnap.data()[`lastRead_${currentUser.uid}`];
-      
-      // Convertir timestamps para comparar
-      const newTimestamp = lastMessageTimestamp instanceof Date 
-        ? lastMessageTimestamp.getTime() 
-        : lastMessageTimestamp;
-      const oldTimestamp = currentReadTimestamp instanceof Date 
-        ? currentReadTimestamp.getTime() 
-        : currentReadTimestamp?.toMillis?.() || 0;
-      
-      if (newTimestamp <= oldTimestamp) return; // Ya leído más adelante
-      
-      await updateDoc(conversationRef, {
-        [`lastRead_${currentUser.uid}`]: lastMessageTimestamp,
-        [`unreadCount.${currentUser.uid}`]: 0 // Resetear contador
-      });
-      
-      console.log('✅ Cursor de lectura actualizado');
-    } catch (err) {
-      console.error('❌ Error actualizando cursor de lectura:', err);
-    }
-  }, [currentUser?.uid]);
-
-  // ✅ FUNCIÓN LEGACY: Marcar mensaje individual (solo para compatibilidad)
-  const markMessageAsRead = useCallback(async (messageId) => {
-    if (!currentUser?.uid || !messageId) return;
-    // Esta función ya no hace nada - usamos cursor de lectura
-    // Se mantiene para no romper código existente
-  }, [currentUser?.uid]);
-
   // ✅ FUNCIÓN: Eliminar mensaje (eliminación física de Firestore)
   const deleteMessage = useCallback(async (messageId) => {
     if (!currentUser?.uid || !messageId) return;
