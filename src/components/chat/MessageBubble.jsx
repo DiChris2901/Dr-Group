@@ -39,7 +39,11 @@ import {
   Image as ImageIcon,
   PictureAsPdf as PdfIcon,
   AddReaction as AddReactionIcon,
-  PushPin as PushPinIcon
+  PushPin as PushPinIcon,
+  Receipt as ReceiptIcon,
+  Person as PersonIcon,
+  Business as BusinessIcon,
+  OpenInNew as OpenInNewIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
@@ -513,6 +517,75 @@ const MessageBubble = ({
                 </Box>
               ))}
             </Box>
+          )}
+
+          {/* 🔗 Smart Chip - Enlaces de contexto */}
+          {message.type === 'system_link' && message.metadata?.systemLink && (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 1.5,
+                mb: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                background: `linear-gradient(135deg, ${alpha('#667eea', 0.08)} 0%, ${alpha('#764ba2', 0.08)} 100%)`,
+                border: 1,
+                borderColor: alpha('#667eea', 0.2),
+                borderRadius: 2,
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  background: `linear-gradient(135deg, ${alpha('#667eea', 0.12)} 0%, ${alpha('#764ba2', 0.12)} 100%)`,
+                  borderColor: alpha('#667eea', 0.4),
+                  transform: 'translateY(-2px)',
+                  boxShadow: `0 4px 12px ${alpha('#667eea', 0.2)}`
+                }
+              }}
+              onClick={() => {
+                const { entityType, entityId } = message.metadata.systemLink;
+                // Navegar según el tipo
+                if (entityType === 'invoice') {
+                  window.location.href = `/invoices/${entityId}`;
+                } else if (entityType === 'client') {
+                  window.location.href = `/clients/${entityId}`;
+                } else if (entityType === 'company') {
+                  window.location.href = `/companies/${entityId}`;
+                }
+              }}
+            >
+              {/* Ícono según el tipo */}
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 1.5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+                  color: '#fff',
+                  boxShadow: `0 2px 8px ${alpha(theme.palette.primary.main, 0.3)}`
+                }}
+              >
+                {message.metadata.systemLink.entityType === 'invoice' && <ReceiptIcon />}
+                {message.metadata.systemLink.entityType === 'client' && <PersonIcon />}
+                {message.metadata.systemLink.entityType === 'company' && <BusinessIcon />}
+              </Box>
+
+              <Box flexGrow={1}>
+                <Typography variant="caption" color="primary" fontWeight={600} sx={{ display: 'block', mb: 0.25 }}>
+                  {message.metadata.systemLink.entityType === 'invoice' && '💳 Factura'}
+                  {message.metadata.systemLink.entityType === 'client' && '👤 Cliente'}
+                  {message.metadata.systemLink.entityType === 'company' && '🏢 Empresa'}
+                </Typography>
+                <Typography variant="body2" fontWeight={500}>
+                  {message.metadata.systemLink.previewText}
+                </Typography>
+              </Box>
+
+              <OpenInNewIcon sx={{ fontSize: 18, color: 'primary.main', opacity: 0.7 }} />
+            </Paper>
           )}
 
           {/* Texto del mensaje con menciones resaltadas */}

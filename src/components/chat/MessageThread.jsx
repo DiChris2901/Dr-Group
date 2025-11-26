@@ -15,7 +15,9 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  Chip
+  Chip,
+  TextField,
+  Tooltip
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -25,12 +27,13 @@ import {
   Badge as BadgeIcon,
   Phone as PhoneIcon,
   WhatsApp as WhatsAppIcon,
-  PushPin as PushPinIcon
+  PushPin as PushPinIcon,
+  Search as SearchIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { onSnapshot, doc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
-import { useChatMessages } from '../../hooks/useChat';
+import { useChatMessages, useChatSearch } from '../../hooks/useChat';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
 import MessageBubble from './MessageBubble';
@@ -69,6 +72,11 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
 
   // 👤 Estado para diálogo de información de usuario
   const [userInfoDialogOpen, setUserInfoDialogOpen] = useState(false);
+
+  // 🔍 Estados para búsqueda
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const { results: searchResults, searching } = useChatSearch(conversationId, searchTerm);
 
   // 👤 Handlers para el diálogo de usuario
   const handleAvatarClick = (e) => {
@@ -245,13 +253,55 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
         </Avatar>
 
         <Box flexGrow={1}>
-          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.25 }}>
-            {otherParticipantName}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            💬 {messages.length} {messages.length === 1 ? 'mensaje' : 'mensajes'}
-          </Typography>
+          {!searchOpen ? (
+            <>
+              <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.25 }}>
+                {otherParticipantName}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                💬 {messages.length} {messages.length === 1 ? 'mensaje' : 'mensajes'}
+              </Typography>
+            </>
+          ) : (
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Buscar en la conversación..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              autoFocus
+              InputProps={{
+                startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
+                endAdornment: searching && <CircularProgress size={20} />
+              }}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 2,
+                  bgcolor: alpha('#000', 0.02)
+                }
+              }}
+            />
+          )}
         </Box>
+
+        {/* Botón de búsqueda */}
+        <Tooltip title={searchOpen ? "Cerrar búsqueda" : "Buscar"}>
+          <IconButton
+            onClick={() => {
+              setSearchOpen(!searchOpen);
+              if (searchOpen) setSearchTerm('');
+            }}
+            sx={{
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                bgcolor: alpha('#667eea', 0.1),
+                transform: 'rotate(90deg)'
+              }
+            }}
+          >
+            {searchOpen ? <CloseIcon /> : <SearchIcon />}
+          </IconButton>
+        </Tooltip>
       </Paper>
 
       {/* 📌 Banner de mensaje fijado */}
@@ -301,6 +351,62 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
           >
             <CloseIcon fontSize="small" />
           </IconButton>
+        </Paper>
+      )}
+
+      {/* 🔍 Resultados de búsqueda */}
+      {searchOpen && searchTerm && (
+        <Paper
+          elevation={0}
+          sx={{
+            maxHeight: 200,
+            overflowY: 'auto',
+            borderBottom: 1,
+            borderColor: alpha('#000', 0.1)
+          }}
+        >
+          {searching ? (
+            <Box p={2} display="flex" justifyContent="center">
+              <CircularProgress size={24} />
+            </Box>
+          ) : searchResults.length === 0 ? (
+            <Box p={2} textAlign="center">
+              <Typography variant="body2" color="text.secondary">
+                No se encontraron mensajes
+              </Typography>
+            </Box>
+          ) : (
+            <Box>
+              {searchResults.map((result) => (
+                <Box
+                  key={result.id}
+                  sx={{
+                    p: 1.5,
+                    borderBottom: 1,
+                    borderColor: alpha('#000', 0.05),
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      bgcolor: alpha('#667eea', 0.05)
+                    }
+                  }}
+                  onClick={() => {
+                    const element = document.getElementById(`message-${result.id}`);
+                    element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    setSearchOpen(false);
+                    setSearchTerm('');
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                    {result.senderName} • {new Date(result.createdAt).toLocaleDateString('es-CO')}
+                  </Typography>
+                  <Typography variant="body2" noWrap>
+                    {result.text}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          )}
         </Paper>
       )}
 
