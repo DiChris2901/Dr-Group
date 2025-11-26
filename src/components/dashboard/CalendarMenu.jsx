@@ -30,6 +30,7 @@ import { db } from '../../config/firebase';
 import { useFirestore } from '../../hooks/useFirestore';
 import { fCurrency } from '../../utils/formatNumber';
 import { useSettings } from '../../context/SettingsContext';
+import { useColombianHolidays } from '../../hooks/useColombianHolidays';
 import { format } from 'date-fns';
 
 // Estilos CSS para animaciones spectacular
@@ -59,6 +60,7 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
   const [customEvents, setCustomEvents] = useState([]); // 🆕 Eventos personalizados
   const theme = useTheme();
   const { settings } = useSettings();
+  const holidays = useColombianHolidays(selectedMonth.getFullYear()) || []; // 🎉 Hook de festivos colombianos
 
   // 🆕 Cargar eventos personalizados desde Firestore
   useEffect(() => {
@@ -281,7 +283,7 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
       PaperProps={{
         sx: {
           width: 420,
-          maxHeight: 480,
+          maxHeight: 'none',
           bgcolor: theme.palette.background.paper,
           borderRadius: 2,
           boxShadow: theme.shadows[8],
@@ -464,6 +466,17 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
               const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
               const isHovered = hoveredDate && date.toDateString() === hoveredDate.toDateString();
 
+              // 🎨 Detectar días no laborables (domingos, sábados, festivos)
+              const dayOfWeek = date.getDay();
+              const isSunday = dayOfWeek === 0;
+              const isSaturday = dayOfWeek === 6;
+              const isWeekend = isSunday || isSaturday;
+              
+              // Verificar si es festivo colombiano
+              const dateISO = format(date, 'yyyy-MM-dd');
+              const isHoliday = holidays.some(holiday => holiday.date === dateISO);
+              const isNonWorkingDay = isWeekend || isHoliday;
+
               const getPriorityColor = () => {
                 if (!hasCommitmentsOnDate) return 'transparent';
                 switch (priority) {
@@ -472,6 +485,40 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
                   case 'info': return theme.palette.info.main;
                   default: return theme.palette.success.main;
                 }
+              };
+
+              // 🎨 Colores distintivos para diferentes tipos de días
+              const getDayBackgroundColor = () => {
+                if (isTodayDate) return theme.palette.primary.main;
+                if (isSelected) return alpha(theme.palette.primary.main, 0.15);
+                if (isHovered) return alpha(theme.palette.primary.main, 0.1);
+                return 'transparent';
+              };
+
+              const getDayTextColor = () => {
+                if (isTodayDate) return 'white';
+                // Priorizar colores especiales sobre mes actual/anterior
+                if (isHoliday) return theme.palette.secondary.main; // Festivos en púrpura (SIEMPRE)
+                if (isSunday) return theme.palette.error.main; // Domingos en rojo (SIEMPRE)
+                if (isSaturday) return theme.palette.warning.main; // Sábados en naranja (SIEMPRE)
+                if (!isCurrentMonthDay) return theme.palette.text.disabled; // Días de otro mes en gris
+                return theme.palette.text.primary;
+              };
+
+              // 🎨 Patrón de rayas para días no laborables (igual que DashboardCalendar)
+              const getBackgroundPattern = () => {
+                if (isTodayDate || isSelected) return 'none';
+                // Aplicar patrón SOLO a días del mes actual que sean no laborables
+                if (isNonWorkingDay && isCurrentMonthDay) {
+                  return `linear-gradient(45deg, 
+                    transparent 25%, 
+                    ${alpha(theme.palette.primary.main, 0.08)} 25%, 
+                    ${alpha(theme.palette.primary.main, 0.08)} 50%, 
+                    transparent 50%, 
+                    transparent 75%, 
+                    ${alpha(theme.palette.secondary.main, 0.08)} 75%)`;
+                }
+                return 'none';
               };
 
               return (
@@ -490,22 +537,27 @@ const CalendarMenu = ({ anchorEl, open, onClose }) => {
                       borderRadius: '8px',
                       margin: '1px',
                       fontSize: '0.8rem',
-                      fontWeight: isTodayDate || isSelected ? 600 : 400,
-                      color: isCurrentMonthDay 
-                        ? (isTodayDate || isSelected ? 'white' : 'text.primary')
-                        : 'text.disabled',
-                      bgcolor: isTodayDate || isSelected 
-                        ? 'primary.main'
-                        : isHovered 
-                          ? alpha(theme.palette.primary.main, 0.1)
-                          : 'transparent',
+                      fontWeight: isTodayDate || isSelected ? 600 : (isNonWorkingDay ? 500 : 400),
+                      color: getDayTextColor(),
+                      bgcolor: getDayBackgroundColor(),
+                      backgroundImage: getBackgroundPattern(),
+                      backgroundSize: isNonWorkingDay && isCurrentMonthDay ? '8px 8px' : 'auto',
                       border: hasCommitmentsOnDate && !isTodayDate && !isSelected
                         ? `2px solid ${getPriorityColor()}`
                         : 'none',
                       '&:hover': {
-                        bgcolor: isTodayDate || isSelected 
-                          ? 'primary.main'
+                        bgcolor: isTodayDate 
+                          ? theme.palette.primary.main
                           : alpha(theme.palette.primary.main, 0.1),
+                        backgroundImage: isNonWorkingDay && isCurrentMonthDay && !isTodayDate
+                          ? `linear-gradient(45deg, 
+                              transparent 25%, 
+                              ${alpha(theme.palette.primary.main, 0.15)} 25%, 
+                              ${alpha(theme.palette.primary.main, 0.15)} 50%, 
+                              transparent 50%, 
+                              transparent 75%, 
+                              ${alpha(theme.palette.secondary.main, 0.15)} 75%)`
+                          : 'none',
                         transform: 'scale(1.1)',
                       },
                       transition: theme.transitions.create(['background-color', 'transform'], {
