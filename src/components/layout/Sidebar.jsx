@@ -278,7 +278,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
         sx={{
           p: isCompactMode && !isHoverExpanded ? 1 : 3,
           background: theme.palette.mode === 'dark' 
-            ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+            ? `linear-gradient(135deg, ${alpha(theme.palette.primary.dark, 0.95)} 0%, ${alpha(theme.palette.secondary.dark, 0.95)} 100%)`
             : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
           boxShadow: theme.palette.mode === 'dark'
             ? '0 4px 20px rgba(0, 0, 0, 0.3)'
@@ -298,24 +298,36 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
           transition={{ duration: 0.5 }}
         >
           {isCompactMode && !isHoverExpanded ? (
-            <ProfileAvatar
-              photoURL={userProfile?.photoURL}
-              name={userProfile?.name}
-              email={userProfile?.email}
-              size={48}
-              border={true}
-            />
-          ) : (
-            <Box display="flex" alignItems="center" gap={2}>
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.4, type: 'spring' }}
+            >
               <ProfileAvatar
                 photoURL={userProfile?.photoURL}
                 name={userProfile?.name}
                 email={userProfile?.email}
-                size={80}
+                size={48}
                 border={true}
               />
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+            </motion.div>
+          ) : (
+            <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.5, type: 'spring', bounce: 0.4 }}
+              >
+                <ProfileAvatar
+                  photoURL={userProfile?.photoURL}
+                  name={userProfile?.name}
+                  email={userProfile?.email}
+                  size={96}
+                  border={true}
+                />
+              </motion.div>
+              <Box textAlign="center">
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5, fontSize: '1.1rem' }}>
                   {userProfile?.name || 'Diego Rueda'}
                 </Typography>
                 <Chip
@@ -324,7 +336,8 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                   sx={{
                     bgcolor: 'rgba(255, 255, 255, 0.2)',
                     color: 'white',
-                    fontSize: '0.75rem'
+                    fontSize: '0.75rem',
+                    fontWeight: 600
                   }}
                 />
               </Box>
@@ -338,7 +351,7 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
         flex: 1, 
         overflow: 'auto',
         '&::-webkit-scrollbar': {
-          width: '6px'
+          width: '4px'
         },
         '&::-webkit-scrollbar-track': {
           background: 'transparent'
@@ -346,8 +359,9 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
         '&::-webkit-scrollbar-thumb': {
           background: alpha(theme.palette.primary.main, 0.3),
           borderRadius: '10px',
+          transition: 'background 0.3s ease',
           '&:hover': {
-            background: alpha(theme.palette.primary.main, 0.5)
+            background: alpha(theme.palette.primary.main, 0.6)
           }
         }
       }}>
@@ -356,14 +370,22 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
             <React.Fragment key={item.title}>
               {/* Etiquetas de Categoría */}
               {index === 0 && !isCompactMode && (
-                <Box sx={{ px: 3, pt: 1, pb: 1 }}>
+                <Box sx={{ px: 3, pt: 1, pb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{
+                    width: 20,
+                    height: 2,
+                    bgcolor: alpha(theme.palette.primary.main, 0.4),
+                    borderRadius: 1
+                  }} />
                   <Typography
                     variant="caption"
                     sx={{
-                      fontSize: '0.65rem',
-                      fontWeight: 600,
-                      letterSpacing: 0.8,
-                      color: alpha(theme.palette.text.secondary, 0.7),
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      letterSpacing: 1.2,
+                      color: theme.palette.mode === 'dark' 
+                        ? alpha(theme.palette.text.primary, 0.6)
+                        : alpha(theme.palette.text.secondary, 0.8),
                       textTransform: 'uppercase',
                       userSelect: 'none'
                     }}
@@ -373,14 +395,22 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                 </Box>
               )}
               {index === 1 && !isCompactMode && (
-                <Box sx={{ px: 3, pt: 2, pb: 1 }}>
+                <Box sx={{ px: 3, pt: 2.5, pb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{
+                    width: 20,
+                    height: 2,
+                    bgcolor: alpha(theme.palette.primary.main, 0.4),
+                    borderRadius: 1
+                  }} />
                   <Typography
                     variant="caption"
                     sx={{
-                      fontSize: '0.65rem',
-                      fontWeight: 600,
-                      letterSpacing: 0.8,
-                      color: alpha(theme.palette.text.secondary, 0.7),
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      letterSpacing: 1.2,
+                      color: theme.palette.mode === 'dark' 
+                        ? alpha(theme.palette.text.primary, 0.6)
+                        : alpha(theme.palette.text.secondary, 0.8),
                       textTransform: 'uppercase',
                       userSelect: 'none'
                     }}
@@ -390,14 +420,22 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                 </Box>
               )}
               {item.title === 'Gestión Empresarial' && !isCompactMode && (
-                <Box sx={{ px: 3, pt: 2, pb: 1 }}>
+                <Box sx={{ px: 3, pt: 2.5, pb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{
+                    width: 20,
+                    height: 2,
+                    bgcolor: alpha(theme.palette.primary.main, 0.4),
+                    borderRadius: 1
+                  }} />
                   <Typography
                     variant="caption"
                     sx={{
-                      fontSize: '0.65rem',
-                      fontWeight: 600,
-                      letterSpacing: 0.8,
-                      color: alpha(theme.palette.text.secondary, 0.7),
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      letterSpacing: 1.2,
+                      color: theme.palette.mode === 'dark' 
+                        ? alpha(theme.palette.text.primary, 0.6)
+                        : alpha(theme.palette.text.secondary, 0.8),
                       textTransform: 'uppercase',
                       userSelect: 'none'
                     }}
@@ -407,14 +445,22 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                 </Box>
               )}
               {item.title === 'Reportes' && !isCompactMode && (
-                <Box sx={{ px: 3, pt: 2, pb: 1 }}>
+                <Box sx={{ px: 3, pt: 2.5, pb: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{
+                    width: 20,
+                    height: 2,
+                    bgcolor: alpha(theme.palette.primary.main, 0.4),
+                    borderRadius: 1
+                  }} />
                   <Typography
                     variant="caption"
                     sx={{
-                      fontSize: '0.65rem',
-                      fontWeight: 600,
-                      letterSpacing: 0.8,
-                      color: alpha(theme.palette.text.secondary, 0.7),
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      letterSpacing: 1.2,
+                      color: theme.palette.mode === 'dark' 
+                        ? alpha(theme.palette.text.primary, 0.6)
+                        : alpha(theme.palette.text.secondary, 0.8),
                       textTransform: 'uppercase',
                       userSelect: 'none'
                     }}
@@ -432,26 +478,42 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                 <ListItem disablePadding sx={{ mb: 0.5 }}>
                   {(isCompactMode && !isHoverExpanded) ? (
                     <Tooltip 
-                      title={item.title} 
+                      title={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box sx={{ 
+                            width: 3, 
+                            height: 16, 
+                            bgcolor: item.color,
+                            borderRadius: 1 
+                          }} />
+                          <Typography sx={{ fontWeight: 600 }}>
+                            {item.title}
+                          </Typography>
+                        </Box>
+                      }
                       placement={anchor === 'left' ? 'right' : 'left'}
                       arrow
+                      enterDelay={200}
+                      leaveDelay={0}
                       componentsProps={{
                         tooltip: {
                           sx: {
                             bgcolor: theme.palette.mode === 'dark' 
-                              ? theme.palette.grey[800] 
-                              : theme.palette.grey[900],
+                              ? alpha(theme.palette.background.paper, 0.98)
+                              : alpha(theme.palette.grey[900], 0.95),
+                            backdropFilter: 'blur(8px)',
                             color: 'white',
                             fontSize: '0.875rem',
                             fontWeight: 500,
                             px: 2,
                             py: 1,
                             borderRadius: 1,
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                            border: `1px solid ${alpha(item.color, 0.3)}`,
+                            boxShadow: `0 8px 24px ${alpha(item.color, 0.25)}`,
                             '& .MuiTooltip-arrow': {
                               color: theme.palette.mode === 'dark' 
-                                ? theme.palette.grey[800] 
-                                : theme.palette.grey[900]
+                                ? alpha(theme.palette.background.paper, 0.98)
+                                : alpha(theme.palette.grey[900], 0.95)
                             }
                           }
                         }
@@ -508,26 +570,27 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                       sx={{
                         mx: 2,
                         borderRadius: 2,
-                        py: 1,
+                        py: 1.2,
                         minHeight: 48,
                         justifyContent: 'flex-start',
                         bgcolor: isActiveRoute(item.path) || hasActiveSubmenu(item.submenu) 
-                          ? alpha(theme.palette.primary.main, 0.12) 
+                          ? alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.2 : 0.12)
                           : 'transparent',
                         boxShadow: isActiveRoute(item.path) || hasActiveSubmenu(item.submenu)
-                          ? '0 2px 4px rgba(0,0,0,0.04)' 
+                          ? `0 2px 8px ${alpha(theme.palette.primary.main, 0.2)}`
                           : 'none',
                         borderLeft: isActiveRoute(item.path) || hasActiveSubmenu(item.submenu)
-                          ? `3px solid ${theme.palette.primary.main}` 
-                          : '3px solid transparent',
+                          ? `4px solid ${theme.palette.primary.main}` 
+                          : '4px solid transparent',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                         '&:hover': {
-                          bgcolor: alpha(theme.palette.primary.main, 0.08),
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                          transform: 'translateX(2px)',
-                          transition: 'all 0.2s ease',
+                          bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.15 : 0.08),
+                          boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`,
+                          transform: 'translateX(4px)',
+                          borderLeftColor: alpha(theme.palette.primary.main, 0.6),
                           '& .MuiListItemIcon-root': {
                             color: item.color,
-                            transform: 'scale(1.1)',
+                            transform: 'scale(1.15) rotate(5deg)',
                             transition: 'transform 0.2s ease'
                           },
                           '& .MuiListItemText-primary': {
@@ -535,6 +598,9 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                             fontWeight: 600,
                             transition: 'color 0.2s ease'
                           }
+                        },
+                        '&:active': {
+                          transform: 'translateX(2px) scale(0.98)'
                         }
                       }}
                     >
@@ -584,8 +650,14 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
 
                 {/* Submenu */}
                 {item.submenu && (!isCompactMode || isHoverExpanded) && (
-                  <Collapse in={openSubmenu[item.title]} timeout="auto" unmountOnExit>
-                    <List component="div" disablePadding>
+                  <Collapse in={openSubmenu[item.title]} timeout={400} unmountOnExit>
+                    <List component="div" disablePadding sx={{ 
+                      bgcolor: alpha(theme.palette.primary.main, 0.02),
+                      borderRadius: 2,
+                      mx: 2,
+                      my: 0.5,
+                      py: 0.5
+                    }}>
                       {item.submenu
                         .filter(subItem => hasSubmenuPermission(item.permission, subItem.permission))
                         .map((subItem) => (
@@ -593,24 +665,27 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                           <ListItemButton
                             onClick={() => handleNavigation(subItem.path)}
                             sx={{
-                              pl: 7,
-                              mx: 2,
+                              pl: 5,
+                              mx: 1,
                               my: 0.5,
-                              borderRadius: 2,
-                              py: 0.75,
+                              borderRadius: 1.5,
+                              py: 1,
                               minHeight: 40,
                               bgcolor: isActiveRoute(subItem.path) 
-                                ? alpha(theme.palette.primary.main, 0.08) 
+                                ? alpha(theme.palette.primary.main, 0.12)
                                 : 'transparent',
-                              borderLeft: `2px solid ${isActiveRoute(subItem.path) 
+                              borderLeft: `3px solid ${isActiveRoute(subItem.path) 
                                 ? theme.palette.primary.main 
                                 : 'transparent'}`,
-                              ml: 3,
+                              transition: 'all 0.2s ease',
                               '&:hover': {
-                                bgcolor: alpha(theme.palette.primary.main, 0.05),
+                                bgcolor: alpha(theme.palette.primary.main, 0.08),
                                 borderLeftColor: alpha(theme.palette.primary.main, 0.5),
-                                transform: 'translateX(4px)',
-                                transition: 'all 0.2s ease'
+                                transform: 'translateX(6px)',
+                                '& .MuiListItemIcon-root': {
+                                  transform: 'scale(1.1)',
+                                  color: theme.palette.primary.main
+                                }
                               }
                             }}
                           >
@@ -662,8 +737,14 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
               {settings?.sidebar?.grouping !== false && (index === 0 || index === 3) && (
                 <Divider sx={{ 
                   mx: 2, 
-                  my: 1.5, 
-                  borderColor: alpha(theme.palette.primary.main, 0.12)
+                  my: 2,
+                  background: `linear-gradient(90deg, 
+                    transparent 0%, 
+                    ${alpha(theme.palette.primary.main, 0.2)} 50%, 
+                    transparent 100%
+                  )`,
+                  height: '1px',
+                  border: 'none'
                 }} />
               )}
             </React.Fragment>
@@ -677,16 +758,30 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                   <Divider sx={{ 
                     my: 2, 
                     mx: 3,
-                    borderColor: alpha(theme.palette.primary.main, 0.12)
+                    background: `linear-gradient(90deg, 
+                      transparent 0%, 
+                      ${alpha(theme.palette.primary.main, 0.2)} 50%, 
+                      transparent 100%
+                    )`,
+                    height: '1px',
+                    border: 'none'
                   }} />
-                  <Box sx={{ px: 3, pt: 1, pb: 1 }}>
+                  <Box sx={{ px: 3, pt: 1, pb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box sx={{
+                      width: 20,
+                      height: 2,
+                      bgcolor: alpha(theme.palette.primary.main, 0.4),
+                      borderRadius: 1
+                    }} />
                     <Typography
                       variant="caption"
                       sx={{
-                        fontSize: '0.65rem',
-                        fontWeight: 600,
-                        letterSpacing: 0.8,
-                        color: alpha(theme.palette.text.secondary, 0.7),
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        letterSpacing: 1.2,
+                        color: theme.palette.mode === 'dark' 
+                          ? alpha(theme.palette.text.primary, 0.6)
+                          : alpha(theme.palette.text.secondary, 0.8),
                         textTransform: 'uppercase',
                         userSelect: 'none'
                       }}
@@ -707,26 +802,42 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                   <ListItem disablePadding sx={{ mb: 0.5 }}>
                     {(isCompactMode && !isHoverExpanded) ? (
                       <Tooltip 
-                        title={item.title} 
+                        title={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box sx={{ 
+                              width: 3, 
+                              height: 16, 
+                              bgcolor: item.color,
+                              borderRadius: 1 
+                            }} />
+                            <Typography sx={{ fontWeight: 600 }}>
+                              {item.title}
+                            </Typography>
+                          </Box>
+                        }
                         placement={anchor === 'left' ? 'right' : 'left'}
                         arrow
+                        enterDelay={200}
+                        leaveDelay={0}
                         componentsProps={{
                           tooltip: {
                             sx: {
                               bgcolor: theme.palette.mode === 'dark' 
-                                ? theme.palette.grey[800] 
-                                : theme.palette.grey[900],
+                                ? alpha(theme.palette.background.paper, 0.98)
+                                : alpha(theme.palette.grey[900], 0.95),
+                              backdropFilter: 'blur(8px)',
                               color: 'white',
                               fontSize: '0.875rem',
                               fontWeight: 500,
                               px: 2,
                               py: 1,
                               borderRadius: 1,
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                              border: `1px solid ${alpha(item.color, 0.3)}`,
+                              boxShadow: `0 8px 24px ${alpha(item.color, 0.25)}`,
                               '& .MuiTooltip-arrow': {
                                 color: theme.palette.mode === 'dark' 
-                                  ? theme.palette.grey[800] 
-                                  : theme.palette.grey[900]
+                                  ? alpha(theme.palette.background.paper, 0.98)
+                                  : alpha(theme.palette.grey[900], 0.95)
                               }
                             }
                           }
@@ -783,26 +894,27 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                         sx={{
                           mx: 2,
                           borderRadius: 2,
-                          py: 1,
+                          py: 1.2,
                           minHeight: 48,
                           justifyContent: 'flex-start',
                           bgcolor: isActiveRoute(item.path) 
-                            ? alpha(theme.palette.primary.main, 0.12) 
+                            ? alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.2 : 0.12)
                             : 'transparent',
                           boxShadow: isActiveRoute(item.path) 
-                            ? '0 2px 4px rgba(0,0,0,0.04)' 
+                            ? `0 2px 8px ${alpha(theme.palette.primary.main, 0.2)}`
                             : 'none',
                           borderLeft: isActiveRoute(item.path) 
-                            ? `3px solid ${theme.palette.primary.main}` 
-                            : '3px solid transparent',
+                            ? `4px solid ${theme.palette.primary.main}` 
+                            : '4px solid transparent',
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                           '&:hover': {
-                            bgcolor: alpha(theme.palette.primary.main, 0.08),
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-                            transform: 'translateX(2px)',
-                            transition: 'all 0.2s ease',
+                            bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.15 : 0.08),
+                            boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`,
+                            transform: 'translateX(4px)',
+                            borderLeftColor: alpha(theme.palette.primary.main, 0.6),
                             '& .MuiListItemIcon-root': {
                               color: item.color,
-                              transform: 'scale(1.1)',
+                              transform: 'scale(1.15) rotate(5deg)',
                               transition: 'transform 0.2s ease'
                             },
                             '& .MuiListItemText-primary': {
@@ -810,6 +922,9 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
                               fontWeight: 600,
                               transition: 'color 0.2s ease'
                             }
+                          },
+                          '&:active': {
+                            transform: 'translateX(2px) scale(0.98)'
                           }
                         }}
                       >
@@ -864,68 +979,83 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
           sx={{ 
             p: isCompactMode && !isHoverExpanded ? 1 : 2, 
             mt: 'auto',
-            borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`
+            borderTop: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            background: `linear-gradient(180deg, 
+              transparent 0%, 
+              ${alpha(theme.palette.primary.main, 0.02)} 100%
+            )`
           }}
         >
           {(!isCompactMode || isHoverExpanded) && (
             <Box sx={{ textAlign: 'center', p: 2 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ 
+                display: 'block', 
+                mb: 1,
+                fontWeight: 600,
+                letterSpacing: 0.5
+              }}>
                 DR Group Dashboard
               </Typography>
+              
+              {/* Versión del sistema */}
               <Typography variant="caption" sx={{ 
-                color: alpha(theme.palette.success.main, 0.8),
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 0.5,
-                fontSize: '0.7rem',
-                mb: 1
+                display: 'block',
+                color: alpha(theme.palette.text.secondary, 0.6),
+                fontSize: '0.65rem',
+                mb: 1.5
               }}>
-                <Box sx={{ 
-                  width: 6, 
-                  height: 6, 
-                  borderRadius: '50%', 
-                  bgcolor: 'success.main',
-                  animation: 'pulse 2s infinite'
-                }} />
-                Sistema Activo
+                v2.5.0 • Nov 2025
               </Typography>
               
-              {/* Indicador de modo de navegación */}
-              {settings?.navigation?.mode && (
+              {/* Estado del sistema mejorado */}
+              <Box sx={{ 
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 1,
+                px: 2,
+                py: 0.75,
+                borderRadius: 2,
+                bgcolor: alpha(theme.palette.success.main, 0.1),
+                border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
+                mb: 1.5
+              }}>
                 <Box sx={{ 
-                  display: 'flex', 
-                  gap: 0.5, 
-                  justifyContent: 'center',
-                  flexWrap: 'wrap'
+                  width: 8, 
+                  height: 8, 
+                  borderRadius: '50%', 
+                  bgcolor: 'success.main',
+                  boxShadow: `0 0 8px ${alpha(theme.palette.success.main, 0.6)}`,
+                  animation: 'pulse 2s infinite'
+                }} />
+                <Typography variant="caption" sx={{ 
+                  color: theme.palette.success.main,
+                  fontWeight: 700,
+                  fontSize: '0.7rem',
+                  letterSpacing: 0.5
                 }}>
-                  {settings.navigation.mode === 'sidebar' && (
-                    <Chip 
-                      label="Sidebar Activo" 
-                      size="small"
-                      sx={{ 
-                        height: 20,
-                        fontSize: '0.65rem',
-                        bgcolor: alpha(theme.palette.primary.main, 0.15),
-                        color: theme.palette.primary.main,
-                        fontWeight: 600
-                      }} 
-                    />
-                  )}
-                  {settings.navigation.mode === 'taskbar' && (
-                    <Chip 
-                      label="Taskbar Activo" 
-                      size="small"
-                      sx={{ 
-                        height: 20,
-                        fontSize: '0.65rem',
-                        bgcolor: alpha('#FF5722', 0.15),
-                        color: '#FF5722',
-                        fontWeight: 600
-                      }} 
-                    />
-                  )}
+                  ONLINE
+                </Typography>
+              </Box>
+              
+              {/* Indicador de modo de navegación mejorado */}
+              {settings?.navigation?.mode && (
+                <Box sx={{ mt: 1 }}>
+                  <Chip 
+                    label={settings.navigation.mode === 'sidebar' ? 'Navegación Lateral' : 'Barra de Tareas'} 
+                    size="small"
+                    icon={settings.navigation.mode === 'sidebar' ? <Dashboard sx={{ fontSize: '0.875rem' }} /> : <Timeline sx={{ fontSize: '0.875rem' }} />}
+                    sx={{ 
+                      height: 24,
+                      fontSize: '0.7rem',
+                      bgcolor: alpha(theme.palette.primary.main, 0.15),
+                      color: theme.palette.primary.main,
+                      fontWeight: 700,
+                      letterSpacing: 0.5,
+                      '& .MuiChip-icon': {
+                        color: theme.palette.primary.main
+                      }
+                    }} 
+                  />
                 </Box>
               )}
             </Box>
@@ -975,12 +1105,12 @@ const Sidebar = ({ open, onClose, variant = 'temporary', onHoverChange }) => {
               ? `1px solid ${alpha(theme.palette.primary.main, 0.2)}` 
               : 'none',
             borderRadius: 0,
-            boxShadow: anchor === 'left' ? 
-              theme.shadows[2] : 
-              theme.shadows[2],
+            boxShadow: anchor === 'left' 
+              ? `8px 0 24px ${alpha(theme.palette.primary.main, 0.08)}, 0 0 1px ${alpha(theme.palette.primary.main, 0.2)}`
+              : `-8px 0 24px ${alpha(theme.palette.primary.main, 0.08)}, 0 0 1px ${alpha(theme.palette.primary.main, 0.2)}`,
             transition: theme.transitions.create(['width', 'transform', 'box-shadow'], {
-              easing: theme.transitions.easing.easeOut,
-              duration: 200
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.enteringScreen
             }),
           zIndex: theme.zIndex.drawer,
           ...(isCompactMode && {
