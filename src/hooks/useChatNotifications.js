@@ -20,6 +20,8 @@ export const useChatNotifications = (isDrawerOpen) => {
   // ✅ useRef SIEMPRE después de todos los useContext
   const previousMessagesRef = useRef({});
   const isInitializedRef = useRef(false);
+  const lastNotificationByUser = useRef({}); // Para throttling por remitente
+  const notificationCount = useRef({ count: 0, resetTime: Date.now() }); // Para rate limiting
 
   // Extraer valores con fallbacks seguros
   const conversations = chat?.conversations || [];
@@ -68,8 +70,29 @@ export const useChatNotifications = (isDrawerOpen) => {
     const chatSoundEnabled = settings?.notifications?.chat?.sound !== false;
     const chatToastEnabled = settings?.notifications?.chat?.toast !== false;
     const chatVibrateEnabled = settings?.notifications?.chat?.vibrate === true;
+    const chatBrowserEnabled = settings?.notifications?.chat?.browser === true;
 
     if (!chatNotificationsEnabled) return;
+
+    // 🛡️ Rate Limiting Global: Máximo 5 notificaciones por minuto
+    const canNotify = () => {
+      const now = Date.now();
+      const ONE_MINUTE = 60000;
+      
+      // Resetear contador cada minuto
+      if (now - notificationCount.current.resetTime > ONE_MINUTE) {
+        notificationCount.current = { count: 0, resetTime: now };
+      }
+      
+      // Máximo 5 notificaciones por minuto
+      if (notificationCount.current.count >= 5) {
+        console.log('⚠️ Límite de notificaciones alcanzado (5/min)');
+        return false;
+      }
+      
+      notificationCount.current.count++;
+      return true;
+    };
 
     let hasNewNotifications = false;
 
@@ -86,14 +109,35 @@ export const useChatNotifications = (isDrawerOpen) => {
         
         // Si no hemos procesado este mensaje antes
         if (!previousMessagesRef.current[messageKey]) {
-          previousMessagesRef.current[messageKey] = true;
-          hasNewNotifications = true;
-
           // 🔔 Obtener nombre del remitente
           const otherUserId = conversation.participantIds?.find(
             id => id !== currentUser.uid
           );
           const senderName = conversation.participantNames?.[otherUserId] || 'Usuario';
+          const senderId = lastMessage.senderId;
+
+          // 🛡️ THROTTLING: Evitar spam del mismo remitente (3 segundos mínimo)
+          const lastTime = lastNotificationByUser.current[senderId];
+          const now = Date.now();
+          const THROTTLE_INTERVAL = 3000; // 3 segundos
+
+          if (lastTime && (now - lastTime) < THROTTLE_INTERVAL) {
+            console.log(`⏸️ Throttling: ignorando mensaje de ${senderName} (menos de 3s)`);
+            previousMessagesRef.current[messageKey] = true; // Marcar como procesado sin notificar
+            return; // No notificar
+          }
+
+          // 🛡️ RATE LIMITING: Verificar límite global
+          if (!canNotify()) {
+            console.log('⚠️ Rate limit: demasiadas notificaciones, ignorando...');
+            previousMessagesRef.current[messageKey] = true;
+            return;
+          }
+
+          // ✅ TODO OK: Proceder con la notificación
+          previousMessagesRef.current[messageKey] = true;
+          lastNotificationByUser.current[senderId] = now; // Actualizar timestamp
+          hasNewNotifications = true;
 
           // 🎯 Mostrar notificación toast (si está habilitada)
           if (chatToastEnabled) {
@@ -147,6 +191,42 @@ export const useChatNotifications = (isDrawerOpen) => {
               navigator.vibrate([200, 100, 200]); // Patrón de vibración: vibrar-pausar-vibrar
             } catch (err) {
               console.debug('Vibration not available');
+            }
+          }
+
+          // 🔔 Notificación del navegador (si está habilitada)
+          if (chatBrowserEnabled && 'Notification' in window) {
+            if (Notification.permission === 'granted') {
+              try {
+                const notification = new Notification(`💬 ${senderName}`, {
+                  body: lastMessage.text?.substring(0, 100) || '📎 Archivo adjunto',
+                  icon: '/icons/icon-192x192.png',
+                  badge: '/icons/badge-72x72.png',
+                  tag: 'dr-group-chat', // Agrupa notificaciones
+                  requireInteraction: false,
+                  silent: !chatSoundEnabled, // Usar el sonido del sistema si el nuestro está deshabilitado
+                  vibrate: chatVibrateEnabled ? [200, 100, 200] : undefined,
+                  data: {
+                    conversationId: conversation.id,
+                    senderId: senderId
+                  }
+                });
+
+                // Al hacer clic en la notificación, enfocar la ventana
+                notification.onclick = () => {
+                  window.focus();
+                  notification.close();
+                  // TODO: Abrir el chat con esa conversación específica
+                };
+
+                // Auto-cerrar después de 5 segundos
+                setTimeout(() => notification.close(), 5000);
+              } catch (err) {
+                console.debug('Browser notification error:', err);
+              }
+            } else if (Notification.permission === 'default') {
+              // Solicitar permiso automáticamente si aún no se ha preguntado
+              Notification.requestPermission();
             }
           }
         }

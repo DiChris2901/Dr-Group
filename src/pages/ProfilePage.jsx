@@ -28,7 +28,10 @@ import {
   Tooltip,
   useTheme,
   Tabs,
-  Tab
+  Tab,
+  FormControlLabel,
+  Switch,
+  Paper
 } from '@mui/material';
 
 import {
@@ -54,7 +57,13 @@ import {
   AdminPanelSettings,
   Key,
   Lock,
-  VpnKey as KeyIcon
+  VpnKey as KeyIcon,
+  Notifications as NotificationsIcon,
+  VolumeUp as SoundIcon,
+  Chat as ChatIcon,
+  Vibration as VibrationIcon,
+  NotificationsActive as BrowserNotificationIcon,
+  CheckCircle as CheckIcon
 } from '@mui/icons-material';
 
 import { useAuth } from '../context/AuthContext';
@@ -983,6 +992,7 @@ const ProfilePage = () => {
               >
                 <Tab label="Información Personal" />
                 <Tab label="Empresas y Permisos" />
+                <Tab label="Notificaciones" />
               </Tabs>
             </Box>
 
@@ -1459,6 +1469,265 @@ const ProfilePage = () => {
                   </Grid>
                 )}
               </Grid>
+              )}
+
+              {/* Tab 3: Notificaciones */}
+              {activeTab === 2 && (
+                <Grid container spacing={3}>
+                  {/* Header */}
+                  <Grid item xs={12}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                        <NotificationsIcon sx={{ color: theme.palette.primary.main }} />
+                        Configuración de Notificaciones del Chat
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Personaliza cómo y cuándo recibes notificaciones de mensajes nuevos
+                      </Typography>
+                    </Box>
+                  </Grid>
+
+                  {/* Notificaciones Generales */}
+                  <Grid item xs={12}>
+                    <Paper 
+                      elevation={0} 
+                      sx={{ 
+                        p: 3, 
+                        borderRadius: 2,
+                        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                        background: alpha(theme.palette.primary.main, 0.02)
+                      }}
+                    >
+                      <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+                        Notificaciones Generales
+                      </Typography>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={settings?.notifications?.chat?.enabled !== false}
+                            onChange={(e) => {
+                              const newValue = e.target.checked;
+                              updateSettings({
+                                ...settings,
+                                notifications: {
+                                  ...settings?.notifications,
+                                  chat: {
+                                    ...settings?.notifications?.chat,
+                                    enabled: newValue
+                                  }
+                                }
+                              });
+                            }}
+                            color="primary"
+                          />
+                        }
+                        label="Activar notificaciones del chat"
+                      />
+                      <Typography variant="caption" color="text.secondary" sx={{ ml: 4, display: 'block', mt: -1 }}>
+                        Recibe alertas cuando lleguen mensajes nuevos mientras el chat está cerrado
+                      </Typography>
+                    </Paper>
+                  </Grid>
+
+                  {/* Tipos de Notificación */}
+                  <Grid item xs={12}>
+                    <Paper 
+                      elevation={0} 
+                      sx={{ 
+                        p: 3, 
+                        borderRadius: 2,
+                        border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+                        opacity: settings?.notifications?.chat?.enabled !== false ? 1 : 0.5,
+                        pointerEvents: settings?.notifications?.chat?.enabled !== false ? 'auto' : 'none'
+                      }}
+                    >
+                      <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+                        Tipos de Notificación
+                      </Typography>
+                      
+                      {/* Sonido */}
+                      <Box sx={{ mb: 2 }}>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={settings?.notifications?.chat?.sound !== false}
+                              onChange={(e) => {
+                                updateSettings({
+                                  ...settings,
+                                  notifications: {
+                                    ...settings?.notifications,
+                                    chat: {
+                                      ...settings?.notifications?.chat,
+                                      sound: e.target.checked
+                                    }
+                                  }
+                                });
+                              }}
+                              disabled={settings?.notifications?.chat?.enabled === false}
+                            />
+                          }
+                          label={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <SoundIcon fontSize="small" />
+                              Sonido de notificación
+                            </Box>
+                          }
+                        />
+                        <Typography variant="caption" color="text.secondary" sx={{ ml: 6, display: 'block', mt: -1 }}>
+                          Reproduce un tono dual agradable cuando llega un mensaje
+                        </Typography>
+                      </Box>
+
+                      {/* Toast */}
+                      <Box sx={{ mb: 2 }}>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={settings?.notifications?.chat?.toast !== false}
+                              onChange={(e) => {
+                                updateSettings({
+                                  ...settings,
+                                  notifications: {
+                                    ...settings?.notifications,
+                                    chat: {
+                                      ...settings?.notifications?.chat,
+                                      toast: e.target.checked
+                                    }
+                                  }
+                                });
+                              }}
+                              disabled={settings?.notifications?.chat?.enabled === false}
+                            />
+                          }
+                          label={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <ChatIcon fontSize="small" />
+                              Notificaciones emergentes (Toast)
+                            </Box>
+                          }
+                        />
+                        <Typography variant="caption" color="text.secondary" sx={{ ml: 6, display: 'block', mt: -1 }}>
+                          Muestra una alerta en la esquina de la pantalla con el mensaje
+                        </Typography>
+                      </Box>
+
+                      {/* Browser Notifications */}
+                      <Box sx={{ mb: 2 }}>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={settings?.notifications?.chat?.browser === true}
+                              onChange={(e) => {
+                                const newValue = e.target.checked;
+                                if (newValue && Notification.permission === 'default') {
+                                  // Solicitar permiso si es la primera vez
+                                  Notification.requestPermission().then(permission => {
+                                    if (permission === 'granted') {
+                                      updateSettings({
+                                        ...settings,
+                                        notifications: {
+                                          ...settings?.notifications,
+                                          chat: {
+                                            ...settings?.notifications?.chat,
+                                            browser: true
+                                          }
+                                        }
+                                      });
+                                    }
+                                  });
+                                } else {
+                                  updateSettings({
+                                    ...settings,
+                                    notifications: {
+                                      ...settings?.notifications,
+                                      chat: {
+                                        ...settings?.notifications?.chat,
+                                        browser: newValue
+                                      }
+                                    }
+                                  });
+                                }
+                              }}
+                              disabled={settings?.notifications?.chat?.enabled === false}
+                            />
+                          }
+                          label={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <BrowserNotificationIcon fontSize="small" />
+                              Notificaciones del navegador
+                            </Box>
+                          }
+                        />
+                        <Typography variant="caption" color="text.secondary" sx={{ ml: 6, display: 'block', mt: -1 }}>
+                          Muestra notificaciones nativas del sistema (funcionan aunque cambies de pestaña)
+                        </Typography>
+                        {settings?.notifications?.chat?.browser && Notification.permission === 'denied' && (
+                          <Alert severity="warning" sx={{ ml: 6, mt: 1 }}>
+                            Los permisos de notificación están bloqueados. Por favor, habilítalos en la configuración de tu navegador.
+                          </Alert>
+                        )}
+                      </Box>
+
+                      {/* Vibración */}
+                      <Box sx={{ mb: 0 }}>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={settings?.notifications?.chat?.vibrate === true}
+                              onChange={(e) => {
+                                updateSettings({
+                                  ...settings,
+                                  notifications: {
+                                    ...settings?.notifications,
+                                    chat: {
+                                      ...settings?.notifications?.chat,
+                                      vibrate: e.target.checked
+                                    }
+                                  }
+                                });
+                              }}
+                              disabled={settings?.notifications?.chat?.enabled === false || !('vibrate' in navigator)}
+                            />
+                          }
+                          label={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <VibrationIcon fontSize="small" />
+                              Vibración (solo dispositivos móviles)
+                            </Box>
+                          }
+                        />
+                        <Typography variant="caption" color="text.secondary" sx={{ ml: 6, display: 'block', mt: -1 }}>
+                          Hace vibrar el dispositivo al recibir mensajes
+                          {!('vibrate' in navigator) && ' (No disponible en este dispositivo)'}
+                        </Typography>
+                      </Box>
+                    </Paper>
+                  </Grid>
+
+                  {/* Resumen de Configuración */}
+                  {settings?.notifications?.chat?.enabled !== false && (
+                    <Grid item xs={12}>
+                      <Alert 
+                        severity="success" 
+                        icon={<CheckIcon />}
+                        sx={{ borderRadius: 2 }}
+                      >
+                        <Typography variant="body2" fontWeight={600}>
+                          Configuración Activa:
+                        </Typography>
+                        <Typography variant="caption" component="div" sx={{ mt: 0.5 }}>
+                          {settings?.notifications?.chat?.sound !== false && '🔊 Sonido • '}
+                          {settings?.notifications?.chat?.toast !== false && '💬 Toast • '}
+                          {settings?.notifications?.chat?.browser === true && '🔔 Navegador • '}
+                          {settings?.notifications?.chat?.vibrate === true && '📳 Vibración'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                          Sistema inteligente anti-spam: Solo recibirás 1 notificación cada 3 segundos del mismo remitente.
+                        </Typography>
+                      </Alert>
+                    </Grid>
+                  )}
+                </Grid>
               )}
             </CardContent>
           </Card>

@@ -659,15 +659,23 @@ const SettingsProvider = ({ children }) => {
   }, [user]);
 
   // Función para actualizar configuración en Firebase
-  const updateSettings = async (category, updates) => {
+  const updateSettings = async (categoryOrNewSettings, updates) => {
     try {
-      const newSettings = {
-        ...settings,
-        [category]: {
-          ...settings[category],
-          ...updates
-        }
-      };
+      let newSettings;
+
+      // Si el primer argumento es un objeto completo (sin segundo argumento)
+      if (typeof categoryOrNewSettings === 'object' && !updates) {
+        newSettings = categoryOrNewSettings;
+      } else {
+        // Formato antiguo: (category, updates)
+        newSettings = {
+          ...settings,
+          [categoryOrNewSettings]: {
+            ...settings[categoryOrNewSettings],
+            ...updates
+          }
+        };
+      }
 
       // Actualizar estado local inmediatamente
       setSettings(newSettings);
@@ -678,8 +686,15 @@ const SettingsProvider = ({ children }) => {
       // Si hay usuario autenticado, guardar en Firebase
       if (user) {
         const userSettingsRef = doc(db, 'userSettings', user.uid);
+        
+        // Serializar correctamente para Firestore (evitar objetos anidados problemáticos)
+        const firestoreData = JSON.parse(JSON.stringify(newSettings));
+        
+        // Remover propiedades que no se pueden serializar
+        delete firestoreData.predefinedThemes; // No guardar temas predefinidos
+        
         await updateDoc(userSettingsRef, {
-          [category]: newSettings[category],
+          ...firestoreData,
           lastUpdated: new Date()
         });
       }
