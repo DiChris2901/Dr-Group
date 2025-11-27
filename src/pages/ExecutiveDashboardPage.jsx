@@ -196,11 +196,20 @@ const ExecutiveDashboardPage = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
+    console.log('🎯 [handleRefresh] Botón presionado, llamando a refreshStats()...');
+    
     try {
       await refreshStats(); // ✅ Llama a la Cloud Function para recalcular
-      console.log('✅ Contadores actualizados correctamente');
+      console.log('✅ [handleRefresh] refreshStats() completado exitosamente');
+      console.log('⏳ [handleRefresh] Esperando 3 segundos para que Firestore actualice...');
+      
+      // Esperar 3 segundos para dar tiempo a que el listener detecte el cambio
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      console.log('🎉 [handleRefresh] Proceso completado. El dashboard debería mostrar stats optimizados.');
     } catch (error) {
-      console.error('❌ Error actualizando contadores:', error);
+      console.error('❌ [handleRefresh] Error:', error);
+      alert(`Error al inicializar contadores: ${error.message}`);
     } finally {
       setRefreshing(false);
     }

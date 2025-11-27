@@ -39,25 +39,37 @@ export const useDashboardStats = () => {
   // ✅ FUNCIÓN PARA FORZAR RECÁLCULO DE CONTADORES
   const refreshStats = useCallback(async () => {
     try {
+      console.log('🚀 [refreshStats] Iniciando recálculo...');
       setStats(prev => ({ ...prev, loading: true }));
-      console.log('🔄 Forzando recálculo de contadores...');
 
       const functions = getFunctions();
+      console.log('🔧 [refreshStats] getFunctions() ejecutado');
+      
       const forceRecalculateStats = httpsCallable(functions, 'forceRecalculateStats');
+      console.log('📞 [refreshStats] Llamando a forceRecalculateStats...');
       
       const result = await forceRecalculateStats();
       
-      console.log('✅ Contadores recalculados exitosamente:', result.data);
+      console.log('✅ [refreshStats] ÉXITO! Respuesta:', result.data);
+      console.log('📊 [refreshStats] Stats calculados:', result.data.stats);
+      console.log('💾 [refreshStats] Documento system_stats/dashboard creado en Firestore');
+      console.log('⏳ [refreshStats] El listener de onSnapshot detectará los cambios en 2-3 segundos...');
       
-      // El listener de onSnapshot detectará los cambios automáticamente
+      // Forzar recarga después de 3 segundos para ver el cambio
+      setTimeout(() => {
+        console.log('🔄 [refreshStats] Timeout completado, el listener debería haber actualizado los stats');
+      }, 3000);
       
     } catch (error) {
-      console.error('❌ Error forzando recálculo:', error);
+      console.error('❌ [refreshStats] ERROR:', error);
+      console.error('❌ [refreshStats] Código de error:', error.code);
+      console.error('❌ [refreshStats] Mensaje:', error.message);
       setStats(prev => ({ 
         ...prev, 
         loading: false, 
         error: error.message 
       }));
+      throw error; // Re-lanzar para que ExecutiveDashboardPage lo capture
     }
   }, []);
 
@@ -103,104 +115,28 @@ export const useDashboardStats = () => {
             usingFallback: false // ✅ Modo optimizado activo
           });
         } else {
-          // ⚠️ FALLBACK: Documento no existe → Calcular directamente (temporal)
-          console.warn('⚠️ Contador no inicializado. Usando cálculo directo (fallback)...');
-          console.warn('💡 Para optimizar: Ejecuta forceRecalculateStats() desde Firebase Console');
+          // ⚠️ DOCUMENTO NO EXISTE: Mostrar advertencia SIN calcular nada
+          console.error('❌ CRÍTICO: Documento system_stats/dashboard NO EXISTE');
+          console.error('❌ El sistema NO está inicializado');
+          console.error('❌ Debes ejecutar forceRecalculateStats() UNA VEZ');
+          console.error('💡 Usa el botón "Activar Modo Optimizado" en el banner amarillo');
           
-          // Importar colecciones y calcular manualmente
-          import('firebase/firestore').then(({ collection, onSnapshot: fsOnSnapshot }) => {
-            const commitmentsUnsubscribe = fsOnSnapshot(
-              collection(db, 'commitments'),
-              (commitmentsSnapshot) => {
-                const paymentsUnsubscribe = fsOnSnapshot(
-                  collection(db, 'payments'),
-                  (paymentsSnapshot) => {
-                    // Calcular estadísticas (lógica simplificada)
-                    const commitments = commitmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    const payments = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    
-                    const now = new Date();
-                    const currentMonth = now.getMonth();
-                    const currentYear = now.getFullYear();
-                    
-                    let totalCommitments = commitments.length;
-                    let pendingCommitments = 0;
-                    let overDueCommitments = 0;
-                    let completedCommitments = 0;
-                    let totalAmount = 0;
-                    let paidAmount = 0;
-                    let pendingAmount = 0;
-                    
-                    commitments.forEach(c => {
-                      const amount = parseFloat(c.amount) || 0;
-                      totalAmount += amount;
-                      
-                      const isPaid = c.status === 'paid' || c.status === 'completed' || c.paid === true;
-                      const dueDate = c.dueDate?.toDate ? c.dueDate.toDate() : new Date(c.dueDate);
-                      const isOverdue = dueDate && dueDate < now;
-                      
-                      if (isPaid) {
-                        completedCommitments++;
-                        paidAmount += amount;
-                      } else {
-                        pendingCommitments++;
-                        pendingAmount += amount;
-                        if (isOverdue) overDueCommitments++;
-                      }
-                    });
-                    
-                    const currentMonthPayments = payments.filter(p => {
-                      if (p.is4x1000Tax) return false;
-                      const paymentDate = p.date?.toDate ? p.date.toDate() : new Date(p.date);
-                      return paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear;
-                    }).length;
-                    
-                    const currentMonthPaymentAmount = payments
-                      .filter(p => {
-                        if (p.is4x1000Tax) return false;
-                        const paymentDate = p.date?.toDate ? p.date.toDate() : new Date(p.date);
-                        return paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear;
-                      })
-                      .reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
-                    
-                    const uniqueCompanies = new Set(commitments.map(c => c.companyId).filter(Boolean));
-                    
-                    console.log('📊 Estadísticas calculadas directamente (fallback activo)');
-                    console.log('⚠️ RECOMENDACIÓN: Ejecuta refreshStats() para activar modo optimizado');
-                    
-                    setStats({
-                      totalCommitments,
-                      activeCommitments: pendingCommitments,
-                      pendingCommitments,
-                      overDueCommitments,
-                      completedCommitments,
-                      totalCompanies: uniqueCompanies.size,
-                      totalAmount,
-                      paidAmount,
-                      pendingAmount,
-                      currentMonthPayments,
-                      currentMonthPaymentAmount,
-                      loading: false,
-                      error: null,
-                      lastUpdated: null,
-                      usingFallback: true // ✅ Modo fallback activo
-                    });
-                  },
-                  (error) => {
-                    if (error.code !== 'permission-denied') {
-                      console.error('Error cargando pagos:', error);
-                    }
-                  }
-                );
-                
-                return paymentsUnsubscribe;
-              },
-              (error) => {
-                if (error.code !== 'permission-denied') {
-                  console.error('Error cargando compromisos:', error);
-                }
-              }
-            );
+          setStats({
+            totalCommitments: 0,
+            activeCommitments: 0,
+            pendingCommitments: 0,
+            overDueCommitments: 0,
+            completedCommitments: 0,
+            totalCompanies: 0,
+            totalAmount: 0,
+            paidAmount: 0,
+            pendingAmount: 0,
+            currentMonthPayments: 0,
+            currentMonthPaymentAmount: 0,
+            loading: false,
+            error: 'Sistema no inicializado. Presiona "Activar Modo Optimizado".',
+            lastUpdated: null,
+            usingFallback: true // ✅ Indica que falta inicializar
           });
         }
       },

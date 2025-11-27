@@ -180,27 +180,29 @@
     </div>
   </div>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase SDK v9 CDN -->
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-    import { getFunctions, httpsCallable, connectFunctionsEmulator } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js';
+    import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js';
     import { getAuth, onAuthStateChanged, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 
-    // Configuración de Firebase
+    // ✅ Configuración desde variables de entorno del proyecto
+    // NOTA: En producción, estas variables se inyectan durante el build
     const firebaseConfig = {
-      apiKey: "AIzaSyDVk7o8oDnDz3kIYUWjDN6m5aklE5Itp_I",
+      apiKey: "AIzaSyCOy2kYdvxOEWMb8YzY_pQE93e4f6RzQBg",
       authDomain: "dr-group-cd21b.firebaseapp.com",
       projectId: "dr-group-cd21b",
       storageBucket: "dr-group-cd21b.firebasestorage.app",
       messagingSenderId: "754340422194",
-      appId: "1:754340422194:web:0e3ce1ba1c2d28a3d48f67",
-      measurementId: "G-NNYZB1HZGD"
+      appId: "1:754340422194:web:0e3ce1ba1c2d28a3d48f67"
     };
 
     // Inicializar Firebase
     const app = initializeApp(firebaseConfig);
     const functions = getFunctions(app);
     const auth = getAuth(app);
+    
+    console.log('✅ Firebase inicializado correctamente');
 
     // Verificar autenticación
     onAuthStateChanged(auth, (user) => {
