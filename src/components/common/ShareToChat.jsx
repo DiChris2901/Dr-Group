@@ -230,21 +230,28 @@ const ShareToChat = ({ open, onClose, entity, entityType, entityName = 'registro
         targetId = selectedConversationId;
       } else if (selectedTarget === 'user' && selectedUser) {
         // Buscar conversación directa existente
-        const participantIds = [currentUser.uid, selectedUser.id].sort();
-        
+        // Firestore no puede comparar arrays directamente, buscar por ambos participantes
         const conversationsQuery = query(
           collection(db, 'conversations'),
-          where('participantIds', '==', participantIds),
-          where('type', '==', 'direct')
+          where('participantIds', 'array-contains', currentUser.uid)
         );
         
         const existingConversations = await getDocs(conversationsQuery);
         
-        if (!existingConversations.empty) {
+        // Filtrar manualmente para encontrar conversación con el usuario específico
+        const dmConversation = existingConversations.docs.find(doc => {
+          const data = doc.data();
+          return data.type === 'direct' && 
+                 data.participantIds?.includes(selectedUser.id) &&
+                 data.participantIds?.length === 2;
+        });
+        
+        if (dmConversation) {
           // Usar conversación existente
-          targetId = existingConversations.docs[0].id;
+          targetId = dmConversation.id;
         } else {
           // Crear nueva conversación directa
+          const participantIds = [currentUser.uid, selectedUser.id].sort();
           const newConversation = await addDoc(collection(db, 'conversations'), {
             type: 'direct',
             participantIds: participantIds,

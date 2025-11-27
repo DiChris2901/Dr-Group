@@ -1093,72 +1093,145 @@ const MessageBubble = ({
         </DialogActions>
       </Dialog>
 
-      {/* Modal de visor de PDF/Imagen */}
+      {/* ✅ MODAL VISOR PDF/IMAGEN - DESIGN SYSTEM SPECTACULAR */}
       <Dialog
         open={fileViewerOpen}
         onClose={handleCloseFileViewer}
-        maxWidth="lg"
+        maxWidth="xl"
         fullWidth
-        sx={{
-          '& .MuiDialog-container': {
-            alignItems: 'center',
-            justifyContent: 'center'
-          }
-        }}
         PaperProps={{
           sx: {
             borderRadius: 2,
-            maxHeight: '90vh',
-            m: 2
+            background: theme.palette.background.paper,
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            height: '90vh',
+            overflow: 'hidden'
           }
         }}
       >
-        <DialogTitle sx={{ p: 0 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              p: 2,
-              bgcolor: alpha('#667eea', 0.04),
-              borderBottom: 1,
-              borderColor: alpha('#000', 0.08)
-            }}
-          >
-            <Box display="flex" alignItems="center" gap={1}>
-              {viewingFile?.type?.startsWith('image/') ? (
-                <ImageIcon color="primary" />
-              ) : (
-                <PdfIcon color="error" />
-              )}
-              <Typography variant="body1" fontWeight={600} noWrap>
-                {viewingFile?.name || 'Archivo'}
+        {/* DialogTitle con diseño spectacular */}
+        <DialogTitle sx={{ 
+          p: 3,
+          pb: 2,
+          background: theme.palette.mode === 'dark'
+            ? `linear-gradient(135deg, ${alpha(theme.palette.grey[800], 0.95)} 0%, ${alpha(theme.palette.grey[900], 0.98)} 100%)`
+            : `linear-gradient(135deg, ${alpha(theme.palette.grey[50], 0.95)} 0%, ${alpha(theme.palette.grey[100], 0.98)} 100%)`,
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <Box display="flex" alignItems="center" gap={2}>
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+            >
+              <Avatar sx={{ 
+                background: viewingFile?.type?.startsWith('image/')
+                  ? `linear-gradient(135deg, ${theme.palette.info.main}, ${theme.palette.info.dark})`
+                  : `linear-gradient(135deg, ${theme.palette.error.main}, ${theme.palette.error.dark})`,
+                width: 40,
+                height: 40
+              }}>
+                {viewingFile?.type?.startsWith('image/') ? 
+                  <ImageIcon sx={{ fontSize: 20 }} /> :
+                  <PdfIcon sx={{ fontSize: 20 }} />
+                }
+              </Avatar>
+            </motion.div>
+            <Box>
+              <Typography variant="h6" sx={{ 
+                fontWeight: 600,
+                color: theme.palette.text.primary,
+                mb: 0.5
+              }}>
+                {viewingFile?.name || 'Comprobante'}
+              </Typography>
+              <Typography variant="body2" sx={{ 
+                color: theme.palette.text.secondary,
+                fontSize: '0.85rem'
+              }}>
+                {viewingFile?.type?.startsWith('image/') ? 'Imagen' : 'Documento PDF'}
+                {viewingFile?.size && ` • ${(viewingFile.size / 1024 / 1024).toFixed(2)} MB`}
               </Typography>
             </Box>
-            <Box display="flex" gap={1}>
-              <Tooltip title="Descargar">
-                <IconButton
-                  size="small"
-                  onClick={() => {
-                    const link = document.createElement('a');
-                    link.href = viewingFile.url;
-                    link.download = viewingFile.name;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  }}
-                >
-                  <DownloadIcon />
-                </IconButton>
-              </Tooltip>
-              <IconButton size="small" onClick={handleCloseFileViewer}>
-                <CloseIcon />
+          </Box>
+          
+          <Box display="flex" alignItems="center" gap={1}>
+            <Tooltip title="Abrir en nueva pestaña">
+              <IconButton
+                component="a"
+                href={viewingFile?.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={{ 
+                  color: theme.palette.text.primary,
+                  background: alpha(theme.palette.success.main, 0.08),
+                  '&:hover': { 
+                    background: alpha(theme.palette.success.main, 0.12),
+                    transform: 'scale(1.05)'
+                  },
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >
+                <OpenInNewIcon sx={{ fontSize: 18 }} />
               </IconButton>
-            </Box>
+            </Tooltip>
+            
+            <Tooltip title="Descargar">
+              <IconButton
+                onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = viewingFile.url;
+                  link.download = viewingFile.name;
+                  link.target = '_blank';
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+                sx={{ 
+                  color: theme.palette.text.primary,
+                  background: alpha(theme.palette.primary.main, 0.08),
+                  '&:hover': { 
+                    background: alpha(theme.palette.primary.main, 0.12),
+                    transform: 'scale(1.05)'
+                  },
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                }}
+              >
+                <DownloadIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
+            
+            <IconButton
+              onClick={handleCloseFileViewer}
+              sx={{ 
+                color: theme.palette.text.secondary,
+                '&:hover': { 
+                  color: theme.palette.error.main,
+                  background: alpha(theme.palette.error.main, 0.08),
+                  transform: 'scale(1.05)'
+                },
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
+            >
+              <CloseIcon sx={{ fontSize: 20 }} />
+            </IconButton>
           </Box>
         </DialogTitle>
 
-        <DialogContent sx={{ p: 0, bgcolor: alpha('#000', 0.02), display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {/* DialogContent con iframe/imagen */}
+        <DialogContent sx={{ 
+          p: 0, 
+          bgcolor: theme.palette.mode === 'dark' ? theme.palette.grey[900] : theme.palette.grey[50],
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          overflow: 'hidden'
+        }}>
           {viewingFile?.type?.startsWith('image/') ? (
             <Box
               component="img"
@@ -1166,7 +1239,7 @@ const MessageBubble = ({
               alt={viewingFile.name}
               sx={{
                 maxWidth: '100%',
-                maxHeight: 'calc(90vh - 120px)',
+                maxHeight: '100%',
                 objectFit: 'contain',
                 p: 2
               }}
@@ -1174,11 +1247,11 @@ const MessageBubble = ({
           ) : (
             <Box
               component="iframe"
-              src={viewingFile?.url}
+              src={`${viewingFile?.url}#toolbar=1&navpanes=1&scrollbar=1`}
               title={viewingFile?.name}
               sx={{
                 width: '100%',
-                height: 'calc(90vh - 120px)',
+                height: '100%',
                 border: 'none',
                 bgcolor: 'white'
               }}

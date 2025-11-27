@@ -172,8 +172,8 @@ export const useChatMessages = (conversationId, messagesPerPage = 50) => {
       }
 
       const conversationData = conversationSnap.data();
-      const currentUserName = conversationData.participantNames[currentUser.uid] || 'Usuario';
-      const currentUserPhoto = conversationData.participantPhotos[currentUser.uid] || null;
+      const currentUserName = conversationData.participantNames?.[currentUser.uid] || currentUser.displayName || currentUser.name || currentUser.email || 'Usuario';
+      const currentUserPhoto = conversationData.participantPhotos?.[currentUser.uid] || currentUser.photoURL || null;
 
       // Crear mensaje
       const messageData = {

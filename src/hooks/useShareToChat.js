@@ -151,6 +151,10 @@ export const useShareToChat = () => {
     let message = `🚨 *${template.title}*\n\n`;
     
     template.fields.forEach(field => {
+      // No incluir campos de Factura/Comprobante en el texto (ya aparecen como botón)
+      if (field.label === 'Factura' || field.label === 'Comprobante') {
+        return; // Skip
+      }
       message += `${field.emoji} *${field.label}:* ${field.value}\n`;
     });
 
@@ -179,6 +183,41 @@ export const useShareToChat = () => {
     try {
       const messageText = await formatMessage(entityType, entityData, customMessage);
 
+      // Extraer URLs de comprobantes/facturas según tipo de entidad
+      const attachments = [];
+      let entityUrl = null;
+
+      if (entityType === 'commitment') {
+        // Prioridad: invoiceUrl > receiptUrl > receiptUrls[0] > invoices[0]
+        entityUrl = entityData.invoiceUrl || 
+                   entityData.receiptUrl || 
+                   (entityData.receiptUrls && entityData.receiptUrls.length > 0 ? entityData.receiptUrls[0] : null) ||
+                   (entityData.invoices && entityData.invoices.length > 0 ? entityData.invoices[0].url || entityData.invoices[0].downloadURL : null);
+        
+        if (entityUrl) {
+          attachments.push({
+            type: 'application/pdf', // ✅ Tipo correcto para que MessageBubble lo detecte
+            url: entityUrl,
+            name: 'Comprobante.pdf', // ✅ Agregar extensión .pdf
+            size: 0,
+            uploadedAt: new Date().toISOString()
+          });
+        }
+      } else if (entityType === 'payment') {
+        entityUrl = entityData.receiptUrl || 
+                   (entityData.receiptUrls && entityData.receiptUrls.length > 0 ? entityData.receiptUrls[0] : null);
+        
+        if (entityUrl) {
+          attachments.push({
+            type: 'application/pdf', // ✅ Tipo correcto
+            url: entityUrl,
+            name: 'Comprobante_pago.pdf', // ✅ Agregar extensión .pdf
+            size: 0,
+            uploadedAt: new Date().toISOString()
+          });
+        }
+      }
+
       // Crear mensaje en Firestore
       await addDoc(collection(db, 'messages'), {
         conversationId: targetConversationId,
@@ -196,13 +235,14 @@ export const useShareToChat = () => {
           isSharedEntity: true,
           entityType: entityType,
           entityId: entityData.id,
+          entityUrl: entityUrl, // URL directo para smart chips
           sharedBy: {
             uid: currentUser.uid,
             name: currentUser.displayName || currentUser.name || currentUser.email,
             timestamp: new Date().toISOString()
           }
         },
-        attachments: [],
+        attachments: attachments,
         mentions: [],
         replyTo: null
       });
