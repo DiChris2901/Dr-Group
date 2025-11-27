@@ -198,7 +198,7 @@ const ChatDrawer = ({ open, onClose }) => {
       onClose={handleClose}
       PaperProps={{
         sx: {
-          width: { xs: '100%', sm: 420, md: 720 },
+          width: { xs: '100%', sm: 520, md: 900, lg: 1100 },
           maxWidth: '100vw',
           height: `calc(100vh - ${taskbarSpace}px)`, // Restar espacio del Taskbar
           bottom: taskbarSpace, // Posicionar encima del Taskbar

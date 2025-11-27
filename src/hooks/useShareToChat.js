@@ -147,14 +147,15 @@ export const useShareToChat = () => {
 
     const template = templates[entityType] || templates.commitment;
     
+    // Filtrar campos que no se mostrarán en el texto
+    const fieldsToShow = template.fields.filter(
+      field => field.label !== 'Factura' && field.label !== 'Comprobante'
+    );
+    
     // Construir mensaje formateado
     let message = `🚨 *${template.title}*\n\n`;
     
-    template.fields.forEach(field => {
-      // No incluir campos de Factura/Comprobante en el texto (ya aparecen como botón)
-      if (field.label === 'Factura' || field.label === 'Comprobante') {
-        return; // Skip
-      }
+    fieldsToShow.forEach(field => {
       message += `${field.emoji} *${field.label}:* ${field.value}\n`;
     });
 
