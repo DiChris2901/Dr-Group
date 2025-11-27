@@ -72,9 +72,11 @@ import {
   PictureAsPdf,
   Image,
   FolderOpen,
-  Info
+  Info,
+  Share
 } from '@mui/icons-material';
 import CommitmentDetailDialog from './CommitmentDetailDialog';
+import ShareToChat from '../common/ShareToChat';
 import { getDateRangeFromFilter } from '../payments/DateRangeFilter';
 import { isValid } from 'date-fns';
 
@@ -402,6 +404,8 @@ const CommitmentsList = ({
   const [selectedCommitment, setSelectedCommitment] = useState(null);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [commitmentToShare, setCommitmentToShare] = useState(null);
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
   const [viewerSize, setViewerSize] = useState('normal');
   
@@ -989,6 +993,17 @@ const CommitmentsList = ({
   const handleCloseEditDialog = () => {
     setEditDialogOpen(false);
     setSelectedCommitment(null);
+  };
+
+  // Manejar apertura del dialog de compartir
+  const handleShareCommitment = (commitment) => {
+    setCommitmentToShare(commitment);
+    setShareDialogOpen(true);
+  };
+
+  const handleCloseShareDialog = () => {
+    setShareDialogOpen(false);
+    setCommitmentToShare(null);
   };
 
   // ✅ TODAS LAS FUNCIONES DEL VISOR DE COMPROBANTES ELIMINADAS COMPLETAMENTE
@@ -2514,6 +2529,15 @@ const CommitmentsList = ({
                             <Delete />
                           </IconButton>
                         </Tooltip>
+                        <Tooltip title="Compartir en chat" arrow>
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handleShareCommitment(commitment)}
+                            sx={{ color: 'info.main' }}
+                          >
+                            <Share />
+                          </IconButton>
+                        </Tooltip>
                       </>
                     ) : (
                       <>
@@ -2547,6 +2571,13 @@ const CommitmentsList = ({
                           sx={{ color: 'error.main' }}
                         >
                           <Delete />
+                        </IconButton>
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleShareCommitment(commitment)}
+                          sx={{ color: 'info.main' }}
+                        >
+                          <Share />
                         </IconButton>
                       </>
                     )}
@@ -2802,6 +2833,18 @@ const CommitmentsList = ({
                               <Delete fontSize="small" />
                             </IconButton>
                           </Tooltip>
+                          <Tooltip title="Compartir en chat" arrow>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleShareCommitment(commitment)}
+                              sx={{ 
+                                color: 'info.main',
+                                '&:hover': { backgroundColor: 'rgba(2, 136, 209, 0.1)' }
+                              }}
+                            >
+                              <Share fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                         </>
                       ) : (
                         <>
@@ -2847,6 +2890,16 @@ const CommitmentsList = ({
                             }}
                           >
                             <Delete fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleShareCommitment(commitment)}
+                            sx={{ 
+                              color: 'info.main',
+                              '&:hover': { backgroundColor: 'rgba(2, 136, 209, 0.1)' }
+                            }}
+                          >
+                            <Share fontSize="small" />
                           </IconButton>
                         </>
                       )}
@@ -4196,6 +4249,15 @@ const CommitmentsList = ({
       {/* (stray fragment cleanup) */}
       </>
       )}
+
+      {/* Dialog para compartir compromiso al chat */}
+      <ShareToChat
+        open={shareDialogOpen}
+        onClose={handleCloseShareDialog}
+        entity={commitmentToShare}
+        entityType="commitment"
+        entityName="Compromiso"
+      />
     </Box>
   );
 };
