@@ -24,13 +24,18 @@ import {
   Close as CloseIcon,
   InsertDriveFile as FileIcon,
   EmojiEmotions as EmojiIcon,
-  AlternateEmail as MentionIcon
+  AlternateEmail as MentionIcon,
+  Mic as MicIcon,
+  Stop as StopIcon,
+  PlayArrow as PlayIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../../context/NotificationsContext';
 import { useTypingIndicator } from '../../hooks/useTypingIndicator';
 import { uploadChatAttachment } from '../../utils/chatFileUpload';
 import { useChat } from '../../context/ChatContext';
+import { useAudioRecorder } from '../../hooks/useAudioRecorder';
 
 // 🔧 Utilidad para debounce
 const useDebounce = (callback, delay) => {
@@ -65,6 +70,20 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
   const emojiPickerRef = useRef(null);
   const mentionPickerRef = useRef(null);
   const textFieldRef = useRef(null);
+
+  // 🎤 Hook de grabación de audio
+  const {
+    isRecording,
+    audioURL,
+    duration,
+    uploading: audioUploading,
+    startRecording,
+    stopRecording,
+    cancelRecording,
+    uploadAudio,
+    formatDuration,
+    cleanup: cleanupAudio
+  } = useAudioRecorder();
 
   // ⌨️ C. Debounced typing indicator
   const debouncedTypingUpdate = useDebounce(updateTypingStatus, 500);
@@ -194,6 +213,49 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
       console.error('Error enviando mensaje:', error);
       addNotification('Error al enviar mensaje', 'error');
     }
+  };
+
+  // 🎤 Manejar grabación de audio
+  const handleMicClick = async () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      try {
+        await startRecording();
+      } catch (error) {
+        addNotification(error.message || 'Error al acceder al micrófono', 'error');
+      }
+    }
+  };
+
+  // 🎤 Enviar nota de voz
+  const handleSendVoiceNote = async () => {
+    try {
+      setUploading(true);
+      const audioData = await uploadAudio(conversationId);
+      
+      await onSendMessage('', [{
+        url: audioData.url,
+        type: 'audio',
+        name: audioData.fileName,
+        size: audioData.size,
+        duration: audioData.duration
+      }]);
+
+      cleanupAudio();
+      addNotification('Nota de voz enviada', 'success');
+    } catch (error) {
+      console.error('Error enviando nota de voz:', error);
+      addNotification('Error al enviar nota de voz', 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // 🎤 Cancelar nota de voz
+  const handleCancelVoiceNote = () => {
+    cancelRecording();
+    cleanupAudio();
   };
 
   // Manejar adjuntar archivos
@@ -493,33 +555,110 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
           </AnimatePresence>
         </Box>
 
-        {/* Botón enviar Sobrio */}
-        <Tooltip title="Enviar mensaje">
-          <span>
+        {/* 🎤 Preview de nota de voz */}
+        {audioURL && !isRecording && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+            <audio src={audioURL} controls style={{ flex: 1, maxHeight: 40 }} />
+            <Typography variant="caption" color="text.secondary">
+              {formatDuration(duration)}
+            </Typography>
+            <Tooltip title="Eliminar">
+              <IconButton onClick={handleCancelVoiceNote} size="small" color="error">
+                <DeleteIcon />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Enviar nota de voz">
+              <IconButton 
+                onClick={handleSendVoiceNote} 
+                disabled={audioUploading}
+                sx={{
+                  bgcolor: 'success.main',
+                  color: 'white',
+                  '&:hover': { bgcolor: 'success.dark' }
+                }}
+              >
+                {audioUploading ? <CircularProgress size={24} /> : <SendIcon />}
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
+
+        {/* 🎤 Botón de micrófono */}
+        {!audioURL && !message.trim() && attachments.length === 0 && (
+          <Tooltip title={isRecording ? 'Detener grabación' : 'Grabar nota de voz'}>
             <IconButton
-              onClick={handleSend}
-              disabled={(!message.trim() && attachments.length === 0) || uploading}
+              onClick={handleMicClick}
+              disabled={uploading}
               sx={{
-                bgcolor: 'primary.main',
-                color: 'white',
-                boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+                bgcolor: isRecording ? 'error.main' : alpha(theme.palette.primary.main, 0.08),
+                color: isRecording ? 'white' : 'primary.main',
                 transition: 'all 0.3s ease',
-                '&:hover': {
-                  bgcolor: 'primary.dark',
-                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
-                  transform: 'scale(1.05)'
+                animation: isRecording ? 'pulse 1.5s infinite' : 'none',
+                '@keyframes pulse': {
+                  '0%, 100%': { transform: 'scale(1)' },
+                  '50%': { transform: 'scale(1.1)' }
                 },
-                '&:disabled': {
-                  bgcolor: 'action.disabledBackground',
-                  color: 'action.disabled',
-                  boxShadow: 'none'
+                '&:hover': {
+                  bgcolor: isRecording ? 'error.dark' : alpha(theme.palette.primary.main, 0.15)
                 }
               }}
             >
-              <SendIcon />
+              {isRecording ? <StopIcon /> : <MicIcon />}
             </IconButton>
-          </span>
-        </Tooltip>
+          </Tooltip>
+        )}
+
+        {/* 🎤 Contador de grabación */}
+        {isRecording && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                bgcolor: 'error.main',
+                animation: 'blink 1s infinite',
+                '@keyframes blink': {
+                  '0%, 100%': { opacity: 1 },
+                  '50%': { opacity: 0.3 }
+                }
+              }}
+            />
+            <Typography variant="body2" color="error.main" fontWeight={600}>
+              {formatDuration(duration)}
+            </Typography>
+          </Box>
+        )}
+
+        {/* Botón enviar Sobrio */}
+        {(message.trim() || attachments.length > 0) && !audioURL && (
+          <Tooltip title="Enviar mensaje">
+            <span>
+              <IconButton
+                onClick={handleSend}
+                disabled={(!message.trim() && attachments.length === 0) || uploading}
+                sx={{
+                  bgcolor: 'primary.main',
+                  color: 'white',
+                  boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    bgcolor: 'primary.dark',
+                    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+                    transform: 'scale(1.05)'
+                  },
+                  '&:disabled': {
+                    bgcolor: 'action.disabledBackground',
+                    color: 'action.disabled',
+                    boxShadow: 'none'
+                  }
+                }}
+              >
+                <SendIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
+        )}
       </Box>
     </Box>
   );

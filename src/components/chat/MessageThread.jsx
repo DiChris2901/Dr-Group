@@ -475,16 +475,35 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
               return (
                 <React.Fragment key={message.id}>
                   {showDateDivider && (
-                    <Divider sx={{ my: 2 }}>
-                      <Typography variant="caption" color="text.disabled">
-                        {new Date(message.createdAt).toLocaleDateString('es-CO', {
+                    <Box
+                      sx={{
+                        position: 'sticky',
+                        top: 0,
+                        zIndex: 1,
+                        py: 1,
+                        textAlign: 'center'
+                      }}
+                    >
+                      <Chip
+                        label={new Date(message.createdAt).toLocaleDateString('es-CO', {
                           weekday: 'long',
                           year: 'numeric',
                           month: 'long',
                           day: 'numeric'
                         })}
-                      </Typography>
-                    </Divider>
+                        size="small"
+                        sx={{
+                          bgcolor: alpha(theme.palette.background.paper, 0.8),
+                          backdropFilter: 'blur(4px)',
+                          color: theme.palette.text.secondary,
+                          fontWeight: 600,
+                          fontSize: '0.75rem',
+                          letterSpacing: 0.5,
+                          textTransform: 'uppercase',
+                          boxShadow: 1
+                        }}
+                      />
+                    </Box>
                   )}
 
                   <Box id={`message-${message.id}`}>

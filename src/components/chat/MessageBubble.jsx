@@ -50,6 +50,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
+import PreviewDialog from './PreviewDialog';
 
 /**
  * Renderizar texto con menciones resaltadas
@@ -143,6 +144,10 @@ const MessageBubble = ({
   // 📄 Estados para modal de PDF/Imagen
   const [fileViewerOpen, setFileViewerOpen] = useState(false);
   const [viewingFile, setViewingFile] = useState(null);
+
+  // 🔗 Estado para Preview Dialog (navegación sin salir del chat)
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewEntity, setPreviewEntity] = useState(null);
 
   // 📄 Manejar click en archivo adjunto
   const handleFileClick = (attachment) => {
@@ -316,6 +321,16 @@ const MessageBubble = ({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
+      // 📱 Swipe to Reply (Gesto Móvil)
+      drag="x"
+      dragConstraints={{ left: 0, right: 50 }}
+      dragElastic={{ right: 0.5 }}
+      onDragEnd={(event, info) => {
+        // Si arrastró más de 50px a la derecha → Activar respuesta
+        if (info.offset.x > 50) {
+          if (onReply) onReply(message);
+        }
+      }}
       sx={{
         display: 'flex',
         justifyContent: isOwnMessage ? 'flex-end' : 'flex-start',
@@ -544,14 +559,9 @@ const MessageBubble = ({
               }}
               onClick={() => {
                 const { entityType, entityId } = message.metadata.systemLink;
-                // Navegar según el tipo
-                if (entityType === 'invoice') {
-                  window.location.href = `/invoices/${entityId}`;
-                } else if (entityType === 'client') {
-                  window.location.href = `/clients/${entityId}`;
-                } else if (entityType === 'company') {
-                  window.location.href = `/companies/${entityId}`;
-                }
+                // 🔗 Abrir modal de preview (sin salir del chat)
+                setPreviewEntity({ entityType, entityId });
+                setPreviewOpen(true);
               }}
             >
               {/* Ícono según el tipo */}
@@ -1176,6 +1186,14 @@ const MessageBubble = ({
           )}
         </DialogContent>
       </Dialog>
+
+      {/* 🔗 Preview Dialog - Navegación sin salir del chat */}
+      <PreviewDialog
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        entityType={previewEntity?.entityType}
+        entityId={previewEntity?.entityId}
+      />
     </Box>
   );
 };
