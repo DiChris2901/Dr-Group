@@ -29,7 +29,10 @@ import {
   WhatsApp as WhatsAppIcon,
   PushPin as PushPinIcon,
   Search as SearchIcon,
-  Photo as PhotoIcon
+  Photo as PhotoIcon,
+  PictureAsPdf as PdfIcon,
+  InsertDriveFile as FileIcon,
+  Download as DownloadIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { onSnapshot, doc } from 'firebase/firestore';
@@ -81,6 +84,8 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
 
   // 📎 Estado para galería de archivos
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryFilter, setGalleryFilter] = useState('all'); // 'all', 'images', 'pdfs', 'others'
+  const [selectedFile, setSelectedFile] = useState(null);
 
   // 👤 Handlers para el diálogo de usuario
   const handleAvatarClick = (e) => {
@@ -916,92 +921,342 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
           </IconButton>
         </DialogTitle>
 
-        <DialogContent sx={{ p: 2 }}>
+        <DialogContent sx={{ p: 0 }}>
+          {/* Filtros por tipo */}
           <Box
             sx={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: 1.5,
-              mt: 1
+              display: 'flex',
+              gap: 1,
+              p: 2,
+              borderBottom: 1,
+              borderColor: 'divider',
+              bgcolor: alpha('#000', 0.02)
             }}
           >
-            {messages
-              .filter(m => m.attachments?.length > 0)
-              .flatMap(m => m.attachments)
-              .map((attachment, idx) => (
-                <Box
-                  key={idx}
-                  sx={{
-                    width: '100%',
-                    height: 120,
-                    borderRadius: 1.5,
-                    overflow: 'hidden',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-                    '&:hover': {
-                      transform: 'scale(1.05)',
-                      boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
-                      borderColor: 'primary.main'
-                    }
-                  }}
-                  onClick={() => window.open(attachment.url, '_blank')}
-                >
-                  {attachment.type?.startsWith('image/') ? (
-                    <Box
-                      component="img"
-                      src={attachment.url}
-                      alt={attachment.name}
-                      sx={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover'
-                      }}
-                    />
-                  ) : (
-                    <Box
-                      sx={{
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: alpha(theme.palette.primary.main, 0.08),
-                        gap: 1
-                      }}
-                    >
-                      <PhotoIcon sx={{ fontSize: 32, color: 'primary.main' }} />
-                      <Typography
-                        variant="caption"
-                        fontWeight={600}
-                        textAlign="center"
-                        noWrap
-                        sx={{ px: 1, maxWidth: '100%' }}
-                      >
-                        {attachment.name || 'Archivo'}
-                      </Typography>
-                    </Box>
-                  )}
-                </Box>
-              ))}
+            <Chip
+              label={`Todos (${messages.filter(m => m.attachments?.length > 0).flatMap(m => m.attachments).length})`}
+              onClick={() => setGalleryFilter('all')}
+              color={galleryFilter === 'all' ? 'primary' : 'default'}
+              sx={{ fontWeight: galleryFilter === 'all' ? 600 : 400 }}
+            />
+            <Chip
+              label={`Imágenes (${messages.filter(m => m.attachments?.length > 0).flatMap(m => m.attachments).filter(a => a.type?.startsWith('image/')).length})`}
+              icon={<PhotoIcon />}
+              onClick={() => setGalleryFilter('images')}
+              color={galleryFilter === 'images' ? 'primary' : 'default'}
+              sx={{ fontWeight: galleryFilter === 'images' ? 600 : 400 }}
+            />
+            <Chip
+              label={`PDFs (${messages.filter(m => m.attachments?.length > 0).flatMap(m => m.attachments).filter(a => a.type === 'application/pdf' || a.name?.endsWith('.pdf')).length})`}
+              icon={<PdfIcon />}
+              onClick={() => setGalleryFilter('pdfs')}
+              color={galleryFilter === 'pdfs' ? 'error' : 'default'}
+              sx={{ fontWeight: galleryFilter === 'pdfs' ? 600 : 400 }}
+            />
           </Box>
 
-          {messages.filter(m => m.attachments?.length > 0).length === 0 && (
-            <Box
-              sx={{
-                textAlign: 'center',
-                py: 6
-              }}
-            >
-              <PhotoIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
-              <Typography variant="body2" color="text.secondary">
-                No hay archivos compartidos en esta conversación
-              </Typography>
-            </Box>
-          )}
+          {/* Grid de archivos */}
+          <Box sx={{ p: 2, maxHeight: '60vh', overflow: 'auto' }}>
+            {(() => {
+              const allAttachments = messages
+                .filter(m => m.attachments?.length > 0)
+                .flatMap(m => m.attachments.map(att => ({
+                  ...att,
+                  messageDate: m.createdAt?.toDate?.() || new Date(m.createdAt)
+                })));
+
+              const filteredAttachments = allAttachments.filter(att => {
+                if (galleryFilter === 'all') return true;
+                if (galleryFilter === 'images') return att.type?.startsWith('image/');
+                if (galleryFilter === 'pdfs') return att.type === 'application/pdf' || att.name?.endsWith('.pdf');
+                return true;
+              });
+
+              if (filteredAttachments.length === 0) {
+                return (
+                  <Box sx={{ textAlign: 'center', py: 6 }}>
+                    <PhotoIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+                    <Typography variant="body2" color="text.secondary">
+                      No hay archivos de este tipo
+                    </Typography>
+                  </Box>
+                );
+              }
+
+              return (
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                    gap: 2
+                  }}
+                >
+                  {filteredAttachments.map((attachment, idx) => {
+                    const isImage = attachment.type?.startsWith('image/');
+                    const isPdf = attachment.type === 'application/pdf' || attachment.name?.endsWith('.pdf');
+
+                    return (
+                      <Paper
+                        key={idx}
+                        elevation={0}
+                        sx={{
+                          position: 'relative',
+                          overflow: 'hidden',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s ease',
+                          border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+                          borderRadius: 2,
+                          '&:hover': {
+                            transform: 'translateY(-4px)',
+                            boxShadow: '0 8px 20px rgba(102, 126, 234, 0.25)',
+                            borderColor: 'primary.main',
+                            '& .hover-actions': {
+                              opacity: 1
+                            }
+                          }
+                        }}
+                        onClick={() => setSelectedFile(attachment)}
+                      >
+                        {/* Preview */}
+                        <Box
+                          sx={{
+                            width: '100%',
+                            height: 140,
+                            bgcolor: alpha(theme.palette.primary.main, 0.05),
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            position: 'relative'
+                          }}
+                        >
+                          {isImage ? (
+                            <Box
+                              component="img"
+                              src={attachment.url}
+                              alt={attachment.name}
+                              sx={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover'
+                              }}
+                            />
+                          ) : isPdf ? (
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: 1
+                              }}
+                            >
+                              <PdfIcon sx={{ fontSize: 48, color: '#d32f2f' }} />
+                              <Typography variant="caption" fontWeight={600} color="error">
+                                PDF
+                              </Typography>
+                            </Box>
+                          ) : (
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: 1
+                              }}
+                            >
+                              <FileIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
+                              <Typography variant="caption" fontWeight={600}>
+                                Archivo
+                              </Typography>
+                            </Box>
+                          )}
+
+                          {/* Hover Actions */}
+                          <Box
+                            className="hover-actions"
+                            sx={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              bottom: 0,
+                              bgcolor: alpha('#000', 0.6),
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              opacity: 0,
+                              transition: 'opacity 0.3s ease'
+                            }}
+                          >
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.open(attachment.url, '_blank');
+                              }}
+                              sx={{
+                                bgcolor: 'white',
+                                '&:hover': { bgcolor: alpha('#fff', 0.9) }
+                              }}
+                            >
+                              <DownloadIcon />
+                            </IconButton>
+                          </Box>
+                        </Box>
+
+                        {/* Info */}
+                        <Box sx={{ p: 1.5 }}>
+                          <Typography
+                            variant="caption"
+                            fontWeight={600}
+                            noWrap
+                            sx={{ display: 'block', mb: 0.5 }}
+                          >
+                            {attachment.name || 'Archivo sin nombre'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" fontSize="0.7rem">
+                            {attachment.messageDate?.toLocaleDateString('es-CO', {
+                              day: '2-digit',
+                              month: 'short'
+                            })}
+                          </Typography>
+                        </Box>
+                      </Paper>
+                    );
+                  })}
+                </Box>
+              );
+            })()}
+          </Box>
         </DialogContent>
       </Dialog>
+
+      {/* 🖼️ Modal de Vista Previa de Archivo */}
+      {selectedFile && (
+        <Dialog
+          open={Boolean(selectedFile)}
+          onClose={() => setSelectedFile(null)}
+          maxWidth="lg"
+          fullWidth
+          PaperProps={{
+            sx: {
+              borderRadius: 2,
+              bgcolor: '#000',
+              maxHeight: '90vh'
+            }
+          }}
+        >
+          <DialogTitle
+            sx={{
+              bgcolor: alpha('#000', 0.9),
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              p: 2
+            }}
+          >
+            <Box display="flex" alignItems="center" gap={2}>
+              {selectedFile.type?.startsWith('image/') ? (
+                <PhotoIcon />
+              ) : selectedFile.type === 'application/pdf' || selectedFile.name?.endsWith('.pdf') ? (
+                <PdfIcon sx={{ color: '#d32f2f' }} />
+              ) : (
+                <FileIcon />
+              )}
+              <Box>
+                <Typography variant="subtitle1" fontWeight={600}>
+                  {selectedFile.name || 'Archivo'}
+                </Typography>
+                <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                  {selectedFile.messageDate?.toLocaleString('es-CO', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </Typography>
+              </Box>
+            </Box>
+            <Box display="flex" gap={1}>
+              <IconButton
+                onClick={() => window.open(selectedFile.url, '_blank')}
+                sx={{
+                  color: 'white',
+                  '&:hover': { bgcolor: alpha('#fff', 0.1) }
+                }}
+              >
+                <DownloadIcon />
+              </IconButton>
+              <IconButton
+                onClick={() => setSelectedFile(null)}
+                sx={{
+                  color: 'white',
+                  '&:hover': { bgcolor: alpha('#fff', 0.1) }
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </Box>
+          </DialogTitle>
+          <DialogContent
+            sx={{
+              p: 0,
+              bgcolor: '#000',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: '60vh'
+            }}
+          >
+            {selectedFile.type?.startsWith('image/') ? (
+              <Box
+                component="img"
+                src={selectedFile.url}
+                alt={selectedFile.name}
+                sx={{
+                  maxWidth: '100%',
+                  maxHeight: '70vh',
+                  objectFit: 'contain'
+                }}
+              />
+            ) : selectedFile.type === 'application/pdf' || selectedFile.name?.endsWith('.pdf') ? (
+              <iframe
+                src={selectedFile.url}
+                style={{
+                  width: '100%',
+                  height: '70vh',
+                  border: 'none'
+                }}
+                title={selectedFile.name}
+              />
+            ) : (
+              <Box
+                sx={{
+                  textAlign: 'center',
+                  color: 'white',
+                  py: 6
+                }}
+              >
+                <FileIcon sx={{ fontSize: 80, mb: 2, opacity: 0.5 }} />
+                <Typography variant="h6" gutterBottom>
+                  {selectedFile.name}
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.7, mb: 3 }}>
+                  Vista previa no disponible
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<DownloadIcon />}
+                  onClick={() => window.open(selectedFile.url, '_blank')}
+                >
+                  Descargar archivo
+                </Button>
+              </Box>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </Box>
   );
 };
