@@ -145,11 +145,27 @@ const ContactsList = ({
   // Lista final a renderizar (ya sin mí)
   const displayedUsers = useMemo(() => filteredUsers.filter(u => !isMe(u)), [filteredUsers, isMe]);
 
-  // Obtener conversaciones grupales
+  // Obtener conversaciones grupales con fotos de participantes
   const groupConversations = useMemo(() => {
     if (!conversations) return [];
-    return conversations.filter(conv => conv.type === 'group');
-  }, [conversations]);
+    const groups = conversations.filter(conv => conv.type === 'group');
+    
+    // Enriquecer con fotos de los participantes
+    return groups.map(group => {
+      const participantPhotos = group.participantIds
+        ?.slice(0, 2) // Solo primeros 2 para avatares apilados
+        .map(uid => {
+          const user = users.find(u => u.id === uid || u.uid === uid);
+          return user?.photoURL || user?.photo;
+        })
+        .filter(Boolean); // Filtrar nulls/undefined
+      
+      return {
+        ...group,
+        participantPhotos
+      };
+    });
+  }, [conversations, users]);
 
   // Manejar click en grupo
   const handleSelectGroup = (conversationId) => {
@@ -324,18 +340,39 @@ const ContactsList = ({
                               }}
                             >
                               <ListItemAvatar>
-                                <Avatar
-                                  src={groupPhoto}
+                                {/* Avatares Apilados de Participantes */}
+                                <Box
                                   sx={{
+                                    position: 'relative',
                                     width: 48,
                                     height: 48,
-                                    bgcolor: 'secondary.main',
-                                    fontSize: 20,
-                                    fontWeight: 600
+                                    mr: 2
                                   }}
                                 >
-                                  {groupName[0].toUpperCase()}
-                                </Avatar>
+                                  {group.participantPhotos?.slice(0, 2).map((photo, idx) => (
+                                    <Avatar
+                                      key={idx}
+                                      src={photo}
+                                      sx={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        right: 0,
+                                        width: 32,
+                                        height: 32,
+                                        border: '2px solid white',
+                                        zIndex: idx === 0 ? 1 : 0,
+                                        ...(idx === 1 && {
+                                          bottom: 0,
+                                          left: 0,
+                                          top: 'auto',
+                                          right: 'auto'
+                                        })
+                                      }}
+                                    >
+                                      {groupName[idx]?.toUpperCase() || 'G'}
+                                    </Avatar>
+                                  ))}
+                                </Box>
                               </ListItemAvatar>
 
                               <ListItemText

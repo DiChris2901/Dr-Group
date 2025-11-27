@@ -28,7 +28,8 @@ import {
   Phone as PhoneIcon,
   WhatsApp as WhatsAppIcon,
   PushPin as PushPinIcon,
-  Search as SearchIcon
+  Search as SearchIcon,
+  Photo as PhotoIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { onSnapshot, doc } from 'firebase/firestore';
@@ -77,6 +78,9 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const { results: searchResults, searching } = useChatSearch(conversationId, searchTerm);
+
+  // 📎 Estado para galería de archivos
+  const [galleryOpen, setGalleryOpen] = useState(false);
 
   // 👤 Handlers para el diálogo de usuario
   const handleAvatarClick = (e) => {
@@ -283,6 +287,22 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
             />
           )}
         </Box>
+
+        {/* Botón de galería de archivos */}
+        <Tooltip title="Archivos y Enlaces">
+          <IconButton
+            onClick={() => setGalleryOpen(true)}
+            sx={{
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                bgcolor: alpha('#667eea', 0.1),
+                transform: 'scale(1.1)'
+              }
+            }}
+          >
+            <PhotoIcon />
+          </IconButton>
+        </Tooltip>
 
         {/* Botón de búsqueda */}
         <Tooltip title={searchOpen ? "Cerrar búsqueda" : "Buscar"}>
@@ -533,26 +553,91 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
         )}
       </Box>
 
-      {/* ⌨️ C. Indicador de "escribiendo..." */}
+      {/* ⌨️ Indicador de "escribiendo..." con burbuja animada */}
       {otherUserTyping && (
         <Box
           sx={{
             px: 2,
-            py: 1,
-            borderTop: 1,
-            borderColor: 'divider',
-            bgcolor: 'action.hover'
+            py: 1.5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2
           }}
         >
-          <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-            {displayName} está escribiendo
-            <motion.span
-              animate={{ opacity: [1, 0.5, 1] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-            >
-              ...
-            </motion.span>
-          </Typography>
+          <Avatar
+            src={selectedUser?.photoURL || selectedUser?.photo}
+            sx={{ width: 24, height: 24 }}
+          >
+            {displayName?.[0]?.toUpperCase()}
+          </Avatar>
+          
+          {/* Burbuja con 3 puntos animados */}
+          <Paper
+            elevation={0}
+            component={motion.div}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            sx={{
+              p: 1.5,
+              borderRadius: 3,
+              bgcolor: 'action.hover',
+              display: 'flex',
+              gap: 0.5,
+              alignItems: 'center'
+            }}
+          >
+            <Box
+              component={motion.div}
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                bgcolor: 'text.secondary'
+              }}
+              animate={{ 
+                transform: ['translateY(0px)', 'translateY(-4px)', 'translateY(0px)'] 
+              }}
+              transition={{ 
+                duration: 0.6, 
+                repeat: Infinity,
+                delay: 0
+              }}
+            />
+            <Box
+              component={motion.div}
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                bgcolor: 'text.secondary'
+              }}
+              animate={{ 
+                transform: ['translateY(0px)', 'translateY(-4px)', 'translateY(0px)'] 
+              }}
+              transition={{ 
+                duration: 0.6, 
+                repeat: Infinity,
+                delay: 0.2
+              }}
+            />
+            <Box
+              component={motion.div}
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                bgcolor: 'text.secondary'
+              }}
+              animate={{ 
+                transform: ['translateY(0px)', 'translateY(-4px)', 'translateY(0px)'] 
+              }}
+              transition={{ 
+                duration: 0.6, 
+                repeat: Infinity,
+                delay: 0.4
+              }}
+            />
+          </Paper>
         </Box>
       )}
 
@@ -769,6 +854,153 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
             Cerrar
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* 📎 Drawer de Galería de Archivos */}
+      <Dialog
+        open={galleryOpen}
+        onClose={() => setGalleryOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)' 
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+          }
+        }}
+      >
+        <DialogTitle
+          sx={{
+            background: theme.palette.mode === 'dark'
+              ? `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`
+              : `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            p: 2.5
+          }}
+        >
+          <Box display="flex" alignItems="center" gap={1.5}>
+            <Avatar
+              sx={{
+                bgcolor: alpha('#fff', 0.2),
+                width: 36,
+                height: 36
+              }}
+            >
+              <PhotoIcon />
+            </Avatar>
+            <Box>
+              <Typography variant="h6" fontWeight={600}>
+                Archivos y Enlaces
+              </Typography>
+              <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                {messages.filter(m => m.attachments?.length > 0).length} archivos compartidos
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton
+            onClick={() => setGalleryOpen(false)}
+            sx={{
+              color: 'white',
+              '&:hover': {
+                bgcolor: alpha('#fff', 0.1)
+              }
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 2 }}>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 1.5,
+              mt: 1
+            }}
+          >
+            {messages
+              .filter(m => m.attachments?.length > 0)
+              .flatMap(m => m.attachments)
+              .map((attachment, idx) => (
+                <Box
+                  key={idx}
+                  sx={{
+                    width: '100%',
+                    height: 120,
+                    borderRadius: 1.5,
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                    '&:hover': {
+                      transform: 'scale(1.05)',
+                      boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                      borderColor: 'primary.main'
+                    }
+                  }}
+                  onClick={() => window.open(attachment.url, '_blank')}
+                >
+                  {attachment.type?.startsWith('image/') ? (
+                    <Box
+                      component="img"
+                      src={attachment.url}
+                      alt={attachment.name}
+                      sx={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover'
+                      }}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: alpha(theme.palette.primary.main, 0.08),
+                        gap: 1
+                      }}
+                    >
+                      <PhotoIcon sx={{ fontSize: 32, color: 'primary.main' }} />
+                      <Typography
+                        variant="caption"
+                        fontWeight={600}
+                        textAlign="center"
+                        noWrap
+                        sx={{ px: 1, maxWidth: '100%' }}
+                      >
+                        {attachment.name || 'Archivo'}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              ))}
+          </Box>
+
+          {messages.filter(m => m.attachments?.length > 0).length === 0 && (
+            <Box
+              sx={{
+                textAlign: 'center',
+                py: 6
+              }}
+            >
+              <PhotoIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+              <Typography variant="body2" color="text.secondary">
+                No hay archivos compartidos en esta conversación
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
       </Dialog>
     </Box>
   );
