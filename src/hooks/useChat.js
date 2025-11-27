@@ -439,6 +439,13 @@ export const useChatMessages = (conversationId, messagesPerPage = 50) => {
     }
   }, [currentUser?.uid, addNotification]);
 
+  // ✅ FUNCIÓN LEGACY: Mantener para compatibilidad (ya no hace nada)
+  const markMessageAsRead = useCallback(async (messageId) => {
+    // Esta función ya no hace nada - usamos cursor de lectura
+    // Se mantiene solo para no romper código existente
+    return;
+  }, []);
+
   return {
     messages,
     loading,
