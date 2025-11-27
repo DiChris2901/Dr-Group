@@ -32,7 +32,9 @@ import {
   Photo as PhotoIcon,
   PictureAsPdf as PdfIcon,
   InsertDriveFile as FileIcon,
-  Download as DownloadIcon
+  Download as DownloadIcon,
+  Image as ImageIcon,
+  OpenInNew as OpenInNewIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { onSnapshot, doc } from 'firebase/firestore';
@@ -85,7 +87,11 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
   // 📎 Estado para galería de archivos
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryFilter, setGalleryFilter] = useState('all'); // 'all', 'images', 'pdfs', 'others'
-  const [selectedFile, setSelectedFile] = useState(null);
+  
+  // 🖼️ Estados para visor de archivos (reutilizando lógica de MessageBubble)
+  const [fileViewerOpen, setFileViewerOpen] = useState(false);
+  const [viewingFile, setViewingFile] = useState(null);
+  const [viewerSize, setViewerSize] = useState('normal');
 
   // 👤 Handlers para el diálogo de usuario
   const handleAvatarClick = (e) => {
@@ -95,6 +101,18 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
 
   const handleCloseUserInfo = () => {
     setUserInfoDialogOpen(false);
+  };
+
+  // 🖼️ Handlers para visor de archivos
+  const handleFileClick = (file) => {
+    setViewingFile(file);
+    setFileViewerOpen(true);
+  };
+
+  const handleCloseFileViewer = () => {
+    setFileViewerOpen(false);
+    setViewingFile(null);
+    setViewerSize('normal');
   };
 
   const conversation = getConversation(conversationId);
@@ -1015,7 +1033,7 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
                             }
                           }
                         }}
-                        onClick={() => setSelectedFile(attachment)}
+                        onClick={() => handleFileClick(attachment)}
                       >
                         {/* Preview */}
                         <Box
@@ -1130,133 +1148,166 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
         </DialogContent>
       </Dialog>
 
-      {/* 🖼️ Modal de Vista Previa de Archivo */}
-      {selectedFile && (
-        <Dialog
-          open={Boolean(selectedFile)}
-          onClose={() => setSelectedFile(null)}
-          maxWidth="lg"
-          fullWidth
-          PaperProps={{
-            sx: {
-              borderRadius: 2,
-              bgcolor: '#000',
-              maxHeight: '90vh'
-            }
-          }}
-        >
-          <DialogTitle
-            sx={{
-              bgcolor: alpha('#000', 0.9),
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              p: 2
-            }}
-          >
-            <Box display="flex" alignItems="center" gap={2}>
-              {selectedFile.type?.startsWith('image/') ? (
-                <PhotoIcon />
-              ) : selectedFile.type === 'application/pdf' || selectedFile.name?.endsWith('.pdf') ? (
-                <PdfIcon sx={{ color: '#d32f2f' }} />
-              ) : (
-                <FileIcon />
-              )}
-              <Box>
-                <Typography variant="subtitle1" fontWeight={600}>
-                  {selectedFile.name || 'Archivo'}
-                </Typography>
-                <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                  {selectedFile.messageDate?.toLocaleString('es-CO', {
-                    day: '2-digit',
-                    month: 'long',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </Typography>
-              </Box>
+      {/* 🖼️ MODAL VISOR PDF/IMAGEN PROFESIONAL - SPECTACULAR DESIGN */}
+      <Dialog
+        open={fileViewerOpen}
+        onClose={handleCloseFileViewer}
+        maxWidth="xl"
+        fullWidth
+        fullScreen={viewerSize === 'fullscreen'}
+        PaperProps={{
+          sx: {
+            borderRadius: viewerSize === 'fullscreen' ? 0 : 2,
+            background: theme.palette.background.paper,
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            height: viewerSize === 'fullscreen' ? '100vh' : '90vh',
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          p: 3,
+          pb: 2,
+          background: theme.palette.mode === 'dark'
+            ? `linear-gradient(135deg, ${alpha(theme.palette.grey[800], 0.95)} 0%, ${alpha(theme.palette.grey[900], 0.98)} 100%)`
+            : `linear-gradient(135deg, ${alpha(theme.palette.grey[50], 0.95)} 0%, ${alpha(theme.palette.grey[100], 0.98)} 100%)`,
+          borderBottom: `1px solid ${alpha(theme.palette.divider, 0.12)}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <Box display="flex" alignItems="center" gap={2}>
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+            >
+              <Avatar sx={{ 
+                background: viewingFile?.type?.startsWith('image/')
+                  ? `linear-gradient(135deg, ${theme.palette.info.main}, ${theme.palette.info.dark})`
+                  : `linear-gradient(135deg, ${theme.palette.error.main}, ${theme.palette.error.dark})`,
+                width: 40,
+                height: 40
+              }}>
+                {viewingFile?.type?.startsWith('image/') ? 
+                  <ImageIcon sx={{ fontSize: 20 }} /> :
+                  <PdfIcon sx={{ fontSize: 20 }} />
+                }
+              </Avatar>
+            </motion.div>
+            <Box>
+              <Typography variant="h6" sx={{ 
+                fontWeight: 600,
+                color: theme.palette.text.primary,
+                mb: 0.5
+              }}>
+                {viewingFile?.name || 'Archivo'}
+              </Typography>
+              <Typography variant="body2" sx={{ 
+                color: theme.palette.text.secondary,
+                fontSize: '0.85rem'
+              }}>
+                {viewingFile?.type?.startsWith('image/') ? 'Imagen' : 'Documento PDF'}
+                {viewingFile?.messageDate && ` • ${viewingFile.messageDate.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}`}
+              </Typography>
             </Box>
-            <Box display="flex" gap={1}>
+          </Box>
+          
+          <Box display="flex" alignItems="center" gap={1}>
+            <Tooltip title={viewerSize === 'fullscreen' ? 'Salir de pantalla completa' : 'Pantalla completa'}>
               <IconButton
-                onClick={() => window.open(selectedFile.url, '_blank')}
-                sx={{
-                  color: 'white',
-                  '&:hover': { bgcolor: alpha('#fff', 0.1) }
+                onClick={() => setViewerSize(viewerSize === 'fullscreen' ? 'normal' : 'fullscreen')}
+                sx={{ 
+                  color: theme.palette.text.primary,
+                  background: alpha(theme.palette.info.main, 0.08),
+                  '&:hover': { 
+                    background: alpha(theme.palette.info.main, 0.12),
+                    transform: 'scale(1.05)'
+                  },
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                 }}
               >
-                <DownloadIcon />
+                <OpenInNewIcon sx={{ fontSize: 18 }} />
               </IconButton>
+            </Tooltip>
+            
+            <Tooltip title="Descargar">
               <IconButton
-                onClick={() => setSelectedFile(null)}
-                sx={{
-                  color: 'white',
-                  '&:hover': { bgcolor: alpha('#fff', 0.1) }
+                onClick={() => {
+                  const link = document.createElement('a');
+                  link.href = viewingFile.url;
+                  link.download = viewingFile.name;
+                  link.target = '_blank';
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                }}
+                sx={{ 
+                  color: theme.palette.text.primary,
+                  background: alpha(theme.palette.primary.main, 0.08),
+                  '&:hover': { 
+                    background: alpha(theme.palette.primary.main, 0.12),
+                    transform: 'scale(1.05)'
+                  },
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                 }}
               >
-                <CloseIcon />
+                <DownloadIcon sx={{ fontSize: 18 }} />
               </IconButton>
-            </Box>
-          </DialogTitle>
-          <DialogContent
-            sx={{
-              p: 0,
-              bgcolor: '#000',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: '60vh'
-            }}
-          >
-            {selectedFile.type?.startsWith('image/') ? (
-              <Box
-                component="img"
-                src={selectedFile.url}
-                alt={selectedFile.name}
-                sx={{
-                  maxWidth: '100%',
-                  maxHeight: '70vh',
-                  objectFit: 'contain'
-                }}
-              />
-            ) : selectedFile.type === 'application/pdf' || selectedFile.name?.endsWith('.pdf') ? (
-              <iframe
-                src={selectedFile.url}
-                style={{
-                  width: '100%',
-                  height: '70vh',
-                  border: 'none'
-                }}
-                title={selectedFile.name}
-              />
-            ) : (
-              <Box
-                sx={{
-                  textAlign: 'center',
-                  color: 'white',
-                  py: 6
-                }}
-              >
-                <FileIcon sx={{ fontSize: 80, mb: 2, opacity: 0.5 }} />
-                <Typography variant="h6" gutterBottom>
-                  {selectedFile.name}
-                </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.7, mb: 3 }}>
-                  Vista previa no disponible
-                </Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<DownloadIcon />}
-                  onClick={() => window.open(selectedFile.url, '_blank')}
-                >
-                  Descargar archivo
-                </Button>
-              </Box>
-            )}
-          </DialogContent>
-        </Dialog>
-      )}
+            </Tooltip>
+            
+            <IconButton
+              onClick={handleCloseFileViewer}
+              sx={{ 
+                color: theme.palette.text.secondary,
+                '&:hover': { 
+                  color: theme.palette.error.main,
+                  background: alpha(theme.palette.error.main, 0.08),
+                  transform: 'scale(1.05)'
+                },
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
+            >
+              <CloseIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent sx={{ 
+          p: 0, 
+          bgcolor: theme.palette.mode === 'dark' ? theme.palette.grey[900] : theme.palette.grey[50],
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          overflow: 'hidden'
+        }}>
+          {viewingFile?.type?.startsWith('image/') ? (
+            <Box
+              component="img"
+              src={viewingFile.url}
+              alt={viewingFile.name}
+              sx={{
+                maxWidth: '100%',
+                maxHeight: '100%',
+                objectFit: 'contain',
+                p: 2
+              }}
+            />
+          ) : (
+            <iframe
+              src={viewingFile?.url}
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none'
+              }}
+              title={viewingFile?.name || 'Documento'}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };
