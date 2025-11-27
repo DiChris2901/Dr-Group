@@ -1508,3 +1508,243 @@ const sendTelegramMessageWithPriority = async (chatId, text, priority = 'normal'
   
   return await sendTelegramMessage(chatId, prefix + text, options);
 };
+
+// ===================================================================
+// 🎯 SISTEMA DE CONTADORES OPTIMIZADO - REDUCCIÓN DE 20,000 → 1 READ
+// ===================================================================
+
+const { onDocumentCreated, onDocumentUpdated, onDocumentDeleted } = require('firebase-functions/v2/firestore');
+
+/**
+ * Helper: Recalcular estadísticas completas del dashboard
+ * Solo se ejecuta cuando hay cambios en compromisos o pagos
+ */
+async function recalculateDashboardStats() {
+  const db = getFirestore();
+  
+  console.log('📊 Iniciando recálculo de estadísticas...');
+  
+  try {
+    // Obtener TODOS los compromisos (una sola vez)
+    const commitmentsSnapshot = await db.collection('commitments').get();
+    const commitments = commitmentsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    console.log(`📋 Compromisos encontrados: ${commitments.length}`);
+    
+    // Obtener TODOS los pagos (una sola vez)
+    const paymentsSnapshot = await db.collection('payments').get();
+    const allPayments = paymentsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    console.log(`💳 Pagos encontrados: ${allPayments.length}`);
+    
+    // Indexar pagos por commitmentId para búsqueda O(1)
+    const paymentsByCommitment = {};
+    allPayments.forEach(payment => {
+      if (payment.commitmentId && !payment.is4x1000Tax) {
+        if (!paymentsByCommitment[payment.commitmentId]) {
+          paymentsByCommitment[payment.commitmentId] = [];
+        }
+        paymentsByCommitment[payment.commitmentId].push(payment);
+      }
+    });
+    
+    // Inicializar contadores
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    const stats = {
+      // Compromisos
+      totalCommitments: 0,
+      activeCommitments: 0,
+      pendingCommitments: 0,
+      overDueCommitments: 0,
+      completedCommitments: 0,
+      
+      // Montos
+      totalAmount: 0,
+      paidAmount: 0,
+      pendingAmount: 0,
+      
+      // Empresas
+      totalCompanies: 0,
+      
+      // Pagos del mes
+      currentMonthPayments: 0,
+      currentMonthPaymentAmount: 0,
+      
+      // Metadata
+      lastUpdated: FieldValue.serverTimestamp(),
+      calculatedAt: new Date().toISOString()
+    };
+    
+    const uniqueCompanies = new Set();
+    
+    // Procesar cada compromiso
+    commitments.forEach(commitment => {
+      stats.totalCommitments++;
+      
+      const originalAmount = parseFloat(commitment.amount) || 0;
+      stats.totalAmount += originalAmount;
+      
+      // Contar empresas únicas
+      if (commitment.companyId) {
+        uniqueCompanies.add(commitment.companyId);
+      }
+      
+      // Obtener pagos de este compromiso
+      const paymentsForCommitment = paymentsByCommitment[commitment.id] || [];
+      const totalPaidForCommitment = paymentsForCommitment.reduce((sum, p) => 
+        sum + (parseFloat(p.amount) || 0), 0
+      );
+      
+      // Calcular saldo restante
+      const remainingAmount = Math.max(0, originalAmount - totalPaidForCommitment);
+      const tolerance = originalAmount * 0.01;
+      const isCompletelyPaid = Math.abs(remainingAmount) <= tolerance || 
+                               totalPaidForCommitment >= originalAmount;
+      
+      // Verificar fecha de vencimiento
+      const dueDate = commitment.dueDate?.toDate ? 
+        commitment.dueDate.toDate() : 
+        new Date(commitment.dueDate);
+      const isOverdue = dueDate && dueDate < now;
+      
+      // Verificar si está marcado como pagado
+      const isMarkedAsPaid = commitment.status === 'completed' || 
+                            commitment.status === 'paid' || 
+                            commitment.paid === true ||
+                            commitment.isPaid === true;
+      
+      const isPaid = isCompletelyPaid || isMarkedAsPaid;
+      
+      // Contar pagos del mes actual
+      paymentsForCommitment.forEach(payment => {
+        let paymentDate = null;
+        
+        if (payment.date?.toDate) {
+          paymentDate = payment.date.toDate();
+        } else if (payment.createdAt?.toDate) {
+          paymentDate = payment.createdAt.toDate();
+        } else if (payment.paymentDate?.toDate) {
+          paymentDate = payment.paymentDate.toDate();
+        } else {
+          paymentDate = now;
+        }
+        
+        if (paymentDate.getMonth() === currentMonth && 
+            paymentDate.getFullYear() === currentYear) {
+          stats.currentMonthPayments++;
+          stats.currentMonthPaymentAmount += parseFloat(payment.amount) || 0;
+        }
+      });
+      
+      // Clasificar compromiso
+      if (isPaid) {
+        stats.completedCommitments++;
+        stats.paidAmount += originalAmount;
+      } else {
+        stats.activeCommitments++;
+        stats.pendingCommitments++;
+        stats.pendingAmount += remainingAmount;
+        
+        if (isOverdue) {
+          stats.overDueCommitments++;
+        }
+      }
+    });
+    
+    stats.totalCompanies = uniqueCompanies.size;
+    
+    // Guardar en Firestore
+    await db.collection('system_stats').doc('dashboard').set(stats, { merge: true });
+    
+    console.log('✅ Estadísticas actualizadas:', {
+      compromisos: stats.totalCommitments,
+      pendientes: stats.pendingCommitments,
+      vencidos: stats.overDueCommitments,
+      pagados: stats.completedCommitments,
+      pagosMes: stats.currentMonthPayments
+    });
+    
+    return stats;
+    
+  } catch (error) {
+    console.error('❌ Error recalculando estadísticas:', error);
+    throw error;
+  }
+}
+
+/**
+ * Trigger: Cuando se crea un compromiso
+ */
+exports.onCommitmentCreated = onDocumentCreated('commitments/{commitmentId}', async (event) => {
+  console.log('🆕 Nuevo compromiso creado:', event.params.commitmentId);
+  await recalculateDashboardStats();
+});
+
+/**
+ * Trigger: Cuando se actualiza un compromiso
+ */
+exports.onCommitmentUpdated = onDocumentUpdated('commitments/{commitmentId}', async (event) => {
+  console.log('✏️ Compromiso actualizado:', event.params.commitmentId);
+  await recalculateDashboardStats();
+});
+
+/**
+ * Trigger: Cuando se elimina un compromiso
+ */
+exports.onCommitmentDeleted = onDocumentDeleted('commitments/{commitmentId}', async (event) => {
+  console.log('🗑️ Compromiso eliminado:', event.params.commitmentId);
+  await recalculateDashboardStats();
+});
+
+/**
+ * Trigger: Cuando se crea un pago
+ */
+exports.onPaymentCreated = onDocumentCreated('payments/{paymentId}', async (event) => {
+  console.log('🆕 Nuevo pago registrado:', event.params.paymentId);
+  await recalculateDashboardStats();
+});
+
+/**
+ * Trigger: Cuando se actualiza un pago
+ */
+exports.onPaymentUpdated = onDocumentUpdated('payments/{paymentId}', async (event) => {
+  console.log('✏️ Pago actualizado:', event.params.paymentId);
+  await recalculateDashboardStats();
+});
+
+/**
+ * Trigger: Cuando se elimina un pago
+ */
+exports.onPaymentDeleted = onDocumentDeleted('payments/{paymentId}', async (event) => {
+  console.log('🗑️ Pago eliminado:', event.params.paymentId);
+  await recalculateDashboardStats();
+});
+
+/**
+ * Callable Function: Forzar recálculo manual
+ * Útil para inicializar el sistema o reparar inconsistencias
+ */
+exports.forceRecalculateStats = onCall(async (request) => {
+  console.log('🔄 Recálculo manual iniciado por:', request.auth?.uid);
+  
+  try {
+    const stats = await recalculateDashboardStats();
+    return { 
+      success: true, 
+      message: 'Estadísticas recalculadas exitosamente',
+      stats 
+    };
+  } catch (error) {
+    console.error('❌ Error en recálculo manual:', error);
+    throw new HttpsError('internal', `Error: ${error.message}`);
+  }
+});
