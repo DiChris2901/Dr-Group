@@ -25,10 +25,11 @@ import {
 } from '@mui/material';
 import { Share, Send, OpenInNew, Close } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useShareToChat } from '../../hooks/useShareToChat';
 import { useNotifications } from '../../context/NotificationsContext';
+import { useAuth } from '../../context/AuthContext';
 
 /**
  * Componente de resumen de entidad compartida
@@ -36,26 +37,6 @@ import { useNotifications } from '../../context/NotificationsContext';
 const EntitySummary = ({ entity, type }) => {
   const [companyName, setCompanyName] = useState(null);
   const [loadingCompany, setLoadingCompany] = useState(false);
-
-  // Validación: Si entity es null, mostrar mensaje
-  if (!entity) {
-    return (
-      <Paper
-        elevation={0}
-        sx={{
-          p: 3,
-          borderRadius: 2,
-          border: '1px solid',
-          borderColor: 'divider',
-          bgcolor: 'background.default'
-        }}
-      >
-        <Typography variant="body2" color="text.secondary" align="center">
-          No se pudo cargar la información del registro
-        </Typography>
-      </Paper>
-    );
-  }
 
   // Cargar nombre de la empresa si existe companyId
   useEffect(() => {
@@ -77,6 +58,26 @@ const EntitySummary = ({ entity, type }) => {
 
     loadCompanyName();
   }, [entity?.companyId]);
+
+  // Validación: Si entity es null, mostrar mensaje (DESPUÉS de los hooks)
+  if (!entity) {
+    return (
+      <Paper
+        elevation={0}
+        sx={{
+          p: 3,
+          borderRadius: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.default'
+        }}
+      >
+        <Typography variant="body2" color="text.secondary" align="center">
+          No se pudo cargar la información del registro
+        </Typography>
+      </Paper>
+    );
+  }
 
   const renderField = (label, value, emoji = '📌') => (
     <Box sx={{ display: 'flex', gap: 1, mb: 0.5 }}>
@@ -212,6 +213,8 @@ const ShareToChat = ({ open, onClose, entity, entityType, entityName = 'registro
   const [customMessage, setCustomMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const { currentUser } = useAuth();
+
   const handleShare = async () => {
     if (!entity || !entity.id) {
       addNotification('error', 'No se puede compartir: datos inválidos');
@@ -220,22 +223,54 @@ const ShareToChat = ({ open, onClose, entity, entityType, entityName = 'registro
 
     let targetId = '';
 
-    if (selectedTarget === 'group') {
-      targetId = selectedConversationId;
-    } else if (selectedTarget === 'user' && selectedUser) {
-      // Crear o usar conversación directa existente
-      // Por simplicidad, usar formato: dm_{uid1}_{uid2} ordenados alfabéticamente
-      targetId = `dm_${selectedUser.id}`;
-    }
-
-    if (!targetId) {
-      addNotification('error', 'Debe seleccionar un destino');
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
+      if (selectedTarget === 'group') {
+        targetId = selectedConversationId;
+      } else if (selectedTarget === 'user' && selectedUser) {
+        // Buscar conversación directa existente
+        const participantIds = [currentUser.uid, selectedUser.id].sort();
+        
+        const conversationsQuery = query(
+          collection(db, 'conversations'),
+          where('participantIds', '==', participantIds),
+          where('type', '==', 'direct')
+        );
+        
+        const existingConversations = await getDocs(conversationsQuery);
+        
+        if (!existingConversations.empty) {
+          // Usar conversación existente
+          targetId = existingConversations.docs[0].id;
+        } else {
+          // Crear nueva conversación directa
+          const newConversation = await addDoc(collection(db, 'conversations'), {
+            type: 'direct',
+            participantIds: participantIds,
+            participantNames: {
+              [currentUser.uid]: currentUser.displayName || currentUser.name || currentUser.email,
+              [selectedUser.id]: selectedUser.name || selectedUser.displayName || selectedUser.email
+            },
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            lastMessage: null,
+            unreadCount: {
+              [currentUser.uid]: 0,
+              [selectedUser.id]: 1 // El destinatario tiene 1 mensaje sin leer
+            }
+          });
+          
+          targetId = newConversation.id;
+        }
+      }
+
+      if (!targetId) {
+        addNotification('error', 'Debe seleccionar un destino');
+        setIsSubmitting(false);
+        return;
+      }
+
       await shareToChat(entityType, entity, customMessage, targetId);
       
       addNotification('success', `${entityName} compartido exitosamente al chat`);
