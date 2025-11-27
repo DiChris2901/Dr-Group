@@ -17,7 +17,9 @@ import {
   Button,
   Chip,
   TextField,
-  Tooltip
+  Tooltip,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -34,10 +36,11 @@ import {
   InsertDriveFile as FileIcon,
   Download as DownloadIcon,
   Image as ImageIcon,
-  OpenInNew as OpenInNewIcon
+  OpenInNew as OpenInNewIcon,
+  DeleteSweep as DeleteSweepIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import { onSnapshot, doc } from 'firebase/firestore';
+import { onSnapshot, doc, collection, query, where, getDocs, deleteDoc, writeBatch, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useChatMessages, useChatSearch } from '../../hooks/useChat';
 import { useChat } from '../../context/ChatContext';
@@ -93,6 +96,11 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
   const [viewingFile, setViewingFile] = useState(null);
   const [viewerSize, setViewerSize] = useState('normal');
 
+  // 🗑️ Estados para eliminar conversación
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteConfirmChecked, setDeleteConfirmChecked] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   // 👤 Handlers para el diálogo de usuario
   const handleAvatarClick = (e) => {
     e.stopPropagation();
@@ -115,11 +123,129 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
     setViewerSize('normal');
   };
 
+  // 🗑️ Handler para eliminar conversación completa
+  const handleDeleteConversation = async () => {
+    if (!deleteConfirmChecked) {
+      alert('Debes confirmar que deseas eliminar el historial');
+      return;
+    }
+
+    setDeleting(true);
+
+    try {
+      // ✅ CORRECCIÓN: Buscar en colección RAÍZ 'messages' filtrando por conversationId
+      const messagesQuery = query(
+        collection(db, 'messages'),
+        where('conversationId', '==', conversationId)
+      );
+      
+      const messagesSnapshot = await getDocs(messagesQuery);
+      
+      console.log(`📊 Total de mensajes encontrados para eliminar: ${messagesSnapshot.size}`);
+
+      if (messagesSnapshot.empty) {
+        console.log('⚠️ No se encontraron mensajes, solo reseteando metadata...');
+      }
+
+      // 2. Eliminar archivos de Storage (SOLO los adjuntos del chat)
+      for (const messageDoc of messagesSnapshot.docs) {
+        const messageData = messageDoc.data();
+        
+        if (messageData.attachments && messageData.attachments.length > 0) {
+          for (const attachment of messageData.attachments) {
+            try {
+              // Verificar que el archivo sea de chat_attachments/ (NO comprobantes externos)
+              if (attachment.url && attachment.url.includes('chat_attachments')) {
+                const urlObj = new URL(attachment.url);
+                const pathEncoded = urlObj.pathname.split('/o/')[1];
+                
+                if (pathEncoded) {
+                  const storagePath = decodeURIComponent(pathEncoded.split('?')[0]); // Remover query params
+                  
+                  // Doble verificación: SOLO eliminar si es de chat_attachments
+                  if (storagePath.startsWith('chat_attachments/')) {
+                    const { ref, deleteObject } = await import('firebase/storage');
+                    const { storage } = await import('../../config/firebase');
+                    const fileRef = ref(storage, storagePath);
+                    await deleteObject(fileRef);
+                    console.log(`🗑️ Archivo chat eliminado: ${storagePath}`);
+                  } else {
+                    console.log(`ℹ️ Archivo externo preservado (no es adjunto del chat): ${storagePath}`);
+                  }
+                }
+              }
+            } catch (error) {
+              // Ignorar errores 404 (archivo ya no existe)
+              if (error.code === 'storage/object-not-found') {
+                console.log(`ℹ️ Archivo ya no existe (ignorado): ${attachment.name || 'archivo'}`);
+              } else {
+                console.warn('⚠️ Error al eliminar archivo:', error.message);
+              }
+            }
+          }
+        }
+      }
+
+      // 3. Eliminar mensajes en lotes de 500 (Firestore batch limit)
+      const batchSize = 500;
+      const messageDocs = messagesSnapshot.docs;
+      
+      for (let i = 0; i < messageDocs.length; i += batchSize) {
+        const batch = writeBatch(db);
+        const batchDocs = messageDocs.slice(i, i + batchSize);
+        
+        batchDocs.forEach(doc => {
+          batch.delete(doc.ref);
+        });
+        
+        await batch.commit();
+        console.log(`✅ Batch de mensajes ${Math.floor(i / batchSize) + 1} eliminado`);
+      }
+
+      // 4. Resetear metadata de la conversación
+      const conversationRef = doc(db, 'conversations', conversationId);
+      await updateDoc(conversationRef, {
+        lastMessage: null,
+        lastMessageTime: null,
+        unreadCount: {},
+        pinnedMessageId: null
+      });
+
+      // 5. Cerrar modal y resetear estados
+      setDeleteDialogOpen(false);
+      setDeleteConfirmChecked(false);
+
+      console.log('✅ Proceso de eliminación finalizado');
+      alert('✅ Historial eliminado correctamente');
+
+    } catch (error) {
+      console.error('❌ Error crítico eliminando conversación:', error);
+      alert(`❌ Error: ${error.message}`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const conversation = getConversation(conversationId);
   
   // Usar info del usuario seleccionado si está disponible
   const displayName = selectedUser?.displayName || selectedUser?.name || 'Usuario';
   const displayPhoto = selectedUser?.photoURL || selectedUser?.photo || null;
+
+  // 🔐 Verificar si el usuario puede eliminar la conversación
+  const canDeleteConversation = () => {
+    if (!conversation || !currentUser) return false;
+    
+    // Conversación directa: ambos pueden eliminar
+    if (conversation.type === 'direct') return true;
+    
+    // Grupo: solo el creador puede eliminar
+    if (conversation.type === 'group') {
+      return conversation.createdBy === currentUser.uid;
+    }
+    
+    return false;
+  };
 
   // 📌 Mensaje fijado
   const pinnedMessage = messages.find(m => m.id === conversation?.pinnedMessageId);
@@ -345,6 +471,25 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
             {searchOpen ? <CloseIcon /> : <SearchIcon />}
           </IconButton>
         </Tooltip>
+
+        {/* 🗑️ Botón eliminar conversación */}
+        {canDeleteConversation() && (
+          <Tooltip title="Eliminar historial completo">
+            <IconButton
+              onClick={() => setDeleteDialogOpen(true)}
+              sx={{
+                transition: 'all 0.3s ease',
+                color: 'error.main',
+                '&:hover': {
+                  bgcolor: alpha('#f44336', 0.1),
+                  transform: 'scale(1.1)'
+                }
+              }}
+            >
+              <DeleteSweepIcon />
+            </IconButton>
+          </Tooltip>
+        )}
       </Paper>
 
       {/* 📌 Banner de mensaje fijado */}
@@ -1307,6 +1452,122 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
             />
           )}
         </DialogContent>
+      </Dialog>
+
+      {/* 🗑️ Modal de confirmación para eliminar conversación */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => !deleting && setDeleteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 4px 20px rgba(0, 0, 0, 0.3)'
+              : '0 4px 20px rgba(0, 0, 0, 0.08)',
+            border: `1px solid ${alpha(theme.palette.error.main, 0.3)}`
+          }
+        }}
+      >
+        <DialogTitle
+          sx={{
+            background: `linear-gradient(135deg, ${theme.palette.error.main} 0%, ${theme.palette.error.dark} 100%)`,
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            p: 2.5
+          }}
+        >
+          <Avatar
+            sx={{
+              bgcolor: alpha('#fff', 0.2),
+              width: 40,
+              height: 40
+            }}
+          >
+            <DeleteSweepIcon />
+          </Avatar>
+          <Box>
+            <Typography variant="h6" fontWeight={600}>
+              ⚠️ Eliminar historial completo
+            </Typography>
+            <Typography variant="caption" sx={{ opacity: 0.9 }}>
+              Esta acción no se puede deshacer
+            </Typography>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 3, pt: 3 }}>
+          <Alert severity="error" sx={{ mb: 3 }}>
+            <Typography variant="body2" fontWeight={600} gutterBottom>
+              Se eliminarán permanentemente:
+            </Typography>
+            <Typography variant="body2" component="div">
+              • Todos los mensajes de la conversación<br />
+              • Todos los archivos adjuntos (PDFs, imágenes, etc.)<br />
+              • El historial completo para {conversation?.type === 'direct' ? 'ambos participantes' : 'todos los miembros del grupo'}
+            </Typography>
+          </Alert>
+
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={deleteConfirmChecked}
+                onChange={(e) => setDeleteConfirmChecked(e.target.checked)}
+                disabled={deleting}
+                color="error"
+              />
+            }
+            label={
+              <Typography variant="body2" fontWeight={600}>
+                Confirmo que deseo eliminar todo el historial
+              </Typography>
+            }
+            sx={{
+              m: 0,
+              p: 2,
+              borderRadius: 2,
+              bgcolor: alpha(theme.palette.error.main, 0.08),
+              border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                bgcolor: alpha(theme.palette.error.main, 0.12)
+              }
+            }}
+          />
+
+          {messages.length > 0 && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block', textAlign: 'center' }}>
+              📊 Total a eliminar: {messages.length} mensajes y {messages.filter(m => m.attachments?.length > 0).flatMap(m => m.attachments).length} archivos
+            </Typography>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2.5, pt: 0, gap: 1 }}>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              setDeleteDialogOpen(false);
+              setDeleteConfirmChecked(false);
+            }}
+            disabled={deleting}
+            fullWidth
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDeleteConversation}
+            disabled={!deleteConfirmChecked || deleting}
+            fullWidth
+            startIcon={deleting ? <CircularProgress size={20} color="inherit" /> : <DeleteSweepIcon />}
+          >
+            {deleting ? 'Eliminando...' : 'Eliminar todo'}
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );
