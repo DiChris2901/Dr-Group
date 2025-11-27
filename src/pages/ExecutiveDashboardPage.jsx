@@ -189,7 +189,7 @@ const CircularKPI = ({ title, value, total, color = 'primary', delay = 0 }) => {
 
 const ExecutiveDashboardPage = () => {
   const theme = useTheme();
-  const { stats, loading, error, refreshStats, usingFallback } = useDashboardStats();
+  const { stats, loading, error, refreshStats } = useDashboardStats();
   const { stats: userStats } = useUserStats();
   const storageStats = useStorageStats();
   const [refreshing, setRefreshing] = useState(false);
@@ -312,38 +312,6 @@ const ExecutiveDashboardPage = () => {
           </Box>
         </Box>
       </motion.div>
-
-      {/* ⚠️ Banner de advertencia si está usando fallback */}
-      {usingFallback && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Alert 
-            severity="warning" 
-            sx={{ 
-              mb: 3,
-              borderRadius: 2,
-              boxShadow: '0 4px 12px rgba(255, 152, 0, 0.15)'
-            }}
-            action={
-              <Button 
-                color="inherit" 
-                size="small" 
-                onClick={handleRefresh}
-                disabled={refreshing}
-                startIcon={refreshing ? <CircularProgress size={16} color="inherit" /> : <Refresh />}
-              >
-                {refreshing ? 'Activando...' : 'Activar Modo Optimizado'}
-              </Button>
-            }
-          >
-            <strong>Modo Fallback Activo:</strong> El dashboard está calculando estadísticas directamente (más lento). 
-            Haz clic en "Activar Modo Optimizado" para inicializar el sistema de contadores (99.995% más rápido).
-          </Alert>
-        </motion.div>
-      )}
 
       {/* KPIs Principales */}
       <Grid container spacing={3} sx={{ mb: 4 }}>

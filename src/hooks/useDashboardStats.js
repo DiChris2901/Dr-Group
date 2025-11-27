@@ -32,8 +32,7 @@ export const useDashboardStats = () => {
     currentMonthPaymentAmount: 0,
     loading: true,
     error: null,
-    lastUpdated: null,
-    usingFallback: false // ✅ Indicador de modo
+    lastUpdated: null
   });
 
   // ✅ FUNCIÓN PARA FORZAR RECÁLCULO DE CONTADORES
@@ -91,11 +90,9 @@ export const useDashboardStats = () => {
       doc(db, 'system_stats', 'dashboard'),
       (docSnapshot) => {
         if (docSnapshot.exists()) {
-          // ✅ MODO OPTIMIZADO: Usar contadores pre-calculados
           const data = docSnapshot.data();
           
-          console.log('✅ Estadísticas cargadas desde contador optimizado (1 read)');
-          console.log('💰 Modo: OPTIMIZADO (99.995% ahorro activo)');
+          console.log('✅ Stats cargadas desde system_stats/dashboard (1 lectura)');
           
           setStats({
             totalCommitments: data.totalCommitments || 0,
@@ -111,33 +108,15 @@ export const useDashboardStats = () => {
             currentMonthPaymentAmount: data.currentMonthPaymentAmount || 0,
             loading: false,
             error: null,
-            lastUpdated: data.lastUpdated?.toDate?.() || null,
-            usingFallback: false // ✅ Modo optimizado activo
+            lastUpdated: data.lastUpdated?.toDate?.() || null
           });
         } else {
-          // ⚠️ DOCUMENTO NO EXISTE: Mostrar advertencia SIN calcular nada
-          console.error('❌ CRÍTICO: Documento system_stats/dashboard NO EXISTE');
-          console.error('❌ El sistema NO está inicializado');
-          console.error('❌ Debes ejecutar forceRecalculateStats() UNA VEZ');
-          console.error('💡 Usa el botón "Activar Modo Optimizado" en el banner amarillo');
-          
-          setStats({
-            totalCommitments: 0,
-            activeCommitments: 0,
-            pendingCommitments: 0,
-            overDueCommitments: 0,
-            completedCommitments: 0,
-            totalCompanies: 0,
-            totalAmount: 0,
-            paidAmount: 0,
-            pendingAmount: 0,
-            currentMonthPayments: 0,
-            currentMonthPaymentAmount: 0,
+          console.error('❌ ERROR: system_stats/dashboard no existe');
+          setStats(prev => ({
+            ...prev,
             loading: false,
-            error: 'Sistema no inicializado. Presiona "Activar Modo Optimizado".',
-            lastUpdated: null,
-            usingFallback: true // ✅ Indica que falta inicializar
-          });
+            error: 'Documento de contadores no encontrado'
+          }));
         }
       },
       (error) => {
@@ -183,10 +162,9 @@ export const useDashboardStats = () => {
     loading: stats.loading,
     error: stats.error,
     lastUpdated: stats.lastUpdated,
-    usingFallback: stats.usingFallback, // ✅ Para mostrar advertencia en UI
     
     // Acciones
-    refreshStats // ✅ Función para forzar recálculo (botón "Actualizar")
+    refreshStats // Función para forzar recálculo manual
   };
 };
 
