@@ -653,17 +653,22 @@ const MessageBubble = ({
           </Box>
         </Paper>
 
-        {/* 👍 Reacciones */}
-        {(Object.keys(groupedReactions).length > 0 || reactionPickerOpen) && (
-          <Box
-            sx={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 0.5,
-              mt: 0.5,
-              alignItems: 'center'
-            }}
-          >
+        {/* 👍 Reacciones - Siempre visible */}
+        <Box
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 0.5,
+            mt: 0.5,
+            alignItems: 'center',
+            minHeight: reactionPickerOpen || Object.keys(groupedReactions).length > 0 ? 'auto' : 0,
+            opacity: reactionPickerOpen || Object.keys(groupedReactions).length > 0 ? 1 : 0.7,
+            transition: 'opacity 0.2s ease',
+            '&:hover': {
+              opacity: 1
+            }
+          }}
+        >
             {/* Mostrar reacciones agrupadas */}
             {Object.entries(groupedReactions).map(([emoji, userIds]) => (
               <Chip
@@ -728,7 +733,7 @@ const MessageBubble = ({
               </Box>
             )}
 
-            {/* Botón para agregar reacción */}
+            {/* Botón para agregar reacción - Siempre visible */}
             <Tooltip title="Agregar reacción">
               <IconButton
                 size="small"
@@ -746,8 +751,7 @@ const MessageBubble = ({
                 <AddReactionIcon sx={{ fontSize: 16 }} />
               </IconButton>
             </Tooltip>
-          </Box>
-        )}
+        </Box>
       </Box>
 
       {/* Menú contextual de acciones */}
