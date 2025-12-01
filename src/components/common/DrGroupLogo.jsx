@@ -1,15 +1,14 @@
-import React from 'react';
 import { Box, Typography } from '@mui/material';
-import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
+import { motion } from 'framer-motion';
 import { useSettings } from '../../context/SettingsContext';
 
 const DrGroupLogo = ({ 
   size = 'medium', 
   variant = 'full', 
   animated = true,
-  showSubtitle = true,
-  useSvg = false // 🎨 Nueva prop para alternar SVG/Texto
+  showSubtitle = false,
+  useSvg = true // 🎨 Default to SVG for the new Infinity Flow design
 }) => {
   const theme = useTheme();
   const { settings } = useSettings();
@@ -49,15 +48,15 @@ const DrGroupLogo = ({
   // 🎨 Renderizado SVG spectacular
   if (useSvg) {
     const svgSizes = {
-      small: { width: 80, height: 32 },
-      medium: { width: 120, height: 40 },
-      large: { width: 160, height: 56 }
+      small: { width: 120, height: 40 },
+      medium: { width: 180, height: 60 },
+      large: { width: 240, height: 80 }
     };
 
     const currentSvgSize = svgSizes[size] || svgSizes.medium;
 
     return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, cursor: 'pointer', overflow: 'visible' }}>
         <MotionBox
           initial={animationsEnabled ? { opacity: 0, scale: 0.8 } : {}}
           animate={animationsEnabled ? { opacity: 1, scale: 1 } : {}}
@@ -68,7 +67,8 @@ const DrGroupLogo = ({
             component="svg"
             width={currentSvgSize.width}
             height={currentSvgSize.height}
-            viewBox="0 0 120 40"
+            viewBox="0 0 180 40"
+            preserveAspectRatio="xMidYMid meet"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
             sx={{
@@ -79,58 +79,59 @@ const DrGroupLogo = ({
               } : {}
             }}
           >
-            {/* Background con gradiente dinámico spectacular */}
+            {/* Background con efecto glass sutil */}
             <rect 
-              width="120" 
+              width="180" 
               height="40" 
               rx="8" 
-              fill="url(#drGroupGradient)"
+              fill="rgba(255,255,255,0.03)"
             />
             
-            {/* DR Text */}
+            {/* Icon/Symbol - Infinity Flow (Left Side) */}
+            <g transform="translate(35, 0)">
+               {/* Glow effect */}
+               <path 
+                 d="M 5 20 C 5 10, 20 10, 20 20 C 20 30, 35 30, 35 20" 
+                 fill="none" 
+                 stroke="url(#infinityGradient)" 
+                 strokeWidth="4" 
+                 strokeLinecap="round"
+                 filter="url(#glow)"
+                 opacity="0.6"
+               />
+               {/* Main path */}
+               <path 
+                 d="M 5 20 C 5 10, 20 10, 20 20 C 20 30, 35 30, 35 20" 
+                 fill="none" 
+                 stroke="url(#infinityGradient)" 
+                 strokeWidth="3" 
+                 strokeLinecap="round"
+               />
+               <circle cx="35" cy="20" r="3" fill="#fbbf24" filter="url(#glow)" />
+            </g>
+            
+            {/* DrGroup Text (Right Side) */}
             <text 
-              x="12" 
-              y="28" 
+              x="80" 
+              y="26" 
               fontFamily="'Segoe UI', Arial, sans-serif" 
               fontSize="18" 
-              fontWeight="800" 
+              fontWeight="700" 
               fill="white"
               letterSpacing="-0.5px"
             >
-              DR
+              DrGroup
             </text>
-            
-            {/* Group Text */}
-            <text 
-              x="40" 
-              y="28" 
-              fontFamily="'Segoe UI', Arial, sans-serif" 
-              fontSize="13" 
-              fontWeight="600" 
-              fill="rgba(255,255,255,0.92)"
-              letterSpacing="1px"
-            >
-              GROUP
-            </text>
-            
-            {/* Icon/Symbol spectacular */}
-            <g transform="translate(85, 15)">
-              <circle cx="5" cy="5" r="12" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
-              <circle cx="5" cy="5" r="8" fill="rgba(255,255,255,0.25)"/>
-              <circle cx="5" cy="5" r="4" fill="white" filter="url(#innerGlow)"/>
-              <circle cx="5" cy="5" r="1.5" fill={primaryColor} opacity="0.8"/>
-            </g>
             
             {/* Definiciones spectacular */}
             <defs>
-              <linearGradient id="drGroupGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor={primaryColor} stopOpacity="1" />
-                <stop offset="50%" stopColor={`${primaryColor}CC`} stopOpacity="1" />
-                <stop offset="100%" stopColor={secondaryColor} stopOpacity="1" />
+              <linearGradient id="infinityGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#f43f5e" stopOpacity="1" />
+                <stop offset="100%" stopColor="#fbbf24" stopOpacity="1" />
               </linearGradient>
               
-              <filter id="innerGlow">
-                <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
+              <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
                 <feMerge> 
                   <feMergeNode in="coloredBlur"/>
                   <feMergeNode in="SourceGraphic"/>
@@ -140,7 +141,7 @@ const DrGroupLogo = ({
               {animationsEnabled && (
                 <linearGradient id="shimmerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor="transparent" />
-                  <stop offset="50%" stopColor="rgba(255,255,255,0.2)" />
+                  <stop offset="50%" stopColor="rgba(255,255,255,0.1)" />
                   <stop offset="100%" stopColor="transparent" />
                   <animateTransform
                     attributeName="gradientTransform"
@@ -154,36 +155,11 @@ const DrGroupLogo = ({
             </defs>
             
             {animationsEnabled && (
-              <rect width="120" height="40" rx="8" fill="url(#shimmerGradient)" opacity="0.6"/>
+              <rect width="120" height="40" rx="8" fill="url(#shimmerGradient)" opacity="0.5"/>
             )}
           </Box>
         </MotionBox>
 
-        {/* Texto complementario para SVG */}
-        {showSubtitle && variant === 'full' && (
-          <MotionBox
-            initial={animationsEnabled ? { opacity: 0, x: -20 } : {}}
-            animate={animationsEnabled ? { opacity: 1, x: 0 } : {}}
-            transition={animationsEnabled ? { duration: 0.6, delay: 0.2 } : {}}
-          >
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.2 }}>
-              <Typography variant="h6" component="span" sx={{
-                fontSize: size === 'small' ? '0.8rem' : size === 'medium' ? '0.9rem' : '1.1rem',
-                fontWeight: 600, color: theme.palette.text.primary, letterSpacing: '0.1em',
-                lineHeight: 1, textTransform: 'uppercase', opacity: 0.9
-              }}>
-                CORPORATE
-              </Typography>
-              <Typography variant="caption" component="span" sx={{
-                fontSize: size === 'small' ? '0.6rem' : size === 'medium' ? '0.7rem' : '0.8rem',
-                fontWeight: 500, color: theme.palette.text.secondary, letterSpacing: '0.05em',
-                lineHeight: 1, opacity: 0.7, textTransform: 'capitalize'
-              }}>
-                Financial Management
-              </Typography>
-            </Box>
-          </MotionBox>
-        )}
       </Box>
     );
   }
@@ -268,25 +244,6 @@ const DrGroupLogo = ({
             >
               GROUP
             </Typography>
-            
-            {/* Subtítulo corporativo */}
-            {showSubtitle && (
-              <Typography
-                variant="caption"
-                component="span"
-                sx={{
-                  fontSize: currentSize.subtitleFont,
-                  fontWeight: 500,
-                  color: theme.palette.text.secondary,
-                  letterSpacing: '0.05em',
-                  lineHeight: 1,
-                  opacity: 0.7,
-                  textTransform: 'capitalize'
-                }}
-              >
-                Corporate Financial Management
-              </Typography>
-            )}
           </Box>
         )}
       </Box>

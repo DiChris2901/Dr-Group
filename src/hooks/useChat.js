@@ -24,9 +24,9 @@ import { useNotifications } from '../context/NotificationsContext';
 /**
  * Hook para manejar mensajes de una conversación específica
  * @param {string} conversationId - ID de la conversación
- * @param {number} messagesPerPage - Cantidad de mensajes por página (default: 50)
+ * @param {number} messagesPerPage - Cantidad de mensajes por página (default: 25)
  */
-export const useChatMessages = (conversationId, messagesPerPage = 50) => {
+export const useChatMessages = (conversationId, messagesPerPage = 25) => {
   const { currentUser } = useAuth();
   const { markConversationAsRead } = useChat();
   const { addNotification } = useNotifications();
@@ -45,8 +45,12 @@ export const useChatMessages = (conversationId, messagesPerPage = 50) => {
       return;
     }
 
+    // Resetear estado al cambiar de conversación
+    setMessages([]);
     setLoading(true);
     setError(null);
+    setHasMore(true);
+    setLastVisible(null);
 
     try {
       const messagesQuery = query(
@@ -59,17 +63,20 @@ export const useChatMessages = (conversationId, messagesPerPage = 50) => {
       const unsubscribe = onSnapshot(
         messagesQuery,
         (snapshot) => {
+          // ⚡ Optimización: Solo procesar cambios incrementales
+          if (snapshot.metadata.hasPendingWrites) {
+            // Ignorar cambios locales pendientes para evitar renders duplicados
+            return;
+          }
+
+          // 📊 Log de lecturas para monitoreo
+          console.log(`📨 Cargados ${snapshot.docs.length} mensajes (${snapshot.metadata.fromCache ? 'cache' : 'servidor'})`);
+
           const messagesData = snapshot.docs.map(docSnap => {
             const data = docSnap.data();
             
             // Manejar createdAt: si es null (serverTimestamp pendiente), usar Date.now()
-            let createdAt;
-            if (data.createdAt) {
-              createdAt = data.createdAt.toDate();
-            } else {
-              // Si serverTimestamp aún no se ha resuelto, usar timestamp actual
-              createdAt = new Date();
-            }
+            const createdAt = data.createdAt ? data.createdAt.toDate() : new Date();
 
             return {
               id: docSnap.id,
@@ -87,13 +94,16 @@ export const useChatMessages = (conversationId, messagesPerPage = 50) => {
             };
           });
 
-          setMessages(messagesData.reverse()); // Orden cronológico
+          // ✅ ORDEN: desc trae [msg25, msg24, ..., msg1], reverse para [msg1, ..., msg25]
+          setMessages(messagesData.reverse());
           setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
           setHasMore(snapshot.docs.length === messagesPerPage);
           setLoading(false);
 
-          // Marcar como leídos automáticamente
-          markConversationAsRead(conversationId);
+          // ⚡ Debounce: Marcar como leídos después de 500ms
+          setTimeout(() => {
+            markConversationAsRead(conversationId);
+          }, 500);
         },
         (err) => {
           console.error('❌ Error escuchando mensajes:', err);
@@ -128,6 +138,9 @@ export const useChatMessages = (conversationId, messagesPerPage = 50) => {
 
       const snapshot = await getDocs(moreMessagesQuery);
 
+      // 📊 Log de lecturas adicionales
+      console.log(`📨 Cargando ${snapshot.docs.length} mensajes antiguos más (${snapshot.metadata.fromCache ? 'cache' : 'servidor'})`);
+
       const moreMessagesData = snapshot.docs.map(docSnap => {
         const data = docSnap.data();
         
@@ -146,6 +159,7 @@ export const useChatMessages = (conversationId, messagesPerPage = 50) => {
         };
       });
 
+      // ✅ ORDEN: desc trae mensajes más antiguos, reverse y agregar al INICIO del array
       setMessages(prev => [...moreMessagesData.reverse(), ...prev]);
       setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
       setHasMore(snapshot.docs.length === messagesPerPage);

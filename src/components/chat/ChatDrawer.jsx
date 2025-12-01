@@ -106,6 +106,14 @@ const ChatDrawer = ({ open, onClose }) => {
     setShowCreateGroup(false);
     setActiveConversationId(groupId);
     setShowContacts(false);
+    setSelectedUserInfo(null); // ✅ Limpiar info de usuario al abrir grupo
+  };
+
+  // 👥 Manejar selección de grupo existente
+  const handleSelectGroup = (conversationId) => {
+    setActiveConversationId(conversationId);
+    setSelectedUserInfo(null); // ✅ Limpiar info de usuario al abrir grupo
+    setShowContacts(false);
   };
 
   // 🎨 Estado vacío cuando no hay contacto seleccionado
@@ -334,6 +342,7 @@ const ChatDrawer = ({ open, onClose }) => {
                 users={users}
                 selectedUserId={selectedUserId}
                 onSelectUser={handleSelectUser}
+                onSelectGroup={handleSelectGroup}
                 loading={loadingUsers}
               />
             </Box>

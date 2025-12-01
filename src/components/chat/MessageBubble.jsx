@@ -114,7 +114,7 @@ const renderTextWithMentions = (text, theme, isMentionedUser) => {
 /**
  * Burbuja de mensaje individual con diseño sobrio
  */
-const MessageBubble = ({ 
+const MessageBubble = React.memo(({ 
   message, 
   isOwnMessage,
   conversation, // Conversación para verificar cursor de lectura
@@ -124,7 +124,8 @@ const MessageBubble = ({
   onForward,
   onReact,
   onPin,
-  replyToMessage 
+  replyToMessage,
+  onScrollToMessage
 }) => {
   const theme = useTheme();
   const { conversations } = useChat();
@@ -399,9 +400,10 @@ const MessageBubble = ({
         )}
 
         {/* Mensaje citado (respuesta) */}
-        {message.replyTo && replyToMessage && (
+        {message.metadata?.replyTo && replyToMessage && (
           <Paper
             elevation={0}
+            onClick={() => onScrollToMessage?.(message.metadata.replyTo)}
             sx={{
               p: 1,
               mb: 0.5,
@@ -409,13 +411,47 @@ const MessageBubble = ({
               borderLeft: 3,
               borderColor: 'primary.main',
               borderRadius: 1,
-              maxWidth: '100%'
+              maxWidth: '100%',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                bgcolor: alpha('#000', 0.08),
+                transform: 'translateX(4px)'
+              }
             }}
           >
-            <Typography variant="caption" color="primary" fontWeight={600}>
-              {replyToMessage.senderName}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" noWrap>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
+              <Typography variant="caption" color="primary" fontWeight={600}>
+                {replyToMessage.senderName || 'Usuario'}
+              </Typography>
+              {conversation?.type === 'group' && replyToMessage.createdAt && (
+                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                  • {(() => {
+                    const date = replyToMessage.createdAt?.seconds 
+                      ? new Date(replyToMessage.createdAt.seconds * 1000)
+                      : new Date(replyToMessage.createdAt);
+                    return date.toLocaleString('es-ES', { 
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit', 
+                      minute: '2-digit'
+                    });
+                  })()}
+                </Typography>
+              )}
+            </Box>
+            <Typography 
+              variant="body2" 
+              color="text.secondary" 
+              sx={{ 
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical'
+              }}
+            >
               {replyToMessage.text || '📎 Archivo adjunto'}
             </Typography>
           </Paper>
@@ -1269,6 +1305,17 @@ const MessageBubble = ({
       />
     </Box>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison para evitar re-renders innecesarios
+  return (
+    prevProps.message.id === nextProps.message.id &&
+    prevProps.message.text === nextProps.message.text &&
+    prevProps.message.status?.read === nextProps.message.status?.read &&
+    prevProps.isOwnMessage === nextProps.isOwnMessage &&
+    JSON.stringify(prevProps.message.reactions) === JSON.stringify(nextProps.message.reactions)
+  );
+});
+
+MessageBubble.displayName = 'MessageBubble';
 
 export default MessageBubble;

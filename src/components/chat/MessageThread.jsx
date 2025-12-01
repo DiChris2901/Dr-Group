@@ -19,7 +19,11 @@ import {
   TextField,
   Tooltip,
   Checkbox,
-  FormControlLabel
+  FormControlLabel,
+  List,
+  ListItem,
+  ListItemAvatar,
+  ListItemText
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -37,11 +41,16 @@ import {
   Download as DownloadIcon,
   Image as ImageIcon,
   OpenInNew as OpenInNewIcon,
-  DeleteSweep as DeleteSweepIcon
+  DeleteSweep as DeleteSweepIcon,
+  Edit as EditIcon,
+  Groups as GroupsIcon,
+  Delete as DeleteIcon,
+  Check as CheckIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
-import { onSnapshot, doc, collection, query, where, getDocs, deleteDoc, writeBatch, updateDoc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { onSnapshot, doc, collection, query, where, getDocs, deleteDoc, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../../config/firebase';
 import { useChatMessages, useChatSearch } from '../../hooks/useChat';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
@@ -51,9 +60,9 @@ import MessageInput from './MessageInput';
 /**
  * Thread de mensajes de una conversación
  */
-const MessageThread = ({ conversationId, selectedUser, onBack }) => {
+const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
   const { currentUser } = useAuth();
-  const { getConversation, setActiveConversationId, togglePinMessage } = useChat();
+  const { getConversation, setActiveConversationId, togglePinMessage, updateGroupInfo } = useChat();
   const {
     messages,
     loading,
@@ -72,6 +81,8 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const previousMessagesLength = useRef(0);
+  const isInitialLoad = useRef(true);
   
   // ⌨️ C. Estado para indicador de "escribiendo..."
   const [otherUserTyping, setOtherUserTyping] = useState(false);
@@ -81,6 +92,9 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
 
   // 👤 Estado para diálogo de información de usuario
   const [userInfoDialogOpen, setUserInfoDialogOpen] = useState(false);
+
+  // 👥 Estado para diálogo de información del grupo
+  const [groupInfoDialogOpen, setGroupInfoDialogOpen] = useState(false);
 
   // 🔍 Estados para búsqueda
   const [searchOpen, setSearchOpen] = useState(false);
@@ -101,14 +115,92 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
   const [deleteConfirmChecked, setDeleteConfirmChecked] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // 🖼️ Estados para cambio de foto de grupo
+  const [uploadingGroupPhoto, setUploadingGroupPhoto] = useState(false);
+  const fileInputRef = useRef(null);
+
   // 👤 Handlers para el diálogo de usuario
   const handleAvatarClick = (e) => {
     e.stopPropagation();
-    setUserInfoDialogOpen(true);
+    if (isGroup) {
+      // Para grupos: abrir diálogo de información del grupo
+      setGroupInfoDialogOpen(true);
+    } else {
+      // Para usuarios: abrir diálogo de info
+      setUserInfoDialogOpen(true);
+    }
+  };
+
+  // 🖼️ Handler para cambio de foto de grupo
+  const handleGroupPhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !conversation) return;
+
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor selecciona una imagen válida');
+      return;
+    }
+
+    // Validar tamaño (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('La imagen no debe superar 5MB');
+      return;
+    }
+
+    setUploadingGroupPhoto(true);
+
+    try {
+      // Subir a Storage
+      const storageRef = ref(storage, `chat/groups/${conversationId}/${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const photoURL = await getDownloadURL(storageRef);
+
+      // Actualizar metadata del grupo
+      await updateGroupInfo(conversationId, { groupPhoto: photoURL });
+
+      console.log('✅ Foto de grupo actualizada');
+    } catch (err) {
+      console.error('❌ Error subiendo foto:', err);
+      alert('Error al subir la foto del grupo');
+    } finally {
+      setUploadingGroupPhoto(false);
+      e.target.value = ''; // Resetear input
+    }
+  };
+
+  // 🔤 Función para obtener iniciales del nombre
+  const getInitials = (name) => {
+    if (!name) return '?';
+    const words = name.trim().split(' ');
+    if (words.length === 1) {
+      return words[0].substring(0, 2).toUpperCase();
+    }
+    return (words[0][0] + words[1][0]).toUpperCase();
   };
 
   const handleCloseUserInfo = () => {
     setUserInfoDialogOpen(false);
+  };
+
+  const handleCloseGroupInfo = () => {
+    setGroupInfoDialogOpen(false);
+  };
+
+  // 🖼️ Handler para eliminar foto del grupo
+  const handleDeleteGroupPhoto = async () => {
+    if (!conversation || !window.confirm('¿Eliminar foto del grupo?')) return;
+
+    setUploadingGroupPhoto(true);
+    try {
+      await updateGroupInfo(conversationId, { groupPhoto: null });
+      console.log('✅ Foto de grupo eliminada');
+    } catch (err) {
+      console.error('❌ Error eliminando foto:', err);
+      alert('Error al eliminar la foto del grupo');
+    } finally {
+      setUploadingGroupPhoto(false);
+    }
   };
 
   // 🖼️ Handlers para visor de archivos
@@ -228,9 +320,16 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
 
   const conversation = getConversation(conversationId);
   
-  // Usar info del usuario seleccionado si está disponible
-  const displayName = selectedUser?.displayName || selectedUser?.name || 'Usuario';
-  const displayPhoto = selectedUser?.photoURL || selectedUser?.photo || null;
+  // ✅ FIX: Diferenciar entre grupos y conversaciones directas
+  const isGroup = conversation?.type === 'group';
+  
+  const displayName = isGroup 
+    ? (conversation?.metadata?.groupName || 'Grupo sin nombre')
+    : (selectedUser?.displayName || selectedUser?.name || 'Usuario');
+  
+  const displayPhoto = isGroup
+    ? (conversation?.metadata?.groupPhoto || null)
+    : (selectedUser?.photoURL || selectedUser?.photo || null);
 
   // 🔐 Verificar si el usuario puede eliminar la conversación
   const canDeleteConversation = () => {
@@ -277,12 +376,48 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
     return () => unsubscribe();
   }, [conversationId, currentUser?.uid]);
 
-  // Auto-scroll al final cuando hay nuevos mensajes
+  // 🔄 Resetear flag de carga inicial al cambiar de conversación
   useEffect(() => {
-    if (messages.length > 0 && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    isInitialLoad.current = true;
+    previousMessagesLength.current = 0;
+  }, [conversationId]);
+
+  // ✅ Auto-scroll INTELIGENTE: Solo al final cuando llegan mensajes NUEVOS
+  useEffect(() => {
+    if (messages.length === 0 || !messagesEndRef.current) return;
+
+    // 1️⃣ CARGA INICIAL: Scroll al final sin animación
+    if (isInitialLoad.current) {
+      isInitialLoad.current = false;
+      previousMessagesLength.current = messages.length;
+      messagesEndRef.current.scrollIntoView({ behavior: 'instant' });
+      return;
     }
-  }, [messages.length]);
+
+    // 2️⃣ MENSAJES NUEVOS: Solo scroll si aumentó la cantidad (no disminuyó por loadMore)
+    const messagesIncreased = messages.length > previousMessagesLength.current;
+    if (messagesIncreased) {
+      // Verificar si el nuevo mensaje es del usuario actual (scroll siempre)
+      // O si el usuario está cerca del final (scroll automático)
+      const lastMessage = messages[messages.length - 1];
+      const isMyMessage = lastMessage?.senderId === currentUser?.uid;
+      
+      if (isMyMessage) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        // Mensaje de otro usuario: solo hacer scroll si estamos cerca del final
+        if (messagesContainerRef.current) {
+          const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+          const isNearBottom = scrollHeight - scrollTop - clientHeight < 200;
+          if (isNearBottom) {
+            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+          }
+        }
+      }
+    }
+
+    previousMessagesLength.current = messages.length;
+  }, [messages, currentUser?.uid]);
 
   // ✅ OPTIMIZACIÓN: Marcar como leídos usando cursor (1 escritura en lugar de N)
   useEffect(() => {
@@ -331,10 +466,11 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
     );
   }
 
-  // Obtener info del otro participante (fallback a conversation si no hay selectedUser)
-  const otherUserId = conversation?.participantIds?.find(id => id !== currentUser?.uid);
-  const otherParticipantName = displayName || conversation?.participantNames?.[otherUserId] || 'Usuario';
-  const otherParticipantPhoto = displayPhoto || conversation?.participantPhotos?.[otherUserId] || null;
+  // Obtener info del otro participante (ya procesado en displayName y displayPhoto)
+  // ✅ Para grupos: displayName/displayPhoto son del grupo (metadata)
+  // ✅ Para DM: displayName/displayPhoto son del otro usuario (selectedUser)
+  const otherParticipantName = displayName;
+  const otherParticipantPhoto = displayPhoto;
 
   const theme = useTheme();
 
@@ -380,39 +516,97 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
         )}
 
         {/* Avatar y nombre */}
-        <Avatar
-          src={otherParticipantPhoto}
-          alt={otherParticipantName}
-          onClick={handleAvatarClick}
-          sx={{ 
-            width: 44, 
-            height: 44, 
-            border: 2,
-            borderColor: alpha('#667eea', 0.3),
-            background: !otherParticipantPhoto
-              ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
-              : undefined,
-            boxShadow: '0 2px 12px rgba(102, 126, 234, 0.2)',
-            cursor: 'pointer',
-            transition: 'all 0.3s ease',
-            '&:hover': {
-              transform: 'scale(1.15) rotate(-5deg)',
-              borderColor: 'primary.main',
-              boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)'
-            }
-          }}
-        >
-          {!otherParticipantPhoto && <PersonIcon />}
-        </Avatar>
+        <Box sx={{ position: 'relative' }}>
+          <Avatar
+            src={otherParticipantPhoto}
+            alt={otherParticipantName}
+            onClick={handleAvatarClick}
+            sx={{ 
+              width: 44, 
+              height: 44, 
+              border: 2,
+              borderColor: alpha('#667eea', 0.3),
+              background: !otherParticipantPhoto
+                ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
+                : undefined,
+              boxShadow: '0 2px 12px rgba(102, 126, 234, 0.2)',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              fontSize: '1.1rem',
+              fontWeight: 700,
+              '&:hover': {
+                transform: 'scale(1.15) rotate(-5deg)',
+                borderColor: 'primary.main',
+                boxShadow: '0 6px 20px rgba(102, 126, 234, 0.4)'
+              }
+            }}
+          >
+            {!otherParticipantPhoto && (
+              isGroup ? getInitials(displayName) : <PersonIcon />
+            )}
+          </Avatar>
+          {/* Indicador de carga al subir foto */}
+          {uploadingGroupPhoto && (
+            <CircularProgress
+              size={44}
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                zIndex: 1
+              }}
+            />
+          )}
+          {/* Ícono de edición para grupos (hover) */}
+          {isGroup && (
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: -2,
+                right: -2,
+                bgcolor: 'primary.main',
+                borderRadius: '50%',
+                width: 18,
+                height: 18,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                opacity: 0.9,
+                pointerEvents: 'none'
+              }}
+            >
+              <EditIcon sx={{ fontSize: 11, color: 'white' }} />
+            </Box>
+          )}
+        </Box>
+        {/* Input oculto para subir foto de grupo */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleGroupPhotoChange}
+          style={{ display: 'none' }}
+        />
 
-        <Box flexGrow={1}>
+        <Box 
+          flexGrow={1}
+          onClick={isGroup ? handleAvatarClick : undefined}
+          sx={isGroup ? {
+            cursor: 'pointer',
+            '&:hover': {
+              opacity: 0.8
+            },
+            transition: 'opacity 0.2s ease'
+          } : {}}
+        >
           {!searchOpen ? (
             <>
               <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.25 }}>
                 {otherParticipantName}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                💬 {messages.length} {messages.length === 1 ? 'mensaje' : 'mensajes'}
+                {isGroup ? `👥 ${conversation?.participantIds?.length || 0} miembros` : `💬 ${messages.length} ${messages.length === 1 ? 'mensaje' : 'mensajes'}`}
               </Typography>
             </>
           ) : (
@@ -638,17 +832,45 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
           </Box>
         ) : (
           <>
+            {/* Indicador de mensajes recientes */}
+            {!hasMore && messages.length > 0 && (
+              <Box display="flex" justifyContent="center" py={2}>
+                <Chip
+                  label="Inicio de la conversación"
+                  size="small"
+                  icon={<CheckIcon />}
+                  sx={{
+                    bgcolor: alpha(theme.palette.success.main, 0.1),
+                    color: 'success.main',
+                    fontWeight: 500,
+                    fontSize: '0.7rem'
+                  }}
+                />
+              </Box>
+            )}
+
             {/* Botón cargar más mensajes */}
             {hasMore && (
               <Box display="flex" justifyContent="center" py={2}>
-                <Typography
-                  variant="caption"
-                  color="primary"
-                  sx={{ cursor: 'pointer', textDecoration: 'underline' }}
+                <Button
+                  variant="outlined"
+                  size="small"
                   onClick={loadMoreMessages}
+                  disabled={loading}
+                  startIcon={loading ? <CircularProgress size={16} /> : null}
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 500,
+                    borderColor: alpha(theme.palette.primary.main, 0.3),
+                    '&:hover': {
+                      borderColor: 'primary.main',
+                      bgcolor: alpha(theme.palette.primary.main, 0.05)
+                    }
+                  }}
                 >
-                  Cargar mensajes anteriores
-                </Typography>
+                  {loading ? 'Cargando...' : `Cargar mensajes anteriores (${messages.length} mostrados)`}
+                </Button>
               </Box>
             )}
 
@@ -710,6 +932,10 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
                         ? messages.find(m => m.id === message.metadata.replyTo)
                         : null
                     }
+                    onScrollToMessage={(messageId) => {
+                      const element = document.getElementById(`message-${messageId}`);
+                      element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }}
                     />
                   </Box>
                 </React.Fragment>
@@ -1016,6 +1242,245 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
           <Button
             variant="contained"
             onClick={handleCloseUserInfo}
+            fullWidth
+            sx={{ boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)' }}
+          >
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 👥 Diálogo de información del grupo */}
+      <Dialog
+        open={groupInfoDialogOpen}
+        onClose={handleCloseGroupInfo}
+        maxWidth="sm"
+        fullWidth
+        sx={{
+          '& .MuiDialog-container': {
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            pr: { xs: 0, md: 8 }
+          }
+        }}
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            border: 1,
+            borderColor: alpha('#000', 0.08),
+            m: { xs: 2, md: 0 }
+          }
+        }}
+      >
+        <DialogTitle sx={{ p: 0 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              p: 2,
+              bgcolor: alpha('#667eea', 0.04),
+              borderBottom: 1,
+              borderColor: alpha(theme.palette.divider, 0.08)
+            }}
+          >
+            <Typography variant="body1" fontWeight={600} fontSize="1.1rem">
+              Información del Grupo
+            </Typography>
+            <IconButton size="small" onClick={handleCloseGroupInfo}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 0 }}>
+          {conversation && (
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              {/* Avatar del Grupo con controles */}
+              <Box sx={{ position: 'relative', my: 3 }}>
+                <Avatar
+                  src={conversation.metadata?.groupPhoto || null}
+                  sx={{
+                    width: 120,
+                    height: 120,
+                    border: 3,
+                    borderColor: 'primary.main',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                    background: !conversation.metadata?.groupPhoto
+                      ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
+                      : undefined,
+                    fontSize: '2.5rem',
+                    fontWeight: 700
+                  }}
+                >
+                  {!conversation.metadata?.groupPhoto && (
+                    <GroupsIcon sx={{ fontSize: 60 }} />
+                  )}
+                </Avatar>
+
+                {/* Loader al subir foto */}
+                {uploadingGroupPhoto && (
+                  <CircularProgress
+                    size={120}
+                    sx={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      zIndex: 1
+                    }}
+                  />
+                )}
+
+                {/* Botones de acción sobre la foto */}
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    bottom: 0,
+                    right: 0,
+                    display: 'flex',
+                    gap: 0.5
+                  }}
+                >
+                  {/* Botón para cambiar/agregar foto */}
+                  <Tooltip title={conversation.metadata?.groupPhoto ? "Cambiar foto" : "Agregar foto"}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingGroupPhoto}
+                        sx={{
+                          bgcolor: 'primary.main',
+                          color: 'white',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                          '&:hover': {
+                            bgcolor: 'primary.dark',
+                            transform: 'scale(1.1)'
+                          },
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        <PhotoIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+
+                  {/* Botón para eliminar foto (solo si existe) */}
+                  {conversation.metadata?.groupPhoto && (
+                    <Tooltip title="Eliminar foto">
+                      <span>
+                        <IconButton
+                          size="small"
+                          onClick={handleDeleteGroupPhoto}
+                          disabled={uploadingGroupPhoto}
+                          sx={{
+                            bgcolor: 'error.main',
+                            color: 'white',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                            '&:hover': {
+                              bgcolor: 'error.dark',
+                              transform: 'scale(1.1)'
+                            },
+                            transition: 'all 0.3s ease'
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  )}
+                </Box>
+              </Box>
+
+              {/* Nombre del Grupo */}
+              <Typography variant="h5" fontWeight={600} gutterBottom sx={{ px: 3 }}>
+                {conversation.metadata?.groupName || 'Grupo sin nombre'}
+              </Typography>
+
+              {/* Cantidad de miembros */}
+              <Chip
+                icon={<GroupsIcon />}
+                label={`${conversation.participantIds?.length || 0} miembros`}
+                color="primary"
+                variant="outlined"
+                sx={{ mb: 3 }}
+              />
+
+              <Divider sx={{ width: '100%', mb: 2 }} />
+
+              {/* Lista de Participantes */}
+              <Box sx={{ width: '100%', px: 3, pb: 3 }}>
+                <Typography
+                  variant="overline"
+                  color="text.secondary"
+                  sx={{
+                    display: 'block',
+                    mb: 1.5,
+                    fontWeight: 600,
+                    letterSpacing: 1
+                  }}
+                >
+                  Participantes
+                </Typography>
+
+                <List sx={{ p: 0 }}>
+                  {conversation.participantIds?.map((participantId, index) => {
+                    const participantName = conversation.participantNames?.[participantId] || 'Usuario';
+                    const participantPhoto = conversation.participantPhotos?.[participantId] || null;
+                    const isAdmin = conversation.metadata?.admins?.includes(participantId);
+                    const isCurrentUser = participantId === currentUser?.uid;
+
+                    return (
+                      <ListItem
+                        key={participantId}
+                        sx={{
+                          px: 0,
+                          py: 1,
+                          borderBottom: index < conversation.participantIds.length - 1 ? 1 : 0,
+                          borderColor: alpha('#000', 0.05)
+                        }}
+                      >
+                        <ListItemAvatar>
+                          <Avatar
+                            src={participantPhoto}
+                            sx={{
+                              width: 40,
+                              height: 40,
+                              background: !participantPhoto
+                                ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
+                                : undefined
+                            }}
+                          >
+                            {!participantPhoto && <PersonIcon />}
+                          </Avatar>
+                        </ListItemAvatar>
+                        <ListItemText
+                          primary={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="body2" fontWeight={500}>
+                                {participantName}
+                              </Typography>
+                              {isCurrentUser && (
+                                <Chip label="Tú" size="small" color="primary" sx={{ height: 20, fontSize: '0.7rem' }} />
+                              )}
+                              {isAdmin && (
+                                <Chip label="Admin" size="small" color="error" sx={{ height: 20, fontSize: '0.7rem' }} />
+                              )}
+                            </Box>
+                          }
+                        />
+                      </ListItem>
+                    );
+                  })}
+                </List>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2.5, pt: 1 }}>
+          <Button
+            variant="contained"
+            onClick={handleCloseGroupInfo}
             fullWidth
             sx={{ boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)' }}
           >
@@ -1571,6 +2036,8 @@ const MessageThread = ({ conversationId, selectedUser, onBack }) => {
       </Dialog>
     </Box>
   );
-};
+});
+
+MessageThread.displayName = 'MessageThread';
 
 export default MessageThread;

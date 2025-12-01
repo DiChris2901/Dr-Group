@@ -1,7 +1,7 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import { auth, db } from '../config/firebase';
-import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { auth, db } from '../config/firebase';
 
 const SettingsContext = createContext();
 
@@ -27,7 +27,7 @@ const defaultSettings = {
     backgroundType: 'gradient', // 'solid' | 'gradient' | 'pattern'
     backgroundPreset: 'modern-blue', // Preset de fondo seleccionado
     compactMode: true, // Modo compacto global habilitado por defecto
-    animations: false, // ⚡ MODO EMPRESARIAL: Animaciones deshabilitadas por defecto para máximo rendimiento
+    animations: true, // ⚡ MODO EMPRESARIAL: Animaciones habilitadas por defecto para mejor experiencia
   },
 
   // Configuración del Sidebar
@@ -844,4 +844,4 @@ const SettingsProvider = ({ children }) => {
 };
 
 export default SettingsProvider;
-export { useSettings, backgroundPresets };
+export { backgroundPresets, useSettings };

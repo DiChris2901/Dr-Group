@@ -560,20 +560,25 @@ export const ChatProvider = ({ children }) => {
         throw new Error('Solo se puede actualizar info de grupos');
       }
 
-      // Verificar que el usuario actual es admin
-      const admins = conversationData.metadata?.admins || [];
-      if (!admins.includes(currentUser.uid)) {
-        throw new Error('Solo los administradores pueden actualizar el grupo');
+      // Verificar que el usuario actual es participante del grupo
+      if (!conversationData.participantIds?.includes(currentUser.uid)) {
+        throw new Error('Solo los participantes pueden actualizar el grupo');
       }
 
       const updateData = {
         updatedAt: serverTimestamp()
       };
 
+      // Solo admins pueden cambiar el nombre del grupo
       if (updates.groupName) {
+        const admins = conversationData.metadata?.admins || [];
+        if (!admins.includes(currentUser.uid)) {
+          throw new Error('Solo los administradores pueden cambiar el nombre del grupo');
+        }
         updateData['metadata.groupName'] = updates.groupName.trim();
       }
 
+      // Cualquier participante puede cambiar la foto del grupo
       if (updates.groupPhoto !== undefined) {
         updateData['metadata.groupPhoto'] = updates.groupPhoto;
       }

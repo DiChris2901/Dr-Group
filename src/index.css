@@ -80,19 +80,7 @@ html, body {
   transition: border-color 0.2s ease !important;
 }
 
-/* Disable todas las animaciones complejas */
-.MuiCollapse-root,
-.MuiSlide-root,
-.MuiFade-root {
-  transition: none !important;
-}
-
-/* Disable framer-motion animations globalmente */
-[data-framer-motion] {
-  transform: none !important;
-  opacity: 1 !important;
-  transition: none !important;
-}
+/* Animations enabled for dynamic design */
 
 .MuiDrawer-root .MuiDrawer-paper {
   position: fixed !important;

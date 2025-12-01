@@ -46,6 +46,7 @@ const ContactsList = ({
   users = [], 
   selectedUserId, 
   onSelectUser,
+  onSelectGroup, // ✅ Nuevo callback para selección de grupos
   loading = false 
 }) => {
   const theme = useTheme();
@@ -169,8 +170,23 @@ const ContactsList = ({
 
   // Manejar click en grupo
   const handleSelectGroup = (conversationId) => {
-    setActiveConversationId(conversationId);
-    // No usamos onSelectUser para grupos, solo activamos la conversación
+    // ✅ Usar callback del padre si está disponible (limpia selectedUserInfo)
+    if (onSelectGroup) {
+      onSelectGroup(conversationId);
+    } else {
+      // Fallback: solo activar conversación sin limpiar estado del padre
+      setActiveConversationId(conversationId);
+    }
+  };
+
+  // 🔤 Función para obtener iniciales del nombre del grupo
+  const getGroupInitials = (name) => {
+    if (!name) return '?';
+    const words = name.trim().split(' ');
+    if (words.length === 1) {
+      return words[0].substring(0, 2).toUpperCase();
+    }
+    return (words[0][0] + words[1][0]).toUpperCase();
   };
 
   // Color del rol según el tipo
@@ -340,39 +356,21 @@ const ContactsList = ({
                               }}
                             >
                               <ListItemAvatar>
-                                {/* Avatares Apilados de Participantes */}
-                                <Box
+                                {/* ✅ Avatar único del grupo con foto o iniciales */}
+                                <Avatar
+                                  src={group.metadata?.groupPhoto || null}
                                   sx={{
-                                    position: 'relative',
                                     width: 48,
                                     height: 48,
-                                    mr: 2
+                                    background: !group.metadata?.groupPhoto
+                                      ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
+                                      : undefined,
+                                    fontSize: '1.1rem',
+                                    fontWeight: 700
                                   }}
                                 >
-                                  {group.participantPhotos?.slice(0, 2).map((photo, idx) => (
-                                    <Avatar
-                                      key={idx}
-                                      src={photo}
-                                      sx={{
-                                        position: 'absolute',
-                                        top: 0,
-                                        right: 0,
-                                        width: 32,
-                                        height: 32,
-                                        border: '2px solid white',
-                                        zIndex: idx === 0 ? 1 : 0,
-                                        ...(idx === 1 && {
-                                          bottom: 0,
-                                          left: 0,
-                                          top: 'auto',
-                                          right: 'auto'
-                                        })
-                                      }}
-                                    >
-                                      {groupName[idx]?.toUpperCase() || 'G'}
-                                    </Avatar>
-                                  ))}
-                                </Box>
+                                  {!group.metadata?.groupPhoto && getGroupInitials(groupName)}
+                                </Avatar>
                               </ListItemAvatar>
 
                               <ListItemText
