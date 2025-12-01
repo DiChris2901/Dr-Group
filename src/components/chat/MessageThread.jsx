@@ -23,7 +23,9 @@ import {
   List,
   ListItem,
   ListItemAvatar,
-  ListItemText
+  ListItemText,
+  Switch,
+  Collapse
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -45,7 +47,18 @@ import {
   Edit as EditIcon,
   Groups as GroupsIcon,
   Delete as DeleteIcon,
-  Check as CheckIcon
+  Check as CheckIcon,
+  Chat as ChatIcon,
+  AttachFile as AttachFileIcon,
+  Mic as MicIcon,
+  Schedule as ScheduleIcon,
+  CalendarToday as CalendarIcon,
+  ExitToApp as ExitToAppIcon,
+  PersonAdd as PersonAddIcon,
+  Settings as SettingsIcon,
+  NotificationsOff as NotificationsOffIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { onSnapshot, doc, collection, query, where, getDocs, deleteDoc, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
@@ -54,15 +67,25 @@ import { db, storage } from '../../config/firebase';
 import { useChatMessages, useChatSearch } from '../../hooks/useChat';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
+import { useChatStats } from '../../hooks/useChatStats';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
+import { formatDistanceToNow, format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 /**
  * Thread de mensajes de una conversación
  */
 const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
   const { currentUser } = useAuth();
-  const { getConversation, setActiveConversationId, togglePinMessage, updateGroupInfo } = useChat();
+  const { 
+    getConversation, 
+    setActiveConversationId, 
+    togglePinMessage, 
+    updateGroupInfo, 
+    leaveGroup, 
+    deleteConversation 
+  } = useChat();
   const {
     messages,
     loading,
@@ -84,6 +107,9 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
   const previousMessagesLength = useRef(0);
   const isInitialLoad = useRef(true);
   
+  // 📊 Hook de estadísticas del chat
+  const stats = useChatStats(conversationId);
+  
   // ⌨️ C. Estado para indicador de "escribiendo..."
   const [otherUserTyping, setOtherUserTyping] = useState(false);
 
@@ -95,6 +121,9 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
 
   // 👥 Estado para diálogo de información del grupo
   const [groupInfoDialogOpen, setGroupInfoDialogOpen] = useState(false);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [groupDescription, setGroupDescription] = useState('');
+  const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
 
   // 🔍 Estados para búsqueda
   const [searchOpen, setSearchOpen] = useState(false);
@@ -185,6 +214,64 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
 
   const handleCloseGroupInfo = () => {
     setGroupInfoDialogOpen(false);
+    setEditingDescription(false);
+    setAdvancedSettingsOpen(false);
+  };
+
+  // 📝 Handler para guardar descripción del grupo
+  const handleSaveDescription = async () => {
+    try {
+      await updateGroupInfo(conversationId, { description: groupDescription });
+      setEditingDescription(false);
+    } catch (err) {
+      console.error('❌ Error guardando descripción:', err);
+    }
+  };
+
+  // 🚪 Handler para abandonar grupo
+  const handleLeaveGroup = async () => {
+    const isCreator = conversation?.metadata?.createdBy === currentUser?.uid;
+    
+    if (isCreator && conversation.participantIds?.length > 1) {
+      alert('Como creador del grupo, debes eliminar el grupo o transferir la propiedad antes de abandonarlo.');
+      return;
+    }
+
+    if (!window.confirm('¿Estás seguro de que deseas abandonar este grupo?')) return;
+
+    try {
+      await leaveGroup(conversationId);
+      handleCloseGroupInfo();
+      if (onBack) onBack();
+    } catch (err) {
+      console.error('❌ Error abandonando grupo:', err);
+    }
+  };
+
+  // 🗑️ Handler para eliminar conversación DM
+  const handleDeleteDM = async () => {
+    if (!window.confirm('¿Eliminar esta conversación? Se borrará todo el historial de mensajes.')) return;
+
+    try {
+      await deleteConversation(conversationId);
+      handleCloseUserInfo();
+      if (onBack) onBack();
+    } catch (err) {
+      console.error('❌ Error eliminando conversación:', err);
+    }
+  };
+
+  // ⚙️ Handler para cambiar configuraciones del grupo
+  const handleToggleSetting = async (setting, value) => {
+    try {
+      await updateGroupInfo(conversationId, {
+        settings: {
+          [setting]: value
+        }
+      });
+    } catch (err) {
+      console.error('❌ Error actualizando configuración:', err);
+    }
   };
 
   // 🖼️ Handler para eliminar foto del grupo
@@ -330,6 +417,13 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
   const displayPhoto = isGroup
     ? (conversation?.metadata?.groupPhoto || null)
     : (selectedUser?.photoURL || selectedUser?.photo || null);
+
+  // 📝 Cargar descripción del grupo cuando se abre el modal
+  useEffect(() => {
+    if (groupInfoDialogOpen && conversation?.metadata?.description) {
+      setGroupDescription(conversation.metadata.description);
+    }
+  }, [groupInfoDialogOpen, conversation?.metadata?.description]);
 
   // 🔐 Verificar si el usuario puede eliminar la conversación
   const canDeleteConversation = () => {
@@ -1110,25 +1204,145 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
                 {selectedUser.displayName || selectedUser.name || displayName}
               </Typography>
 
-              {/* Rol */}
-              {selectedUser.role && (
-                <Chip
-                  label={
-                    selectedUser.role === 'ADMIN' ? 'Admin' :
-                    selectedUser.role === 'GERENTE' ? 'Gerente' :
-                    selectedUser.role === 'CONTADOR' ? 'Contador' :
-                    selectedUser.role === 'VISUALIZADOR' ? 'Visualizador' :
-                    selectedUser.role
-                  }
-                  color={
-                    selectedUser.role === 'ADMIN' ? 'error' :
-                    selectedUser.role === 'GERENTE' ? 'warning' :
-                    selectedUser.role === 'CONTADOR' ? 'info' :
-                    'default'
-                  }
-                  sx={{ mb: 3 }}
-                />
+              {/* Rol y Cargo */}
+              <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
+                {selectedUser.role && (
+                  <Chip
+                    label={
+                      selectedUser.role === 'ADMIN' ? 'Admin' :
+                      selectedUser.role === 'GERENTE' ? 'Gerente' :
+                      selectedUser.role === 'CONTADOR' ? 'Contador' :
+                      selectedUser.role === 'VISUALIZADOR' ? 'Visualizador' :
+                      selectedUser.role
+                    }
+                    color={
+                      selectedUser.role === 'ADMIN' ? 'error' :
+                      selectedUser.role === 'GERENTE' ? 'warning' :
+                      selectedUser.role === 'CONTADOR' ? 'info' :
+                      'default'
+                    }
+                    size="small"
+                  />
+                )}
+                {selectedUser.position && (
+                  <Chip
+                    label={selectedUser.position}
+                    size="small"
+                    variant="outlined"
+                  />
+                )}
+              </Box>
+
+              <Divider sx={{ width: '100%', mb: 3 }} />
+
+              {/* 📊 Estadísticas del Chat */}
+              {!stats.loading && (
+                <Box sx={{ width: '100%', mb: 3 }}>
+                  <Typography
+                    variant="overline"
+                    color="text.secondary"
+                    sx={{
+                      display: 'block',
+                      mb: 1.5,
+                      fontWeight: 600,
+                      letterSpacing: 1
+                    }}
+                  >
+                    Estadísticas de la Conversación
+                  </Typography>
+
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        bgcolor: alpha(theme.palette.primary.main, 0.05),
+                        borderRadius: 1,
+                        border: 1,
+                        borderColor: alpha(theme.palette.primary.main, 0.2),
+                        textAlign: 'center'
+                      }}
+                    >
+                      <ChatIcon sx={{ fontSize: 20, color: 'primary.main', mb: 0.5 }} />
+                      <Typography variant="h6" fontWeight={700}>
+                        {stats.totalMessages}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Mensajes
+                      </Typography>
+                    </Box>
+
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        bgcolor: alpha(theme.palette.secondary.main, 0.05),
+                        borderRadius: 1,
+                        border: 1,
+                        borderColor: alpha(theme.palette.secondary.main, 0.2),
+                        textAlign: 'center'
+                      }}
+                    >
+                      <AttachFileIcon sx={{ fontSize: 20, color: 'secondary.main', mb: 0.5 }} />
+                      <Typography variant="h6" fontWeight={700}>
+                        {stats.totalFiles}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Archivos
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {stats.firstMessageDate && (
+                    <Box sx={{ mt: 2 }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 1,
+                          p: 1.5,
+                          bgcolor: alpha('#000', 0.02),
+                          borderRadius: 1
+                        }}
+                      >
+                        <CalendarIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            En contacto desde
+                          </Typography>
+                          <Typography variant="body2" fontWeight={500}>
+                            {format(stats.firstMessageDate, "dd 'de' MMMM 'de' yyyy", { locale: es })}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      {stats.lastActivityDate && (
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            p: 1.5,
+                            bgcolor: alpha('#000', 0.02),
+                            borderRadius: 1,
+                            mt: 1
+                          }}
+                        >
+                          <ScheduleIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                          <Box>
+                            <Typography variant="caption" color="text.secondary">
+                              Última actividad
+                            </Typography>
+                            <Typography variant="body2" fontWeight={500}>
+                              {formatDistanceToNow(stats.lastActivityDate, { addSuffix: true, locale: es })}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+                  )}
+                </Box>
               )}
+
+              <Divider sx={{ width: '100%', mb: 3 }} />
 
               {/* Información adicional */}
               <Box sx={{ width: '100%' }}>
@@ -1238,12 +1452,67 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
           )}
         </DialogContent>
 
-        <DialogActions sx={{ p: 2.5, pt: 1 }}>
+        <DialogActions sx={{ p: 2.5, pt: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {/* Botones de acción principales */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, width: '100%' }}>
+            <Button
+              variant="outlined"
+              startIcon={<AttachFileIcon />}
+              onClick={() => {
+                handleCloseUserInfo();
+                setGalleryOpen(true);
+              }}
+              fullWidth
+              sx={{ borderRadius: 1 }}
+            >
+              Archivos
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<SearchIcon />}
+              onClick={() => {
+                handleCloseUserInfo();
+                setSearchOpen(true);
+              }}
+              fullWidth
+              sx={{ borderRadius: 1 }}
+            >
+              Buscar
+            </Button>
+          </Box>
+
+          {/* Botones secundarios */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, width: '100%' }}>
+            <Button
+              variant="outlined"
+              startIcon={<NotificationsOffIcon />}
+              onClick={() => {
+                // TODO: Implementar silenciar notificaciones
+                alert('Función de silenciar en desarrollo');
+              }}
+              fullWidth
+              sx={{ borderRadius: 1 }}
+            >
+              Silenciar
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={handleDeleteDM}
+              fullWidth
+              sx={{ borderRadius: 1 }}
+            >
+              Eliminar
+            </Button>
+          </Box>
+
+          {/* Botón cerrar */}
           <Button
             variant="contained"
             onClick={handleCloseUserInfo}
             fullWidth
-            sx={{ boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)' }}
+            sx={{ boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)', mt: 1 }}
           >
             Cerrar
           </Button>
@@ -1392,9 +1661,26 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
               </Box>
 
               {/* Nombre del Grupo */}
-              <Typography variant="h5" fontWeight={600} gutterBottom sx={{ px: 3 }}>
+              <Typography variant="h5" fontWeight={600} gutterBottom sx={{ px: 3, textAlign: 'center' }}>
                 {conversation.metadata?.groupName || 'Grupo sin nombre'}
               </Typography>
+
+              {/* Información del creador y fecha */}
+              {conversation.metadata?.createdBy && (
+                <Box sx={{ px: 3, mb: 2, textAlign: 'center' }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Creado por{' '}
+                    <Typography component="span" variant="caption" fontWeight={600}>
+                      {conversation.participantNames?.[conversation.metadata.createdBy] || 'Usuario'}
+                    </Typography>
+                  </Typography>
+                  {conversation.createdAt && (
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      {format(new Date(conversation.createdAt), "dd 'de' MMMM 'de' yyyy", { locale: es })}
+                    </Typography>
+                  )}
+                </Box>
+              )}
 
               {/* Cantidad de miembros */}
               <Chip
@@ -1402,8 +1688,191 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
                 label={`${conversation.participantIds?.length || 0} miembros`}
                 color="primary"
                 variant="outlined"
-                sx={{ mb: 3 }}
+                sx={{ mb: 2 }}
               />
+
+              <Divider sx={{ width: '100%', mb: 2 }} />
+
+              {/* 📝 Descripción del Grupo */}
+              <Box sx={{ width: '100%', px: 3, mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography
+                    variant="overline"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600, letterSpacing: 1 }}
+                  >
+                    Descripción
+                  </Typography>
+                  {conversation.metadata?.admins?.includes(currentUser?.uid) && !editingDescription && (
+                    <IconButton size="small" onClick={() => setEditingDescription(true)}>
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
+
+                {editingDescription ? (
+                  <Box>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={3}
+                      value={groupDescription}
+                      onChange={(e) => setGroupDescription(e.target.value)}
+                      placeholder="Describe el propósito del grupo..."
+                      variant="outlined"
+                      sx={{ mb: 1 }}
+                    />
+                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                      <Button size="small" onClick={() => setEditingDescription(false)}>
+                        Cancelar
+                      </Button>
+                      <Button size="small" variant="contained" onClick={handleSaveDescription}>
+                        Guardar
+                      </Button>
+                    </Box>
+                  </Box>
+                ) : (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      p: 2,
+                      bgcolor: alpha('#000', 0.02),
+                      borderRadius: 1,
+                      fontStyle: conversation.metadata?.description ? 'normal' : 'italic'
+                    }}
+                  >
+                    {conversation.metadata?.description || 'Sin descripción'}
+                  </Typography>
+                )}
+              </Box>
+
+              <Divider sx={{ width: '100%', mb: 2 }} />
+
+              {/* 📊 Estadísticas del Grupo */}
+              {!stats.loading && (
+                <Box sx={{ width: '100%', px: 3, mb: 3 }}>
+                  <Typography
+                    variant="overline"
+                    color="text.secondary"
+                    sx={{ display: 'block', mb: 1.5, fontWeight: 600, letterSpacing: 1 }}
+                  >
+                    Estadísticas del Grupo
+                  </Typography>
+
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, mb: 2 }}>
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        bgcolor: alpha(theme.palette.primary.main, 0.05),
+                        borderRadius: 1,
+                        border: 1,
+                        borderColor: alpha(theme.palette.primary.main, 0.2),
+                        textAlign: 'center'
+                      }}
+                    >
+                      <ChatIcon sx={{ fontSize: 20, color: 'primary.main', mb: 0.5 }} />
+                      <Typography variant="h6" fontWeight={700}>
+                        {stats.totalMessages}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                        Mensajes
+                      </Typography>
+                    </Box>
+
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        bgcolor: alpha(theme.palette.secondary.main, 0.05),
+                        borderRadius: 1,
+                        border: 1,
+                        borderColor: alpha(theme.palette.secondary.main, 0.2),
+                        textAlign: 'center'
+                      }}
+                    >
+                      <AttachFileIcon sx={{ fontSize: 20, color: 'secondary.main', mb: 0.5 }} />
+                      <Typography variant="h6" fontWeight={700}>
+                        {stats.totalFiles}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                        Archivos
+                      </Typography>
+                    </Box>
+
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        bgcolor: alpha(theme.palette.info.main, 0.05),
+                        borderRadius: 1,
+                        border: 1,
+                        borderColor: alpha(theme.palette.info.main, 0.2),
+                        textAlign: 'center'
+                      }}
+                    >
+                      <MicIcon sx={{ fontSize: 20, color: 'info.main', mb: 0.5 }} />
+                      <Typography variant="h6" fontWeight={700}>
+                        {stats.totalAudios}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
+                        Audios
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {/* Usuario más activo */}
+                  {stats.mostActiveUser && (
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        bgcolor: alpha(theme.palette.success.main, 0.05),
+                        borderRadius: 1,
+                        border: 1,
+                        borderColor: alpha(theme.palette.success.main, 0.2)
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <PersonIcon sx={{ fontSize: 18, color: 'success.main' }} />
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            Miembro más activo
+                          </Typography>
+                          <Typography variant="body2" fontWeight={600}>
+                            {conversation.participantNames?.[stats.mostActiveUser.userId] || 'Usuario'}{' '}
+                            <Typography component="span" variant="caption" color="text.secondary">
+                              ({stats.mostActiveUser.messageCount} mensajes)
+                            </Typography>
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+                  )}
+
+                  {/* Última actividad */}
+                  {stats.lastActivityDate && (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        p: 1.5,
+                        bgcolor: alpha('#000', 0.02),
+                        borderRadius: 1,
+                        mt: 1
+                      }}
+                    >
+                      <ScheduleIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                      <Box>
+                        <Typography variant="caption" color="text.secondary">
+                          Última actividad
+                        </Typography>
+                        <Typography variant="body2" fontWeight={500}>
+                          {formatDistanceToNow(stats.lastActivityDate, { addSuffix: true, locale: es })}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
+              )}
 
               <Divider sx={{ width: '100%', mb: 2 }} />
 
@@ -1473,16 +1942,177 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
                   })}
                 </List>
               </Box>
+
+              {/* ⚙️ Configuraciones Avanzadas (Solo Admins) */}
+              {conversation.metadata?.admins?.includes(currentUser?.uid) && (
+                <Box sx={{ width: '100%', px: 3, pb: 2 }}>
+                  <Divider sx={{ mb: 2 }} />
+                  
+                  <Box
+                    onClick={() => setAdvancedSettingsOpen(!advancedSettingsOpen)}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: 'pointer',
+                      p: 1.5,
+                      bgcolor: alpha(theme.palette.warning.main, 0.05),
+                      borderRadius: 1,
+                      border: 1,
+                      borderColor: alpha(theme.palette.warning.main, 0.2),
+                      '&:hover': {
+                        bgcolor: alpha(theme.palette.warning.main, 0.08)
+                      }
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <SettingsIcon sx={{ color: 'warning.main' }} />
+                      <Typography variant="body2" fontWeight={600}>
+                        Configuraciones Avanzadas
+                      </Typography>
+                    </Box>
+                    {advancedSettingsOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                  </Box>
+
+                  <Collapse in={advancedSettingsOpen}>
+                    <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={conversation.metadata?.settings?.onlyAdminsCanSend || false}
+                            onChange={(e) => handleToggleSetting('onlyAdminsCanSend', e.target.checked)}
+                            size="small"
+                          />
+                        }
+                        label={
+                          <Typography variant="body2">
+                            Solo admins pueden enviar mensajes
+                          </Typography>
+                        }
+                        sx={{ ml: 0 }}
+                      />
+
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={conversation.metadata?.settings?.onlyAdminsCanEditInfo || false}
+                            onChange={(e) => handleToggleSetting('onlyAdminsCanEditInfo', e.target.checked)}
+                            size="small"
+                          />
+                        }
+                        label={
+                          <Typography variant="body2">
+                            Solo admins pueden cambiar nombre/foto
+                          </Typography>
+                        }
+                        sx={{ ml: 0 }}
+                      />
+
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={conversation.metadata?.settings?.restrictLargeFiles || false}
+                            onChange={(e) => handleToggleSetting('restrictLargeFiles', e.target.checked)}
+                            size="small"
+                          />
+                        }
+                        label={
+                          <Typography variant="body2">
+                            Restringir archivos pesados (&gt;10MB)
+                          </Typography>
+                        }
+                        sx={{ ml: 0 }}
+                      />
+
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={conversation.metadata?.settings?.muteAll || false}
+                            onChange={(e) => handleToggleSetting('muteAll', e.target.checked)}
+                            size="small"
+                          />
+                        }
+                        label={
+                          <Typography variant="body2">
+                            Silenciar grupo para todos
+                          </Typography>
+                        }
+                        sx={{ ml: 0 }}
+                      />
+                    </Box>
+                  </Collapse>
+                </Box>
+              )}
             </Box>
           )}
         </DialogContent>
 
-        <DialogActions sx={{ p: 2.5, pt: 1 }}>
+        <DialogActions sx={{ p: 2.5, pt: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {/* Botones de acción principales */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, width: '100%' }}>
+            <Button
+              variant="outlined"
+              startIcon={<AttachFileIcon />}
+              onClick={() => {
+                handleCloseGroupInfo();
+                setGalleryOpen(true);
+              }}
+              fullWidth
+              sx={{ borderRadius: 1 }}
+            >
+              Archivos
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<SearchIcon />}
+              onClick={() => {
+                handleCloseGroupInfo();
+                setSearchOpen(true);
+              }}
+              fullWidth
+              sx={{ borderRadius: 1 }}
+            >
+              Buscar
+            </Button>
+          </Box>
+
+          {/* Botones secundarios (solo para admins o todos) */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: conversation.metadata?.admins?.includes(currentUser?.uid) ? '1fr 1fr' : '1fr', gap: 1, width: '100%' }}>
+            {conversation.metadata?.admins?.includes(currentUser?.uid) && (
+              <Button
+                variant="outlined"
+                color="primary"
+                startIcon={<PersonAddIcon />}
+                onClick={() => {
+                  // TODO: Abrir modal para agregar participantes
+                  alert('Función de agregar participantes en desarrollo');
+                }}
+                fullWidth
+                sx={{ borderRadius: 1 }}
+              >
+                Agregar
+              </Button>
+            )}
+            {conversation.metadata?.createdBy !== currentUser?.uid && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<ExitToAppIcon />}
+                onClick={handleLeaveGroup}
+                fullWidth
+                sx={{ borderRadius: 1 }}
+              >
+                Abandonar
+              </Button>
+            )}
+          </Box>
+
+          {/* Botón cerrar */}
           <Button
             variant="contained"
             onClick={handleCloseGroupInfo}
             fullWidth
-            sx={{ boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)' }}
+            sx={{ boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)', mt: 1 }}
           >
             Cerrar
           </Button>

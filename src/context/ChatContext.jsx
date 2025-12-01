@@ -398,9 +398,16 @@ export const ChatProvider = ({ children }) => {
         metadata: {
           groupName: groupName.trim(),
           groupPhoto: photoURL,
+          description: '', // Descripción del grupo
           admins: [currentUser.uid], // Creador es admin por defecto
           createdBy: currentUser.uid,
-          archived: false
+          archived: false,
+          settings: {
+            onlyAdminsCanSend: false,
+            onlyAdminsCanEditInfo: false,
+            restrictLargeFiles: false,
+            muteAll: false
+          }
         }
       };
 
@@ -583,6 +590,35 @@ export const ChatProvider = ({ children }) => {
         updateData['metadata.groupPhoto'] = updates.groupPhoto;
       }
 
+      // Solo admins pueden cambiar la descripción
+      if (updates.description !== undefined) {
+        const admins = conversationData.metadata?.admins || [];
+        if (!admins.includes(currentUser.uid)) {
+          throw new Error('Solo los administradores pueden cambiar la descripción del grupo');
+        }
+        updateData['metadata.description'] = updates.description.trim();
+      }
+
+      // Solo admins pueden cambiar configuraciones avanzadas
+      if (updates.settings) {
+        const admins = conversationData.metadata?.admins || [];
+        if (!admins.includes(currentUser.uid)) {
+          throw new Error('Solo los administradores pueden cambiar la configuración del grupo');
+        }
+        if (updates.settings.onlyAdminsCanSend !== undefined) {
+          updateData['metadata.settings.onlyAdminsCanSend'] = updates.settings.onlyAdminsCanSend;
+        }
+        if (updates.settings.onlyAdminsCanEditInfo !== undefined) {
+          updateData['metadata.settings.onlyAdminsCanEditInfo'] = updates.settings.onlyAdminsCanEditInfo;
+        }
+        if (updates.settings.restrictLargeFiles !== undefined) {
+          updateData['metadata.settings.restrictLargeFiles'] = updates.settings.restrictLargeFiles;
+        }
+        if (updates.settings.muteAll !== undefined) {
+          updateData['metadata.settings.muteAll'] = updates.settings.muteAll;
+        }
+      }
+
       await updateDoc(conversationRef, updateData);
 
       console.log('✅ Info de grupo actualizada');
@@ -655,6 +691,113 @@ export const ChatProvider = ({ children }) => {
     }
   };
 
+  // ✅ FUNCIÓN: Abandonar grupo
+  const leaveGroup = useCallback(async (conversationId) => {
+    if (!currentUser?.uid) {
+      throw new Error('Usuario no autenticado');
+    }
+
+    try {
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationSnap = await getDoc(conversationRef);
+
+      if (!conversationSnap.exists()) {
+        throw new Error('Conversación no encontrada');
+      }
+
+      const conversationData = conversationSnap.data();
+
+      // Verificar que es un grupo
+      if (conversationData.type !== 'group') {
+        throw new Error('Solo se puede abandonar un grupo');
+      }
+
+      // No permitir que el creador abandone si hay otros miembros
+      if (conversationData.metadata?.createdBy === currentUser.uid) {
+        if (conversationData.participantIds.length > 1) {
+          throw new Error('El creador debe transferir la propiedad o eliminar el grupo antes de abandonarlo');
+        }
+      }
+
+      // Remover usuario de la lista de participantes
+      const updatedParticipantIds = conversationData.participantIds.filter(id => id !== currentUser.uid);
+      const updatedParticipantNames = { ...conversationData.participantNames };
+      delete updatedParticipantNames[currentUser.uid];
+      const updatedParticipantPhotos = { ...conversationData.participantPhotos };
+      delete updatedParticipantPhotos[currentUser.uid];
+      const updatedUnreadCount = { ...conversationData.unreadCount };
+      delete updatedUnreadCount[currentUser.uid];
+
+      // Remover de admins si era admin
+      let updatedAdmins = conversationData.metadata?.admins || [];
+      updatedAdmins = updatedAdmins.filter(id => id !== currentUser.uid);
+
+      await updateDoc(conversationRef, {
+        participantIds: updatedParticipantIds,
+        participantNames: updatedParticipantNames,
+        participantPhotos: updatedParticipantPhotos,
+        unreadCount: updatedUnreadCount,
+        'metadata.admins': updatedAdmins,
+        updatedAt: serverTimestamp()
+      });
+
+      console.log('✅ Abandonado el grupo exitosamente');
+      addNotification('Has abandonado el grupo', 'success');
+
+      return true;
+    } catch (err) {
+      console.error('❌ Error abandonando grupo:', err);
+      addNotification(err.message || 'Error al abandonar el grupo', 'error');
+      throw err;
+    }
+  }, [currentUser?.uid, addNotification]);
+
+  // ✅ FUNCIÓN: Eliminar conversación (DM)
+  const deleteConversation = useCallback(async (conversationId) => {
+    if (!currentUser?.uid) {
+      throw new Error('Usuario no autenticado');
+    }
+
+    try {
+      const conversationRef = doc(db, 'conversations', conversationId);
+      const conversationSnap = await getDoc(conversationRef);
+
+      if (!conversationSnap.exists()) {
+        throw new Error('Conversación no encontrada');
+      }
+
+      const conversationData = conversationSnap.data();
+
+      // Solo permitir eliminar conversaciones directas (DM)
+      if (conversationData.type === 'group') {
+        throw new Error('Para eliminar grupos usa la opción correspondiente');
+      }
+
+      // Eliminar conversación
+      await deleteDoc(conversationRef);
+
+      // Opcional: Eliminar mensajes asociados
+      const messagesQuery = query(
+        collection(db, 'messages'),
+        where('conversationId', '==', conversationId)
+      );
+      const messagesSnapshot = await getDocs(messagesQuery);
+      const deletePromises = messagesSnapshot.docs.map(msgDoc => 
+        deleteDoc(doc(db, 'messages', msgDoc.id))
+      );
+      await Promise.all(deletePromises);
+
+      console.log('✅ Conversación eliminada exitosamente');
+      addNotification('Conversación eliminada', 'success');
+
+      return true;
+    } catch (err) {
+      console.error('❌ Error eliminando conversación:', err);
+      addNotification(err.message || 'Error al eliminar conversación', 'error');
+      throw err;
+    }
+  }, [currentUser?.uid, addNotification]);
+
   // 📌 Fijar/desfijar mensaje
   const togglePinMessage = async (conversationId, messageId) => {
     if (!conversationId || !currentUser?.uid) return;
@@ -721,7 +864,11 @@ export const ChatProvider = ({ children }) => {
     deleteGroup,
 
     // Funciones de mensajes fijados
-    togglePinMessage
+    togglePinMessage,
+
+    // Funciones de gestión de conversaciones
+    leaveGroup,
+    deleteConversation
   };
 
   return (
@@ -730,3 +877,4 @@ export const ChatProvider = ({ children }) => {
     </ChatContext.Provider>
   );
 };
+
