@@ -67,19 +67,6 @@ const ContactsList = ({
     );
   }, [currentUser]);
 
-  // 🐛 Debug: Log de presencia y filtrado
-  React.useEffect(() => {
-    console.log('� currentUser?.uid:', currentUser?.uid);
-    console.log('�👥 Users Presence:', usersPresence);
-    console.log('📋 Users:', users.map(u => ({ 
-      id: u.id,
-      uid: u.uid, 
-      name: u.displayName || u.name, 
-      online: usersPresence[u.id]?.state,
-      isMe: u.id === currentUser?.uid
-    })));
-  }, [usersPresence, users, currentUser]);
-
   const handleAvatarClick = (event, user) => {
     event.stopPropagation(); // Evitar que se active onSelectUser
     setSelectedUserInfo(user);
@@ -100,7 +87,6 @@ const ContactsList = ({
 
     try {
       await deleteGroup(groupId);
-      console.log('✅ Grupo eliminado:', groupId);
     } catch (error) {
       console.error('❌ Error al eliminar grupo:', error);
       alert('Error al eliminar el grupo. Intenta de nuevo.');

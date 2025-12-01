@@ -148,6 +148,9 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
   const [uploadingGroupPhoto, setUploadingGroupPhoto] = useState(false);
   const fileInputRef = useRef(null);
 
+  // 📸 Estado para foto del usuario cargada desde Firestore
+  const [loadedUserPhoto, setLoadedUserPhoto] = useState(null);
+
   // 👤 Handlers para el diálogo de usuario
   const handleAvatarClick = (e) => {
     e.stopPropagation();
@@ -410,13 +413,46 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
   // ✅ FIX: Diferenciar entre grupos y conversaciones directas
   const isGroup = conversation?.type === 'group';
   
+  // 🔍 Obtener información del otro usuario desde la conversación si selectedUser no está disponible
+  const otherUserId = !isGroup && conversation?.participantIds?.find(id => id !== currentUser?.uid);
+  
   const displayName = isGroup 
     ? (conversation?.metadata?.groupName || 'Grupo sin nombre')
-    : (selectedUser?.displayName || selectedUser?.name || 'Usuario');
+    : (selectedUser?.displayName 
+        || selectedUser?.name 
+        || conversation?.participantNames?.[otherUserId]
+        || 'Usuario');
   
   const displayPhoto = isGroup
     ? (conversation?.metadata?.groupPhoto || null)
-    : (selectedUser?.photoURL || selectedUser?.photo || null);
+    : (selectedUser?.photoURL 
+        || selectedUser?.photo 
+        || loadedUserPhoto
+        || conversation?.participantPhotos?.[otherUserId]
+        || null);
+
+  // 📸 Cargar foto del usuario desde Firestore si no está disponible
+  useEffect(() => {
+    if (!otherUserId || isGroup || selectedUser?.photoURL || selectedUser?.photo) {
+      return; // No es necesario cargar si ya tenemos la foto
+    }
+
+    const loadUserPhoto = async () => {
+      try {
+        const userDoc = await getDoc(doc(db, 'users', otherUserId));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          const photoURL = userData.photoURL || userData.photo || null;
+          setLoadedUserPhoto(photoURL);
+          console.log('📸 Foto de usuario cargada:', photoURL);
+        }
+      } catch (err) {
+        console.error('❌ Error cargando foto del usuario:', err);
+      }
+    };
+
+    loadUserPhoto();
+  }, [otherUserId, isGroup, selectedUser?.photoURL, selectedUser?.photo]);
 
   // 📝 Cargar descripción del grupo cuando se abre el modal
   useEffect(() => {
@@ -490,23 +526,36 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
 
     // 2️⃣ MENSAJES NUEVOS: Solo scroll si aumentó la cantidad (no disminuyó por loadMore)
     const messagesIncreased = messages.length > previousMessagesLength.current;
+
     if (messagesIncreased) {
-      // Verificar si el nuevo mensaje es del usuario actual (scroll siempre)
-      // O si el usuario está cerca del final (scroll automático)
+      // ✅ CRÍTICO: Verificar posición actual ANTES de hacer scroll
+      if (!messagesContainerRef.current) {
+        previousMessagesLength.current = messages.length;
+        return;
+      }
+
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      const scrollPosition = scrollHeight - scrollTop - clientHeight;
+      const isNearBottom = scrollPosition < 200;
+      const isAtTop = scrollTop < 100;
+
+      // 🚫 PREVENIR SCROLL si el usuario está navegando por mensajes antiguos
+      if (isAtTop || (!isNearBottom && scrollPosition > 500)) {
+        previousMessagesLength.current = messages.length;
+        return;
+      }
+
+      // Verificar si el nuevo mensaje es del usuario actual
       const lastMessage = messages[messages.length - 1];
       const isMyMessage = lastMessage?.senderId === currentUser?.uid;
       
-      if (isMyMessage) {
+      // Solo hacer scroll si:
+      // 1. Es mi mensaje Y estoy cerca del final
+      // 2. Es mensaje de otro Y estoy MUY cerca del final (< 100px)
+      if (isMyMessage && isNearBottom) {
         messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-      } else {
-        // Mensaje de otro usuario: solo hacer scroll si estamos cerca del final
-        if (messagesContainerRef.current) {
-          const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-          const isNearBottom = scrollHeight - scrollTop - clientHeight < 200;
-          if (isNearBottom) {
-            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-          }
-        }
+      } else if (!isMyMessage && scrollPosition < 100) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
       }
     }
 
@@ -889,6 +938,7 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
       {/* Área de mensajes Sobrio con gradiente */}
       <Box
         ref={messagesContainerRef}
+        data-messages-container
         onScroll={handleScroll}
         sx={{
           flexGrow: 1,
@@ -1016,20 +1066,21 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
                       isOwnMessage={isOwnMessage}
                       conversation={conversation}
                       onDelete={deleteMessage}
-                    onEdit={editMessage}
-                    onReply={setReplyingTo}
-                    onForward={forwardMessage}
-                    onReact={toggleReaction}
-                    onPin={(messageId) => togglePinMessage(conversationId, messageId)}
-                    replyToMessage={
-                      message.metadata?.replyTo 
-                        ? messages.find(m => m.id === message.metadata.replyTo)
-                        : null
-                    }
-                    onScrollToMessage={(messageId) => {
-                      const element = document.getElementById(`message-${messageId}`);
-                      element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }}
+                      onEdit={editMessage}
+                      onReply={setReplyingTo}
+                      onForward={forwardMessage}
+                      onReact={toggleReaction}
+                      onPin={(messageId) => togglePinMessage(conversationId, messageId)}
+                      onNavigateToConversation={setActiveConversationId}
+                      replyToMessage={
+                        message.metadata?.replyTo 
+                          ? messages.find(m => m.id === message.metadata.replyTo)
+                          : null
+                      }
+                      onScrollToMessage={(messageId) => {
+                        const element = document.getElementById(`message-${messageId}`);
+                        element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      }}
                     />
                   </Box>
                 </React.Fragment>

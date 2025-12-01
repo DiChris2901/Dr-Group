@@ -14,7 +14,8 @@ import {
   serverTimestamp,
   increment,
   getDoc,
-  getDocs
+  getDocs,
+  deleteField
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
@@ -63,14 +64,10 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
       const unsubscribe = onSnapshot(
         messagesQuery,
         (snapshot) => {
-          // ⚡ Optimización: Solo procesar cambios incrementales
-          if (snapshot.metadata.hasPendingWrites) {
-            // Ignorar cambios locales pendientes para evitar renders duplicados
-            return;
+          // 📊 Log de lecturas para monitoreo (solo si no es cache ni pendiente)
+          if (!snapshot.metadata.fromCache && !snapshot.metadata.hasPendingWrites) {
+            console.log(`📨 Cargados ${snapshot.docs.length} mensajes desde servidor`);
           }
-
-          // 📊 Log de lecturas para monitoreo
-          console.log(`📨 Cargados ${snapshot.docs.length} mensajes (${snapshot.metadata.fromCache ? 'cache' : 'servidor'})`);
 
           const messagesData = snapshot.docs.map(docSnap => {
             const data = docSnap.data();
@@ -90,7 +87,9 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
                 ...data.metadata,
                 editedAt: data.metadata?.editedAt?.toDate(),
                 deletedAt: data.metadata?.deletedAt?.toDate()
-              }
+              },
+              // ✅ Incluir reacciones directamente
+              reactions: data.reactions || {}
             };
           });
 
@@ -318,6 +317,17 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
     if (!currentUser?.uid || !originalMessage || !targetConversationId) return;
 
     try {
+      // Obtener info del usuario actual desde Firestore
+      const userRef = doc(db, 'users', currentUser.uid);
+      const userSnap = await getDoc(userRef);
+      
+      const currentUserName = userSnap.exists() 
+        ? (userSnap.data().name || userSnap.data().displayName || userSnap.data().email || 'Usuario')
+        : (currentUser.displayName || currentUser.email || 'Usuario');
+      const currentUserPhoto = userSnap.exists() 
+        ? (userSnap.data().photoURL || null)
+        : (currentUser.photoURL || null);
+
       // Obtener info de la conversación destino
       const targetConversationRef = doc(db, 'conversations', targetConversationId);
       const targetConversationSnap = await getDoc(targetConversationRef);
@@ -327,8 +337,6 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
       }
 
       const targetConversationData = targetConversationSnap.data();
-      const currentUserName = targetConversationData.participantNames[currentUser.uid] || 'Usuario';
-      const currentUserPhoto = targetConversationData.participantPhotos[currentUser.uid] || null;
 
       // Crear mensaje reenviado
       const forwardedMessageData = {
@@ -437,7 +445,7 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
       // Si el usuario ya reaccionó con este emoji, quitarlo
       if (reactions[currentUser.uid] === emoji) {
         await updateDoc(messageRef, {
-          [`reactions.${currentUser.uid}`]: null
+          [`reactions.${currentUser.uid}`]: deleteField()
         });
         console.log('✅ Reacción eliminada');
       } else {

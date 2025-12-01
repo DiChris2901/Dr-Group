@@ -11,8 +11,6 @@ export const useUserPresence = (userId) => {
     if (!userId) {
       return;
     }
-
-    console.log('🟢 Activando presencia para:', userId);
     
     const userRef = doc(db, 'users', userId);
     
@@ -23,7 +21,6 @@ export const useUserPresence = (userId) => {
           online: true,
           lastSeen: serverTimestamp()
         });
-        console.log('✅ Usuario marcado como online');
       } catch (error) {
         console.error('❌ Error marcando online:', error);
       }
@@ -36,7 +33,6 @@ export const useUserPresence = (userId) => {
           online: false,
           lastSeen: serverTimestamp()
         });
-        console.log('👋 Usuario marcado como offline');
       } catch (error) {
         console.error('❌ Error marcando offline:', error);
       }

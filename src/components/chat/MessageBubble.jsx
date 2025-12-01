@@ -43,11 +43,14 @@ import {
   Receipt as ReceiptIcon,
   Person as PersonIcon,
   Business as BusinessIcon,
-  OpenInNew as OpenInNewIcon
+  OpenInNew as OpenInNewIcon,
+  Groups as GroupsIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
 import PreviewDialog from './PreviewDialog';
@@ -124,6 +127,7 @@ const MessageBubble = React.memo(({
   onForward,
   onReact,
   onPin,
+  onNavigateToConversation,
   replyToMessage,
   onScrollToMessage
 }) => {
@@ -137,6 +141,9 @@ const MessageBubble = React.memo(({
   const [editedText, setEditedText] = useState(message.text || '');
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
+  const [forwarding, setForwarding] = useState(false);
+  const [savedScrollPosition, setSavedScrollPosition] = useState(null);
+  const [userPhotos, setUserPhotos] = useState({}); // Mapa de userId -> photoURL
   const menuOpen = Boolean(anchorEl);
 
   // Verificar si el usuario actual fue mencionado
@@ -214,17 +221,133 @@ const MessageBubble = React.memo(({
     onReply(message);
   };
 
+  // 📸 Cargar fotos de perfil de todos los usuarios cuando se abre el modal
+  React.useEffect(() => {
+    if (!forwardDialogOpen || !conversations) return;
+
+    const loadUserPhotos = async () => {
+      const uniqueConvs = getUniqueConversations(conversations);
+      const photosMap = {};
+
+      // Cargar fotos de usuarios en conversaciones directas
+      const photoPromises = uniqueConvs
+        .filter(conv => conv.type !== 'group')
+        .map(async (conv) => {
+          const otherUserId = conv.participantIds?.find(id => id !== currentUser?.uid);
+          if (otherUserId && !photosMap[otherUserId]) {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', otherUserId));
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                photosMap[otherUserId] = userData.photoURL || userData.photo || null;
+              }
+            } catch (err) {
+              console.error(`Error cargando foto de ${otherUserId}:`, err);
+            }
+          }
+        });
+
+      await Promise.all(photoPromises);
+      setUserPhotos(photosMap);
+    };
+
+    loadUserPhotos();
+  }, [forwardDialogOpen, conversations, currentUser?.uid]);
+
   const handleForwardClick = () => {
     handleMenuClose();
-    console.log('🔍 Forward Dialog - Conversaciones disponibles:', conversations.length);
-    console.log('🔍 Conversación actual:', message.conversationId);
-    console.log('🔍 Conversaciones filtradas:', conversations.filter(conv => conv.id !== message.conversationId).length);
+    
+    // 💾 Guardar posición actual del scroll antes de abrir el modal
+    const messagesContainer = document.querySelector('[data-messages-container]');
+    if (messagesContainer) {
+      setSavedScrollPosition({
+        scrollTop: messagesContainer.scrollTop,
+        scrollHeight: messagesContainer.scrollHeight
+      });
+    }
+    
     setForwardDialogOpen(true);
   };
 
-  const handleForwardConfirm = (conversationId) => {
-    onForward(message, conversationId);
-    setForwardDialogOpen(false);
+  // ✅ Función helper para obtener conversaciones únicas (sin duplicados de usuarios)
+  const getUniqueConversations = (allConversations) => {
+    // ✅ PERMITIR reenviar al mismo grupo (solo excluir conversaciones directas actuales)
+    const availableConversations = allConversations.filter(conv => {
+      // Si es la conversación actual Y es directa, excluirla (no tiene sentido reenviarte a ti mismo)
+      if (conv.id === message.conversationId && conv.type === 'direct') {
+        return false;
+      }
+      // Permitir todas las demás (incluido el grupo actual)
+      return true;
+    });
+    
+    const conversationMap = new Map();
+    const groups = [];
+    
+    availableConversations.forEach(conv => {
+      const isGroup = conv.type === 'group';
+      
+      if (isGroup) {
+        groups.push(conv);
+      } else {
+        const otherUserId = conv.participantIds?.find(id => id !== currentUser?.uid);
+        
+        if (otherUserId) {
+          if (!conversationMap.has(otherUserId)) {
+            conversationMap.set(otherUserId, conv);
+          } else {
+            const existing = conversationMap.get(otherUserId);
+            const existingDate = existing.lastMessageAt?.toDate?.() || new Date(0);
+            const currentDate = conv.lastMessageAt?.toDate?.() || new Date(0);
+            
+            if (currentDate > existingDate) {
+              conversationMap.set(otherUserId, conv);
+            }
+          }
+        }
+      }
+    });
+    
+    const uniqueDirectConversations = Array.from(conversationMap.values());
+    const finalConversations = [...groups, ...uniqueDirectConversations];
+    
+    // Ordenar: grupos primero, luego conversaciones directas por fecha
+    finalConversations.sort((a, b) => {
+      const aIsGroup = a.type === 'group';
+      const bIsGroup = b.type === 'group';
+      
+      if (aIsGroup && !bIsGroup) return -1;
+      if (!aIsGroup && bIsGroup) return 1;
+      
+      const aDate = a.lastMessageAt?.toDate?.() || new Date(0);
+      const bDate = b.lastMessageAt?.toDate?.() || new Date(0);
+      return bDate - aDate;
+    });
+    
+    return finalConversations;
+  };
+
+  const handleForwardConfirm = async (conversationId) => {
+    if (!conversationId) return;
+    
+    try {
+      setForwarding(true);
+      await onForward(message, conversationId);
+      setForwardDialogOpen(false);
+      setSelectedConversation(null);
+      
+      // 🚀 Navegar a la conversación destino después de reenviar
+      if (onNavigateToConversation) {
+        setTimeout(() => {
+          onNavigateToConversation(conversationId);
+          setSavedScrollPosition(null); // Limpiar posición guardada
+        }, 100);
+      }
+    } catch (err) {
+      console.error('❌ Error reenviando mensaje:', err);
+    } finally {
+      setForwarding(false);
+    }
   };
 
   // 📌 Handler de fijar mensaje
@@ -1048,7 +1171,13 @@ const MessageBubble = React.memo(({
           {/* Lista de conversaciones */}
           <Box sx={{ px: 2.5, py: 1 }}>
             <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-              Selecciona una conversación: {conversations.length > 0 && `(${conversations.filter(conv => conv.id !== message.conversationId).length} disponibles)`}
+              {(() => {
+                if (!conversations || conversations.length === 0) return 'Cargando...';
+                const uniqueConversations = getUniqueConversations(conversations);
+                const groupCount = uniqueConversations.filter(c => c.type === 'group').length;
+                const userCount = uniqueConversations.filter(c => c.type !== 'group').length;
+                return `${groupCount} grupo${groupCount !== 1 ? 's' : ''} • ${userCount} usuario${userCount !== 1 ? 's' : ''}`;
+              })()}
             </Typography>
           </Box>
           
@@ -1059,7 +1188,7 @@ const MessageBubble = React.memo(({
                 Cargando conversaciones...
               </Typography>
             </Box>
-          ) : conversations.filter(conv => conv.id !== message.conversationId).length === 0 ? (
+          ) : getUniqueConversations(conversations).length === 0 ? (
             <Box display="flex" justifyContent="center" py={4}>
               <Typography variant="body2" color="text.secondary">
                 No hay otras conversaciones disponibles
@@ -1067,64 +1196,101 @@ const MessageBubble = React.memo(({
             </Box>
           ) : (
             <List sx={{ maxHeight: 300, overflow: 'auto', pb: 1 }}>
-              {conversations
-                .filter(conv => conv.id !== message.conversationId)
-                .map((conv) => {
+              {getUniqueConversations(conversations).map((conv) => {
+                const isGroup = conv.type === 'group';
+                
+                let displayName, displayPhoto;
+                
+                if (isGroup) {
+                  displayName = conv.metadata?.groupName || 'Grupo sin nombre';
+                  displayPhoto = conv.metadata?.groupPhoto || null;
+                } else {
                   const otherUserId = conv.participantIds?.find(id => id !== currentUser?.uid);
-                  const otherUserName = conv.participantNames?.[otherUserId] || 'Usuario';
-                  const otherUserPhoto = conv.participantPhotos?.[otherUserId] || null;
-                  const isSelected = selectedConversation?.id === conv.id;
+                  displayName = conv.participantNames?.[otherUserId] || 'Usuario';
+                  // 📸 Usar foto cargada desde Firestore si está disponible
+                  displayPhoto = userPhotos[otherUserId] || conv.participantPhotos?.[otherUserId] || null;
+                }
+                
+                const isSelected = selectedConversation?.id === conv.id;
 
-                  return (
-                    <ListItemButton
-                      key={conv.id}
-                      selected={isSelected}
-                      onClick={() => setSelectedConversation(conv)}
-                      sx={{
-                        borderRadius: 1,
-                        mx: 1,
-                        mb: 0.5,
-                        bgcolor: isSelected ? alpha('#667eea', 0.08) : 'transparent',
-                        '&:hover': {
-                          bgcolor: isSelected ? alpha('#667eea', 0.12) : alpha('#000', 0.04)
-                        }
-                      }}
-                    >
-                      <ListItemAvatar>
-                        <Avatar src={otherUserPhoto} alt={otherUserName}>
-                          {otherUserName.charAt(0).toUpperCase()}
-                        </Avatar>
-                      </ListItemAvatar>
-                      <MuiListItemText
-                        primary={otherUserName}
-                        secondary={
-                          conv.lastMessage 
-                            ? (typeof conv.lastMessage === 'string' 
-                                ? `${conv.lastMessage.substring(0, 30)}...` 
-                                : 'Mensaje reciente')
-                            : 'Sin mensajes'
-                        }
-                      />
-                    </ListItemButton>
-                  );
-                })}
+                return (
+                  <ListItemButton
+                    key={conv.id}
+                    selected={isSelected}
+                    onClick={() => setSelectedConversation(conv)}
+                    sx={{
+                      borderRadius: 1,
+                      mx: 1,
+                      mb: 0.5,
+                      bgcolor: isSelected ? alpha('#667eea', 0.08) : 'transparent',
+                      '&:hover': {
+                        bgcolor: isSelected ? alpha('#667eea', 0.12) : alpha('#000', 0.04)
+                      }
+                    }}
+                  >
+                    <ListItemAvatar>
+                      <Avatar src={displayPhoto} alt={displayName}>
+                        {isGroup ? (
+                          <GroupsIcon />
+                        ) : (
+                          displayName.charAt(0).toUpperCase()
+                        )}
+                      </Avatar>
+                    </ListItemAvatar>
+                    <MuiListItemText
+                      primary={
+                        <Box display="flex" alignItems="center" gap={0.5}>
+                          {displayName}
+                          {isGroup && (
+                            <Chip 
+                              label={`${conv.participantIds?.length || 0} miembros`} 
+                              size="small" 
+                              sx={{ height: 18, fontSize: '0.65rem' }} 
+                            />
+                          )}
+                        </Box>
+                      }
+                      secondary={
+                        conv.lastMessage 
+                          ? (typeof conv.lastMessage === 'string' 
+                              ? `${conv.lastMessage.substring(0, 30)}...` 
+                              : 'Mensaje reciente')
+                          : 'Sin mensajes'
+                      }
+                    />
+                  </ListItemButton>
+                );
+              })}
             </List>
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2.5, pt: 1 }}>
-          <Button onClick={() => {
-            setForwardDialogOpen(false);
-            setSelectedConversation(null);
-          }}>
+          <Button 
+            onClick={() => {
+              setForwardDialogOpen(false);
+              setSelectedConversation(null);
+              
+              // 📍 Restaurar posición si se cancela
+              setTimeout(() => {
+                const messagesContainer = document.querySelector('[data-messages-container]');
+                if (messagesContainer && savedScrollPosition) {
+                  messagesContainer.scrollTop = savedScrollPosition.scrollTop;
+                  setSavedScrollPosition(null);
+                }
+              }, 100);
+            }}
+            disabled={forwarding}
+          >
             Cancelar
           </Button>
           <Button
             variant="contained"
-            onClick={() => handleForwardConfirm(selectedConversation.id)}
-            disabled={!selectedConversation}
+            onClick={() => handleForwardConfirm(selectedConversation?.id)}
+            disabled={!selectedConversation || forwarding}
+            startIcon={forwarding ? <CircularProgress size={16} color="inherit" /> : null}
             sx={{ boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)' }}
           >
-            Reenviar
+            {forwarding ? 'Reenviando...' : 'Reenviar'}
           </Button>
         </DialogActions>
       </Dialog>
