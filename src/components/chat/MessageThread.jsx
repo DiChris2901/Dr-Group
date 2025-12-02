@@ -1198,6 +1198,13 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
                     <MessageBubble
                       message={message}
                       isOwnMessage={isOwnMessage}
+                      isNewMessage={index === messages.length - 1}
+                      showAvatar={
+                        index === 0 || 
+                        messages[index - 1].senderId !== message.senderId ||
+                        (message.createdAt?.toMillis?.() || message.createdAt) - 
+                        (messages[index - 1].createdAt?.toMillis?.() || messages[index - 1].createdAt) > 60000
+                      }
                       conversation={conversation}
                       onDelete={deleteMessage}
                       onEdit={editMessage}

@@ -1,5 +1,6 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import EmojiPicker from 'emoji-picker-react';
+import useDebounce from '../../hooks/useDebounce';
 import {
   Box,
   TextField,
@@ -76,20 +77,6 @@ const renderFormattedPreview = (text) => {
   return parts.length > 0 ? parts : text;
 };
 
-// 🔧 Utilidad para debounce
-const useDebounce = (callback, delay) => {
-  const timeoutRef = useRef(null);
-
-  return useCallback((...args) => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = setTimeout(() => {
-      callback(...args);
-    }, delay);
-  }, [callback, delay]);
-};
-
 /**
  * Input para enviar mensajes con soporte de archivos adjuntos, respuestas y menciones
  */
@@ -114,7 +101,7 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
   const mentionPickerRef = useRef(null);
   const textFieldRef = useRef(null);
 
-  // 🎤 Hook de grabación de audio
+  // 🎵 Hook de grabación de audio
   const {
     isRecording,
     audioURL,
@@ -128,8 +115,25 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
     cleanup: cleanupAudio
   } = useAudioRecorder();
 
-  // ⏱️ C. Debounced typing indicator
-  const debouncedTypingUpdate = useDebounce(updateTypingStatus, 500);
+  // ⏱️ C. Debounced typing indicator (callback-based)
+  const typingTimeoutRef = useRef(null);
+  const debouncedTypingUpdate = useCallback((isTyping) => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    typingTimeoutRef.current = setTimeout(() => {
+      updateTypingStatus(isTyping);
+    }, 500);
+  }, [updateTypingStatus]);
+
+  // 🚀 OPTIMIZACIÓN: Debounce del texto para vista previa (150ms)
+  const debouncedMessage = useDebounce(message, 150);
+
+  // 🚀 OPTIMIZACIÓN: Memoizar vista previa formateada
+  const formattedPreview = useMemo(() => 
+    renderFormattedPreview(debouncedMessage),
+    [debouncedMessage]
+  );
 
   // 💾 Cargar borrador desde localStorage al montar
   React.useEffect(() => {
@@ -729,7 +733,7 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
                     👁️ Vista previa:
                   </Typography>
                   <Typography variant="body2" component="div">
-                    {renderFormattedPreview(message)}
+                    {formattedPreview}
                   </Typography>
                 </Box>
               )}

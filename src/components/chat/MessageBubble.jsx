@@ -189,6 +189,8 @@ const processTextFormat = (text) => {
 const MessageBubble = React.memo(({ 
   message, 
   isOwnMessage,
+  isNewMessage = false, // 🚀 Para optimización de animaciones
+  showAvatar = true, // 🚀 Para agrupar mensajes consecutivos
   conversation, // Conversación para verificar cursor de lectura
   onDelete, 
   onEdit, 
@@ -548,22 +550,26 @@ const MessageBubble = React.memo(({
     return null;
   };
 
+  // 🚀 OPTIMIZACIÓN: Solo animar mensajes nuevos, no los históricos
+  const MessageContainer = isNewMessage ? motion.div : Box;
+  const animationProps = isNewMessage ? {
+    initial: { opacity: 0, y: 10 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.2 },
+    drag: "x",
+    dragConstraints: { left: 0, right: 50 },
+    dragElastic: { right: 0.5 },
+    onDragEnd: (event, info) => {
+      if (info.offset.x > 50) {
+        if (onReply) onReply(message);
+      }
+    }
+  } : {};
+
   return (
     <Box
-      component={motion.div}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-      // 📱 Swipe to Reply (Gesto Móvil)
-      drag="x"
-      dragConstraints={{ left: 0, right: 50 }}
-      dragElastic={{ right: 0.5 }}
-      onDragEnd={(event, info) => {
-        // Si arrastró más de 50px a la derecha → Activar respuesta
-        if (info.offset.x > 50) {
-          if (onReply) onReply(message);
-        }
-      }}
+      component={MessageContainer}
+      {...animationProps}
       // ⚡ Doble clic para editar rápido
       onDoubleClick={() => {
         if (isOwnMessage && onEdit) {
@@ -577,8 +583,8 @@ const MessageBubble = React.memo(({
         cursor: isOwnMessage && onEdit ? 'pointer' : 'default'
       }}
     >
-      {/* Avatar del remitente (solo mensajes de otros) */}
-      {!isOwnMessage && (
+      {/* Avatar del remitente (solo mensajes de otros y si no es consecutivo) */}
+      {!isOwnMessage && showAvatar && (
         <Avatar
           src={message.senderPhoto}
           alt={message.senderName}
@@ -600,6 +606,10 @@ const MessageBubble = React.memo(({
         >
           {message.senderName?.charAt(0)}
         </Avatar>
+      )}
+      {/* Espacio reservado si el avatar está oculto */}
+      {!isOwnMessage && !showAvatar && (
+        <Box sx={{ width: 32, mr: 1 }} />
       )}
 
       {/* Contenido del mensaje */}
@@ -702,24 +712,24 @@ const MessageBubble = React.memo(({
           sx={{
             p: 1.5,
             background: isOwnMessage
-              ? `linear-gradient(135deg, ${alpha('#667eea', 0.15)} 0%, ${alpha('#764ba2', 0.12)} 100%)`
+              ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.20)} 0%, ${alpha(theme.palette.secondary.main, 0.15)} 100%)`
               : 'background.paper',
-            color: isOwnMessage ? 'primary.dark' : 'text.primary',
+            color: isOwnMessage ? 'text.primary' : 'text.primary',
             borderRadius: 2,
             borderTopRightRadius: isOwnMessage ? 4 : 16,
             borderTopLeftRadius: isOwnMessage ? 16 : 4,
             border: 1,
             borderColor: isOwnMessage 
-              ? alpha('#667eea', 0.4) 
-              : alpha('#000', 0.1),
+              ? alpha(theme.palette.primary.main, 0.25)
+              : alpha(theme.palette.divider, 0.15),
             boxShadow: isOwnMessage
-              ? '0 2px 12px rgba(102, 126, 234, 0.15)'
-              : '0 2px 8px rgba(0,0,0,0.08)',
+              ? '0 1px 3px rgba(0,0,0,0.08)'
+              : '0 1px 3px rgba(0,0,0,0.06)',
             transition: 'all 0.3s ease',
             '&:hover': {
               boxShadow: isOwnMessage
-                ? '0 4px 16px rgba(102, 126, 234, 0.25)'
-                : '0 4px 12px rgba(0,0,0,0.12)',
+                ? '0 2px 6px rgba(0,0,0,0.12)'
+                : '0 2px 6px rgba(0,0,0,0.10)',
               transform: 'translateY(-1px)'
             }
           }}
