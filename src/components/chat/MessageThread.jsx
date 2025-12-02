@@ -27,7 +27,9 @@ import {
   Switch,
   Collapse,
   Skeleton,
-  Fab
+  Fab,
+  Popover,
+  Grid
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -61,7 +63,9 @@ import {
   NotificationsOff as NotificationsOffIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
-  KeyboardArrowDown as KeyboardArrowDownIcon
+  KeyboardArrowDown as KeyboardArrowDownIcon,
+  Palette as PaletteIcon,
+  Check as CheckIconFilled
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { onSnapshot, doc, collection, query, where, getDocs, deleteDoc, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
@@ -112,9 +116,81 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
   
   // 📊 Hook de estadísticas del chat
   const stats = useChatStats(conversationId);
+
+  // 🎨 Fondos predefinidos
+  const chatBackgrounds = [
+    {
+      id: 'default',
+      name: 'Por defecto',
+      light: `linear-gradient(180deg, ${alpha('#667eea', 0.03)} 0%, ${alpha('#f5f5f5', 0.8)} 50%, ${alpha('#764ba2', 0.03)} 100%)`,
+      dark: `linear-gradient(180deg, ${alpha('#667eea', 0.02)} 0%, ${alpha('#764ba2', 0.02)} 100%)`
+    },
+    {
+      id: 'ocean',
+      name: 'Océano',
+      light: `linear-gradient(180deg, ${alpha('#00b4db', 0.05)} 0%, ${alpha('#0083b0', 0.08)} 100%)`,
+      dark: `linear-gradient(180deg, ${alpha('#00b4db', 0.03)} 0%, ${alpha('#0083b0', 0.05)} 100%)`
+    },
+    {
+      id: 'sunset',
+      name: 'Atardecer',
+      light: `linear-gradient(180deg, ${alpha('#ff6b6b', 0.04)} 0%, ${alpha('#feca57', 0.06)} 100%)`,
+      dark: `linear-gradient(180deg, ${alpha('#ff6b6b', 0.02)} 0%, ${alpha('#feca57', 0.04)} 100%)`
+    },
+    {
+      id: 'forest',
+      name: 'Bosque',
+      light: `linear-gradient(180deg, ${alpha('#11998e', 0.05)} 0%, ${alpha('#38ef7d', 0.07)} 100%)`,
+      dark: `linear-gradient(180deg, ${alpha('#11998e', 0.03)} 0%, ${alpha('#38ef7d', 0.05)} 100%)`
+    },
+    {
+      id: 'lavender',
+      name: 'Lavanda',
+      light: `linear-gradient(180deg, ${alpha('#a8edea', 0.06)} 0%, ${alpha('#fed6e3', 0.08)} 100%)`,
+      dark: `linear-gradient(180deg, ${alpha('#a8edea', 0.03)} 0%, ${alpha('#fed6e3', 0.05)} 100%)`
+    },
+    {
+      id: 'classic',
+      name: 'Clásico',
+      light: `linear-gradient(180deg, ${alpha('#ece9e6', 0.4)} 0%, ${alpha('#ffffff', 0.6)} 100%)`,
+      dark: `linear-gradient(180deg, ${alpha('#232526', 0.3)} 0%, ${alpha('#414345', 0.5)} 100%)`
+    },
+    {
+      id: 'night',
+      name: 'Nocturno',
+      light: `linear-gradient(180deg, ${alpha('#2c3e50', 0.08)} 0%, ${alpha('#3498db', 0.10)} 100%)`,
+      dark: `linear-gradient(180deg, ${alpha('#2c3e50', 0.05)} 0%, ${alpha('#3498db', 0.07)} 100%)`
+    },
+    {
+      id: 'rose',
+      name: 'Rosa',
+      light: `linear-gradient(180deg, ${alpha('#f093fb', 0.05)} 0%, ${alpha('#f5576c', 0.07)} 100%)`,
+      dark: `linear-gradient(180deg, ${alpha('#f093fb', 0.03)} 0%, ${alpha('#f5576c', 0.05)} 100%)`
+    }
+  ];
   
   // ⌨️ C. Estado para indicador de "escribiendo..."
   const [otherUserTyping, setOtherUserTyping] = useState(false);
+
+  // 🎨 Cargar fondo guardado
+  useEffect(() => {
+    const loadBackground = async () => {
+      if (!currentUser?.uid) return;
+      try {
+        const settingsRef = doc(db, 'userSettings', currentUser.uid);
+        const settingsSnap = await getDoc(settingsRef);
+        if (settingsSnap.exists()) {
+          const savedBg = settingsSnap.data()?.chatBackground;
+          if (savedBg) {
+            setSelectedBackground(savedBg);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading background:', error);
+      }
+    };
+    loadBackground();
+  }, [currentUser?.uid]);
 
   // 📌 Estado para respuestas
   const [replyingTo, setReplyingTo] = useState(null);
@@ -141,6 +217,11 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
   const [fileViewerOpen, setFileViewerOpen] = useState(false);
   const [viewingFile, setViewingFile] = useState(null);
   const [viewerSize, setViewerSize] = useState('normal');
+
+  // 🎨 Estados para selector de fondos
+  const [backgroundAnchorEl, setBackgroundAnchorEl] = useState(null);
+  const [selectedBackground, setSelectedBackground] = useState('default');
+  const backgroundPopoverOpen = Boolean(backgroundAnchorEl);
 
   // 🗑️ Estados para eliminar conversación
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -268,6 +349,32 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
   };
 
   // ⚙️ Handler para cambiar configuraciones del grupo
+  // 🎨 Handlers de selector de fondos
+  const handleBackgroundClick = (event) => {
+    setBackgroundAnchorEl(event.currentTarget);
+  };
+
+  const handleBackgroundClose = () => {
+    setBackgroundAnchorEl(null);
+  };
+
+  const handleSelectBackground = async (backgroundId) => {
+    setSelectedBackground(backgroundId);
+    handleBackgroundClose();
+    
+    // Guardar en Firestore
+    if (currentUser?.uid) {
+      try {
+        const settingsRef = doc(db, 'userSettings', currentUser.uid);
+        await updateDoc(settingsRef, {
+          chatBackground: backgroundId
+        });
+      } catch (error) {
+        console.error('Error saving background:', error);
+      }
+    }
+  };
+
   const handleToggleSetting = async (setting, value) => {
     try {
       await updateGroupInfo(conversationId, {
@@ -812,6 +919,22 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
           </IconButton>
         </Tooltip>
 
+        {/* 🎨 Selector de fondos */}
+        <Tooltip title="Cambiar fondo">
+          <IconButton
+            onClick={handleBackgroundClick}
+            sx={{
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                bgcolor: alpha('#667eea', 0.1),
+                transform: 'scale(1.1)'
+              }
+            }}
+          >
+            <PaletteIcon />
+          </IconButton>
+        </Tooltip>
+
         {/* 🗑️ Botón eliminar conversación */}
         {canDeleteConversation() && (
           <Tooltip title="Eliminar historial completo">
@@ -950,9 +1073,13 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
           display: 'flex',
           flexDirection: 'column',
           gap: 1.5,
-          background: theme.palette.mode === 'dark'
-            ? `linear-gradient(180deg, ${alpha('#667eea', 0.02)} 0%, ${alpha('#764ba2', 0.02)} 100%)`
-            : `linear-gradient(180deg, ${alpha('#667eea', 0.03)} 0%, ${alpha('#f5f5f5', 0.8)} 50%, ${alpha('#764ba2', 0.03)} 100%)`
+          background: (() => {
+            const bg = chatBackgrounds.find(b => b.id === selectedBackground);
+            return bg ? (theme.palette.mode === 'dark' ? bg.dark : bg.light) : 
+              (theme.palette.mode === 'dark'
+                ? `linear-gradient(180deg, ${alpha('#667eea', 0.02)} 0%, ${alpha('#764ba2', 0.02)} 100%)`
+                : `linear-gradient(180deg, ${alpha('#667eea', 0.03)} 0%, ${alpha('#f5f5f5', 0.8)} 50%, ${alpha('#764ba2', 0.03)} 100%)`);
+          })()
         }}
       >
         {loading && messages.length === 0 ? (
@@ -1221,6 +1348,100 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
         replyingTo={replyingTo}
         onCancelReply={() => setReplyingTo(null)}
       />
+
+      {/* 🎨 Popover de selector de fondos */}
+      <Popover
+        open={backgroundPopoverOpen}
+        anchorEl={backgroundAnchorEl}
+        onClose={handleBackgroundClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        PaperProps={{
+          sx: {
+            p: 2,
+            borderRadius: 2,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+            border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+            minWidth: 320
+          }
+        }}
+      >
+        <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5 }}>
+          🎨 Selecciona un fondo
+        </Typography>
+        <Grid container spacing={1.5}>
+          {chatBackgrounds.map((bg) => (
+            <Grid item xs={6} key={bg.id}>
+              <Box
+                onClick={() => handleSelectBackground(bg.id)}
+                sx={{
+                  position: 'relative',
+                  height: 80,
+                  borderRadius: 2,
+                  background: theme.palette.mode === 'dark' ? bg.dark : bg.light,
+                  cursor: 'pointer',
+                  border: 2,
+                  borderColor: selectedBackground === bg.id ? 'primary.main' : alpha('#000', 0.1),
+                  transition: 'all 0.3s ease',
+                  overflow: 'hidden',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    transform: 'scale(1.05)',
+                    boxShadow: `0 4px 16px ${alpha(theme.palette.primary.main, 0.3)}`
+                  }
+                }}
+              >
+                {/* Indicador de seleccionado */}
+                {selectedBackground === bg.id && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 4,
+                      bgcolor: 'primary.main',
+                      borderRadius: '50%',
+                      width: 24,
+                      height: 24,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+                    }}
+                  >
+                    <CheckIconFilled sx={{ fontSize: 16, color: 'white' }} />
+                  </Box>
+                )}
+                {/* Nombre del fondo */}
+                <Typography
+                  variant="caption"
+                  sx={{
+                    position: 'absolute',
+                    bottom: 4,
+                    left: 6,
+                    right: 6,
+                    textAlign: 'center',
+                    bgcolor: alpha('#fff', 0.9),
+                    color: 'text.primary',
+                    py: 0.5,
+                    px: 1,
+                    borderRadius: 1,
+                    fontWeight: 600,
+                    fontSize: '0.7rem'
+                  }}
+                >
+                  {bg.name}
+                </Typography>
+              </Box>
+            </Grid>
+          ))}
+        </Grid>
+      </Popover>
 
       {/* Diálogo de información del usuario */}
       <Dialog
