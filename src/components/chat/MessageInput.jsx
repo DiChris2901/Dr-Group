@@ -28,7 +28,12 @@ import {
   Mic as MicIcon,
   Stop as StopIcon,
   PlayArrow as PlayIcon,
-  Delete as DeleteIcon
+  Delete as DeleteIcon,
+  FormatBold as FormatBoldIcon,
+  FormatItalic as FormatItalicIcon,
+  FormatUnderlined as FormatUnderlinedIcon,
+  StrikethroughS as StrikethroughSIcon,
+  FormatQuote as FormatQuoteIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../../context/NotificationsContext';
@@ -66,6 +71,9 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
   const [mentionSearch, setMentionSearch] = useState('');
   const [mentionCursorPosition, setMentionCursorPosition] = useState(0);
   const [mentions, setMentions] = useState([]);
+  const [showFormatTooltip, setShowFormatTooltip] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+  const [selectedText, setSelectedText] = useState({ start: 0, end: 0 });
   const fileInputRef = useRef(null);
   const emojiPickerRef = useRef(null);
   const mentionPickerRef = useRef(null);
@@ -177,6 +185,95 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
       member.name.toLowerCase().includes(mentionSearch)
     );
   }, [groupMembers, mentionSearch]);
+
+  // 🎨 Aplicar formato de texto
+  const applyFormat = (formatType) => {
+    const input = textFieldRef.current;
+    if (!input) return;
+
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const selectedText = message.substring(start, end);
+
+    if (!selectedText) return;
+
+    let formattedText = '';
+    switch (formatType) {
+      case 'bold':
+        formattedText = `*${selectedText}*`;
+        break;
+      case 'italic':
+        formattedText = `_${selectedText}_`;
+        break;
+      case 'underline':
+        formattedText = `__${selectedText}__`;
+        break;
+      case 'strikethrough':
+        formattedText = `~~${selectedText}~~`;
+        break;
+      case 'quote':
+        formattedText = `> ${selectedText}`;
+        break;
+      default:
+        return;
+    }
+
+    const newMessage = message.substring(0, start) + formattedText + message.substring(end);
+    setMessage(newMessage);
+    setShowFormatTooltip(false);
+
+    // Restaurar selección
+    setTimeout(() => {
+      input.focus();
+      input.setSelectionRange(start, start + formattedText.length);
+    }, 0);
+  };
+
+  // 📍 Detectar selección de texto para tooltip flotante
+  const handleTextSelect = () => {
+    const input = textFieldRef.current;
+    if (!input) return;
+
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+
+    if (start !== end && end - start > 0) {
+      // Hay texto seleccionado
+      setSelectedText({ start, end });
+      
+      // Calcular posición del tooltip
+      const rect = input.getBoundingClientRect();
+      setTooltipPosition({
+        top: rect.top - 60,
+        left: rect.left + (rect.width / 2) - 150
+      });
+      setShowFormatTooltip(true);
+    } else {
+      setShowFormatTooltip(false);
+    }
+  };
+
+  // ⌨️ Manejar atajos de teclado (Ctrl+B, Ctrl+I, Ctrl+U)
+  const handleKeyDown = (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      switch (e.key.toLowerCase()) {
+        case 'b':
+          e.preventDefault();
+          applyFormat('bold');
+          break;
+        case 'i':
+          e.preventDefault();
+          applyFormat('italic');
+          break;
+        case 'u':
+          e.preventDefault();
+          applyFormat('underline');
+          break;
+        default:
+          break;
+      }
+    }
+  };
 
   // Extraer IDs de usuarios mencionados del texto
   const extractMentionIds = (text) => {
@@ -471,6 +568,59 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
           </AnimatePresence>
         </Box>
 
+        {/* 🎨 Tooltip flotante de formato (aparece al seleccionar texto) */}
+        <AnimatePresence>
+          {showFormatTooltip && (
+            <Paper
+              component={motion.div}
+              initial={{ opacity: 0, y: 10, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.9 }}
+              transition={{ duration: 0.2 }}
+              sx={{
+                position: 'fixed',
+                top: tooltipPosition.top,
+                left: tooltipPosition.left,
+                zIndex: 1400,
+                display: 'flex',
+                gap: 0.5,
+                p: 0.5,
+                borderRadius: 2,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                bgcolor: 'background.paper',
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`
+              }}
+            >
+              <Tooltip title="Negrita">
+                <IconButton size="small" onClick={() => applyFormat('bold')}>
+                  <FormatBoldIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Cursiva">
+                <IconButton size="small" onClick={() => applyFormat('italic')}>
+                  <FormatItalicIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Subrayado">
+                <IconButton size="small" onClick={() => applyFormat('underline')}>
+                  <FormatUnderlinedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Tachado">
+                <IconButton size="small" onClick={() => applyFormat('strikethrough')}>
+                  <StrikethroughSIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Box sx={{ width: 1, height: 24, bgcolor: 'divider', mx: 0.5 }} />
+              <Tooltip title="Cita">
+                <IconButton size="small" onClick={() => applyFormat('quote')}>
+                  <FormatQuoteIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Paper>
+          )}
+        </AnimatePresence>
+
         {/* Campo de texto Sobrio con soporte de menciones */}
         <Box sx={{ position: 'relative', flex: 1 }}>
           <TextField
@@ -481,6 +631,9 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
             value={message}
             onChange={handleMessageChange}
             onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
+            onSelect={handleTextSelect}
+            onMouseUp={handleTextSelect}
             disabled={uploading}
             inputRef={textFieldRef}
             sx={{

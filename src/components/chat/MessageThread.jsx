@@ -25,7 +25,9 @@ import {
   ListItemAvatar,
   ListItemText,
   Switch,
-  Collapse
+  Collapse,
+  Skeleton,
+  Fab
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -58,7 +60,8 @@ import {
   Settings as SettingsIcon,
   NotificationsOff as NotificationsOffIcon,
   ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon
+  ExpandLess as ExpandLessIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { onSnapshot, doc, collection, query, where, getDocs, deleteDoc, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
@@ -953,8 +956,12 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
         }}
       >
         {loading && messages.length === 0 ? (
-          <Box display="flex" justifyContent="center" py={4}>
-            <CircularProgress size={40} />
+          <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {[1, 2, 3, 4].map((i) => (
+              <Box key={i} sx={{ alignSelf: i % 2 === 0 ? 'flex-end' : 'flex-start', maxWidth: i % 2 === 0 ? 200 : 150 }}>
+                <Skeleton variant="rectangular" width={i % 2 === 0 ? 200 : 150} height={60} sx={{ borderRadius: 2 }} />
+              </Box>
+            ))}
           </Box>
         ) : error ? (
           <Alert severity="error">{error}</Alert>
@@ -1091,6 +1098,33 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
           </>
         )}
       </Box>
+
+      {/* 🔽 Botón flotante para bajar */}
+      {showScrollButton && (
+        <Box
+          component={motion.div}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.8 }}
+          sx={{ position: 'absolute', bottom: 80, right: 24, zIndex: 5 }}
+        >
+          <Fab
+            size="small"
+            color="primary"
+            onClick={scrollToBottom}
+            sx={{
+              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+              bgcolor: alpha(theme.palette.background.paper, 0.9),
+              color: theme.palette.text.primary,
+              '&:hover': {
+                bgcolor: theme.palette.background.paper
+              }
+            }}
+          >
+            <KeyboardArrowDownIcon />
+          </Fab>
+        </Box>
+      )}
 
       {/* ⌨️ Indicador de "escribiendo..." con burbuja animada */}
       {otherUserTyping && (

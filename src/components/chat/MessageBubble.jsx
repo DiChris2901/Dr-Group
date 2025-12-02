@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -44,7 +44,11 @@ import {
   Person as PersonIcon,
   Business as BusinessIcon,
   OpenInNew as OpenInNewIcon,
-  Groups as GroupsIcon
+  Groups as GroupsIcon,
+  FormatBold as FormatBoldIcon,
+  FormatItalic as FormatItalicIcon,
+  FormatUnderlined as FormatUnderlinedIcon,
+  StrikethroughS as StrikethroughSIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
@@ -61,16 +65,17 @@ import PreviewDialog from './PreviewDialog';
 const renderTextWithMentions = (text, theme, isMentionedUser) => {
   if (!text) return null;
 
-  // Regex para detectar menciones @usuario
+  // 1. Separar por menciones (tu lógica actual)
   const mentionRegex = /@(\w+)/g;
   const parts = [];
   let lastIndex = 0;
   let match;
 
   while ((match = mentionRegex.exec(text)) !== null) {
-    // Agregar texto antes de la mención
+    // Agregar texto antes de la mención (procesando formato)
     if (match.index > lastIndex) {
-      parts.push(text.substring(lastIndex, match.index));
+      const beforeText = text.substring(lastIndex, match.index);
+      parts.push(...processTextFormat(beforeText));
     }
 
     // Agregar mención resaltada
@@ -106,7 +111,71 @@ const renderTextWithMentions = (text, theme, isMentionedUser) => {
     lastIndex = match.index + match[0].length;
   }
 
-  // Agregar texto restante
+  // Agregar texto restante (procesando formato)
+  if (lastIndex < text.length) {
+    const remainingText = text.substring(lastIndex);
+    parts.push(...processTextFormat(remainingText));
+  }
+
+  return <>{parts}</>;
+};
+
+/**
+ * Procesar formato de texto: *negrita*, _cursiva_, __subrayado__, ~~tachado~~, > cita
+ */
+const processTextFormat = (text) => {
+  const parts = [];
+  // Regex mejorado: *negrita*, _cursiva_, __subrayado__, ~~tachado~~, > cita
+  const regex = /(\*([^*]+)\*)|((?<!_)_([^_]+)_(?!_))|(__([^_]+)__)|(~~([^~]+)~~)|(^> (.+)$)/gm;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    // Texto antes del formato
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+
+    // Detectar tipo de formato
+    if (match[2]) {
+      // *negrita*
+      parts.push(<strong key={`bold-${match.index}`}>{match[2]}</strong>);
+    } else if (match[4]) {
+      // _cursiva_
+      parts.push(<em key={`italic-${match.index}`}>{match[4]}</em>);
+    } else if (match[6]) {
+      // __subrayado__
+      parts.push(<u key={`underline-${match.index}`}>{match[6]}</u>);
+    } else if (match[8]) {
+      // ~~tachado~~
+      parts.push(<del key={`strikethrough-${match.index}`}>{match[8]}</del>);
+    } else if (match[10]) {
+      // > cita (usar span con estilos en lugar de blockquote para evitar warning de anidamiento)
+      parts.push(
+        <span 
+          key={`quote-${match.index}`}
+          style={{
+            display: 'block',
+            borderLeft: '3px solid',
+            borderColor: 'inherit',
+            paddingLeft: '12px',
+            paddingTop: '4px',
+            paddingBottom: '4px',
+            marginTop: '4px',
+            marginBottom: '4px',
+            fontStyle: 'italic',
+            opacity: 0.85
+          }}
+        >
+          {match[10]}
+        </span>
+      );
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Texto restante
   if (lastIndex < text.length) {
     parts.push(text.substring(lastIndex));
   }
@@ -138,6 +207,7 @@ const MessageBubble = React.memo(({
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [forwardDialogOpen, setForwardDialogOpen] = useState(false);
+  const editTextFieldRef = useRef(null);
   const [editedText, setEditedText] = useState(message.text || '');
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
@@ -214,6 +284,45 @@ const MessageBubble = React.memo(({
       onEdit(message.id, editedText.trim());
       setEditDialogOpen(false);
     }
+  };
+
+  // 🎨 Aplicar formato en modal de edición
+  const applyEditFormat = (formatType) => {
+    const input = editTextFieldRef.current;
+    if (!input) return;
+
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const selectedText = editedText.substring(start, end);
+
+    if (!selectedText) return;
+
+    let formattedText = '';
+    switch (formatType) {
+      case 'bold':
+        formattedText = `*${selectedText}*`;
+        break;
+      case 'italic':
+        formattedText = `_${selectedText}_`;
+        break;
+      case 'underline':
+        formattedText = `__${selectedText}__`;
+        break;
+      case 'strikethrough':
+        formattedText = `~~${selectedText}~~`;
+        break;
+      default:
+        return;
+    }
+
+    const newText = editedText.substring(0, start) + formattedText + editedText.substring(end);
+    setEditedText(newText);
+
+    // Restaurar selección
+    setTimeout(() => {
+      input.focus();
+      input.setSelectionRange(start, start + formattedText.length);
+    }, 0);
   };
 
   const handleReplyClick = () => {
@@ -1022,6 +1131,89 @@ const MessageBubble = React.memo(({
           </Box>
         </DialogTitle>
         <DialogContent>
+          {/* 🎨 Toolbar de formato para edición */}
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              gap: 0.5, 
+              mb: 1.5,
+              p: 1,
+              borderRadius: 2,
+              bgcolor: alpha(theme.palette.primary.main, 0.04),
+              border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
+            }}
+          >
+            <Tooltip title="Negrita">
+              <IconButton 
+                size="small" 
+                onClick={() => applyEditFormat('bold')}
+                sx={{ 
+                  transition: 'all 0.2s ease',
+                  '&:hover': { 
+                    bgcolor: alpha(theme.palette.primary.main, 0.12),
+                    transform: 'scale(1.1)'
+                  }
+                }}
+              >
+                <FormatBoldIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Cursiva">
+              <IconButton 
+                size="small" 
+                onClick={() => applyEditFormat('italic')}
+                sx={{ 
+                  transition: 'all 0.2s ease',
+                  '&:hover': { 
+                    bgcolor: alpha(theme.palette.primary.main, 0.12),
+                    transform: 'scale(1.1)'
+                  }
+                }}
+              >
+                <FormatItalicIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Subrayado">
+              <IconButton 
+                size="small" 
+                onClick={() => applyEditFormat('underline')}
+                sx={{ 
+                  transition: 'all 0.2s ease',
+                  '&:hover': { 
+                    bgcolor: alpha(theme.palette.primary.main, 0.12),
+                    transform: 'scale(1.1)'
+                  }
+                }}
+              >
+                <FormatUnderlinedIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Tooltip title="Tachado">
+              <IconButton 
+                size="small" 
+                onClick={() => applyEditFormat('strikethrough')}
+                sx={{ 
+                  transition: 'all 0.2s ease',
+                  '&:hover': { 
+                    bgcolor: alpha(theme.palette.primary.main, 0.12),
+                    transform: 'scale(1.1)'
+                  }
+                }}
+              >
+                <StrikethroughSIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <Box sx={{ flexGrow: 1 }} />
+
+            <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center' }}>
+              Selecciona texto para formatear
+            </Typography>
+          </Box>
+
           <TextField
             autoFocus
             fullWidth
@@ -1030,8 +1222,8 @@ const MessageBubble = React.memo(({
             value={editedText}
             onChange={(e) => setEditedText(e.target.value)}
             placeholder="Escribe tu mensaje..."
+            inputRef={editTextFieldRef}
             sx={{
-              mt: 1,
               '& .MuiOutlinedInput-root': {
                 borderRadius: 2
               }
