@@ -77,6 +77,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useChatStats } from '../../hooks/useChatStats';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
+import OptimizedAvatar from '../common/OptimizedAvatar';
 import { formatDistanceToNow, format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -770,7 +771,7 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
 
         {/* Avatar y nombre */}
         <Box sx={{ position: 'relative' }}>
-          <Avatar
+          <OptimizedAvatar
             src={otherParticipantPhoto}
             alt={otherParticipantName}
             onClick={handleAvatarClick}
@@ -797,7 +798,7 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
             {!otherParticipantPhoto && (
               isGroup ? getInitials(displayName) : <PersonIcon />
             )}
-          </Avatar>
+          </OptimizedAvatar>
           {/* Indicador de carga al subir foto */}
           {uploadingGroupPhoto && (
             <CircularProgress
@@ -1271,12 +1272,12 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
             gap: 2
           }}
         >
-          <Avatar
+          <OptimizedAvatar
             src={selectedUser?.photoURL || selectedUser?.photo}
             sx={{ width: 24, height: 24 }}
           >
             {displayName?.[0]?.toUpperCase()}
-          </Avatar>
+          </OptimizedAvatar>
           
           {/* Burbuja con 3 puntos animados */}
           <Paper

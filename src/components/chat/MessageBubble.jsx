@@ -58,6 +58,7 @@ import { db } from '../../config/firebase';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
 import PreviewDialog from './PreviewDialog';
+import OptimizedAvatar from '../common/OptimizedAvatar';
 
 /**
  * Renderizar texto con menciones resaltadas
@@ -585,7 +586,7 @@ const MessageBubble = React.memo(({
     >
       {/* Avatar del remitente (solo mensajes de otros y si no es consecutivo) */}
       {!isOwnMessage && showAvatar && (
-        <Avatar
+        <OptimizedAvatar
           src={message.senderPhoto}
           alt={message.senderName}
           sx={{ 
@@ -605,7 +606,7 @@ const MessageBubble = React.memo(({
           }}
         >
           {message.senderName?.charAt(0)}
-        </Avatar>
+        </OptimizedAvatar>
       )}
       {/* Espacio reservado si el avatar está oculto */}
       {!isOwnMessage && !showAvatar && (

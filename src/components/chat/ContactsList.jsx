@@ -6,7 +6,6 @@ import {
   ListItemButton,
   ListItemAvatar,
   ListItemText,
-  Avatar,
   Typography,
   TextField,
   InputAdornment,
@@ -39,6 +38,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Fuse from 'fuse.js';
 import { useAuth } from '../../context/AuthContext';
 import { useChat } from '../../context/ChatContext';
+import OptimizedAvatar from '../common/OptimizedAvatar';
 
 /**
  * Lista de contactos (usuarios registrados) y grupos estilo WhatsApp
@@ -237,18 +237,31 @@ const ContactsList = ({
         >
           CONTACTOS DISPONIBLES
         </Typography>
-        <Typography 
-          variant="h6" 
-          fontWeight={600} 
-          sx={{ 
-            mt: 0.5,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1
-          }}
-        >
-          👥 {displayedUsers.length} {displayedUsers.length === 1 ? 'Usuario' : 'Usuarios'}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 0.5 }}>
+          <Typography 
+            variant="h6" 
+            fontWeight={600} 
+            sx={{ 
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}
+          >
+            👥 {displayedUsers.length} {displayedUsers.length === 1 ? 'Usuario' : 'Usuarios'}
+          </Typography>
+          <Divider orientation="vertical" flexItem sx={{ my: 0.5 }} />
+          <Typography 
+            variant="h6" 
+            fontWeight={600} 
+            sx={{ 
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}
+          >
+            💬 {groupConversations.length} {groupConversations.length === 1 ? 'Grupo' : 'Grupos'}
+          </Typography>
+        </Box>
       </Box>
 
       {/* Barra de búsqueda Sobrio */}
@@ -369,20 +382,20 @@ const ContactsList = ({
                                 }
                               }}
                             >
-                              <ListItemAvatar>
-                                {/* ✅ Avatar único del grupo con foto o iniciales */}
-                                <Avatar
-                                  src={group.metadata?.groupPhoto || null}
-                                  sx={{
-                                    width: 44,
-                                    height: 44,
-                                    background: !group.metadata?.groupPhoto
-                                      ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
-                                      : undefined,
-                                    fontSize: '1.1rem',
-                                    fontWeight: 700,
-                                    border: 2,
-                                    borderColor: isActiveGroup
+                            <ListItemAvatar>
+                              {/* ✅ Avatar único del grupo con foto o iniciales */}
+                              <OptimizedAvatar
+                                src={group.metadata?.groupPhoto || null}
+                                sx={{
+                                  width: 44,
+                                  height: 44,
+                                  background: !group.metadata?.groupPhoto
+                                    ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
+                                    : undefined,
+                                  fontSize: '1.1rem',
+                                  fontWeight: 700,
+                                  border: 2,
+                                  borderColor: isActiveGroup
                                       ? 'primary.main'
                                       : alpha('#667eea', 0.2),
                                     boxShadow: isActiveGroup
@@ -392,7 +405,7 @@ const ContactsList = ({
                                   }}
                                 >
                                   {!group.metadata?.groupPhoto && getGroupInitials(groupName)}
-                                </Avatar>
+                                </OptimizedAvatar>
                               </ListItemAvatar>
 
                               <ListItemText
@@ -569,7 +582,7 @@ const ContactsList = ({
                               },
                             }}
                           >
-                            <Avatar
+                            <OptimizedAvatar
                               src={userPhoto}
                               alt={userName}
                               onClick={(e) => handleAvatarClick(e, user)}
@@ -596,7 +609,7 @@ const ContactsList = ({
                               }}
                             >
                               {userName.charAt(0).toUpperCase()}
-                            </Avatar>
+                            </OptimizedAvatar>
                           </MuiBadge>
                         </ListItemAvatar>
 
@@ -719,7 +732,7 @@ const ContactsList = ({
           {selectedUserInfo && (
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', p: 3 }}>
               {/* Avatar Grande */}
-              <Avatar
+              <OptimizedAvatar
                 src={selectedUserInfo.photoURL || selectedUserInfo.photo}
                 alt={selectedUserInfo.displayName || selectedUserInfo.name}
                 sx={{
@@ -731,13 +744,11 @@ const ContactsList = ({
                   boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
                 }}
               >
-                {(selectedUserInfo.displayName || selectedUserInfo.name || selectedUserInfo.email || 'U')
-                  .charAt(0)
-                  .toUpperCase()}
-              </Avatar>
+                {(selectedUserInfo.displayName || selectedUserInfo.name || selectedUserInfo.email || 'U').charAt(0).toUpperCase()}
+              </OptimizedAvatar>
 
-              {/* Nombre */}
-              <Typography variant="h5" fontWeight={600} gutterBottom>
+              {/* Nombre y Email */}
+              <Typography variant="h5" sx={{ fontWeight: 600 }} gutterBottom>
                 {selectedUserInfo.displayName || selectedUserInfo.name || 'Usuario'}
               </Typography>
 
