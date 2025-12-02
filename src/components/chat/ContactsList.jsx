@@ -32,7 +32,8 @@ import {
   Close as CloseIcon,
   Phone as PhoneIcon,
   WhatsApp as WhatsAppIcon,
-  Delete as DeleteIcon
+  Delete as DeleteIcon,
+  Edit as EditIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import Fuse from 'fuse.js';
@@ -51,7 +52,7 @@ const ContactsList = ({
 }) => {
   const theme = useTheme();
   const { currentUser } = useAuth();
-  const { usersPresence, unreadByUser, conversations, setActiveConversationId, deleteGroup } = useChat();
+  const { usersPresence, unreadByUser, conversations, setActiveConversationId, deleteGroup, activeConversationId } = useChat();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUserInfo, setSelectedUserInfo] = useState(null);
   const [userInfoDialogOpen, setUserInfoDialogOpen] = useState(false);
@@ -66,6 +67,13 @@ const ContactsList = ({
       (!!u.email && !!currentUser.email && u.email.toLowerCase() === currentUser.email.toLowerCase())
     );
   }, [currentUser]);
+
+  // Helper para detectar si una conversación tiene borrador guardado
+  const hasDraft = useCallback((conversationId) => {
+    if (!conversationId) return false;
+    const draft = localStorage.getItem(`draft_${conversationId}`);
+    return draft && draft.trim().length > 0;
+  }, []);
 
   const handleAvatarClick = (event, user) => {
     event.stopPropagation(); // Evitar que se active onSelectUser
@@ -319,6 +327,8 @@ const ContactsList = ({
                       const groupPhoto = group.metadata?.groupPhoto;
                       const memberCount = group.participantIds?.length || 0;
                       const unread = group.unreadCount?.[currentUser?.uid] || 0;
+                      const isActiveGroup = activeConversationId === group.id;
+                      const hasDraftMessage = hasDraft(group.id);
 
                       return (
                         <motion.div
@@ -330,14 +340,32 @@ const ContactsList = ({
                         >
                           <ListItem disablePadding>
                             <ListItemButton
+                              selected={isActiveGroup}
                               onClick={() => handleSelectGroup(group.id)}
                               sx={{
                                 py: 1.5,
                                 px: 2.5,
-                                borderRadius: 0,
+                                mx: 1,
+                                my: 0.5,
+                                borderRadius: 2,
+                                background: isActiveGroup
+                                  ? `linear-gradient(135deg, ${alpha('#667eea', 0.12)} 0%, ${alpha('#764ba2', 0.08)} 100%)`
+                                  : 'transparent',
+                                borderLeft: isActiveGroup ? 3 : 0,
+                                borderColor: 'primary.main',
                                 transition: 'all 0.3s ease',
                                 '&:hover': {
-                                  bgcolor: alpha('#667eea', 0.08)
+                                  background: isActiveGroup
+                                    ? `linear-gradient(135deg, ${alpha('#667eea', 0.18)} 0%, ${alpha('#764ba2', 0.12)} 100%)`
+                                    : alpha('#667eea', 0.06),
+                                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.15)',
+                                  transform: 'translateX(4px)'
+                                },
+                                '&.Mui-selected': {
+                                  background: `linear-gradient(135deg, ${alpha('#667eea', 0.12)} 0%, ${alpha('#764ba2', 0.08)} 100%)`,
+                                  '&:hover': {
+                                    background: `linear-gradient(135deg, ${alpha('#667eea', 0.18)} 0%, ${alpha('#764ba2', 0.12)} 100%)`
+                                  }
                                 }
                               }}
                             >
@@ -346,13 +374,21 @@ const ContactsList = ({
                                 <Avatar
                                   src={group.metadata?.groupPhoto || null}
                                   sx={{
-                                    width: 48,
-                                    height: 48,
+                                    width: 44,
+                                    height: 44,
                                     background: !group.metadata?.groupPhoto
                                       ? `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`
                                       : undefined,
                                     fontSize: '1.1rem',
-                                    fontWeight: 700
+                                    fontWeight: 700,
+                                    border: 2,
+                                    borderColor: isActiveGroup
+                                      ? 'primary.main'
+                                      : alpha('#667eea', 0.2),
+                                    boxShadow: isActiveGroup
+                                      ? '0 4px 16px rgba(102, 126, 234, 0.3)'
+                                      : '0 2px 8px rgba(102, 126, 234, 0.15)',
+                                    transition: 'all 0.3s ease'
                                   }}
                                 >
                                   {!group.metadata?.groupPhoto && getGroupInitials(groupName)}
@@ -365,6 +401,26 @@ const ContactsList = ({
                                     <Typography fontWeight={600} fontSize="0.95rem">
                                       {groupName}
                                     </Typography>
+                                    {hasDraftMessage && (
+                                      <Chip
+                                        icon={<EditIcon sx={{ fontSize: '0.7rem !important' }} />}
+                                        label="Borrador"
+                                        size="small"
+                                        color="warning"
+                                        variant="outlined"
+                                        sx={{
+                                          height: 20,
+                                          '& .MuiChip-label': {
+                                            px: 0.5,
+                                            fontSize: '0.65rem',
+                                            fontWeight: 600
+                                          },
+                                          '& .MuiChip-icon': {
+                                            ml: 0.5
+                                          }
+                                        }}
+                                      />
+                                    )}
                                     {unread > 0 && (
                                       <Chip
                                         label={unread}
@@ -445,7 +501,12 @@ const ContactsList = ({
                 <List sx={{ p: 0 }}>
                   <AnimatePresence>
                     {displayedUsers.map((user, index) => {
-                      const isSelected = selectedUserId === user.uid;
+                      // Obtener conversationId del usuario para comparar con activeConversationId
+                      const userConversation = conversations?.find(conv => 
+                        conv.type === 'direct' && conv.participantIds?.includes(user.uid)
+                      );
+                      const isSelected = activeConversationId === userConversation?.id;
+                      const hasDraftMessage = hasDraft(userConversation?.id);
                       const userName = user.displayName || user.name || user.email?.split('@')[0] || 'Usuario';
                       const userEmail = user.email || '';
                       const userRole = user.role || 'VISUALIZADOR';
@@ -539,16 +600,35 @@ const ContactsList = ({
                           </MuiBadge>
                         </ListItemAvatar>
 
-                        <ListItemText
+                              <ListItemText
                           primary={
                             <Box display="flex" alignItems="center" gap={1}>
                               <Typography
                                 variant="body1"
                                 fontWeight={isSelected ? 600 : 500}
-                                noWrap
                               >
                                 {userName}
                               </Typography>
+                              {hasDraftMessage && (
+                                <Chip
+                                  icon={<EditIcon sx={{ fontSize: '0.7rem !important' }} />}
+                                  label="Borrador"
+                                  size="small"
+                                  color="warning"
+                                  variant="outlined"
+                                  sx={{
+                                    height: 20,
+                                    '& .MuiChip-label': {
+                                      px: 0.5,
+                                      fontSize: '0.65rem',
+                                      fontWeight: 600
+                                    },
+                                    '& .MuiChip-icon': {
+                                      ml: 0.5
+                                    }
+                                  }}
+                                />
+                              )}
                               <Chip
                                 label={getRoleLabel(userRole)}
                                 color={getRoleColor(userRole)}

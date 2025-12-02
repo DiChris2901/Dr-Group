@@ -42,6 +42,40 @@ import { uploadChatAttachment } from '../../utils/chatFileUpload';
 import { useChat } from '../../context/ChatContext';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
 
+// 🎨 Helper para renderizar formato en tiempo real
+const renderFormattedPreview = (text) => {
+  if (!text) return null;
+  
+  const regex = /(\*([^*]+)\*)|(_([^_]+)_)|(__([^_]+)__)|(~~([^~]+)~~)/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+
+    if (match[2]) {
+      parts.push(<strong key={`b-${match.index}`}>{match[2]}</strong>);
+    } else if (match[4]) {
+      parts.push(<em key={`i-${match.index}`}>{match[4]}</em>);
+    } else if (match[6]) {
+      parts.push(<u key={`u-${match.index}`}>{match[6]}</u>);
+    } else if (match[8]) {
+      parts.push(<del key={`s-${match.index}`}>{match[8]}</del>);
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
+};
+
 // 🔧 Utilidad para debounce
 const useDebounce = (callback, delay) => {
   const timeoutRef = useRef(null);
@@ -74,6 +108,7 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
   const [showFormatTooltip, setShowFormatTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
   const [selectedText, setSelectedText] = useState({ start: 0, end: 0 });
+  const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef(null);
   const emojiPickerRef = useRef(null);
   const mentionPickerRef = useRef(null);
@@ -93,8 +128,25 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
     cleanup: cleanupAudio
   } = useAudioRecorder();
 
-  // ⌨️ C. Debounced typing indicator
+  // ⏱️ C. Debounced typing indicator
   const debouncedTypingUpdate = useDebounce(updateTypingStatus, 500);
+
+  // 💾 Cargar borrador desde localStorage al montar
+  React.useEffect(() => {
+    const savedDraft = localStorage.getItem(`draft_${conversationId}`);
+    if (savedDraft) {
+      setMessage(savedDraft);
+    }
+  }, [conversationId]);
+
+  // 💾 Guardar borrador en localStorage mientras escribe
+  React.useEffect(() => {
+    if (message.trim()) {
+      localStorage.setItem(`draft_${conversationId}`, message);
+    } else {
+      localStorage.removeItem(`draft_${conversationId}`);
+    }
+  }, [message, conversationId]);
 
   // 😊 Manejar selección de emoji
   const onEmojiClick = (emojiData) => {
@@ -305,6 +357,8 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
       setMessage('');
       setAttachments([]);
       setMentions([]);
+      // 💾 Limpiar borrador de localStorage
+      localStorage.removeItem(`draft_${conversationId}`);
       if (onCancelReply) onCancelReply();
     } catch (error) {
       console.error('Error enviando mensaje:', error);
@@ -623,35 +677,64 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
 
         {/* Campo de texto Sobrio con soporte de menciones */}
         <Box sx={{ position: 'relative', flex: 1 }}>
-          <TextField
-            fullWidth
-            multiline
-            maxRows={4}
-            placeholder="Escribe un mensaje..."
-            value={message}
-            onChange={handleMessageChange}
-            onKeyPress={handleKeyPress}
-            onKeyDown={handleKeyDown}
-            onSelect={handleTextSelect}
-            onMouseUp={handleTextSelect}
-            disabled={uploading}
-            inputRef={textFieldRef}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                borderRadius: 3,
-                bgcolor: alpha('#000', 0.02),
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  bgcolor: alpha('#000', 0.04),
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
-                },
-                '&.Mui-focused': {
-                  bgcolor: 'background.paper',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+          <Box>
+            <TextField
+              fullWidth
+              multiline
+              maxRows={4}
+              placeholder="Escribe un mensaje..."
+              value={message}
+              onChange={handleMessageChange}
+              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyDown}
+              onSelect={handleTextSelect}
+              onMouseUp={handleTextSelect}
+              onFocus={() => setShowPreview(true)}
+              disabled={uploading}
+              inputRef={textFieldRef}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 3,
+                  bgcolor: alpha('#000', 0.02),
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    bgcolor: alpha('#000', 0.04),
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+                  },
+                  '&.Mui-focused': {
+                    bgcolor: 'background.paper',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                  }
                 }
-              }
-            }}
-          />
+              }}
+            />
+            
+            {/* 👁️ Vista previa de formato en tiempo real */}
+            <AnimatePresence>
+              {message.trim() && /[*_~]/.test(message) && (
+                <Box
+                  component={motion.div}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  sx={{
+                    mt: 1,
+                    p: 1.5,
+                    borderRadius: 2,
+                    bgcolor: alpha(theme.palette.primary.main, 0.04),
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                    👁️ Vista previa:
+                  </Typography>
+                  <Typography variant="body2" component="div">
+                    {renderFormattedPreview(message)}
+                  </Typography>
+                </Box>
+              )}
+            </AnimatePresence>
+          </Box>
 
           {/* Autocomplete de menciones */}
           <AnimatePresence>

@@ -564,10 +564,17 @@ const MessageBubble = React.memo(({
           if (onReply) onReply(message);
         }
       }}
+      // ⚡ Doble clic para editar rápido
+      onDoubleClick={() => {
+        if (isOwnMessage && onEdit) {
+          handleEditClick();
+        }
+      }}
       sx={{
         display: 'flex',
         justifyContent: isOwnMessage ? 'flex-end' : 'flex-start',
-        mb: 1
+        mb: 1,
+        cursor: isOwnMessage && onEdit ? 'pointer' : 'default'
       }}
     >
       {/* Avatar del remitente (solo mensajes de otros) */}
