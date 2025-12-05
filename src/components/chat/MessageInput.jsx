@@ -17,7 +17,8 @@ import {
   ListItemAvatar,
   ListItemText,
   Avatar,
-  ListItemButton
+  ListItemButton,
+  LinearProgress
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -41,6 +42,8 @@ import { useNotifications } from '../../context/NotificationsContext';
 import { uploadChatAttachment } from '../../utils/chatFileUpload';
 import { useChat } from '../../context/ChatContext';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
+import { useAuth } from '../../context/AuthContext';
+import { useUploadProgress } from '../../hooks/useUploadProgress';
 
 // 🎨 Helper para renderizar formato en tiempo real
 const renderFormattedPreview = (text) => {
@@ -82,9 +85,11 @@ const renderFormattedPreview = (text) => {
 const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply, onTyping, onStopTyping }) => {
   const { addNotification } = useNotifications();
   const { getGroupMembers, getConversation } = useChat();
+  const { currentUser } = useAuth();
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({});
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
@@ -98,6 +103,9 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
   const emojiPickerRef = useRef(null);
   const mentionPickerRef = useRef(null);
   const textFieldRef = useRef(null);
+
+  // 🔥 Hook para escuchar progreso de uploads desde RTDB
+  const { uploads: activeUploads, hasActiveUploads } = useUploadProgress(currentUser?.uid);
 
   // 🎵 Hook de grabación de audio
   const {
@@ -423,7 +431,7 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
     cleanupAudio();
   };
 
-  // Manejar adjuntar archivos
+  // Manejar adjuntar archivos con progreso en tiempo real
   const handleFileSelect = async (event) => {
     const files = Array.from(event.target.files || []);
     
@@ -444,9 +452,41 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
     setUploading(true);
 
     try {
-      const uploadedAttachments = await Promise.all(
-        files.map(file => uploadChatAttachment(file))
-      );
+      // 🔥 Subir archivos con tracking de progreso individual
+      const uploadPromises = files.map(async (file, index) => {
+        const fileId = `file_${Date.now()}_${index}`;
+        
+        // Callback para actualizar progreso local (UI inmediata)
+        const onProgress = (progress) => {
+          setUploadProgress(prev => ({
+            ...prev,
+            [fileId]: { fileName: file.name, progress }
+          }));
+        };
+
+        try {
+          const uploaded = await uploadChatAttachment(file, currentUser?.uid, onProgress);
+          
+          // Limpiar progreso local al completar
+          setUploadProgress(prev => {
+            const newProgress = { ...prev };
+            delete newProgress[fileId];
+            return newProgress;
+          });
+
+          return uploaded;
+        } catch (error) {
+          // Limpiar progreso en caso de error
+          setUploadProgress(prev => {
+            const newProgress = { ...prev };
+            delete newProgress[fileId];
+            return newProgress;
+          });
+          throw error;
+        }
+      });
+
+      const uploadedAttachments = await Promise.all(uploadPromises);
 
       setAttachments(prev => [...prev, ...uploadedAttachments]);
       addNotification(`${files.length} archivo(s) adjuntado(s)`, 'success');
@@ -455,6 +495,7 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
       addNotification('Error al adjuntar archivos', 'error');
     } finally {
       setUploading(false);
+      setUploadProgress({});
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -519,6 +560,51 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
             <IconButton size="small" onClick={onCancelReply}>
               <CloseIcon fontSize="small" />
             </IconButton>
+          </Box>
+        )}
+      </AnimatePresence>
+
+      {/* 📊 Indicador de progreso de uploads en tiempo real */}
+      <AnimatePresence>
+        {(uploading || hasActiveUploads) && Object.keys(uploadProgress).length > 0 && (
+          <Box
+            component={motion.div}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            sx={{
+              mb: 1.5,
+              p: 1.5,
+              bgcolor: alpha(theme.palette.info.main, 0.08),
+              borderRadius: 2,
+              border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+            }}
+          >
+            {Object.entries(uploadProgress).map(([fileId, data]) => (
+              <Box key={fileId} sx={{ mb: 1, '&:last-child': { mb: 0 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
+                    📤 {data.fileName}
+                  </Typography>
+                  <Typography variant="caption" color="info.main" sx={{ fontWeight: 600 }}>
+                    {data.progress}%
+                  </Typography>
+                </Box>
+                <LinearProgress 
+                  variant="determinate" 
+                  value={data.progress} 
+                  sx={{
+                    height: 6,
+                    borderRadius: 1,
+                    bgcolor: alpha(theme.palette.info.main, 0.1),
+                    '& .MuiLinearProgress-bar': {
+                      borderRadius: 1,
+                      bgcolor: theme.palette.info.main
+                    }
+                  }}
+                />
+              </Box>
+            ))}
           </Box>
         )}
       </AnimatePresence>

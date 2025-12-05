@@ -24,6 +24,13 @@
           ".write": "$uid === auth.uid"
         }
       }
+    },
+    
+    "uploads": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid"
+      }
     }
   }
 }

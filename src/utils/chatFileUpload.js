@@ -1,12 +1,15 @@
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { storage } from '../config/firebase';
+import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { ref as dbRef, set, remove } from 'firebase/database';
+import { storage, database } from '../config/firebase';
 
 /**
- * Sube un archivo adjunto del chat a Firebase Storage
+ * Sube un archivo adjunto del chat a Firebase Storage con progreso en tiempo real
  * @param {File} file - Archivo a subir
+ * @param {string} userId - ID del usuario que sube el archivo
+ * @param {Function} onProgress - Callback para actualizar progreso (opcional)
  * @returns {Promise<Object>} - Objeto con metadatos del archivo subido
  */
-export const uploadChatAttachment = async (file) => {
+export const uploadChatAttachment = async (file, userId = null, onProgress = null) => {
   try {
     // Validar archivo
     if (!file) {
@@ -22,35 +25,97 @@ export const uploadChatAttachment = async (file) => {
     const timestamp = Date.now();
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const storagePath = `chat_attachments/${timestamp}_${sanitizedName}`;
-    const storageRef = ref(storage, storagePath);
+    const fileStorageRef = storageRef(storage, storagePath);
 
-    // Subir archivo
+    // Generar ID único para el upload
+    const uploadId = `${userId || 'anonymous'}_${timestamp}`;
+    
+    // Referencia RTDB para progreso (si tenemos userId y database)
+    const progressRef = userId && database 
+      ? dbRef(database, `/uploads/${userId}/${uploadId}`)
+      : null;
+
     console.log(`📤 Subiendo archivo: ${file.name}`);
-    const uploadResult = await uploadBytes(storageRef, file, {
+
+    // 🔥 Usar uploadBytesResumable para tracking de progreso
+    const uploadTask = uploadBytesResumable(fileStorageRef, file, {
       contentType: file.type,
       customMetadata: {
         uploadedAt: new Date().toISOString(),
         originalName: file.name,
-        size: file.size.toString()
+        size: file.size.toString(),
+        uploaderId: userId || 'anonymous'
       }
     });
 
-    // Obtener URL de descarga
-    const downloadURL = await getDownloadURL(uploadResult.ref);
+    // Promise para manejar el upload con progreso
+    return new Promise((resolve, reject) => {
+      uploadTask.on(
+        'state_changed',
+        // 📊 Progreso en tiempo real
+        (snapshot) => {
+          const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+          
+          console.log(`📈 Progreso: ${progress}% (${file.name})`);
 
-    console.log(`✅ Archivo subido: ${file.name}`);
+          // Actualizar RTDB para sincronización entre pestañas
+          if (progressRef) {
+            set(progressRef, {
+              fileName: file.name,
+              progress,
+              bytesTransferred: snapshot.bytesTransferred,
+              totalBytes: snapshot.totalBytes,
+              state: snapshot.state,
+              timestamp: Date.now()
+            }).catch(err => console.warn('⚠️ Error actualizando progreso RTDB:', err));
+          }
 
-    // Retornar metadatos del archivo
-    return {
-      name: file.name,
-      url: downloadURL,
-      type: file.type,
-      size: file.size,
-      storagePath: storagePath,
-      uploadedAt: new Date().toISOString()
-    };
+          // Callback personalizado para UI
+          if (onProgress) {
+            onProgress(progress, snapshot.bytesTransferred, snapshot.totalBytes);
+          }
+        },
+        // ❌ Error
+        (error) => {
+          console.error('❌ Error subiendo archivo:', error);
+          
+          // Limpiar progreso de RTDB
+          if (progressRef) {
+            remove(progressRef).catch(console.warn);
+          }
+          
+          reject(error);
+        },
+        // ✅ Completado
+        async () => {
+          try {
+            // Obtener URL de descarga
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+
+            console.log(`✅ Archivo subido: ${file.name}`);
+
+            // Limpiar progreso de RTDB
+            if (progressRef) {
+              remove(progressRef).catch(console.warn);
+            }
+
+            // Retornar metadatos del archivo
+            resolve({
+              name: file.name,
+              url: downloadURL,
+              type: file.type,
+              size: file.size,
+              storagePath: storagePath,
+              uploadedAt: new Date().toISOString()
+            });
+          } catch (error) {
+            reject(error);
+          }
+        }
+      );
+    });
   } catch (error) {
-    console.error('❌ Error subiendo archivo:', error);
+    console.error('❌ Error iniciando upload:', error);
     throw error;
   }
 };
