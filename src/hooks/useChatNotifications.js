@@ -146,7 +146,16 @@ export const useChatNotifications = (isDrawerOpen) => {
               message: `${lastMessage.text?.substring(0, 50)}${lastMessage.text?.length > 50 ? '...' : ''}`,
               type: 'info',
               source: 'chat', // Identificar que viene del chat
-              conversationId: conversation.id
+              conversationId: conversation.id,
+              onClick: () => {
+                // ✅ Al hacer clic en toast, abrir el chat con esa conversación
+                localStorage.setItem('drgroup_pendingConversation', conversation.id);
+                localStorage.setItem('drgroup_chatDrawerOpen', 'true');
+                
+                window.dispatchEvent(new CustomEvent('openChat', {
+                  detail: { conversationId: conversation.id }
+                }));
+              }
             });
           }
 
@@ -212,11 +221,19 @@ export const useChatNotifications = (isDrawerOpen) => {
                   }
                 });
 
-                // Al hacer clic en la notificación, enfocar la ventana
+                // ✅ Al hacer clic en la notificación, abrir el chat con esa conversación
                 notification.onclick = () => {
                   window.focus();
                   notification.close();
-                  // TODO: Abrir el chat con esa conversación específica
+                  
+                  // Guardar conversación ID para abrir al activar el chat
+                  localStorage.setItem('drgroup_pendingConversation', conversation.id);
+                  localStorage.setItem('drgroup_chatDrawerOpen', 'true');
+                  
+                  // Forzar actualización disparando evento personalizado
+                  window.dispatchEvent(new CustomEvent('openChat', {
+                    detail: { conversationId: conversation.id }
+                  }));
                 };
 
                 // Auto-cerrar después de 5 segundos

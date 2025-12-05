@@ -9,12 +9,15 @@ import {
   Divider,
   Paper,
   alpha,
-  Button
+  Button,
+  Tooltip
 } from '@mui/material';
 import {
   Close as CloseIcon,
   ChatBubbleOutline as ChatIcon,
-  GroupAdd as GroupAddIcon
+  GroupAdd as GroupAddIcon,
+  Fullscreen as FullscreenIcon,
+  FullscreenExit as FullscreenExitIcon
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -27,7 +30,7 @@ import CreateGroupModal from './CreateGroupModal';
  * Drawer lateral de chat estilo WhatsApp Web
  * Diseño sobrio empresarial siguiendo DISENO_SOBRIO_NOTAS.md
  */
-const ChatDrawer = ({ open, onClose }) => {
+const ChatDrawer = ({ open, onClose, pendingConversation, onConversationOpened }) => {
   const theme = useTheme();
   const { 
     getAllUsers, 
@@ -35,7 +38,8 @@ const ChatDrawer = ({ open, onClose }) => {
     setActiveConversationId, 
     activeConversationId,
     loading: chatLoading,
-    error: chatError
+    error: chatError,
+    conversations
   } = useChat();
   
   const [users, setUsers] = useState([]);
@@ -45,6 +49,7 @@ const ChatDrawer = ({ open, onClose }) => {
   const [loadingConversation, setLoadingConversation] = useState(false);
   const [showContacts, setShowContacts] = useState(true);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // 🔥 Cargar todos los usuarios al abrir el drawer
   useEffect(() => {
@@ -64,6 +69,24 @@ const ChatDrawer = ({ open, onClose }) => {
       loadUsers();
     }
   }, [open, getAllUsers]);
+
+  // 🎯 Abrir conversación pendiente automáticamente
+  useEffect(() => {
+    if (open && pendingConversation && conversations.length > 0) {
+      // Verificar si la conversación existe
+      const conversation = conversations.find(c => c.id === pendingConversation);
+      
+      if (conversation) {
+        setActiveConversationId(pendingConversation);
+        setShowContacts(false);
+        
+        // Notificar que se abrió la conversación
+        if (onConversationOpened) {
+          onConversationOpened();
+        }
+      }
+    }
+  }, [open, pendingConversation, conversations, setActiveConversationId, onConversationOpened]);
 
   // 📱 Manejar selección de contacto
   const handleSelectUser = async (userId) => {
@@ -98,7 +121,13 @@ const ChatDrawer = ({ open, onClose }) => {
     setShowContacts(true);
     setSelectedUserId(null);
     setActiveConversationId(null);
+    setIsFullscreen(false);
     onClose();
+  };
+
+  // 🖥️ Toggle pantalla completa
+  const handleToggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
   };
 
   // 👥 Manejar creación de grupo
@@ -206,15 +235,17 @@ const ChatDrawer = ({ open, onClose }) => {
       onClose={handleClose}
       PaperProps={{
         sx: {
-          width: { xs: '100%', sm: 520, md: 900, lg: 1100 },
+          width: isFullscreen ? '100vw' : { xs: '100%', sm: 520, md: 900, lg: 1100 },
           maxWidth: '100vw',
-          height: `calc(100vh - ${taskbarSpace}px)`, // Restar espacio del Taskbar
-          bottom: taskbarSpace, // Posicionar encima del Taskbar
-          top: 'auto',
+          height: isFullscreen ? '100vh' : `calc(100vh - ${taskbarSpace}px)`,
+          bottom: isFullscreen ? 0 : taskbarSpace,
+          top: isFullscreen ? 0 : 'auto',
           border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`,
           boxShadow: theme.palette.mode === 'dark'
             ? '0 4px 20px rgba(0, 0, 0, 0.3)'
-            : '0 4px 20px rgba(0, 0, 0, 0.08)'
+            : '0 4px 20px rgba(0, 0, 0, 0.08)',
+          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          zIndex: isFullscreen ? 1400 : 1200
         }
       }}
     >
@@ -296,6 +327,21 @@ const ChatDrawer = ({ open, onClose }) => {
             >
               Nuevo Grupo
             </Button>
+
+            <Tooltip title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}>
+              <IconButton
+                onClick={handleToggleFullscreen}
+                sx={{
+                  color: 'white',
+                  bgcolor: 'rgba(255, 255, 255, 0.15)',
+                  '&:hover': {
+                    bgcolor: 'rgba(255, 255, 255, 0.25)'
+                  }
+                }}
+              >
+                {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+              </IconButton>
+            </Tooltip>
 
             <IconButton 
               onClick={handleClose} 

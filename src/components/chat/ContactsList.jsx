@@ -124,8 +124,31 @@ const ContactsList = ({
     const usersWithoutMe = users.filter(user => !isMe(user));
 
     if (!searchTerm || searchTerm.length < 2) {
-      // Sin búsqueda, devolver todos ordenados
+      // 🎯 Sin búsqueda, ordenar por última interacción (conversación más reciente)
       return usersWithoutMe.sort((a, b) => {
+        // Obtener conversaciones directas para cada usuario
+        const userAId = a.uid || a.id || a.authUid;
+        const userBId = b.uid || b.id || b.authUid;
+        
+        const convA = conversations?.find(conv => 
+          conv.type === 'direct' && conv.participantIds?.includes(userAId)
+        );
+        const convB = conversations?.find(conv => 
+          conv.type === 'direct' && conv.participantIds?.includes(userBId)
+        );
+        
+        // Si ambos tienen conversación, ordenar por más reciente
+        if (convA && convB) {
+          const timeA = convA.updatedAt?.getTime() || 0;
+          const timeB = convB.updatedAt?.getTime() || 0;
+          return timeB - timeA; // Más reciente primero
+        }
+        
+        // Si solo uno tiene conversación, ese va primero
+        if (convA) return -1;
+        if (convB) return 1;
+        
+        // Si ninguno tiene conversación, ordenar alfabéticamente
         const nameA = (a.displayName || a.name || a.email || '').toLowerCase();
         const nameB = (b.displayName || b.name || b.email || '').toLowerCase();
         return nameA.localeCompare(nameB);
@@ -135,7 +158,7 @@ const ContactsList = ({
     // Con búsqueda, usar Fuse.js
     const results = fuse.search(searchTerm);
     return results.map(result => result.item);
-  }, [users, currentUser?.uid, searchTerm, fuse]);
+  }, [users, currentUser?.uid, searchTerm, fuse, conversations]);
 
   // Lista final a renderizar (ya sin mí)
   const displayedUsers = useMemo(() => filteredUsers.filter(u => !isMe(u)), [filteredUsers, isMe]);

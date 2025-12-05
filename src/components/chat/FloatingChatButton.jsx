@@ -24,8 +24,34 @@ const FloatingChatButton = () => {
     return saved === 'true';
   });
 
+  // 📌 Estado para conversación pendiente a abrir
+  const [pendingConversation, setPendingConversation] = React.useState(null);
+
   // 🔔 Notificaciones de mensajes nuevos cuando drawer está cerrado
   useChatNotifications(drawerOpen);
+
+  // 🎯 Escuchar evento para abrir chat desde notificaciones
+  React.useEffect(() => {
+    const handleOpenChat = (event) => {
+      const conversationId = event.detail?.conversationId;
+      if (conversationId) {
+        setPendingConversation(conversationId);
+        setDrawerOpen(true);
+        localStorage.setItem('drgroup_chatDrawerOpen', 'true');
+      }
+    };
+
+    window.addEventListener('openChat', handleOpenChat);
+    
+    // Verificar si hay conversación pendiente al montar
+    const pending = localStorage.getItem('drgroup_pendingConversation');
+    if (pending) {
+      setPendingConversation(pending);
+      localStorage.removeItem('drgroup_pendingConversation');
+    }
+
+    return () => window.removeEventListener('openChat', handleOpenChat);
+  }, []);
 
   // 🎨 Gradiente dinámico con colores del tema
   const primaryColor = theme.palette.primary.main;
@@ -114,7 +140,12 @@ const FloatingChatButton = () => {
       </Zoom>
 
       {/* Drawer de chat */}
-      <ChatDrawer open={drawerOpen} onClose={handleClose} />
+      <ChatDrawer 
+        open={drawerOpen} 
+        onClose={handleClose} 
+        pendingConversation={pendingConversation}
+        onConversationOpened={() => setPendingConversation(null)}
+      />
     </>
   );
 };
