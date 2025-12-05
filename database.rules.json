@@ -2,10 +2,27 @@
   "rules": {
     ".read": false,
     ".write": false,
+    
     "status": {
+      ".read": true,
       "$uid": {
-        ".read": true,
         ".write": "$uid === auth.uid"
+      }
+    },
+    
+    "unread": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": true
+      }
+    },
+    
+    "typing": {
+      "$conversationId": {
+        ".read": true,
+        "$uid": {
+          ".write": "$uid === auth.uid"
+        }
       }
     }
   }

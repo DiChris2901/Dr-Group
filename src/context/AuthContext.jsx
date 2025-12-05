@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { auth, db } from '../config/firebase';
+import { auth, db, database } from '../config/firebase';
 import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { ref, set, serverTimestamp as rtdbServerTimestamp } from 'firebase/database';
 import { clearAllListeners } from '../utils/listenerManager';
 import { useUserPresence } from '../hooks/useUserPresence';
 
@@ -160,6 +161,20 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       const userId = currentUser?.uid;
+      
+      // 🔴 MARCAR COMO OFFLINE EN RTDB ANTES DE TODO
+      if (userId && database) {
+        try {
+          const userStatusRef = ref(database, `/status/${userId}`);
+          await set(userStatusRef, {
+            state: 'offline',
+            last_changed: rtdbServerTimestamp()
+          });
+          console.log('🔴 Usuario marcado como offline en RTDB');
+        } catch (rtdbError) {
+          console.error('⚠️ Error marcando offline en RTDB:', rtdbError);
+        }
+      }
       
       // 🧹 Limpiar listeners ANTES del signOut para evitar permission-denied
       console.log('🧹 Limpiando listeners antes del logout...');

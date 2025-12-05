@@ -21,6 +21,7 @@ import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
 import { useNotifications } from '../context/NotificationsContext';
+import { incrementUnreadCount } from './useUnreadCount';
 
 /**
  * Hook para manejar mensajes de una conversación específica
@@ -221,6 +222,12 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
         id => id !== currentUser.uid
       );
 
+      // Incrementar contadores de no leídos en RTDB (instantáneo)
+      otherParticipantIds.forEach(participantId => {
+        incrementUnreadCount(conversationId, participantId);
+      });
+
+      // También actualizar Firestore por compatibilidad
       const unreadCountUpdates = {};
       otherParticipantIds.forEach(participantId => {
         unreadCountUpdates[`unreadCount.${participantId}`] = increment(1);

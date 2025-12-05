@@ -20,6 +20,7 @@ import { ref, onValue } from 'firebase/database';
 import { db, database } from '../config/firebase';
 import { useAuth } from './AuthContext';
 import { useNotifications } from './NotificationsContext';
+import { useUnreadCount, resetUnreadCount } from '../hooks/useUnreadCount';
 
 const ChatContext = createContext();
 
@@ -38,9 +39,11 @@ export const ChatProvider = ({ children }) => {
   // Estados principales
   const [conversations, setConversations] = useState([]);
   const [activeConversationId, setActiveConversationId] = useState(null);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // 🔥 Contadores de no leídos con RTDB (actualización instantánea)
+  const { unreadCounts, totalUnread: unreadCount, getUnreadForConversation } = useUnreadCount(currentUser?.uid);
 
   // 🟢 Estado de presencia de usuarios
   const [usersPresence, setUsersPresence] = useState({});
@@ -48,22 +51,23 @@ export const ChatProvider = ({ children }) => {
   // Cache para evitar re-renders innecesarios
   const [conversationsCache, setConversationsCache] = useState({});
 
-  // Derivado: mensajes no leídos por usuario (para chats directos)
+  // Derivado: mensajes no leídos por usuario (para chats directos) - AHORA CON RTDB
   const unreadByUser = React.useMemo(() => {
-    if (!currentUser?.uid) return {};
+    if (!currentUser?.uid || !unreadCounts) return {};
     const map = {};
     conversations.forEach((conv) => {
       if (!conv || !Array.isArray(conv.participantIds)) return;
       // Solo aplica para conversaciones directas
       const otherId = conv.participantIds.find((id) => id !== currentUser.uid);
       if (!otherId) return;
-      const count = conv.unreadCount?.[currentUser.uid] || 0;
+      // Obtener contador desde RTDB
+      const count = getUnreadForConversation(conv.id) || 0;
       if (count > 0) {
         map[otherId] = (map[otherId] || 0) + count;
       }
     });
     return map;
-  }, [conversations, currentUser?.uid]);
+  }, [conversations, currentUser?.uid, unreadCounts, getUnreadForConversation]);
 
   // 🔥 LISTENER: Conversaciones del usuario actual
   useEffect(() => {
@@ -106,11 +110,8 @@ export const ChatProvider = ({ children }) => {
           });
           setConversationsCache(newCache);
 
-          // Calcular total de mensajes no leídos
-          const totalUnread = conversationsData.reduce((sum, conv) => {
-            return sum + (conv.unreadCount?.[currentUser.uid] || 0);
-          }, 0);
-          setUnreadCount(totalUnread);
+          // ✅ Total de no leídos ahora viene del hook useUnreadCount (RTDB)
+          // Ya no necesitamos calcularlo aquí
 
           setLoading(false);
         },
@@ -134,6 +135,11 @@ export const ChatProvider = ({ children }) => {
   useEffect(() => {
     if (!database) {
       console.warn('⚠️ RTDB no disponible, presencia deshabilitada');
+      return;
+    }
+
+    if (!currentUser?.uid) {
+      console.warn('⚠️ Usuario no autenticado, esperando...');
       return;
     }
 
@@ -162,37 +168,37 @@ export const ChatProvider = ({ children }) => {
       setUsersPresence(presenceData);
     }, (error) => {
       console.error('❌ Error en listener de presencia RTDB:', error);
+      console.error('Detalles:', {
+        code: error.code,
+        message: error.message,
+        authenticated: !!currentUser?.uid
+      });
+      // Fallback: limpiar presencia si hay error de permisos
+      setUsersPresence({});
     });
 
     return () => {
       console.log('🔚 Desconectando listener de presencia RTDB');
       unsubscribe();
     };
-  }, []);
+  }, [currentUser?.uid]);
 
-  // ✅ FUNCIÓN: Marcar mensajes como leídos
+  // ✅ FUNCIÓN: Marcar mensajes como leídos (ahora con RTDB para actualización instantánea)
   const markConversationAsRead = useCallback(async (conversationId) => {
     if (!currentUser?.uid || !conversationId) return;
 
     try {
+      // Resetear contador en RTDB (instantáneo)
+      await resetUnreadCount(conversationId, currentUser.uid);
+      
+      // También actualizar en Firestore para persistencia (opcional, por compatibilidad)
       const conversationRef = doc(db, 'conversations', conversationId);
-      const conversationSnap = await getDoc(conversationRef);
+      await updateDoc(conversationRef, {
+        [`unreadCount.${currentUser.uid}`]: 0,
+        updatedAt: serverTimestamp()
+      }).catch(err => console.warn('⚠️ Error actualizando Firestore:', err));
 
-      if (!conversationSnap.exists()) {
-        console.warn('⚠️ Conversación no existe:', conversationId);
-        return;
-      }
-
-      const currentUnread = conversationSnap.data().unreadCount?.[currentUser.uid] || 0;
-
-      if (currentUnread > 0) {
-        await updateDoc(conversationRef, {
-          [`unreadCount.${currentUser.uid}`]: 0,
-          updatedAt: serverTimestamp()
-        });
-
-        console.log(`✅ Conversación ${conversationId} marcada como leída`);
-      }
+      console.log(`✅ Conversación ${conversationId} marcada como leída`);
     } catch (err) {
       console.error('❌ Error marcando como leído:', err);
     }

@@ -92,13 +92,6 @@ const WelcomeDashboardSimple = () => {
     // Calcular saldo restante
     const remainingBalance = Math.max(0, originalAmount - totalPaid);
     
-    console.log('💰 Saldo para', commitment.concept, ':', {
-      original: originalAmount,
-      pagado: totalPaid,
-      saldo: remainingBalance,
-      pagos: commitmentsPayments.length
-    });
-    
     return remainingBalance;
   }, [payments]);
 

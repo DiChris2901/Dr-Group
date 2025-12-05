@@ -514,9 +514,12 @@ const ContactsList = ({
                 <List sx={{ p: 0 }}>
                   <AnimatePresence>
                     {displayedUsers.map((user, index) => {
+                      // Normalizar ID del usuario (puede venir como uid, id, o authUid)
+                      const userId = user.uid || user.id || user.authUid;
+                      
                       // Obtener conversationId del usuario para comparar con activeConversationId
                       const userConversation = conversations?.find(conv => 
-                        conv.type === 'direct' && conv.participantIds?.includes(user.uid)
+                        conv.type === 'direct' && conv.participantIds?.includes(userId)
                       );
                       const isSelected = activeConversationId === userConversation?.id;
                       const hasDraftMessage = hasDraft(userConversation?.id);
@@ -524,10 +527,16 @@ const ContactsList = ({
                       const userEmail = user.email || '';
                       const userRole = user.role || 'VISUALIZADOR';
                       const userPhoto = user.photoURL || user.photo || '';
+                      
+                      // Estado de presencia del usuario
+                      const userPresence = usersPresence?.[userId];
+                      const hasPresenceData = !!userPresence;
+                      const isOnline = userPresence?.online || false;
+                      const lastSeen = userPresence?.lastSeen;
 
                       return (
                         <motion.div
-                          key={user.uid}
+                          key={userId}
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: -20 }}
@@ -536,7 +545,7 @@ const ContactsList = ({
                           <ListItem disablePadding>
                             <ListItemButton
                               selected={isSelected}
-                              onClick={() => onSelectUser(user.uid)}
+                              onClick={() => onSelectUser(userId)}
                         sx={{
                           py: 1.5,
                           px: 2.5,
@@ -569,16 +578,16 @@ const ContactsList = ({
                             overlap="circular"
                             anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                             variant="dot"
-                            invisible={true}
+                            invisible={!hasPresenceData}
                             sx={{
                               '& .MuiBadge-badge': {
-                                backgroundColor: '#44b700',
-                                color: '#44b700',
-                                boxShadow: '0 0 0 2.5px white',
+                                backgroundColor: isOnline ? '#44b700' : '#9e9e9e',
+                                color: isOnline ? '#44b700' : '#9e9e9e',
+                                boxShadow: `0 0 0 2.5px ${theme.palette.background.paper}`,
                                 width: 14,
                                 height: 14,
                                 borderRadius: '50%',
-                                border: '2px solid white',
+                                border: `2px solid ${theme.palette.background.paper}`
                               },
                             }}
                           >
@@ -622,6 +631,21 @@ const ContactsList = ({
                               >
                                 {userName}
                               </Typography>
+                              {hasPresenceData && isOnline && (
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: '#44b700',
+                                    fontWeight: 600,
+                                    fontSize: '0.7rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 0.3
+                                  }}
+                                >
+                                  • En línea
+                                </Typography>
+                              )}
                               {hasDraftMessage && (
                                 <Chip
                                   icon={<EditIcon sx={{ fontSize: '0.7rem !important' }} />}
@@ -664,7 +688,15 @@ const ContactsList = ({
                               color="text.secondary"
                               noWrap
                             >
-                              {userEmail}
+                              {hasPresenceData && !isOnline && lastSeen
+                                ? `Últ. vez: ${new Date(lastSeen).toLocaleString('es-ES', {
+                                    day: '2-digit',
+                                    month: 'short',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  })}`
+                                : userEmail
+                              }
                             </Typography>
                           }
                         />

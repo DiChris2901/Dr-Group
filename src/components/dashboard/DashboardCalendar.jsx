@@ -102,19 +102,8 @@ const calculateTenthBusinessDay = (year, month, holidays) => {
   // Obtener el último día del mes anterior como base
   const fechaBase = new Date(year, month, 0); // Último día del mes anterior
   
-  // Debug para noviembre 2025
-  const isDebugMonth = year === 2025 && month === 10;
-  if (isDebugMonth) {
-    console.log('🔍 [DEBUG COLJUEGOS] Calculando décimo día hábil para Noviembre 2025');
-    console.log(`   Fecha base (último día octubre): ${fechaBase.toDateString()}`);
-  }
-  
   // Sumar 10 días hábiles desde la fecha base
   const result = sumarDiasHabiles(fechaBase, 10, holidays);
-  
-  if (isDebugMonth) {
-    console.log(`🎯 COLJUEGOS - Décimo día hábil: ${result.toDateString()}`);
-  }
   
   return result;
 };
@@ -127,19 +116,8 @@ const calculateThirdBusinessDay = (year, month, holidays) => {
   // Obtener el último día del mes anterior como base
   const fechaBase = new Date(year, month, 0); // Último día del mes anterior
   
-  // Debug para noviembre 2025
-  const isDebugMonth = year === 2025 && month === 10;
-  if (isDebugMonth) {
-    console.log('🔍 [DEBUG PARAFISCALES] Calculando tercer día hábil para Noviembre 2025');
-    console.log(`   Fecha base (último día octubre): ${fechaBase.toDateString()}`);
-  }
-  
   // Sumar 3 días hábiles desde la fecha base
   const result = sumarDiasHabiles(fechaBase, 3, holidays);
-  
-  if (isDebugMonth) {
-    console.log(`🎯 PARAFISCALES - Tercer día hábil: ${result.toDateString()}`);
-  }
   
   return result;
 };
@@ -439,19 +417,6 @@ const DashboardCalendar = ({ onDateSelect, selectedDate }) => {
         statusLabel = 'Pendiente';
         finalStatus = 'pending';
       }
-      
-      // Debug para verificar la lógica
-      console.log(`📅 [CALENDAR DEBUG] Compromiso: ${commitment.concept}`, {
-        id: commitment.id,
-        status: commitment.status,
-        totalPaid: totalPaid,
-        remainingBalance: remainingBalance,
-        amount: commitmentAmount,
-        hasPartialPayments: hasPartialPayments,
-        isOverdueByDate: isOverdueByDate,
-        finalStatus: finalStatus,
-        statusLabel: statusLabel
-      });
       
       events.push({
         type: 'commitment',

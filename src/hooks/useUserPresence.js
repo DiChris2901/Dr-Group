@@ -57,9 +57,28 @@ export const useUserPresence = (userId) => {
       }
     });
     
+    // 🔴 Listener para marcar offline al cerrar ventana/pestaña
+    const handleBeforeUnload = () => {
+      // Usar navigator.sendBeacon para envío garantizado
+      const offlineData = JSON.stringify({
+        state: 'offline',
+        last_changed: Date.now()
+      });
+      
+      // Intentar marcar como offline de forma síncrona
+      try {
+        set(userStatusRef, offlineState);
+      } catch (error) {
+        console.error('Error en beforeunload:', error);
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
     // Cleanup
     return () => {
       unsubscribe();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       // Marcar offline al desmontar
       set(userStatusRef, offlineState).catch(console.error);
     };
