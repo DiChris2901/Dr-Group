@@ -38,7 +38,6 @@ import {
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../../context/NotificationsContext';
-import { useTypingIndicator } from '../../hooks/useTypingIndicator';
 import { uploadChatAttachment } from '../../utils/chatFileUpload';
 import { useChat } from '../../context/ChatContext';
 import { useAudioRecorder } from '../../hooks/useAudioRecorder';
@@ -80,9 +79,8 @@ const renderFormattedPreview = (text) => {
 /**
  * Input para enviar mensajes con soporte de archivos adjuntos, respuestas y menciones
  */
-const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply }) => {
+const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply, onTyping, onStopTyping }) => {
   const { addNotification } = useNotifications();
-  const { updateTypingStatus } = useTypingIndicator(conversationId);
   const { getGroupMembers, getConversation } = useChat();
   const [message, setMessage] = useState('');
   const [attachments, setAttachments] = useState([]);
@@ -117,14 +115,21 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
 
   // ⏱️ C. Debounced typing indicator (callback-based)
   const typingTimeoutRef = useRef(null);
-  const debouncedTypingUpdate = useCallback((isTyping) => {
+  const debouncedTypingUpdate = useCallback(() => {
+    if (onTyping) {
+      onTyping();
+    }
+    
+    // Auto-detener después de 3 segundos sin escribir
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
     typingTimeoutRef.current = setTimeout(() => {
-      updateTypingStatus(isTyping);
-    }, 500);
-  }, [updateTypingStatus]);
+      if (onStopTyping) {
+        onStopTyping();
+      }
+    }, 3000);
+  }, [onTyping, onStopTyping]);
 
   // 🚀 OPTIMIZACIÓN: Debounce del texto para vista previa (150ms)
   const debouncedMessage = useDebounce(message, 150);
@@ -364,6 +369,11 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
       // 💾 Limpiar borrador de localStorage
       localStorage.removeItem(`draft_${conversationId}`);
       if (onCancelReply) onCancelReply();
+      
+      // ✅ Detener indicador de typing al enviar
+      if (onStopTyping) {
+        onStopTyping();
+      }
     } catch (error) {
       console.error('Error enviando mensaje:', error);
       addNotification('Error al enviar mensaje', 'error');

@@ -75,6 +75,7 @@ import { useChatMessages, useChatSearch } from '../../hooks/useChat';
 import { useChat } from '../../context/ChatContext';
 import { useAuth } from '../../context/AuthContext';
 import { useChatStats } from '../../hooks/useChatStats';
+import { useTypingIndicator } from '../../hooks/useTypingIndicator';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
 import OptimizedAvatar from '../common/OptimizedAvatar';
@@ -117,6 +118,9 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
   
   // 📊 Hook de estadísticas del chat
   const stats = useChatStats(conversationId);
+
+  // ⌨️ Hook de typing indicator
+  const { startTyping, stopTyping, whoIsTyping } = useTypingIndicator(conversationId);
 
   // 🎨 Fondos predefinidos
   const chatBackgrounds = [
@@ -623,15 +627,18 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
     previousMessagesLength.current = 0;
   }, [conversationId]);
 
-  // ✅ Auto-scroll INTELIGENTE: Solo al final cuando llegan mensajes NUEVOS
+  // ✅ Auto-scroll INTELIGENTE: Siempre al final cuando abres un chat nuevo
   useEffect(() => {
     if (messages.length === 0 || !messagesEndRef.current) return;
 
-    // 1️⃣ CARGA INICIAL: Scroll al final sin animación
+    // 1️⃣ CARGA INICIAL: SIEMPRE scroll al final del último mensaje (comportamiento solicitado)
     if (isInitialLoad.current) {
       isInitialLoad.current = false;
       previousMessagesLength.current = messages.length;
-      messagesEndRef.current.scrollIntoView({ behavior: 'instant' });
+      // Usar timeout para asegurar que el DOM esté renderizado
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+      }, 100);
       return;
     }
 
@@ -859,8 +866,24 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
               <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 0.25 }}>
                 {otherParticipantName}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {isGroup ? `👥 ${conversation?.participantIds?.length || 0} miembros` : `💬 ${messages.length} ${messages.length === 1 ? 'mensaje' : 'mensajes'}`}
+              <Typography 
+                variant="caption" 
+                color={whoIsTyping.length > 0 ? 'primary.main' : 'text.secondary'}
+                sx={{ 
+                  fontWeight: whoIsTyping.length > 0 ? 600 : 400,
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                {whoIsTyping.length > 0 ? (
+                  <>
+                    ⌨️ {whoIsTyping.length === 1 
+                      ? `${whoIsTyping[0].userName.split(' ')[0]} está escribiendo...`
+                      : `${whoIsTyping.length} personas están escribiendo...`
+                    }
+                  </>
+                ) : (
+                  isGroup ? `👥 ${conversation?.participantIds?.length || 0} miembros` : `💬 ${messages.length} ${messages.length === 1 ? 'mensaje' : 'mensajes'}`
+                )}
               </Typography>
             </>
           ) : (
@@ -1355,6 +1378,8 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
         onSendMessage={(text, attachments, replyToId, mentionedUserIds) => sendMessage(text, attachments, replyToId, mentionedUserIds)}
         replyingTo={replyingTo}
         onCancelReply={() => setReplyingTo(null)}
+        onTyping={startTyping}
+        onStopTyping={stopTyping}
       />
 
       {/* 🎨 Popover de selector de fondos */}

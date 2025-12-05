@@ -16,7 +16,8 @@ import {
   deleteField,
   deleteDoc
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { ref, onValue } from 'firebase/database';
+import { db, database } from '../config/firebase';
 import { useAuth } from './AuthContext';
 import { useNotifications } from './NotificationsContext';
 
@@ -129,40 +130,42 @@ export const ChatProvider = ({ children }) => {
     }
   }, [currentUser?.uid, addNotification]);
 
-  // 🟢 LISTENER: Estado de presencia de usuarios desde Firestore
+  // 🟢 LISTENER: Estado de presencia de usuarios desde RTDB
   useEffect(() => {
-    console.log('🔥 Iniciando listener de presencia (Firestore)...');
+    if (!database) {
+      console.warn('⚠️ RTDB no disponible, presencia deshabilitada');
+      return;
+    }
+
+    console.log('🔥 Iniciando listener de presencia (RTDB)...');
     
-    const usersRef = collection(db, 'users');
-    const unsubscribe = onSnapshot(usersRef, (snapshot) => {
+    const statusRef = ref(database, '/status');
+    const unsubscribe = onValue(statusRef, (snapshot) => {
       const presenceData = {};
-      snapshot.docs.forEach((doc) => {
-        const userData = doc.data();
-        // Señales de presencia
-        const lastSeenDate = userData.lastSeen?.toDate ? userData.lastSeen.toDate() : userData.lastSeen;
-        const hasFreshLastSeen = lastSeenDate ? (Date.now() - lastSeenDate.getTime()) < 180000 : false; // 3 min
-        const onlineFlag = userData.online === true;
-        // Relajamos condición: online si hay flag o lastSeen fresco
-        const isOnline = onlineFlag || hasFreshLastSeen;
-        
-        presenceData[doc.id] = {
-          state: isOnline ? 'online' : 'offline',
-          online: isOnline,
-          lastSeen: lastSeenDate,
-          // Señales crudas útiles para debug fino
-          _onlineFlag: onlineFlag,
-          _fresh: hasFreshLastSeen
-        };
-      });
+      const statusData = snapshot.val();
       
-      // console.log('👥 Presencia recibida:', presenceData);
+      if (statusData) {
+        Object.entries(statusData).forEach(([userId, status]) => {
+          const isOnline = status.state === 'online';
+          const lastChanged = status.last_changed ? new Date(status.last_changed) : null;
+          
+          presenceData[userId] = {
+            state: status.state,
+            online: isOnline,
+            lastSeen: lastChanged,
+            last_changed: status.last_changed
+          };
+        });
+      }
+      
+      console.log('👥 Presencia RTDB actualizada:', Object.keys(presenceData).length, 'usuarios');
       setUsersPresence(presenceData);
     }, (error) => {
-      console.error('❌ Error en listener de presencia:', error);
+      console.error('❌ Error en listener de presencia RTDB:', error);
     });
 
     return () => {
-      console.log('🔚 Desconectando listener de presencia');
+      console.log('🔚 Desconectando listener de presencia RTDB');
       unsubscribe();
     };
   }, []);

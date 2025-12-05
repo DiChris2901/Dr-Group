@@ -1,101 +1,89 @@
 import { useEffect } from 'react';
-import { doc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { ref, onValue, set, onDisconnect, serverTimestamp as rtdbServerTimestamp } from 'firebase/database';
+import { doc, updateDoc, serverTimestamp as firestoreServerTimestamp } from 'firebase/firestore';
+import { database, db } from '../config/firebase';
 
 /**
  * Hook para gestionar el estado de presencia (online/offline) del usuario
- * Utiliza Firestore para actualizaciones en tiempo real
+ * Utiliza RTDB para detección automática de desconexión + Firestore para persistencia
+ * 
+ * VENTAJA: onDisconnect de RTDB detecta automáticamente cuando el navegador se cierra
+ * o pierde conexión, sin necesidad de polling o eventos del navegador.
  */
 export const useUserPresence = (userId) => {
   useEffect(() => {
-    if (!userId) {
+    if (!userId || !database) {
+      console.warn('⚠️ useUserPresence: userId o RTDB no disponible');
       return;
     }
     
-    const userRef = doc(db, 'users', userId);
+    // Referencias RTDB (para presencia en tiempo real)
+    const userStatusRef = ref(database, `/status/${userId}`);
+    const connectedRef = ref(database, '.info/connected');
     
-    // Marcar como online al montar
-    const markOnline = async () => {
-      try {
-        await updateDoc(userRef, {
-          online: true,
-          lastSeen: serverTimestamp()
-        });
-      } catch (error) {
-        console.error('❌ Error marcando online:', error);
-      }
+    // Referencia Firestore (para persistencia y consultas)
+    const userFirestoreRef = doc(db, 'users', userId);
+    
+    // Estado online
+    const onlineState = {
+      state: 'online',
+      last_changed: rtdbServerTimestamp()
     };
-
-    // Marcar como offline al desmontar o cerrar pestaña
-    const markOffline = async () => {
-      try {
-        await updateDoc(userRef, {
-          online: false,
-          lastSeen: serverTimestamp()
-        });
-      } catch (error) {
-        console.error('❌ Error marcando offline:', error);
-      }
+    
+    // Estado offline (ejecutado automáticamente por servidor cuando se desconecta)
+    const offlineState = {
+      state: 'offline',
+      last_changed: rtdbServerTimestamp()
     };
-
-    // Actualizar lastSeen cada 30 segundos si está online
-    const updateInterval = setInterval(async () => {
-      try {
-        await updateDoc(userRef, {
-          lastSeen: serverTimestamp()
-        });
-      } catch (error) {
-        console.error('❌ Error actualizando lastSeen:', error);
+    
+    // Listener de conexión
+    const unsubscribe = onValue(connectedRef, async (snapshot) => {
+      if (snapshot.val() === true) {
+        // 1. Si nos desconectamos, el servidor ejecutará esto automáticamente:
+        await onDisconnect(userStatusRef).set(offlineState);
+        
+        // 2. Marcarnos como online en RTDB
+        await set(userStatusRef, onlineState);
+        
+        // 3. Actualizar Firestore también (para consultas generales)
+        try {
+          await updateDoc(userFirestoreRef, {
+            online: true,
+            lastSeen: firestoreServerTimestamp()
+          });
+        } catch (error) {
+          console.error('❌ Error actualizando Firestore:', error);
+        }
       }
-    }, 30000); // 30 segundos
-
-    // Eventos de visibilidad de página
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        markOffline();
-      } else {
-        markOnline();
-      }
-    };
-
-    // Eventos de beforeunload para marcar offline al cerrar
-    const handleBeforeUnload = () => {
-      navigator.sendBeacon('/api/offline', JSON.stringify({ userId }));
-      markOffline();
-    };
-
-    // Inicializar
-    markOnline();
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    // Cleanup - NO marcar offline inmediatamente, solo limpiar listeners
+    });
+    
+    // Cleanup
     return () => {
-      clearInterval(updateInterval);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      // NO llamar markOffline() aquí - solo al cerrar navegador con beforeunload
+      unsubscribe();
+      // Marcar offline al desmontar
+      set(userStatusRef, offlineState).catch(console.error);
     };
   }, [userId]);
 };
 
 /**
  * Hook para observar el estado de presencia de múltiples usuarios
+ * Retorna un objeto con el estado de cada usuario
  */
-export const useUsersPresence = (userIds = []) => {
+export const useUsersPresence = (userIds = [], callback) => {
   useEffect(() => {
-    if (!userIds || userIds.length === 0) return;
+    if (!userIds || userIds.length === 0 || !database) return;
 
-    const rtdb = getDatabase();
     const unsubscribes = [];
 
     userIds.forEach((userId) => {
-      const userStatusRef = ref(rtdb, `/status/${userId}`);
+      const userStatusRef = ref(database, `/status/${userId}`);
       
       const unsubscribe = onValue(userStatusRef, (snapshot) => {
         const status = snapshot.val();
-        // Aquí podrías emitir eventos o actualizar un estado global
-        // Por ahora solo se escucha el cambio
+        if (callback && status) {
+          callback(userId, status);
+        }
       });
 
       unsubscribes.push(unsubscribe);
@@ -104,5 +92,5 @@ export const useUsersPresence = (userIds = []) => {
     return () => {
       unsubscribes.forEach(unsub => unsub());
     };
-  }, [userIds]);
+  }, [userIds, callback]);
 };
