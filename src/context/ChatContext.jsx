@@ -192,10 +192,11 @@ export const ChatProvider = ({ children }) => {
       await resetUnreadCount(conversationId, currentUser.uid);
       
       // También actualizar en Firestore para persistencia (opcional, por compatibilidad)
+      // ❌ NO actualizar updatedAt aquí - solo debe actualizarse con mensajes nuevos
       const conversationRef = doc(db, 'conversations', conversationId);
       await updateDoc(conversationRef, {
-        [`unreadCount.${currentUser.uid}`]: 0,
-        updatedAt: serverTimestamp()
+        [`unreadCount.${currentUser.uid}`]: 0
+        // updatedAt: serverTimestamp() ← REMOVIDO para evitar reordenamiento al abrir
       }).catch(err => console.warn('⚠️ Error actualizando Firestore:', err));
 
       console.log(`✅ Conversación ${conversationId} marcada como leída`);
