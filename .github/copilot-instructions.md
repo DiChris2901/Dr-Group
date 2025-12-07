@@ -51,14 +51,20 @@ Eres un **Arquitecto de Software Senior especializado en React/Firebase** con 15
 - **NUNCA** usar patrones inconsistentes con el proyecto
 - **NUNCA** omitir error handling o loading states
 - **NUNCA** hardcodear valores que deberían ser configurables
-- **NUNCA** ejecutar comandos de Expo/npm sin `Set-Location mobile;` primero
+- **NUNCA** ejecutar comandos de Expo/npm sin `Set-Location mobile;` primero (Windows PowerShell)
+- **NUNCA** ejecutar comandos de Expo/npm sin `cd mobile &&` primero (Linux/macOS)
 - **NUNCA** hardcodear colores en la APK (usar getPrimaryColor(), getSecondaryColor())
 - **NUNCA** calcular duraciones desde campo 'duracion' (usar timestamps inicio/fin)
+- **NUNCA** sugerir archivos específicos de Linux (.sh, SETUP_LINUX.md) en Windows
+- **NUNCA** sugerir comandos PowerShell (Set-Location) en Linux/macOS
 
 ### ✅ COMPORTAMIENTOS OBLIGATORIOS:
 - **SIEMPRE** iniciar con mapeo completo del proyecto
+- **SIEMPRE** detectar el sistema operativo del usuario (Windows vs Linux/macOS)
 - **SIEMPRE** identificar si la tarea es para Dashboard Web o APK móvil
-- **SIEMPRE** usar `Set-Location mobile;` antes de comandos de Expo/npm en APK
+- **SIEMPRE** usar comandos apropiados según el OS:
+  - **Windows PowerShell:** `Set-Location mobile;` para APK
+  - **Linux/macOS bash/sh:** `cd mobile &&` para APK
 - **SIEMPRE** seguir diseño sobrio en APK (SobrioCard, DetailRow, OverlineText)
 - **SIEMPRE** usar campo 'name' como displayName principal (fallback: displayName → email)
 - **SIEMPRE** calcular duraciones desde timestamps (inicio/fin), NO desde campo 'duracion'
@@ -1396,7 +1402,9 @@ Set-Location mobile; eas build --platform android
 
 ### **🔑 REGLAS CRÍTICAS PARA TRABAJAR EN LA APK**
 
-1. **SIEMPRE** usar `Set-Location mobile;` antes de comandos Expo/npm
+1. **SIEMPRE** usar comandos apropiados según OS:
+   - Windows PowerShell: `Set-Location mobile;`
+   - Linux/macOS: `cd mobile &&`
 2. **NUNCA** hardcodear colores, usar `getPrimaryColor()` / `getSecondaryColor()`
 3. **SIEMPRE** seguir diseño sobrio con componentes existentes (SobrioCard, DetailRow, OverlineText)
 4. **NUNCA** crear estilos inline, usar `StyleSheet.create()`
@@ -1404,6 +1412,72 @@ Set-Location mobile; eas build --platform android
 6. **SIEMPRE** usar `name` como displayName principal, `displayName` como fallback
 7. **SIEMPRE** verificar que el servidor Expo esté en `mobile/` (ver logs de inicio)
 8. **NUNCA** olvidar que APK y Dashboard comparten la misma instancia de Firebase
+
+---
+
+## 🖥️ **DIFERENCIAS CRÍTICAS: WINDOWS vs LINUX/macOS**
+
+### **🚨 DETECCIÓN AUTOMÁTICA DEL SISTEMA OPERATIVO:**
+
+Al recibir una petición del usuario, **PRIMERO verificar el OS**:
+- **Windows:** Comandos PowerShell, rutas con `\`, scripts `.ps1`
+- **Linux/macOS:** Comandos bash/sh, rutas con `/`, scripts `.sh`
+
+### **📋 COMANDOS EQUIVALENTES POR OS:**
+
+| Acción | Windows PowerShell | Linux/macOS bash/sh |
+|--------|-------------------|---------------------|
+| **Navegar a mobile/** | `Set-Location mobile;` | `cd mobile &&` |
+| **Comando encadenado** | `comando1; comando2` | `comando1 && comando2` |
+| **Variable de entorno** | `$env:VARIABLE` | `$VARIABLE` |
+| **Limpiar pantalla** | `cls` | `clear` |
+| **Listar archivos** | `dir` o `ls` | `ls` |
+| **Copiar archivo** | `Copy-Item` | `cp` |
+| **Eliminar archivo** | `Remove-Item` | `rm` |
+
+### **📂 ARCHIVOS ESPECÍFICOS POR OS (NO CRUZAR):**
+
+#### **Solo para Windows:**
+- `setup-windows.ps1`
+- `SETUP_WINDOWS.md`
+- Documentación con comandos PowerShell
+
+#### **Solo para Linux/macOS:**
+- `setup-env.sh`
+- `configure-firebase.sh`
+- `verify-setup.sh`
+- `SETUP_LINUX.md`
+- **ESTOS ARCHIVOS ESTÁN EN .gitignore** (no se suben a GitHub)
+
+### **⚠️ REGLAS ESTRICTAS:**
+
+1. **NUNCA sugerir archivos .sh en Windows**
+   - ❌ MAL: "Ejecuta `bash setup-env.sh`" (en Windows)
+   - ✅ BIEN: "Ejecuta `.\setup-windows.ps1`" (en Windows)
+
+2. **NUNCA sugerir comandos PowerShell en Linux**
+   - ❌ MAL: "Ejecuta `Set-Location mobile;`" (en Linux)
+   - ✅ BIEN: "Ejecuta `cd mobile &&`" (en Linux)
+
+3. **NUNCA referenciar SETUP_LINUX.md en Windows**
+   - ❌ MAL: "Consulta SETUP_LINUX.md" (en Windows)
+   - ✅ BIEN: Crear documentación específica para Windows si es necesario
+
+4. **SIEMPRE verificar el OS antes de sugerir comandos**
+   - Preguntar: "¿Estás en Windows o Linux/macOS?"
+   - O detectar automáticamente por el contexto del usuario
+
+### **🎯 DETECCIÓN AUTOMÁTICA POR CONTEXTO:**
+
+**Indicadores de Windows:**
+- Usuario menciona "PowerShell", "cmd", "Windows"
+- Rutas con `C:\`, `D:\`, backslashes `\`
+- Archivos `.ps1`, `.bat`
+
+**Indicadores de Linux/macOS:**
+- Usuario menciona "bash", "terminal", "Linux", "Ubuntu", "macOS"
+- Rutas con `/home/`, `/usr/`, forward slashes `/`
+- Archivos `.sh`, permisos `chmod +x`
 
 ### **💡 TIPS DE PRODUCTIVIDAD**
 

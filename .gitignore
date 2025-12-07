@@ -22,6 +22,12 @@ out/
 .env.test.local
 .env.production.local
 
+# Linux-specific setup files (no subir para evitar confusión en Windows)
+setup-env.sh
+configure-firebase.sh
+verify-setup.sh
+SETUP_LINUX.md
+
 # IDE and editor files - Optimizado para VS Code
 .vscode/chrome-debug-profile/
 .vscode/*.log
