@@ -58,7 +58,7 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
       const messagesQuery = query(
         collection(db, 'messages'),
         where('conversationId', '==', conversationId),
-        orderBy('createdAt', 'asc'),
+        orderBy('createdAt', 'desc'),
         firestoreLimit(messagesPerPage)
       );
 
@@ -70,10 +70,19 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
             console.log(`📨 Cargados ${snapshot.docs.length} mensajes desde servidor`);
           }
 
-          const messagesData = snapshot.docs.map(docSnap => {
+          // 🚀 OPTIMIZACIÓN: Usar docChanges() para actualizaciones incrementales
+          // Esto evita reconstruir todo el array y mantiene las referencias estables
+          const changes = snapshot.docChanges();
+
+          if (changes.length === 0) {
+            // No hay cambios reales, solo actualizar metadata
+            setLoading(false);
+            return;
+          }
+
+          // Helper para procesar un documento
+          const processDoc = (docSnap) => {
             const data = docSnap.data();
-            
-            // Manejar createdAt: si es null (serverTimestamp pendiente), usar Date.now()
             const createdAt = data.createdAt ? data.createdAt.toDate() : new Date();
 
             return {
@@ -89,13 +98,41 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
                 editedAt: data.metadata?.editedAt?.toDate(),
                 deletedAt: data.metadata?.deletedAt?.toDate()
               },
-              // ✅ Incluir reacciones directamente
               reactions: data.reactions || {}
             };
+          };
+
+          setMessages(prevMessages => {
+            let updatedMessages = [...prevMessages];
+
+            changes.forEach(change => {
+              const processedMessage = processDoc(change.doc);
+
+              if (change.type === 'added') {
+                // Agregar nuevo mensaje en orden cronológico
+                const insertIndex = updatedMessages.findIndex(m => 
+                  m.createdAt > processedMessage.createdAt
+                );
+                if (insertIndex === -1) {
+                  updatedMessages.push(processedMessage);
+                } else {
+                  updatedMessages.splice(insertIndex, 0, processedMessage);
+                }
+              } else if (change.type === 'modified') {
+                // Actualizar mensaje existente manteniendo su posición
+                const existingIndex = updatedMessages.findIndex(m => m.id === processedMessage.id);
+                if (existingIndex !== -1) {
+                  updatedMessages[existingIndex] = processedMessage;
+                }
+              } else if (change.type === 'removed') {
+                // Eliminar mensaje sin reconstruir el array
+                updatedMessages = updatedMessages.filter(m => m.id !== change.doc.id);
+              }
+            });
+
+            return updatedMessages;
           });
 
-          // ✅ ORDEN: desc trae [msg25, msg24, ..., msg1], reverse para [msg1, ..., msg25]
-          setMessages(messagesData.reverse());
           setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
           setHasMore(snapshot.docs.length === messagesPerPage);
           setLoading(false);
@@ -131,7 +168,7 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
       const messagesQuery = query(
         collection(db, 'messages'),
         where('conversationId', '==', conversationId),
-        orderBy('createdAt', 'asc'),
+        orderBy('createdAt', 'desc'),
         startAfter(lastVisible),
         firestoreLimit(messagesPerPage)
       );
@@ -513,7 +550,7 @@ export const useChatSearch = (conversationId, searchTerm) => {
         const messagesQuery = query(
           collection(db, 'messages'),
           where('conversationId', '==', conversationId),
-          orderBy('createdAt', 'asc')
+          orderBy('createdAt', 'desc')
         );
 
         const snapshot = await getDocs(messagesQuery);

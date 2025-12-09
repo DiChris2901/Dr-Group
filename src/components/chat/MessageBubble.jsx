@@ -1387,6 +1387,7 @@ const MessageBubble = React.memo(({
       <Dialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
+        disableRestoreFocus={true}
         maxWidth="xs"
         fullWidth
         sx={{

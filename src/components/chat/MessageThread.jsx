@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   Box,
   Typography,
@@ -114,7 +114,12 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
   const messagesContainerRef = useRef(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const previousMessagesLength = useRef(0);
+  const previousFirstMessageId = useRef(null);
+  const previousLastMessageId = useRef(null);
   const isInitialLoad = useRef(true);
+  const savedScrollPosition = useRef(null);
+  const lastScrollTop = useRef(0);
+  const isDeletingMessage = useRef(false); // 🚩 Flag para detectar eliminación
   
   // 📊 Hook de estadísticas del chat
   const stats = useChatStats(conversationId);
@@ -625,66 +630,90 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
   useEffect(() => {
     isInitialLoad.current = true;
     previousMessagesLength.current = 0;
+    previousFirstMessageId.current = null;
+    previousLastMessageId.current = null;
   }, [conversationId]);
 
-  // ✅ Auto-scroll INTELIGENTE: Siempre al final cuando abres un chat nuevo
-  useEffect(() => {
+  // ✅ Auto-scroll BLINDADO CONTRA PAGINACIÓN (useLayoutEffect para evitar parpadeos)
+  useLayoutEffect(() => {
     if (messages.length === 0 || !messagesEndRef.current) return;
 
-    // 1️⃣ CARGA INICIAL: SIEMPRE scroll al final del último mensaje (comportamiento solicitado)
+    const scrollToBottom = (behavior = 'smooth') => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior, block: 'end' });
+      }
+    };
+
+    const firstMessageId = messages[0]?.id;
+    const lastMessageId = messages[messages.length - 1]?.id;
+
+    // 1️⃣ CARGA INICIAL: Scroll instantáneo al fondo con doble ráfaga
     if (isInitialLoad.current) {
       isInitialLoad.current = false;
       previousMessagesLength.current = messages.length;
-      // Usar timeout para asegurar que el DOM esté renderizado
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
-      }, 100);
+      previousFirstMessageId.current = firstMessageId;
+      previousLastMessageId.current = lastMessageId;
+      
+      // Doble ráfaga para asegurar que imágenes/estilos carguen
+      requestAnimationFrame(() => {
+        scrollToBottom('instant');
+        // Refuerzo por si acaso
+        setTimeout(() => scrollToBottom('instant'), 100);
+      });
       return;
     }
 
-    // 2️⃣ MENSAJES NUEVOS: Solo scroll si aumentó la cantidad (no disminuyó por loadMore)
-    const messagesIncreased = messages.length > previousMessagesLength.current;
+    // 🛡️ CASO ESPECIAL: ELIMINACIÓN DE MENSAJE
+    // Guardar posición ANTES del render, restaurar DESPUÉS
+    const container = messagesContainerRef.current;
+    if (isDeletingMessage.current && container) {
+      const savedScroll = savedScrollPosition.current;
+      
+      // Restaurar posición exacta después del render
+      requestAnimationFrame(() => {
+        if (savedScroll !== null) {
+          container.scrollTop = savedScroll;
+          console.log('🔄 Scroll restaurado a:', savedScroll);
+        }
+        isDeletingMessage.current = false;
+        savedScrollPosition.current = null;
+      });
+      
+      // Actualizar referencias y salir
+      previousMessagesLength.current = messages.length;
+      previousFirstMessageId.current = firstMessageId;
+      previousLastMessageId.current = lastMessageId;
+      return;
+    }
 
-    if (messagesIncreased) {
-      // ✅ CRÍTICO: Verificar posición actual ANTES de hacer scroll
-      if (!messagesContainerRef.current) {
-        previousMessagesLength.current = messages.length;
-        return;
-      }
+    // 2️⃣ DETECTAR TIPO DE CAMBIO
+    const lengthIncreased = messages.length > previousMessagesLength.current;
+    const lengthDecreased = messages.length < previousMessagesLength.current;
+    const lastChanged = lastMessageId && lastMessageId !== previousLastMessageId.current;
+    const firstChanged = firstMessageId && firstMessageId !== previousFirstMessageId.current;
 
-      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
-      const scrollPosition = scrollHeight - scrollTop - clientHeight;
-      const isNearBottom = scrollPosition < 200;
-      const isAtTop = scrollTop < 100;
+    // Caso A: se cargaron mensajes antiguos (loadMore)
+    const isLoadMore = lengthIncreased && firstChanged && !lastChanged;
 
-      // 🚫 PREVENIR SCROLL si el usuario está navegando por mensajes antiguos
-      if (isAtTop || (!isNearBottom && scrollPosition > 500)) {
-        previousMessagesLength.current = messages.length;
-        return;
-      }
-
-      // Verificar si el nuevo mensaje es del usuario actual
+    // Caso B: llegó / se envió un mensaje nuevo al final
+    if (!isLoadMore && lastChanged) {
       const lastMessage = messages[messages.length - 1];
       const isMyMessage = lastMessage?.senderId === currentUser?.uid;
       
-      // ✅ REGLAS DE AUTO-SCROLL:
-      // 1. Si es MI mensaje → SIEMPRE hacer scroll (sin importar posición)
-      // 2. Si es de otro usuario → Solo si estoy cerca del final (< 200px)
+      // ✅ Si yo escribí: scroll forzado siempre
       if (isMyMessage) {
-        // Mi mensaje → scroll inmediato
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 50);
-      } else if (isNearBottom) {
-        // Mensaje de otro → solo si estoy cerca
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 50);
+        setTimeout(() => scrollToBottom('smooth'), 100);
+      } 
+      // ✅ Si recibí: solo scroll si NO estoy viendo el botón de "bajar"
+      else if (!showScrollButton) {
+        setTimeout(() => scrollToBottom('smooth'), 100);
       }
     }
 
     previousMessagesLength.current = messages.length;
-  }, [messages, currentUser?.uid]);
+    previousFirstMessageId.current = firstMessageId;
+    previousLastMessageId.current = lastMessageId;
+  }, [messages, currentUser?.uid, showScrollButton]);
 
   // ✅ OPTIMIZACIÓN: Marcar como leídos usando cursor (1 escritura en lugar de N)
   useEffect(() => {
@@ -716,6 +745,8 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
   const handleScroll = () => {
     if (messagesContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      // Guardamos la posición actual constantemente
+      lastScrollTop.current = scrollTop;
       const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
       setShowScrollButton(!isNearBottom);
     }
@@ -723,6 +754,26 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // 🔥 Wrapper para deleteMessage - GUARDAR POSICIÓN DEL SCROLL
+  const handleDeleteMessage = async (messageId) => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      // ✅ GUARDAR posición exacta ANTES de eliminar
+      savedScrollPosition.current = container.scrollTop;
+      isDeletingMessage.current = true;
+      console.log('💾 Guardando posición del scroll:', container.scrollTop);
+    }
+    
+    try {
+      await deleteMessage(messageId);
+    } catch (error) {
+      console.error(error);
+      // Si falla, resetear flags
+      isDeletingMessage.current = false;
+      savedScrollPosition.current = null;
+    }
   };
 
   if (!conversation) {
@@ -1099,6 +1150,7 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
         sx={{
           flexGrow: 1,
           overflowY: 'auto',
+          overflowAnchor: 'none', // 🔥 CRÍTICO: Desactivar Scroll Anchoring del navegador
           p: 2.5,
           display: 'flex',
           flexDirection: 'column',
@@ -1236,7 +1288,7 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
                         (messages[index - 1].createdAt?.toMillis?.() || messages[index - 1].createdAt) > 60000
                       }
                       conversation={conversation}
-                      onDelete={deleteMessage}
+                      onDelete={handleDeleteMessage}
                       onEdit={editMessage}
                       onReply={setReplyingTo}
                       onForward={forwardMessage}
