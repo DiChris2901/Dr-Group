@@ -136,7 +136,7 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
         firestoreLimit(messagesPerPage)
       );
 
-      const snapshot = await getDocs(moreMessagesQuery);
+      const snapshot = await getDocs(messagesQuery);
 
       // 📊 Log de lecturas adicionales
       console.log(`📨 Cargando ${snapshot.docs.length} mensajes antiguos más (${snapshot.metadata.fromCache ? 'cache' : 'servidor'})`);
