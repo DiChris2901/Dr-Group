@@ -66,6 +66,16 @@ const AddSalaModal = ({
 }) => {
   const theme = useTheme();
 
+  // Helper: Formatear texto a Title Case (Primera Letra Mayúscula)
+  const toTitleCase = (str) => {
+    if (!str) return '';
+    return str
+      .toLowerCase()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   return (
     <Dialog
       open={open}
@@ -411,8 +421,8 @@ const AddSalaModal = ({
               fullWidth
               label="Nombre Representante Legal"
               value={formData.nombreRepLegal || ''}
-              onChange={(e) => handleFormChange('nombreRepLegal', e.target.value)}
-              helperText="Nombre completo del representante legal"
+              onChange={(e) => handleFormChange('nombreRepLegal', toTitleCase(e.target.value))}
+              helperText="Nombre completo del representante legal (se formatea automáticamente)"
               sx={{
                 '& .MuiOutlinedInput-root': {
                   borderRadius: 2

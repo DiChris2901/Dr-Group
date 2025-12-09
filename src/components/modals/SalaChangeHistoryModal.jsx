@@ -42,7 +42,7 @@ import {
   FilterList as FilterIcon,
   Clear as ClearIcon
 } from '@mui/icons-material';
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -111,11 +111,40 @@ const SalaChangeHistoryModal = ({ open, onClose, salaId, salaName }) => {
       );
 
       const snapshot = await getDocs(changesQuery);
-      const fetchedChanges = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        timestamp: doc.data().timestamp?.toDate() || new Date()
-      }));
+      const fetchedChanges = await Promise.all(
+        snapshot.docs.map(async (docSnapshot) => {
+          const changeData = docSnapshot.data();
+          let enrichedChangedBy = changeData.changedBy;
+
+          // Enriquecer datos del usuario si existe el UID
+          if (changeData.changedBy?.uid) {
+            try {
+              const userDocRef = doc(db, 'users', changeData.changedBy.uid);
+              const userDocSnap = await getDoc(userDocRef);
+              
+              if (userDocSnap.exists()) {
+                const userData = userDocSnap.data();
+                enrichedChangedBy = {
+                  ...changeData.changedBy,
+                  // Prioridad: name > displayName > email
+                  name: userData.name || userData.displayName || changeData.changedBy.email,
+                  email: changeData.changedBy.email
+                };
+              }
+            } catch (error) {
+              console.warn('Error enriqueciendo datos de usuario:', error);
+              // Si falla, usar datos existentes
+            }
+          }
+
+          return {
+            id: docSnapshot.id,
+            ...changeData,
+            changedBy: enrichedChangedBy,
+            timestamp: changeData.timestamp?.toDate() || new Date()
+          };
+        })
+      );
 
       setAllChanges(fetchedChanges);
       applyFiltersAndPagination(fetchedChanges);
