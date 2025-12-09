@@ -75,6 +75,7 @@ import { useNotifications } from '../../context/NotificationsContext';
 import useActivityLogs from '../../hooks/useActivityLogs';
 import { generateRecurringCommitments, saveRecurringCommitments } from '../../utils/recurringCommitments';
 import { getPaymentMethodOptions } from '../../utils/formatUtils';
+import { PDFDocument } from 'pdf-lib';
 
 // 📅 Funciones de manejo de fechas
 const formatSafeDate = (dateValue, formatString = 'yyyy-MM-dd') => {
@@ -630,34 +631,107 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
     }
   };
 
+  // 🔗 Función para combinar PDFs
+  const combinePDFs = async (existingPdfUrl, newFile) => {
+    try {
+      // Crear un nuevo documento PDF
+      const mergedPdf = await PDFDocument.create();
+
+      // 1. Si existe PDF anterior, cargarlo y copiar sus páginas
+      if (existingPdfUrl) {
+        const existingPdfBytes = await fetch(existingPdfUrl).then(res => res.arrayBuffer());
+        const existingPdf = await PDFDocument.load(existingPdfBytes);
+        const existingPages = await mergedPdf.copyPages(existingPdf, existingPdf.getPageIndices());
+        existingPages.forEach(page => mergedPdf.addPage(page));
+      }
+
+      // 2. Cargar el nuevo archivo
+      const newFileBytes = await newFile.arrayBuffer();
+      
+      // Si es imagen, crear página PDF con la imagen
+      if (newFile.type.startsWith('image/')) {
+        let image;
+        if (newFile.type === 'image/png') {
+          image = await mergedPdf.embedPng(newFileBytes);
+        } else {
+          image = await mergedPdf.embedJpg(newFileBytes);
+        }
+        
+        const page = mergedPdf.addPage([image.width, image.height]);
+        page.drawImage(image, {
+          x: 0,
+          y: 0,
+          width: image.width,
+          height: image.height,
+        });
+      } else if (newFile.type === 'application/pdf') {
+        // Si es PDF, copiar sus páginas
+        const newPdf = await PDFDocument.load(newFileBytes);
+        const newPages = await mergedPdf.copyPages(newPdf, newPdf.getPageIndices());
+        newPages.forEach(page => mergedPdf.addPage(page));
+      }
+
+      // 3. Generar el PDF combinado
+      const mergedPdfBytes = await mergedPdf.save();
+      const mergedBlob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
+      
+      return mergedBlob;
+    } catch (error) {
+      console.error('Error combinando PDFs:', error);
+      throw new Error('No se pudieron combinar los archivos');
+    }
+  };
+
   const handleFileUpload = async () => {
     if (!fileToUpload || !commitment) return;
 
     setUploadingFile(true);
     try {
-      // 1. Eliminar archivo anterior si existe
-      if (formData.invoiceFiles && formData.invoiceFiles.length > 0) {
-        for (const oldFileUrl of formData.invoiceFiles) {
-          try {
-            const oldFileRef = ref(storage, oldFileUrl);
-            await deleteObject(oldFileRef);
-          } catch (error) {
-            console.warn('Error al eliminar archivo anterior:', error);
-          }
+      const currentFile = formData.invoiceFiles?.[0]; // Solo puede haber 1 archivo combinado
+      
+      // 1. Combinar con archivo existente si hay uno
+      let fileToUploadFinal = fileToUpload;
+      let combinedFileNames = [fileToUpload.name];
+
+      if (currentFile && fileToUpload.type === 'application/pdf') {
+        addNotification({
+          type: 'info',
+          title: '🔄 Combinando PDFs',
+          message: 'Uniendo el nuevo archivo con el existente...',
+          duration: 3000
+        });
+
+        fileToUploadFinal = await combinePDFs(currentFile, fileToUpload);
+        combinedFileNames = [...(formData.invoiceFileNames || []), fileToUpload.name];
+
+        // Eliminar archivo anterior
+        try {
+          const oldFileRef = ref(storage, currentFile);
+          await deleteObject(oldFileRef);
+        } catch (error) {
+          console.warn('Error eliminando archivo anterior:', error);
+        }
+      } else if (currentFile) {
+        // Si no es PDF o si hay archivo existente, solo reemplazar
+        try {
+          const oldFileRef = ref(storage, currentFile);
+          await deleteObject(oldFileRef);
+        } catch (error) {
+          console.warn('Error eliminando archivo anterior:', error);
         }
       }
 
-      // 2. Subir nuevo archivo
+      // 2. Subir el archivo (combinado o nuevo)
       const timestamp = Date.now();
-      const fileName = `${timestamp}_${fileToUpload.name}`;
+      const fileName = `${timestamp}_comprobante_combinado.pdf`;
       const fileRef = ref(storage, `commitments/${commitment.id}/invoices/${fileName}`);
       
-      await uploadBytes(fileRef, fileToUpload);
+      await uploadBytes(fileRef, fileToUploadFinal);
       const downloadURL = await getDownloadURL(fileRef);
 
-      // 3. Actualizar el estado del formulario
+      // 3. Guardar como un solo archivo (no array)
       const newInvoiceFiles = [downloadURL];
-      const newInvoiceFileNames = [fileToUpload.name];
+      const newInvoiceFileNames = combinedFileNames;
 
       setFormData(prev => ({
         ...prev,
@@ -714,45 +788,163 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
     }
   };
 
-  const handleFileRemove = async () => {
-    if (!commitment || !hasAttachedFiles()) return;
+  // 🔄 Función para reemplazar comprobante (eliminar y subir nuevos archivos combinados)
+  const handleFileReplace = async (filesToReplace) => {
+    if (!filesToReplace || filesToReplace.length === 0 || !commitment) return;
 
     setUploadingFile(true);
     try {
-      // Eliminar archivos de Storage
-      if (formData.invoiceFiles && formData.invoiceFiles.length > 0) {
-        for (const fileUrl of formData.invoiceFiles) {
-          try {
-            const fileRef = ref(storage, fileUrl);
-            await deleteObject(fileRef);
-          } catch (error) {
-            console.warn('Error al eliminar archivo:', error);
-          }
+      const currentFile = formData.invoiceFiles?.[0];
+
+      // 1. Eliminar archivo existente de Storage
+      if (currentFile) {
+        try {
+          const oldFileRef = ref(storage, currentFile);
+          await deleteObject(oldFileRef);
+        } catch (error) {
+          console.warn('Error eliminando archivo anterior:', error);
         }
       }
 
-      // Eliminar archivos de receiptMetadata
-      if (commitment.receiptMetadata) {
-        for (const fileId of Object.keys(commitment.receiptMetadata)) {
-          try {
-            const metadata = commitment.receiptMetadata[fileId];
-            if (metadata.url) {
-              const fileRef = ref(storage, metadata.url);
-              await deleteObject(fileRef);
+      // 2. Si son múltiples archivos, combinarlos en un solo PDF
+      let finalBlob;
+      let finalFileNames = [];
+
+      if (filesToReplace.length === 1) {
+        // Un solo archivo, subir directamente
+        finalBlob = filesToReplace[0];
+        finalFileNames = [filesToReplace[0].name];
+      } else {
+        // Múltiples archivos, combinar en un PDF
+        const mergedPdf = await PDFDocument.create();
+
+        for (const file of filesToReplace) {
+          const fileBytes = await file.arrayBuffer();
+          
+          if (file.type.startsWith('image/')) {
+            // Es una imagen, convertirla a página PDF
+            let image;
+            if (file.type === 'image/png') {
+              image = await mergedPdf.embedPng(fileBytes);
+            } else {
+              image = await mergedPdf.embedJpg(fileBytes);
             }
-          } catch (error) {
-            console.warn('Error al eliminar archivo de receiptMetadata:', error);
+            
+            const page = mergedPdf.addPage([image.width, image.height]);
+            page.drawImage(image, {
+              x: 0,
+              y: 0,
+              width: image.width,
+              height: image.height,
+            });
+          } else if (file.type === 'application/pdf') {
+            // Es un PDF, copiar sus páginas
+            const pdf = await PDFDocument.load(fileBytes);
+            const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+            pages.forEach(page => mergedPdf.addPage(page));
           }
+
+          finalFileNames.push(file.name);
         }
+
+        const mergedPdfBytes = await mergedPdf.save();
+        finalBlob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
       }
 
-      // Actualizar estado del formulario
+      // 3. Subir el archivo (único o combinado)
+      const timestamp = Date.now();
+      const fileName = filesToReplace.length === 1 
+        ? `${timestamp}_${filesToReplace[0].name}`
+        : `${timestamp}_comprobante_combinado.pdf`;
+      
+      const fileRef = ref(storage, `commitments/${commitment.id}/invoices/${fileName}`);
+      await uploadBytes(fileRef, finalBlob);
+      const downloadURL = await getDownloadURL(fileRef);
+
+      // 4. Actualizar en Firestore
+      const newInvoiceFiles = [downloadURL];
+      
+      setFormData(prev => ({
+        ...prev,
+        invoiceFiles: newInvoiceFiles,
+        invoiceURLs: newInvoiceFiles,
+        invoiceFileNames: finalFileNames
+      }));
+
+      const commitmentRef = doc(db, 'commitments', commitment.id);
+      await updateDoc(commitmentRef, {
+        invoiceFiles: newInvoiceFiles,
+        invoiceURLs: newInvoiceFiles,
+        invoiceFileNames: finalFileNames,
+        updatedAt: serverTimestamp(),
+        updatedBy: currentUser.uid
+      });
+
+      // 📝 Registrar actividad de auditoría
+      await logActivity('replace_commitment_invoice', 'commitment', commitment.id, {
+        concept: commitment.concept || 'Sin concepto',
+        companyName: companies.find(c => c.id === commitment.companyId)?.name || 'Sin empresa',
+        totalAmount: commitment.totalAmount || commitment.amount || 0,
+        oldFileName: formData.invoiceFileNames?.join(', ') || 'archivo_anterior',
+        newFileName: finalFileNames.join(', '),
+        fileCount: filesToReplace.length,
+        action: 'replace_invoice'
+      });
+
+      addNotification({
+        type: 'success',
+        title: '✅ Comprobante Reemplazado',
+        message: filesToReplace.length > 1 
+          ? `${filesToReplace.length} archivos combinados y reemplazados correctamente`
+          : 'Comprobante reemplazado correctamente',
+        duration: 4000
+      });
+
+      // Limpiar estados
+      setFileToUpload(null);
+      setFilePreview(null);
+      
+      const fileInput = document.getElementById('file-upload-input-replace');
+      if (fileInput) fileInput.value = '';
+
+    } catch (error) {
+      console.error('Error al reemplazar comprobante:', error);
+      addNotification({
+        type: 'error',
+        title: '❌ Error al Reemplazar',
+        message: 'No se pudo reemplazar el comprobante. Intenta de nuevo.',
+        duration: 5000
+      });
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
+  const handleFileRemove = async () => {
+    if (!commitment) return;
+
+    setUploadingFile(true);
+    try {
+      const currentFile = formData.invoiceFiles?.[0];
+
+      if (!currentFile) {
+        throw new Error('No hay archivo para eliminar');
+      }
+
+      // Eliminar archivo de Firebase Storage
+      try {
+        const fileRef = ref(storage, currentFile);
+        await deleteObject(fileRef);
+      } catch (error) {
+        console.warn('Error al eliminar archivo de storage:', error);
+      }
+
+      // Limpiar todos los campos de archivos
       setFormData(prev => ({
         ...prev,
         invoiceFiles: [],
         invoiceURLs: [],
-        invoiceFileNames: [],
-        receiptMetadata: {}
+        invoiceFileNames: []
       }));
 
       // Actualizar en Firebase
@@ -761,7 +953,6 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
         invoiceFiles: [],
         invoiceURLs: [],
         invoiceFileNames: [],
-        receiptMetadata: {},
         updatedAt: serverTimestamp(),
         updatedBy: currentUser.uid
       });
@@ -771,7 +962,7 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
         concept: commitment.concept || 'Sin concepto',
         companyName: companies.find(c => c.id === commitment.companyId)?.name || 'Sin empresa',
         totalAmount: commitment.totalAmount || commitment.amount || 0,
-        deletedFileName: commitment.invoiceFileNames?.[0] || 'archivo_desconocido',
+        deletedFileNames: formData.invoiceFileNames?.join(', ') || 'archivo_desconocido',
         action: 'delete_invoice'
       });
 
@@ -1390,25 +1581,36 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
                       }}
                     >
                       <Typography variant="body2" fontWeight={500}>
-                        📄 Comprobante Actual
+                        📄 Comprobante Combinado
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {getFileName()}
+                        {(formData.invoiceFileNames || []).length} archivo(s) combinado(s) en un solo PDF
                       </Typography>
                     </Alert>
 
                     <Box display="flex" alignItems="center" gap={2} sx={{ mb: 2 }}>
                       <Avatar sx={{ bgcolor: 'success.main', color: 'success.contrastText' }}>
-                        {getFileIcon(getFileName())}
+                        <PictureAsPdf />
                       </Avatar>
                       <Box flex={1}>
                         <Typography variant="body2" fontWeight={500}>
-                          {getFileName()}
+                          comprobante_combinado.pdf
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Archivo de comprobante
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          Contiene: {(formData.invoiceFileNames || []).join(', ')}
                         </Typography>
                       </Box>
+                      <Button
+                        variant="outlined"
+                        color="warning"
+                        size="small"
+                        startIcon={uploadingFile ? <CircularProgress size={16} /> : <EditIcon />}
+                        onClick={() => document.getElementById('file-upload-input-replace').click()}
+                        disabled={uploadingFile}
+                        sx={{ borderRadius: 1 }}
+                      >
+                        Editar
+                      </Button>
                       <Button
                         variant="outlined"
                         color="error"
@@ -1445,7 +1647,7 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
                 <Box sx={{ mt: 2 }}>
                   <Typography variant="overline" sx={OVERLINE_STYLES.secondary}>
                     <CloudUpload sx={{ fontSize: 16, mr: 1, verticalAlign: 'middle' }} />
-                    {hasAttachedFiles() ? 'Reemplazar Comprobante' : 'Subir Comprobante'}
+                    {hasAttachedFiles() ? 'Agregar y Combinar Comprobante' : 'Subir Comprobante'}
                   </Typography>
                   
                   <input
@@ -1454,6 +1656,47 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
                     accept=".pdf,.jpg,.jpeg,.png,.webp"
                     style={{ display: 'none' }}
                     onChange={handleFileSelect}
+                  />
+                  
+                  <input
+                    id="file-upload-input-replace"
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,.webp"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={async (e) => {
+                      const files = Array.from(e.target.files);
+                      if (files.length === 0) return;
+
+                      // Validar todos los archivos
+                      const maxSize = 5 * 1024 * 1024;
+                      const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+                      
+                      for (const file of files) {
+                        if (file.size > maxSize) {
+                          addNotification({
+                            type: 'error',
+                            title: '❌ Archivo Demasiado Grande',
+                            message: `${file.name} debe ser menor a 5MB`,
+                            duration: 4000
+                          });
+                          return;
+                        }
+
+                        if (!validTypes.includes(file.type)) {
+                          addNotification({
+                            type: 'error',
+                            title: '❌ Formato No Válido',
+                            message: `${file.name}: Solo se permiten archivos PDF, JPG, PNG o WebP`,
+                            duration: 4000
+                          });
+                          return;
+                        }
+                      }
+
+                      // Ejecutar reemplazo con múltiples archivos
+                      setTimeout(() => handleFileReplace(files), 100);
+                    }}
                   />
                   
                   <Box sx={{ mt: 2 }}>
@@ -1474,10 +1717,11 @@ const CommitmentEditFormComplete = ({ open, onClose, commitment, onUpdate }) => 
                         }
                       }}
                     >
-                      Seleccionar Archivo
+                      {hasAttachedFiles() ? 'Agregar y Combinar' : 'Seleccionar Archivo'}
                     </Button>
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                      Formatos: PDF, JPG, PNG, WebP • Máximo: 5MB
+                      Formatos: PDF, JPG, PNG, WebP • Máximo: 5MB por archivo
+                      {hasAttachedFiles() && ' • Se combinará automáticamente con el existente'}
                     </Typography>
                   </Box>
 

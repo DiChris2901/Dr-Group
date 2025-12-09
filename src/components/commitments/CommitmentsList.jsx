@@ -201,12 +201,12 @@ const DateDisplayDS3 = ({ date, showDaysRemaining = false, variant = 'standard',
 };
 
 // Encabezado tabla (reintroducido) - ✅ Corregido para coincidir con contenido
-const TableHeaderDS3 = ({ columns = ['Estado', 'Concepto', 'Empresa', 'Monto', 'Vence', 'Acciones'] }) => {
+const TableHeaderDS3 = ({ columns = ['Estado', 'Concepto', 'Empresa', 'Monto', 'Vence', 'Comentarios', 'Acciones'] }) => {
   const theme = useTheme();
   return (
     <Box sx={{
       display: 'grid',
-      gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 0.8fr', // ✅ Igual que las filas
+      gridTemplateColumns: '0.8fr 1.8fr 1.3fr 1fr 0.9fr 1.5fr 0.8fr', // ✅ Con columna Comentarios
       gap: 2, // ✅ Mismo gap que las filas
       alignItems: 'center',
       px: 2,
@@ -2675,7 +2675,7 @@ const CommitmentsList = ({
                 >
                   <Box sx={{
                     display: 'grid',
-                    gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 0.8fr',
+                    gridTemplateColumns: '0.8fr 1.8fr 1.3fr 1fr 0.9fr 1.5fr 0.8fr',
                     gap: 2,
                     px: 2,
                     py: 2,
@@ -2772,6 +2772,25 @@ const CommitmentsList = ({
                         isPaid={commitment.paid || commitment.isPaid}
                         theme={theme}
                       />
+                    </Box>
+
+                    {/* Comentarios */}
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: '0.8rem',
+                          color: 'text.secondary',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          lineHeight: 1.3
+                        }}
+                      >
+                        {commitment.observations || commitment.notes || '-'}
+                      </Typography>
                     </Box>
 
                     {/* Acciones */}

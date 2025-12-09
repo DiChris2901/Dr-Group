@@ -475,11 +475,12 @@ const NewCommitmentPage = () => {
 
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
-      const file = files[0];
-      // Simular el evento de selección de archivo
+      // Convertir FileList a Array para pasar todos los archivos
+      const filesArray = Array.from(files);
+      // Simular el evento de selección de múltiples archivos
       const mockEvent = {
         target: {
-          files: [file]
+          files: filesArray
         }
       };
       handleFileSelect(mockEvent);
@@ -3336,10 +3337,21 @@ const NewCommitmentPage = () => {
         {/* 🏢 MODAL DE SELECCIÓN INICIAL DE EMPRESA */}
         <Dialog
           open={companyModalOpen}
-          onClose={() => {}} // Deshabilitado para forzar selección
+          onClose={handleCompanyModalCancel} // Permite cerrar con ESC
           maxWidth="sm"
           fullWidth
-          disableEscapeKeyDown
+          onKeyDown={(e) => {
+            // ✅ ENTER: Continuar (solo si hay empresa seleccionada)
+            if (e.key === 'Enter' && selectedCompanyInModal) {
+              e.preventDefault();
+              handleCompanyModalConfirm();
+            }
+            // ❌ ESC: Cancelar y cerrar modal
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              handleCompanyModalCancel();
+            }
+          }}
           PaperProps={{
             sx: {
               borderRadius: 3,

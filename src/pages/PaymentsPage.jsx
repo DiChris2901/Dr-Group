@@ -2664,7 +2664,7 @@ useEffect(() => {
               {/* Header de la tabla - Estilo Commitments */}
               <Box sx={{
                 display: 'grid',
-                gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 1fr 1fr 0.8fr',
+                gridTemplateColumns: '0.9fr 2fr 1.5fr 1.2fr 1fr 1fr 0.8fr 1.5fr 0.8fr',
                 gap: 2,
                 p: 3,
                 backgroundColor: 'background.paper',
@@ -2674,7 +2674,8 @@ useEffect(() => {
                 position: 'sticky',
                 top: 0,
                 zIndex: 10,
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)'
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)',
+                minWidth: 0
               }}>
                 {[
                   'ESTADO',
@@ -2684,6 +2685,7 @@ useEffect(() => {
                   'MÉTODO',
                   'FECHA',
                   'REFERENCIA',
+                  'COMENTARIOS',
                   'ACCIONES'
                 ].map((column) => (
                   <Box 
@@ -2692,6 +2694,9 @@ useEffect(() => {
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: column === 'MONTO' ? 'center' : 
+                                    column === 'MÉTODO' ? 'center' :
+                                    column === 'FECHA' ? 'center' :
+                                    column === 'REFERENCIA' ? 'center' :
                                     column === 'ACCIONES' ? 'center' : 'flex-start'
                     }}
                   >
@@ -2735,10 +2740,11 @@ useEffect(() => {
                   >
                     <Box sx={{
                       display: 'grid',
-                      gridTemplateColumns: '0.8fr 2fr 1.5fr 1.2fr 1fr 1fr 1fr 0.8fr',
+                      gridTemplateColumns: '0.9fr 2fr 1.5fr 1.2fr 1fr 1fr 0.8fr 1.5fr 0.8fr',
                       gap: 2,
                       p: 2.5,
                       borderBottom: index === paginatedPayments.length - 1 ? 'none' : '1px solid rgba(0, 0, 0, 0.04)',
+                      minWidth: 0,
                       '&:hover': {
                         backgroundColor: 'rgba(0, 0, 0, 0.03)'
                       },
@@ -2850,7 +2856,7 @@ useEffect(() => {
                     </Box>
 
                     {/* Método */}
-                    <Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'center' }}>
                       <Chip 
                         label={payment.method} 
                         size="small" 
@@ -2882,15 +2888,36 @@ useEffect(() => {
                     </Box>
 
                     {/* Referencia */}
-                    <Box sx={{ textAlign: 'center' }}>
+                    <Box sx={{ textAlign: 'center', minWidth: 0 }}>
                       <Typography variant="body2" sx={{ 
                         fontFamily: 'monospace', 
                         color: 'text.secondary',
                         fontSize: '0.75rem',
                         fontWeight: 400,
-                        lineHeight: 1.3
+                        lineHeight: 1.3,
+                        wordBreak: 'break-all',
+                        overflowWrap: 'anywhere'
                       }}>
                         {payment.reference || '-'}
+                      </Typography>
+                    </Box>
+
+                    {/* Comentarios */}
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: '0.8rem',
+                          color: 'text.secondary',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          lineHeight: 1.3
+                        }}
+                      >
+                        {payment.notes || payment.observations || '-'}
                       </Typography>
                     </Box>
 

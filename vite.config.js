@@ -26,29 +26,43 @@ export default defineConfig({
     }
   },
   build: {
-    // ✅ ESTRATEGIA SIMPLE: Dejar que Vite maneje todo automáticamente
     target: 'es2015',
-    minify: 'terser', // Cambiar a terser para mejor manejo de dependencias
-    sourcemap: false, // Desactivar sourcemaps para reducir complejidad
-    terserOptions: {
-      compress: {
-        drop_console: false,
-        drop_debugger: true
-      }
-    },
+    minify: 'esbuild', // ✅ esbuild es 20-40x más rápido que terser
+    sourcemap: false,
+    chunkSizeWarningLimit: 3000,
     rollupOptions: {
       output: {
-        // ✅ CHUNKING AUTOMÁTICO SIMPLE - Solo separar vendors grandes
-        manualChunks: {
-          'react-core': ['react', 'react-dom', 'react-router-dom'],
-          'ui-framework': ['@mui/material', '@mui/icons-material', '@emotion/react', '@emotion/styled'],
-          'charts': ['recharts'],
-          'firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
-          'animations': ['framer-motion']
+        manualChunks: (id) => {
+          // ✅ Estrategia dinámica más eficiente
+          if (id.includes('node_modules')) {
+            // Separar por vendor
+            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+              return 'react-core';
+            }
+            if (id.includes('@mui') || id.includes('@emotion')) {
+              return 'ui-framework';
+            }
+            if (id.includes('firebase')) {
+              return 'firebase';
+            }
+            if (id.includes('recharts') || id.includes('chart.js')) {
+              return 'charts';
+            }
+            if (id.includes('framer-motion')) {
+              return 'animations';
+            }
+            if (id.includes('html2canvas') || id.includes('jspdf') || id.includes('pdf-lib')) {
+              return 'pdf-utils';
+            }
+            if (id.includes('exceljs') || id.includes('xlsx')) {
+              return 'excel-utils';
+            }
+            // Resto de dependencias en un chunk común
+            return 'vendor';
+          }
         }
       }
-    },
-    chunkSizeWarningLimit: 3000
+    }
   },
   resolve: {
     alias: {
@@ -71,16 +85,29 @@ export default defineConfig({
     __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false
   },
   optimizeDeps: {
-    // ✅ ESTRATEGIA SIMPLE: Solo pre-bundle lo esencial
     include: [
       'react',
       'react-dom',
+      'react-router-dom',
       '@mui/material',
       '@mui/icons-material',
-      'framer-motion'
+      'framer-motion',
+      'firebase/app',
+      'firebase/auth',
+      'firebase/firestore',
+      'firebase/storage',
+      'exceljs' // ✅ Reincluido para evitar error de export
+    ],
+    exclude: [
+      // Excluir solo paquetes realmente problemáticos
+      'html2canvas',
+      'jspdf'
     ],
     esbuildOptions: {
-      target: 'es2015'
+      target: 'es2020',
+      supported: {
+        'top-level-await': true
+      }
     }
   },
   esbuild: {
