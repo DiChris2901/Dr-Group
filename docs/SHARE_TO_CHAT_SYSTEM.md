@@ -177,7 +177,7 @@ Urgente: Confirmar pago antes del viernes
 
 ### **Estado General del Sistema:**
 
-**Páginas completadas:** 5 de 8 páginas principales  
+**Páginas completadas:** 7 de 8 páginas principales  
 **Tipos de entidad:** 10 tipos diferentes soportados  
 **Última actualización:** 8 de Diciembre, 2025
 
@@ -531,19 +531,71 @@ const handleShareCompany = (company) => {
 - ✅ Cierre automático al compartir
 - ✅ Apertura automática del chat con conversación seleccionada
 
-7. **FacturacionPage.jsx** 🟡
+7. **LiquidacionesHistorialPage.jsx** ✅ **IMPLEMENTADO COMPLETO**
+   - **Ruta:** `src/pages/LiquidacionesHistorialPage.jsx`
+   - **Tipo:** `liquidacion`
+   - **Adjuntos:** Ninguno
+   - **Ubicación:** MenuItem en el menú de acciones de cada liquidación (MoreVert icon)
+   - **Implementado:** 8 de Diciembre, 2025
+   - **Estado:** Sistema de compartir liquidaciones del historial completamente funcional
+
+**Campos compartidos:**
+- 🏢 Empresa
+- 📅 Período
+- 🏛️ Establecimientos
+- 🎰 Máquinas
+- 💰 Producción Total (formato COP)
+- 🏦 Derechos de Explotación (formato COP)
+- 📋 Gastos de Administración (formato COP)
+- 💸 Total Impuestos (formato COP)
+
+**Características especiales:**
+- ✅ Integrado en el menú de acciones existente (Ver detalle, Cargar, Descargar, Eliminar)
+- ✅ Botón con icono ShareIcon y texto "Compartir en chat"
+- ✅ Cierra automáticamente el menú al compartir
+- ✅ Vista previa en modal con todos los campos formateados
+- ✅ Mensaje formateado con emoji 📊 "Liquidación Compartida"
+- ✅ Template y EntitySummary ya existían del sistema anterior
+- ✅ Apertura automática del chat tras compartir
+
+**Implementación:**
+```javascript
+// Estados
+const [shareDialogOpen, setShareDialogOpen] = useState(false);
+const [liquidacionToShare, setLiquidacionToShare] = useState(null);
+
+// Handlers
+const handleShareLiquidacion = () => {
+  setLiquidacionToShare(selectedLiquidacion);
+  setShareDialogOpen(true);
+  handleMenuClose();
+};
+
+const handleCloseShareDialog = () => {
+  setShareDialogOpen(false);
+  setLiquidacionToShare(null);
+};
+
+// MenuItem en Menu (después de Descargar, antes de Eliminar)
+<MenuItem onClick={handleShareLiquidacion}>
+  <ShareIcon sx={{ mr: 1 }} /> Compartir en chat
+</MenuItem>
+
+// Modal al final del componente
+<ShareToChat
+  open={shareDialogOpen}
+  onClose={handleCloseShareDialog}
+  entity={liquidacionToShare}
+  entityType="liquidacion"
+  entityName="liquidación"
+/>
+```
+
+8. **FacturacionPage.jsx** 🟡
    - **Ruta:** `src/pages/FacturacionPage.jsx`
    - **Tipo:** `invoice`
    - **Adjuntos:** PDF de la cuenta de cobro (si existe)
    - **Ubicación sugerida:** Botón en cada fila de la tabla
-
-### **Prioridad Baja:**
-
-8. **LiquidacionesHistorialPage.jsx** 🟢
-   - **Ruta:** `src/pages/LiquidacionesHistorialPage.jsx`
-   - **Tipo:** `liquidacion`
-   - **Adjuntos:** Ninguno
-   - **Ubicación sugerida:** Botón en cada fila del historial
 
 ---
 
@@ -1019,13 +1071,13 @@ const renderField = (label, value, emoji = '📌') => (
 - ✅ CompaniesPage.jsx (Empresas + Credenciales de Plataformas)
 - ✅ SalasPage.jsx (Salas Individuales + Empresas con Salas)
 - ✅ ClientesPage.jsx (Clientes + Administradores)
+- ✅ LiquidacionesHistorialPage.jsx (Historial de Liquidaciones)
 
 **Páginas Omitidas:**
 - 🔴 IncomePage.jsx (sin lista de registros)
 
 **Páginas Pendientes:**
 - 🟡 FacturacionPage.jsx (facturas/cuentas de cobro)
-- 🟢 LiquidacionesHistorialPage.jsx (historial de liquidaciones)
 
 **Tipos de Entidad Creados:**
 1. `commitment` ✅
@@ -1327,4 +1379,4 @@ entityId: entityData.id || `${entityType}_${Date.now()}`
 
 **Última actualización:** 8 de Diciembre, 2025  
 **Autor:** GitHub Copilot + Diego Rueda  
-**Estado:** Documentación completa y actualizada con últimas funcionalidades (6 páginas implementadas, 9 tipos de entidad)
+**Estado:** Documentación completa y actualizada con últimas funcionalidades (7 páginas implementadas, 9 tipos de entidad)

@@ -1110,12 +1110,21 @@ const LiquidacionesPorSalaPage = () => {
 
   // Obtener opciones únicas para filtros (usando todas las liquidaciones disponibles)
   const opcionesFiltros = useMemo(() => {
+    // Filtrar liquidaciones según empresa seleccionada
+    const liquidacionesFiltradas = filtros.empresa
+      ? todasLasLiquidaciones.filter(l => l.empresa.nombre === filtros.empresa)
+      : todasLasLiquidaciones;
+
     return {
       empresas: [...new Set(todasLasLiquidaciones.map(l => l.empresa.nombre))].sort(),
-      periodos: [...new Set(todasLasLiquidaciones.map(l => l.fechas.periodoLiquidacion))].sort().reverse(),
-      salas: [...new Set(todasLasLiquidaciones.map(l => l.sala.nombre))].sort()
+      periodos: [...new Set(liquidacionesFiltradas
+        .map(l => l.fechas?.periodoLiquidacion)
+        .filter(periodo => periodo && periodo.trim()))] // Solo períodos válidos y no vacíos
+        .sort()
+        .reverse(),
+      salas: [...new Set(liquidacionesFiltradas.map(l => l.sala.nombre))].sort()
     };
-  }, [todasLasLiquidaciones]);
+  }, [todasLasLiquidaciones, filtros.empresa]);
 
   // Calcular totales automáticamente cuando cambien los datos de las máquinas
   const totalesCalculados = useMemo(() => {

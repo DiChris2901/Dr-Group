@@ -125,12 +125,14 @@ export const useShareToChat = () => {
       liquidacion: {
         title: '📊 Liquidación Compartida',
         fields: [
-          { emoji: '🏢', label: 'Empresa', value: entityData.empresa?.nombre || entityData.empresaNombre || entityData.company || 'No especificada' },
-          { emoji: '🎮', label: 'Sala', value: entityData.sala?.nombre || entityData.salaNombre || entityData.sala || entityData.name || 'No especificada' },
-          { emoji: '📅', label: 'Período', value: formatearPeriodo(entityData.fechas?.periodoLiquidacion || entityData.periodo || entityData.period || entityData.mes) },
-          { emoji: '🎰', label: 'Máquinas', value: entityData.metricas?.totalMaquinas || entityData.totalMaquinas || 'N/A' },
-          { emoji: '💰', label: 'Producción', value: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entityData.metricas?.totalProduccion || entityData.totalProduccion || 0) },
-          { emoji: '💸', label: 'Impuestos', value: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entityData.metricas?.totalImpuestos || entityData.totalImpuestos || entityData.total || 0) }
+          { emoji: '🏢', label: 'Empresa', value: entityData.empresa || entityData.empresaNombre || entityData.company || 'No especificada' },
+          { emoji: '📅', label: 'Período', value: entityData.periodo || formatearPeriodo(entityData.fechas?.periodoLiquidacion || entityData.period || entityData.mes) || 'No especificado' },
+          { emoji: '🏛️', label: 'Establecimientos', value: entityData.establecimientos || entityData.metricas?.totalEstablecimientos || 'N/A' },
+          { emoji: '🎰', label: 'Máquinas', value: entityData.totalMaquinas || entityData.metricas?.totalMaquinas || entityData.metricas?.maquinasConsolidadas || 'N/A' },
+          { emoji: '💰', label: 'Producción Total', value: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entityData.totalProduccion || entityData.metricas?.totalProduccion || 0) },
+          { emoji: '🏦', label: 'Derechos de Explotación', value: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entityData.totalDerechos || entityData.metricas?.derechosExplotacion || 0) },
+          { emoji: '📋', label: 'Gastos de Administración', value: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entityData.totalGastos || entityData.metricas?.gastosAdministracion || 0) },
+          { emoji: '💸', label: 'Total Impuestos', value: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entityData.totalImpuestos || entityData.metricas?.totalImpuestos || entityData.total || 0) }
         ]
       },
       invoice: {

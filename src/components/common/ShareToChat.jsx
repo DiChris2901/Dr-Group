@@ -196,12 +196,14 @@ const EntitySummary = ({ entity, type }) => {
     ),
     liquidacion: (
       <>
-        {renderField('Empresa', entity.empresa?.nombre || entity.empresaNombre || entity.company || 'No especificada', '🏢')}
-        {renderField('Sala', entity.sala?.nombre || entity.salaNombre || entity.sala || entity.name || 'No especificada', '🎮')}
-        {renderField('Período', formatearPeriodo(entity.fechas?.periodoLiquidacion || entity.periodo || entity.period || entity.mes), '📅')}
-        {renderField('Máquinas', entity.metricas?.totalMaquinas || entity.totalMaquinas || 'N/A', '🎰')}
-        {renderField('Producción', new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entity.metricas?.totalProduccion || entity.totalProduccion || 0), '💰')}
-        {renderField('Impuestos', new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entity.metricas?.totalImpuestos || entity.totalImpuestos || entity.total || 0), '💸')}
+        {renderField('Empresa', entity.empresa || entity.empresaNombre || entity.company || 'No especificada', '🏢')}
+        {renderField('Período', entity.periodo || formatearPeriodo(entity.fechas?.periodoLiquidacion || entity.period || entity.mes) || 'No especificado', '📅')}
+        {renderField('Establecimientos', entity.establecimientos || entity.metricas?.totalEstablecimientos || 'N/A', '🏛️')}
+        {renderField('Máquinas', entity.totalMaquinas || entity.metricas?.totalMaquinas || entity.metricas?.maquinasConsolidadas || 'N/A', '🎰')}
+        {renderField('Producción Total', new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entity.totalProduccion || entity.metricas?.totalProduccion || 0), '💰')}
+        {renderField('Derechos de Explotación', new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entity.totalDerechos || entity.metricas?.derechosExplotacion || 0), '🏦')}
+        {renderField('Gastos de Administración', new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entity.totalGastos || entity.metricas?.gastosAdministracion || 0), '📋')}
+        {renderField('Total Impuestos', new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entity.totalImpuestos || entity.metricas?.totalImpuestos || entity.total || 0), '💸')}
       </>
     ),
     invoice: (
