@@ -32,9 +32,35 @@ import { useNotifications } from '../../context/NotificationsContext';
 import { useAuth } from '../../context/AuthContext';
 
 /**
+ * Formatear período de liquidación (ej: "octubre_2025" → "Octubre 2025")
+ */
+const formatearPeriodo = (periodo) => {
+  if (!periodo) return 'No especificado';
+  
+  const [mes, año] = periodo.split('_');
+  const mesesMap = {
+    enero: 'Enero',
+    febrero: 'Febrero',
+    marzo: 'Marzo',
+    abril: 'Abril',
+    mayo: 'Mayo',
+    junio: 'Junio',
+    julio: 'Julio',
+    agosto: 'Agosto',
+    septiembre: 'Septiembre',
+    octubre: 'Octubre',
+    noviembre: 'Noviembre',
+    diciembre: 'Diciembre'
+  };
+  
+  return `${mesesMap[mes?.toLowerCase()] || mes} ${año}`;
+};
+
+/**
  * Componente de resumen de entidad compartida
  */
 const EntitySummary = ({ entity, type }) => {
+  const theme = useTheme();
   const [companyName, setCompanyName] = useState(null);
   const [loadingCompany, setLoadingCompany] = useState(false);
 
@@ -80,11 +106,30 @@ const EntitySummary = ({ entity, type }) => {
   }
 
   const renderField = (label, value, emoji = '📌') => (
-    <Box sx={{ display: 'flex', gap: 1, mb: 0.5 }}>
-      <Typography variant="body2" color="text.secondary" sx={{ minWidth: 120 }}>
-        {emoji} <strong>{label}:</strong>
+    <Box sx={{ 
+      display: 'flex', 
+      gap: 2, 
+      mb: 1.5,
+      pb: 1.5,
+      borderBottom: '1px solid',
+      borderColor: 'divider',
+      '&:last-of-type': {
+        borderBottom: 'none',
+        mb: 0,
+        pb: 0
+      }
+    }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', minWidth: 200 }}>
+        <Typography variant="body2" sx={{ mr: 1, fontSize: '1.1rem' }}>
+          {emoji}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: 0.5 }}>
+          {label}
+        </Typography>
+      </Box>
+      <Typography variant="body2" sx={{ flex: 1, fontWeight: 500, color: 'text.primary' }}>
+        {value || 'No especificado'}
       </Typography>
-      <Typography variant="body2" sx={{ flex: 1 }}>{value || 'No especificado'}</Typography>
     </Box>
   );
 
@@ -125,15 +170,31 @@ const EntitySummary = ({ entity, type }) => {
     payment: (
       <>
         {renderField('Concepto', entity.concept, '📋')}
-        {renderField('Monto', new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entity.amount), '💰')}
+        {renderField('Empresa', loadingCompany ? 'Cargando...' : (companyName || entity.companyName || entity.company || 'No especificado'), '🏢')}
+        {renderField('Beneficiario', entity.beneficiary || entity.provider || 'No especificado', '👤')}
+        {renderField('Monto', new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entity.amount || entity.finalAmount || 0), '💰')}
         {renderField('Fecha', entity.date ? new Date(entity.date).toLocaleDateString('es-CO') : 'No especificada', '📅')}
+        {renderField('Método', entity.method || entity.paymentMethod || 'No especificado', '💳')}
+        {entity.reference && renderField('Referencia', entity.reference, '🔢')}
+        {entity.sourceBank && renderField('Banco Origen', entity.sourceBank, '🏦')}
+        {entity.sourceAccount && renderField('Cuenta Origen', entity.sourceAccount, '💳')}
+        {entity.notes && renderField('Notas', entity.notes, '💬')}
+        {(entity.attachments && entity.attachments.length > 0) && 
+          renderAttachmentLink(entity.attachments[0], 'Ver comprobante')}
+        {(!entity.attachments && entity.receiptUrl) && 
+          renderAttachmentLink(entity.receiptUrl, 'Ver comprobante')}
+        {(!entity.attachments && !entity.receiptUrl && entity.receiptUrls && entity.receiptUrls.length > 0) && 
+          renderAttachmentLink(entity.receiptUrls[0], 'Ver comprobante')}
       </>
     ),
     liquidacion: (
       <>
-        {renderField('Sala', entity.sala || entity.name, '🏢')}
-        {renderField('Total', new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entity.total || 0), '💰')}
-        {renderField('Período', entity.period || entity.mes, '📅')}
+        {renderField('Empresa', entity.empresa?.nombre || entity.empresaNombre || entity.company || 'No especificada', '🏢')}
+        {renderField('Sala', entity.sala?.nombre || entity.salaNombre || entity.sala || entity.name || 'No especificada', '🎮')}
+        {renderField('Período', formatearPeriodo(entity.fechas?.periodoLiquidacion || entity.periodo || entity.period || entity.mes), '📅')}
+        {renderField('Máquinas', entity.metricas?.totalMaquinas || entity.totalMaquinas || 'N/A', '🎰')}
+        {renderField('Producción', new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entity.metricas?.totalProduccion || entity.totalProduccion || 0), '💰')}
+        {renderField('Impuestos', new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entity.metricas?.totalImpuestos || entity.totalImpuestos || entity.total || 0), '💸')}
       </>
     ),
     invoice: (
@@ -152,9 +213,38 @@ const EntitySummary = ({ entity, type }) => {
     ),
     company: (
       <>
+        {entity.logoURL && (
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            mb: 2,
+            p: 2,
+            bgcolor: 'background.default',
+            borderRadius: 2,
+            border: '1px solid',
+            borderColor: 'divider'
+          }}>
+            <Box
+              component="img"
+              src={entity.logoURL}
+              alt={entity.name}
+              sx={{
+                maxWidth: '200px',
+                maxHeight: '80px',
+                objectFit: 'contain'
+              }}
+            />
+          </Box>
+        )}
         {renderField('Nombre', entity.name, '🏢')}
-        {renderField('NIT', entity.nit, '🆔')}
-        {renderField('Representante', entity.representante, '👤')}
+        {renderField('NIT', entity.nit || 'No especificado', '🆔')}
+        {entity.email && renderField('Email', entity.email, '📧')}
+        {entity.legalRepresentative && renderField('Representante Legal', entity.legalRepresentative, '👤')}
+        {entity.legalRepresentativeId && renderField('Cédula Rep. Legal', entity.legalRepresentativeId, '🪪')}
+        {entity.contractNumber && renderField('Número de Contrato', entity.contractNumber, '📋')}
+        {entity.bankName && renderField('Banco', entity.bankName, '🏦')}
+        {entity.bankAccount && renderField('Cuenta Bancaria', entity.bankAccount, '💳')}
+        {entity.accountType && renderField('Tipo de Cuenta', entity.accountType, '📊')}
       </>
     ),
     client: (
@@ -166,14 +256,66 @@ const EntitySummary = ({ entity, type }) => {
     ),
     sala: (
       <>
+        {renderField('Empresa', entity.companyName || 'No especificada', '🏢')}
         {renderField('Nombre', entity.name, '🎮')}
-        {renderField('Ubicación', entity.ubicacion, '📍')}
-        {renderField('Capacidad', entity.capacidad, '📊')}
+        {renderField('Ubicación', `${entity.ciudad || 'N/A'}, ${entity.departamento || 'N/A'}`, '📍')}
+        {renderField('Dirección', entity.direccion || 'No especificada', '🗺️')}
+        {renderField('Propietario', entity.propietario || 'No especificado', '👤')}
+        {renderField('Proveedor', entity.proveedorOnline || 'No especificado', '💻')}
+        {entity.fechaInicioContrato && renderField('Contrato', `Inicio: ${new Date(entity.fechaInicioContrato).toLocaleDateString('es-CO')}`, '📋')}
+        {renderField('Contacto Principal', entity.contactoAutorizado ? `${entity.contactoAutorizado} - ${entity.contactPhone || 'S/T'} - ${entity.contactEmail || 'S/E'}` : 'No especificado', '👨‍💼')}
+        {entity.contactoAutorizado2 && renderField('Contacto Secundario', `${entity.contactoAutorizado2} - ${entity.contactPhone2 || 'S/T'} - ${entity.contactEmail2 || 'S/E'}`, '👨‍💼')}
+        {renderField('Máquinas', entity.maquinas || '0', '🎰')}
+        {renderField('Estado', entity.status === 'active' ? 'Activa' : 'Retirada', '✅')}
+      </>
+    ),
+    platform: (
+      <>
+        {renderField('Empresa', entity.companyName, '🏢')}
+        {renderField('Plataforma', entity.platformName, '💻')}
+        {renderField('Usuario', entity.username || entity.nit || 'No especificado', '👤')}
+        {entity.cedula && renderField('Cédula', entity.cedula, '🪪')}
+        {(entity.password || entity.contrasena) && renderField('Contraseña', '••••••••', '🔒')}
+        {entity.link && (
+          <Box sx={{ 
+            display: 'flex', 
+            gap: 2, 
+            mb: 1.5,
+            pb: 1.5,
+            alignItems: 'center'
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', minWidth: 200 }}>
+              <Typography variant="body2" sx={{ mr: 1, fontSize: '1.1rem' }}>
+                🔗
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: 0.5 }}>
+                Acceso
+              </Typography>
+            </Box>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<OpenInNew />}
+              onClick={() => window.open(entity.link, '_blank')}
+              sx={{
+                textTransform: 'none',
+                borderRadius: 2,
+                fontWeight: 500,
+                borderColor: 'primary.main',
+                color: 'primary.main',
+                '&:hover': {
+                  borderColor: 'primary.dark',
+                  backgroundColor: alpha(theme.palette.primary.main, 0.08)
+                }
+              }}
+            >
+              Abrir {entity.platformName}
+            </Button>
+          </Box>
+        )}
       </>
     )
   };
-
-  const theme = useTheme();
   
   return (
     <Paper
@@ -204,7 +346,7 @@ const EntitySummary = ({ entity, type }) => {
  * Dialog principal para compartir al chat
  */
 const ShareToChat = ({ open, onClose, entity, entityType, entityName = 'registro' }) => {
-  const { shareToChat, availableConversations, availableUsers, loading: sharingLoading, error: sharingError } = useShareToChat();
+  const { shareToChat, availableGroups, availableUsers, loading: sharingLoading, error: sharingError } = useShareToChat();
   const { addNotification } = useNotifications();
 
   const [selectedTarget, setSelectedTarget] = useState('general');
@@ -216,7 +358,7 @@ const ShareToChat = ({ open, onClose, entity, entityType, entityName = 'registro
   const { currentUser } = useAuth();
 
   const handleShare = async () => {
-    if (!entity || !entity.id) {
+    if (!entity) {
       addNotification('error', 'No se puede compartir: datos inválidos');
       return;
     }
@@ -288,6 +430,11 @@ const ShareToChat = ({ open, onClose, entity, entityType, entityName = 'registro
       setSelectedConversationId('');
       setSelectedUser(null);
       onClose();
+      
+      // Abrir el chat con la conversación específica
+      window.dispatchEvent(new CustomEvent('openChat', { 
+        detail: { conversationId: targetId } 
+      }));
     } catch (error) {
       console.error('Error sharing to chat:', error);
       addNotification('error', `Error al compartir: ${error.message}`);
@@ -389,9 +536,9 @@ const ShareToChat = ({ open, onClose, entity, entityType, entityName = 'registro
         {/* Si selecciona grupo */}
         {selectedTarget === 'group' && (
           <Autocomplete
-            options={availableConversations}
+            options={availableGroups}
             getOptionLabel={(option) => option.name}
-            onChange={(e, conversation) => setSelectedConversationId(conversation?.id || '')}
+            onChange={(e, group) => setSelectedConversationId(group?.id || '')}
             renderInput={(params) => (
               <TextField 
                 {...params} 

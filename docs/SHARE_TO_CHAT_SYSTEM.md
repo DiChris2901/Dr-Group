@@ -155,9 +155,15 @@ Urgente: Confirmar pago antes del viernes
 🚨 *💸 Pago Compartido*
 
 📋 *Concepto:* Pago servicios públicos noviembre
+🏢 *Empresa:* DR Group
+👤 *Beneficiario:* Empresa de Servicios
 💰 *Monto:* $ 850,000
 📅 *Fecha:* 26/11/2025
-🏢 *Empresa:* DR Group
+💳 *Método:* Transferencia
+🔢 *Referencia:* TRF-2025-001
+🏦 *Banco Origen:* Bancolombia
+💳 *Cuenta Origen:* 123456789
+💬 *Notas:* Pago puntual mes de noviembre
 
 [Adjunto: Comprobante_pago.pdf]
 ```
@@ -171,6 +177,75 @@ Urgente: Confirmar pago antes del viernes
 **Estado:** COMPLETAMENTE IMPLEMENTADO
 
 **Ubicación:** `src/components/commitments/CommitmentsList.jsx`
+
+**Ubicaciones del botón:**
+- ✅ Vista de tabla (columna de acciones)
+- ✅ Vista de cards (menu de acciones - 3 puntos)
+- ✅ Modal de detalle (toolbar superior)
+
+**Campos mostrados en vista previa del modal:**
+- 📋 Descripción
+- 🏢 Empresa
+- 👤 Beneficiario
+- 💰 Monto
+- 📅 Vence
+- 📌 Estado (Pagado/Pendiente)
+- 📎 Ver factura (si existe)
+- 📎 Ver comprobante (si existe)
+
+**Adjuntos incluidos:**
+- ✅ Factura (si existe `invoiceUrl` o `invoices[0].url`)
+- ✅ Comprobante (si existe `receiptUrl` o `receiptUrls[0]`)
+
+---
+
+### **2. PaymentsPage.jsx** ✅
+
+**Estado:** COMPLETAMENTE IMPLEMENTADO
+
+**Ubicación:** `src/pages/PaymentsPage.jsx`
+
+**Implementación:**
+```javascript
+// Estados
+const [shareDialogOpen, setShareDialogOpen] = useState(false);
+const [paymentToShare, setPaymentToShare] = useState(null);
+
+// Handlers
+const handleSharePayment = (payment) => {
+  setPaymentToShare(payment);
+  setShareDialogOpen(true);
+  handleActionMenuClose();
+};
+
+const handleCloseShareDialog = () => {
+  setShareDialogOpen(false);
+  setPaymentToShare(null);
+};
+
+// Botón en tabla (columna de acciones)
+<Tooltip title="Compartir en chat" arrow>
+  <IconButton
+    size="small"
+    onClick={() => handleSharePayment(payment)}
+    sx={{ 
+      color: 'info.main',
+      '&:hover': { backgroundColor: alpha(theme.palette.info.main, 0.1) }
+    }}
+  >
+    <Share fontSize="small" />
+  </IconButton>
+</Tooltip>
+
+// Dialog
+<ShareToChat
+  open={shareDialogOpen}
+  onClose={handleCloseShareDialog}
+  entity={paymentToShare}
+  entityType="payment"
+  entityName="pago"
+/>
+```
 
 **Implementación:**
 ```javascript
@@ -205,12 +280,32 @@ const handleShareCommitment = (commitment) => {
 />
 ```
 
-**Ubicaciones del botón:**
+**Campos mostrados en vista previa del modal:**
+- 📋 Concepto
+- 🏢 Empresa (con carga asíncrona si solo hay companyId)
+- 👤 Beneficiario/Proveedor
+- 💰 Monto (formato COP)
+- 📅 Fecha
+- 💳 Método de pago (Transferencia, PSE, Efectivo, etc.)
+- 🔢 Referencia (condicional - solo si existe)
+- 🏦 Banco Origen (condicional - solo si existe)
+- 💳 Cuenta Origen (condicional - solo si existe)
+- 💬 Notas (condicional - solo si existe)
+- 📎 Ver comprobante (condicional - botón para abrir PDF)
+
+**Ubicación del botón:**
+- ✅ Vista de tabla: Botón directo en cada fila (junto a Ver, Editar, Más opciones)
+- ✅ Color: `info.main` con hover effect
+
+**Adjuntos incluidos:**
+- ✅ Comprobante (prioridad: `attachments[0]` > `receiptUrl` > `receiptUrls[0]`)
+
+**Ubicaciones del botón (Compromisos):**
 - ✅ Vista de tabla (columna de acciones)
 - ✅ Vista de cards (menu de acciones - 3 puntos)
 - ✅ Modal de detalle (toolbar superior)
 
-**Adjuntos incluidos:**
+**Adjuntos incluidos (Compromisos):**
 - ✅ Factura (si existe `invoiceUrl` o `invoices[0].url`)
 - ✅ Comprobante (si existe `receiptUrl` o `receiptUrls[0]`)
 
@@ -220,31 +315,82 @@ const handleShareCommitment = (commitment) => {
 
 ### **Prioridad Alta:**
 
-1. **PaymentsPage.jsx** 🔴
+1. **PaymentsPage.jsx** ✅ **IMPLEMENTADO**
    - **Ruta:** `src/pages/PaymentsPage.jsx`
    - **Tipo:** `payment`
    - **Adjuntos:** Comprobante de pago
-   - **Ubicación sugerida:** Botón en cada fila de la tabla
+   - **Ubicación:** Botón directo en cada fila de la tabla (junto a Ver, Editar, Más opciones)
+   - **Implementado:** 8 de Diciembre, 2025
 
-2. **LiquidacionesPorSalaPage.jsx** 🔴
+2. **LiquidacionesPorSalaPage.jsx** ✅ **IMPLEMENTADO**
    - **Ruta:** `src/pages/LiquidacionesPorSalaPage.jsx`
    - **Tipo:** `liquidacion`
    - **Adjuntos:** Ninguno
-   - **Ubicación sugerida:** Botón en card de cada sala
+   - **Ubicación:** Botón directo en cada fila de la tabla (junto a Ver, Info, Editar)
+   - **Implementado:** 8 de Diciembre, 2025
 
-3. **IncomePage.jsx** 🔴
+**Campos compartidos:**
+- 🏢 Empresa
+- 🎮 Sala
+- 📅 Período (formato: "Noviembre 2025")
+- 🎰 Máquinas (cantidad total)
+- 💰 Producción (formato COP)
+- 💸 Impuestos (formato COP)
+
+3. **IncomePage.jsx** 🔴 **OMITIDO**
    - **Ruta:** `src/pages/IncomePage.jsx`
    - **Tipo:** `income`
-   - **Adjuntos:** Ninguno
-   - **Ubicación sugerida:** Botón en cada fila de la tabla
+   - **Motivo:** No tiene interfaz de lista, es un formulario de entrada único
+   - **Estado:** No aplica para Share to Chat
 
 ### **Prioridad Media:**
 
-4. **CompaniesPage.jsx** 🟡
+4. **CompaniesPage.jsx** ✅ **IMPLEMENTADO COMPLETO**
    - **Ruta:** `src/pages/CompaniesPage.jsx`
-   - **Tipo:** `company`
+   - **Tipo:** `company` + `platform` (credenciales)
    - **Adjuntos:** Ninguno
-   - **Ubicación sugerida:** Botón en card de cada empresa
+   - **Ubicación:** Botón en card de cada empresa (entre Ver y Editar)
+   - **Implementado:** 8 de Diciembre, 2025
+
+**Campos compartidos (Empresa Completa):**
+- 🏢 Nombre
+- 🆔 NIT
+- 📧 Email (condicional)
+- 👤 Representante Legal (condicional)
+- 🪪 Cédula Rep. Legal (condicional)
+- 📋 Número de Contrato (condicional)
+- 🏦 Banco (condicional)
+- 💳 Cuenta Bancaria (condicional)
+- 📊 Tipo de Cuenta (condicional)
+
+**✨ NUEVA FUNCIONALIDAD: Compartir Credenciales de Plataforma**
+
+Se agregó la capacidad de compartir credenciales individuales de plataformas (Coljuegos, Houndoc, DIAN, Supersalud) desde el modal de vista de empresas.
+
+**Implementación de Credenciales:**
+- **Tipo de entidad:** `platform`
+- **Ubicación:** Botón "Compartir" en cada tarjeta de plataforma dentro del modal de vista de empresa
+- **Estados adicionales:** 
+  ```javascript
+  const [platformShareDialogOpen, setPlatformShareDialogOpen] = useState(false);
+  const [platformCredentials, setPlatformCredentials] = useState(null);
+  ```
+
+**Campos compartidos (Credenciales de Plataforma):**
+- 🏢 Empresa
+- 💻 Plataforma (Coljuegos/DIAN/Supersalud/Houndoc)
+- 👤 Usuario o NIT
+- 🪪 Cédula (condicional)
+- 🔒 Contraseña (mostrada completa en el mensaje)
+- 🔗 Link* (URL clickeable)
+
+**Características especiales:**
+- ✅ Modal de vista previa: Muestra contraseña como `••••••••` por seguridad
+- ✅ Mensaje en chat: Muestra contraseña real para que pueda ser copiada
+- ✅ URL clickeable: El enlace es completamente clickeable directamente desde el mensaje
+- ✅ ID único generado: `{empresa}_{plataforma}` (ej: `casinos_montecarlo_sas_dian`)
+- ✅ Cierre automático: Al compartir, cierra tanto el modal de compartir como el modal de vista de empresa
+- ✅ Apertura automática del chat: Después de compartir, abre el drawer del chat con la conversación seleccionada
 
 5. **ClientesPage.jsx** 🟡
    - **Ruta:** `src/pages/ClientesPage.jsx`
@@ -574,6 +720,124 @@ src/
 
 ---
 
+## 🆕 Mejoras Recientes (Diciembre 2025)
+
+### **1. Apertura Automática del Chat** ✅
+**Implementado:** 8 de Diciembre, 2025
+
+Cuando se comparte un registro, el sistema ahora:
+- ✅ Cierra el modal de compartir
+- ✅ Cierra cualquier modal de vista (ej: detalles de empresa)
+- ✅ Dispara evento `openChat` con el `conversationId`
+- ✅ Abre automáticamente el drawer del chat flotante
+- ✅ Selecciona la conversación donde se compartió
+
+**Implementación técnica:**
+```javascript
+// En ShareToChat.jsx
+window.dispatchEvent(new CustomEvent('openChat', { 
+  detail: { conversationId: targetId } 
+}));
+
+// En CompaniesPage.jsx (ejemplo de cierre de modal)
+React.useEffect(() => {
+  const handleChatOpened = () => {
+    setViewDialogOpen(false);
+    setSelectedCompany(null);
+  };
+
+  window.addEventListener('openChat', handleChatOpened);
+  return () => window.removeEventListener('openChat', handleChatOpened);
+}, []);
+```
+
+### **2. URLs Clickeables en Mensajes** ✅
+**Implementado:** 8 de Diciembre, 2025
+
+Los enlaces en los mensajes del chat ahora son completamente clickeables:
+- ✅ Detección automática de URLs (http:// y https://)
+- ✅ Renderizado como enlaces con estilo primary
+- ✅ Apertura en nueva pestaña con `target="_blank"`
+- ✅ Hover effect con cambio de color
+- ✅ Preserva formato completo de la URL
+
+**Implementación técnica:**
+```javascript
+// En MessageBubble.jsx
+const renderPlatformLinks = (text, theme) => {
+  const urlPattern = /(https?:\/\/[^\s]+)/gi;
+  // ... detecta y convierte URLs en enlaces <a>
+};
+```
+
+### **3. Compartir Credenciales de Plataforma** ✅
+**Implementado:** 8 de Diciembre, 2025
+
+Nueva funcionalidad para compartir credenciales individuales de plataformas desde el modal de vista de empresas.
+
+**Características:**
+- ✅ Botones de compartir en cada tarjeta de plataforma (Coljuegos, DIAN, Supersalud, Houndoc)
+- ✅ Modal dedicado con tipo de entidad `platform`
+- ✅ Contraseña visible en el mensaje del chat (pero oculta en preview por seguridad)
+- ✅ URL clickeable directamente desde el mensaje
+- ✅ ID único generado: `{empresa}_{plataforma}`
+
+**Plataformas soportadas:**
+- Coljuegos
+- DIAN
+- Supersalud
+- Houndoc
+
+### **4. Diseño Sobrio Mejorado** ✅
+**Implementado:** 8 de Diciembre, 2025
+
+Mejoras visuales en el modal de vista previa:
+- ✅ Campos con separadores divisorios
+- ✅ Labels en uppercase con letter-spacing
+- ✅ Valores en negrita con color primary
+- ✅ Espaciado vertical mejorado (1.5 spacing units)
+- ✅ Última fila sin borde inferior
+- ✅ Emojis más grandes para mejor legibilidad
+- ✅ Botón chip para enlaces de plataforma en lugar de texto largo
+
+**Estilos aplicados:**
+```javascript
+const renderField = (label, value, emoji = '📌') => (
+  <Box sx={{ 
+    display: 'flex', 
+    gap: 2, 
+    mb: 1.5,
+    pb: 1.5,
+    borderBottom: '1px solid',
+    borderColor: 'divider',
+    '&:last-of-type': {
+      borderBottom: 'none',
+      mb: 0,
+      pb: 0
+    }
+  }}>
+    <Box sx={{ display: 'flex', alignItems: 'flex-start', minWidth: 200 }}>
+      <Typography variant="body2" sx={{ mr: 1, fontSize: '1.1rem' }}>
+        {emoji}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ 
+        fontWeight: 600, 
+        textTransform: 'uppercase', 
+        fontSize: '0.75rem', 
+        letterSpacing: 0.5 
+      }}>
+        {label}
+      </Typography>
+    </Box>
+    <Typography variant="body2" sx={{ flex: 1, fontWeight: 500, color: 'text.primary' }}>
+      {value || 'No especificado'}
+    </Typography>
+  </Box>
+);
+```
+
+---
+
 ## ✅ Checklist de Implementación
 
 ### **Para cada página nueva:**
@@ -585,6 +849,14 @@ src/
 - [ ] Agregar dialog modal con props correctas
 - [ ] Definir `entityType` apropiado
 - [ ] Verificar que los adjuntos se detectan correctamente
+
+### **Para credenciales de plataforma (opcional):**
+
+- [ ] Crear estados `platformShareDialogOpen` y `platformCredentials`
+- [ ] Crear handler `handleSharePlatformCredentials`
+- [ ] Agregar botones de compartir en cada tarjeta de plataforma
+- [ ] Pasar datos con estructura: `{ id, platformName, username, password, link, companyName }`
+- [ ] Agregar listener de evento `openChat` para cerrar modales automáticamente
 - [ ] Probar compartir a grupo
 - [ ] Probar compartir a DM
 - [ ] Verificar formato del mensaje en el chat

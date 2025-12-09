@@ -83,7 +83,8 @@ import {
   Edit,
   Delete,
   CloudUpload,
-  DragHandle as DragIcon
+  DragHandle as DragIcon,
+  Share
 } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { motion } from 'framer-motion';
@@ -98,6 +99,7 @@ import { PDFDocument } from 'pdf-lib';
 
 // Hook para cargar pagos desde Firebase
 import { usePayments, useCommitments } from '../hooks/useFirestore';
+import ShareToChat from '../components/common/ShareToChat';
 // Firebase para manejo de archivos y Firestore
 import { doc, updateDoc, getDoc, deleteDoc, collection, query, orderBy, onSnapshot, addDoc, getDocs, where, deleteField } from 'firebase/firestore';
 import { ref, deleteObject, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -156,6 +158,10 @@ const PaymentsPage = () => {
   // Estados para menú contextual de acciones
   const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
   const [currentPayment, setCurrentPayment] = useState(null);
+  
+  // Estados para compartir al chat
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [paymentToShare, setPaymentToShare] = useState(null);
   
   // Estados para modal de gestión de comprobantes
   const [receiptManagementOpen, setReceiptManagementOpen] = useState(false);
@@ -929,6 +935,17 @@ useEffect(() => {
     if (!receiptManagementOpen) {
       setCurrentPayment(null);
     }
+  };
+  
+  // 📤 Handlers para compartir al chat
+  const handleSharePayment = (payment) => {
+    setPaymentToShare(payment);
+    setShareDialogOpen(true);
+  };
+
+  const handleCloseShareDialog = () => {
+    setShareDialogOpen(false);
+    setPaymentToShare(null);
   };
 
   const handleOpenReceiptManagement = (payment) => {
@@ -2921,13 +2938,13 @@ useEffect(() => {
                       </Typography>
                     </Box>
 
-                    {/* ACCIONES MEJORADAS - Menú Contextual */}
+                    {/* ACCIONES MEJORADAS - Botones directos como en CommitmentsList */}
                     <Box sx={{ 
                       display: 'flex', 
                       gap: 0.5,
                       justifyContent: 'center'
                     }}>
-                      {/* Botón principal de ver pago - siempre visible */}
+                      {/* Ver pago */}
                       <Tooltip title="Ver pago" arrow>
                         <IconButton
                           size="small"
@@ -2938,6 +2955,34 @@ useEffect(() => {
                           }}
                         >
                           <Visibility fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      
+                      {/* Editar pago */}
+                      <Tooltip title="Editar pago" arrow>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditPayment(payment)}
+                          sx={{ 
+                            color: 'warning.main',
+                            '&:hover': { backgroundColor: alpha(theme.palette.warning.main, 0.1) }
+                          }}
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      
+                      {/* Compartir en chat */}
+                      <Tooltip title="Compartir en chat" arrow>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleSharePayment(payment)}
+                          sx={{ 
+                            color: 'info.main',
+                            '&:hover': { backgroundColor: alpha(theme.palette.info.main, 0.1) }
+                          }}
+                        >
+                          <Share fontSize="small" />
                         </IconButton>
                       </Tooltip>
                       
@@ -4775,6 +4820,17 @@ useEffect(() => {
           </ListItemButton>
         )}
 
+        {/* Compartir al chat */}
+        <ListItemButton onClick={() => handleSharePayment(currentPayment)}>
+          <ListItemIcon>
+            <Share sx={{ color: 'success.main' }} />
+          </ListItemIcon>
+          <ListItemText 
+            primary="Compartir en chat"
+            primaryTypographyProps={{ fontSize: '0.9rem' }}
+          />
+        </ListItemButton>
+
         {/* Editar datos del pago */}
         <ListItemButton onClick={() => {
           handleEditPayment(currentPayment);
@@ -5155,6 +5211,15 @@ useEffect(() => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* 📤 Dialog para compartir al chat */}
+      <ShareToChat
+        open={shareDialogOpen}
+        onClose={handleCloseShareDialog}
+        entity={paymentToShare}
+        entityType="payment"
+        entityName="pago"
+      />
     </Box>
   );
 };

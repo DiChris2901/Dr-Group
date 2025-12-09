@@ -61,10 +61,72 @@ import PreviewDialog from './PreviewDialog';
 import OptimizedAvatar from '../common/OptimizedAvatar';
 
 /**
+ * Versión simplificada para procesar menciones sin recursividad
+ */
+const renderTextWithMentionsBasic = (text, theme, isMentionedUser) => {
+  if (!text) return null;
+
+  const mentionRegex = /@(\w+)/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = mentionRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+
+    const mentionName = match[1];
+    parts.push(
+      <Box
+        key={`mention-${match.index}`}
+        component="span"
+        sx={{
+          bgcolor: isMentionedUser 
+            ? alpha(theme.palette.warning.main, 0.3)
+            : alpha(theme.palette.primary.main, 0.15),
+          color: isMentionedUser
+            ? theme.palette.warning.dark
+            : theme.palette.primary.main,
+          px: 0.5,
+          py: 0.25,
+          borderRadius: 1,
+          fontWeight: 600
+        }}
+      >
+        @{mentionName}
+      </Box>
+    );
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts;
+};
+
+/**
  * Renderizar texto con menciones resaltadas
  */
 const renderTextWithMentions = (text, theme, isMentionedUser) => {
   if (!text) return null;
+
+  // 0. Primero procesar links de plataformas
+  const withPlatformLinks = renderPlatformLinks(text, theme);
+  
+  // Si se procesaron links, retornar directamente con formato básico
+  if (Array.isArray(withPlatformLinks)) {
+    return <>{withPlatformLinks.map((part, idx) => {
+      if (typeof part === 'string') {
+        // Procesar menciones y formato en texto plano
+        return <span key={idx}>{renderTextWithMentionsBasic(part, theme, isMentionedUser)}</span>;
+      }
+      return part; // Ya es un componente (Chip)
+    })}</>;
+  }
 
   // 1. Separar por menciones (tu lógica actual)
   const mentionRegex = /@(\w+)/g;
@@ -177,6 +239,60 @@ const processTextFormat = (text) => {
   }
 
   // Texto restante
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
+};
+
+/**
+ * Detectar y renderizar URLs como enlaces clickeables
+ */
+const renderPlatformLinks = (text, theme) => {
+  if (!text || typeof text !== 'string') return text;
+
+  // Detectar URLs (http:// o https://)
+  const urlPattern = /(https?:\/\/[^\s]+)/gi;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = urlPattern.exec(text)) !== null) {
+    // Agregar texto antes del link
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+
+    const url = match[1];
+
+    // Agregar enlace clickeable
+    parts.push(
+      <Box
+        key={`link-${match.index}`}
+        component="a"
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        sx={{
+          color: theme.palette.primary.main,
+          textDecoration: 'underline',
+          cursor: 'pointer',
+          wordBreak: 'break-all',
+          '&:hover': {
+            color: theme.palette.primary.dark,
+            textDecoration: 'underline'
+          }
+        }}
+      >
+        {url}
+      </Box>
+    );
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Agregar texto restante
   if (lastIndex < text.length) {
     parts.push(text.substring(lastIndex));
   }

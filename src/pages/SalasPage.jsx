@@ -74,7 +74,8 @@ import {
   PictureAsPdf as PdfIcon,
   CloudUpload as CloudUploadIcon,
   CheckCircle as CheckCircleIcon,
-  History as HistoryIcon
+  History as HistoryIcon,
+  Share as ShareIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -110,6 +111,7 @@ import AddSalaModal from '../components/modals/AddSalaModal';
 import ViewSalaModal from '../components/modals/ViewSalaModal';
 import EditSalaModal from '../components/modals/EditSalaModal';
 import SalaChangeHistoryModal from '../components/modals/SalaChangeHistoryModal';
+import ShareToChat from '../components/common/ShareToChat';
 
 /**
  * Página de Gestión de Salas
@@ -136,10 +138,12 @@ const SalasPage = () => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   
   // Estados de selección
   const [selectedSala, setSelectedSala] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [salaToShare, setSalaToShare] = useState(null);
   
   // Estado para trackear salas con historial de cambios
   const [salasConHistorial, setSalasConHistorial] = useState(new Set());
@@ -835,6 +839,18 @@ const SalasPage = () => {
   const handleOpenDelete = (sala) => {
     setSelectedSala(sala);
     setDeleteDialogOpen(true);
+  };
+
+  // Abrir diálogo de compartir
+  const handleShareSala = (sala) => {
+    setSalaToShare(sala);
+    setShareDialogOpen(true);
+  };
+
+  // Cerrar diálogo de compartir
+  const handleCloseShareDialog = () => {
+    setShareDialogOpen(false);
+    setSalaToShare(null);
   };
 
   // Limpiar filtros
@@ -1718,6 +1734,11 @@ const SalasPage = () => {
                             <VisibilityIcon />
                           </IconButton>
                         </Tooltip>
+                        <Tooltip title="Compartir en chat">
+                          <IconButton onClick={() => handleShareSala(sala)} size="small" color="primary">
+                            <ShareIcon />
+                          </IconButton>
+                        </Tooltip>
                         {salasConHistorial.has(sala.id) && (
                           <Tooltip title="Ver historial de cambios">
                             <IconButton onClick={() => handleOpenHistory(sala)} size="small" color="info">
@@ -2139,6 +2160,14 @@ const SalasPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Modal de Compartir en Chat */}
+      <ShareToChat
+        open={shareDialogOpen}
+        onClose={handleCloseShareDialog}
+        entityType="sala"
+        entity={salaToShare}
+      />
     </Box>
   );
 };

@@ -7,12 +7,13 @@ import {
   query,
   where,
   doc,
-  getDoc
+  getDoc,
+  updateDoc,
+  increment
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useChat } from '../context/ChatContext';
-import { getChatGroupsList } from '../config/chatGroups';
 
 /**
  * Hook para compartir registros al chat
@@ -51,6 +52,31 @@ export const useShareToChat = () => {
   }, [currentUser]);
 
   /**
+   * Formatear período de liquidación (ej: "octubre_2025" → "Octubre 2025")
+   */
+  const formatearPeriodo = (periodo) => {
+    if (!periodo) return 'No especificado';
+    
+    const [mes, año] = periodo.split('_');
+    const mesesMap = {
+      enero: 'Enero',
+      febrero: 'Febrero',
+      marzo: 'Marzo',
+      abril: 'Abril',
+      mayo: 'Mayo',
+      junio: 'Junio',
+      julio: 'Julio',
+      agosto: 'Agosto',
+      septiembre: 'Septiembre',
+      octubre: 'Octubre',
+      noviembre: 'Noviembre',
+      diciembre: 'Diciembre'
+    };
+    
+    return `${mesesMap[mes?.toLowerCase()] || mes} ${año}`;
+  };
+
+  /**
    * Formatear mensaje según tipo de entidad
    */
   const formatMessage = useCallback(async (entityType, entityData, customMessage) => {
@@ -85,17 +111,26 @@ export const useShareToChat = () => {
         title: '💸 Pago Compartido',
         fields: [
           { emoji: '📋', label: 'Concepto', value: entityData.concept },
-          { emoji: '💰', label: 'Monto', value: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entityData.amount) },
+          { emoji: '🏢', label: 'Empresa', value: entityData.companyName || entityData.company },
+          { emoji: '👤', label: 'Beneficiario', value: entityData.beneficiary || entityData.provider || 'No especificado' },
+          { emoji: '💰', label: 'Monto', value: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entityData.amount || entityData.finalAmount || 0) },
           { emoji: '📅', label: 'Fecha', value: entityData.date ? new Date(entityData.date).toLocaleDateString('es-CO') : 'No especificada' },
-          { emoji: '🏢', label: 'Empresa', value: entityData.company }
+          { emoji: '💳', label: 'Método', value: entityData.method || entityData.paymentMethod || 'No especificado' },
+          ...(entityData.reference ? [{ emoji: '🔢', label: 'Referencia', value: entityData.reference }] : []),
+          ...(entityData.sourceBank ? [{ emoji: '🏦', label: 'Banco Origen', value: entityData.sourceBank }] : []),
+          ...(entityData.sourceAccount ? [{ emoji: '💳', label: 'Cuenta Origen', value: entityData.sourceAccount }] : []),
+          ...(entityData.notes ? [{ emoji: '💬', label: 'Notas', value: entityData.notes }] : [])
         ]
       },
       liquidacion: {
         title: '📊 Liquidación Compartida',
         fields: [
-          { emoji: '🏢', label: 'Sala', value: entityData.sala || entityData.name },
-          { emoji: '💰', label: 'Total', value: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entityData.total || 0) },
-          { emoji: '📅', label: 'Período', value: entityData.period || entityData.mes }
+          { emoji: '🏢', label: 'Empresa', value: entityData.empresa?.nombre || entityData.empresaNombre || entityData.company || 'No especificada' },
+          { emoji: '🎮', label: 'Sala', value: entityData.sala?.nombre || entityData.salaNombre || entityData.sala || entityData.name || 'No especificada' },
+          { emoji: '📅', label: 'Período', value: formatearPeriodo(entityData.fechas?.periodoLiquidacion || entityData.periodo || entityData.period || entityData.mes) },
+          { emoji: '🎰', label: 'Máquinas', value: entityData.metricas?.totalMaquinas || entityData.totalMaquinas || 'N/A' },
+          { emoji: '💰', label: 'Producción', value: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entityData.metricas?.totalProduccion || entityData.totalProduccion || 0) },
+          { emoji: '💸', label: 'Impuestos', value: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entityData.metricas?.totalImpuestos || entityData.totalImpuestos || entityData.total || 0) }
         ]
       },
       invoice: {
@@ -120,9 +155,14 @@ export const useShareToChat = () => {
         title: '🏢 Empresa Compartida',
         fields: [
           { emoji: '🏢', label: 'Nombre', value: entityData.name },
-          { emoji: '🆔', label: 'NIT', value: entityData.nit },
-          { emoji: '👤', label: 'Representante', value: entityData.representante || 'No especificado' },
-          { emoji: '📞', label: 'Teléfono', value: entityData.telefono || 'No especificado' }
+          { emoji: '🆔', label: 'NIT', value: entityData.nit || 'No especificado' },
+          ...(entityData.email ? [{ emoji: '📧', label: 'Email', value: entityData.email }] : []),
+          ...(entityData.legalRepresentative ? [{ emoji: '👤', label: 'Representante Legal', value: entityData.legalRepresentative }] : []),
+          ...(entityData.legalRepresentativeId ? [{ emoji: '🪪', label: 'Cédula Rep. Legal', value: entityData.legalRepresentativeId }] : []),
+          ...(entityData.contractNumber ? [{ emoji: '📋', label: 'Número de Contrato', value: entityData.contractNumber }] : []),
+          ...(entityData.bankName ? [{ emoji: '🏦', label: 'Banco', value: entityData.bankName }] : []),
+          ...(entityData.bankAccount ? [{ emoji: '💳', label: 'Cuenta Bancaria', value: entityData.bankAccount }] : []),
+          ...(entityData.accountType ? [{ emoji: '📊', label: 'Tipo de Cuenta', value: entityData.accountType }] : [])
         ]
       },
       client: {
@@ -137,10 +177,28 @@ export const useShareToChat = () => {
       sala: {
         title: '🎮 Sala Compartida',
         fields: [
+          { emoji: '🏢', label: 'Empresa', value: entityData.companyName || 'No especificada' },
           { emoji: '🎮', label: 'Nombre', value: entityData.name },
-          { emoji: '📍', label: 'Ubicación', value: entityData.ubicacion || 'No especificada' },
-          { emoji: '💰', label: 'Tarifa', value: entityData.tarifa ? new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(entityData.tarifa) : 'No especificada' },
-          { emoji: '📊', label: 'Capacidad', value: entityData.capacidad || 'No especificada' }
+          { emoji: '📍', label: 'Ubicación', value: `${entityData.ciudad || 'N/A'}, ${entityData.departamento || 'N/A'}` },
+          { emoji: '🗺️', label: 'Dirección', value: entityData.direccion || 'No especificada' },
+          { emoji: '👤', label: 'Propietario', value: entityData.propietario || 'No especificado' },
+          { emoji: '💻', label: 'Proveedor', value: entityData.proveedorOnline || 'No especificado' },
+          { emoji: '📋', label: 'Contrato', value: entityData.fechaInicioContrato ? `Inicio: ${new Date(entityData.fechaInicioContrato).toLocaleDateString('es-CO')}` : 'No especificado' },
+          { emoji: '👨‍💼', label: 'Contacto Principal', value: entityData.contactoAutorizado ? `${entityData.contactoAutorizado} - ${entityData.contactPhone || 'S/T'} - ${entityData.contactEmail || 'S/E'}` : 'No especificado' },
+          ...(entityData.contactoAutorizado2 ? [{ emoji: '👨‍💼', label: 'Contacto Secundario', value: `${entityData.contactoAutorizado2} - ${entityData.contactPhone2 || 'S/T'} - ${entityData.contactEmail2 || 'S/E'}` }] : []),
+          { emoji: '🎰', label: 'Máquinas', value: entityData.maquinas || '0' },
+          { emoji: '✅', label: 'Estado', value: entityData.status === 'active' ? 'Activa' : 'Retirada' }
+        ]
+      },
+      platform: {
+        title: '🔐 Credenciales de Plataforma',
+        fields: [
+          { emoji: '🏢', label: 'Empresa', value: entityData.companyName },
+          { emoji: '💻', label: 'Plataforma', value: entityData.platformName },
+          { emoji: '👤', label: 'Usuario', value: entityData.username || entityData.nit || 'No especificado' },
+          ...(entityData.cedula ? [{ emoji: '🪪', label: 'Cédula', value: entityData.cedula }] : []),
+          ...(entityData.password || entityData.contrasena ? [{ emoji: '🔒', label: 'Contraseña', value: entityData.password || entityData.contrasena }] : []),
+          ...(entityData.link ? [{ emoji: '🔗', label: 'Link*', value: `${entityData.link}\n\n*Copia este enlace o ábrelo desde el visor de mensaje` }] : [])
         ]
       }
     };
@@ -205,7 +263,9 @@ export const useShareToChat = () => {
           });
         }
       } else if (entityType === 'payment') {
-        entityUrl = entityData.receiptUrl || 
+        // Prioridad: attachments[0] > receiptUrl > receiptUrls[0]
+        entityUrl = (entityData.attachments && entityData.attachments.length > 0 ? entityData.attachments[0] : null) ||
+                   entityData.receiptUrl || 
                    (entityData.receiptUrls && entityData.receiptUrls.length > 0 ? entityData.receiptUrls[0] : null);
         
         if (entityUrl) {
@@ -248,6 +308,34 @@ export const useShareToChat = () => {
         replyTo: null
       });
 
+      // ✅ ACTUALIZAR CONVERSACIÓN: lastMessage + updatedAt para reordenar lista de contactos
+      const conversationRef = doc(db, 'conversations', targetConversationId);
+      const conversationSnap = await getDoc(conversationRef);
+      
+      if (conversationSnap.exists()) {
+        const conversationData = conversationSnap.data();
+        const otherParticipantIds = conversationData.participantIds?.filter(
+          id => id !== currentUser.uid
+        ) || [];
+
+        // Incrementar contadores de no leídos para otros participantes
+        const unreadCountUpdates = {};
+        otherParticipantIds.forEach(participantId => {
+          unreadCountUpdates[`unreadCount.${participantId}`] = increment(1);
+        });
+
+        await updateDoc(conversationRef, {
+          lastMessage: {
+            text: messageText.substring(0, 100) + (messageText.length > 100 ? '...' : ''),
+            senderId: currentUser.uid,
+            timestamp: serverTimestamp(),
+            hasAttachments: attachments.length > 0
+          },
+          ...unreadCountUpdates,
+          updatedAt: serverTimestamp()
+        });
+      }
+
       setLoading(false);
       return { success: true };
     } catch (err) {
@@ -259,34 +347,24 @@ export const useShareToChat = () => {
   }, [currentUser, formatMessage]);
 
   /**
-   * Obtener conversaciones disponibles (grupos + DMs)
+   * Obtener solo grupos disponibles (no incluye DMs)
    */
-  const getAvailableConversations = useCallback(() => {
-    // Grupos predefinidos
-    const groups = getChatGroupsList();
-    
-    // Conversaciones directas existentes
-    const directMessages = conversations
-      .filter(conv => conv.type === 'direct' || conv.participantIds?.length === 2)
-      .map(conv => {
-        const otherUserId = conv.participantIds?.find(id => id !== currentUser?.uid);
-        const otherUser = users.find(u => u.id === otherUserId);
-        
-        return {
-          id: conv.id,
-          name: otherUser ? `👤 ${otherUser.name || otherUser.displayName || otherUser.email}` : '👤 Usuario',
-          description: 'Mensaje directo',
-          type: 'direct',
-          icon: '👤'
-        };
-      });
-
-    return [...groups, ...directMessages];
-  }, [conversations, users, currentUser]);
+  const getAvailableGroups = useCallback(() => {
+    // ✅ GRUPOS REALES: Solo grupos que existen en Firestore (no hardcodeados)
+    return conversations
+      .filter(conv => conv.type === 'group')
+      .map(conv => ({
+        id: conv.id,
+        name: conv.metadata?.groupName || conv.name || 'Grupo sin nombre',
+        description: conv.metadata?.description || conv.description || 'Grupo de chat',
+        type: 'group',
+        icon: conv.metadata?.groupPhoto || conv.icon || '👥'
+      }));
+  }, [conversations]);
 
   return {
     shareToChat,
-    availableConversations: getAvailableConversations(),
+    availableGroups: getAvailableGroups(),
     availableUsers: users,
     loading,
     error

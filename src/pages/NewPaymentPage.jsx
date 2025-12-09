@@ -899,7 +899,9 @@ const NewPaymentPage = () => {
       derechosExplotacion: commitment.derechosExplotacion || 0,
       gastosAdministracion: commitment.gastosAdministracion || 0,
       finalAmount: remainingBalance,  // 💰 Usar saldo pendiente como monto inicial
-      partialPaymentAmount: 0         // 💰 Inicializar campo de pago parcial
+      partialPaymentAmount: 0,         // 💰 Inicializar campo de pago parcial
+      // 💳 CARGAR MÉTODO DE PAGO DEL COMPROMISO
+      method: commitment.paymentMethod || ''  // Traer el método configurado en el compromiso
     }));
 
     // 📄 Obtener URL de la factura del compromiso

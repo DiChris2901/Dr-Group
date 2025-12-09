@@ -52,6 +52,7 @@ import {
   Description as DescriptionIcon,
   Receipt as ReceiptIcon,
   Refresh as RefreshIcon,
+  Share as ShareIcon,
   // Modal PDF Viewer icons
   Close as CloseIcon,
   Fullscreen as FullscreenIcon,
@@ -73,6 +74,7 @@ import { isAdminUser } from '../utils/permissions';
 import useActivityLogs from '../hooks/useActivityLogs';
 import { useSettings } from '../context/SettingsContext';
 import { useNotifications } from '../context/NotificationsContext';
+import ShareToChat from '../components/common/ShareToChat';
 
 const CompaniesPage = () => {
   const { currentUser, userProfile } = useAuth();
@@ -90,6 +92,10 @@ const CompaniesPage = () => {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [companyToShare, setCompanyToShare] = useState(null);
+  const [platformShareDialogOpen, setPlatformShareDialogOpen] = useState(false);
+  const [platformCredentials, setPlatformCredentials] = useState(null);
 
   // Formulario para nueva empresa
   const [formData, setFormData] = useState({
@@ -667,6 +673,47 @@ const CompaniesPage = () => {
     setViewDialogOpen(true);
   };
 
+  // 📤 HANDLERS DE SHARE TO CHAT
+  const handleShareCompany = (company) => {
+    setCompanyToShare(company);
+    setShareDialogOpen(true);
+  };
+
+  const handleCloseShareDialog = () => {
+    setShareDialogOpen(false);
+    setCompanyToShare(null);
+  };
+
+  const handleSharePlatformCredentials = (platformName, credentials, companyName) => {
+    setPlatformCredentials({
+      id: `${companyName}_${platformName}`.replace(/\s+/g, '_').toLowerCase(),
+      platformName,
+      username: credentials.username || credentials.nit,
+      password: credentials.password,
+      link: credentials.link,
+      cedula: credentials.cedula,
+      contrasena: credentials.contrasena,
+      companyName
+    });
+    setPlatformShareDialogOpen(true);
+  };
+
+  const handleClosePlatformShareDialog = () => {
+    setPlatformShareDialogOpen(false);
+    setPlatformCredentials(null);
+  };
+
+  // Listener para cerrar modal de vista cuando se abre el chat
+  React.useEffect(() => {
+    const handleChatOpened = () => {
+      setViewDialogOpen(false);
+      setSelectedCompany(null);
+    };
+
+    window.addEventListener('openChat', handleChatOpened);
+    return () => window.removeEventListener('openChat', handleChatOpened);
+  }, []);
+
   // Guardar empresa (nueva o editada)
   const handleSaveCompany = async () => {
     if (!formData.name.trim()) {
@@ -1159,6 +1206,17 @@ const CompaniesPage = () => {
                           sx={{ mr: 1 }}
                         >
                           <VisibilityIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton 
+                          size="small" 
+                          onClick={() => handleShareCompany(company)}
+                          sx={{ 
+                            mr: 1,
+                            color: 'info.main',
+                            '&:hover': { backgroundColor: alpha(theme.palette.info.main, 0.1) }
+                          }}
+                        >
+                          <ShareIcon fontSize="small" />
                         </IconButton>
                         <IconButton 
                           size="small" 
@@ -2549,9 +2607,18 @@ const CompaniesPage = () => {
                             borderLeftColor: 'primary.main'
                           }}
                         >
-                          <Typography variant="subtitle1" fontWeight="bold" color="primary" gutterBottom>
-                            Coljuegos
-                          </Typography>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                            <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                              Coljuegos
+                            </Typography>
+                            <IconButton 
+                              size="small" 
+                              onClick={() => handleSharePlatformCredentials('Coljuegos', selectedCompany.platforms.coljuegos, selectedCompany.name)}
+                              sx={{ color: 'primary.main' }}
+                            >
+                              <ShareIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
                           
                           <Box sx={{ mb: 1.5 }}>
                             <Typography variant="caption" color="text.secondary">
@@ -2601,9 +2668,18 @@ const CompaniesPage = () => {
                             borderLeftColor: 'secondary.main'
                           }}
                         >
-                          <Typography variant="subtitle1" fontWeight="bold" color="secondary" gutterBottom>
-                            Houndoc
-                          </Typography>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                            <Typography variant="subtitle1" fontWeight="bold" color="secondary">
+                              Houndoc
+                            </Typography>
+                            <IconButton 
+                              size="small" 
+                              onClick={() => handleSharePlatformCredentials('Houndoc', selectedCompany.platforms.houndoc, selectedCompany.name)}
+                              sx={{ color: 'secondary.main' }}
+                            >
+                              <ShareIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
                           
                           <Box sx={{ mb: 1.5 }}>
                             <Typography variant="caption" color="text.secondary">
@@ -2653,9 +2729,18 @@ const CompaniesPage = () => {
                             borderLeftColor: 'warning.main'
                           }}
                         >
-                          <Typography variant="subtitle1" fontWeight="bold" color="warning.main" gutterBottom>
-                            DIAN
-                          </Typography>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                            <Typography variant="subtitle1" fontWeight="bold" color="warning.main">
+                              DIAN
+                            </Typography>
+                            <IconButton 
+                              size="small" 
+                              onClick={() => handleSharePlatformCredentials('DIAN', selectedCompany.platforms.dian, selectedCompany.name)}
+                              sx={{ color: 'warning.main' }}
+                            >
+                              <ShareIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
                           
                           <Box sx={{ mb: 1.5 }}>
                             <Typography variant="caption" color="text.secondary">
@@ -2717,9 +2802,18 @@ const CompaniesPage = () => {
                             borderLeftColor: 'error.main'
                           }}
                         >
-                          <Typography variant="subtitle1" fontWeight="bold" color="error" gutterBottom>
-                            Supersalud
-                          </Typography>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                            <Typography variant="subtitle1" fontWeight="bold" color="error">
+                              Supersalud
+                            </Typography>
+                            <IconButton 
+                              size="small" 
+                              onClick={() => handleSharePlatformCredentials('Supersalud', selectedCompany.platforms.supersalud, selectedCompany.name)}
+                              sx={{ color: 'error.main' }}
+                            >
+                              <ShareIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
                           
                           <Box sx={{ mb: 1.5 }}>
                             <Typography variant="caption" color="text.secondary">
@@ -3150,6 +3244,23 @@ const CompaniesPage = () => {
           </Paper>
         </DialogContent>
       </Dialog>
+
+      {/* Modal Share to Chat - Empresa Completa */}
+      <ShareToChat
+        open={shareDialogOpen}
+        onClose={handleCloseShareDialog}
+        entityType="company"
+        entity={companyToShare}
+      />
+
+      {/* Modal Share to Chat - Credenciales de Plataforma */}
+      <ShareToChat
+        open={platformShareDialogOpen}
+        onClose={handleClosePlatformShareDialog}
+        entityType="platform"
+        entity={platformCredentials}
+        entityName="credenciales"
+      />
     </Box>
   );
 };
