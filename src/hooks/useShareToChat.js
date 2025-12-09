@@ -200,6 +200,19 @@ export const useShareToChat = () => {
           ...(entityData.password || entityData.contrasena ? [{ emoji: '🔒', label: 'Contraseña', value: entityData.password || entityData.contrasena }] : []),
           ...(entityData.link ? [{ emoji: '🔗', label: 'Link*', value: `${entityData.link}\n\n*Copia este enlace o ábrelo desde el visor de mensaje` }] : [])
         ]
+      },
+      company_with_salas: {
+        title: '🏢 Empresa con Salas',
+        fields: [
+          { emoji: '🏢', label: 'Empresa', value: entityData.name },
+          { emoji: '📊', label: 'Total de Salas', value: `${entityData.salasCount || 0} salas` },
+          { emoji: '🎮', label: 'Salas', value: entityData.salas && entityData.salas.length > 0 
+            ? entityData.salas.map((sala, index) => 
+                `\n${index + 1}. ${sala.name} - ${sala.ciudad || 'N/A'} (${sala.status === 'active' ? 'Activa' : 'Retirada'})`
+              ).join('')
+            : 'No hay salas registradas'
+          }
+        ]
       }
     };
 

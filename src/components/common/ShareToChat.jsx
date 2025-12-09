@@ -109,25 +109,32 @@ const EntitySummary = ({ entity, type }) => {
     <Box sx={{ 
       display: 'flex', 
       gap: 2, 
-      mb: 1.5,
-      pb: 1.5,
+      mb: 1.2,
+      pb: 1.2,
       borderBottom: '1px solid',
-      borderColor: 'divider',
+      borderColor: alpha(theme.palette.divider, 0.6),
       '&:last-of-type': {
         borderBottom: 'none',
         mb: 0,
         pb: 0
       }
     }}>
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', minWidth: 200 }}>
-        <Typography variant="body2" sx={{ mr: 1, fontSize: '1.1rem' }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', minWidth: 180 }}>
+        <Typography variant="body2" sx={{ mr: 0.8, fontSize: '0.9rem', lineHeight: 1.6 }}>
           {emoji}
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: 0.5 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', fontSize: '0.7rem', letterSpacing: 0.6 }}>
           {label}
         </Typography>
       </Box>
-      <Typography variant="body2" sx={{ flex: 1, fontWeight: 500, color: 'text.primary' }}>
+      <Typography variant="body2" sx={{ 
+        flex: 1, 
+        fontWeight: 500, 
+        color: 'text.primary', 
+        lineHeight: 1.6,
+        wordBreak: 'break-word',
+        overflowWrap: 'break-word'
+      }}>
         {value || 'No especificado'}
       </Typography>
     </Box>
@@ -262,11 +269,81 @@ const EntitySummary = ({ entity, type }) => {
         {renderField('Dirección', entity.direccion || 'No especificada', '🗺️')}
         {renderField('Propietario', entity.propietario || 'No especificado', '👤')}
         {renderField('Proveedor', entity.proveedorOnline || 'No especificado', '💻')}
-        {entity.fechaInicioContrato && renderField('Contrato', `Inicio: ${new Date(entity.fechaInicioContrato).toLocaleDateString('es-CO')}`, '📋')}
+        {renderField('Contrato', entity.fechaInicioContrato ? `Inicio: ${new Date(entity.fechaInicioContrato).toLocaleDateString('es-CO')}` : 'No especificado', '📋')}
         {renderField('Contacto Principal', entity.contactoAutorizado ? `${entity.contactoAutorizado} - ${entity.contactPhone || 'S/T'} - ${entity.contactEmail || 'S/E'}` : 'No especificado', '👨‍💼')}
         {entity.contactoAutorizado2 && renderField('Contacto Secundario', `${entity.contactoAutorizado2} - ${entity.contactPhone2 || 'S/T'} - ${entity.contactEmail2 || 'S/E'}`, '👨‍💼')}
         {renderField('Máquinas', entity.maquinas || '0', '🎰')}
         {renderField('Estado', entity.status === 'active' ? 'Activa' : 'Retirada', '✅')}
+      </>
+    ),
+    company_with_salas: (
+      <>
+        {renderField('Empresa', entity.name, '🏢')}
+        {renderField('Total de Salas', `${entity.salasCount || 0} salas`, '📊')}
+        {entity.salas && entity.salas.length > 0 ? (
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            gap: 0.5,
+            mb: 1.5,
+            pb: 1.5,
+            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1 }}>
+              <Typography variant="body2" sx={{ mr: 1, fontSize: '0.9rem' }}>
+                🎮
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ 
+                fontWeight: 600, 
+                textTransform: 'uppercase', 
+                fontSize: '0.75rem', 
+                letterSpacing: 0.5 
+              }}>
+                Salas
+              </Typography>
+            </Box>
+            {entity.salas.map((sala, index) => (
+              <Typography 
+                key={sala.id || index} 
+                variant="body2" 
+                sx={{ 
+                  pl: 3, 
+                  color: 'text.primary',
+                  fontSize: '0.875rem',
+                  lineHeight: 1.6
+                }}
+              >
+                {index + 1}. {sala.name} - {sala.ciudad || 'N/A'} ({sala.status === 'active' ? 'Activa' : 'Retirada'})
+              </Typography>
+            ))}
+          </Box>
+        ) : (
+          <Box sx={{ 
+            display: 'flex', 
+            gap: 2, 
+            mb: 1.5,
+            pb: 1.5,
+            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`,
+            alignItems: 'center'
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', minWidth: 180 }}>
+              <Typography variant="body2" sx={{ mr: 1, fontSize: '0.9rem' }}>
+                🎮
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ 
+                fontWeight: 600, 
+                textTransform: 'uppercase', 
+                fontSize: '0.75rem', 
+                letterSpacing: 0.5 
+              }}>
+                Salas
+              </Typography>
+            </Box>
+            <Typography variant="body2" color="text.primary" sx={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+              No hay salas registradas
+            </Typography>
+          </Box>
+        )}
       </>
     ),
     platform: (
@@ -319,23 +396,40 @@ const EntitySummary = ({ entity, type }) => {
   
   return (
     <Paper
+      elevation={0}
       sx={{
-        p: 3,
+        p: 2.5,
         borderRadius: 2,
-        border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
-        background: theme.palette.background.paper,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+        border: `1px solid ${alpha(theme.palette.primary.main, 0.25)}`,
+        background: alpha(theme.palette.primary.main, 0.02),
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+        maxHeight: '350px',
+        overflowY: 'auto',
+        '&::-webkit-scrollbar': { width: '6px' },
+        '&::-webkit-scrollbar-track': { 
+          background: 'transparent',
+          marginTop: '4px',
+          marginBottom: '4px'
+        },
+        '&::-webkit-scrollbar-thumb': { 
+          background: alpha(theme.palette.primary.main, 0.3),
+          borderRadius: '3px',
+          transition: 'background 0.2s ease',
+          '&:hover': { background: alpha(theme.palette.primary.main, 0.5) }
+        }
       }}
     >
       <Typography variant="overline" sx={{ 
-        fontWeight: 600, 
+        fontWeight: 700, 
         color: 'primary.main',
-        letterSpacing: 0.8,
-        fontSize: '0.75rem',
-        mb: 2,
-        display: 'block'
+        letterSpacing: 1,
+        fontSize: '0.8rem',
+        mb: 2.5,
+        display: 'block',
+        borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+        pb: 1
       }}>
-        Información a Compartir
+        📝 Información a Compartir
       </Typography>
       {summaries[type] || summaries.commitment}
     </Paper>
@@ -466,9 +560,11 @@ const ShareToChat = ({ open, onClose, entity, entityType, entityName = 'registro
           borderRadius: 2,
           background: theme.palette.background.paper,
           boxShadow: theme.palette.mode === 'dark'
-            ? '0 4px 20px rgba(0, 0, 0, 0.3)'
-            : '0 4px 20px rgba(0, 0, 0, 0.08)',
-          border: `1px solid ${alpha(theme.palette.primary.main, 0.6)}`
+            ? '0 8px 32px rgba(0, 0, 0, 0.4)'
+            : '0 8px 32px rgba(0, 0, 0, 0.12)',
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.25)}`,
+          maxWidth: { xs: '95vw', sm: 'md' },
+          m: { xs: 2, sm: 4 }
         }
       }}
     >
@@ -484,7 +580,10 @@ const ShareToChat = ({ open, onClose, entity, entityType, entityName = 'registro
         color: 'text.primary'
       }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Avatar sx={{ bgcolor: 'primary.main', color: 'primary.contrastText' }}>
+          <Avatar sx={{ 
+            background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+            color: 'white'
+          }}>
             <Share />
           </Avatar>
           <Box>
@@ -509,8 +608,8 @@ const ShareToChat = ({ open, onClose, entity, entityType, entityName = 'registro
 
         {/* Selector de destino */}
         <FormControl component="fieldset" fullWidth>
-          <FormLabel sx={{ mb: 1, fontWeight: 600 }}>
-            ¿Con quién deseas compartir?
+          <FormLabel sx={{ mb: 1.5, fontWeight: 600, color: 'text.primary', fontSize: '0.95rem' }}>
+            🎯 ¿Con quién deseas compartir?
           </FormLabel>
           <RadioGroup 
             value={selectedTarget} 
@@ -522,13 +621,46 @@ const ShareToChat = ({ open, onClose, entity, entityType, entityName = 'registro
           >
             <FormControlLabel 
               value="group" 
-              control={<Radio />} 
-              label="💬 Grupo de chat"
+              control={<Radio size="small" />} 
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                  <Typography sx={{ fontSize: '0.9rem' }}>💬</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>Grupo de chat</Typography>
+                </Box>
+              }
+              sx={{
+                py: 0.5,
+                px: 1.5,
+                borderRadius: 1.5,
+                border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                mb: 1,
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  background: alpha(theme.palette.primary.main, 0.04),
+                  borderColor: alpha(theme.palette.primary.main, 0.3)
+                }
+              }}
             />
             <FormControlLabel 
               value="user" 
-              control={<Radio />} 
-              label="👤 Usuario específico"
+              control={<Radio size="small" />} 
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                  <Typography sx={{ fontSize: '0.9rem' }}>👤</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>Usuario específico</Typography>
+                </Box>
+              }
+              sx={{
+                py: 0.5,
+                px: 1.5,
+                borderRadius: 1.5,
+                border: `1px solid ${alpha(theme.palette.divider, 0.3)}`,
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  background: alpha(theme.palette.primary.main, 0.04),
+                  borderColor: alpha(theme.palette.primary.main, 0.3)
+                }
+              }}
             />
           </RadioGroup>
         </FormControl>
@@ -543,7 +675,19 @@ const ShareToChat = ({ open, onClose, entity, entityType, entityName = 'registro
               <TextField 
                 {...params} 
                 label="Selecciona grupo" 
-                sx={{ mt: 2 }}
+                sx={{ 
+                  mt: 2,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    '&:hover fieldset': {
+                      borderColor: alpha(theme.palette.primary.main, 0.5)
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: theme.palette.primary.main,
+                      borderWidth: '2px'
+                    }
+                  }
+                }}
                 required
               />
             )}
@@ -606,12 +750,25 @@ const ShareToChat = ({ open, onClose, entity, entityType, entityName = 'registro
         <TextField
           fullWidth
           multiline
-          rows={4}
+          minRows={3}
+          maxRows={6}
           label="💬 Mensaje adicional (opcional)"
-          placeholder="¿Qué necesitas discutir sobre este registro?"
+          placeholder="Agregar contexto adicional... ¿Qué necesitas discutir sobre este registro?"
           value={customMessage}
           onChange={(e) => setCustomMessage(e.target.value)}
-          helperText="Explica por qué compartes esto o qué acción se requiere"
+          helperText="Explica por qué compartes esto o qué acción se requiere del equipo"
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 2,
+              '&:hover fieldset': {
+                borderColor: alpha(theme.palette.primary.main, 0.5)
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: theme.palette.primary.main,
+                borderWidth: '2px'
+              }
+            }
+          }}
         />
 
         {/* Errores */}
@@ -626,16 +783,23 @@ const ShareToChat = ({ open, onClose, entity, entityType, entityName = 'registro
         <Typography variant="caption" color="text.secondary">
           {entity?.id ? `ID: ${entity.id}` : 'Mensaje del sistema'}
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', gap: 2 }}>
           <Button 
             onClick={handleClose}
             variant="outlined"
             disabled={isSubmitting}
             sx={{ 
-              borderRadius: 1,
+              borderRadius: 2,
               fontWeight: 500,
               textTransform: 'none',
-              px: 3
+              px: 3,
+              minHeight: 44,
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                borderColor: 'error.main',
+                color: 'error.main',
+                background: alpha(theme.palette.error.main, 0.04)
+              }
             }}
           >
             Cancelar
@@ -648,13 +812,24 @@ const ShareToChat = ({ open, onClose, entity, entityType, entityName = 'registro
               (selectedTarget === 'group' && !selectedConversationId) ||
               (selectedTarget === 'user' && !selectedUser)
             }
-            startIcon={isSubmitting ? <CircularProgress size={16} /> : <Send />}
+            startIcon={isSubmitting ? <CircularProgress size={16} color="inherit" /> : <Send />}
             sx={{ 
-              borderRadius: 1,
+              borderRadius: 2,
               fontWeight: 600,
               textTransform: 'none',
               px: 4,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.12)'
+              minHeight: 44,
+              background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.secondary.main} 100%)`,
+              boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.secondary.dark} 100%)`,
+                boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.4)}`,
+                transform: 'translateY(-2px)'
+              },
+              '&:disabled': {
+                background: theme.palette.action.disabledBackground
+              }
             }}
           >
             {isSubmitting ? 'Compartiendo...' : 'Compartir'}

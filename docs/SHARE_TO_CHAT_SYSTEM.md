@@ -124,8 +124,10 @@ const {
 | `invoice` | 🧾 | Cuentas de cobro | Número, Cliente, Monto, Fecha | ❌ |
 | `income` | 💵 | Ingresos | Descripción, Monto, Fecha, Empresa | ❌ |
 | `company` | 🏢 | Empresas | Nombre, NIT, Representante, Teléfono | ❌ |
+| `platform` | 💻 | Credenciales de plataformas | Empresa, Plataforma, Usuario, Contraseña, Link | ❌ |
 | `client` | 👤 | Clientes | Nombre, Email, Teléfono, Empresa | ❌ |
-| `sala` | 🎮 | Salas | Nombre, Ubicación, Tarifa, Capacidad | ❌ |
+| `sala` | 🎮 | Salas | Empresa, Nombre, Ubicación, Dirección, Propietario, Proveedor, Contactos, Máquinas, Estado | ❌ |
+| `company_with_salas` | 🏢 | Empresa con todas sus salas | Nombre empresa, Total salas, Lista de salas (nombre, ciudad, estado) | ❌ |
 
 ---
 
@@ -172,6 +174,14 @@ Urgente: Confirmar pago antes del viernes
 
 ## ✅ Páginas Implementadas
 
+### **Estado General del Sistema:**
+
+**Páginas completadas:** 5 de 8 páginas principales  
+**Tipos de entidad:** 10 tipos diferentes soportados  
+**Última actualización:** 8 de Diciembre, 2025
+
+---
+
 ### **1. CommitmentsList.jsx** ✅
 
 **Estado:** COMPLETAMENTE IMPLEMENTADO
@@ -196,6 +206,8 @@ Urgente: Confirmar pago antes del viernes
 **Adjuntos incluidos:**
 - ✅ Factura (si existe `invoiceUrl` o `invoices[0].url`)
 - ✅ Comprobante (si existe `receiptUrl` o `receiptUrls[0]`)
+
+**Implementado:** 26 de Noviembre, 2025
 
 ---
 
@@ -321,6 +333,7 @@ const handleShareCommitment = (commitment) => {
    - **Adjuntos:** Comprobante de pago
    - **Ubicación:** Botón directo en cada fila de la tabla (junto a Ver, Editar, Más opciones)
    - **Implementado:** 8 de Diciembre, 2025
+   - **Estado:** Sistema de compartir pagos completamente funcional
 
 2. **LiquidacionesPorSalaPage.jsx** ✅ **IMPLEMENTADO**
    - **Ruta:** `src/pages/LiquidacionesPorSalaPage.jsx`
@@ -328,8 +341,9 @@ const handleShareCommitment = (commitment) => {
    - **Adjuntos:** Ninguno
    - **Ubicación:** Botón directo en cada fila de la tabla (junto a Ver, Info, Editar)
    - **Implementado:** 8 de Diciembre, 2025
+   - **Estado:** Sistema de compartir liquidaciones completamente funcional
 
-**Campos compartidos:**
+**Campos compartidos (Liquidaciones):**
 - 🏢 Empresa
 - 🎮 Sala
 - 📅 Período (formato: "Noviembre 2025")
@@ -342,6 +356,8 @@ const handleShareCommitment = (commitment) => {
    - **Tipo:** `income`
    - **Motivo:** No tiene interfaz de lista, es un formulario de entrada único
    - **Estado:** No aplica para Share to Chat
+   - **Decisión:** 8 de Diciembre, 2025
+   - **Razón técnica:** La página solo tiene un formulario de registro de ingresos sin lista de ingresos previos. No hay registros individuales para compartir desde esta página.
 
 ### **Prioridad Media:**
 
@@ -351,6 +367,7 @@ const handleShareCommitment = (commitment) => {
    - **Adjuntos:** Ninguno
    - **Ubicación:** Botón en card de cada empresa (entre Ver y Editar)
    - **Implementado:** 8 de Diciembre, 2025
+   - **Estado:** Sistema de compartir empresas y credenciales de plataformas completamente funcional
 
 **Campos compartidos (Empresa Completa):**
 - 🏢 Nombre
@@ -398,11 +415,68 @@ Se agregó la capacidad de compartir credenciales individuales de plataformas (C
    - **Adjuntos:** Ninguno
    - **Ubicación sugerida:** Botón en cada fila de la tabla
 
-6. **SalasPage.jsx** 🟡
+6. **SalasPage.jsx** ✅ **IMPLEMENTADO COMPLETO**
    - **Ruta:** `src/pages/SalasPage.jsx`
-   - **Tipo:** `sala`
+   - **Tipos:** `sala` + `company_with_salas`
    - **Adjuntos:** Ninguno
-   - **Ubicación sugerida:** Botón en card de cada sala
+   - **Ubicación:** Botón en card de cada sala + Botón en card de cada empresa
+   - **Implementado:** 8 de Diciembre, 2025
+
+**Campos compartidos (Sala Individual):**
+- 🏢 Empresa
+- 🎮 Nombre
+- 📍 Ubicación (ciudad + departamento consolidado)
+- 🗺️ Dirección
+- 👤 Propietario
+- 💻 Proveedor
+- 📋 Contrato (fecha de inicio)
+- 👨‍💼 Contacto Principal (nombre - teléfono - email consolidado)
+- 👨‍💼 Contacto Secundario (condicional, consolidado)
+- 🎰 Máquinas
+- ✅ Estado (Activa/Retirada)
+
+**✨ NUEVA FUNCIONALIDAD: Compartir Empresa con Todas sus Salas**
+
+Se agregó la capacidad de compartir una empresa junto con la lista completa de todas sus salas en un solo mensaje agregado.
+
+**Implementación de Empresa con Salas:**
+- **Tipo de entidad:** `company_with_salas`
+- **Ubicación:** Botón "Compartir" en cada tarjeta de empresa (panel izquierdo)
+- **Estados adicionales:**
+  ```javascript
+  const [shareCompanyDialogOpen, setShareCompanyDialogOpen] = useState(false);
+  const [companyToShare, setCompanyToShare] = useState(null);
+  ```
+
+**Handler de filtrado:**
+```javascript
+const handleShareCompany = (company) => {
+  const salasDeEmpresa = salas.filter(sala => sala.companyId === company.id);
+  setCompanyToShare({
+    ...company,
+    salas: salasDeEmpresa,
+    salasCount: salasDeEmpresa.length
+  });
+  setShareCompanyDialogOpen(true);
+};
+```
+
+**Campos compartidos (Empresa con Salas):**
+- 🏢 Empresa (nombre)
+- 📊 Total de Salas (cantidad)
+- 🎮 Salas (lista numerada):
+  * Formato: `1. Casino Tiger Golden - Barranquilla (Activa)`
+  * Cada sala incluye: nombre, ciudad, estado
+  * Lista completa automática
+  * Mensaje alternativo si no hay salas: "No hay salas registradas"
+
+**Características especiales:**
+- ✅ Filtrado automático de salas por `companyId`
+- ✅ Vista previa en modal con lista completa renderizada
+- ✅ Mensaje formateado con lista numerada en chat
+- ✅ Diseño sobrio en EntitySummary con scroll si hay muchas salas
+- ✅ Cierre automático al compartir
+- ✅ Apertura automática del chat con conversación seleccionada
 
 7. **FacturacionPage.jsx** 🟡
    - **Ruta:** `src/pages/FacturacionPage.jsx`
@@ -847,8 +921,16 @@ const renderField = (label, value, emoji = '📌') => (
 - [ ] Crear handlers `handleShareItem` y `handleCloseShareDialog`
 - [ ] Agregar botón en UI (Tabla, Card, o Modal)
 - [ ] Agregar dialog modal con props correctas
-- [ ] Definir `entityType` apropiado
+- [ ] Definir `entityType` apropiado en useShareToChat.js
+- [ ] Crear template de mensaje en useShareToChat.js
+- [ ] Crear EntitySummary en ShareToChat.jsx
 - [ ] Verificar que los adjuntos se detectan correctamente
+- [ ] Probar compartir a grupo
+- [ ] Probar compartir a DM
+- [ ] Verificar formato del mensaje en el chat
+- [ ] Verificar apertura automática del chat
+- [ ] Verificar URLs clickeables si aplica
+- [ ] Documentar en SHARE_TO_CHAT_SYSTEM.md
 
 ### **Para credenciales de plataforma (opcional):**
 
@@ -862,6 +944,57 @@ const renderField = (label, value, emoji = '📌') => (
 - [ ] Verificar formato del mensaje en el chat
 - [ ] Verificar que adjuntos se abren correctamente
 - [ ] Documentar ubicación del botón en esta guía
+
+### **Para entidades agregadas (opcional):**
+
+- [ ] Crear estados para entidad agregada (ej: `companyToShare`)
+- [ ] Crear handler que filtre/agrupe datos (ej: `handleShareCompany`)
+- [ ] Pasar array de entidades relacionadas (ej: `{ ...company, salas: [...] }`)
+- [ ] Crear template con mapeo de array en useShareToChat.js
+- [ ] Crear EntitySummary con renderizado de lista en ShareToChat.jsx
+- [ ] Verificar que lista se muestra completa en preview
+- [ ] Verificar que lista se formatea correctamente en chat (numerada)
+- [ ] Probar con 0 items (mensaje alternativo: "No hay X registrados")
+- [ ] Documentar funcionalidad agregada
+
+### **Estado General del Sistema (8 Diciembre 2025):**
+
+**Páginas Implementadas:**
+- ✅ CommitmentsList.jsx (Compromisos)
+- ✅ PaymentsPage.jsx (Pagos)
+- ✅ LiquidacionesPorSalaPage.jsx (Liquidaciones)
+- ✅ CompaniesPage.jsx (Empresas + Credenciales de Plataformas)
+- ✅ SalasPage.jsx (Salas Individuales + Empresas con Salas)
+
+**Páginas Omitidas:**
+- 🔴 IncomePage.jsx (sin lista de registros)
+
+**Páginas Pendientes:**
+- 🟡 ClientesPage.jsx (clientes)
+- 🟡 FacturacionPage.jsx (facturas/cuentas de cobro)
+- 🟢 LiquidacionesHistorialPage.jsx (historial de liquidaciones)
+
+**Tipos de Entidad Creados:**
+1. `commitment` ✅
+2. `payment` ✅
+3. `liquidacion` ✅
+4. `company` ✅
+5. `platform` ✅
+6. `sala` ✅
+7. `company_with_salas` ✅
+8. `client` 🟡
+9. `invoice` 🟡
+
+**Funcionalidades Avanzadas:**
+- ✅ Adjuntos automáticos (comprobantes, facturas)
+- ✅ URLs clickeables en mensajes
+- ✅ Markdown completo (*bold*, _italic_, __underline__, ~~strikethrough~~)
+- ✅ Apertura automática del chat tras compartir
+- ✅ Cierre automático de modales al abrir chat
+- ✅ Entidades agregadas (empresa con lista de salas)
+- ✅ Credenciales de plataformas con contraseñas visibles
+- ✅ Diseño sobrio empresarial en modales
+- ✅ Vista previa con scroll para entidades grandes
 
 ---
 
@@ -884,6 +1017,162 @@ const renderField = (label, value, emoji = '📌') => (
 
 ---
 
-**Última actualización:** 26 de Noviembre, 2025  
+## 🆕 Mejoras Más Recientes (Diciembre 8, 2025)
+
+### **5. Compartir Empresa con Todas sus Salas** ✅
+**Implementado:** 8 de Diciembre, 2025
+
+Nueva funcionalidad que permite compartir una empresa junto con la lista completa de todas sus salas en un mensaje agregado.
+
+**Características:**
+- ✅ Botón de compartir en cada tarjeta de empresa en SalasPage
+- ✅ Tipo de entidad dedicado: `company_with_salas`
+- ✅ Filtrado automático de salas por `companyId`
+- ✅ Vista previa en modal con lista numerada completa
+- ✅ Mensaje en chat con formato:
+  ```
+  🚨 *🏢 Empresa con Salas*
+  
+  🏢 *Empresa:* Casinos Montecarlo SAS
+  📊 *Total de Salas:* 6 salas
+  🎮 *Salas:*
+  1. Casino Tiger Golden - Barranquilla (Activa)
+  2. Casino y Refresquería - Cartagena (Activa)
+  3. ... (resto de salas)
+  ```
+
+**Implementación técnica:**
+```javascript
+// Handler en SalasPage.jsx
+const handleShareCompany = (company) => {
+  const salasDeEmpresa = salas.filter(sala => sala.companyId === company.id);
+  setCompanyToShare({
+    ...company,
+    salas: salasDeEmpresa,
+    salasCount: salasDeEmpresa.length
+  });
+  setShareCompanyDialogOpen(true);
+};
+
+// Template en useShareToChat.js
+company_with_salas: {
+  title: '🏢 Empresa con Salas',
+  fields: [
+    { emoji: '🏢', label: 'Empresa', value: entityData.name },
+    { emoji: '📊', label: 'Total de Salas', value: `${entityData.salasCount || 0} salas` },
+    { 
+      emoji: '🎮', 
+      label: 'Salas', 
+      value: entityData.salas.map((sala, index) => 
+        `\n${index + 1}. ${sala.name} - ${sala.ciudad || 'N/A'} (${sala.status === 'active' ? 'Activa' : 'Retirada'})`
+      ).join('') 
+    }
+  ]
+}
+
+// EntitySummary en ShareToChat.jsx
+company_with_salas: (
+  <>
+    {renderField('Empresa', entity.name, '🏢')}
+    {renderField('Total de Salas', `${entity.salasCount || 0} salas`, '📊')}
+    {entity.salas && entity.salas.length > 0 ? (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mb: 1.5, pb: 1.5 }}>
+        {/* Lista de salas renderizada con Typography */}
+        {entity.salas.map((sala, index) => (
+          <Typography key={sala.id || index} variant="body2">
+            {index + 1}. {sala.name} - {sala.ciudad || 'N/A'} ({sala.status === 'active' ? 'Activa' : 'Retirada'})
+          </Typography>
+        ))}
+      </Box>
+    ) : (
+      {/* Mensaje alternativo */}
+      <Typography>No hay salas registradas</Typography>
+    )}
+  </>
+)
+```
+
+**Ventajas:**
+- ✅ Vista agregada completa de empresa + salas
+- ✅ Un solo mensaje en lugar de múltiples
+- ✅ Información consolidada y organizada
+- ✅ Facilita revisión rápida de estructura empresarial
+- ✅ Diseño sobrio con scroll si hay muchas salas
+
+### **6. Compartir Sala Individual con Todos los Detalles** ✅
+**Implementado:** 8 de Diciembre, 2025
+
+Implementación completa de Share to Chat para salas individuales con 11 campos consolidados.
+
+**Campos compartidos:**
+- 🏢 Empresa
+- 🎮 Nombre
+- 📍 Ubicación (ciudad + departamento en un solo campo)
+- 🗺️ Dirección
+- 👤 Propietario
+- 💻 Proveedor
+- 📋 Contrato (fecha de inicio)
+- 👨‍💼 Contacto Principal (nombre - teléfono - email consolidado)
+- 👨‍💼 Contacto Secundario (condicional, consolidado)
+- 🎰 Máquinas (cantidad)
+- ✅ Estado (Activa/Retirada)
+
+**Consolidación de campos:**
+- ✅ Ciudad + Departamento → "Barranquilla, Atlántico"
+- ✅ Contacto + Teléfono + Email → "Edgar Ruiz - 3103432748 - edgaruiz36@gmail.com"
+- ✅ Eliminados: Costos de administración y conexión (información sensible)
+
+**Mejoras visuales:**
+- ✅ EntitySummary con maxHeight 350px y scroll personalizado
+- ✅ Emojis sutiles (0.9rem)
+- ✅ Labels en uppercase con letter-spacing
+- ✅ Valores con wordBreak para texto largo
+- ✅ Gradiente dinámico (primary → secondary) en botón Share y avatar
+- ✅ RadioGroup mejorado con hover states
+- ✅ Autocomplete con borderRadius consistente
+- ✅ TextField con minRows/maxRows
+
+### **7. Fix de Markdown Bold en Mensajes del Chat** ✅
+**Implementado:** 8 de Diciembre, 2025
+
+Corregido problema crítico donde los labels en negritas (`*Empresa:*`) no se mostraban correctamente en los mensajes del chat.
+
+**Problema:**
+- Mensajes compartidos mostraban literalmente `*Empresa:*` en lugar de **Empresa:**
+- Función `renderTextWithMentionsBasic` no procesaba markdown
+
+**Solución:**
+```javascript
+// MessageBubble.jsx - Reorganización de funciones
+// ANTES: processTextFormat definido después de renderTextWithMentionsBasic
+// DESPUÉS: processTextFormat definido ANTES
+
+const processTextFormat = (text) => {
+  const boldRegex = /(\*([^*\n]+)\*)/gm;
+  // ... procesamiento de markdown
+  return (
+    <strong style={{ fontWeight: 700 }}>
+      {match[2]}
+    </strong>
+  );
+};
+
+// Ahora renderTextWithMentionsBasic puede llamar a processTextFormat
+const renderTextWithMentionsBasic = (text) => {
+  // ... detección de menciones
+  segments.push(...processTextFormat(beforeText)); // ✅ Ahora funciona
+  // ...
+};
+```
+
+**Resultado:**
+- ✅ Labels en negrita funcionan correctamente
+- ✅ Markdown completo procesado: `*bold*`, `_italic_`, `__underline__`, `~~strikethrough~~`
+- ✅ Funciona con menciones (@usuario) y URLs clickeables
+- ✅ fontWeight: 700 explícito para asegurar visibilidad
+
+---
+
+**Última actualización:** 8 de Diciembre, 2025  
 **Autor:** GitHub Copilot + Diego Rueda  
-**Estado:** Documentación completa y actualizada
+**Estado:** Documentación completa y actualizada con últimas funcionalidades

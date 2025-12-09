@@ -139,11 +139,13 @@ const SalasPage = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareCompanyDialogOpen, setShareCompanyDialogOpen] = useState(false);
   
   // Estados de selección
   const [selectedSala, setSelectedSala] = useState(null);
   const [saving, setSaving] = useState(false);
   const [salaToShare, setSalaToShare] = useState(null);
+  const [companyToShare, setCompanyToShare] = useState(null);
   
   // Estado para trackear salas con historial de cambios
   const [salasConHistorial, setSalasConHistorial] = useState(new Set());
@@ -853,6 +855,25 @@ const SalasPage = () => {
     setSalaToShare(null);
   };
 
+  // Abrir diálogo de compartir empresa con salas
+  const handleShareCompany = (company) => {
+    // Obtener todas las salas de esta empresa
+    const salasDeEmpresa = salas.filter(sala => sala.companyId === company.id);
+    
+    setCompanyToShare({
+      ...company,
+      salas: salasDeEmpresa,
+      salasCount: salasDeEmpresa.length
+    });
+    setShareCompanyDialogOpen(true);
+  };
+
+  // Cerrar diálogo de compartir empresa
+  const handleCloseShareCompanyDialog = () => {
+    setShareCompanyDialogOpen(false);
+    setCompanyToShare(null);
+  };
+
   // Limpiar filtros
   const handleClearFilters = () => {
     setStatusFilter('all');
@@ -1496,6 +1517,25 @@ const SalasPage = () => {
                               {company.salasCount} {company.salasCount === 1 ? 'sala' : 'salas'}
                             </Typography>
                           </Box>
+                          <Tooltip title="Compartir empresa con todas sus salas">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleShareCompany(company);
+                              }}
+                              sx={{
+                                color: 'primary.main',
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  background: alpha(theme.palette.primary.main, 0.1),
+                                  transform: 'scale(1.1)'
+                                }
+                              }}
+                            >
+                              <ShareIcon />
+                            </IconButton>
+                          </Tooltip>
                         </Box>
                       </CardContent>
                     </Card>
@@ -2161,12 +2201,21 @@ const SalasPage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Modal de Compartir en Chat */}
+      {/* Modal de Compartir Sala en Chat */}
       <ShareToChat
         open={shareDialogOpen}
         onClose={handleCloseShareDialog}
         entityType="sala"
         entity={salaToShare}
+      />
+
+      {/* Modal de Compartir Empresa con Salas en Chat */}
+      <ShareToChat
+        open={shareCompanyDialogOpen}
+        onClose={handleCloseShareCompanyDialog}
+        entityType="company_with_salas"
+        entity={companyToShare}
+        entityName="empresa con sus salas"
       />
     </Box>
   );

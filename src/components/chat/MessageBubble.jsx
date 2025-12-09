@@ -61,6 +61,69 @@ import PreviewDialog from './PreviewDialog';
 import OptimizedAvatar from '../common/OptimizedAvatar';
 
 /**
+ * Procesar formato de texto: *negrita*, _cursiva_, __subrayado__, ~~tachado~~, > cita
+ */
+const processTextFormat = (text) => {
+  const parts = [];
+  // Regex mejorado: *negrita*, _cursiva_, __subrayado__, ~~tachado~~, > cita
+  const regex = /(\*([^*\n]+)\*)|((?<!_)_([^_\n]+)_(?!_))|(__([^_\n]+)__)|(~~([^~\n]+)~~)|(^> (.+)$)/gm;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    // Texto antes del formato
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+
+    // Detectar tipo de formato
+    if (match[2]) {
+      // *negrita*
+      parts.push(<strong key={`bold-${match.index}`} style={{ fontWeight: 700 }}>{match[2]}</strong>);
+    } else if (match[4]) {
+      // _cursiva_
+      parts.push(<em key={`italic-${match.index}`}>{match[4]}</em>);
+    } else if (match[6]) {
+      // __subrayado__
+      parts.push(<u key={`underline-${match.index}`}>{match[6]}</u>);
+    } else if (match[8]) {
+      // ~~tachado~~
+      parts.push(<del key={`strikethrough-${match.index}`}>{match[8]}</del>);
+    } else if (match[10]) {
+      // > cita
+      parts.push(
+        <span 
+          key={`quote-${match.index}`}
+          style={{
+            display: 'block',
+            borderLeft: '3px solid',
+            borderColor: 'inherit',
+            paddingLeft: '12px',
+            paddingTop: '4px',
+            paddingBottom: '4px',
+            marginTop: '4px',
+            marginBottom: '4px',
+            fontStyle: 'italic',
+            opacity: 0.85
+          }}
+        >
+          {match[10]}
+        </span>
+      );
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Texto restante
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return parts.length > 0 ? parts : text;
+};
+
+/**
  * Versión simplificada para procesar menciones sin recursividad
  */
 const renderTextWithMentionsBasic = (text, theme, isMentionedUser) => {
@@ -73,7 +136,9 @@ const renderTextWithMentionsBasic = (text, theme, isMentionedUser) => {
 
   while ((match = mentionRegex.exec(text)) !== null) {
     if (match.index > lastIndex) {
-      parts.push(text.substring(lastIndex, match.index));
+      // Procesar formato de texto antes de la mención
+      const beforeText = text.substring(lastIndex, match.index);
+      parts.push(...processTextFormat(beforeText));
     }
 
     const mentionName = match[1];
@@ -102,7 +167,9 @@ const renderTextWithMentionsBasic = (text, theme, isMentionedUser) => {
   }
 
   if (lastIndex < text.length) {
-    parts.push(text.substring(lastIndex));
+    // Procesar formato de texto después de las menciones
+    const remainingText = text.substring(lastIndex);
+    parts.push(...processTextFormat(remainingText));
   }
 
   return parts;
@@ -181,69 +248,6 @@ const renderTextWithMentions = (text, theme, isMentionedUser) => {
   }
 
   return <>{parts}</>;
-};
-
-/**
- * Procesar formato de texto: *negrita*, _cursiva_, __subrayado__, ~~tachado~~, > cita
- */
-const processTextFormat = (text) => {
-  const parts = [];
-  // Regex mejorado: *negrita*, _cursiva_, __subrayado__, ~~tachado~~, > cita
-  const regex = /(\*([^*]+)\*)|((?<!_)_([^_]+)_(?!_))|(__([^_]+)__)|(~~([^~]+)~~)|(^> (.+)$)/gm;
-  let lastIndex = 0;
-  let match;
-
-  while ((match = regex.exec(text)) !== null) {
-    // Texto antes del formato
-    if (match.index > lastIndex) {
-      parts.push(text.substring(lastIndex, match.index));
-    }
-
-    // Detectar tipo de formato
-    if (match[2]) {
-      // *negrita*
-      parts.push(<strong key={`bold-${match.index}`}>{match[2]}</strong>);
-    } else if (match[4]) {
-      // _cursiva_
-      parts.push(<em key={`italic-${match.index}`}>{match[4]}</em>);
-    } else if (match[6]) {
-      // __subrayado__
-      parts.push(<u key={`underline-${match.index}`}>{match[6]}</u>);
-    } else if (match[8]) {
-      // ~~tachado~~
-      parts.push(<del key={`strikethrough-${match.index}`}>{match[8]}</del>);
-    } else if (match[10]) {
-      // > cita (usar span con estilos en lugar de blockquote para evitar warning de anidamiento)
-      parts.push(
-        <span 
-          key={`quote-${match.index}`}
-          style={{
-            display: 'block',
-            borderLeft: '3px solid',
-            borderColor: 'inherit',
-            paddingLeft: '12px',
-            paddingTop: '4px',
-            paddingBottom: '4px',
-            marginTop: '4px',
-            marginBottom: '4px',
-            fontStyle: 'italic',
-            opacity: 0.85
-          }}
-        >
-          {match[10]}
-        </span>
-      );
-    }
-
-    lastIndex = match.index + match[0].length;
-  }
-
-  // Texto restante
-  if (lastIndex < text.length) {
-    parts.push(text.substring(lastIndex));
-  }
-
-  return parts.length > 0 ? parts : text;
 };
 
 /**
