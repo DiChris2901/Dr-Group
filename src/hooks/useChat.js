@@ -58,7 +58,7 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
       const messagesQuery = query(
         collection(db, 'messages'),
         where('conversationId', '==', conversationId),
-        orderBy('createdAt', 'desc'),
+        orderBy('createdAt', 'asc'),
         firestoreLimit(messagesPerPage)
       );
 
@@ -128,10 +128,10 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
     try {
       setLoading(true);
 
-      const moreMessagesQuery = query(
+      const messagesQuery = query(
         collection(db, 'messages'),
         where('conversationId', '==', conversationId),
-        orderBy('createdAt', 'desc'),
+        orderBy('createdAt', 'asc'),
         startAfter(lastVisible),
         firestoreLimit(messagesPerPage)
       );
@@ -513,7 +513,7 @@ export const useChatSearch = (conversationId, searchTerm) => {
         const messagesQuery = query(
           collection(db, 'messages'),
           where('conversationId', '==', conversationId),
-          orderBy('createdAt', 'desc')
+          orderBy('createdAt', 'asc')
         );
 
         const snapshot = await getDocs(messagesQuery);
