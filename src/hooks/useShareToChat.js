@@ -239,6 +239,28 @@ export const useShareToChat = () => {
             : 'No hay salas registradas'
           }
         ]
+      },
+      empleado: {
+        title: '👤 Empleado Compartido',
+        fields: [
+          { emoji: '👤', label: 'Nombre Completo', value: `${entityData.nombres || ''} ${entityData.apellidos || ''}`.trim() },
+          { emoji: '🌎', label: 'Nacionalidad', value: entityData.nacionalidad || 'No especificada' },
+          { emoji: '🪪', label: 'Documento', value: entityData.numeroDocumento ? `${entityData.tipoDocumento || 'CC'} ${entityData.numeroDocumento}` : 'No especificado' },
+          { emoji: '📧', label: 'Email Corporativo', value: entityData.emailCorporativo || 'No especificado' },
+          { emoji: '📞', label: 'Teléfono', value: entityData.telefono || 'No especificado' },
+          { emoji: '🎂', label: 'Fecha Nacimiento', value: entityData.fechaNacimiento ? new Date(entityData.fechaNacimiento).toLocaleDateString('es-CO') : 'No especificada' },
+          { emoji: '📅', label: 'Edad', value: entityData.edad ? `${entityData.edad} años` : 'No especificada' },
+          { emoji: '🏢', label: 'Empresa', value: entityData.empresaContratante || 'No especificada' },
+          { emoji: '📄', label: 'Tipo Vigencia', value: entityData.tipoVigencia || 'No especificado' },
+          { emoji: '📆', label: 'Inicio Contrato', value: entityData.fechaInicioContrato ? new Date(entityData.fechaInicioContrato).toLocaleDateString('es-CO') : 'No especificada' },
+          { emoji: '🔄', label: 'Renovación', value: entityData.seRenueva ? 'Automática' : 'Sin renovación' },
+          { emoji: '🏦', label: 'Banco', value: entityData.banco || 'No especificado' },
+          { emoji: '💳', label: 'Tipo Cuenta', value: entityData.tipoCuenta || 'No especificado' },
+          { emoji: '🔢', label: 'Número Cuenta', value: entityData.numeroCuenta || 'No especificado' }
+        ].filter(field => {
+          // Filtrar campos vacíos
+          return field.value !== 'No especificado' && field.value !== 'No especificada';
+        })
       }
     };
 
@@ -257,7 +279,7 @@ export const useShareToChat = () => {
     });
 
     if (customMessage && customMessage.trim() !== '') {
-      message += `\n💬 *Mensaje:*\n${customMessage}`;
+      message += `\n\n💬 *Mensaje:*\n${customMessage}`;
     }
 
     return message;
@@ -316,6 +338,42 @@ export const useShareToChat = () => {
             uploadedAt: new Date().toISOString()
           });
         }
+      } else if (entityType === 'empleado') {
+        // Agregar los 3 documentos del empleado como attachments separados
+        if (entityData.documentoIdentidadURL) {
+          attachments.push({
+            type: 'application/pdf',
+            url: entityData.documentoIdentidadURL,
+            name: 'Documento_Identidad.pdf',
+            size: 0,
+            uploadedAt: new Date().toISOString()
+          });
+        }
+        
+        if (entityData.contratoURL) {
+          attachments.push({
+            type: 'application/pdf',
+            url: entityData.contratoURL,
+            name: 'Contrato.pdf',
+            size: 0,
+            uploadedAt: new Date().toISOString()
+          });
+        }
+        
+        if (entityData.certificadoBancarioURL) {
+          attachments.push({
+            type: 'application/pdf',
+            url: entityData.certificadoBancarioURL,
+            name: 'Certificado_Bancario.pdf',
+            size: 0,
+            uploadedAt: new Date().toISOString()
+          });
+        }
+        
+        // Usar el primer documento disponible como entityUrl para metadata
+        entityUrl = entityData.documentoIdentidadURL || 
+                   entityData.contratoURL || 
+                   entityData.certificadoBancarioURL;
       }
 
       // Crear mensaje en Firestore

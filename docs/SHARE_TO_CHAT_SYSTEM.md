@@ -97,7 +97,8 @@ const {
 - ✅ Resumen visual del registro a compartir
 - ✅ Selector de destino (conversación existente o nuevo DM)
 - ✅ Campo de mensaje personalizado opcional
-- ✅ Previsualización de adjuntos (comprobantes/facturas)
+- ✅ **Visualización de documentos en modal PDFViewerModal** (comprobantes, facturas, contratos, certificados)
+- ✅ Previsualización de adjuntos con botones para abrir en modal
 - ✅ Validaciones de campos requeridos
 - ✅ Feedback visual (loading, success, error)
 - ✅ Diseño Spectacular con gradientes y animaciones
@@ -129,6 +130,7 @@ const {
 | `administrator` | 👨‍💼 | Administradores/Encargados | Nombre, Email, Teléfono, Salas a cargo (lista) | ❌ |
 | `sala` | 🎮 | Salas | Empresa, Nombre, Ubicación, Dirección, Propietario, Proveedor, Contactos, Máquinas, Estado | ❌ |
 | `company_with_salas` | 🏢 | Empresa con todas sus salas | Nombre empresa, Total salas, Lista de salas (nombre, ciudad, estado) | ❌ |
+| `empleado` | 👤 | Empleados | Nombre, Documento, Email, Teléfono, Empresa, Contrato, Datos bancarios | ✅ Doc. Identidad + Contrato + Certif. Bancario |
 
 ---
 
@@ -177,7 +179,7 @@ Urgente: Confirmar pago antes del viernes
 
 ### **Estado General del Sistema:**
 
-**Páginas completadas:** 7 de 8 páginas principales  
+**Páginas completadas:** 8 de 9 páginas principales  
 **Tipos de entidad:** 10 tipos diferentes soportados  
 **Última actualización:** 8 de Diciembre, 2025
 
@@ -591,7 +593,92 @@ const handleCloseShareDialog = () => {
 />
 ```
 
-8. **FacturacionPage.jsx** 🟡
+8. **EmpleadosPage.jsx** ✅ **IMPLEMENTADO COMPLETO**
+   - **Ruta:** `src/pages/EmpleadosPage.jsx`
+   - **Tipo:** `empleado`
+   - **Adjuntos:** Documento de Identidad, Contrato Laboral, Certificado Bancario
+   - **Ubicación:** IconButton en el header de cada card de empleado (primer botón)
+   - **Implementado:** 8 de Diciembre, 2025
+   - **Estado:** Sistema de compartir empleados completamente funcional con todos los datos del modal de vista
+
+**Campos compartidos:**
+- 👤 Nombre Completo
+- 🌎 Nacionalidad
+- 🪪 Documento (Tipo + Número)
+- 🔗 Documento de Identidad* (enlace si existe)
+- 📧 Email Corporativo
+- 📞 Teléfono
+- 🎂 Fecha de Nacimiento
+- 📅 Edad
+- 🏢 Empresa Contratante
+- 📄 Tipo de Vigencia
+- 📆 Inicio de Contrato
+- 🔄 Renovación (Automática/Sin renovación)
+- 🔗 Contrato Laboral* (enlace si existe)
+- 🏦 Banco
+- 💳 Tipo de Cuenta
+- 🔢 Número de Cuenta
+- 🔗 Certificado Bancario* (enlace si existe)
+
+**Características especiales:**
+- ✅ Botón de compartir (ShareIcon) en color verde con hover effect
+- ✅ Tooltip "Compartir al Chat"
+- ✅ Enlaces marcados con asterisco (*) disponibles en modal de vista
+- ✅ Filtrado automático de campos vacíos (excepto enlaces)
+- ✅ Mensaje con nota sobre disponibilidad de enlaces
+- ✅ Vista previa completa en modal con todos los datos
+- ✅ Diseño sobrio consistente con el resto del sistema
+
+**Implementación:**
+```javascript
+// Import del hook
+import { useShareToChat } from '../hooks/useShareToChat';
+import ShareToChat from '../components/common/ShareToChat';
+
+// Estados
+const { shareToConversation } = useShareToChat();
+const [shareDialogOpen, setShareDialogOpen] = useState(false);
+const [empleadoToShare, setEmpleadoToShare] = useState(null);
+
+// Handler
+const handleOpenShareDialog = (empleado) => {
+  setEmpleadoToShare(empleado);
+  setShareDialogOpen(true);
+};
+
+// Botón en card (antes del botón Ver Detalles)
+<Tooltip title="Compartir al Chat">
+  <IconButton 
+    size="small" 
+    onClick={() => handleOpenShareDialog(empleado)}
+    sx={{ 
+      mr: 1,
+      color: 'success.main',
+      '&:hover': {
+        backgroundColor: alpha(theme.palette.success.main, 0.1)
+      }
+    }}
+  >
+    <ShareIcon fontSize="small" />
+  </IconButton>
+</Tooltip>
+
+// Modal al final
+{empleadoToShare && (
+  <ShareToChat
+    open={shareDialogOpen}
+    onClose={() => {
+      setShareDialogOpen(false);
+      setEmpleadoToShare(null);
+    }}
+    entityType="empleado"
+    entityData={empleadoToShare}
+    onShare={shareToConversation}
+  />
+)}
+```
+
+9. **FacturacionPage.jsx** 🟡
    - **Ruta:** `src/pages/FacturacionPage.jsx`
    - **Tipo:** `invoice`
    - **Adjuntos:** PDF de la cuenta de cobro (si existe)
@@ -1072,6 +1159,7 @@ const renderField = (label, value, emoji = '📌') => (
 - ✅ SalasPage.jsx (Salas Individuales + Empresas con Salas)
 - ✅ ClientesPage.jsx (Clientes + Administradores)
 - ✅ LiquidacionesHistorialPage.jsx (Historial de Liquidaciones)
+- ✅ EmpleadosPage.jsx (Empleados con documentos)
 
 **Páginas Omitidas:**
 - 🔴 IncomePage.jsx (sin lista de registros)
@@ -1379,4 +1467,4 @@ entityId: entityData.id || `${entityType}_${Date.now()}`
 
 **Última actualización:** 8 de Diciembre, 2025  
 **Autor:** GitHub Copilot + Diego Rueda  
-**Estado:** Documentación completa y actualizada con últimas funcionalidades (7 páginas implementadas, 9 tipos de entidad)
+**Estado:** Documentación completa y actualizada con últimas funcionalidades (8 páginas implementadas, 10 tipos de entidad)

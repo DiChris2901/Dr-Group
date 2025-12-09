@@ -32,34 +32,16 @@ export default defineConfig({
     chunkSizeWarningLimit: 3000,
     rollupOptions: {
       output: {
-        manualChunks: (id) => {
-          // ✅ Estrategia dinámica más eficiente
-          if (id.includes('node_modules')) {
-            // Separar por vendor
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-              return 'react-core';
-            }
-            if (id.includes('@mui') || id.includes('@emotion')) {
-              return 'ui-framework';
-            }
-            if (id.includes('firebase')) {
-              return 'firebase';
-            }
-            if (id.includes('recharts') || id.includes('chart.js')) {
-              return 'charts';
-            }
-            if (id.includes('framer-motion')) {
-              return 'animations';
-            }
-            if (id.includes('html2canvas') || id.includes('jspdf') || id.includes('pdf-lib')) {
-              return 'pdf-utils';
-            }
-            if (id.includes('exceljs') || id.includes('xlsx')) {
-              return 'excel-utils';
-            }
-            // Resto de dependencias en un chunk común
-            return 'vendor';
-          }
+        manualChunks: {
+          // ✅ Estrategia estática para evitar dependencias circulares
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'mui-core': ['@mui/material', '@mui/icons-material'],
+          'firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
+          'charts': ['recharts'],
+          'animations': ['framer-motion'],
+          'pdf-utils': ['jspdf', 'html2canvas'],
+          'excel-utils': ['exceljs'],
+          'date-utils': ['date-fns']
         }
       }
     }

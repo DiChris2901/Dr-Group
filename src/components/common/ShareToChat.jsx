@@ -30,6 +30,7 @@ import { db } from '../../config/firebase';
 import { useShareToChat } from '../../hooks/useShareToChat';
 import { useNotifications } from '../../context/NotificationsContext';
 import { useAuth } from '../../context/AuthContext';
+import PDFViewerModal from '../modals/PDFViewerModal';
 
 /**
  * Formatear período de liquidación (ej: "octubre_2025" → "Octubre 2025")
@@ -63,6 +64,9 @@ const EntitySummary = ({ entity, type }) => {
   const theme = useTheme();
   const [companyName, setCompanyName] = useState(null);
   const [loadingCompany, setLoadingCompany] = useState(false);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState(null);
+  const [pdfTitle, setPdfTitle] = useState('');
 
   // Cargar nombre de la empresa si existe companyId
   useEffect(() => {
@@ -140,7 +144,13 @@ const EntitySummary = ({ entity, type }) => {
     </Box>
   );
 
-  const renderAttachmentLink = (url, label = 'Ver adjunto') => {
+  const handleOpenPDF = (url, title) => {
+    setPdfUrl(url);
+    setPdfTitle(title);
+    setPdfModalOpen(true);
+  };
+
+  const renderAttachmentLink = (url, label = 'Ver adjunto', useModal = false) => {
     if (!url) return null;
     return (
       <Box sx={{ display: 'flex', gap: 1, mb: 0.5, alignItems: 'center' }}>
@@ -151,7 +161,7 @@ const EntitySummary = ({ entity, type }) => {
           size="small"
           variant="outlined"
           startIcon={<OpenInNew />}
-          onClick={() => window.open(url, '_blank')}
+          onClick={() => useModal ? handleOpenPDF(url, label) : window.open(url, '_blank')}
           sx={{ textTransform: 'none', fontSize: '0.75rem' }}
         >
           {label}
@@ -170,8 +180,8 @@ const EntitySummary = ({ entity, type }) => {
         {renderField('Vence', entity.dueDate ? new Date(entity.dueDate).toLocaleDateString('es-CO') : 'No especificado', '📅')}
         {renderField('Estado', entity.paid || entity.isPaid ? '✅ Pagado' : '⏳ Pendiente', '📌')}
         {(entity.invoiceUrl || (entity.invoices && entity.invoices[0]?.url)) && 
-          renderAttachmentLink(entity.invoiceUrl || entity.invoices[0]?.url, 'Ver factura')}
-        {entity.receiptUrl && renderAttachmentLink(entity.receiptUrl, 'Ver comprobante')}
+          renderAttachmentLink(entity.invoiceUrl || entity.invoices[0]?.url, 'Ver factura', true)}
+        {entity.receiptUrl && renderAttachmentLink(entity.receiptUrl, 'Ver comprobante', true)}
       </>
     ),
     payment: (
@@ -187,11 +197,11 @@ const EntitySummary = ({ entity, type }) => {
         {entity.sourceAccount && renderField('Cuenta Origen', entity.sourceAccount, '💳')}
         {entity.notes && renderField('Notas', entity.notes, '💬')}
         {(entity.attachments && entity.attachments.length > 0) && 
-          renderAttachmentLink(entity.attachments[0], 'Ver comprobante')}
+          renderAttachmentLink(entity.attachments[0], 'Ver comprobante', true)}
         {(!entity.attachments && entity.receiptUrl) && 
-          renderAttachmentLink(entity.receiptUrl, 'Ver comprobante')}
+          renderAttachmentLink(entity.receiptUrl, 'Ver comprobante', true)}
         {(!entity.attachments && !entity.receiptUrl && entity.receiptUrls && entity.receiptUrls.length > 0) && 
-          renderAttachmentLink(entity.receiptUrls[0], 'Ver comprobante')}
+          renderAttachmentLink(entity.receiptUrls[0], 'Ver comprobante', true)}
       </>
     ),
     liquidacion: (
@@ -518,6 +528,27 @@ const EntitySummary = ({ entity, type }) => {
           </Box>
         )}
       </>
+    ),
+    empleado: (
+      <>
+        {renderField('Nombre Completo', `${entity.nombres || ''} ${entity.apellidos || ''}`.trim(), '👤')}
+        {renderField('Nacionalidad', entity.nacionalidad || 'No especificada', '🌎')}
+        {renderField('Documento', entity.numeroDocumento ? `${entity.tipoDocumento || 'CC'} ${entity.numeroDocumento}` : 'No especificado', '🪪')}
+        {entity.documentoIdentidadURL && renderAttachmentLink(entity.documentoIdentidadURL, 'Ver Documento Identidad', true)}
+        {entity.emailCorporativo && renderField('Email', entity.emailCorporativo, '📧')}
+        {entity.telefono && renderField('Teléfono', entity.telefono, '📞')}
+        {entity.fechaNacimiento && renderField('Fecha Nacimiento', new Date(entity.fechaNacimiento).toLocaleDateString('es-CO'), '🎂')}
+        {entity.edad && renderField('Edad', `${entity.edad} años`, '📅')}
+        {entity.empresaContratante && renderField('Empresa', entity.empresaContratante, '🏢')}
+        {entity.tipoVigencia && renderField('Tipo Vigencia', entity.tipoVigencia, '📄')}
+        {entity.fechaInicioContrato && renderField('Inicio Contrato', new Date(entity.fechaInicioContrato).toLocaleDateString('es-CO'), '📆')}
+        {entity.seRenueva !== undefined && renderField('Renovación', entity.seRenueva ? 'Automática' : 'Sin renovación', '🔄')}
+        {entity.contratoURL && renderAttachmentLink(entity.contratoURL, 'Ver Contrato', true)}
+        {entity.banco && renderField('Banco', entity.banco, '🏦')}
+        {entity.tipoCuenta && renderField('Tipo Cuenta', entity.tipoCuenta, '💳')}
+        {entity.numeroCuenta && renderField('Número Cuenta', entity.numeroCuenta, '🔢')}
+        {entity.certificadoBancarioURL && renderAttachmentLink(entity.certificadoBancarioURL, 'Ver Certificado Bancario', true)}
+      </>
     )
   };
   
@@ -559,6 +590,14 @@ const EntitySummary = ({ entity, type }) => {
         📝 Información a Compartir
       </Typography>
       {summaries[type] || summaries.commitment}
+      
+      {/* Modal para visualizar PDFs */}
+      <PDFViewerModal
+        open={pdfModalOpen}
+        onClose={() => setPdfModalOpen(false)}
+        documentUrl={pdfUrl}
+        documentTitle={pdfTitle}
+      />
     </Paper>
   );
 };

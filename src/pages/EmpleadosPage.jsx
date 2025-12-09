@@ -59,7 +59,8 @@ import {
   CalendarToday as CalendarIcon,
   Work as WorkIcon,
   CreditCard as CardIcon,
-  AccessTime as AccessTimeIcon
+  AccessTime as AccessTimeIcon,
+  Share as ShareIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
@@ -73,6 +74,8 @@ import { useSettings } from '../context/SettingsContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useShareToChat } from '../hooks/useShareToChat';
+import ShareToChat from '../components/common/ShareToChat';
 
 // Lista de bancos en Colombia
 const BANCOS_COLOMBIA = [
@@ -124,6 +127,11 @@ const EmpleadosPage = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedEmpleado, setSelectedEmpleado] = useState(null);
   const [saving, setSaving] = useState(false);
+  
+  // Share to Chat
+  const { shareToConversation } = useShareToChat();
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [empleadoToShare, setEmpleadoToShare] = useState(null);
 
   // Formulario para nuevo empleado
   const [formData, setFormData] = useState({
@@ -776,6 +784,12 @@ const EmpleadosPage = () => {
     setPdfViewerOpen(true);
   };
 
+  // Abrir diálogo de compartir
+  const handleOpenShareDialog = (empleado) => {
+    setEmpleadoToShare(empleado);
+    setShareDialogOpen(true);
+  };
+
   // Formatear fecha
   const formatDate = (dateString) => {
     if (!dateString) return 'No especificada';
@@ -965,6 +979,21 @@ const EmpleadosPage = () => {
                         />
                       </Box>
                       <Box>
+                        <Tooltip title="Compartir al Chat">
+                          <IconButton 
+                            size="small" 
+                            onClick={() => handleOpenShareDialog(empleado)}
+                            sx={{ 
+                              mr: 1,
+                              color: 'success.main',
+                              '&:hover': {
+                                backgroundColor: alpha(theme.palette.success.main, 0.1)
+                              }
+                            }}
+                          >
+                            <ShareIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                         <IconButton 
                           size="small" 
                           onClick={() => handleOpenViewDialog(empleado)}
@@ -2840,6 +2869,20 @@ const EmpleadosPage = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Share to Chat Component */}
+      {empleadoToShare && (
+        <ShareToChat
+          open={shareDialogOpen}
+          onClose={() => {
+            setShareDialogOpen(false);
+            setEmpleadoToShare(null);
+          }}
+          entityType="empleado"
+          entity={empleadoToShare}
+          onShare={shareToConversation}
+        />
+      )}
     </Box>
   );
 };
