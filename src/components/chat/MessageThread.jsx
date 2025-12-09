@@ -667,13 +667,19 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
       const lastMessage = messages[messages.length - 1];
       const isMyMessage = lastMessage?.senderId === currentUser?.uid;
       
-      // Solo hacer scroll si:
-      // 1. Es mi mensaje Y estoy cerca del final
-      // 2. Es mensaje de otro Y estoy MUY cerca del final (< 100px)
-      if (isMyMessage && isNearBottom) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-      } else if (!isMyMessage && scrollPosition < 100) {
-        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+      // ✅ REGLAS DE AUTO-SCROLL:
+      // 1. Si es MI mensaje → SIEMPRE hacer scroll (sin importar posición)
+      // 2. Si es de otro usuario → Solo si estoy cerca del final (< 200px)
+      if (isMyMessage) {
+        // Mi mensaje → scroll inmediato
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 50);
+      } else if (isNearBottom) {
+        // Mensaje de otro → solo si estoy cerca
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 50);
       }
     }
 
