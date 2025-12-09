@@ -125,7 +125,8 @@ const {
 | `income` | 💵 | Ingresos | Descripción, Monto, Fecha, Empresa | ❌ |
 | `company` | 🏢 | Empresas | Nombre, NIT, Representante, Teléfono | ❌ |
 | `platform` | 💻 | Credenciales de plataformas | Empresa, Plataforma, Usuario, Contraseña, Link | ❌ |
-| `client` | 👤 | Clientes | Nombre, Email, Teléfono, Empresa | ❌ |
+| `client` | 👤 | Clientes | Nombre, Email, Teléfono, Salas asociadas (lista), Administradores (lista) | ❌ |
+| `administrator` | 👨‍💼 | Administradores/Encargados | Nombre, Email, Teléfono, Salas a cargo (lista) | ❌ |
 | `sala` | 🎮 | Salas | Empresa, Nombre, Ubicación, Dirección, Propietario, Proveedor, Contactos, Máquinas, Estado | ❌ |
 | `company_with_salas` | 🏢 | Empresa con todas sus salas | Nombre empresa, Total salas, Lista de salas (nombre, ciudad, estado) | ❌ |
 
@@ -409,11 +410,63 @@ Se agregó la capacidad de compartir credenciales individuales de plataformas (C
 - ✅ Cierre automático: Al compartir, cierra tanto el modal de compartir como el modal de vista de empresa
 - ✅ Apertura automática del chat: Después de compartir, abre el drawer del chat con la conversación seleccionada
 
-5. **ClientesPage.jsx** 🟡
+5. **ClientesPage.jsx** ✅ **IMPLEMENTADO COMPLETO**
    - **Ruta:** `src/pages/ClientesPage.jsx`
-   - **Tipo:** `client`
+   - **Tipos:** `client` + `administrator`
    - **Adjuntos:** Ninguno
-   - **Ubicación sugerida:** Botón en cada fila de la tabla
+   - **Ubicación:** Botón en cada fila de clientes + Botón en cada fila de administradores (filas expandibles)
+   - **Implementado:** 8 de Diciembre, 2025
+   - **Estado:** Sistema de compartir clientes y administradores completamente funcional
+
+**Campos compartidos (Cliente):**
+- 👤 Nombre
+- 📧 Email
+- 📞 Teléfono
+- 🎮 Salas Asociadas (lista numerada con ciudad y estado)
+- 👨‍💼 Administradores (lista numerada con teléfonos)
+
+**✨ NUEVA FUNCIONALIDAD: Compartir Administradores/Encargados**
+
+Se agregó la capacidad de compartir administradores individuales con su información de contacto y las salas que tienen a cargo.
+
+**Implementación de Administradores:**
+- **Tipo de entidad:** `administrator`
+- **Ubicación:** Botón "Compartir" en cada fila de administrador dentro de la sección expandible de clientes
+- **Estados adicionales:**
+  ```javascript
+  const [shareAdminDialogOpen, setShareAdminDialogOpen] = useState(false);
+  const [adminToShare, setAdminToShare] = useState(null);
+  ```
+
+**Handler de ID único:**
+```javascript
+const handleShareAdmin = (admin) => {
+  // Agregar ID único basado en el nombre (para metadata de Firestore)
+  const adminWithId = {
+    ...admin,
+    id: admin.nombre.toLowerCase().replace(/\s+/g, '_')
+  };
+  setAdminToShare(adminWithId);
+  setShareAdminDialogOpen(true);
+};
+```
+
+**Campos compartidos (Administrador):**
+- 👤 Nombre
+- 📧 Email (o "No especificado")
+- 📞 Teléfono (o "No especificado")
+- 🎮 Salas a Cargo (lista numerada):
+  * Formato: `1. Casino Tiger Golden`
+  * Lista completa de salas asignadas
+  * Mensaje alternativo si no tiene salas: "Sin salas asignadas"
+
+**Características especiales:**
+- ✅ ID único generado automáticamente basado en nombre
+- ✅ Vista previa en modal con lista completa de salas
+- ✅ Mensaje formateado con lista numerada en chat
+- ✅ Botón de compartir solo en filas de administradores expandibles
+- ✅ Cierre automático al compartir
+- ✅ Apertura automática del chat con conversación seleccionada
 
 6. **SalasPage.jsx** ✅ **IMPLEMENTADO COMPLETO**
    - **Ruta:** `src/pages/SalasPage.jsx`
@@ -965,12 +1018,12 @@ const renderField = (label, value, emoji = '📌') => (
 - ✅ LiquidacionesPorSalaPage.jsx (Liquidaciones)
 - ✅ CompaniesPage.jsx (Empresas + Credenciales de Plataformas)
 - ✅ SalasPage.jsx (Salas Individuales + Empresas con Salas)
+- ✅ ClientesPage.jsx (Clientes + Administradores)
 
 **Páginas Omitidas:**
 - 🔴 IncomePage.jsx (sin lista de registros)
 
 **Páginas Pendientes:**
-- 🟡 ClientesPage.jsx (clientes)
 - 🟡 FacturacionPage.jsx (facturas/cuentas de cobro)
 - 🟢 LiquidacionesHistorialPage.jsx (historial de liquidaciones)
 
@@ -982,8 +1035,9 @@ const renderField = (label, value, emoji = '📌') => (
 5. `platform` ✅
 6. `sala` ✅
 7. `company_with_salas` ✅
-8. `client` 🟡
-9. `invoice` 🟡
+8. `client` ✅
+9. `administrator` ✅
+10. `invoice` 🟡
 
 **Funcionalidades Avanzadas:**
 - ✅ Adjuntos automáticos (comprobantes, facturas)
@@ -1173,6 +1227,104 @@ const renderTextWithMentionsBasic = (text) => {
 
 ---
 
+### **8. Compartir Clientes con Salas y Administradores** ✅
+**Implementado:** 8 de Diciembre, 2025
+
+Implementación completa de Share to Chat para clientes con lista de salas asociadas y administradores con sus contactos.
+
+**Campos compartidos (Cliente):**
+- 👤 Nombre
+- 📧 Email
+- 📞 Teléfono
+- 🎮 Salas Asociadas (lista numerada):
+  * Formato: `1. Casino Tiger Golden - Barranquilla (Activa)`
+  * Cada sala incluye: nombre, ciudad, estado
+- 👨‍💼 Administradores (lista numerada):
+  * Formato: `1. Juan Esteban Márquez - 3161752058`
+  * Cada administrador incluye: nombre y teléfono
+
+**Mensaje de ejemplo:**
+```
+🚨 *👤 Cliente Compartido*
+
+👤 *Nombre:* Cliente Ejemplo
+📧 *Email:* cliente@ejemplo.com
+📞 *Teléfono:* 3147821956
+🎮 *Salas Asociadas:* 9 salas
+1. Maquinitas El Trebol Del Sur - Santa Rosa del Sur (Activa)
+2. Casino Mateo la 13 - Sabana de Torres (Activa)
+3. Recreaciones Bolivar - San Pablo (Activa)
+...
+👨‍💼 *Administradores:* 5 administradores
+1. Jhon Montoya - 3153324892
+2. Juan Esteban Márquez - 3161752058
+...
+```
+
+### **9. Compartir Administradores con Salas a Cargo** ✅
+**Implementado:** 8 de Diciembre, 2025
+
+Nueva funcionalidad que permite compartir administradores/encargados individuales con la lista de salas que tienen bajo su responsabilidad.
+
+**Características:**
+- ✅ Botón de compartir en filas expandibles de administradores
+- ✅ Tipo de entidad dedicado: `administrator`
+- ✅ ID único generado automáticamente: `nombre_en_minusculas_con_guiones`
+- ✅ Fallback para entityId: `administrator_timestamp` si no existe ID
+- ✅ Vista previa en modal con lista completa de salas
+- ✅ Mensaje en chat con formato:
+  ```
+  🚨 *👨‍💼 Administrador/Encargado*
+  
+  👤 *Nombre:* Felipe Valencia Márquez
+  📧 *Email:* pipevalenciam.22@gmail.com
+  📞 *Teléfono:* 3152063192
+  🎮 *Salas a Cargo:* 2 salas
+  1. Casino el Gran Marquez Medellin
+  2. Casino El Gran Marquez Remedios
+  ```
+
+**Implementación técnica:**
+```javascript
+// Handler en ClientesPage.jsx
+const handleShareAdmin = (admin) => {
+  const adminWithId = {
+    ...admin,
+    id: admin.nombre.toLowerCase().replace(/\s+/g, '_')
+  };
+  setAdminToShare(adminWithId);
+  setShareAdminDialogOpen(true);
+};
+
+// Template en useShareToChat.js
+administrator: {
+  title: '👨‍💼 Administrador/Encargado',
+  fields: [
+    { emoji: '👤', label: 'Nombre', value: entityData.nombre },
+    { emoji: '📧', label: 'Email', value: entityData.email || 'No especificado' },
+    { emoji: '📞', label: 'Teléfono', value: entityData.telefono || 'No especificado' },
+    { 
+      emoji: '🎮', 
+      label: 'Salas a Cargo', 
+      value: entityData.salasAsociadas.map((sala, index) => 
+        `${index + 1}. ${sala}`
+      ).join('\n')
+    }
+  ]
+}
+
+// Fallback de entityId en useShareToChat.js
+entityId: entityData.id || `${entityType}_${Date.now()}`
+```
+
+**Ventajas:**
+- ✅ Información completa de administradores con responsabilidades
+- ✅ Contacto directo (email y teléfono)
+- ✅ Visibilidad de salas asignadas
+- ✅ Facilita coordinación y seguimiento de encargados
+
+---
+
 **Última actualización:** 8 de Diciembre, 2025  
 **Autor:** GitHub Copilot + Diego Rueda  
-**Estado:** Documentación completa y actualizada con últimas funcionalidades
+**Estado:** Documentación completa y actualizada con últimas funcionalidades (6 páginas implementadas, 9 tipos de entidad)

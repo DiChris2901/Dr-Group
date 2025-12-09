@@ -256,9 +256,134 @@ const EntitySummary = ({ entity, type }) => {
     ),
     client: (
       <>
-        {renderField('Nombre', entity.name, '👤')}
-        {renderField('Email', entity.email, '📧')}
-        {renderField('Teléfono', entity.telefono, '📞')}
+        {renderField('Nombre', entity.nombre || entity.name, '👤')}
+        {renderField('Email', entity.email || 'No especificado', '📧')}
+        {renderField('Teléfono', entity.telefono || 'No especificado', '📞')}
+        {entity.salas && entity.salas.length > 0 ? (
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            gap: 0.5,
+            mb: 1.5,
+            pb: 1.5,
+            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1 }}>
+              <Typography variant="body2" sx={{ mr: 1, fontSize: '0.9rem' }}>
+                🎮
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ 
+                fontWeight: 600, 
+                textTransform: 'uppercase', 
+                fontSize: '0.75rem', 
+                letterSpacing: 0.5 
+              }}>
+                Salas Asociadas ({entity.salas.length})
+              </Typography>
+            </Box>
+            {entity.salas.map((sala, index) => (
+              <Typography 
+                key={sala.id || index} 
+                variant="body2" 
+                sx={{ 
+                  pl: 3, 
+                  color: 'text.primary',
+                  fontSize: '0.875rem',
+                  lineHeight: 1.6
+                }}
+              >
+                {index + 1}. {sala.nombre} - {sala.ciudad || 'N/A'} ({sala.status === 'active' ? 'Activa' : 'Inactiva'})
+              </Typography>
+            ))}
+          </Box>
+        ) : (
+          renderField('Salas', 'Sin salas asociadas', '🎮')
+        )}
+        {entity.administradores && entity.administradores.length > 0 ? (
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            gap: 0.5,
+            mb: 1.5,
+            pb: 1.5,
+            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1 }}>
+              <Typography variant="body2" sx={{ mr: 1, fontSize: '0.9rem' }}>
+                👨‍💼
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ 
+                fontWeight: 600, 
+                textTransform: 'uppercase', 
+                fontSize: '0.75rem', 
+                letterSpacing: 0.5 
+              }}>
+                Administradores ({entity.administradores.length})
+              </Typography>
+            </Box>
+            {entity.administradores.map((admin, index) => (
+              <Typography 
+                key={index} 
+                variant="body2" 
+                sx={{ 
+                  pl: 3, 
+                  color: 'text.primary',
+                  fontSize: '0.875rem',
+                  lineHeight: 1.6
+                }}
+              >
+                {index + 1}. {admin.nombre} - {admin.telefono || 'Sin teléfono'}
+              </Typography>
+            ))}
+          </Box>
+        ) : null}
+      </>
+    ),
+    administrator: (
+      <>
+        {renderField('Nombre', entity.nombre, '👤')}
+        {renderField('Email', entity.email || 'No especificado', '📧')}
+        {renderField('Teléfono', entity.telefono || 'No especificado', '📞')}
+        {entity.salasAsociadas && entity.salasAsociadas.length > 0 ? (
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            gap: 0.5,
+            mb: 1.5,
+            pb: 1.5,
+            borderBottom: `1px solid ${alpha(theme.palette.divider, 0.08)}`
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', mb: 1 }}>
+              <Typography variant="body2" sx={{ mr: 1, fontSize: '0.9rem' }}>
+                🎮
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ 
+                fontWeight: 600, 
+                textTransform: 'uppercase', 
+                fontSize: '0.75rem', 
+                letterSpacing: 0.5 
+              }}>
+                Salas a Cargo ({entity.salasAsociadas.length})
+              </Typography>
+            </Box>
+            {entity.salasAsociadas.map((sala, index) => (
+              <Typography 
+                key={index} 
+                variant="body2" 
+                sx={{ 
+                  pl: 3, 
+                  color: 'text.primary',
+                  fontSize: '0.875rem',
+                  lineHeight: 1.6
+                }}
+              >
+                {index + 1}. {sala}
+              </Typography>
+            ))}
+          </Box>
+        ) : (
+          renderField('Salas', 'Sin salas asignadas', '🎮')
+        )}
       </>
     ),
     sala: (

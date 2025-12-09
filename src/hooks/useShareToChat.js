@@ -168,10 +168,34 @@ export const useShareToChat = () => {
       client: {
         title: '👤 Cliente Compartido',
         fields: [
-          { emoji: '👤', label: 'Nombre', value: entityData.name },
-          { emoji: '📧', label: 'Email', value: entityData.email },
+          { emoji: '👤', label: 'Nombre', value: entityData.nombre || entityData.name },
+          { emoji: '📧', label: 'Email', value: entityData.email || 'No especificado' },
           { emoji: '📞', label: 'Teléfono', value: entityData.telefono || 'No especificado' },
-          { emoji: '🏢', label: 'Empresa', value: entityData.empresa || 'No especificada' }
+          { emoji: '🎮', label: 'Salas Asociadas', value: entityData.salas && entityData.salas.length > 0 
+            ? `${entityData.salas.length} sala${entityData.salas.length !== 1 ? 's' : ''}\n${entityData.salas.map((sala, index) => 
+                `${index + 1}. ${sala.nombre} - ${sala.ciudad || 'N/A'} (${sala.status === 'active' ? 'Activa' : 'Inactiva'})`
+              ).join('\n')}`
+            : 'Sin salas asociadas'
+          },
+          ...(entityData.administradores && entityData.administradores.length > 0 
+            ? [{ emoji: '👨‍💼', label: 'Administradores', value: `${entityData.administradores.length} administrador${entityData.administradores.length !== 1 ? 'es' : ''}\n${entityData.administradores.map((admin, index) => 
+                `${index + 1}. ${admin.nombre} - ${admin.telefono || 'Sin teléfono'}`
+              ).join('\n')}` }] 
+            : [])
+        ]
+      },
+      administrator: {
+        title: '👨‍💼 Administrador/Encargado',
+        fields: [
+          { emoji: '👤', label: 'Nombre', value: entityData.nombre },
+          { emoji: '📧', label: 'Email', value: entityData.email || 'No especificado' },
+          { emoji: '📞', label: 'Teléfono', value: entityData.telefono || 'No especificado' },
+          { emoji: '🎮', label: 'Salas a Cargo', value: entityData.salasAsociadas && entityData.salasAsociadas.length > 0 
+            ? `${entityData.salasAsociadas.length} sala${entityData.salasAsociadas.length !== 1 ? 's' : ''}\n${entityData.salasAsociadas.map((sala, index) => 
+                `${index + 1}. ${sala}`
+              ).join('\n')}`
+            : 'Sin salas asignadas'
+          }
         ]
       },
       sala: {
@@ -308,7 +332,7 @@ export const useShareToChat = () => {
         metadata: {
           isSharedEntity: true,
           entityType: entityType,
-          entityId: entityData.id,
+          entityId: entityData.id || `${entityType}_${Date.now()}`,
           entityUrl: entityUrl, // URL directo para smart chips
           sharedBy: {
             uid: currentUser.uid,
