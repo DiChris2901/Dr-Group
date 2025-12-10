@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,21 +9,89 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Image
+  Image,
+  Animated,
+  Dimensions
 } from 'react-native';
 import { useAuth } from '../../contexts/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../contexts/ThemeContext';
+import * as LocalAuthentication from 'expo-local-authentication';
+import * as SecureStore from 'expo-secure-store';
+import * as Haptics from 'expo-haptics';
+
+const { height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isBiometricSupported, setIsBiometricSupported] = useState(false);
+  const [hasStoredCredentials, setHasStoredCredentials] = useState(false);
+
   const { signIn } = useAuth();
   const { getGradient, getPrimaryColor, lastUserPhoto } = useTheme();
+  
+  // Animaciones
+  const slideAnim = useRef(new Animated.Value(height)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // ✅ Verificar soporte biométrico y credenciales guardadas
+  useEffect(() => {
+    (async () => {
+      const compatible = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = await LocalAuthentication.isEnrolledAsync();
+      setIsBiometricSupported(compatible && enrolled);
+
+      const credentials = await SecureStore.getItemAsync('user_credentials');
+      setHasStoredCredentials(!!credentials);
+    })();
+
+    // Iniciar animación de entrada
+    Animated.parallel([
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 20,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const handleBiometricLogin = async () => {
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Autenticación Biométrica',
+        fallbackLabel: 'Usar contraseña',
+      });
+
+      if (result.success) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setLoading(true);
+        const credentialsJson = await SecureStore.getItemAsync('user_credentials');
+        if (credentialsJson) {
+          const { email: storedEmail, password: storedPassword } = JSON.parse(credentialsJson);
+          await signIn(storedEmail, storedPassword);
+        }
+      } else {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+    } catch (error) {
+      console.error('Error biométrico:', error);
+      Alert.alert('Error', 'Falló la autenticación biométrica');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert('Error', 'Por favor ingresa email y contraseña');
       return;
     }
@@ -31,8 +99,27 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await signIn(email, password);
-      // La navegación se maneja automáticamente por el AuthContext
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      // ✅ Preguntar si desea guardar credenciales para biometría
+      if (isBiometricSupported) {
+        Alert.alert(
+          'Habilitar Biometría',
+          '¿Deseas usar tu huella/rostro para iniciar sesión la próxima vez?',
+          [
+            { text: 'No', style: 'cancel' },
+            { 
+              text: 'Sí', 
+              onPress: async () => {
+                await SecureStore.setItemAsync('user_credentials', JSON.stringify({ email, password }));
+                Alert.alert('Éxito', 'Biometría habilitada');
+              }
+            }
+          ]
+        );
+      }
     } catch (error) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       console.error('Error en login:', error);
       let errorMessage = 'Error al iniciar sesión';
       
@@ -64,7 +151,7 @@ export default function LoginScreen() {
       >
         <View style={styles.content}>
           {/* Logo */}
-          <View style={styles.logoContainer}>
+          <Animated.View style={[styles.logoContainer, { opacity: fadeAnim }]}>
             {lastUserPhoto ? (
               <Image
                 source={{ uri: lastUserPhoto }}
@@ -75,18 +162,23 @@ export default function LoginScreen() {
                 <Text style={styles.logoText}>DR</Text>
               </View>
             )}
-            <Text style={styles.title}>DR Group</Text>
+            <Text style={styles.title}>Bienvenido</Text>
             <Text style={styles.subtitle}>Control de Asistencia</Text>
-          </View>
+          </Animated.View>
 
           {/* Formulario */}
-          <View style={styles.form}>
+          <Animated.View 
+            style={[
+              styles.form, 
+              { transform: [{ translateY: slideAnim }] }
+            ]}
+          >
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>📧 Email</Text>
+              <Text style={styles.inputLabel}>Email</Text>
               <TextInput
                 style={styles.input}
-                placeholder="tu.email@drgroup.com"
-                placeholderTextColor="#999"
+                placeholder="ejemplo@drgroup.com"
+                placeholderTextColor="#9CA3AF"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
@@ -96,11 +188,11 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>🔒 Contraseña</Text>
+              <Text style={styles.inputLabel}>Contraseña</Text>
               <TextInput
                 style={styles.input}
                 placeholder="••••••••"
-                placeholderTextColor="#999"
+                placeholderTextColor="#9CA3AF"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -125,15 +217,25 @@ export default function LoginScreen() {
               )}
             </TouchableOpacity>
 
+            {/* ✅ Botón Biométrico */}
+            {isBiometricSupported && hasStoredCredentials && (
+              <TouchableOpacity
+                style={[styles.biometricButton, { borderColor: primaryColor }]}
+                onPress={handleBiometricLogin}
+                disabled={loading}
+              >
+                <Text style={[styles.biometricText, { color: primaryColor }]}>
+                  👆 Ingresar con Biometría
+                </Text>
+              </TouchableOpacity>
+            )}
+
             <View style={styles.infoBox}>
               <Text style={styles.infoText}>
                 ⏱️ Al iniciar sesión se registrará tu hora de entrada
               </Text>
-              <Text style={styles.infoText}>
-                📍 Se guardará tu ubicación para control
-              </Text>
             </View>
-          </View>
+          </Animated.View>
         </View>
       </KeyboardAvoidingView>
     </LinearGradient>
@@ -149,95 +251,109 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
-    padding: 24,
+    justifyContent: 'flex-end', // ✅ Empujar contenido hacia abajo
+    padding: 0, // ✅ Eliminar padding global para que el sheet toque los bordes
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 48,
+    marginBottom: 60,
+    flex: 1,
+    justifyContent: 'center',
   },
   logoCircle: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 3,
+    marginBottom: 20,
+    borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
+    backdropFilter: 'blur(10px)', // Solo web, pero no estorba
   },
   lastUserPhoto: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    marginBottom: 16,
-    borderWidth: 3,
+    marginBottom: 20,
+    borderWidth: 4,
     borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   logoText: {
-    fontSize: 48,
-    fontWeight: 'bold',
+    fontSize: 40,
+    fontWeight: '800',
     color: '#fff',
+    letterSpacing: 2,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
+    fontSize: 36,
+    fontWeight: '800',
     color: '#fff',
     marginBottom: 8,
+    letterSpacing: 0.5,
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   subtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '500',
+    letterSpacing: 0.5,
   },
   form: {
     backgroundColor: '#fff',
-    borderRadius: 16, // ✅ Diseño sobrio - borderRadius: 2 (16px para cards)
-    padding: 24,
-    // ✅ Sombras sobrias - Nivel 3 (Modales principales)
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    paddingHorizontal: 32,
+    paddingTop: 40,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: -4,
     },
-    shadowOpacity: 0.08, // ✅ Reducido de 0.3 a 0.08 (light mode)
-    shadowRadius: 20,
-    elevation: 4, // ✅ Reducido de 8 a 4
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 20,
+    width: '100%',
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#6B7280',
     marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   input: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8, // ✅ Diseño sobrio - borderRadius: 1 (8px)
-    paddingHorizontal: 16,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
+    height: 60,
+    borderWidth: 0, // ✅ Sin bordes
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    fontSize: 17,
+    backgroundColor: '#F3F4F6', // ✅ Fondo gris claro moderno
+    color: '#1F2937',
+    fontWeight: '500',
   },
   button: {
-    height: 56,
-    // backgroundColor removido - se aplica dinámicamente desde primaryColor
-    borderRadius: 8, // ✅ Diseño sobrio - borderRadius: 1 (8px)
+    height: 60,
+    borderRadius: 20, // ✅ Rounded moderno
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
-    // ✅ Sombras sobrias - Nivel 2
+    marginTop: 12,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.08, // ✅ Reducido de 0.3 a 0.08 (diseño sobrio)
-    shadowRadius: 12,
-    elevation: 3, // ✅ Reducido de 4 a 3
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -248,11 +364,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 1,
   },
+  biometricButton: {
+    height: 56,
+    borderRadius: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 16,
+    borderWidth: 1,
+    backgroundColor: 'transparent',
+  },
+  biometricText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
   infoBox: {
     marginTop: 24,
     padding: 16,
     backgroundColor: '#f0f4ff',
-    borderRadius: 8, // ✅ Diseño sobrio - borderRadius: 1 (8px)
+    borderRadius: 16, // 🎨 Material 3 Medium (antes 8)
     borderLeftWidth: 4,
     // borderLeftColor se aplicará dinámicamente si se necesita
     borderLeftColor: '#667eea', // Mantener como fallback

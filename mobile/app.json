@@ -1,4 +1,4 @@
-﻿{
+{
   "expo": {
     "name": "DR Group Asistencia",
     "slug": "drgroup-mobile",
@@ -28,17 +28,33 @@
         "RECEIVE_BOOT_COMPLETED",
         "POST_NOTIFICATIONS",
         "NOTIFICATIONS",
-        "VIBRATE"
+        "VIBRATE",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
       ],
       "edgeToEdgeEnabled": true,
       "useNextNotificationsApi": true
+    },
+    "updates": {
+      "url": "https://u.expo.dev/169f6749-ebbd-4386-9359-b60f7afe299d",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-location",
-      "expo-notifications"
-    ]
+      "expo-notifications",
+      "expo-secure-store",
+      "expo-updates"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "169f6749-ebbd-4386-9359-b60f7afe299d"
+      }
+    }
   }
 }

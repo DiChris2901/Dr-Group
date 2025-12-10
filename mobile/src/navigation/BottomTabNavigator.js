@@ -34,31 +34,34 @@ export default function BottomTabNavigator() {
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: getPrimaryColor(),
-        tabBarInactiveTintColor: '#94a3b8', // text.tertiary
+        tabBarInactiveTintColor: '#94a3b8',
         tabBarStyle: {
-          backgroundColor: '#fff',
-          borderTopWidth: 0, // Sin borde superior
-          paddingBottom: 8,
-          paddingTop: 8,
-          height: 64, // Material 3 height
-          // Material 3 Elevation Level 2
+          position: 'absolute',
+          bottom: 20,
+          left: 20,
+          right: 20,
+          backgroundColor: '#ffffff',
+          borderRadius: 30,
+          height: 70,
+          borderTopWidth: 0,
+          paddingBottom: 10,
+          paddingTop: 10,
           shadowColor: '#000',
           shadowOffset: {
             width: 0,
-            height: -4,
+            height: 10,
           },
-          shadowOpacity: 0.08,
-          shadowRadius: 12,
-          elevation: 8,
+          shadowOpacity: 0.1,
+          shadowRadius: 20,
+          elevation: 10,
         },
         tabBarLabelStyle: {
-          fontSize: 12, // Material 3 Label Medium
+          fontSize: 11,
           fontWeight: '600',
-          letterSpacing: 0.5,
-          marginTop: 4,
+          marginBottom: 5,
         },
         tabBarIconStyle: {
-          marginTop: 4,
+          marginTop: 5,
         },
       }}
     >

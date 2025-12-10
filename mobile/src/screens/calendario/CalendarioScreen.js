@@ -1,195 +1,471 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { 
+  View, 
+  Text, 
+  FlatList, 
+  StyleSheet, 
+  RefreshControl, 
+  TouchableOpacity, 
+  Dimensions,
+  Animated,
+  Easing,
+  Platform
+} from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { onSnapshot, query, collection, orderBy } from 'firebase/firestore';
+import { onSnapshot, query, collection } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { useTheme } from '../../contexts/ThemeContext'; // ✅ FIX: Usar custom hook
-import { format } from 'date-fns';
+import { useTheme } from '../../contexts/ThemeContext';
+import { useColombianHolidays } from '../../hooks/useColombianHolidays';
+import { 
+  esHabil, 
+  calculateTenthBusinessDay, 
+  calculateThirdBusinessDay 
+} from '../../utils/dateUtils';
+import { 
+  format, 
+  isSameDay, 
+  isSameWeek, 
+  isSameMonth, 
+  addDays, 
+  addWeeks, 
+  addMonths, 
+  subDays, 
+  subWeeks, 
+  subMonths,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  parseISO,
+  isValid
+} from 'date-fns';
 import { es } from 'date-fns/locale';
-import { SobrioCard, EmptyState, ErrorState, LoadingState } from '../../components';
 
-/**
- * CalendarioScreen - Vista de eventos programados
- * 
- * Collection: calendar_events
- * Query: Real-time listener con onSnapshot
- * Funcionalidad: Solo lectura (NO crear/editar)
- * 
- * Material 3 Expressive Design aplicado
- */
-export default function CalendarioScreen({ navigation }) {
-  const { getGradient, getPrimaryColor } = useTheme(); // ✅ FIX: Usar custom hook
-  const [eventos, setEventos] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
+const { width, height } = Dimensions.get('window');
 
-  // ✅ REAL-TIME LISTENER (como DashboardCalendar.jsx del dashboard web)
+// Componente renderizado fuera para evitar "Invalid hook call"
+const EventoItem = ({ item, index }) => {
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  
   useEffect(() => {
-    try {
-      const q = query(
-        collection(db, 'calendar_events'),
-        orderBy('date', 'asc')
-      );
-
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const eventosData = [];
-          snapshot.forEach((doc) => {
-            const data = doc.data();
-            eventosData.push({
-              id: doc.id,
-              ...data,
-              date: data.date?.toDate ? data.date.toDate() : new Date(data.date)
-            });
-          });
-          
-          console.log(`📅 Eventos cargados: ${eventosData.length}`);
-          setEventos(eventosData);
-          setLoading(false);
-          setError(null);
-        },
-        (err) => {
-          console.error('❌ Error cargando eventos:', err);
-          setError(err.message);
-          setLoading(false);
-        }
-      );
-
-      return () => unsubscribe();
-    } catch (err) {
-      console.error('❌ Error configurando listener:', err);
-      setError(err.message);
-      setLoading(false);
-    }
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      friction: 8,
+      tension: 40,
+      delay: index * 50,
+      useNativeDriver: true,
+    }).start();
   }, []);
+
+  const getPriorityColor = (priority, type) => {
+    if (type === 'holiday') return '#9c27b0'; // Morado para festivos
+    if (type === 'system') return '#2196f3'; // Azul para sistema
+    if (type === 'commitment') {
+      if (priority === 'paid') return '#4caf50';
+      if (priority === 'overdue') return '#f44336';
+      return '#ff9800';
+    }
+    
+    switch (priority) {
+      case 'urgent': return '#ff4757';
+      case 'high': return '#ffa502';
+      case 'medium': return '#eccc68';
+      case 'low': return '#2ed573';
+      default: return '#a4b0be';
+    }
+  };
+
+  return (
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <View style={styles.card}>
+        <View style={[styles.priorityStrip, { backgroundColor: getPriorityColor(item.priority, item.type) }]} />
+        <View style={styles.cardContent}>
+          <View style={styles.dateBox}>
+            <Text style={styles.dayText}>{format(item.date, 'dd')}</Text>
+            <Text style={styles.monthText}>{format(item.date, 'MMM', { locale: es }).toUpperCase()}</Text>
+          </View>
+          <View style={styles.eventInfo}>
+            <Text style={styles.eventTitle}>{item.title}</Text>
+            <Text style={styles.eventTime}>
+              {item.allDay ? 'Todo el día' : format(item.date, 'h:mm a', { locale: es })} 
+              {item.location ? ` • ${item.location}` : ''}
+            </Text>
+            
+            {item.type === 'commitment' ? (
+              <View style={{ marginTop: 4 }}>
+                <Text style={styles.companyText}>🏢 {item.companyName || 'Sin empresa'}</Text>
+                <Text style={[styles.amountText, { color: getPriorityColor(item.priority, item.type) }]}>
+                  {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(item.amount || 0)}
+                </Text>
+              </View>
+            ) : (
+              item.description && (
+                <Text style={styles.eventDesc} numberOfLines={2}>{item.description}</Text>
+              )
+            )}
+          </View>
+        </View>
+      </View>
+    </Animated.View>
+  );
+};
+
+export default function CalendarioScreen({ navigation }) {
+  const { getGradient, getPrimaryColor } = useTheme();
+  const [allEventos, setAllEventos] = useState([]);
+  const [filteredEventos, setFilteredEventos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Data Sources
+  const [customEvents, setCustomEvents] = useState([]);
+  const [commitments, setCommitments] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  
+  // View State
+  const [viewMode, setViewMode] = useState('month'); // 'day', 'week', 'month'
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  
+  const holidays = useColombianHolidays(selectedDate.getFullYear());
+
+  // Animations
+  const slideAnim = useRef(new Animated.Value(height * 0.3)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.exp),
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  // 1. Fetch Custom Events
+  useEffect(() => {
+    const q = query(collection(db, 'calendar_events'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const events = snapshot.docs.map(doc => {
+        const data = doc.data();
+        let eventDate = new Date();
+        if (data.date?.toDate) eventDate = data.date.toDate();
+        else if (data.date instanceof Date) eventDate = data.date;
+        else if (typeof data.date === 'string') eventDate = new Date(data.date);
+        else if (data.date?.seconds) eventDate = new Date(data.date.seconds * 1000);
+
+        return { id: doc.id, ...data, date: eventDate, type: 'custom' };
+      });
+      setCustomEvents(events);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 2. Fetch Commitments
+  useEffect(() => {
+    const q = query(collection(db, 'commitments'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const comms = snapshot.docs.map(doc => {
+        const data = doc.data();
+        let dueDate = new Date();
+        if (data.dueDate?.toDate) dueDate = data.dueDate.toDate();
+        else if (typeof data.dueDate === 'string') dueDate = new Date(data.dueDate);
+        
+        return { id: doc.id, ...data, dueDate };
+      });
+      setCommitments(comms);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 3. Fetch Companies (Contracts)
+  useEffect(() => {
+    const q = query(collection(db, 'companies'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const comps = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return { id: doc.id, ...data };
+      });
+      setCompanies(comps);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // 4. Combine and Generate Events
+  useEffect(() => {
+    if (!holidays.length) return;
+
+    const generatedEvents = [];
+    const year = selectedDate.getFullYear();
+
+    // --- A. Festivos ---
+    holidays.forEach(h => {
+      generatedEvents.push({
+        id: `holiday-${h.date}`,
+        title: `🇨🇴 ${h.name}`,
+        date: parseISO(h.date),
+        allDay: true,
+        type: 'holiday',
+        priority: 'low',
+        description: 'Festivo Nacional'
+      });
+    });
+
+    // --- B. Eventos del Sistema (Coljuegos, UIAF, Parafiscales) ---
+    // Generamos para todos los meses del año actual para permitir navegación fluida
+    for (let month = 0; month < 12; month++) {
+      // 1. Coljuegos (10mo día hábil)
+      const coljuegosDate = calculateTenthBusinessDay(year, month + 1, holidays);
+      generatedEvents.push({
+        id: `coljuegos-${year}-${month}`,
+        title: '🎰 Pago Coljuegos',
+        date: coljuegosDate,
+        allDay: true,
+        type: 'system',
+        priority: 'high',
+        description: 'Vencimiento pago Derechos de Explotación y Gastos de Administración'
+      });
+
+      // 2. Parafiscales (3er día hábil)
+      const parafiscalesDate = calculateThirdBusinessDay(year, month + 1, holidays);
+      generatedEvents.push({
+        id: `parafiscales-${year}-${month}`,
+        title: '👥 Parafiscales',
+        date: parafiscalesDate,
+        allDay: true,
+        type: 'system',
+        priority: 'high',
+        description: 'Pago seguridad social y parafiscales'
+      });
+
+      // 3. UIAF (Día 10 del mes)
+      const uiafDate = new Date(year, month, 10);
+      generatedEvents.push({
+        id: `uiaf-${year}-${month}`,
+        title: '👮 Reporte UIAF',
+        date: uiafDate,
+        allDay: true,
+        type: 'system',
+        priority: 'medium',
+        description: 'Reporte SIREL'
+      });
+    }
+
+    // --- C. Compromisos ---
+    const commitmentEvents = commitments.map(comm => {
+      const isPaid = comm.status === 'paid';
+      const isOverdue = !isPaid && new Date(comm.dueDate) < new Date();
+      
+      // Formatear monto
+      const formattedAmount = new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0
+      }).format(comm.amount || 0);
+
+      return {
+        id: `comm-${comm.id}`,
+        title: comm.concept || 'Compromiso',
+        date: comm.dueDate,
+        allDay: true,
+        type: 'commitment',
+        priority: isPaid ? 'paid' : (isOverdue ? 'overdue' : 'pending'),
+        description: `${comm.companyName || 'Sin empresa'}\n${formattedAmount}`,
+        location: 'Finanzas',
+        amount: comm.amount,
+        companyName: comm.companyName
+      };
+    });
+
+    // --- D. Contratos ---
+    const contractEvents = companies
+      .filter(c => c.contractExpirationDate)
+      .map(comp => {
+        let expDate;
+        if (comp.contractExpirationDate?.toDate) expDate = comp.contractExpirationDate.toDate();
+        else if (typeof comp.contractExpirationDate === 'string') expDate = new Date(comp.contractExpirationDate);
+        
+        if (!isValid(expDate)) return null;
+
+        return {
+          id: `contract-${comp.id}`,
+          title: `📄 Contrato ${comp.name}`,
+          date: expDate,
+          allDay: true,
+          type: 'system',
+          priority: 'urgent',
+          description: 'Vencimiento de contrato'
+        };
+      })
+      .filter(Boolean);
+
+    // --- Merge All ---
+    const finalEvents = [
+      ...customEvents,
+      ...generatedEvents,
+      ...commitmentEvents,
+      ...contractEvents
+    ];
+
+    // Sort by date
+    finalEvents.sort((a, b) => a.date - b.date);
+
+    setAllEventos(finalEvents);
+    setLoading(false);
+
+  }, [customEvents, commitments, companies, holidays, selectedDate]);
+
+  // Filter events
+  useEffect(() => {
+    const filtered = allEventos.filter(event => {
+      const eventDate = event.date;
+      if (!isValid(eventDate)) return false;
+
+      switch (viewMode) {
+        case 'day':
+          return isSameDay(eventDate, selectedDate);
+        case 'week':
+          return isSameWeek(eventDate, selectedDate, { weekStartsOn: 1 });
+        case 'month':
+          return isSameMonth(eventDate, selectedDate);
+        default:
+          return true;
+      }
+    });
+    setFilteredEventos(filtered);
+  }, [allEventos, viewMode, selectedDate]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    // El listener real-time se encarga de actualizar automáticamente
+    // Re-fetch logic is handled by onSnapshot automatically, just fake delay
     setTimeout(() => setRefreshing(false), 1000);
   };
 
-  // Función para obtener color según prioridad
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'urgent': return '#f44336'; // Rojo
-      case 'high': return '#ff9800';   // Naranja
-      case 'medium': return '#ffc107'; // Amarillo
-      case 'low': return '#4caf50';    // Verde
-      default: return '#9e9e9e';       // Gris
+  const handlePrev = () => {
+    switch (viewMode) {
+      case 'day': setSelectedDate(subDays(selectedDate, 1)); break;
+      case 'week': setSelectedDate(subWeeks(selectedDate, 1)); break;
+      case 'month': setSelectedDate(subMonths(selectedDate, 1)); break;
     }
   };
 
-  // Función para obtener etiqueta de prioridad
-  const getPriorityLabel = (priority) => {
-    switch (priority) {
-      case 'urgent': return 'URGENTE';
-      case 'high': return 'ALTA';
-      case 'medium': return 'MEDIA';
-      case 'low': return 'BAJA';
-      default: return 'NORMAL';
+  const handleNext = () => {
+    switch (viewMode) {
+      case 'day': setSelectedDate(addDays(selectedDate, 1)); break;
+      case 'week': setSelectedDate(addWeeks(selectedDate, 1)); break;
+      case 'month': setSelectedDate(addMonths(selectedDate, 1)); break;
     }
   };
 
-  // Renderizar cada evento
-  const renderEvento = ({ item }) => (
-    <SobrioCard style={styles.eventoCard} borderColor={getPriorityColor(item.priority)}>
-      <View style={styles.eventoHeader}>
-        <View style={[styles.priorityIndicator, { backgroundColor: getPriorityColor(item.priority) }]} />
-        <View style={styles.eventoContent}>
-          <View style={styles.eventoTitleRow}>
-            <Text style={styles.eventoTitle} numberOfLines={2}>
-              {item.title}
-            </Text>
-            <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(item.priority) + '1A' }]}>
-              <Text style={[styles.priorityBadgeText, { color: getPriorityColor(item.priority) }]}>
-                {getPriorityLabel(item.priority)}
-              </Text>
-            </View>
-          </View>
-          
-          <View style={styles.eventoDateRow}>
-            <MaterialIcons name="event" size={16} color="#64748b" />
-            <Text style={styles.eventoDate}>
-              {format(item.date, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
-            </Text>
-          </View>
-          
-          {item.description && (
-            <Text style={styles.eventoDescription} numberOfLines={3}>
-              {item.description}
-            </Text>
-          )}
-          
-          {item.createdByName && (
-            <View style={styles.eventoFooter}>
-              <MaterialIcons name="person-outline" size={14} color="#94a3b8" />
-              <Text style={styles.eventoCreator}>
-                Creado por {item.createdByName}
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </SobrioCard>
-  );
-
-  // Estados de carga
-  if (loading) return <LoadingState message="Cargando eventos..." />;
-  if (error) return <ErrorState message={error} onRetry={() => setLoading(true)} />;
-  if (eventos.length === 0) return (
-    <View style={styles.container}>
-      <LinearGradient
-        colors={getGradient()}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
-        <MaterialIcons name="event" size={32} color="#fff" />
-        <Text style={styles.headerTitle}>Calendario</Text>
-        <Text style={styles.headerSubtitle}>Eventos programados</Text>
-      </LinearGradient>
-      <EmptyState 
-        icon="event-available" 
-        message="No hay eventos programados" 
-        iconColor={getPrimaryColor()}
-      />
-    </View>
-  );
+  const getDateLabel = () => {
+    switch (viewMode) {
+      case 'day':
+        return format(selectedDate, "EEEE d 'de' MMMM", { locale: es });
+      case 'week':
+        const start = startOfWeek(selectedDate, { weekStartsOn: 1 });
+        const end = endOfWeek(selectedDate, { weekStartsOn: 1 });
+        return `${format(start, 'd MMM')} - ${format(end, 'd MMM', { locale: es })}`;
+      case 'month':
+        return format(selectedDate, 'MMMM yyyy', { locale: es });
+      default:
+        return '';
+    }
+  };
 
   return (
     <View style={styles.container}>
-      {/* Header con gradiente */}
       <LinearGradient
         colors={getGradient()}
+        style={styles.headerGradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
-        style={styles.header}
       >
-        <MaterialIcons name="event" size={32} color="#fff" />
-        <Text style={styles.headerTitle}>Calendario</Text>
-        <Text style={styles.headerSubtitle}>{eventos.length} evento{eventos.length !== 1 ? 's' : ''} programado{eventos.length !== 1 ? 's' : ''}</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Calendario</Text>
+          
+          {/* View Selector */}
+          <View style={styles.viewSelector}>
+            {['day', 'week', 'month'].map((mode) => (
+              <TouchableOpacity
+                key={mode}
+                style={[
+                  styles.viewOption,
+                  viewMode === mode && styles.viewOptionActive
+                ]}
+                onPress={() => setViewMode(mode)}
+              >
+                <Text style={[
+                  styles.viewOptionText,
+                  viewMode === mode && styles.viewOptionTextActive
+                ]}>
+                  {mode === 'day' ? 'Día' : mode === 'week' ? 'Semana' : 'Mes'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Date Navigator */}
+          <View style={styles.dateNavigator}>
+            <TouchableOpacity onPress={handlePrev} style={styles.navButton}>
+              <MaterialIcons name="chevron-left" size={28} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.dateLabel}>{getDateLabel()}</Text>
+            <TouchableOpacity onPress={handleNext} style={styles.navButton}>
+              <MaterialIcons name="chevron-right" size={28} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
       </LinearGradient>
 
-      {/* Lista de eventos */}
-      <FlatList
-        data={eventos}
-        renderItem={renderEvento}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
-            onRefresh={onRefresh}
-            colors={[getPrimaryColor()]}
-            tintColor={getPrimaryColor()}
-          />
+      <Animated.View style={[
+        styles.sheetContainer,
+        {
+          transform: [{ translateY: slideAnim }],
+          opacity: fadeAnim
         }
-        showsVerticalScrollIndicator={false}
-      />
+      ]}>
+        <FlatList
+          data={filteredEventos}
+          renderItem={({ item, index }) => <EventoItem item={item} index={index} />}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[getPrimaryColor()]}
+              tintColor={getPrimaryColor()}
+            />
+          }
+          ListEmptyComponent={
+            !loading && (
+              <View style={styles.emptyState}>
+                <MaterialIcons name="event-busy" size={64} color="#ccc" />
+                <Text style={styles.emptyText}>No hay eventos para esta fecha</Text>
+                <TouchableOpacity 
+                  style={[styles.resetButton, { borderColor: getPrimaryColor() }]}
+                  onPress={() => {
+                    setViewMode('month');
+                    setSelectedDate(new Date());
+                  }}
+                >
+                  <Text style={[styles.resetText, { color: getPrimaryColor() }]}>
+                    Ir a Hoy
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )
+          }
+        />
+      </Animated.View>
     </View>
   );
 }
@@ -197,111 +473,166 @@ export default function CalendarioScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5'
+    backgroundColor: '#f5f6fa',
   },
-  header: {
-    paddingTop: 48,
-    paddingBottom: 28,
-    paddingHorizontal: 24,
-    borderBottomLeftRadius: 32, // 🎨 Material 3 Large
-    borderBottomRightRadius: 32,
-    // Material 3 Elevation Level 2
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 5,
+  headerGradient: {
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    zIndex: 10,
+  },
+  headerContent: {
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 30, // 🎨 Material 3 Headline Medium
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: 'bold',
     color: '#fff',
-    marginTop: 12,
-    letterSpacing: 0.3,
+    marginBottom: 20,
   },
-  headerSubtitle: {
-    fontSize: 15, // 🎨 Material 3 Body Medium
-    fontWeight: '400',
-    color: 'rgba(255,255,255,0.9)',
-    marginTop: 4,
-    letterSpacing: 0.2,
-  },
-  list: {
-    padding: 16,
-    paddingBottom: 24
-  },
-  eventoCard: {
-    marginBottom: 12
-  },
-  eventoHeader: {
-    flexDirection: 'row'
-  },
-  priorityIndicator: {
-    width: 4,
-    borderRadius: 2,
-    marginRight: 16
-  },
-  eventoContent: {
-    flex: 1
-  },
-  eventoTitleRow: {
+  viewSelector: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-    gap: 12
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 20,
+    padding: 4,
+    marginBottom: 20,
+    width: '100%',
   },
-  eventoTitle: {
+  viewOption: {
     flex: 1,
-    fontSize: 18, // 🎨 Material 3 Title Medium
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 16,
+  },
+  viewOptionActive: {
+    backgroundColor: '#fff',
+  },
+  viewOptionText: {
+    color: 'rgba(255,255,255,0.8)',
     fontWeight: '600',
-    color: '#1e293b',
-    lineHeight: 24,
-    letterSpacing: 0.2,
+    fontSize: 14,
   },
-  priorityBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12, // 🎨 Material 3 Medium
+  viewOptionTextActive: {
+    color: '#667eea',
+    fontWeight: 'bold',
   },
-  priorityBadgeText: {
-    fontSize: 11, // 🎨 Material 3 Label Small
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  eventoDateRow: {
+  dateNavigator: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 12
+    justifyContent: 'space-between',
+    width: '100%',
   },
-  eventoDate: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#64748b',
-    letterSpacing: 0.2,
+  navButton: {
+    padding: 8,
   },
-  eventoDescription: {
-    fontSize: 14,
-    fontWeight: '400',
-    color: '#64748b',
-    lineHeight: 20,
-    letterSpacing: 0.2,
-    marginBottom: 12
+  dateLabel: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    textTransform: 'capitalize',
   },
-  eventoFooter: {
+  sheetContainer: {
+    flex: 1,
+    marginTop: -20,
+    backgroundColor: '#f5f6fa',
+    borderTopLeftRadius: 30,
+    borderTopTopRightRadius: 30,
+    paddingTop: 20,
+  },
+  listContent: {
+    padding: 20,
+    paddingBottom: 100,
+  },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginBottom: 16,
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 4
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  eventoCreator: {
+  priorityStrip: {
+    width: 6,
+    height: '100%',
+  },
+  cardContent: {
+    flex: 1,
+    padding: 16,
+    flexDirection: 'row',
+  },
+  dateBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingRight: 16,
+    borderRightWidth: 1,
+    borderRightColor: '#f0f0f0',
+    marginRight: 16,
+    minWidth: 60,
+  },
+  dayText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2d3436',
+  },
+  monthText: {
     fontSize: 12,
+    fontWeight: '600',
+    color: '#636e72',
+    marginTop: 4,
+  },
+  eventInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  eventTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2d3436',
+    marginBottom: 4,
+  },
+  eventTime: {
+    fontSize: 12,
+    color: '#636e72',
+    marginBottom: 4,
+  },
+  eventDesc: {
+    fontSize: 12,
+    color: '#b2bec3',
+  },
+  companyText: {
+    fontSize: 13,
+    color: '#636e72',
+    marginBottom: 2,
     fontWeight: '500',
-    color: '#94a3b8',
-    letterSpacing: 0.3,
-  }
+  },
+  amountText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 60,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#b2bec3',
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  resetButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+    borderWidth: 1,
+  },
+  resetText: {
+    fontWeight: '600',
+  },
 });

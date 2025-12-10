@@ -4,10 +4,12 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged 
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc, collection, addDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, addDoc, Timestamp, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../services/firebase';
 import * as Location from 'expo-location';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AuthContext = createContext({});
 
@@ -16,15 +18,87 @@ export const AuthProvider = ({ children }) => {
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeSession, setActiveSession] = useState(null);
+  const [isConnected, setIsConnected] = useState(true);
+
+  // ✅ Monitorear conexión y sincronizar
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsConnected(state.isConnected);
+      if (state.isConnected) {
+        syncPendingActions();
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  const syncPendingActions = async () => {
+    try {
+      const pending = await AsyncStorage.getItem('pending_actions');
+      if (!pending) return;
+
+      const actions = JSON.parse(pending);
+      if (actions.length === 0) return;
+
+      console.log('🔄 Sincronizando acciones pendientes:', actions.length);
+      
+      for (const action of actions) {
+        // Procesar cada acción según su tipo
+        // Nota: Esto es simplificado. En producción idealmente se re-ejecuta la lógica completa
+        // o se usa un endpoint de API que acepte timestamps pasados.
+        // Aquí solo actualizamos Firestore con los datos guardados.
+        
+        if (action.type === 'update_session') {
+          await updateDoc(doc(db, 'asistencias', action.sessionId), action.data);
+        } else if (action.type === 'create_session') {
+          // Crear sesión pendiente
+          await addDoc(collection(db, 'asistencias'), action.data);
+        }
+      }
+
+      await AsyncStorage.removeItem('pending_actions');
+      Alert.alert('Sincronización', 'Tus registros offline se han subido correctamente.');
+    } catch (error) {
+      console.error('Error sincronizando:', error);
+    }
+  };
+
+  const queueAction = async (action) => {
+    try {
+      const pending = await AsyncStorage.getItem('pending_actions');
+      const actions = pending ? JSON.parse(pending) : [];
+      actions.push(action);
+      await AsyncStorage.setItem('pending_actions', JSON.stringify(actions));
+      Alert.alert('Modo Offline', 'Registro guardado localmente. Se subirá cuando tengas internet.');
+    } catch (error) {
+      console.error('Error encolando acción:', error);
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setUser(firebaseUser);
         // Cargar perfil completo del usuario desde Firestore
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-          setUserProfile(userDoc.data());
+        try {
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          if (userDoc.exists()) {
+            setUserProfile(userDoc.data());
+          }
+          
+          // ✅ Cargar sesión activa si existe (Persistencia)
+          const q = query(
+            collection(db, 'asistencias'), 
+            where('uid', '==', firebaseUser.uid),
+            where('estadoActual', '!=', 'finalizado')
+          );
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            const sessionDoc = querySnapshot.docs[0];
+            setActiveSession({ ...sessionDoc.data(), id: sessionDoc.id });
+          }
+        } catch (e) {
+          console.log('Error cargando datos iniciales (posible offline):', e);
+          // Intentar cargar de AsyncStorage si falla Firestore
         }
       } else {
         setUser(null);
@@ -159,11 +233,21 @@ export const AuthProvider = ({ children }) => {
         }
       ];
 
-      await updateDoc(doc(db, 'asistencias', activeSession.id), {
+      const updateData = {
         breaks: updatedBreaks,
         estadoActual: 'break',
         updatedAt: Timestamp.now()
-      });
+      };
+
+      if (isConnected) {
+        await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
+      } else {
+        await queueAction({
+          type: 'update_session',
+          sessionId: activeSession.id,
+          data: updateData
+        });
+      }
 
       setActiveSession({
         ...activeSession,
@@ -202,11 +286,21 @@ export const AuthProvider = ({ children }) => {
         duracion: duracionHMS
       };
 
-      await updateDoc(doc(db, 'asistencias', activeSession.id), {
+      const updateData = {
         breaks: updatedBreaks,
         estadoActual: 'trabajando',
         updatedAt: Timestamp.now()
-      });
+      };
+
+      if (isConnected) {
+        await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
+      } else {
+        await queueAction({
+          type: 'update_session',
+          sessionId: activeSession.id,
+          data: updateData
+        });
+      }
 
       setActiveSession({
         ...activeSession,
@@ -225,7 +319,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const almuerzoInicio = Timestamp.now(); // ✅ Usar Timestamp de Firestore
 
-      await updateDoc(doc(db, 'asistencias', activeSession.id), {
+      const updateData = {
         almuerzo: {
           inicio: almuerzoInicio,
           fin: null,
@@ -233,7 +327,17 @@ export const AuthProvider = ({ children }) => {
         },
         estadoActual: 'almuerzo',
         updatedAt: Timestamp.now()
-      });
+      };
+
+      if (isConnected) {
+        await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
+      } else {
+        await queueAction({
+          type: 'update_session',
+          sessionId: activeSession.id,
+          data: updateData
+        });
+      }
 
       setActiveSession({
         ...activeSession,
@@ -266,7 +370,7 @@ export const AuthProvider = ({ children }) => {
       const segundos = Math.floor((diffMs / 1000) % 60);
       const duracionHMS = `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`;
 
-      await updateDoc(doc(db, 'asistencias', activeSession.id), {
+      const updateData = {
         almuerzo: {
           ...activeSession.almuerzo,
           fin: fin,
@@ -274,7 +378,17 @@ export const AuthProvider = ({ children }) => {
         },
         estadoActual: 'trabajando',
         updatedAt: Timestamp.now()
-      });
+      };
+
+      if (isConnected) {
+        await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
+      } else {
+        await queueAction({
+          type: 'update_session',
+          sessionId: activeSession.id,
+          data: updateData
+        });
+      }
 
       setActiveSession({
         ...activeSession,
@@ -342,7 +456,7 @@ export const AuthProvider = ({ children }) => {
       const segundos = Math.floor((tiempoTrabajadoMs / 1000) % 60);
       const horasTrabajadas = `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`;
 
-      await updateDoc(doc(db, 'asistencias', activeSession.id), {
+      const updateData = {
         salida: {
           hora: salidaTimestamp, // ✅ Usar Timestamp de Firestore
           ubicacion: location
@@ -350,7 +464,17 @@ export const AuthProvider = ({ children }) => {
         horasTrabajadas: horasTrabajadas,
         estadoActual: 'finalizado',
         updatedAt: Timestamp.now()
-      });
+      };
+
+      if (isConnected) {
+        await updateDoc(doc(db, 'asistencias', activeSession.id), updateData);
+      } else {
+        await queueAction({
+          type: 'update_session',
+          sessionId: activeSession.id,
+          data: updateData
+        });
+      }
 
       setActiveSession(null);
       

@@ -5,22 +5,15 @@ import { AuthProvider } from './src/contexts/AuthContext';
 import { ThemeProvider } from './src/contexts/ThemeContext';
 import { NotificationsProvider } from './src/contexts/NotificationsContext';
 import AppNavigator from './src/navigation/AppNavigator';
-
-// ✅ Suprimir warning de Expo Go sobre push notifications
-const originalWarn = console.warn;
-console.warn = (...args) => {
-  if (
-    typeof args[0] === 'string' &&
-    (args[0].includes('expo-notifications') || args[0].includes('Expo Go')) &&
-    (args[0].includes('Push notifications') || args[0].includes('remote notifications'))
-  ) {
-    return; // Ignorar este warning específico
-  }
-  originalWarn(...args);
-};
+import { checkForUpdates } from './src/services/UpdateService';
 
 export default function App() {
   const navigationRef = useRef(null);
+
+  // ✅ Verificar actualizaciones OTA al iniciar
+  useEffect(() => {
+    checkForUpdates();
+  }, []);
 
   // ✅ PASO 3.6: Manejar tap en notificaciones
   useEffect(() => {

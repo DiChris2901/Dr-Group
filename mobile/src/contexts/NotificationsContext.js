@@ -30,20 +30,6 @@ export const NotificationsProvider = ({ children }) => {
   const responseListener = useRef();
 
   useEffect(() => {
-    // ✅ Suprimir warning de Expo Go sobre push notifications (usamos solo locales)
-    const originalWarn = console.warn;
-    console.warn = (...args) => {
-      if (
-        typeof args[0] === 'string' && 
-        args[0].includes('expo-notifications') &&
-        args[0].includes('Expo Go')
-      ) {
-        // Ignorar este warning específico
-        return;
-      }
-      originalWarn(...args);
-    };
-
     // ✅ Pedir permisos para notificaciones locales
     requestNotificationPermissions();
 
@@ -65,9 +51,6 @@ export const NotificationsProvider = ({ children }) => {
     });
 
     return () => {
-      // ✅ Restaurar console.warn original
-      console.warn = originalWarn;
-      
       // ✅ Usar .remove() en lugar de removeNotificationSubscription
       if (notificationListener.current) {
         notificationListener.current.remove();
