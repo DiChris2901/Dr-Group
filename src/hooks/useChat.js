@@ -58,16 +58,26 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
       const messagesQuery = query(
         collection(db, 'messages'),
         where('conversationId', '==', conversationId),
-        orderBy('createdAt', 'desc'),
+        orderBy('createdAt', 'desc'), // 🔥 DESC para cargar los mensajes MÁS RECIENTES primero
         firestoreLimit(messagesPerPage)
       );
 
       const unsubscribe = onSnapshot(
         messagesQuery,
+        {
+          // 🔥 FORZAR SINCRONIZACIÓN EN TIEMPO REAL
+          includeMetadataChanges: false // Solo recibir cambios confirmados del servidor
+        },
         (snapshot) => {
-          // 📊 Log de lecturas para monitoreo (solo si no es cache ni pendiente)
-          if (!snapshot.metadata.fromCache && !snapshot.metadata.hasPendingWrites) {
-            console.log(`📨 Cargados ${snapshot.docs.length} mensajes desde servidor`);
+          // 🚫 IGNORAR actualizaciones de solo metadata (pendingWrites) para evitar duplicados
+          if (snapshot.metadata.hasPendingWrites) {
+            console.log('⏳ Cambios pendientes de escritura, esperando confirmación del servidor...');
+            return;
+          }
+
+          // 📊 Log de lecturas para monitoreo
+          if (!snapshot.metadata.fromCache) {
+            console.log(`📨 Cargados ${snapshot.docs.length} mensajes desde servidor (tiempo real)`);
           }
 
           // 🚀 OPTIMIZACIÓN: Usar docChanges() para actualizaciones incrementales
@@ -102,6 +112,9 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
             };
           };
 
+          // 🔄 Procesar todos los documentos y REVERTIR el orden (desc → asc para mostrar antiguos arriba)
+          const processedMessages = snapshot.docs.map(processDoc).reverse();
+          
           setMessages(prevMessages => {
             let updatedMessages = [...prevMessages];
 
@@ -114,34 +127,37 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
                   m._optimistic && 
                   m.senderId === processedMessage.senderId &&
                   m.text === processedMessage.text &&
-                  Math.abs(m.createdAt - processedMessage.createdAt) < 5000 // Mismo mensaje en ventana de 5 seg
+                  Math.abs(m.createdAt - processedMessage.createdAt) < 5000
                 );
 
                 if (tempIndex !== -1) {
                   // ✅ Reemplazar mensaje temporal con el real
                   updatedMessages[tempIndex] = processedMessage;
                 } else {
-                  // ✅ Agregar nuevo mensaje en orden cronológico
-                  const insertIndex = updatedMessages.findIndex(m => 
-                    m.createdAt > processedMessage.createdAt
-                  );
-                  if (insertIndex === -1) {
+                  // ✅ Verificar si el mensaje ya existe (evitar duplicados)
+                  const existingIndex = updatedMessages.findIndex(m => m.id === processedMessage.id);
+                  if (existingIndex === -1) {
+                    // Agregar mensaje nuevo
                     updatedMessages.push(processedMessage);
-                  } else {
-                    updatedMessages.splice(insertIndex, 0, processedMessage);
                   }
                 }
               } else if (change.type === 'modified') {
-                // Actualizar mensaje existente manteniendo su posición
+                // Actualizar mensaje existente
                 const existingIndex = updatedMessages.findIndex(m => m.id === processedMessage.id);
                 if (existingIndex !== -1) {
                   updatedMessages[existingIndex] = processedMessage;
                 }
               } else if (change.type === 'removed') {
-                // 🚀 OPTIMISTIC UI: El mensaje ya fue eliminado, solo confirmar
-                // Filtrar por si acaso no se eliminó antes (edge case)
+                // Eliminar mensaje
                 updatedMessages = updatedMessages.filter(m => m.id !== change.doc.id);
               }
+            });
+
+            // 🔄 CRÍTICO: Re-ordenar SIEMPRE por createdAt ASCENDENTE (mensajes antiguos primero, recientes al final)
+            updatedMessages.sort((a, b) => {
+              const timeA = a.createdAt instanceof Date ? a.createdAt.getTime() : a.createdAt;
+              const timeB = b.createdAt instanceof Date ? b.createdAt.getTime() : b.createdAt;
+              return timeA - timeB; // Ascendente: antiguos arriba, recientes abajo
             });
 
             return updatedMessages;
@@ -170,7 +186,7 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
     }
   }, [conversationId, currentUser?.uid, messagesPerPage, markConversationAsRead, addNotification]);
 
-  // ✅ FUNCIÓN: Cargar más mensajes (paginación)
+  // ✅ FUNCIÓN: Cargar más mensajes (paginación hacia arriba - mensajes antiguos)
   const loadMoreMessages = useCallback(async () => {
     if (!hasMore || !lastVisible || loading) return;
 
@@ -187,29 +203,19 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
 
       const snapshot = await getDocs(messagesQuery);
 
-      // 📊 Log de lecturas adicionales
-      console.log(`📨 Cargando ${snapshot.docs.length} mensajes antiguos más (${snapshot.metadata.fromCache ? 'cache' : 'servidor'})`);
+      console.log(`📨 Cargando ${snapshot.docs.length} mensajes antiguos más`);
 
       const moreMessagesData = snapshot.docs.map(docSnap => {
         const data = docSnap.data();
-        
-        // Manejar createdAt de forma segura
-        let createdAt;
-        if (data.createdAt) {
-          createdAt = data.createdAt.toDate();
-        } else {
-          createdAt = new Date();
-        }
-
         return {
           id: docSnap.id,
           ...data,
-          createdAt
+          createdAt: data.createdAt ? data.createdAt.toDate() : new Date()
         };
-      });
+      }).reverse(); // Revertir porque vienen en desc
 
-      // ✅ ORDEN: desc trae mensajes más antiguos, reverse y agregar al INICIO del array
-      setMessages(prev => [...moreMessagesData.reverse(), ...prev]);
+      // Agregar mensajes antiguos al INICIO
+      setMessages(prev => [...moreMessagesData, ...prev]);
       setLastVisible(snapshot.docs[snapshot.docs.length - 1]);
       setHasMore(snapshot.docs.length === messagesPerPage);
       setLoading(false);
@@ -286,7 +292,7 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
           readBy: [],
           readAt: null
         },
-        createdAt: new Date(),
+        createdAt: serverTimestamp(), // 🔥 USAR TIMESTAMP DEL SERVIDOR para garantizar orden correcto
         metadata: {
           editedAt: null,
           deletedAt: null,
