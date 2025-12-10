@@ -109,12 +109,9 @@ export const useChatNotifications = (isDrawerOpen) => {
         
         // Si no hemos procesado este mensaje antes
         if (!previousMessagesRef.current[messageKey]) {
-          // 🔔 Obtener nombre del remitente
-          const otherUserId = conversation.participantIds?.find(
-            id => id !== currentUser.uid
-          );
-          const senderName = conversation.participantNames?.[otherUserId] || 'Usuario';
+          // 🔔 Obtener nombre del remitente REAL (no el primer participante)
           const senderId = lastMessage.senderId;
+          const senderName = conversation.participantNames?.[senderId] || 'Usuario';
 
           // 🛡️ THROTTLING: Evitar spam del mismo remitente (3 segundos mínimo)
           const lastTime = lastNotificationByUser.current[senderId];
