@@ -56,8 +56,10 @@ export default function ReportesScreen() {
   }, []);
 
   useEffect(() => {
-    cargarDatos();
-  }, [rangoSeleccionado]);
+    if (userProfile) {
+      cargarDatos();
+    }
+  }, [rangoSeleccionado, userProfile]);
 
   const cargarDatos = async () => {
     try {
@@ -76,11 +78,25 @@ export default function ReportesScreen() {
       const fechaDesdeStr = format(fechaDesde, 'yyyy-MM-dd');
       const fechaHastaStr = format(fechaHasta, 'yyyy-MM-dd');
       
-      const q = query(
+      let q = query(
         collection(db, 'asistencias'),
         where('fecha', '>=', fechaDesdeStr),
         where('fecha', '<=', fechaHastaStr)
       );
+
+      // ✅ FILTRO DE SEGURIDAD: Si no es admin, solo ver sus propios datos
+      if (userProfile?.role !== 'ADMIN' && userProfile?.role !== 'SUPER_ADMIN') {
+        if (!userProfile?.uid) {
+          setLoading(false);
+          return;
+        }
+        q = query(
+          collection(db, 'asistencias'),
+          where('uid', '==', userProfile.uid),
+          where('fecha', '>=', fechaDesdeStr),
+          where('fecha', '<=', fechaHastaStr)
+        );
+      }
       
       const querySnapshot = await getDocs(q);
       const asistencias = querySnapshot.docs.map(doc => doc.data());

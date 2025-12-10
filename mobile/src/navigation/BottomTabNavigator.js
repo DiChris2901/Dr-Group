@@ -3,12 +3,14 @@ import { Animated } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
 
 // Screens
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
 import CalendarioScreen from '../screens/calendario/CalendarioScreen';
 import AsistenciasScreen from '../screens/asistencias/AsistenciasScreen';
 import ReportesScreen from '../screens/reportes/ReportesScreen';
+import NovedadesScreen from '../screens/novedades/NovedadesScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -32,23 +34,25 @@ const TabIcon = ({ name, color, size, focused }) => {
 };
 
 /**
- * BottomTabNavigator - Navegación principal con 4 tabs
+ * BottomTabNavigator - Navegación principal con tabs dinámicos por rol
  * 
- * Tabs:
- * 1. Jornada (DashboardScreen) - Control de jornada laboral
- * 2. Calendario (CalendarioScreen) - Eventos programados
- * 3. Reportes (ReportesScreen) - Estadísticas personales
- * 4. Historial (AsistenciasScreen) - Historial de asistencias
+ * Tabs Comunes:
+ * 1. Jornada (DashboardScreen)
+ * 3. Reportes (ReportesScreen)
+ * 4. Historial (AsistenciasScreen)
  * 
- * Material 3 Expressive Design:
- * - Tab bar con elevation y shadows
- * - Colores dinámicos desde ThemeContext
- * - Íconos Material Icons
- * - Spacing generoso
- * - Micro-interacciones en íconos
+ * Tabs Admin:
+ * 2. Calendario (CalendarioScreen)
+ * 
+ * Tabs User:
+ * 2. Novedades (NovedadesScreen)
  */
 export default function BottomTabNavigator() {
   const { getPrimaryColor } = useTheme();
+  const { userProfile } = useAuth();
+  
+  const userRole = userProfile?.role || 'USER';
+  const isAdmin = userRole === 'ADMIN' || userRole === 'SUPER_ADMIN';
 
   return (
     <Tab.Navigator
@@ -97,16 +101,29 @@ export default function BottomTabNavigator() {
         }}
       />
       
-      <Tab.Screen 
-        name="Calendario" 
-        component={CalendarioScreen}
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="event" size={24} color={color} focused={focused} />
-          ),
-          tabBarLabel: 'Calendario'
-        }}
-      />
+      {isAdmin ? (
+        <Tab.Screen 
+          name="Calendario" 
+          component={CalendarioScreen}
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon name="event" size={24} color={color} focused={focused} />
+            ),
+            tabBarLabel: 'Calendario'
+          }}
+        />
+      ) : (
+        <Tab.Screen 
+          name="Novedades" 
+          component={NovedadesScreen}
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <TabIcon name="notification-important" size={24} color={color} focused={focused} />
+            ),
+            tabBarLabel: 'Novedades'
+          }}
+        />
+      )}
       
       <Tab.Screen 
         name="Reportes" 
@@ -115,7 +132,7 @@ export default function BottomTabNavigator() {
           tabBarIcon: ({ color, focused }) => (
             <TabIcon name="bar-chart" size={24} color={color} focused={focused} />
           ),
-          tabBarLabel: 'Reportes'
+          tabBarLabel: isAdmin ? 'Reportes' : 'Estadísticas'
         }}
       />
       

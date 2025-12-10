@@ -12,7 +12,8 @@ import {
   Dimensions,
   Animated,
   Easing,
-  Platform
+  Platform,
+  AppState // ✅ Importar AppState
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import * as Notifications from 'expo-notifications';
@@ -24,6 +25,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { checkForUpdates } from '../../services/UpdateService';
 import CircularProgress from '../../components/CircularProgress';
+
+// ✅ Importar iconos eliminados ya que no se usan
+
 
 const { width, height } = Dimensions.get('window');
 
@@ -44,6 +48,7 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
   const WORK_SESSION_NOTIFICATION_ID = 'work-session-notification';
+  const appState = useRef(AppState.currentState); // ✅ Ref para estado de la app
 
   useEffect(() => {
     Animated.parallel([
@@ -69,10 +74,11 @@ export default function DashboardScreen() {
 
   // ✅ CONTADOR DE TIEMPO TRABAJADO
   useEffect(() => {
-    if (!activeSession || activeSession.estadoActual === 'finalizado' || finalizando) return;
-    if (activeSession.estadoActual !== 'trabajando') return;
+    // Función para actualizar el tiempo inmediatamente
+    const updateTimer = () => {
+      if (!activeSession || activeSession.estadoActual === 'finalizado' || finalizando) return;
+      if (activeSession.estadoActual !== 'trabajando') return;
 
-    const interval = setInterval(() => {
       const entrada = activeSession.entrada.hora.toDate ? activeSession.entrada.hora.toDate() : new Date(activeSession.entrada.hora);
       const ahora = new Date();
       let tiempoTotalMs = ahora - entrada;
@@ -100,20 +106,41 @@ export default function DashboardScreen() {
       setTiempoTrabajado(
         `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`
       );
-    }, 1000);
+    };
 
-    return () => clearInterval(interval);
+    // Ejecutar inmediatamente al montar o cambiar estado
+    updateTimer();
+
+    // Intervalo regular
+    const interval = setInterval(updateTimer, 1000);
+
+    // Listener para cuando la app vuelve al primer plano (Foreground)
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        console.log('📱 App ha vuelto al primer plano - Actualizando timer...');
+        updateTimer(); // Forzar actualización inmediata
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
   }, [activeSession, finalizando]);
 
   // ✅ CONTADOR DE TIEMPO EN BREAK/ALMUERZO
   useEffect(() => {
-    if (!activeSession || finalizando) return;
-    if (activeSession.estadoActual !== 'break' && activeSession.estadoActual !== 'almuerzo') {
-      setTiempoDescanso('00:00:00');
-      return;
-    }
+    const updateBreakTimer = () => {
+      if (!activeSession || finalizando) return;
+      if (activeSession.estadoActual !== 'break' && activeSession.estadoActual !== 'almuerzo') {
+        setTiempoDescanso('00:00:00');
+        return;
+      }
 
-    const interval = setInterval(() => {
       let inicioDescanso;
       if (activeSession.estadoActual === 'break') {
         const breakActual = activeSession.breaks[activeSession.breaks.length - 1];
@@ -131,9 +158,21 @@ export default function DashboardScreen() {
       setTiempoDescanso(
         `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`
       );
-    }, 1000);
+    };
 
-    return () => clearInterval(interval);
+    updateBreakTimer();
+    const interval = setInterval(updateBreakTimer, 1000);
+
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (nextAppState === 'active') {
+        updateBreakTimer();
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
   }, [activeSession, finalizando]);
 
   // ✅ Helper para notificaciones
@@ -445,6 +484,13 @@ export default function DashboardScreen() {
                     onPress={() => navigation.navigate('Reportes')}
                   >
                     <Text style={styles.modernButtonText}>📊 Ver Reportes</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.modernButton, { backgroundColor: '#ff9800', marginTop: 12 }]}
+                    onPress={() => navigation.navigate('AdminNovedades')}
+                  >
+                    <Text style={styles.modernButtonText}>🔔 Gestionar Novedades</Text>
                   </TouchableOpacity>
                 </View>
               </View>

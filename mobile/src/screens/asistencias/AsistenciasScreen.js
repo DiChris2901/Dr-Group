@@ -58,10 +58,10 @@ export default function AsistenciasScreen({ navigation }) {
   }, []);
 
   useEffect(() => {
-    if (Object.keys(usersMap).length > 0) {
+    if (Object.keys(usersMap).length > 0 && userProfile) {
       cargarAsistencias();
     }
-  }, [usersMap]);
+  }, [usersMap, userProfile]);
 
   const cargarUsuarios = async () => {
     try {
@@ -95,6 +95,10 @@ export default function AsistenciasScreen({ navigation }) {
 
       // Si no es admin, filtrar solo sus asistencias
       if (userProfile?.role !== 'ADMIN' && userProfile?.role !== 'SUPER_ADMIN') {
+        if (!userProfile?.uid) {
+          setLoading(false);
+          return;
+        }
         q = query(
           collection(db, 'asistencias'),
           where('uid', '==', userProfile.uid),

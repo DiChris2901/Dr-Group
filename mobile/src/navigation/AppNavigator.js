@@ -9,6 +9,10 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import BottomTabNavigator from './BottomTabNavigator'; // ✅ FASE 0.3: Bottom Tab Navigator
 import AsistenciaDetailScreen from '../screens/asistencias/AsistenciaDetailScreen'; // ✅ FASE 0.5: Detalle de asistencia
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
+import NovedadesScreen from '../screens/novedades/NovedadesScreen';
+import AdminNovedadesScreen from '../screens/admin/AdminNovedadesScreen';
+import AsistenciasScreen from '../screens/asistencias/AsistenciasScreen';
+import ReportesScreen from '../screens/reportes/ReportesScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -32,16 +36,13 @@ function AppNavigator({ navigation }, ref) {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
           <>
-            {isAdmin ? (
-              /* ✅ ADMIN: Acceso completo con Bottom Tab Navigator */
-              <Stack.Screen name="Main" component={BottomTabNavigator} />
-            ) : (
-              /* ✅ USER: Solo Dashboard sin navegación inferior */
-              <Stack.Screen name="Dashboard" component={DashboardScreen} />
-            )}
+            {/* ✅ TODOS: Acceso con Bottom Tab Navigator (Tabs dinámicos por rol) */}
+            <Stack.Screen name="Main" component={BottomTabNavigator} />
             
-            {/* ✅ FASE 0.5: Pantalla de detalle de asistencia */}
+            {/* ✅ Pantallas Comunes (Accesibles por Stack) */}
             <Stack.Screen name="AsistenciaDetail" component={AsistenciaDetailScreen} />
+            <Stack.Screen name="Novedades" component={NovedadesScreen} />
+            <Stack.Screen name="AdminNovedades" component={AdminNovedadesScreen} />
           </>
         ) : (
           // Usuario no autenticado
