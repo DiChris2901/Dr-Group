@@ -228,7 +228,7 @@ export const ChatProvider = ({ children }) => {
         const userData = userDoc.data();
         return {
           id: userId,
-          name: userData.displayName || userData.nombre || 'Usuario',
+          name: userData.name || userData.displayName || userData.nombre || 'Usuario',
           email: userData.email || '',
           photoURL: userData.photoURL || null,
           role: userData.role || 'user'
