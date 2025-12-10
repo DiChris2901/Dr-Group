@@ -1334,6 +1334,7 @@ const SalasPage = () => {
                       <TableCell sx={{ fontWeight: 600, background: theme.palette.background.paper }}>Proveedor Online</TableCell>
                       <TableCell sx={{ fontWeight: 600, background: theme.palette.background.paper }}>Estado</TableCell>
                       <TableCell sx={{ fontWeight: 600, background: theme.palette.background.paper }} align="center">Máquinas</TableCell>
+                      <TableCell sx={{ fontWeight: 600, background: theme.palette.background.paper }} align="center">Acciones</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -1403,6 +1404,23 @@ const SalasPage = () => {
                               height: 20
                             }}
                           />
+                        </TableCell>
+                        <TableCell align="center">
+                          <Tooltip title="Ver detalles de la sala" arrow>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenView(sala)}
+                              sx={{
+                                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                color: theme.palette.primary.main,
+                                '&:hover': {
+                                  bgcolor: alpha(theme.palette.primary.main, 0.2)
+                                }
+                              }}
+                            >
+                              <VisibilityIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
                         </TableCell>
                       </TableRow>
                     ))}
