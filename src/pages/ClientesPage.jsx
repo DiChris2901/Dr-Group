@@ -42,14 +42,21 @@ import {
   WhatsApp as WhatsAppIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon,
-  Share as ShareIcon
+  Share as ShareIcon,
+  Edit as EditIcon,
+  Save as SaveIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useTheme } from '@mui/material/styles';
 import { 
   collection, 
   query, 
-  onSnapshot
+  onSnapshot,
+  getDocs,
+  doc,
+  updateDoc,
+  writeBatch
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { exportarClientesSpectacular } from '../utils/clientesExcelExportSpectacular';
@@ -71,6 +78,18 @@ const ClientesPage = () => {
   const [clienteToShare, setClienteToShare] = useState(null);
   const [shareAdminDialogOpen, setShareAdminDialogOpen] = useState(false);
   const [adminToShare, setAdminToShare] = useState(null);
+  
+  // Estados para edición de clientes
+  const [editClienteDialogOpen, setEditClienteDialogOpen] = useState(false);
+  const [clienteToEdit, setClienteToEdit] = useState(null);
+  const [editClienteForm, setEditClienteForm] = useState({ nombre: '', email: '', telefono: '' });
+  const [updatingCliente, setUpdatingCliente] = useState(false);
+  
+  // Estados para edición de administradores
+  const [editAdminDialogOpen, setEditAdminDialogOpen] = useState(false);
+  const [adminToEdit, setAdminToEdit] = useState(null);
+  const [editAdminForm, setEditAdminForm] = useState({ nombre: '', email: '', telefono: '' });
+  const [updatingAdmin, setUpdatingAdmin] = useState(false);
 
   // Cargar clientes y administradores desde las salas en Firestore
   useEffect(() => {
@@ -236,6 +255,136 @@ const ClientesPage = () => {
   const handleCloseShareAdminDialog = () => {
     setShareAdminDialogOpen(false);
     setAdminToShare(null);
+  };
+
+  // ============================================
+  // EDICIÓN DE CLIENTES
+  // ============================================
+  
+  const handleEditCliente = (cliente) => {
+    setClienteToEdit(cliente);
+    setEditClienteForm({
+      nombre: cliente.nombre || '',
+      email: cliente.email || '',
+      telefono: cliente.telefono || ''
+    });
+    setEditClienteDialogOpen(true);
+  };
+
+  const handleCloseEditClienteDialog = () => {
+    setEditClienteDialogOpen(false);
+    setClienteToEdit(null);
+    setEditClienteForm({ nombre: '', email: '', telefono: '' });
+  };
+
+  const handleUpdateCliente = async () => {
+    if (!clienteToEdit || !editClienteForm.nombre.trim()) {
+      alert('El nombre del cliente es obligatorio');
+      return;
+    }
+
+    setUpdatingCliente(true);
+
+    try {
+      // 1. Obtener todas las salas
+      const salasSnapshot = await getDocs(collection(db, 'salas'));
+      const batch = writeBatch(db);
+      let salasActualizadas = 0;
+
+      // 2. Actualizar todas las salas donde aparece este cliente (contactoAutorizado)
+      salasSnapshot.docs.forEach((salaDoc) => {
+        const salaData = salaDoc.data();
+        
+        // Normalizar nombres para comparación
+        const clienteOriginal = clienteToEdit.nombre.toLowerCase().trim();
+        const contactoEnSala = (salaData.contactoAutorizado || '').toLowerCase().trim();
+        
+        if (contactoEnSala === clienteOriginal) {
+          batch.update(doc(db, 'salas', salaDoc.id), {
+            contactoAutorizado: editClienteForm.nombre.trim(),
+            contactEmail: editClienteForm.email.trim(),
+            contactPhone: editClienteForm.telefono.trim()
+          });
+          salasActualizadas++;
+        }
+      });
+
+      // 3. Ejecutar actualización en batch
+      await batch.commit();
+
+      alert(`✅ Cliente actualizado exitosamente\n\n📊 ${salasActualizadas} sala(s) sincronizada(s)`);
+      handleCloseEditClienteDialog();
+    } catch (error) {
+      console.error('Error updating cliente:', error);
+      alert('❌ Error al actualizar cliente. Por favor intente nuevamente.');
+    } finally {
+      setUpdatingCliente(false);
+    }
+  };
+
+  // ============================================
+  // EDICIÓN DE ADMINISTRADORES
+  // ============================================
+
+  const handleEditAdmin = (admin) => {
+    setAdminToEdit(admin);
+    setEditAdminForm({
+      nombre: admin.nombre || '',
+      email: admin.email || '',
+      telefono: admin.telefono || ''
+    });
+    setEditAdminDialogOpen(true);
+  };
+
+  const handleCloseEditAdminDialog = () => {
+    setEditAdminDialogOpen(false);
+    setAdminToEdit(null);
+    setEditAdminForm({ nombre: '', email: '', telefono: '' });
+  };
+
+  const handleUpdateAdmin = async () => {
+    if (!adminToEdit || !editAdminForm.nombre.trim()) {
+      alert('El nombre del administrador es obligatorio');
+      return;
+    }
+
+    setUpdatingAdmin(true);
+
+    try {
+      // 1. Obtener todas las salas
+      const salasSnapshot = await getDocs(collection(db, 'salas'));
+      const batch = writeBatch(db);
+      let salasActualizadas = 0;
+
+      // 2. Actualizar todas las salas donde aparece este administrador (contactoAutorizado2)
+      salasSnapshot.docs.forEach((salaDoc) => {
+        const salaData = salaDoc.data();
+        
+        // Normalizar nombres para comparación
+        const adminOriginal = adminToEdit.nombre.toLowerCase().trim();
+        const contactoEnSala = (salaData.contactoAutorizado2 || '').toLowerCase().trim();
+        
+        if (contactoEnSala === adminOriginal) {
+          batch.update(doc(db, 'salas', salaDoc.id), {
+            contactoAutorizado2: editAdminForm.nombre.trim(),
+            contactEmail2: editAdminForm.email.trim(),
+            contactPhone2: editAdminForm.telefono.trim()
+          });
+          salasActualizadas++;
+        }
+      });
+
+      // 3. Ejecutar actualización en batch
+      await batch.commit();
+
+      alert(`✅ Administrador actualizado exitosamente\n\n📊 ${salasActualizadas} sala(s) sincronizada(s)`);
+      handleCloseEditAdminDialog();
+    } catch (error) {
+      console.error('Error updating admin:', error);
+      alert('❌ Error al actualizar administrador. Por favor intente nuevamente.');
+    } finally {
+      setUpdatingAdmin(false);
+    }
   };
 
   if (loading) {
@@ -693,6 +842,21 @@ const ClientesPage = () => {
                     </TableCell>
                     <TableCell align="right" sx={{ borderBottom: isExpanded ? 'none' : undefined }}>
                       <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                        <Tooltip title="Editar cliente" arrow>
+                          <IconButton 
+                            onClick={() => handleEditCliente(cliente)}
+                            sx={{
+                              bgcolor: alpha(theme.palette.warning.main, 0.1),
+                              color: theme.palette.warning.main,
+                              '&:hover': {
+                                bgcolor: alpha(theme.palette.warning.main, 0.2)
+                              }
+                            }}
+                            size="small"
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                         <Tooltip title="Compartir en chat" arrow>
                           <IconButton 
                             onClick={() => handleShareCliente(cliente)}
@@ -890,6 +1054,21 @@ const ClientesPage = () => {
                             {/* Acciones */}
                             <TableCell align="right">
                               <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                                <Tooltip title="Editar administrador" arrow>
+                                  <IconButton 
+                                    onClick={() => handleEditAdmin(admin)}
+                                    sx={{
+                                      bgcolor: alpha(theme.palette.warning.main, 0.1),
+                                      color: theme.palette.warning.main,
+                                      '&:hover': {
+                                        bgcolor: alpha(theme.palette.warning.main, 0.2)
+                                      }
+                                    }}
+                                    size="small"
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
                                 <Tooltip title="Compartir administrador en chat" arrow>
                                   <IconButton 
                                     onClick={() => handleShareAdmin(admin)}
@@ -1092,6 +1271,218 @@ const ClientesPage = () => {
         entityType="administrator"
         entityName="administrador"
       />
+
+      {/* ============================================ */}
+      {/* MODAL DE EDICIÓN DE CLIENTE */}
+      {/* ============================================ */}
+      <Dialog 
+        open={editClienteDialogOpen} 
+        onClose={handleCloseEditClienteDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 8px 32px rgba(0,0,0,0.4)' 
+              : '0 8px 32px rgba(0,0,0,0.12)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          background: `linear-gradient(135deg, ${theme.palette.warning.main} 0%, ${theme.palette.warning.dark} 100%)`,
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          py: 2.5
+        }}>
+          <EditIcon />
+          Editar Cliente
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Alert severity="info" sx={{ mb: 3 }}>
+            Los cambios se sincronizarán automáticamente en <strong>todas las salas</strong> donde aparece este cliente.
+          </Alert>
+          
+          <TextField
+            autoFocus
+            label="Nombre del Cliente"
+            fullWidth
+            value={editClienteForm.nombre}
+            onChange={(e) => setEditClienteForm({ ...editClienteForm, nombre: e.target.value })}
+            sx={{ mb: 2 }}
+            required
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <PersonIcon color="primary" />
+                </InputAdornment>
+              )
+            }}
+          />
+          
+          <TextField
+            label="Email"
+            type="email"
+            fullWidth
+            value={editClienteForm.email}
+            onChange={(e) => setEditClienteForm({ ...editClienteForm, email: e.target.value })}
+            sx={{ mb: 2 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <EmailIcon color="primary" />
+                </InputAdornment>
+              )
+            }}
+          />
+          
+          <TextField
+            label="Teléfono"
+            fullWidth
+            value={editClienteForm.telefono}
+            onChange={(e) => setEditClienteForm({ ...editClienteForm, telefono: e.target.value })}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <PhoneIcon color="success" />
+                </InputAdornment>
+              )
+            }}
+          />
+
+          {clienteToEdit && (
+            <Alert severity="warning" sx={{ mt: 3 }}>
+              Se actualizarán <strong>{clienteToEdit.salas?.length || 0} sala(s)</strong> donde aparece "{clienteToEdit.nombre}"
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          <Button 
+            onClick={handleCloseEditClienteDialog}
+            startIcon={<CloseIcon />}
+            disabled={updatingCliente}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleUpdateCliente}
+            variant="contained"
+            color="warning"
+            startIcon={updatingCliente ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+            disabled={updatingCliente || !editClienteForm.nombre.trim()}
+          >
+            {updatingCliente ? 'Guardando...' : 'Guardar Cambios'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ============================================ */}
+      {/* MODAL DE EDICIÓN DE ADMINISTRADOR */}
+      {/* ============================================ */}
+      <Dialog 
+        open={editAdminDialogOpen} 
+        onClose={handleCloseEditAdminDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: theme.palette.mode === 'dark' 
+              ? '0 8px 32px rgba(0,0,0,0.4)' 
+              : '0 8px 32px rgba(0,0,0,0.12)'
+          }
+        }}
+      >
+        <DialogTitle sx={{ 
+          background: `linear-gradient(135deg, ${theme.palette.secondary.main} 0%, ${theme.palette.secondary.dark} 100%)`,
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+          py: 2.5
+        }}>
+          <EditIcon />
+          Editar Administrador/Encargado
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          <Alert severity="info" sx={{ mb: 3 }}>
+            Los cambios se sincronizarán automáticamente en <strong>todas las salas</strong> donde trabaja este administrador.
+          </Alert>
+          
+          <TextField
+            autoFocus
+            label="Nombre del Administrador"
+            fullWidth
+            value={editAdminForm.nombre}
+            onChange={(e) => setEditAdminForm({ ...editAdminForm, nombre: e.target.value })}
+            sx={{ mb: 2 }}
+            required
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <PersonIcon color="secondary" />
+                </InputAdornment>
+              )
+            }}
+          />
+          
+          <TextField
+            label="Email"
+            type="email"
+            fullWidth
+            value={editAdminForm.email}
+            onChange={(e) => setEditAdminForm({ ...editAdminForm, email: e.target.value })}
+            sx={{ mb: 2 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <EmailIcon color="primary" />
+                </InputAdornment>
+              )
+            }}
+          />
+          
+          <TextField
+            label="Teléfono"
+            fullWidth
+            value={editAdminForm.telefono}
+            onChange={(e) => setEditAdminForm({ ...editAdminForm, telefono: e.target.value })}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <PhoneIcon color="success" />
+                </InputAdornment>
+              )
+            }}
+          />
+
+          {adminToEdit && adminToEdit.salasAsociadas && (
+            <Alert severity="warning" sx={{ mt: 3 }}>
+              Se actualizarán las salas donde trabaja "{adminToEdit.nombre}": <strong>{adminToEdit.salasAsociadas.join(', ')}</strong>
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3, gap: 1 }}>
+          <Button 
+            onClick={handleCloseEditAdminDialog}
+            startIcon={<CloseIcon />}
+            disabled={updatingAdmin}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleUpdateAdmin}
+            variant="contained"
+            color="secondary"
+            startIcon={updatingAdmin ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+            disabled={updatingAdmin || !editAdminForm.nombre.trim()}
+          >
+            {updatingAdmin ? 'Guardando...' : 'Guardar Cambios'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
