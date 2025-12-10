@@ -61,6 +61,95 @@ import PreviewDialog from './PreviewDialog';
 import OptimizedAvatar from '../common/OptimizedAvatar';
 
 /**
+ * 📊 Detectar y renderizar tablas Markdown
+ */
+const renderMarkdownTable = (text, theme) => {
+  // Detectar patrón de tabla Markdown: |---|---|
+  const tableRegex = /(\|.+\|[\r\n]+\|[\s-:|]+\|[\r\n]+(?:\|.+\|[\r\n]*)+)/g;
+  const match = tableRegex.exec(text);
+  
+  if (!match) return null;
+  
+  const tableText = match[1];
+  const lines = tableText.trim().split('\n');
+  
+  if (lines.length < 3) return null; // Necesita header + separator + al menos 1 fila
+  
+  // Parsear header
+  const headerCells = lines[0].split('|').filter(cell => cell.trim()).map(cell => cell.trim());
+  
+  // Parsear body (saltar línea de separación)
+  const bodyRows = lines.slice(2).map(line => 
+    line.split('|').filter(cell => cell.trim()).map(cell => cell.trim())
+  );
+  
+  return {
+    beforeTable: text.substring(0, match.index),
+    table: (
+      <Box
+        sx={{
+          my: 1.5,
+          overflow: 'auto',
+          borderRadius: 2,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+          bgcolor: alpha(theme.palette.primary.main, 0.04)
+        }}
+      >
+        <Box 
+          component="table" 
+          sx={{ 
+            width: '100%', 
+            borderCollapse: 'collapse',
+            fontSize: '0.875rem'
+          }}
+        >
+          <thead>
+            <tr>
+              {headerCells.map((cell, i) => (
+                <Box
+                  component="th"
+                  key={i}
+                  sx={{
+                    p: 1.5,
+                    textAlign: 'left',
+                    borderBottom: `2px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                    bgcolor: alpha(theme.palette.primary.main, 0.08),
+                    fontWeight: 700,
+                    color: theme.palette.primary.main
+                  }}
+                >
+                  {cell}
+                </Box>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {bodyRows.map((row, i) => (
+              <tr key={i}>
+                {row.map((cell, j) => (
+                  <Box
+                    component="td"
+                    key={j}
+                    sx={{
+                      p: 1.5,
+                      borderBottom: i < bodyRows.length - 1 ? `1px solid ${alpha('#000', 0.06)}` : 'none',
+                      bgcolor: i % 2 === 0 ? 'transparent' : alpha('#000', 0.02)
+                    }}
+                  >
+                    {cell}
+                  </Box>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </Box>
+      </Box>
+    ),
+    afterTable: text.substring(match.index + tableText.length)
+  };
+};
+
+/**
  * Procesar formato de texto: *negrita*, _cursiva_, __subrayado__, ~~tachado~~, > cita
  */
 const processTextFormat = (text) => {
@@ -1004,19 +1093,57 @@ const MessageBubble = React.memo(({
             </Paper>
           )}
 
-          {/* Texto del mensaje con menciones resaltadas */}
-          {message.text && (
-            <Typography
-              variant="body2"
-              sx={{
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-                lineHeight: 1.5
-              }}
-            >
-              {renderTextWithMentions(message.text, theme, isMentionedUser)}
-            </Typography>
-          )}
+          {/* Texto del mensaje con menciones resaltadas y tablas Markdown */}
+          {message.text && (() => {
+            const tableData = renderMarkdownTable(message.text, theme);
+            
+            if (tableData) {
+              // Hay tabla Markdown - renderizar en partes
+              return (
+                <>
+                  {tableData.beforeTable && (
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        lineHeight: 1.5
+                      }}
+                    >
+                      {renderTextWithMentions(tableData.beforeTable, theme, isMentionedUser)}
+                    </Typography>
+                  )}
+                  {tableData.table}
+                  {tableData.afterTable && (
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        lineHeight: 1.5
+                      }}
+                    >
+                      {renderTextWithMentions(tableData.afterTable, theme, isMentionedUser)}
+                    </Typography>
+                  )}
+                </>
+              );
+            }
+            
+            // No hay tabla - renderizado normal
+            return (
+              <Typography
+                variant="body2"
+                sx={{
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  lineHeight: 1.5
+                }}
+              >
+                {renderTextWithMentions(message.text, theme, isMentionedUser)}
+              </Typography>
+            );
+          })()}
 
           {/* Timestamp, estado y menú de acciones */}
           <Box

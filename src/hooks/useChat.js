@@ -109,14 +109,27 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
               const processedMessage = processDoc(change.doc);
 
               if (change.type === 'added') {
-                // Agregar nuevo mensaje en orden cronológico
-                const insertIndex = updatedMessages.findIndex(m => 
-                  m.createdAt > processedMessage.createdAt
+                // 🔥 OPTIMISTIC UI: Buscar mensaje temporal para reemplazar
+                const tempIndex = updatedMessages.findIndex(m => 
+                  m._optimistic && 
+                  m.senderId === processedMessage.senderId &&
+                  m.text === processedMessage.text &&
+                  Math.abs(m.createdAt - processedMessage.createdAt) < 5000 // Mismo mensaje en ventana de 5 seg
                 );
-                if (insertIndex === -1) {
-                  updatedMessages.push(processedMessage);
+
+                if (tempIndex !== -1) {
+                  // ✅ Reemplazar mensaje temporal con el real
+                  updatedMessages[tempIndex] = processedMessage;
                 } else {
-                  updatedMessages.splice(insertIndex, 0, processedMessage);
+                  // ✅ Agregar nuevo mensaje en orden cronológico
+                  const insertIndex = updatedMessages.findIndex(m => 
+                    m.createdAt > processedMessage.createdAt
+                  );
+                  if (insertIndex === -1) {
+                    updatedMessages.push(processedMessage);
+                  } else {
+                    updatedMessages.splice(insertIndex, 0, processedMessage);
+                  }
                 }
               } else if (change.type === 'modified') {
                 // Actualizar mensaje existente manteniendo su posición
@@ -125,7 +138,8 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
                   updatedMessages[existingIndex] = processedMessage;
                 }
               } else if (change.type === 'removed') {
-                // Eliminar mensaje sin reconstruir el array
+                // 🚀 OPTIMISTIC UI: El mensaje ya fue eliminado, solo confirmar
+                // Filtrar por si acaso no se eliminó antes (edge case)
                 updatedMessages = updatedMessages.filter(m => m.id !== change.doc.id);
               }
             });
@@ -137,10 +151,8 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
           setHasMore(snapshot.docs.length === messagesPerPage);
           setLoading(false);
 
-          // ⚡ Debounce: Marcar como leídos después de 500ms
-          setTimeout(() => {
-            markConversationAsRead(conversationId);
-          }, 500);
+          // ⚡ INSTANTÁNEO: Marcar como leído sin delay
+          markConversationAsRead(conversationId);
         },
         (err) => {
           console.error('❌ Error escuchando mensajes:', err);
@@ -207,14 +219,45 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
     }
   }, [conversationId, hasMore, lastVisible, loading, messagesPerPage]);
 
-  // ✅ FUNCIÓN: Enviar mensaje de texto
+  // ✅ FUNCIÓN: Enviar mensaje de texto CON OPTIMISTIC UI
   const sendMessage = useCallback(async (text, attachments = [], replyToId = null, mentionedUserIds = []) => {
     if (!conversationId || !currentUser?.uid || (!text?.trim() && attachments.length === 0)) {
       return;
     }
 
+    // 🚀 OPTIMISTIC UI: Crear ID temporal y agregar mensaje INSTANTÁNEAMENTE
+    const tempId = `temp_${Date.now()}_${Math.random()}`;
+    const tempMessage = {
+      id: tempId,
+      conversationId,
+      senderId: currentUser.uid,
+      senderName: currentUser.displayName || currentUser.name || currentUser.email || 'Usuario',
+      senderPhoto: currentUser.photoURL || null,
+      text: text.trim(),
+      type: attachments.length > 0 ? 'file' : 'text',
+      attachments: attachments,
+      mentions: mentionedUserIds || [],
+      status: {
+        sent: false, // Aún no confirmado por servidor
+        delivered: false,
+        read: false,
+        readBy: [],
+        readAt: null
+      },
+      createdAt: new Date(),
+      metadata: {
+        editedAt: null,
+        deletedAt: null,
+        replyTo: replyToId || null
+      },
+      _optimistic: true // Flag para identificar mensaje temporal
+    };
+
+    // ⚡ AGREGAR INMEDIATAMENTE a la UI
+    setMessages(prev => [...prev, tempMessage]);
+
     try {
-      // Obtener info de la conversación
+      // Obtener info de la conversación (usar cache si es posible)
       const conversationRef = doc(db, 'conversations', conversationId);
       const conversationSnap = await getDoc(conversationRef);
 
@@ -226,7 +269,7 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
       const currentUserName = conversationData.participantNames?.[currentUser.uid] || currentUser.displayName || currentUser.name || currentUser.email || 'Usuario';
       const currentUserPhoto = conversationData.participantPhotos?.[currentUser.uid] || currentUser.photoURL || null;
 
-      // Crear mensaje
+      // Crear mensaje real
       const messageData = {
         conversationId,
         senderId: currentUser.uid,
@@ -243,7 +286,6 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
           readBy: [],
           readAt: null
         },
-        // ✅ MICRO-OPTIMIZACIÓN: Usar Date() para Optimistic UI (serverTimestamp() causa createdAt: null)
         createdAt: new Date(),
         metadata: {
           editedAt: null,
@@ -253,6 +295,9 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
       };
 
       const messageRef = await addDoc(collection(db, 'messages'), messageData);
+
+      // ✅ El listener onSnapshot se encargará de reemplazar el mensaje temporal
+      // No hacemos nada aquí para evitar duplicados
 
       // Actualizar conversación
       const otherParticipantIds = conversationData.participantIds.filter(
@@ -290,7 +335,7 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
     }
   }, [conversationId, currentUser?.uid, addNotification]);
 
-  // ✅ FUNCIÓN: Eliminar mensaje (eliminación física de Firestore)
+  // ✅ FUNCIÓN: Eliminar mensaje (eliminación física de Firestore con Optimistic UI)
   const deleteMessage = useCallback(async (messageId) => {
     if (!currentUser?.uid || !messageId) return;
 
@@ -309,7 +354,10 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
         throw new Error('No tienes permiso para eliminar este mensaje');
       }
 
-      // Eliminar físicamente el mensaje de Firestore
+      // 🚀 OPTIMISTIC UI: Eliminar inmediatamente de la UI
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+
+      // Eliminar físicamente el mensaje de Firestore en background
       await deleteDoc(messageRef);
 
       console.log('✅ Mensaje eliminado de Firestore:', messageId);
@@ -317,6 +365,9 @@ export const useChatMessages = (conversationId, messagesPerPage = 25) => {
     } catch (err) {
       console.error('❌ Error eliminando mensaje:', err);
       addNotification(err.message || 'Error al eliminar mensaje', 'error');
+      
+      // Si falla, recargar mensajes para restaurar estado
+      // El listener se encargará de restaurar el mensaje
       throw err;
     }
   }, [currentUser?.uid, addNotification]);

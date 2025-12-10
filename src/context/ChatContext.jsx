@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { 
   collection, 
   query, 
   where, 
   orderBy, 
+  limit,
   onSnapshot, 
   doc,
   updateDoc,
@@ -21,6 +22,7 @@ import { db, database } from '../config/firebase';
 import { useAuth } from './AuthContext';
 import { useNotifications } from './NotificationsContext';
 import { useUnreadCount, resetUnreadCount } from '../hooks/useUnreadCount';
+import { useUsersCache } from '../hooks/useUsersCache';
 
 const ChatContext = createContext();
 
@@ -42,8 +44,14 @@ export const ChatProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // 🔒 FLAG GLOBAL: Bloquear markAsRead durante eliminación de mensajes
+  const isDeletingMessage = useRef(false);
+  
   // 🔥 Contadores de no leídos con RTDB (actualización instantánea)
   const { unreadCounts, totalUnread: unreadCount, getUnreadForConversation } = useUnreadCount(currentUser?.uid);
+
+  // ⚡ CACHE DE USUARIOS CON LISTENER REAL-TIME (elimina getDocs repetidos)
+  const { users: cachedUsers, getUsersExcept } = useUsersCache();
 
   // 🟢 Estado de presencia de usuarios
   const [usersPresence, setUsersPresence] = useState({});
@@ -84,7 +92,8 @@ export const ChatProvider = ({ children }) => {
       const conversationsQuery = query(
         collection(db, 'conversations'),
         where('participantIds', 'array-contains', currentUser.uid),
-        orderBy('updatedAt', 'desc')
+        orderBy('updatedAt', 'desc'),
+        limit(50) // ⚡ Limitar a 50 chats más recientes (suficiente para la mayoría)
       );
 
       const unsubscribe = onSnapshot(
@@ -186,6 +195,12 @@ export const ChatProvider = ({ children }) => {
   // ✅ FUNCIÓN: Marcar mensajes como leídos (ahora con RTDB para actualización instantánea)
   const markConversationAsRead = useCallback(async (conversationId) => {
     if (!currentUser?.uid || !conversationId) return;
+    
+    // 🔒 BLOQUEAR si se está eliminando un mensaje (evita re-renders que mueven scroll)
+    if (isDeletingMessage.current) {
+      console.log('🚫 markAsRead bloqueado durante eliminación de mensaje');
+      return;
+    }
 
     try {
       // Resetear contador en RTDB (instantáneo)
@@ -310,37 +325,19 @@ export const ChatProvider = ({ children }) => {
     return conversationsCache[conversationId] || null;
   }, [conversationsCache]);
 
-  // ✅ FUNCIÓN: Obtener TODOS los usuarios registrados
+  // ✅ FUNCIÓN: Obtener TODOS los usuarios registrados (AHORA CON CACHE)
   const getAllUsers = useCallback(async () => {
-    try {
-      const snapshot = await getDocs(collection(db, 'users'));
+    // ⚡ INSTANTÁNEO: Devolver desde cache en lugar de getDocs()
+    return cachedUsers.filter(u => u.id !== currentUser?.uid);
+  }, [cachedUsers, currentUser?.uid]);
 
-      const users = snapshot.docs.map(docSnap => ({
-        uid: docSnap.id,
-        id: docSnap.id,
-        ...docSnap.data()
-      }));
-
-      return users;
-    } catch (err) {
-      console.error('❌ Error obteniendo usuarios:', err);
-      addNotification('Error al cargar contactos', 'error');
-      return [];
-    }
-  }, [addNotification]);
-
-  // ✅ FUNCIÓN: Buscar usuarios disponibles para chat
+  // ✅ FUNCIÓN: Buscar usuarios disponibles para chat (AHORA CON CACHE)
   const searchUsers = useCallback(async (searchTerm) => {
     if (!searchTerm || searchTerm.length < 2) return [];
 
     try {
-      const snapshot = await getDocs(collection(db, 'users'));
-
-      const users = snapshot.docs
-        .map(docSnap => ({
-          id: docSnap.id,
-          ...docSnap.data()
-        }))
+      // ⚡ INSTANTÁNEO: Buscar en cache en lugar de getDocs()
+      const users = cachedUsers
         .filter(user => {
           // Excluir usuario actual
           if (user.id === currentUser?.uid) return false;
@@ -855,6 +852,8 @@ export const ChatProvider = ({ children }) => {
 
     // Setters
     setActiveConversationId,
+    // 🔒 Setter para controlar flag de eliminación (usado por MessageThread)
+    setIsDeletingMessage: (value) => { isDeletingMessage.current = value; },
 
     // Funciones directas
     markConversationAsRead,

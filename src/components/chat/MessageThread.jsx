@@ -93,7 +93,8 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
     togglePinMessage, 
     updateGroupInfo, 
     leaveGroup, 
-    deleteConversation 
+    deleteConversation,
+    setIsDeletingMessage // 🔒 Control global para bloquear markAsRead
   } = useChat();
   const {
     messages,
@@ -117,9 +118,9 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
   const previousFirstMessageId = useRef(null);
   const previousLastMessageId = useRef(null);
   const isInitialLoad = useRef(true);
-  const savedScrollPosition = useRef(null);
-  const lastScrollTop = useRef(0);
-  const isDeletingMessage = useRef(false); // 🚩 Flag para detectar eliminación
+  const scrollBottomDistance = useRef(0); // Distancia desde el final
+  const lastScrollTop = useRef(0); // Para detectar dirección del scroll
+  // ❌ isDeleting eliminado - ahora se controla globalmente en ChatContext con setIsDeletingMessage()
   
   // 📊 Hook de estadísticas del chat
   const stats = useChatStats(conversationId);
@@ -636,53 +637,42 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
 
   // ✅ Auto-scroll BLINDADO CONTRA PAGINACIÓN (useLayoutEffect para evitar parpadeos)
   useLayoutEffect(() => {
+    // ℹ️ Ya NO necesitamos bloquear aquí - markAsRead está bloqueado globalmente en ChatContext
+    
     if (messages.length === 0 || !messagesEndRef.current) return;
 
     const scrollToBottom = (behavior = 'smooth') => {
-      if (messagesEndRef.current) {
-        messagesEndRef.current.scrollIntoView({ behavior, block: 'end' });
+      const container = messagesContainerRef.current;
+      if (!container) return;
+      
+      // 🔥 SCROLL DIRECTO AL MÁXIMO (más confiable que scrollIntoView)
+      if (behavior === 'instant') {
+        container.scrollTop = container.scrollHeight;
+      } else {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth'
+        });
       }
     };
 
     const firstMessageId = messages[0]?.id;
     const lastMessageId = messages[messages.length - 1]?.id;
 
-    // 1️⃣ CARGA INICIAL: Scroll instantáneo al fondo con doble ráfaga
+    // 1️⃣ CARGA INICIAL: Scroll instantáneo al fondo con TRIPLE RÁFAGA para grupos
     if (isInitialLoad.current) {
       isInitialLoad.current = false;
       previousMessagesLength.current = messages.length;
       previousFirstMessageId.current = firstMessageId;
       previousLastMessageId.current = lastMessageId;
       
-      // Doble ráfaga para asegurar que imágenes/estilos carguen
+      // Triple ráfaga progresiva para asegurar carga completa de grupos
       requestAnimationFrame(() => {
         scrollToBottom('instant');
-        // Refuerzo por si acaso
-        setTimeout(() => scrollToBottom('instant'), 100);
+        setTimeout(() => scrollToBottom('instant'), 50);   // Refuerzo rápido
+        setTimeout(() => scrollToBottom('instant'), 200);  // Refuerzo tardío para grupos
+        setTimeout(() => scrollToBottom('instant'), 400);  // Refuerzo final (datos pesados)
       });
-      return;
-    }
-
-    // 🛡️ CASO ESPECIAL: ELIMINACIÓN DE MENSAJE
-    // Guardar posición ANTES del render, restaurar DESPUÉS
-    const container = messagesContainerRef.current;
-    if (isDeletingMessage.current && container) {
-      const savedScroll = savedScrollPosition.current;
-      
-      // Restaurar posición exacta después del render
-      requestAnimationFrame(() => {
-        if (savedScroll !== null) {
-          container.scrollTop = savedScroll;
-          console.log('🔄 Scroll restaurado a:', savedScroll);
-        }
-        isDeletingMessage.current = false;
-        savedScrollPosition.current = null;
-      });
-      
-      // Actualizar referencias y salir
-      previousMessagesLength.current = messages.length;
-      previousFirstMessageId.current = firstMessageId;
-      previousLastMessageId.current = lastMessageId;
       return;
     }
 
@@ -692,6 +682,15 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
     const lastChanged = lastMessageId && lastMessageId !== previousLastMessageId.current;
     const firstChanged = firstMessageId && firstMessageId !== previousFirstMessageId.current;
 
+    // 🚫 CASO CRÍTICO: ELIMINACIÓN DE MENSAJE
+    // Si disminuyó la longitud, solo actualizar refs y salir
+    if (lengthDecreased) {
+      previousMessagesLength.current = messages.length;
+      previousFirstMessageId.current = firstMessageId;
+      previousLastMessageId.current = lastMessageId;
+      return; // Salir sin hacer scroll automático
+    }
+
     // Caso A: se cargaron mensajes antiguos (loadMore)
     const isLoadMore = lengthIncreased && firstChanged && !lastChanged;
 
@@ -700,19 +699,29 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
       const lastMessage = messages[messages.length - 1];
       const isMyMessage = lastMessage?.senderId === currentUser?.uid;
       
+      // 📊 Si el mensaje contiene tabla Markdown, dar tiempo extra para renderizar
+      const hasTable = lastMessage?.text?.includes('|') && lastMessage?.text?.includes('---');
+      const delays = hasTable ? [100, 300, 500] : [50, 200]; // Delays más largos para tablas
+      
       // ✅ Si yo escribí: scroll forzado siempre
       if (isMyMessage) {
-        setTimeout(() => scrollToBottom('smooth'), 100);
+        delays.forEach(delay => setTimeout(() => scrollToBottom('smooth'), delay));
       } 
       // ✅ Si recibí: solo scroll si NO estoy viendo el botón de "bajar"
       else if (!showScrollButton) {
-        setTimeout(() => scrollToBottom('smooth'), 100);
+        delays.forEach(delay => setTimeout(() => scrollToBottom('smooth'), delay));
       }
     }
 
     previousMessagesLength.current = messages.length;
     previousFirstMessageId.current = firstMessageId;
     previousLastMessageId.current = lastMessageId;
+    
+    // Guardar distancia desde el final para próxima eliminación
+    const container = messagesContainerRef.current;
+    if (container) {
+      scrollBottomDistance.current = container.scrollHeight - container.clientHeight - container.scrollTop;
+    }
   }, [messages, currentUser?.uid, showScrollButton]);
 
   // ✅ OPTIMIZACIÓN: Marcar como leídos usando cursor (1 escritura en lugar de N)
@@ -753,26 +762,71 @@ const MessageThread = React.memo(({ conversationId, selectedUser, onBack }) => {
   };
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    
+    // Scroll directo al máximo (más confiable que scrollIntoView)
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: 'smooth'
+    });
   };
 
-  // 🔥 Wrapper para deleteMessage - GUARDAR POSICIÓN DEL SCROLL
+  // 🔥 Wrapper para deleteMessage
   const handleDeleteMessage = async (messageId) => {
     const container = messagesContainerRef.current;
-    if (container) {
-      // ✅ GUARDAR posición exacta ANTES de eliminar
-      savedScrollPosition.current = container.scrollTop;
-      isDeletingMessage.current = true;
-      console.log('💾 Guardando posición del scroll:', container.scrollTop);
-    }
+    if (!container) return;
+    
+    // 📸 CAPTURAR posición exacta ANTES de eliminar
+    const savedScrollTop = container.scrollTop;
+    const savedScrollHeight = container.scrollHeight;
+    console.log('📸 Posición capturada:', { scrollTop: savedScrollTop, scrollHeight: savedScrollHeight });
+    
+    // 🔒 Activar flag GLOBAL para bloquear markAsRead
+    setIsDeletingMessage(true);
+    console.log('🔥 Eliminando mensaje - bloqueando markAsRead globalmente');
+    
+    // 👁️ OBSERVADOR: Detectar CUALQUIER cambio en el DOM y restaurar scroll INSTANTÁNEAMENTE
+    const observer = new MutationObserver(() => {
+      const currentScrollTop = container.scrollTop;
+      const newScrollHeight = container.scrollHeight;
+      
+      // Si el scroll cambió, restaurar posición ajustada SIN ANIMACIÓN
+      if (Math.abs(currentScrollTop - savedScrollTop) > 1) { // Tolerancia de 1px
+        const heightDiff = savedScrollHeight - newScrollHeight;
+        const restoredPosition = Math.max(0, savedScrollTop - heightDiff);
+        
+        // Restaurar INSTANTÁNEAMENTE (sin smooth scroll)
+        requestAnimationFrame(() => {
+          container.scrollTop = restoredPosition;
+        });
+        
+        console.log('⚡ Scroll restaurado instantáneamente:', restoredPosition);
+      }
+    });
+    
+    // Observar cambios en el contenedor de mensajes con detección agresiva
+    observer.observe(container, {
+      childList: true,      // Detectar nodos agregados/eliminados
+      subtree: true,        // Observar todo el árbol
+      characterData: true,  // Detectar cambios de texto
+      attributes: true,     // Detectar cambios de atributos
+      attributeOldValue: true
+    });
     
     try {
       await deleteMessage(messageId);
+      
+      // Mantener observador activo 3 segundos para cubrir todas las mutaciones
+      setTimeout(() => {
+        observer.disconnect();
+        setIsDeletingMessage(false);
+        console.log('✅ Observador desconectado y flag limpiado');
+      }, 3000);
     } catch (error) {
       console.error(error);
-      // Si falla, resetear flags
-      isDeletingMessage.current = false;
-      savedScrollPosition.current = null;
+      observer.disconnect();
+      setIsDeletingMessage(false);
     }
   };
 

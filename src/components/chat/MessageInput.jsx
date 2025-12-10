@@ -35,7 +35,8 @@ import {
   FormatItalic as FormatItalicIcon,
   FormatUnderlined as FormatUnderlinedIcon,
   StrikethroughS as StrikethroughSIcon,
-  FormatQuote as FormatQuoteIcon
+  FormatQuote as FormatQuoteIcon,
+  Check as CheckIcon
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../../context/NotificationsContext';
@@ -98,6 +99,7 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
   const [showFormatTooltip, setShowFormatTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
   const [selectedText, setSelectedText] = useState({ start: 0, end: 0 });
+  const [detectedTable, setDetectedTable] = useState(null); // Para preview de tablas Excel
   const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef(null);
   const emojiPickerRef = useRef(null);
@@ -192,6 +194,84 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
     if (!conversation || conversation.type !== 'group') return [];
     return getGroupMembers(conversationId);
   }, [conversationId, getConversation, getGroupMembers]);
+
+  // 📋 Convertir datos de Excel (TSV) a Markdown Table
+  const convertExcelToMarkdown = (clipboardData) => {
+    const text = clipboardData.getData('text/plain');
+    const html = clipboardData.getData('text/html');
+    
+    // Detectar si viene de Excel (tiene tabs o viene de HTML de tabla)
+    const hasMultipleTabs = (text.match(/\t/g) || []).length >= 2;
+    const hasTableHTML = html.includes('<table') || html.includes('<tr');
+    
+    if (!hasMultipleTabs && !hasTableHTML) return null;
+    
+    // Dividir por líneas
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return null; // Necesita al menos 2 filas
+    
+    // Procesar cada fila (separada por tabs)
+    const rows = lines.map(line => 
+      line.split('\t').map(cell => cell.trim())
+    );
+    
+    // Verificar que todas las filas tengan el mismo número de columnas
+    const columnCount = rows[0].length;
+    if (rows.some(row => row.length !== columnCount)) return null;
+    
+    // Construir tabla Markdown
+    const header = '| ' + rows[0].join(' | ') + ' |';
+    const separator = '|' + ' --- |'.repeat(columnCount);
+    const body = rows.slice(1).map(row => '| ' + row.join(' | ') + ' |').join('\n');
+    
+    const markdownTable = [header, separator, body].join('\n');
+    
+    return {
+      markdown: markdownTable,
+      rowCount: rows.length,
+      columnCount: columnCount,
+      preview: rows.slice(0, 3) // Primeras 3 filas para preview
+    };
+  };
+  
+  // 📋 Manejar evento de pegado (detectar tablas de Excel)
+  const handlePaste = (e) => {
+    const clipboardData = e.clipboardData;
+    const tableData = convertExcelToMarkdown(clipboardData);
+    
+    if (tableData) {
+      e.preventDefault();
+      
+      // Mostrar preview de tabla detectada (SIN auto-insertar)
+      setDetectedTable(tableData);
+      console.log('📊 Tabla detectada:', tableData.rowCount, '×', tableData.columnCount);
+    }
+  };
+  
+  // ✅ Confirmar inserción de tabla
+  const handleConfirmTable = () => {
+    if (detectedTable) {
+      const tableMarkdown = '\n\n' + detectedTable.markdown + '\n\n';
+      setMessage(prev => prev + tableMarkdown);
+      addNotification(`Tabla ${detectedTable.rowCount}×${detectedTable.columnCount} insertada`, 'success');
+      
+      // Limpiar preview
+      setDetectedTable(null);
+      
+      // Enfocar input después de insertar
+      setTimeout(() => {
+        if (textFieldRef.current) {
+          textFieldRef.current.focus();
+        }
+      }, 100);
+    }
+  };
+  
+  // ❌ Cancelar inserción de tabla
+  const handleCancelTable = () => {
+    setDetectedTable(null);
+    addNotification('Tabla descartada', 'info');
+  };
 
   // 🔍 Detectar @ para menciones
   const handleMessageChange = (e) => {
@@ -529,6 +609,118 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
         boxShadow: '0 -2px 12px rgba(102, 126, 234, 0.08)'
       }}
     >
+      {/* 📊 Preview de tabla Excel detectada */}
+      <AnimatePresence>
+        {detectedTable && (
+          <Box
+            component={motion.div}
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 1.5,
+              p: 2,
+              mb: 1.5,
+              bgcolor: alpha('#10b981', 0.08),
+              borderLeft: 3,
+              borderColor: '#10b981',
+              borderRadius: 2,
+              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.15)'
+            }}
+          >
+            <Box>
+              <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Typography variant="subtitle2" color="#10b981" fontWeight={700} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    📊 Tabla Excel Detectada
+                  </Typography>
+                  <Chip 
+                    label={`${detectedTable.rowCount}×${detectedTable.columnCount}`} 
+                    size="small" 
+                    sx={{ 
+                      bgcolor: alpha('#10b981', 0.15),
+                      color: '#10b981',
+                      fontWeight: 600,
+                      fontSize: '0.7rem'
+                    }}
+                  />
+                </Box>
+                <Box display="flex" gap={0.5}>
+                  <Tooltip title="✅ Insertar en el campo (luego presiona Enviar)">
+                    <IconButton 
+                      size="small" 
+                      onClick={handleConfirmTable}
+                      sx={{ 
+                        bgcolor: alpha('#10b981', 0.15),
+                        '&:hover': { bgcolor: alpha('#10b981', 0.25) }
+                      }}
+                    >
+                      <CheckIcon fontSize="small" sx={{ color: '#10b981' }} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Descartar">
+                    <IconButton 
+                      size="small" 
+                      onClick={handleCancelTable}
+                      sx={{ 
+                        bgcolor: alpha('#ef4444', 0.1),
+                        '&:hover': { bgcolor: alpha('#ef4444', 0.2) }
+                      }}
+                    >
+                      <CloseIcon fontSize="small" sx={{ color: '#ef4444' }} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                💡 Haz clic en ✅ para insertar la tabla, luego presiona Enviar para mandarla
+              </Typography>
+            </Box>
+            
+            {/* Preview de primeras filas */}
+            <Box 
+              sx={{ 
+                p: 1.5, 
+                bgcolor: 'background.paper', 
+                borderRadius: 1.5,
+                border: `1px solid ${alpha('#10b981', 0.2)}`,
+                overflow: 'auto',
+                maxHeight: 150
+              }}
+            >
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
+                Vista previa (primeras 3 filas):
+              </Typography>
+              <Box component="table" sx={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+                <tbody>
+                  {detectedTable.preview.map((row, i) => (
+                    <tr key={i}>
+                      {row.map((cell, j) => (
+                        <Box 
+                          component={i === 0 ? 'th' : 'td'} 
+                          key={j}
+                          sx={{ 
+                            p: 0.5, 
+                            textAlign: 'left',
+                            borderBottom: i === 0 ? `2px solid ${alpha('#10b981', 0.3)}` : `1px solid ${alpha('#000', 0.05)}`,
+                            fontWeight: i === 0 ? 700 : 400,
+                            color: i === 0 ? '#10b981' : 'text.primary'
+                          }}
+                        >
+                          {cell}
+                        </Box>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </Box>
+            </Box>
+          </Box>
+        )}
+      </AnimatePresence>
+
       {/* Indicador de respuesta */}
       <AnimatePresence>
         {replyingTo && (
@@ -782,11 +974,12 @@ const MessageInput = ({ onSendMessage, conversationId, replyingTo, onCancelReply
               fullWidth
               multiline
               maxRows={4}
-              placeholder="Escribe un mensaje..."
+              placeholder="Escribe un mensaje... (💡 Puedes pegar tablas de Excel)"
               value={message}
               onChange={handleMessageChange}
               onKeyPress={handleKeyPress}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               onSelect={handleTextSelect}
               onMouseUp={handleTextSelect}
               onFocus={() => setShowPreview(true)}
