@@ -377,6 +377,24 @@ const SalasPage = () => {
     salas: salas.filter(sala => sala.companyId === company.id)
   }));
 
+  // ✅ NUEVO: Detectar empresas que tienen salas que coinciden con los filtros actuales
+  const empresasConSalasFiltradas = React.useMemo(() => {
+    const empresasIds = new Set();
+    filteredSalas.forEach(sala => {
+      empresasIds.add(sala.companyId);
+    });
+    return empresasIds;
+  }, [filteredSalas]);
+
+  // ✅ NUEVO: Contar salas filtradas por empresa
+  const salasFiltradasPorEmpresa = React.useMemo(() => {
+    const conteo = {};
+    filteredSalas.forEach(sala => {
+      conteo[sala.companyId] = (conteo[sala.companyId] || 0) + 1;
+    });
+    return conteo;
+  }, [filteredSalas]);
+
   // ✅ NUEVO: Salas de la empresa seleccionada
   const salasDeEmpresaSeleccionada = selectedCompanyId
     ? filteredSalas.filter(sala => sala.companyId === selectedCompanyId)
@@ -1479,7 +1497,13 @@ const SalasPage = () => {
                 }
               }}>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {companiesWithSalas.map((company, index) => (
+                {companiesWithSalas.map((company, index) => {
+                  const tieneResultadosFiltrados = empresasConSalasFiltradas.has(company.id);
+                  const salasFiltradasCount = salasFiltradasPorEmpresa[company.id] || 0;
+                  const hayFiltrosActivos = statusFilter !== 'all' || propietarioFilter !== 'all' || 
+                                           proveedorFilter !== 'all' || salaFilter !== null || searchTerm !== '';
+                  
+                  return (
                   <motion.div
                     key={company.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -1496,9 +1520,13 @@ const SalasPage = () => {
                           : `1px solid ${alpha(theme.palette.divider, 0.12)}`,
                         background: selectedCompanyId === company.id
                           ? alpha(theme.palette.primary.main, 0.08)
+                          : hayFiltrosActivos && tieneResultadosFiltrados
+                          ? `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.12)} 0%, ${alpha(theme.palette.secondary.main, 0.12)} 100%)`
                           : theme.palette.background.paper,
                         boxShadow: selectedCompanyId === company.id
                           ? `0 4px 12px ${alpha(theme.palette.primary.main, 0.15)}`
+                          : hayFiltrosActivos && tieneResultadosFiltrados
+                          ? `0 3px 10px ${alpha(theme.palette.primary.main, 0.12)}`
                           : '0 2px 8px rgba(0,0,0,0.06)',
                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                         '&:hover': {
@@ -1558,7 +1586,8 @@ const SalasPage = () => {
                       </CardContent>
                     </Card>
                   </motion.div>
-                ))}
+                  );
+                })}
                 </Box>
               </Box>
             </Paper>
