@@ -1,4 +1,6 @@
 import { useEffect, useRef } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../config/firebase';
 import { useChat } from '../context/ChatContext';
 import { useNotifications } from '../context/NotificationsContext';
 import { useAuth } from '../context/AuthContext';
@@ -109,9 +111,22 @@ export const useChatNotifications = (isDrawerOpen) => {
         
         // Si no hemos procesado este mensaje antes
         if (!previousMessagesRef.current[messageKey]) {
-          // 🔔 Obtener nombre del remitente REAL (no el primer participante)
+          // 🔔 Obtener nombre del remitente REAL desde Firestore (no cache)
           const senderId = lastMessage.senderId;
-          const senderName = conversation.participantNames?.[senderId] || 'Usuario';
+          
+          // Obtener nombre actualizado directamente desde Firestore
+          let senderName = 'Usuario';
+          try {
+            const userDoc = await getDoc(doc(db, 'users', senderId));
+            if (userDoc.exists()) {
+              const userData = userDoc.data();
+              senderName = userData.name || userData.displayName || userData.nombre || 'Usuario';
+            }
+          } catch (err) {
+            console.warn('Error obteniendo nombre del remitente:', err);
+            // Fallback al nombre cacheado si falla
+            senderName = conversation.participantNames?.[senderId] || 'Usuario';
+          }
 
           // 🛡️ THROTTLING: Evitar spam del mismo remitente (3 segundos mínimo)
           const lastTime = lastNotificationByUser.current[senderId];
